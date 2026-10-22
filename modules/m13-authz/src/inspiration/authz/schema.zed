@@ -1,0 +1,81 @@
+// Inspiration permission schema (SpiceDB). M13 owns it; apply with `inspiration-authz-schema`.
+//
+// Source documents keep the ACL of the system they came from (mirrored by M13 from
+// acl.changed). Spaces hold Inspiration's own roles. Derived knowledge (claims, pages,
+// SOPs) is not stored here: M13 decides it at read time from the documents behind each
+// claim, so it always follows the sources the viewer can read now.
+
+/** A person, mapped from SSO and directory sync. */
+definition user {}
+
+/** An internal service account: pipelines and governance agents. */
+definition service {}
+
+definition group {
+    relation member: user | group#member
+}
+
+/** Departments nest: a department's members include its sub-departments' members. */
+definition department {
+    relation member: user | department#member
+}
+
+definition tenant {
+    relation admin: user
+    relation member: user | group#member | department#member
+    relation service: service
+
+    // Sensitivity clearance above the default "internal" of every member.
+    relation confidential_reader: user | group#member | department#member
+    relation secret_reader: user | group#member
+
+    permission administer = admin
+    permission everyone = member + admin
+    permission system = service
+    permission clear_secret = secret_reader + system
+    permission clear_confidential = confidential_reader + clear_secret
+}
+
+definition space {
+    relation tenant: tenant
+    relation parent: space
+    relation owner: user
+    relation steward: user | group#member
+    relation editor: user | group#member | department#member
+    relation commenter: user | group#member | department#member | tenant#member
+    relation viewer: user | group#member | department#member | tenant#member
+
+    permission system = tenant->system
+    permission admin = owner + tenant->administer + parent->admin
+    permission verify = steward + admin
+    permission publish = steward + admin
+    permission edit = editor + verify + parent->edit
+    permission comment = commenter + edit + parent->comment
+    permission read = viewer + comment + system + parent->read
+    permission discover = read
+}
+
+definition source {
+    relation space: space
+
+    permission system = space->system
+    permission admin = space->admin
+    permission read = space->read
+}
+
+/** A source document. Its ID is "<source id>|<external id>" (see ids.document_object_id). */
+definition document {
+    relation source: source
+    relation parent: document
+    relation owner: user | group#member | department#member
+    relation editor: user | group#member | department#member
+    relation commenter: user | group#member | department#member
+    relation viewer: user | group#member | department#member | tenant#member
+
+    // "Anyone in the company with the link": readable, and reported by the oversharing scan.
+    relation link_viewer: tenant#member
+    relation public_viewer: user:*
+
+    permission read = viewer + commenter + editor + owner + link_viewer + public_viewer + parent->read + source->system
+    permission discover = read
+}

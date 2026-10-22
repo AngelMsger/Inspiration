@@ -9,6 +9,7 @@ dependencies = [
   "inspiration-eventbus",
   "inspiration-gateway",
   "inspiration-store",
+  "inspiration-authz",
 ]
 
 [tool.uv]
@@ -20,6 +21,7 @@ inspiration-kernel = { workspace = true }
 inspiration-eventbus = { workspace = true }
 inspiration-gateway = { workspace = true }
 inspiration-store = { workspace = true }
+inspiration-authz = { workspace = true }
 
 [tool.uv.workspace]
 members = ["contracts/python", "platform/*", "modules/*"]
@@ -63,9 +65,14 @@ mypy_path = [
   "platform/kernel/src",
   "platform/eventbus/src",
   "modules/m10-store/src",
+  "modules/m13-authz/src",
   "modules/m14-gateway/src",
 ]
 exclude = ["node_modules", "/build/"]
+
+[[tool.mypy.overrides]]
+module = ["grpc", "grpc.*", "grpcutil"]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["inspiration.contracts.models"]

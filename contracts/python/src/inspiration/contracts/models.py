@@ -1427,14 +1427,6 @@ class ViewportName(StrEnum):
     desktop = "desktop"
 
 
-class AclChanged(BaseModel):
-    source_id: SourceId
-    external_id: str
-    source_version_id: SourceVersionId | None = None
-    acl_hash: ContentHash
-    fidelity: AclFidelity
-
-
 class AclEntry(BaseModel):
     principal_kind: AclPrincipalKind
     external_id: str | None = None
@@ -2734,6 +2726,24 @@ class ViewTemplate(BaseModel):
     JSON Schema of the payload the view expects in insp.init and insp.data.
     """
     bundle: BlobRef
+
+
+class AclChanged(BaseModel):
+    """
+    Carries the new ACL itself, so M13 can mirror it without calling back into the connector. ACL snapshots are small; a source whose ACLs are too large to inline leaves snapshot out and M13 fetches it from M1.
+
+    """
+
+    source_id: SourceId
+    external_id: str
+    space_id: SpaceId
+    """
+    The space the source is mirrored into.
+    """
+    source_version_id: SourceVersionId | None = None
+    acl_hash: ContentHash
+    fidelity: AclFidelity
+    snapshot: AclSnapshot | None = None
 
 
 class AgentResult(BaseModel):

@@ -122,19 +122,28 @@ $defs:
         type: boolean
 
   AclChanged:
+    description: >
+      Carries the new ACL itself, so M13 can mirror it without calling back into the
+      connector. ACL snapshots are small; a source whose ACLs are too large to inline
+      leaves snapshot out and M13 fetches it from M1.
     type: object
-    required: [source_id, external_id, acl_hash, fidelity]
+    required: [source_id, external_id, space_id, acl_hash, fidelity]
     properties:
       source_id:
         $ref: "common.yaml#/$defs/SourceId"
       external_id:
         type: string
+      space_id:
+        description: The space the source is mirrored into.
+        $ref: "common.yaml#/$defs/SpaceId"
       source_version_id:
         $ref: "common.yaml#/$defs/SourceVersionId"
       acl_hash:
         $ref: "common.yaml#/$defs/ContentHash"
       fidelity:
         $ref: "source.yaml#/$defs/AclFidelity"
+      snapshot:
+        $ref: "authz.yaml#/$defs/AclSnapshot"
 
   ChunksUpdated:
     type: object

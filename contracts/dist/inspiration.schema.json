@@ -377,10 +377,12 @@
   },
   "$defs": {
     "AclChanged": {
+      "description": "Carries the new ACL itself, so M13 can mirror it without calling back into the connector. ACL snapshots are small; a source whose ACLs are too large to inline leaves snapshot out and M13 fetches it from M1.\n",
       "type": "object",
       "required": [
         "source_id",
         "external_id",
+        "space_id",
         "acl_hash",
         "fidelity"
       ],
@@ -391,6 +393,10 @@
         "external_id": {
           "type": "string"
         },
+        "space_id": {
+          "description": "The space the source is mirrored into.",
+          "$ref": "#/$defs/SpaceId"
+        },
         "source_version_id": {
           "$ref": "#/$defs/SourceVersionId"
         },
@@ -399,6 +405,9 @@
         },
         "fidelity": {
           "$ref": "#/$defs/AclFidelity"
+        },
+        "snapshot": {
+          "$ref": "#/$defs/AclSnapshot"
         }
       }
     },
