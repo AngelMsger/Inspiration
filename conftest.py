@@ -50,6 +50,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 def template_database() -> Iterator[str]:
     """A database with every migration applied, used as the template for test databases."""
     import asyncio
+    from concurrent.futures import ThreadPoolExecutor
 
     from inspiration.kernel.migrate import apply
 
@@ -60,8 +61,10 @@ def template_database() -> Iterator[str]:
     with psycopg.connect(url, autocommit=True) as conn:
         for ext in ("vector", "pg_search", "pg_trgm"):
             conn.execute(f"CREATE EXTENSION IF NOT EXISTS {ext}")
-    # A private event loop: the session loop of pytest-asyncio is not running yet here.
-    asyncio.run(apply(url))
+    # A private loop in another thread: this fixture may be first requested from inside a
+    # running event loop (an async fixture calling getfixturevalue).
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pool.submit(asyncio.run, apply(url)).result()
     yield url
     with psycopg.connect(ADMIN_URL, autocommit=True) as conn:
         conn.execute(f"DROP DATABASE IF EXISTS {TEMPLATE_DB} WITH (FORCE)")

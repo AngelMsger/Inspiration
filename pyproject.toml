@@ -8,6 +8,7 @@ dependencies = [
   "inspiration-kernel",
   "inspiration-eventbus",
   "inspiration-gateway",
+  "inspiration-store",
 ]
 
 [tool.uv]
@@ -18,6 +19,7 @@ inspiration-contracts = { workspace = true }
 inspiration-kernel = { workspace = true }
 inspiration-eventbus = { workspace = true }
 inspiration-gateway = { workspace = true }
+inspiration-store = { workspace = true }
 
 [tool.uv.workspace]
 members = ["contracts/python", "platform/*", "modules/*"]
@@ -56,7 +58,13 @@ strict = true
 plugins = ["pydantic.mypy"]
 namespace_packages = true
 explicit_package_bases = true
-mypy_path = ["contracts/python/src", "platform/kernel/src", "platform/eventbus/src", "modules/m14-gateway/src"]
+mypy_path = [
+  "contracts/python/src",
+  "platform/kernel/src",
+  "platform/eventbus/src",
+  "modules/m10-store/src",
+  "modules/m14-gateway/src",
+]
 exclude = ["node_modules", "/build/"]
 
 [[tool.mypy.overrides]]

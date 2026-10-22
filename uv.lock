@@ -16,6 +16,7 @@ members = [
     "inspiration-eventbus",
     "inspiration-gateway",
     "inspiration-kernel",
+    "inspiration-store",
     "inspiration-workspace",
 ]
 
@@ -379,6 +380,25 @@ requires-dist = [
 ]
 
 [[package]]
+name = "inspiration-store"
+version = "0.1.0"
+source = { editable = "modules/m10-store" }
+dependencies = [
+    { name = "inspiration-contracts" },
+    { name = "inspiration-eventbus" },
+    { name = "inspiration-kernel" },
+    { name = "psycopg", extra = ["binary", "pool"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "inspiration-contracts", editable = "contracts/python" },
+    { name = "inspiration-eventbus", editable = "platform/eventbus" },
+    { name = "inspiration-kernel", editable = "platform/kernel" },
+    { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.2" },
+]
+
+[[package]]
 name = "inspiration-workspace"
 version = "0.0.0"
 source = { virtual = "." }
@@ -387,6 +407,7 @@ dependencies = [
     { name = "inspiration-eventbus" },
     { name = "inspiration-gateway" },
     { name = "inspiration-kernel" },
+    { name = "inspiration-store" },
 ]
 
 [package.dev-dependencies]
@@ -408,6 +429,7 @@ requires-dist = [
     { name = "inspiration-eventbus", editable = "platform/eventbus" },
     { name = "inspiration-gateway", editable = "modules/m14-gateway" },
     { name = "inspiration-kernel", editable = "platform/kernel" },
+    { name = "inspiration-store", editable = "modules/m10-store" },
 ]
 
 [package.metadata.requires-dev]

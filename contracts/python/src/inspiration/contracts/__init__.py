@@ -4,6 +4,7 @@ models      pydantic models generated from contracts/schema (do not edit)
 events      event catalogue generated from contracts/schema/events.yaml (do not edit)
 envelope    new_event / payload_of helpers
 ids         new_id, stable_id, content_hash
+labels      sensitivity label order
 interfaces  Protocols for modules and plugins
 """
 

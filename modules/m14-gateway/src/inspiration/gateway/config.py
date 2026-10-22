@@ -43,21 +43,6 @@ from pydantic import BaseModel, Field
 
 from inspiration.contracts.models import BudgetPeriod, GatewayOperation, ModelTier, SensitivityLabel
 
-SENSITIVITY_ORDER: dict[SensitivityLabel, int] = {
-    SensitivityLabel.public: 0,
-    SensitivityLabel.internal: 1,
-    SensitivityLabel.confidential: 2,
-    SensitivityLabel.secret: 3,
-}
-
-
-def allows(provider_max: SensitivityLabel, content: SensitivityLabel) -> bool:
-    return SENSITIVITY_ORDER[content] <= SENSITIVITY_ORDER[provider_max]
-
-
-def max_label(*labels: SensitivityLabel) -> SensitivityLabel:
-    return max(labels, key=lambda label: SENSITIVITY_ORDER[label])
-
 
 class Price(BaseModel):
     """Per million tokens, in the gateway currency."""

@@ -1289,7 +1289,7 @@ export interface ClaimsData {
   query?: ClaimQuery;
   refresh?: RefreshPolicy;
   /**
-   * Columns to project. Field names map to claim attributes: subject, predicate, value_number, value_unit, valid_from, valid_to, or a qualifier name.
+   * Columns to project. Field names map to claim attributes: claim_id, statement, subject, predicate, value_number, value_text, value_unit, value_min, value_max, currency, value_date, valid_from, valid_to, confidence, status, knowledge_class, recorded_at. Other fields resolve to null.
    *
    *
    * @minItems 1

@@ -24,6 +24,7 @@ from jsonschema import Draft202012Validator
 
 from inspiration.contracts import new_id
 from inspiration.contracts.interfaces import ModelGateway, Tool
+from inspiration.contracts.labels import max_label
 from inspiration.contracts.models import (
     AgentApproval,
     AgentResult,
@@ -42,7 +43,6 @@ from inspiration.contracts.models import (
     ToolSpec,
 )
 
-from .config import max_label
 from .errors import GatewayException
 from .prompts import PromptRegistry
 from .runs import RunStore

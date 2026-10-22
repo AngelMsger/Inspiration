@@ -20,6 +20,7 @@ from typing import Any
 
 from inspiration.contracts import new_id
 from inspiration.contracts.interfaces import BlobStore
+from inspiration.contracts.labels import allows
 from inspiration.contracts.models import (
     ChatMessage,
     ChatRole,
@@ -44,7 +45,7 @@ from inspiration.contracts.models import (
 from inspiration.kernel.plugins import registry
 
 from .cache import MemoryCache, ResponseCache
-from .config import GatewayConfig, ModelConfig, ProviderConfig, allows
+from .config import GatewayConfig, ModelConfig, ProviderConfig
 from .errors import GatewayException, ProviderError
 from .metering import MemoryUsage, UsageSink, period_start
 from .providers.base import CompletionParams, ModelProvider
