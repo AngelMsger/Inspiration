@@ -1,0 +1,1215 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: page.yaml
+title: Pages (PageSpec)
+description: >
+  The page structure that M8 emits, M9 anchors comments to, M11 indexes and M16 renders.
+  A page is a flat list of typed blocks. Text blocks bind every sentence to claims, so
+  citations, freshness and permissions are resolved per sentence at read time.
+  Interactive views keep code (a versioned, approved template) separate from data
+  (refreshed on every rebuild and filtered by the reader's permissions). See
+  docs/pagespec.md for the mapping to Claude Artifacts.
+
+$defs:
+  BlockKey:
+    description: >
+      Stable key of a block within a page, built from the section path and the block's
+      role, for example "approval-limits/p2". It survives re-renders while the block's
+      meaning is unchanged, and is what comments and overrides anchor to.
+    type: string
+    pattern: "^[a-z0-9][a-z0-9._/-]{0,199}$"
+
+  BlockOrigin:
+    description: generated = written by M8; override = a pinned human override; human = added by a person.
+    type: string
+    enum: [generated, override, human]
+
+  SentenceRole:
+    description: >
+      claim = asserts something and must cite at least one claim; connective = transition
+      text with no factual content, which carries no citations.
+    type: string
+    enum: [claim, connective]
+
+  Sentence:
+    type: object
+    required: [text, claim_ids]
+    properties:
+      text:
+        $ref: "common.yaml#/$defs/InlineMarkdown"
+      claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      role:
+        $ref: "#/$defs/SentenceRole"
+
+  # ------------------------------------------------------------ text blocks
+  HeadingBlock:
+    type: object
+    required: [key, type, level, text]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      type:
+        const: heading
+      origin:
+        $ref: "#/$defs/BlockOrigin"
+      override_id:
+        $ref: "common.yaml#/$defs/OverrideId"
+      level:
+        type: integer
+        minimum: 1
+        maximum: 4
+      text:
+        $ref: "common.yaml#/$defs/InlineMarkdown"
+
+  ParagraphBlock:
+    type: object
+    required: [key, type, sentences]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      type:
+        const: paragraph
+      origin:
+        $ref: "#/$defs/BlockOrigin"
+      override_id:
+        $ref: "common.yaml#/$defs/OverrideId"
+      sentences:
+        type: array
+        minItems: 1
+        items:
+          $ref: "#/$defs/Sentence"
+
+  ListItem:
+    type: object
+    required: [sentences]
+    properties:
+      sentences:
+        type: array
+        minItems: 1
+        items:
+          $ref: "#/$defs/Sentence"
+      checked:
+        type: boolean
+      children:
+        type: array
+        items:
+          $ref: "#/$defs/ListItem"
+
+  ListStyle:
+    type: string
+    enum: [bullet, ordered, check]
+
+  ListBlock:
+    type: object
+    required: [key, type, style, items]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      type:
+        const: list
+      origin:
+        $ref: "#/$defs/BlockOrigin"
+      override_id:
+        $ref: "common.yaml#/$defs/OverrideId"
+      style:
+        $ref: "#/$defs/ListStyle"
+      items:
+        type: array
+        minItems: 1
+        items:
+          $ref: "#/$defs/ListItem"
+
+  CalloutTone:
+    type: string
+    enum: [info, tip, warning, danger, success]
+
+  CalloutBlock:
+    type: object
+    required: [key, type, tone, sentences]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      type:
+        const: callout
+      origin:
+        $ref: "#/$defs/BlockOrigin"
+      override_id:
+        $ref: "common.yaml#/$defs/OverrideId"
+      tone:
+        $ref: "#/$defs/CalloutTone"
+      title:
+        $ref: "common.yaml#/$defs/InlineMarkdown"
+      sentences:
+        type: array
+        minItems: 1
+        items:
+          $ref: "#/$defs/Sentence"
+
+  QuoteBlock:
+    description: A verbatim passage from a source, shown with its citation.
+    type: object
+    required: [key, type, text, span_id, source_version_id]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      type:
+        const: quote
+      origin:
+        $ref: "#/$defs/BlockOrigin"
+      override_id:
+        $ref: "common.yaml#/$defs/OverrideId"
+      text:
+        type: string
+      span_id:
+        $ref: "common.yaml#/$defs/SpanId"
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+
+  ColumnAlign:
+    type: string
+    enum: [left, center, right]
+
+  TableColumn:
+    type: object
+    required: [key, header]
+    properties:
+      key:
+        type: string
+      header:
+        $ref: "common.yaml#/$defs/InlineMarkdown"
+      align:
+        $ref: "#/$defs/ColumnAlign"
+      unit:
+        type: string
+
+  TableCell:
+    type: object
+    required: [text]
+    properties:
+      text:
+        $ref: "common.yaml#/$defs/InlineMarkdown"
+      claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+
+  TableRow:
+    type: object
+    required: [key, cells]
+    properties:
+      key:
+        description: Stable row key, so comments can anchor to a row.
+        type: string
+      cells:
+        description: One cell per column, in column order.
+        type: array
+        items:
+          $ref: "#/$defs/TableCell"
+
+  TableBlock:
+    type: object
+    required: [key, type, columns, rows]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      type:
+        const: table
+      origin:
+        $ref: "#/$defs/BlockOrigin"
+      override_id:
+        $ref: "common.yaml#/$defs/OverrideId"
+      caption:
+        $ref: "common.yaml#/$defs/InlineMarkdown"
+      columns:
+        type: array
+        minItems: 1
+        items:
+          $ref: "#/$defs/TableColumn"
+      rows:
+        type: array
+        items:
+          $ref: "#/$defs/TableRow"
+
+  CodeBlock:
+    type: object
+    required: [key, type, language, code]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      type:
+        const: code
+      origin:
+        $ref: "#/$defs/BlockOrigin"
+      override_id:
+        $ref: "common.yaml#/$defs/OverrideId"
+      language:
+        type: string
+      code:
+        type: string
+      caption:
+        $ref: "common.yaml#/$defs/InlineMarkdown"
+      claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+
+  MathBlock:
+    type: object
+    required: [key, type, tex]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      type:
+        const: math
+      origin:
+        $ref: "#/$defs/BlockOrigin"
+      override_id:
+        $ref: "common.yaml#/$defs/OverrideId"
+      tex:
+        type: string
+      claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+
+  ImageBlock:
+    type: object
+    required: [key, type, image, alt]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      type:
+        const: image
+      origin:
+        $ref: "#/$defs/BlockOrigin"
+      override_id:
+        $ref: "common.yaml#/$defs/OverrideId"
+      image:
+        $ref: "common.yaml#/$defs/BlobRef"
+      alt:
+        type: string
+      caption:
+        $ref: "common.yaml#/$defs/InlineMarkdown"
+      span_id:
+        description: Set when the image comes from a source document.
+        $ref: "common.yaml#/$defs/SpanId"
+
+  DividerBlock:
+    type: object
+    required: [key, type]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      type:
+        const: divider
+      origin:
+        $ref: "#/$defs/BlockOrigin"
+
+  # ------------------------------------------------------------ diagrams and charts
+  DiagramFormat:
+    type: string
+    enum: [mermaid, echarts, graph]
+
+  GraphNode:
+    type: object
+    required: [id, label]
+    properties:
+      id:
+        type: string
+      label:
+        type: string
+      kind:
+        type: string
+      unit_id:
+        $ref: "common.yaml#/$defs/UnitId"
+
+  GraphEdge:
+    type: object
+    required: [from_id, to_id]
+    properties:
+      from_id:
+        type: string
+      to_id:
+        type: string
+      label:
+        type: string
+      claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+
+  DiagramSpec:
+    description: >
+      A diagram compiled from structure (an SOP, an entity neighbourhood, a timeline) by a
+      DiagramCompiler plugin. The LLM may choose what to show but never draws edges itself.
+    type: object
+    required: [kind, format, compiler]
+    properties:
+      kind:
+        description: Compiler kind, for example sop_flow, entity_graph, timeline, org_chart, approval_map.
+        type: string
+        pattern: "^[a-z][a-z0-9_]*$"
+      format:
+        $ref: "#/$defs/DiagramFormat"
+      source:
+        description: Diagram text for format "mermaid".
+        type: string
+      option:
+        description: ECharts option object for format "echarts".
+        type: object
+      nodes:
+        description: Nodes for format "graph", rendered by the client's own graph view.
+        type: array
+        items:
+          $ref: "#/$defs/GraphNode"
+      edges:
+        type: array
+        items:
+          $ref: "#/$defs/GraphEdge"
+      structure_id:
+        description: The unit the diagram was compiled from.
+        $ref: "common.yaml#/$defs/UnitId"
+      compiler:
+        $ref: "common.yaml#/$defs/ProducerInfo"
+
+  DiagramBlock:
+    type: object
+    required: [key, type, diagram]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      type:
+        const: diagram
+      origin:
+        $ref: "#/$defs/BlockOrigin"
+      override_id:
+        $ref: "common.yaml#/$defs/OverrideId"
+      diagram:
+        $ref: "#/$defs/DiagramSpec"
+      caption:
+        $ref: "common.yaml#/$defs/InlineMarkdown"
+      claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+
+  FieldType:
+    type: string
+    enum: [quantitative, temporal, nominal, ordinal]
+
+  DataColumn:
+    type: object
+    required: [field, field_type]
+    properties:
+      field:
+        type: string
+        pattern: "^[a-z][a-z0-9_]*$"
+      title:
+        type: string
+      field_type:
+        $ref: "#/$defs/FieldType"
+      unit:
+        type: string
+      format:
+        description: Display format hint, for example ",.0f" or "YYYY-MM".
+        type: string
+
+  RefreshMode:
+    description: >
+      on_rebuild = refreshed when the page rebuilds; scheduled = also on a schedule;
+      on_view = fetched when a reader opens the page, within max_age.
+    type: string
+    enum: [on_rebuild, scheduled, on_view]
+
+  RefreshPolicy:
+    type: object
+    required: [mode]
+    properties:
+      mode:
+        $ref: "#/$defs/RefreshMode"
+      schedule:
+        description: Cron expression for mode "scheduled".
+        type: string
+      max_age:
+        $ref: "common.yaml#/$defs/Duration"
+
+  InlineData:
+    description: Rows embedded in the page. Each row may cite claims.
+    type: object
+    required: [kind, columns, rows]
+    properties:
+      kind:
+        const: inline
+      columns:
+        type: array
+        minItems: 1
+        items:
+          $ref: "#/$defs/DataColumn"
+      rows:
+        description: One array of values per row, in column order.
+        type: array
+        items:
+          type: array
+      row_claim_ids:
+        description: Claims behind each row, parallel to rows. Rows a reader cannot see are dropped.
+        type: array
+        items:
+          type: array
+          items:
+            $ref: "common.yaml#/$defs/ClaimId"
+
+  ClaimsData:
+    description: >
+      Rows built from claims with normalized values, one row per claim. Either a fixed
+      list of claims or a claim query that M10 runs at refresh time, so new claims appear.
+      Claims the reader cannot see are dropped.
+    type: object
+    required: [kind, columns]
+    properties:
+      kind:
+        const: claims
+      claim_ids:
+        type: array
+        minItems: 1
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      query:
+        $ref: "knowledge.yaml#/$defs/ClaimQuery"
+      refresh:
+        $ref: "#/$defs/RefreshPolicy"
+      columns:
+        description: >
+          Columns to project. Field names map to claim attributes: subject, predicate,
+          value_number, value_unit, valid_from, valid_to, or a qualifier name.
+        type: array
+        minItems: 1
+        items:
+          $ref: "#/$defs/DataColumn"
+
+  QueryData:
+    description: >
+      Rows from a registered query against a connected system (never free SQL from a page).
+      The provider runs it with the reader's or the page's permissions, and the result is
+      cached as a snapshot.
+    type: object
+    required: [kind, provider, query_id, columns, refresh]
+    properties:
+      kind:
+        const: query
+      provider:
+        description: Data provider plugin, for example "jiandaoyun.records" or "sql.readonly".
+        $ref: "common.yaml#/$defs/PluginName"
+      query_id:
+        type: string
+      params:
+        type: object
+      columns:
+        type: array
+        minItems: 1
+        items:
+          $ref: "#/$defs/DataColumn"
+      refresh:
+        $ref: "#/$defs/RefreshPolicy"
+      snapshot_at:
+        $ref: "common.yaml#/$defs/Instant"
+      snapshot_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+
+  DataRef:
+    description: Where a chart's or view's data comes from.
+    oneOf:
+      - $ref: "#/$defs/InlineData"
+      - $ref: "#/$defs/ClaimsData"
+      - $ref: "#/$defs/QueryData"
+
+  DataTable:
+    description: >
+      A resolved DataRef, before per-reader filtering. The serving path drops rows whose
+      claims the reader cannot see, then injects the rest into the chart or view.
+    type: object
+    required: [columns, rows, resolved_at]
+    properties:
+      columns:
+        type: array
+        items:
+          $ref: "#/$defs/DataColumn"
+      rows:
+        type: array
+        items:
+          type: array
+      row_claim_ids:
+        type: array
+        items:
+          type: array
+          items:
+            $ref: "common.yaml#/$defs/ClaimId"
+      resolved_at:
+        $ref: "common.yaml#/$defs/Instant"
+      snapshot_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+
+  ChartKind:
+    type: string
+    enum: [bar, line, area, pie, scatter, heatmap, funnel, radar, gauge, sankey, treemap]
+
+  ChartEncoding:
+    description: Maps data fields to visual channels.
+    type: object
+    properties:
+      x:
+        type: string
+      y:
+        type: array
+        items:
+          type: string
+      series:
+        type: string
+      value:
+        type: string
+      label:
+        type: string
+      size:
+        type: string
+
+  ChartSpec:
+    description: >
+      A data-bound chart. The renderer shows values on hover and links each point to the
+      claims or query rows behind it.
+    type: object
+    required: [kind, encoding]
+    properties:
+      kind:
+        $ref: "#/$defs/ChartKind"
+      title:
+        type: string
+      encoding:
+        $ref: "#/$defs/ChartEncoding"
+      stacked:
+        type: boolean
+      unit:
+        type: string
+      echarts_overrides:
+        description: Optional ECharts option fragment merged over the generated option.
+        type: object
+
+  ChartBlock:
+    type: object
+    required: [key, type, chart, data]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      type:
+        const: chart
+      origin:
+        $ref: "#/$defs/BlockOrigin"
+      override_id:
+        $ref: "common.yaml#/$defs/OverrideId"
+      chart:
+        $ref: "#/$defs/ChartSpec"
+      data:
+        $ref: "#/$defs/DataRef"
+      caption:
+        $ref: "common.yaml#/$defs/InlineMarkdown"
+      claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+
+  # ------------------------------------------------------------ interactive views
+  # Views separate code from data. A view version (ViewSpec) is code: a template from the
+  # registry or generated code. It changes rarely, must pass M17's render check and needs
+  # a person's approval. The data (DataRef) is refreshed on every rebuild and filtered by
+  # the reader's permissions before it is injected through postMessage.
+  ViewCapability:
+    description: >
+      What a view may ask its host to do through postMessage. navigate = open a unit;
+      ask = ask a grounded question answered with the viewer's permissions; comment =
+      start a comment on the page; download = offer a file the view built; fullscreen.
+      A view never gets network access.
+    type: string
+    enum: [navigate, ask, comment, download, fullscreen]
+
+  ViewTemplate:
+    description: >
+      A reusable view shipped with the product (SOP step navigator, decision tree,
+      comparison matrix...). The bundle is one HTML file with inline CSS and JS.
+    type: object
+    required: [id, version, title, capabilities, data_schema, bundle]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/ViewTemplateId"
+      version:
+        type: string
+        pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+      title:
+        type: string
+      description:
+        type: string
+      capabilities:
+        type: array
+        items:
+          $ref: "#/$defs/ViewCapability"
+      data_schema:
+        description: JSON Schema of the payload the view expects in insp.init and insp.data.
+        type: object
+      bundle:
+        $ref: "common.yaml#/$defs/BlobRef"
+
+  ViewStatus:
+    description: draft = created; checked = passed the render check; approved = a person approved it; rejected.
+    type: string
+    enum: [draft, checked, approved, rejected]
+
+  ViewportName:
+    type: string
+    enum: [phone, desktop]
+
+  ViewTheme:
+    type: string
+    enum: [light, dark]
+
+  RenderCheckName:
+    type: string
+    enum: [loads, console_errors, horizontal_overflow, theme_contrast, empty_data, large_data, protocol]
+
+  RenderCheck:
+    type: object
+    required: [name, passed]
+    properties:
+      name:
+        $ref: "#/$defs/RenderCheckName"
+      passed:
+        type: boolean
+      viewport:
+        $ref: "#/$defs/ViewportName"
+      theme:
+        $ref: "#/$defs/ViewTheme"
+      detail:
+        type: string
+
+  RenderScreenshot:
+    type: object
+    required: [viewport, theme, data_case, image]
+    properties:
+      viewport:
+        $ref: "#/$defs/ViewportName"
+      theme:
+        $ref: "#/$defs/ViewTheme"
+      data_case:
+        type: string
+        enum: [typical, empty, large]
+      image:
+        $ref: "common.yaml#/$defs/BlobRef"
+
+  RenderReport:
+    description: >
+      M17's headless Chromium check, attached to the approval todo so the approver sees the
+      real render: no console errors, no horizontal overflow at phone or desktop width,
+      readable in both themes, no crash on empty or very large data.
+    type: object
+    required: [checked_at, passed, checks]
+    properties:
+      checked_at:
+        $ref: "common.yaml#/$defs/Instant"
+      passed:
+        type: boolean
+      checks:
+        type: array
+        items:
+          $ref: "#/$defs/RenderCheck"
+      screenshots:
+        type: array
+        items:
+          $ref: "#/$defs/RenderScreenshot"
+      checker:
+        $ref: "common.yaml#/$defs/ProducerInfo"
+
+  ViewSpec:
+    description: >
+      One version of one view: either a template plus configuration, or generated or
+      hand-written code. Only approved versions are served to readers; until then the
+      block's fallback is shown.
+    type: object
+    required: [view_id, version, tenant_id, title, data_schema, capabilities, status, created_by, created_at]
+    properties:
+      view_id:
+        $ref: "common.yaml#/$defs/ViewId"
+      version:
+        type: string
+        pattern: "^[0-9]+(\\.[0-9]+){0,2}$"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      title:
+        type: string
+      template_id:
+        description: Set when the view uses a registry template.
+        $ref: "common.yaml#/$defs/ViewTemplateId"
+      template_version:
+        type: string
+      template_config:
+        description: Template options, validated by the template.
+        type: object
+      code:
+        description: Single-file HTML bundle, for generated or hand-written views.
+        $ref: "common.yaml#/$defs/BlobRef"
+      data_schema:
+        type: object
+      capabilities:
+        type: array
+        items:
+          $ref: "#/$defs/ViewCapability"
+      status:
+        $ref: "#/$defs/ViewStatus"
+      render_report:
+        $ref: "#/$defs/RenderReport"
+      approval_todo_id:
+        $ref: "common.yaml#/$defs/TodoId"
+      created_by:
+        description: The person or the agent (the view generator) that wrote this version.
+        $ref: "common.yaml#/$defs/PrincipalId"
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"
+      decided_by:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      decided_at:
+        $ref: "common.yaml#/$defs/Instant"
+      rejection_reason:
+        type: string
+
+  ViewBlock:
+    type: object
+    required: [key, type, view_id, view_version, data, fallback]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      type:
+        const: view
+      origin:
+        $ref: "#/$defs/BlockOrigin"
+      override_id:
+        $ref: "common.yaml#/$defs/OverrideId"
+      view_id:
+        $ref: "common.yaml#/$defs/ViewId"
+      view_version:
+        type: string
+      data:
+        $ref: "#/$defs/DataRef"
+      fallback:
+        description: >
+          Static block (usually a table or a chart) shown until the view version is
+          approved, and in export, print and clients that cannot run views. Never a view.
+        $ref: "#/$defs/Block"
+      height_hint:
+        type: integer
+        minimum: 80
+        maximum: 4000
+      claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+
+  EmbedDisplay:
+    type: string
+    enum: [card, full, steps, flow]
+
+  EmbedBlock:
+    description: Transcludes another unit (an SOP, an entity card, a knowledge model) by reference.
+    type: object
+    required: [key, type, unit_id, display]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      type:
+        const: embed
+      origin:
+        $ref: "#/$defs/BlockOrigin"
+      override_id:
+        $ref: "common.yaml#/$defs/OverrideId"
+      unit_id:
+        $ref: "common.yaml#/$defs/UnitId"
+      display:
+        $ref: "#/$defs/EmbedDisplay"
+      claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+
+  Block:
+    oneOf:
+      - $ref: "#/$defs/HeadingBlock"
+      - $ref: "#/$defs/ParagraphBlock"
+      - $ref: "#/$defs/ListBlock"
+      - $ref: "#/$defs/CalloutBlock"
+      - $ref: "#/$defs/QuoteBlock"
+      - $ref: "#/$defs/TableBlock"
+      - $ref: "#/$defs/CodeBlock"
+      - $ref: "#/$defs/MathBlock"
+      - $ref: "#/$defs/ImageBlock"
+      - $ref: "#/$defs/DividerBlock"
+      - $ref: "#/$defs/DiagramBlock"
+      - $ref: "#/$defs/ChartBlock"
+      - $ref: "#/$defs/ViewBlock"
+      - $ref: "#/$defs/EmbedBlock"
+
+  # ------------------------------------------------------------ page
+  PageKind:
+    type: string
+    enum: [topic, sop, entity, policy, faq, report, index, custom]
+
+  PageSpec:
+    type: object
+    required:
+      - page_id
+      - tenant_id
+      - space_id
+      - version
+      - inputs_hash
+      - title
+      - kind
+      - locale
+      - sensitivity
+      - blocks
+      - renderer
+      - rendered_at
+    properties:
+      page_id:
+        $ref: "common.yaml#/$defs/PageId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      version:
+        description: Increases by one each time the rendered content changes.
+        type: integer
+        minimum: 1
+      inputs_hash:
+        description: From the freshness engine. Same inputs, same hash, no re-render.
+        $ref: "common.yaml#/$defs/ContentHash"
+      title:
+        type: string
+      summary:
+        description: One or two sentences, used in outlines and search cards.
+        type: string
+      kind:
+        $ref: "#/$defs/PageKind"
+      taxonomy_key:
+        description: Stable key of the page's node in the document tree.
+        type: string
+      locale:
+        $ref: "common.yaml#/$defs/Locale"
+      sensitivity:
+        description: The highest label among the page's sources.
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      blocks:
+        type: array
+        items:
+          $ref: "#/$defs/Block"
+      renderer:
+        $ref: "common.yaml#/$defs/ProducerInfo"
+      rendered_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  SnapshotCauseKind:
+    type: string
+    enum:
+      - initial
+      - source_change
+      - comment
+      - override
+      - proposal_accepted
+      - steward_action
+      - prompt_upgrade
+      - model_upgrade
+      - restore
+      - manual
+
+  SnapshotCause:
+    type: object
+    required: [kind]
+    properties:
+      kind:
+        $ref: "#/$defs/SnapshotCauseKind"
+      event_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/EventId"
+      unit_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/UnitId"
+      actor_id:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      restored_from_version:
+        type: integer
+        minimum: 1
+
+  PageSnapshot:
+    description: >
+      An immutable copy of one page version. LLM regeneration cannot reproduce an old
+      page, so every rendered version is stored. Restoring an old version writes a new
+      version whose blocks are pinned as overrides.
+    type: object
+    required: [page_id, version, spec, cause, created_at]
+    properties:
+      page_id:
+        $ref: "common.yaml#/$defs/PageId"
+      version:
+        type: integer
+        minimum: 1
+      spec:
+        $ref: "#/$defs/PageSpec"
+      cause:
+        $ref: "#/$defs/SnapshotCause"
+      change_summary:
+        description: One-line, human-readable summary of what changed.
+        type: string
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  PageVersionInfo:
+    description: One entry of a page's history, without the content.
+    type: object
+    required: [page_id, version, inputs_hash, cause, created_at]
+    properties:
+      page_id:
+        $ref: "common.yaml#/$defs/PageId"
+      version:
+        type: integer
+        minimum: 1
+      inputs_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+      cause:
+        $ref: "#/$defs/SnapshotCause"
+      change_summary:
+        type: string
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  BlockChangeKind:
+    type: string
+    enum: [added, removed, modified, moved]
+
+  BlockChange:
+    type: object
+    required: [key, change]
+    properties:
+      key:
+        $ref: "#/$defs/BlockKey"
+      change:
+        $ref: "#/$defs/BlockChangeKind"
+      before:
+        $ref: "#/$defs/Block"
+      after:
+        $ref: "#/$defs/Block"
+      claims_added:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      claims_removed:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+
+  PageDiff:
+    description: What changed between two versions, for "what changed since you last read".
+    type: object
+    required: [page_id, from_version, to_version, changes]
+    properties:
+      page_id:
+        $ref: "common.yaml#/$defs/PageId"
+      from_version:
+        type: integer
+        minimum: 1
+      to_version:
+        type: integer
+        minimum: 1
+      summary:
+        type: string
+      changes:
+        type: array
+        items:
+          $ref: "#/$defs/BlockChange"
+
+  TaxonomyNode:
+    description: A node in the document tree. Keys are stable across re-clustering.
+    type: object
+    required: [key, tenant_id, space_id, title, ordinal]
+    properties:
+      key:
+        type: string
+        pattern: "^[a-z0-9][a-z0-9._/-]{0,199}$"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      title:
+        type: string
+      summary:
+        type: string
+      parent_key:
+        type: string
+      ordinal:
+        type: integer
+        minimum: 0
+      page_id:
+        $ref: "common.yaml#/$defs/PageId"
+
+  # ------------------------------------------------------------ sandbox protocol
+  # Messages between the host page and a sandboxed view, sent with postMessage.
+  # The host validates every guest message against ViewGuestMessage and the template's
+  # declared capabilities before acting on it.
+  ViewInitMessage:
+    type: object
+    required: [type, protocol, view_id, view_version, data, theme, locale]
+    properties:
+      type:
+        const: insp.init
+      protocol:
+        const: 1
+      view_id:
+        $ref: "common.yaml#/$defs/ViewId"
+      view_version:
+        type: string
+      data:
+        description: Payload matching the view's data_schema, already filtered for the viewer.
+      theme:
+        $ref: "#/$defs/ViewTheme"
+      locale:
+        $ref: "common.yaml#/$defs/Locale"
+
+  ViewDataMessage:
+    type: object
+    required: [type, data]
+    properties:
+      type:
+        const: insp.data
+      data: {}
+
+  ViewThemeMessage:
+    type: object
+    required: [type, theme]
+    properties:
+      type:
+        const: insp.theme
+      theme:
+        $ref: "#/$defs/ViewTheme"
+
+  ViewAnswerMessage:
+    type: object
+    required: [type, request_id, ok]
+    properties:
+      type:
+        const: insp.answer
+      request_id:
+        type: string
+      ok:
+        type: boolean
+      text:
+        $ref: "common.yaml#/$defs/Markdown"
+      error:
+        type: string
+
+  ViewHostMessage:
+    oneOf:
+      - $ref: "#/$defs/ViewInitMessage"
+      - $ref: "#/$defs/ViewDataMessage"
+      - $ref: "#/$defs/ViewThemeMessage"
+      - $ref: "#/$defs/ViewAnswerMessage"
+
+  ViewReadyMessage:
+    type: object
+    required: [type, protocol]
+    properties:
+      type:
+        const: insp.ready
+      protocol:
+        const: 1
+
+  ViewResizeMessage:
+    type: object
+    required: [type, height]
+    properties:
+      type:
+        const: insp.resize
+      height:
+        type: integer
+        minimum: 0
+        maximum: 20000
+
+  ViewNavigateMessage:
+    type: object
+    required: [type, unit_id]
+    properties:
+      type:
+        const: insp.navigate
+      unit_id:
+        $ref: "common.yaml#/$defs/UnitId"
+      block_key:
+        $ref: "#/$defs/BlockKey"
+
+  ViewAskMessage:
+    type: object
+    required: [type, request_id, question]
+    properties:
+      type:
+        const: insp.ask
+      request_id:
+        type: string
+        maxLength: 64
+      question:
+        type: string
+        maxLength: 2000
+
+  ViewCommentMessage:
+    type: object
+    required: [type, body]
+    properties:
+      type:
+        const: insp.comment
+      body:
+        type: string
+        maxLength: 4000
+      quote:
+        type: string
+        maxLength: 1000
+
+  ViewDownloadMessage:
+    type: object
+    required: [type, filename, mime_type, content_base64]
+    properties:
+      type:
+        const: insp.download
+      filename:
+        type: string
+        maxLength: 200
+      mime_type:
+        type: string
+      content_base64:
+        type: string
+        maxLength: 14000000
+
+  ViewErrorMessage:
+    type: object
+    required: [type, message]
+    properties:
+      type:
+        const: insp.error
+      message:
+        type: string
+        maxLength: 2000
+
+  ViewGuestMessage:
+    oneOf:
+      - $ref: "#/$defs/ViewReadyMessage"
+      - $ref: "#/$defs/ViewResizeMessage"
+      - $ref: "#/$defs/ViewNavigateMessage"
+      - $ref: "#/$defs/ViewAskMessage"
+      - $ref: "#/$defs/ViewCommentMessage"
+      - $ref: "#/$defs/ViewDownloadMessage"
+      - $ref: "#/$defs/ViewErrorMessage"

@@ -1,0 +1,259 @@
+# Module manifest: the single source of truth for who owns what, which events each module
+# publishes and consumes, and which synchronous APIs it calls. tests/test_manifest.py checks
+# it against the event catalogue in contracts/schema/events.yaml.
+#
+# status: foundation = built in the foundations phase; planned = not started;
+#         in_progress = someone is building it (put your branch in `owner`).
+# calls:  the only synchronous dependencies allowed: store (M10), authz (M13),
+#         models (M14), retriever (M11), blobs (platform blob store).
+
+modules:
+  - id: m1
+    name: connectors
+    title: Connector SDK and connectors
+    plane: ingest
+    package: null
+    status: planned
+    phase: prototype
+    size_pw: 4
+    owns: Source auth, enumeration, fetch, ACL read, webhooks; Feishu docs, wiki, approval and upload connectors; the CLI
+    plugins: [connectors]
+    publishes: [source.changed]
+    subscribes: []
+    calls: [blobs]
+
+  - id: m2
+    name: sync
+    title: Sync orchestrator
+    plane: ingest
+    package: null
+    status: planned
+    phase: prototype
+    size_pw: 2
+    owns: Cursors, 15-minute polls, nightly reconcile, rate budgets, subscription upkeep, debounce
+    plugins: []
+    publishes: [source.changed, document.fetched, acl.changed]
+    subscribes: [source.changed]
+    calls: [store, blobs]
+
+  - id: m3
+    name: parsers
+    title: Parser router
+    plane: ingest
+    package: null
+    status: planned
+    phase: prototype
+    size_pw: 2
+    owns: Stateless Office, PDF, scan and Excel parsing into normalized blocks with anchors; called by M4, subscribes to nothing
+    plugins: [parsers]
+    publishes: []
+    subscribes: []
+    calls: [models, blobs]
+
+  - id: m4
+    name: normalizer
+    title: Normalizer and indexer
+    plane: ingest
+    package: null
+    status: planned
+    phase: prototype
+    size_pw: 3
+    owns: Canonical hashing, block diff, dedup and version chains, chunking, contextual headers, embeddings
+    plugins: []
+    publishes: [chunks.updated]
+    subscribes: [document.fetched]
+    calls: [store, models, blobs]
+
+  - id: m5
+    name: extractor
+    title: Knowledge extractor
+    plane: compile
+    package: null
+    status: planned
+    phase: prototype
+    size_pw: 5
+    owns: Claims with evidence, entity resolution, SOPs from documents and approval mining, knowledge models
+    plugins: [extractors]
+    publishes: [claims.updated]
+    subscribes: [chunks.updated, artifact.dirty, comment.created]
+    calls: [store, models]
+
+  - id: m6
+    name: freshness
+    title: Freshness engine
+    plane: govern
+    package: null
+    status: planned
+    phase: prototype
+    size_pw: 3
+    owns: Dependency graph, dirty marking with early cutoff, staleness scores, TTL and assumption schedulers
+    plugins: []
+    publishes: [artifact.dirty, review.due, todo.created]
+    subscribes: [chunks.updated, claims.updated]
+    calls: [store]
+
+  - id: m7
+    name: governance
+    title: Governance agents
+    plane: govern
+    package: null
+    status: planned
+    phase: prototype
+    size_pw: 4
+    owns: Conflict tiers and judge, citation audit, claim merge, coverage gaps, taxonomy gardener, each with a token budget
+    plugins: []
+    publishes: [todo.created, claims.updated]
+    subscribes: [claims.updated]
+    calls: [store, models]
+
+  - id: m8
+    name: pages
+    title: Page compiler
+    plane: compile
+    package: null
+    status: planned
+    phase: prototype
+    size_pw: 6
+    owns: Taxonomy clustering with stable keys, cited page synthesis, diagram compilers, PageSpec output and page snapshots
+    plugins: [diagram_compilers]
+    publishes: [page.rendered]
+    subscribes: [artifact.dirty]
+    calls: [store, models]
+
+  - id: m9
+    name: collab
+    title: Collaboration and publishing
+    plane: govern
+    package: null
+    status: planned
+    phase: prototype
+    size_pw: 4
+    owns: Comments and anchoring, agent replies, overrides, todos, publish state machine, quality gates, verification expiry
+    plugins: []
+    publishes: [comment.created, unit.published, todo.created, claims.updated]
+    subscribes: [page.rendered, comment.created, todo.created, review.due]
+    calls: [store, authz, models, retriever]
+
+  - id: m10
+    name: store
+    title: Knowledge store
+    plane: store
+    package: modules/m10-store
+    status: foundation
+    phase: prototype
+    size_pw: 4
+    owns: Schema, migrations, repository API, lineage queries, bi-temporal reads, page snapshot storage, DataRef resolution (rows keep claim IDs for per-reader filtering), pgvector and pg_search index backends
+    plugins: [vector_indexes, keyword_indexes, data_providers]
+    publishes: []
+    subscribes: []
+    calls: []
+
+  - id: m11
+    name: retrieval
+    title: Retrieval and answer
+    plane: serve
+    package: null
+    status: planned
+    phase: prototype
+    size_pw: 3
+    owns: Hybrid search, RRF, rerank, ACL pre-filter and post-check, FAQ precompute, semantic cache
+    plugins: []
+    publishes: []
+    subscribes: [acl.changed, chunks.updated, claims.updated, artifact.dirty, page.rendered, unit.published]
+    calls: [store, authz, models]
+
+  - id: m12
+    name: agent_gateway
+    title: Agent gateway
+    plane: serve
+    package: null
+    status: planned
+    phase: prototype
+    size_pw: 2
+    owns: MCP server, REST and OpenAPI, Skills export, per-call audit
+    plugins: []
+    publishes: []
+    subscribes: [unit.published]
+    calls: [retriever, store, authz]
+
+  - id: m13
+    name: authz
+    title: Identity, AuthZ and audit
+    plane: control
+    package: modules/m13-authz
+    status: foundation
+    phase: prototype
+    size_pw: 4
+    owns: SSO, directory sync, identity mapping, SpiceDB schema, derived-knowledge rule, oversharing scan, audit log
+    plugins: []
+    publishes: []
+    subscribes: [acl.changed]
+    calls: [store]
+
+  - id: m14
+    name: gateway
+    title: Model gateway, evals and agent runtime
+    plane: control
+    package: modules/m14-gateway
+    status: foundation
+    phase: prototype
+    size_pw: 5
+    owns: Provider routing by sensitivity, budgets, prompt registry, caching, cost metering, eval harness, AgentRuntime for built-in agents
+    plugins: [model_providers]
+    publishes: []
+    subscribes: []
+    calls: []
+
+  - id: m15
+    name: research
+    title: Deep research runner
+    plane: ingest
+    package: null
+    status: planned
+    phase: prototype
+    size_pw: 2
+    owns: Research agent over Inspiration MCP plus approved web search; emits conclusions, assumptions and evidence as a source
+    plugins: []
+    publishes: [source.changed]
+    subscribes: [review.due]
+    calls: [models, blobs]
+
+  - id: m16
+    name: web
+    title: Web app and console
+    plane: serve
+    package: null
+    status: planned
+    phase: prototype
+    size_pw: 8
+    owns: Reader with citations, comments, todo inbox, SOP view, admin console, cost dashboard, page history and diff view, sandboxed view embedding
+    plugins: []
+    publishes: []
+    subscribes: [todo.created, page.rendered]
+    calls: [retriever, store, authz]
+
+  - id: m17
+    name: views
+    title: Interactive views
+    plane: serve
+    package: null
+    status: planned
+    phase: prototype
+    size_pw: 4
+    owns: ViewSpec and template registry (first 3 templates), the view generator agent on AgentRuntime, headless Chromium render check, sandbox hosting on a separate origin, view approval todos
+    plugins: [view_templates]
+    publishes: [todo.created]
+    subscribes: [page.rendered]
+    calls: [store, models, blobs]
+
+# Shared runtime libraries, not modules: anyone may depend on them.
+platform:
+  - package: contracts/python
+    import: inspiration.contracts
+    owns: Generated models, event registry, module and plugin interfaces
+  - package: platform/kernel
+    import: inspiration.kernel
+    owns: Settings, plugin registry, SQL migrations runner, blob store, logging
+  - package: platform/eventbus
+    import: inspiration.eventbus
+    owns: Postgres outbox, relay to Valkey Streams, consumer groups with retries and dead letters, in-memory bus for tests

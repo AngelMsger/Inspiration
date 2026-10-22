@@ -1,0 +1,71 @@
+[project]
+name = "inspiration-workspace"
+version = "0.0.0"
+description = "Inspiration monorepo: workspace root (not a package)"
+requires-python = ">=3.12"
+dependencies = [
+  "inspiration-contracts",
+  "inspiration-kernel",
+  "inspiration-eventbus",
+  "inspiration-gateway",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+inspiration-contracts = { workspace = true }
+inspiration-kernel = { workspace = true }
+inspiration-eventbus = { workspace = true }
+inspiration-gateway = { workspace = true }
+
+[tool.uv.workspace]
+members = ["contracts/python", "platform/*", "modules/*"]
+
+[dependency-groups]
+dev = [
+  "datamodel-code-generator>=0.26",
+  "jsonschema>=4.23",
+  "mypy>=1.13",
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "pyyaml>=6",
+  "ruff>=0.8",
+  "types-jsonschema",
+  "types-pyyaml",
+]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["contracts/typescript/node_modules"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "ASYNC"]
+ignore = ["RUF001", "RUF002", "RUF003"]  # Chinese punctuation in strings and comments is intended
+
+[tool.ruff.lint.isort]
+known-first-party = ["inspiration"]
+
+[tool.ruff.lint.per-file-ignores]
+"contracts/python/src/inspiration/contracts/models.py" = ["E501", "I", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+namespace_packages = true
+explicit_package_bases = true
+mypy_path = ["contracts/python/src", "platform/kernel/src", "platform/eventbus/src", "modules/m14-gateway/src"]
+exclude = ["node_modules", "/build/"]
+
+[[tool.mypy.overrides]]
+module = ["inspiration.contracts.models"]
+disable_error_code = ["name-defined"]
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+markers = ["integration: needs the docker compose stack (make up)"]

@@ -1,0 +1,229 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: authz.yaml
+title: Identity, permissions and audit
+description: >
+  Types for M13. Source ACLs are mirrored as relationship tuples in SpiceDB. Retrieval
+  pre-filters inside the index with IndexFilter, then re-checks each result. Agents always
+  act on behalf of a person, with that person's rights intersected with the agent's scope.
+
+$defs:
+  PrincipalKind:
+    type: string
+    enum: [user, group, department, agent, service]
+
+  Principal:
+    description: The caller of any API. Agent principals must carry on_behalf_of.
+    type: object
+    required: [id, kind, tenant_id]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      kind:
+        $ref: "#/$defs/PrincipalKind"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      display_name:
+        type: string
+      on_behalf_of:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      agent_scopes:
+        description: For agents, the permissions the agent was granted. Effective rights are the intersection with the person's.
+        type: array
+        items:
+          $ref: "#/$defs/Permission"
+      space_scope:
+        description: For agents, the spaces the agent may touch. Absent means every space the person can read.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/SpaceId"
+
+  Permission:
+    type: string
+    enum: [discover, read, comment, edit, verify, publish, admin]
+
+  ResourceType:
+    type: string
+    enum: [tenant, space, source, document, claim, page, sop, entity, knowledge_model, comment, todo, view_template]
+
+  ResourceRef:
+    type: object
+    required: [type, id]
+    properties:
+      type:
+        $ref: "#/$defs/ResourceType"
+      id:
+        description: >
+          The resource's ID. Documents use "<source id>:<external id>", because source
+          documents have no Inspiration ID of their own.
+        type: string
+
+  Decision:
+    type: object
+    required: [allow]
+    properties:
+      allow:
+        type: boolean
+      reason:
+        type: string
+      consistency_token:
+        description: SpiceDB ZedToken, so a later read can ask for at-least-as-fresh results.
+        type: string
+
+  IndexFilter:
+    description: >
+      Pushed into the search index as a pre-filter. A row matches when its space is in
+      space_ids, its acl_tokens overlap principal_tokens, and its sensitivity is at most
+      max_sensitivity. Results are still re-checked before they leave the server.
+    type: object
+    required: [space_ids, principal_tokens, max_sensitivity]
+    properties:
+      space_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/SpaceId"
+      principal_tokens:
+        description: The viewer's own ID plus groups, departments and tenant-wide tokens.
+        type: array
+        items:
+          type: string
+      max_sensitivity:
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+
+  DerivedReadDecision:
+    description: >
+      Result of the derived-knowledge rule. readable_support lists the sources the viewer
+      may see; the caller cites only those. Hidden support is never counted or named.
+    type: object
+    required: [allow, readable_support]
+    properties:
+      allow:
+        type: boolean
+      readable_support:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/UnitId"
+
+  AclPrincipalKind:
+    description: >
+      anyone_in_tenant and anyone_with_link are tracked separately because existing
+      oversharing ("anyone in the company with the link") is the biggest go-live risk.
+    type: string
+    enum: [user, group, department, tenant, anyone_in_tenant, anyone_with_link, public, external]
+
+  AclRole:
+    type: string
+    enum: [viewer, commenter, editor, owner]
+
+  AclEntry:
+    type: object
+    required: [principal_kind, role]
+    properties:
+      principal_kind:
+        $ref: "#/$defs/AclPrincipalKind"
+      external_id:
+        description: The principal's ID in the source system. Absent for anyone_* and public.
+        type: string
+      principal_id:
+        description: Canonical principal, once M13 has mapped external_id. Unmapped principals are denied.
+        $ref: "common.yaml#/$defs/PrincipalId"
+      role:
+        $ref: "#/$defs/AclRole"
+
+  AclSnapshot:
+    type: object
+    required: [source_id, external_id, fidelity, entries, captured_at, acl_hash]
+    properties:
+      source_id:
+        $ref: "common.yaml#/$defs/SourceId"
+      external_id:
+        type: string
+      fidelity:
+        $ref: "source.yaml#/$defs/AclFidelity"
+      entries:
+        type: array
+        items:
+          $ref: "#/$defs/AclEntry"
+      inherits_from_external_id:
+        type: string
+      captured_at:
+        $ref: "common.yaml#/$defs/Instant"
+      acl_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+
+  SpaceKind:
+    type: string
+    enum: [personal, team, org, source_mirror]
+
+  Space:
+    description: A container that holds permissions. Personal, team, org, or a mirror of one source.
+    type: object
+    required: [id, tenant_id, kind, name, owner_id, default_sensitivity, created_at]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      kind:
+        $ref: "#/$defs/SpaceKind"
+      name:
+        type: string
+      description:
+        type: string
+      parent_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      owner_id:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      default_sensitivity:
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  Tenant:
+    type: object
+    required: [id, name, created_at]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/TenantId"
+      name:
+        type: string
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  AuditChannel:
+    type: string
+    enum: [web, mcp, rest, cli, internal]
+
+  AuditDecision:
+    type: string
+    enum: [allow, deny]
+
+  AuditEvent:
+    description: One audited action. Written by M13; agent calls are audited per call by M12.
+    type: object
+    required: [id, tenant_id, at, actor_id, action, channel]
+    properties:
+      id:
+        type: string
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      at:
+        $ref: "common.yaml#/$defs/Instant"
+      actor_id:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      on_behalf_of:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      action:
+        description: Dotted action name, for example "page.read", "mcp.get_sop", "source.connect".
+        type: string
+      resource:
+        $ref: "#/$defs/ResourceRef"
+      decision:
+        $ref: "#/$defs/AuditDecision"
+      reason:
+        type: string
+      channel:
+        $ref: "#/$defs/AuditChannel"
+      request_id:
+        $ref: "common.yaml#/$defs/RequestId"
+      details:
+        type: object

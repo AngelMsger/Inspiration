@@ -1,0 +1,17 @@
+{
+  "name": "@inspiration/contracts",
+  "version": "0.1.0",
+  "description": "Inspiration contracts: TypeScript types generated from contracts/schema",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "generate": "node ../codegen/gen_ts.mjs",
+    "check": "node ../codegen/gen_ts.mjs --check && tsc --noEmit"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "^15.0.4",
+    "typescript": "^5.9.3"
+  }
+}

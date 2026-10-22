@@ -1,0 +1,32 @@
+{
+  "name": "m9.comment_assistant",
+  "version": "0.1.0",
+  "prompt_version": "comment-assistant@1",
+  "description": "Answers comments with citations and proposes edits for corrections.",
+  "tools": [
+    "search",
+    "read",
+    "get_sop",
+    "verify_claim",
+    "propose_edit",
+    "create_todo"
+  ],
+  "max_steps": 6,
+  "max_tokens": 24000,
+  "approval": "owner",
+  "tier": "standard",
+  "output_schema": {
+    "type": "object",
+    "required": [
+      "reply"
+    ],
+    "properties": {
+      "reply": {
+        "type": "string"
+      },
+      "proposal": {
+        "type": "object"
+      }
+    }
+  }
+}

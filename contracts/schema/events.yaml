@@ -1,0 +1,305 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: events.yaml
+title: Events
+description: >
+  The event catalogue. Producers write events to the Postgres outbox in the same
+  transaction as their data; a relay forwards them to the bus. Delivery is at least once,
+  so every consumer must be idempotent on event id. Payloads carry IDs and small facts,
+  never content: consumers read what they need through the knowledge store.
+
+# The catalogue. codegen turns this into the typed event registry for Python and
+# TypeScript, and tests check it against modules.yaml (producers and consumers).
+x-events:
+  source.changed:
+    payload: SourceChanged
+    version: 1
+  document.fetched:
+    payload: DocumentFetched
+    version: 1
+  acl.changed:
+    payload: AclChanged
+    version: 1
+  chunks.updated:
+    payload: ChunksUpdated
+    version: 1
+  claims.updated:
+    payload: ClaimsUpdated
+    version: 1
+  artifact.dirty:
+    payload: ArtifactDirty
+    version: 1
+  review.due:
+    payload: ReviewDue
+    version: 1
+  todo.created:
+    payload: TodoCreated
+    version: 1
+  page.rendered:
+    payload: PageRendered
+    version: 1
+  comment.created:
+    payload: CommentCreated
+    version: 1
+  unit.published:
+    payload: UnitPublished
+    version: 1
+
+$defs:
+  EventType:
+    description: Dotted event name from the catalogue.
+    type: string
+    pattern: "^[a-z][a-z_]*\\.[a-z][a-z_]*$"
+
+  EventEnvelope:
+    description: Common envelope for every event, close to CloudEvents.
+    type: object
+    required: [id, type, version, tenant_id, occurred_at, producer, data]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/EventId"
+      type:
+        $ref: "#/$defs/EventType"
+      version:
+        description: Payload schema major version. Additive changes keep the version.
+        type: integer
+        minimum: 1
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      occurred_at:
+        $ref: "common.yaml#/$defs/Instant"
+      producer:
+        $ref: "common.yaml#/$defs/ModuleName"
+      subject:
+        description: Main unit the event is about. The bus keeps order per subject where it can.
+        type: string
+      correlation_id:
+        description: Shared by every event in one causal chain, for tracing a change end to end.
+        type: string
+      causation_id:
+        description: The event that directly caused this one.
+        $ref: "common.yaml#/$defs/EventId"
+      data:
+        type: object
+
+  SourceChanged:
+    type: object
+    required: [source_id, change]
+    properties:
+      source_id:
+        $ref: "common.yaml#/$defs/SourceId"
+      change:
+        $ref: "source.yaml#/$defs/ChangeEvent"
+
+  ChangedParts:
+    type: object
+    required: [content, metadata, acl]
+    properties:
+      content:
+        type: boolean
+      metadata:
+        type: boolean
+      acl:
+        type: boolean
+
+  DocumentFetched:
+    type: object
+    required: [source_id, source_version_id, external_id, changed, deleted]
+    properties:
+      source_id:
+        $ref: "common.yaml#/$defs/SourceId"
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      previous_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      external_id:
+        type: string
+      changed:
+        $ref: "#/$defs/ChangedParts"
+      deleted:
+        type: boolean
+      needs_parsing:
+        description: True when the version holds a raw file for the parser router.
+        type: boolean
+
+  AclChanged:
+    type: object
+    required: [source_id, external_id, acl_hash, fidelity]
+    properties:
+      source_id:
+        $ref: "common.yaml#/$defs/SourceId"
+      external_id:
+        type: string
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      acl_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+      fidelity:
+        $ref: "source.yaml#/$defs/AclFidelity"
+
+  ChunksUpdated:
+    type: object
+    required: [source_version_id, added_chunk_ids, removed_chunk_ids, changed_span_ids]
+    properties:
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      previous_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      added_chunk_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ChunkId"
+      removed_chunk_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ChunkId"
+      unchanged_chunk_count:
+        type: integer
+        minimum: 0
+      changed_span_ids:
+        description: Spans whose text changed. Unchanged spans keep their IDs across versions.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/SpanId"
+
+  ClaimsUpdated:
+    type: object
+    required: [origin, added, updated, superseded]
+    properties:
+      origin:
+        $ref: "knowledge.yaml#/$defs/ClaimOrigin"
+      added:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      updated:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      superseded:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      comment_id:
+        description: Set for human claims asserted in a comment or edit.
+        $ref: "common.yaml#/$defs/CommentId"
+
+  CostEstimate:
+    type: object
+    required: [llm_calls, amount, currency]
+    properties:
+      llm_calls:
+        type: integer
+        minimum: 0
+      amount:
+        type: number
+        minimum: 0
+      currency:
+        type: string
+        pattern: "^[A-Z]{3}$"
+
+  ArtifactDirty:
+    type: object
+    required: [artifact_ids, stage, reason]
+    properties:
+      artifact_ids:
+        type: array
+        minItems: 1
+        items:
+          $ref: "common.yaml#/$defs/UnitId"
+      stage:
+        type: string
+      reason:
+        $ref: "knowledge.yaml#/$defs/DirtyReason"
+      estimate:
+        $ref: "#/$defs/CostEstimate"
+
+  ReviewDueKind:
+    type: string
+    enum: [ttl, assumption, verification_expiry]
+
+  ReviewDue:
+    type: object
+    required: [unit_ids, kind, due_at]
+    properties:
+      unit_ids:
+        type: array
+        minItems: 1
+        items:
+          $ref: "common.yaml#/$defs/UnitId"
+      kind:
+        $ref: "#/$defs/ReviewDueKind"
+      due_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  TodoCreated:
+    type: object
+    required: [todo_id, kind, space_id, priority]
+    properties:
+      todo_id:
+        $ref: "common.yaml#/$defs/TodoId"
+      kind:
+        $ref: "collab.yaml#/$defs/TodoKind"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      assignee_id:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      priority:
+        $ref: "collab.yaml#/$defs/Priority"
+      batch_key:
+        type: string
+
+  PageRendered:
+    type: object
+    required: [page_id, version, inputs_hash, changed_block_keys, removed_block_keys]
+    properties:
+      page_id:
+        $ref: "common.yaml#/$defs/PageId"
+      version:
+        type: integer
+        minimum: 1
+      previous_version:
+        type: integer
+        minimum: 1
+      inputs_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+      changed_block_keys:
+        type: array
+        items:
+          $ref: "page.yaml#/$defs/BlockKey"
+      removed_block_keys:
+        description: Comments anchored here must be re-anchored or marked orphaned.
+        type: array
+        items:
+          $ref: "page.yaml#/$defs/BlockKey"
+
+  CommentCreated:
+    type: object
+    required: [comment_id, page_id, author_kind]
+    properties:
+      comment_id:
+        $ref: "common.yaml#/$defs/CommentId"
+      page_id:
+        $ref: "common.yaml#/$defs/PageId"
+      thread_id:
+        $ref: "common.yaml#/$defs/CommentId"
+      author_kind:
+        $ref: "collab.yaml#/$defs/AuthorKind"
+
+  UnitPublished:
+    type: object
+    required: [unit_id, space_id, widened]
+    properties:
+      unit_id:
+        $ref: "common.yaml#/$defs/UnitId"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      version:
+        type: integer
+        minimum: 1
+      publish_request_id:
+        $ref: "common.yaml#/$defs/PublishRequestId"
+      widened:
+        description: True when the publish widened who can see the unit.
+        type: boolean

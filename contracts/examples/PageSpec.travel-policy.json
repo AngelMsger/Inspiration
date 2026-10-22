@@ -1,0 +1,395 @@
+{
+  "page_id": "pg_01JC0000000000000000000001",
+  "tenant_id": "ten_01JC0000000000000000000001",
+  "space_id": "spc_01JC0000000000000000000001",
+  "version": 3,
+  "inputs_hash": "sha256:5f2b3c1d6a0e4b7c9d8e1f203142536475869708192a3b4c5d6e7f8091a2b3c4",
+  "title": "差旅住宿标准",
+  "summary": "各城市级别的酒店住宿上限、审批流程和例外情况。",
+  "kind": "policy",
+  "taxonomy_key": "finance/travel/hotel",
+  "locale": "zh-CN",
+  "sensitivity": "internal",
+  "renderer": {
+    "module": "m8.pages",
+    "name": "pages.default",
+    "version": "0.1.0",
+    "model": "deepseek-v4.1-flash",
+    "prompt_version": "page-synth@3"
+  },
+  "rendered_at": "2026-10-22T09:30:00Z",
+  "blocks": [
+    {
+      "key": "hotel-caps/h",
+      "type": "heading",
+      "level": 2,
+      "text": "住宿上限"
+    },
+    {
+      "key": "hotel-caps/p1",
+      "type": "paragraph",
+      "sentences": [
+        {
+          "text": "一线城市的酒店住宿上限为每晚 **600 元**。",
+          "claim_ids": [
+            "clm_01JC0000000000000000000001"
+          ],
+          "role": "claim"
+        },
+        {
+          "text": "其他城市的上限见下表。",
+          "claim_ids": [],
+          "role": "connective"
+        }
+      ]
+    },
+    {
+      "key": "hotel-caps/table",
+      "type": "table",
+      "caption": "按城市级别的住宿上限",
+      "columns": [
+        {
+          "key": "tier",
+          "header": "城市级别"
+        },
+        {
+          "key": "cap",
+          "header": "每晚上限",
+          "align": "right",
+          "unit": "CNY"
+        }
+      ],
+      "rows": [
+        {
+          "key": "tier-1",
+          "cells": [
+            {
+              "text": "一线城市"
+            },
+            {
+              "text": "600",
+              "claim_ids": [
+                "clm_01JC0000000000000000000001"
+              ]
+            }
+          ]
+        },
+        {
+          "key": "tier-2",
+          "cells": [
+            {
+              "text": "二线城市"
+            },
+            {
+              "text": "450",
+              "claim_ids": [
+                "clm_01JC0000000000000000000002"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "hotel-caps/chart",
+      "type": "chart",
+      "chart": {
+        "kind": "bar",
+        "title": "住宿上限",
+        "encoding": {
+          "x": "subject",
+          "y": [
+            "value_number"
+          ]
+        },
+        "unit": "CNY/night"
+      },
+      "data": {
+        "kind": "claims",
+        "claim_ids": [
+          "clm_01JC0000000000000000000001",
+          "clm_01JC0000000000000000000002"
+        ],
+        "columns": [
+          {
+            "field": "subject",
+            "title": "城市级别",
+            "field_type": "nominal"
+          },
+          {
+            "field": "value_number",
+            "title": "上限",
+            "field_type": "quantitative",
+            "unit": "CNY/night"
+          }
+        ],
+        "refresh": {
+          "mode": "on_rebuild"
+        }
+      },
+      "claim_ids": [
+        "clm_01JC0000000000000000000001",
+        "clm_01JC0000000000000000000002"
+      ]
+    },
+    {
+      "key": "hotel-caps/exceptions",
+      "type": "callout",
+      "tone": "warning",
+      "title": "例外",
+      "sentences": [
+        {
+          "text": "展会期间可上浮 20%，需部门负责人审批。",
+          "claim_ids": [
+            "clm_01JC0000000000000000000003"
+          ],
+          "role": "claim"
+        }
+      ]
+    },
+    {
+      "key": "hotel-caps/quote",
+      "type": "quote",
+      "text": "一线城市（北京、上海、广州、深圳）住宿费标准为每人每晚不超过600元。",
+      "span_id": "spn_01JC0000000000000000000001",
+      "source_version_id": "sv_01JC0000000000000000000001",
+      "claim_ids": [
+        "clm_01JC0000000000000000000001"
+      ]
+    },
+    {
+      "key": "approval/h",
+      "type": "heading",
+      "level": 2,
+      "text": "超标审批"
+    },
+    {
+      "key": "approval/steps",
+      "type": "list",
+      "style": "ordered",
+      "items": [
+        {
+          "sentences": [
+            {
+              "text": "出差人在飞书审批提交「超标住宿申请」。",
+              "claim_ids": [
+                "clm_01JC0000000000000000000004"
+              ]
+            }
+          ]
+        },
+        {
+          "sentences": [
+            {
+              "text": "部门负责人审批。",
+              "claim_ids": [
+                "clm_01JC0000000000000000000005"
+              ]
+            }
+          ],
+          "children": [
+            {
+              "sentences": [
+                {
+                  "text": "金额超过 1,000 元时，转财务总监加签。",
+                  "claim_ids": [
+                    "clm_01JC0000000000000000000006"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "approval/flow",
+      "type": "diagram",
+      "diagram": {
+        "kind": "sop_flow",
+        "format": "mermaid",
+        "source": "flowchart LR\n  s1[提交申请] --> s2[部门负责人]\n  s2 -->|> 1000 元| s3[财务总监]\n  s2 -->|≤ 1000 元| e((结束))\n  s3 --> e",
+        "structure_id": "sop_01JC0000000000000000000001",
+        "compiler": {
+          "module": "m8.pages",
+          "name": "diagram.sop_flow",
+          "version": "0.1.0"
+        }
+      },
+      "caption": "从 214 条审批实例中挖掘的流程",
+      "claim_ids": [
+        "clm_01JC0000000000000000000004",
+        "clm_01JC0000000000000000000005",
+        "clm_01JC0000000000000000000006"
+      ]
+    },
+    {
+      "key": "approval/navigator",
+      "type": "view",
+      "data": {
+        "kind": "inline",
+        "columns": [
+          {
+            "field": "step",
+            "field_type": "ordinal"
+          },
+          {
+            "field": "title",
+            "field_type": "nominal"
+          },
+          {
+            "field": "role",
+            "field_type": "nominal"
+          }
+        ],
+        "rows": [
+          [
+            1,
+            "提交申请",
+            "出差人"
+          ],
+          [
+            2,
+            "部门负责人审批",
+            "部门负责人"
+          ],
+          [
+            3,
+            "财务总监加签",
+            "财务总监"
+          ]
+        ],
+        "row_claim_ids": [
+          [
+            "clm_01JC0000000000000000000004"
+          ],
+          [
+            "clm_01JC0000000000000000000005"
+          ],
+          [
+            "clm_01JC0000000000000000000006"
+          ]
+        ]
+      },
+      "height_hint": 360,
+      "view_id": "view_01JC0000000000000000000001",
+      "view_version": "1",
+      "fallback": {
+        "key": "approval/navigator-fallback",
+        "type": "table",
+        "columns": [
+          {
+            "key": "step",
+            "header": "步骤"
+          },
+          {
+            "key": "title",
+            "header": "内容"
+          },
+          {
+            "key": "role",
+            "header": "角色"
+          }
+        ],
+        "rows": [
+          {
+            "key": "s1",
+            "cells": [
+              {
+                "text": "1"
+              },
+              {
+                "text": "提交申请",
+                "claim_ids": [
+                  "clm_01JC0000000000000000000004"
+                ]
+              },
+              {
+                "text": "出差人"
+              }
+            ]
+          },
+          {
+            "key": "s2",
+            "cells": [
+              {
+                "text": "2"
+              },
+              {
+                "text": "部门负责人审批",
+                "claim_ids": [
+                  "clm_01JC0000000000000000000005"
+                ]
+              },
+              {
+                "text": "部门负责人"
+              }
+            ]
+          },
+          {
+            "key": "s3",
+            "cells": [
+              {
+                "text": "3"
+              },
+              {
+                "text": "财务总监加签",
+                "claim_ids": [
+                  "clm_01JC0000000000000000000006"
+                ]
+              },
+              {
+                "text": "财务总监"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "key": "approval/sop",
+      "type": "embed",
+      "unit_id": "sop_01JC0000000000000000000001",
+      "display": "steps"
+    },
+    {
+      "key": "calc/h",
+      "type": "heading",
+      "level": 2,
+      "text": "报销计算"
+    },
+    {
+      "key": "calc/formula",
+      "type": "math",
+      "tex": "\\text{可报销} = \\min(\\text{实际房费}, \\text{上限}) \\times \\text{晚数}",
+      "claim_ids": [
+        "clm_01JC0000000000000000000001"
+      ]
+    },
+    {
+      "key": "calc/api",
+      "type": "code",
+      "language": "json",
+      "code": "{\"tool\": \"get_sop\", \"sop_id\": \"sop_01JC0000000000000000000001\"}",
+      "caption": "Agent 调用示例"
+    },
+    {
+      "key": "calc/divider",
+      "type": "divider"
+    },
+    {
+      "key": "calc/receipt",
+      "type": "image",
+      "image": {
+        "uri": "file:///data/blobs/9c/9c1e.png",
+        "sha256": "sha256:9c1e2d3f4a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5",
+        "size_bytes": 48211,
+        "mime_type": "image/png",
+        "filename": "invoice-sample.png"
+      },
+      "alt": "合规酒店发票样例",
+      "caption": "发票需包含酒店名称和入住日期",
+      "span_id": "spn_01JC0000000000000000000009"
+    }
+  ]
+}

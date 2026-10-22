@@ -1,0 +1,356 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: gateway.yaml
+title: Model gateway
+description: >
+  Requests and results of M14. No module calls a model directly. Every request names a
+  task, a prompt version, a sensitivity label and a budget key, so the gateway can route
+  by label, enforce budgets, cache and meter cost in one place.
+
+$defs:
+  ModelTier:
+    description: >
+      Capability class the caller needs. The gateway maps tiers to concrete models per
+      deployment, so callers never hard-code a model name.
+    type: string
+    enum: [flash, standard, flagship]
+
+  ChatRole:
+    type: string
+    enum: [system, user, assistant]
+
+  ChatMessage:
+    type: object
+    required: [role, content]
+    properties:
+      role:
+        $ref: "#/$defs/ChatRole"
+      content:
+        type: string
+      images:
+        description: Images for vision-capable models (page scans, diagrams).
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/BlobRef"
+
+  CompletionRequest:
+    type: object
+    required: [task, prompt_version, messages, sensitivity, budget_key]
+    properties:
+      task:
+        description: Dotted task name, for example "m5.extract_claims". Used for routing, metering and evals.
+        type: string
+        pattern: "^[a-z0-9_]+(\\.[a-z0-9_]+)+$"
+      prompt_version:
+        type: string
+      messages:
+        type: array
+        minItems: 1
+        items:
+          $ref: "#/$defs/ChatMessage"
+      response_schema:
+        description: JSON Schema the answer must satisfy. The gateway validates and retries once on failure.
+        type: object
+      tier:
+        $ref: "#/$defs/ModelTier"
+      sensitivity:
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      budget_key:
+        description: Budget to charge, for example "tenant:ten_x/m5" or "source:src_y".
+        type: string
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      max_output_tokens:
+        type: integer
+        minimum: 1
+      temperature:
+        type: number
+        minimum: 0
+        maximum: 2
+      stop:
+        type: array
+        items:
+          type: string
+      use_cache:
+        description: Exact-match response cache. Only used when temperature is 0 or unset.
+        type: boolean
+        default: true
+      timeout_s:
+        type: number
+        exclusiveMinimum: 0
+      metadata:
+        type: object
+        additionalProperties:
+          type: string
+
+  TokenUsage:
+    type: object
+    required: [input_tokens, output_tokens]
+    properties:
+      input_tokens:
+        type: integer
+        minimum: 0
+      output_tokens:
+        type: integer
+        minimum: 0
+      cached_input_tokens:
+        type: integer
+        minimum: 0
+
+  Money:
+    type: object
+    required: [amount, currency]
+    properties:
+      amount:
+        type: number
+        minimum: 0
+      currency:
+        type: string
+        pattern: "^[A-Z]{3}$"
+
+  FinishReason:
+    type: string
+    enum: [stop, length, content_filter, error]
+
+  Completion:
+    type: object
+    required: [request_id, text, provider, model, finish_reason, usage, cost, cached, latency_ms]
+    properties:
+      request_id:
+        $ref: "common.yaml#/$defs/RequestId"
+      text:
+        type: string
+      json:
+        description: Parsed and validated answer when response_schema was given.
+      provider:
+        type: string
+      model:
+        type: string
+      finish_reason:
+        $ref: "#/$defs/FinishReason"
+      usage:
+        $ref: "#/$defs/TokenUsage"
+      cost:
+        $ref: "#/$defs/Money"
+      cached:
+        type: boolean
+      latency_ms:
+        type: integer
+        minimum: 0
+
+  EmbedInputType:
+    description: Qwen3-Embedding and similar models embed queries with an instruction prefix and documents without.
+    type: string
+    enum: [query, document]
+
+  EmbedRequest:
+    type: object
+    required: [texts, input_type, sensitivity, budget_key]
+    properties:
+      texts:
+        type: array
+        minItems: 1
+        items:
+          type: string
+      input_type:
+        $ref: "#/$defs/EmbedInputType"
+      sensitivity:
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      budget_key:
+        type: string
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+
+  EmbedResult:
+    type: object
+    required: [request_id, vectors, provider, model, dimensions, usage, cost]
+    properties:
+      request_id:
+        $ref: "common.yaml#/$defs/RequestId"
+      vectors:
+        type: array
+        items:
+          type: array
+          items:
+            type: number
+      provider:
+        type: string
+      model:
+        type: string
+      dimensions:
+        type: integer
+        minimum: 1
+      usage:
+        $ref: "#/$defs/TokenUsage"
+      cost:
+        $ref: "#/$defs/Money"
+
+  RerankRequest:
+    type: object
+    required: [query, documents, sensitivity, budget_key]
+    properties:
+      query:
+        type: string
+      documents:
+        type: array
+        minItems: 1
+        items:
+          type: string
+      top_n:
+        type: integer
+        minimum: 1
+      sensitivity:
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      budget_key:
+        type: string
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+
+  RerankResult:
+    type: object
+    required: [request_id, scores, provider, model, usage, cost]
+    properties:
+      request_id:
+        $ref: "common.yaml#/$defs/RequestId"
+      scores:
+        description: One relevance score per input document, in input order.
+        type: array
+        items:
+          type: number
+      provider:
+        type: string
+      model:
+        type: string
+      usage:
+        $ref: "#/$defs/TokenUsage"
+      cost:
+        $ref: "#/$defs/Money"
+
+  OcrRequest:
+    description: >
+      Text and layout recognition for a scanned page or image, served by a local OCR or
+      vision-language model (PaddleOCR-VL, MinerU). Goes through the gateway so OCR is
+      metered, budgeted and routed by sensitivity like every other model call.
+    type: object
+    required: [image, sensitivity, budget_key]
+    properties:
+      image:
+        description: One page image (PNG or JPEG). The parser router splits PDFs into pages.
+        $ref: "common.yaml#/$defs/BlobRef"
+      page:
+        description: Page number to stamp on the returned blocks.
+        type: integer
+        minimum: 1
+      language:
+        $ref: "common.yaml#/$defs/Locale"
+      sensitivity:
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      budget_key:
+        type: string
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+
+  OcrResult:
+    type: object
+    required: [request_id, blocks, provider, model, usage, cost]
+    properties:
+      request_id:
+        $ref: "common.yaml#/$defs/RequestId"
+      blocks:
+        type: array
+        items:
+          $ref: "source.yaml#/$defs/DocBlock"
+      confidence:
+        $ref: "common.yaml#/$defs/Score01"
+      provider:
+        type: string
+      model:
+        type: string
+      usage:
+        $ref: "#/$defs/TokenUsage"
+      cost:
+        $ref: "#/$defs/Money"
+
+  GatewayOperation:
+    type: string
+    enum: [complete, embed, rerank, ocr]
+
+  UsageStatus:
+    type: string
+    enum: [ok, cached, error, budget_exceeded, no_route, invalid_output]
+
+  UsageRecord:
+    description: One metered call, written for every request including failures. Feeds the cost dashboard.
+    type: object
+    required: [request_id, at, operation, budget_key, sensitivity, status, usage, cost, latency_ms]
+    properties:
+      request_id:
+        $ref: "common.yaml#/$defs/RequestId"
+      at:
+        $ref: "common.yaml#/$defs/Instant"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      operation:
+        $ref: "#/$defs/GatewayOperation"
+      task:
+        type: string
+      prompt_version:
+        type: string
+      budget_key:
+        type: string
+      sensitivity:
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      provider:
+        type: string
+      model:
+        type: string
+      status:
+        $ref: "#/$defs/UsageStatus"
+      usage:
+        $ref: "#/$defs/TokenUsage"
+      cost:
+        $ref: "#/$defs/Money"
+      latency_ms:
+        type: integer
+        minimum: 0
+      error:
+        type: string
+
+  BudgetPeriod:
+    type: string
+    enum: [day, month, total]
+
+  BudgetStatus:
+    type: object
+    required: [budget_key, period, spent, currency]
+    properties:
+      budget_key:
+        type: string
+      period:
+        $ref: "#/$defs/BudgetPeriod"
+      limit:
+        description: Absent means unlimited.
+        type: number
+        minimum: 0
+      spent:
+        type: number
+        minimum: 0
+      currency:
+        type: string
+        pattern: "^[A-Z]{3}$"
+
+  GatewayErrorCode:
+    type: string
+    enum: [budget_exceeded, no_route, provider_error, invalid_output, timeout, bad_request]
+
+  GatewayError:
+    type: object
+    required: [code, message, retryable]
+    properties:
+      code:
+        $ref: "#/$defs/GatewayErrorCode"
+      message:
+        type: string
+      retryable:
+        type: boolean
+      request_id:
+        $ref: "common.yaml#/$defs/RequestId"

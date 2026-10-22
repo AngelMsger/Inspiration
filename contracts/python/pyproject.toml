@@ -1,0 +1,13 @@
+[project]
+name = "inspiration-contracts"
+version = "0.1.0"
+description = "Shared contracts: generated pydantic models, the event registry and module interfaces"
+requires-python = ">=3.12"
+dependencies = ["pydantic>=2.9"]
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/inspiration"]

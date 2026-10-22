@@ -1,0 +1,36 @@
+[project]
+name = "inspiration-gateway"
+version = "0.1.0"
+description = "M14: model gateway (routing by sensitivity, budgets, caching, metering) and the built-in agent runtime"
+requires-python = ">=3.12"
+dependencies = [
+  "inspiration-contracts",
+  "inspiration-kernel",
+  "fastapi>=0.115",
+  "httpx>=0.27",
+  "jsonschema>=4.23",
+  "pyyaml>=6",
+  "redis>=5.2",
+  "uvicorn>=0.32",
+]
+
+[project.entry-points."inspiration.migrations"]
+gateway = "inspiration.gateway:MIGRATIONS"
+
+[project.entry-points."inspiration.model_providers"]
+openai_compatible = "inspiration.gateway.providers.openai_compat:OpenAICompatibleProvider"
+fake = "inspiration.gateway.providers.fake:FakeProvider"
+
+[project.scripts]
+inspiration-gateway = "inspiration.gateway.http:main"
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/inspiration"]
+
+[tool.uv.sources]
+inspiration-contracts = { workspace = true }
+inspiration-kernel = { workspace = true }

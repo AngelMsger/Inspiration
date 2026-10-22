@@ -1,0 +1,168 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: agents.yaml
+title: Built-in agents
+description: >
+  The runtime shared by every built-in agent (comment assistant, Q&A assistant,
+  governance agents, SOP writer, publish quality gate, view generator, research agent).
+  M14 hosts AgentRuntime; modules only write an AgentSpec and prompts. Tools share one
+  schema with the MCP tools offered to outside agents. Write tools exist only as
+  proposals: no tool changes knowledge directly.
+
+$defs:
+  ToolName:
+    type: string
+    pattern: "^[a-z][a-z0-9_]*$"
+
+  ToolEffect:
+    description: read = no side effects; propose = creates a proposal or a todo that a person accepts in M9.
+    type: string
+    enum: [read, propose]
+
+  ToolSpec:
+    type: object
+    required: [name, description, input_schema, effect]
+    properties:
+      name:
+        $ref: "#/$defs/ToolName"
+      description:
+        type: string
+      input_schema:
+        description: JSON Schema of the arguments.
+        type: object
+      output_schema:
+        type: object
+      effect:
+        $ref: "#/$defs/ToolEffect"
+      token_budget:
+        description: Typical size of the result for an agent, from the MCP tool table.
+        type: integer
+        minimum: 0
+
+  AgentApproval:
+    description: Who confirms before the agent's output takes effect.
+    type: string
+    enum: [none, owner, steward]
+
+  AgentSpec:
+    type: object
+    required: [name, version, prompt_version, tools, max_steps, max_tokens, approval]
+    properties:
+      name:
+        description: Dotted name, for example "m9.comment_assistant".
+        type: string
+        pattern: "^m[0-9]{1,2}\\.[a-z][a-z0-9_]*$"
+      version:
+        type: string
+      prompt_version:
+        type: string
+      description:
+        type: string
+      tools:
+        type: array
+        items:
+          $ref: "#/$defs/ToolName"
+      max_steps:
+        type: integer
+        minimum: 1
+        maximum: 50
+      max_tokens:
+        description: Total input plus output tokens across all steps.
+        type: integer
+        minimum: 1
+      approval:
+        $ref: "#/$defs/AgentApproval"
+      tier:
+        $ref: "gateway.yaml#/$defs/ModelTier"
+      output_schema:
+        description: JSON Schema the final output must satisfy.
+        type: object
+
+  AgentRunContext:
+    type: object
+    required: [principal, budget_key, trace_id]
+    properties:
+      principal:
+        description: >
+          The identity the agent acts as. Assistants triggered by a person run as an agent
+          principal on behalf of that person; governance agents run as a service principal.
+        $ref: "authz.yaml#/$defs/Principal"
+      budget_key:
+        type: string
+      trace_id:
+        type: string
+      sensitivity:
+        description: Highest label the run may send to a model. Defaults to the principal's clearance.
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+
+  AgentStepKind:
+    type: string
+    enum: [tool_call, final, error]
+
+  AgentStep:
+    type: object
+    required: [index, kind, usage, latency_ms]
+    properties:
+      index:
+        type: integer
+        minimum: 0
+      kind:
+        $ref: "#/$defs/AgentStepKind"
+      thought:
+        description: The model's short stated reason for the action, kept for traces.
+        type: string
+      tool:
+        $ref: "#/$defs/ToolName"
+      arguments:
+        type: object
+      result:
+        description: The tool result as given to the model (possibly truncated).
+      error:
+        type: string
+      usage:
+        $ref: "gateway.yaml#/$defs/TokenUsage"
+      latency_ms:
+        type: integer
+        minimum: 0
+
+  AgentRunStatus:
+    description: >
+      completed = final output produced; needs_approval = output waits for the approver in
+      the spec; max_steps and budget_exceeded = stopped by a limit; failed = error.
+    type: string
+    enum: [completed, needs_approval, max_steps, budget_exceeded, failed]
+
+  AgentResult:
+    type: object
+    required: [run_id, agent, agent_version, status, steps, usage, cost, trace_id, started_at, finished_at]
+    properties:
+      run_id:
+        $ref: "common.yaml#/$defs/RunId"
+      agent:
+        type: string
+      agent_version:
+        type: string
+      status:
+        $ref: "#/$defs/AgentRunStatus"
+      output:
+        description: Final output, valid against the spec's output_schema when it has one.
+      steps:
+        type: array
+        items:
+          $ref: "#/$defs/AgentStep"
+      proposal_ids:
+        description: Proposals and todos the run created through propose tools.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/UnitId"
+      usage:
+        $ref: "gateway.yaml#/$defs/TokenUsage"
+      cost:
+        $ref: "gateway.yaml#/$defs/Money"
+      trace_id:
+        type: string
+      started_at:
+        $ref: "common.yaml#/$defs/Instant"
+      finished_at:
+        $ref: "common.yaml#/$defs/Instant"
+      error:
+        type: string

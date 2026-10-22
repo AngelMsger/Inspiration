@@ -1,0 +1,10 @@
+{
+  "claim_id": "clm_01JC0000000000000000000001",
+  "span_id": "spn_01JC0000000000000000000001",
+  "source_version_id": "sv_01JC0000000000000000000001",
+  "role": "supports",
+  "quote": "住宿费标准为每人每晚不超过600元",
+  "quote_start": 17,
+  "quote_end": 34,
+  "entailment": 0.97
+}

@@ -1,0 +1,31 @@
+[project]
+name = "inspiration-eventbus"
+version = "0.1.0"
+description = "Event bus: Postgres outbox, relay to Valkey Streams, consumer groups, in-memory bus for tests"
+requires-python = ">=3.12"
+dependencies = [
+  "inspiration-contracts",
+  "inspiration-kernel",
+  "redis>=5.2",
+]
+
+[project.entry-points."inspiration.migrations"]
+bus = "inspiration.eventbus:MIGRATIONS"
+
+[project.entry-points."inspiration.event_transports"]
+valkey = "inspiration.eventbus.valkey:ValkeyStreamsTransport"
+memory = "inspiration.eventbus.memory:InMemoryTransport"
+
+[project.scripts]
+inspiration-relay = "inspiration.eventbus.relay:main"
+
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/inspiration"]
+
+[tool.uv.sources]
+inspiration-contracts = { workspace = true }
+inspiration-kernel = { workspace = true }
