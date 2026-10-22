@@ -443,3 +443,33 @@ async def test_inline_and_query_data(store: Store) -> None:
 def test_evidence_model_fields_used_by_rules() -> None:
     # Guards the rule code against contract renames.
     assert {"quote", "quote_start", "quote_end", "span_id", "role"} <= set(ClaimEvidence.model_fields)
+
+
+async def test_acl_snapshots_are_kept_per_hash(store: Store, kb: Sample) -> None:
+    from datetime import UTC, datetime
+
+    from inspiration.contracts import content_hash
+    from inspiration.contracts.models import AclEntry, AclFidelity, AclPrincipalKind, AclRole, AclSnapshot
+
+    def snap(role: AclRole, at: datetime) -> AclSnapshot:
+        entries = [AclEntry(principal_kind=AclPrincipalKind.anyone_in_tenant, role=role)]
+        return AclSnapshot(
+            source_id=kb.source_id,
+            external_id="doc-1",
+            fidelity=AclFidelity.exact,
+            entries=entries,
+            captured_at=at,
+            acl_hash=content_hash(role.value),
+        )
+
+    old, new = (
+        snap(AclRole.viewer, datetime(2026, 1, 1, tzinfo=UTC)),
+        snap(AclRole.editor, datetime(2026, 2, 1, tzinfo=UTC)),
+    )
+    async with store.transaction() as tx:
+        await tx.put_acl_snapshot(old)
+        await tx.put_acl_snapshot(new)
+        await tx.put_acl_snapshot(old)  # repeated delivery
+    assert await store.get_acl_snapshot(kb.source_id, "doc-1", old.acl_hash) == old
+    assert await store.get_acl_snapshot(kb.source_id, "doc-1") == new
+    assert await store.get_acl_snapshot(kb.source_id, "doc-2") is None

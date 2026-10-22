@@ -345,6 +345,11 @@ class StoreTx(Protocol):
         """Store a new page version. Versions are immutable and must increase by one."""
         ...
 
+    async def put_acl_snapshot(self, snapshot: AclSnapshot) -> None:
+        """Keep a document's ACL as read from its source (M2 writes it before acl.changed).
+        Snapshots are kept per acl_hash, so an event can name the exact one it means."""
+        ...
+
     async def publish(self, *events: EventEnvelope) -> None: ...
 
 
@@ -386,6 +391,12 @@ class KnowledgeStore(Protocol):
     async def get_page(self, page_id: str, version: int | None = None) -> PageSnapshot | None: ...
 
     async def page_history(self, page_id: str) -> list[PageVersionInfo]: ...
+
+    async def get_acl_snapshot(
+        self, source_id: str, external_id: str, acl_hash: str | None = None
+    ) -> AclSnapshot | None:
+        """The snapshot with that hash, or the latest captured one when acl_hash is None."""
+        ...
 
     async def resolve_data(self, ref: DataRef) -> DataTable:
         """Run a chart's or view's DataRef. Rows keep their claim IDs so the serving path can

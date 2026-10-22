@@ -12,6 +12,7 @@ from datetime import datetime
 
 from inspiration.contracts.interfaces import DataProvider, EventPublisher
 from inspiration.contracts.models import (
+    AclSnapshot,
     Chunk,
     Claim,
     ClaimDerivation,
@@ -44,6 +45,7 @@ class _State:
     derivations: dict[str, ClaimDerivation] = field(default_factory=dict)
     dependencies: dict[tuple[str, str], DependencyEdge] = field(default_factory=dict)
     pages: dict[str, dict[int, PageSnapshot]] = field(default_factory=dict)
+    acls: dict[tuple[str, str, str], AclSnapshot] = field(default_factory=dict)
 
     def copy(self) -> _State:
         # Values are replaced, never mutated, so copying the containers is enough.
@@ -133,6 +135,9 @@ class MemoryTx:
         versions = self.s.pages.get(snapshot.page_id, {})
         rules.check_page_snapshot(snapshot, max(versions) if versions else None)
         self.s.pages[snapshot.page_id] = {**versions, snapshot.version: snapshot}
+
+    async def put_acl_snapshot(self, snapshot: AclSnapshot) -> None:
+        self.s.acls.setdefault((snapshot.source_id, snapshot.external_id, snapshot.acl_hash), snapshot)
 
     async def publish(self, *events: EventEnvelope) -> None:
         self.events.extend(events)
@@ -243,6 +248,14 @@ class MemoryStore(BaseStore):
             )
             for _, p in sorted(versions.items())
         ]
+
+    async def get_acl_snapshot(
+        self, source_id: str, external_id: str, acl_hash: str | None = None
+    ) -> AclSnapshot | None:
+        if acl_hash is not None:
+            return self.state.acls.get((source_id, external_id, acl_hash))
+        found = [a for k, a in self.state.acls.items() if k[:2] == (source_id, external_id)]
+        return max(found, key=lambda a: (a.captured_at, a.acl_hash), default=None)
 
     def embedding_of(self, chunk_id: str) -> tuple[str, list[float]] | None:
         return self.state.embeddings.get(chunk_id)

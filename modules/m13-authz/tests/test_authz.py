@@ -377,9 +377,16 @@ async def test_acl_changed_events_are_mirrored(world: World) -> None:
         fidelity=snapshot.fidelity,
         snapshot=snapshot,
     )
-    await bus.publish(new_event(changed, tenant_id=w.tenant, producer="m1.connectors"))
-    without = changed.model_copy(update={"external_id": "doc-unknown", "snapshot": None})
-    await bus.publish(new_event(without, tenant_id=w.tenant, producer="m1.connectors"))
+    await bus.publish(new_event(changed, tenant_id=w.tenant, producer="m2.sync"))
+    # A large ACL travels through the store instead of the event.
+    stored = acl(w.source, "doc-stored", entry(AclPrincipalKind.user, w.ids["dave"]))
+    async with w.store.transaction() as tx:
+        await tx.put_acl_snapshot(stored)
+    by_ref = changed.model_copy(update={"external_id": "doc-stored", "acl_hash": stored.acl_hash, "snapshot": None})
+    await bus.publish(new_event(by_ref, tenant_id=w.tenant, producer="m2.sync"))
+    missing = changed.model_copy(update={"external_id": "doc-unknown", "snapshot": None})
+    await bus.publish(new_event(missing, tenant_id=w.tenant, producer="m2.sync"))
     await bus.drain()
     assert await w.can("carol", Permission.read, doc(w, "doc-new"))
+    assert await w.can("dave", Permission.read, doc(w, "doc-stored"))
     assert [e.data["external_id"] for e, _ in bus.dead_letters("m13") if e] == ["doc-unknown"]

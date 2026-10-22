@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from inspiration.contracts.interfaces import DataProvider
 from inspiration.contracts.labels import rank
 from inspiration.contracts.models import (
+    AclSnapshot,
     Chunk,
     Claim,
     ClaimDerivation,
@@ -278,6 +279,13 @@ class PgTx:
             ),
         )
 
+    async def put_acl_snapshot(self, snapshot: AclSnapshot) -> None:
+        await self.conn.execute(
+            """INSERT INTO kb.acl_snapshots (source_id, external_id, acl_hash, captured_at, doc)
+               VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING""",
+            (snapshot.source_id, snapshot.external_id, snapshot.acl_hash, snapshot.captured_at, _doc(snapshot)),
+        )
+
     async def publish(self, *events: EventEnvelope) -> None:
         await write_outbox(self.conn, events)
 
@@ -412,6 +420,19 @@ class PostgresStore(BaseStore):
             sql += " AND version = %s"
             params.append(version)
         found = await self._docs(PageSnapshot, sql, params)
+        return found[0] if found else None
+
+    async def get_acl_snapshot(
+        self, source_id: str, external_id: str, acl_hash: str | None = None
+    ) -> AclSnapshot | None:
+        sql = "SELECT doc FROM kb.acl_snapshots WHERE source_id = %s AND external_id = %s"
+        params: list[Any] = [source_id, external_id]
+        if acl_hash is None:
+            sql += " ORDER BY captured_at DESC, acl_hash DESC LIMIT 1"
+        else:
+            sql += " AND acl_hash = %s"
+            params.append(acl_hash)
+        found = await self._docs(AclSnapshot, sql, params)
         return found[0] if found else None
 
     async def page_history(self, page_id: str) -> list[PageVersionInfo]:

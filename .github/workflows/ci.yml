@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: contracts/typescript/package-lock.json
+      - run: uv sync --frozen
+      - run: npm ci
+        working-directory: contracts/typescript
+      - run: make lint
+      - run: make typecheck
+      - run: make contracts-check
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --frozen
+      - name: Start Postgres, Valkey and SpiceDB
+        run: docker compose -f infra/compose.yaml up -d --wait
+      - run: make test
+      - name: Stack logs on failure
+        if: failure()
+        run: docker compose -f infra/compose.yaml logs --tail 200

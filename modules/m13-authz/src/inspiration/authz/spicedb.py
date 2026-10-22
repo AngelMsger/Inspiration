@@ -156,6 +156,11 @@ async def write_schema(client: AsyncClient, schema: str | None = None) -> str:
     return str(resp.written_at.token)
 
 
+async def _apply(endpoint: str, key: str, insecure: bool) -> str:
+    # The gRPC channel must be created inside the running event loop.
+    return await write_schema(connect(endpoint, key, insecure=insecure))
+
+
 def main() -> int:
     from inspiration.kernel.settings import get_settings
 
@@ -165,9 +170,7 @@ def main() -> int:
     parser.add_argument("--insecure", action="store_true", default=settings.spicedb_insecure)
     args = parser.parse_args()
     try:
-        token = asyncio.run(
-            write_schema(connect(args.endpoint, settings.spicedb_key.get_secret_value(), insecure=args.insecure))
-        )
+        token = asyncio.run(_apply(args.endpoint, settings.spicedb_key.get_secret_value(), args.insecure))
     except grpc.RpcError as e:
         print(f"schema write failed: {e}", file=sys.stderr)
         return 1

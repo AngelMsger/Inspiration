@@ -708,7 +708,7 @@ export interface HttpsSchemasInspirationLocalContractsV1InspirationSchemaJson {
   ViewportName?: ViewportName;
 }
 /**
- * Carries the new ACL itself, so M13 can mirror it without calling back into the connector. ACL snapshots are small; a source whose ACLs are too large to inline leaves snapshot out and M13 fetches it from M1.
+ * M2 always stores the snapshot in M10 (KnowledgeStore.put_acl_snapshot) in the same transaction as this event, and inlines it here when it is small. When snapshot is absent, M13 reads it from M10 by source_id, external_id and acl_hash.
  *
  */
 export interface AclChanged {

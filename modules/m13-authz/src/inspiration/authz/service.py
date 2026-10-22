@@ -240,7 +240,10 @@ class AuthzService:
                 return rels[0].subject.id if rels else None
         return await self.extra_spaces(res) if self.extra_spaces else None
 
-    async def check(self, who: Principal, perm: Permission, res: ResourceRef) -> Decision:
+    async def check(
+        self, who: Principal, perm: Permission, res: ResourceRef, *, memo: dict[str, bool] | None = None
+    ) -> Decision:
+        """memo: per-request cache of document read checks, shared by check_many."""
         if (limit := self._agent_limits(who, perm)) is not None:
             return Decision(allow=False, reason=limit)
         subject = self._acting_subject(who)
@@ -270,7 +273,7 @@ class AuthzService:
         if not await self.graph.check(Obj("space", space_id), perm.value, subject):
             return Decision(allow=False, reason=f"no {perm.value} permission on the space")
         if res.type in (ResourceType.claim, ResourceType.sop, ResourceType.knowledge_model, ResourceType.entity):
-            derived = await self.can_read_derived(who, res.id)
+            derived = await self.can_read_derived(who, res.id, memo=memo)
             if not derived.allow:
                 return Decision(allow=False, reason="no readable source supports it")
         return self._decision(True)
@@ -279,7 +282,8 @@ class AuthzService:
         return Decision(allow=allowed, reason=None if allowed else "no permission", consistency_token=self.graph.token)
 
     async def check_many(self, who: Principal, perm: Permission, resources: Sequence[ResourceRef]) -> list[Decision]:
-        return list(await asyncio.gather(*(self.check(who, perm, r) for r in resources)))
+        memo: dict[str, bool] = {}
+        return list(await asyncio.gather(*(self.check(who, perm, r, memo=memo) for r in resources)))
 
     async def principal_tokens(self, who: Principal) -> list[str]:
         subject = self._acting_subject(who)
@@ -319,14 +323,23 @@ class AuthzService:
             spaces = [s for s in spaces if s in set(who.space_scope)]
         return IndexFilter(space_ids=spaces, principal_tokens=tokens, max_sensitivity=clearance)
 
-    async def can_read_derived(self, who: Principal, unit_id: str) -> DerivedReadDecision:
+    async def can_read_derived(
+        self, who: Principal, unit_id: str, *, memo: dict[str, bool] | None = None
+    ) -> DerivedReadDecision:
         """Readable when at least one source version behind the unit belongs to a document
-        the viewer can read now. readable_support lists only those source versions."""
+        the viewer can read now. readable_support lists only those source versions.
+
+        Document checks go to the graph in one bulk call; memo carries their results across
+        the units of one request (a search result page, a page's blocks)."""
         subject = self._acting_subject(who)
         graph = await self.store.lineage(unit_id, depth=LINEAGE_DEPTH)
         version_ids = sorted({n.id for n in graph.nodes if kind_of(n.id) == "source_version"})
         versions = [v for v in await asyncio.gather(*(self.store.get_source_version(i) for i in version_ids)) if v]
-        docs = [Obj("document", document_object_id(v.source_id, v.external_id)) for v in versions]
-        allowed = await self.graph.check_many([(d, "read") for d in docs], subject) if docs else []
-        readable = [v.id for v, ok in zip(versions, allowed, strict=True) if ok]
+        doc_of = {v.id: document_object_id(v.source_id, v.external_id) for v in versions}
+        memo = {} if memo is None else memo
+        unknown = sorted({d for d in doc_of.values() if d not in memo})
+        if unknown:
+            results = await self.graph.check_many([(Obj("document", d), "read") for d in unknown], subject)
+            memo.update(zip(unknown, results, strict=True))
+        readable = [v.id for v in versions if memo[doc_of[v.id]]]
         return DerivedReadDecision(allow=bool(readable), readable_support=readable)
