@@ -1,0 +1,10 @@
+* text=auto eol=lf
+
+# Generated from contracts/schema; collapsed in diffs. Regenerate with `make contracts`.
+contracts/dist/inspiration.schema.json linguist-generated=true
+contracts/python/src/inspiration/contracts/models.py linguist-generated=true
+contracts/typescript/src/generated.ts linguist-generated=true
+
+# Lock files
+uv.lock linguist-generated=true
+contracts/typescript/package-lock.json linguist-generated=true
