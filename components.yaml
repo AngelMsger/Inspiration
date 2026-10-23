@@ -66,10 +66,10 @@ components:
   extraction:
     title: Knowledge extraction
     layer: compile
-    status: planned
+    status: built
     runtime: node
     owns: Claims with evidence, entity resolution, SOPs from documents and approval mining, knowledge models
-    plugins: [extractors]
+    plugins: [model_mocks]
     publishes: [claims.updated]
     subscribes: [blocks.changed, artifact.dirty, comment.created]
     calls: [knowledge-store, model-gateway]

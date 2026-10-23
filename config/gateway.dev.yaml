@@ -8,6 +8,8 @@ providers:
   - name: cloud
     kind: fake
     max_sensitivity: internal
+    # Answer tasks that ship a model_mocks plugin (extraction.extract_claims ...) with it.
+    options: {mocks: true}
     models:
       - name: fake-flash
         operations: [complete]
@@ -22,6 +24,7 @@ providers:
   - name: local
     kind: fake
     max_sensitivity: secret
+    options: {mocks: true}
     models:
       - name: fake-local-chat
         operations: [complete]

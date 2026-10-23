@@ -1,12 +1,19 @@
 # Demo corpus: 青禾科技
 
-A small, hand-written tenant for the ingest prototype and for design work: 21 documents
+A small, hand-written tenant for the ingest prototype and for design work: 19 documents
 across a policy library, a team wiki, an archive folder, one Feishu wiki document and one
-Feishu approval definition with four instances. `corpus.yaml` declares the tenant, its two
-spaces, its five sources and the directory that maps source principals to engine
-principals.
+Feishu approval definition (its four instances are read with it). `corpus.yaml` declares
+the tenant, its two spaces, its five sources and the directory that maps source principals
+to engine principals. `vocabulary.yaml` is the tenant's predicate catalogue: the
+single-valued facts (hotel caps, deadlines, leave days ...) that extraction puts into slots
+so governance can compare values across documents.
 
 Run it through the engine with `pnpm engine ingest examples/corpus` (see `apps/engine`).
+With the mocked extraction model it gives about 147 claims, 58 of them in 15 slots, and
+finds the four planted value conflicts below (hotel cap, meal allowance, first-year leave,
+budget deadline). The travel reimbursement deadline is not among them because its
+statements carry different qualifiers (差旅 and 日常费用), which is what governance has to
+reconcile.
 
 ## Governance levels
 

@@ -1,14 +1,17 @@
 /**
  * Deterministic offline provider for tests, CI and demos without a model server.
  *
- * complete: scripted replies per task (FakeProvider.script), otherwise a minimal JSON value
- * that satisfies the response schema, otherwise a fixed text derived from the prompt.
+ * complete: scripted replies per task (FakeProvider.script), otherwise, when the provider
+ * sets `options.mocks: true`, the model_mocks plugin named after the task, otherwise a
+ * minimal JSON value that satisfies the response schema, otherwise a fixed text derived
+ * from the prompt. Mocks are opt-in so a test of the gateway itself sees the plain fake.
  * embed: hashed character n-grams, so texts that share words get similar vectors and
  * retrieval tests behave sensibly. rerank: n-gram overlap. ocr: the image bytes as text.
  */
 
 import { createHash } from "node:crypto";
 import type { BlobStore, ChatMessage, EmbedInputType } from "@inspiration/contracts";
+import { registry } from "@inspiration/kernel";
 import type { ModelConfig, ProviderConfig } from "../config.ts";
 import { SCHEMA_MARKER } from "../structured.ts";
 import type {
@@ -22,6 +25,15 @@ import type {
 import { markdownToBlocks } from "./markdown.ts";
 
 export type Reply = string | ((messages: readonly ChatMessage[]) => string);
+
+/**
+ * A model_mocks plugin: answers one task from the rendered messages, as a model would, so
+ * the pipeline runs end to end without a model server. It must be deterministic.
+ */
+export type MockResponder = (
+  messages: readonly ChatMessage[],
+  options: { task: string; responseSchema?: Record<string, unknown> },
+) => string | Promise<string>;
 
 const CJK = /[一-鿿]/g;
 
@@ -104,6 +116,7 @@ export class FakeProvider implements ModelProvider {
   /** Make every completion fail with this error, to exercise fallback. */
   failWith: Error | undefined;
   readonly #scripts = new Map<string, Reply[]>();
+  readonly #mocks = new Map<string, Promise<MockResponder | undefined>>();
 
   constructor(config: ProviderConfig, blobs?: BlobStore) {
     this.config = config;
@@ -113,6 +126,16 @@ export class FakeProvider implements ModelProvider {
   /** Queue replies for a task. A reply is a string or a function of the messages. */
   script(task: string, ...replies: Reply[]): void {
     this.#scripts.set(task, [...(this.#scripts.get(task) ?? []), ...replies]);
+  }
+
+  #mockFor(task: string): Promise<MockResponder | undefined> {
+    let mock = this.#mocks.get(task);
+    if (!mock) {
+      const mocks = registry("model_mocks");
+      mock = mocks.names().includes(task) ? mocks.get<MockResponder>(task) : Promise.resolve(undefined);
+      this.#mocks.set(task, mock);
+    }
+    return mock;
   }
 
   async complete(
@@ -125,9 +148,18 @@ export class FakeProvider implements ModelProvider {
     if (this.failWith) throw this.failWith;
     const prompt = messages.map((m) => m.content).join("\n");
     const reply = this.#scripts.get(params.task ?? "")?.shift();
+    const mock =
+      reply === undefined && params.task && this.config.options.mocks === true
+        ? await this.#mockFor(params.task)
+        : undefined;
     let text: string;
     if (reply !== undefined) {
       text = typeof reply === "function" ? reply(messages) : reply;
+    } else if (mock && params.task) {
+      text = await mock(messages, {
+        task: params.task,
+        ...(params.responseSchema && { responseSchema: params.responseSchema }),
+      });
     } else if (params.responseSchema || params.jsonMode) {
       text = JSON.stringify(minimalInstance(params.responseSchema ?? instructedSchema(messages) ?? { type: "object" }));
     } else {

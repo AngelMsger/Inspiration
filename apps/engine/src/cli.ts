@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { loadSettings } from "@inspiration/kernel";
+import type { Truth } from "./claims.ts";
 import { Corpus } from "./corpus.ts";
 import { Engine, type EngineOptions } from "./engine.ts";
 import { ingest, plantedDuplicates, summary } from "./ingest.ts";
@@ -57,6 +58,7 @@ async function main(argv: string[]): Promise<number> {
   const options: EngineOptions = {
     blobDir: values.blobs ?? settings?.blobDir ?? (await mkdtemp(join(tmpdir(), "inspiration-blobs-"))),
     resolvePrincipal: corpus.resolvePrincipal,
+    vocabulary: () => corpus.vocabulary,
   };
   const databaseUrl = values.database ?? settings?.databaseUrl;
   const valkeyUrl = values.valkey ?? settings?.valkeyUrl;
@@ -65,9 +67,10 @@ async function main(argv: string[]): Promise<number> {
   if (settings) options.streamPrefix = settings.streamPrefix;
   const engine = await Engine.open(options);
   try {
-    const report = await ingest(engine, corpus);
-    const truth = await readFile(join(dir, "truth.json"), "utf8").catch(() => undefined);
-    if (truth) report.planted = plantedDuplicates(report.duplicates, JSON.parse(truth).duplicates);
+    const text = await readFile(join(dir, "truth.json"), "utf8").catch(() => undefined);
+    const truth = text ? (JSON.parse(text) as Truth & { duplicates: { document: string; of: string }[] }) : undefined;
+    const report = await ingest(engine, corpus, truth ? { truth } : {});
+    if (truth) report.planted = plantedDuplicates(report.duplicates, truth.duplicates);
     console.log(summary(report));
     if (values.json) await writeFile(values.json, `${JSON.stringify(report, null, 2)}\n`);
     return report.dead_letters ? 1 : 0;

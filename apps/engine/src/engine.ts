@@ -17,6 +17,7 @@ import {
   type Transport,
   ValkeyStreamsTransport,
 } from "@inspiration/eventbus";
+import { Extraction, type ExtractionOptions } from "@inspiration/extraction";
 import { applyMigrations, LocalBlobStore, logger, openPool, type Pool, workspaceRoot } from "@inspiration/kernel";
 import { MemoryStore, PostgresStore } from "@inspiration/knowledge-store";
 import { Gateway, loadGatewayConfig } from "@inspiration/model-gateway";
@@ -37,6 +38,8 @@ export interface EngineOptions {
   resolvePrincipal?: PrincipalResolver;
   /** Defaults to the development gateway (config/gateway.dev.yaml): fake providers only. */
   models?: ModelGateway;
+  /** Each tenant's predicate catalogue for extraction; the business layer will provide it. */
+  vocabulary?: ExtractionOptions["vocabulary"];
 }
 
 /** A component as the engine runs it: event handlers by type, under the component's consumer group. */
@@ -57,6 +60,7 @@ export class Engine {
   readonly models: ModelGateway;
   readonly sync: SourceSync;
   readonly normalization: Normalization;
+  readonly extraction: Extraction;
   readonly consumer: Consumer;
   readonly transport: Transport;
   readonly #relay: OutboxRelay | undefined;
@@ -72,6 +76,7 @@ export class Engine {
     relay?: OutboxRelay;
     pool?: Pool;
     resolvePrincipal?: PrincipalResolver;
+    vocabulary?: ExtractionOptions["vocabulary"];
   }) {
     this.store = parts.store;
     this.records = parts.records;
@@ -94,9 +99,15 @@ export class Engine {
       blobs: this.blobs,
       models: this.models,
     });
+    this.extraction = new Extraction({
+      store: this.store,
+      models: this.models,
+      ...(parts.vocabulary && { vocabulary: parts.vocabulary }),
+    });
     const components: Running[] = [
       { group: "source-sync", handlers: () => this.sync.handlers() },
       { group: "normalization", handlers: () => this.normalization.handlers() },
+      { group: "extraction", handlers: () => this.extraction.handlers() },
     ];
     for (const c of components) {
       for (const [type, handler] of Object.entries(c.handlers())) this.consumer.subscribe(type, c.group, handler);
@@ -120,7 +131,10 @@ export class Engine {
       );
     } else transport = new InMemoryTransport();
     closers.push(() => transport.close());
-    const resolve = options.resolvePrincipal ? { resolvePrincipal: options.resolvePrincipal } : {};
+    const resolve = {
+      ...(options.resolvePrincipal && { resolvePrincipal: options.resolvePrincipal }),
+      ...(options.vocabulary && { vocabulary: options.vocabulary }),
+    };
 
     let engine: Engine;
     if (options.databaseUrl) {

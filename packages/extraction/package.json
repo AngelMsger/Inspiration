@@ -1,0 +1,28 @@
+{
+  "name": "@inspiration/extraction",
+  "version": "0.1.0",
+  "description": "Knowledge extraction: claims with verbatim evidence from changed source blocks, through the model gateway",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "inspiration": {
+    "plugins": {
+      "model_mocks": {
+        "extraction.extract_claims": "./src/mock.ts#mockExtractClaims"
+      }
+    }
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/kernel": "workspace:*",
+    "@inspiration/model-gateway": "workspace:*",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@inspiration/eventbus": "workspace:*",
+    "@inspiration/knowledge-store": "workspace:*",
+    "@inspiration/testkit": "workspace:*"
+  }
+}

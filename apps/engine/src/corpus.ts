@@ -1,12 +1,14 @@
 /**
  * A corpus on disk: a corpus.yaml that declares a tenant, its spaces, its sources (folders
  * and recorded Feishu fixtures, relative to the corpus) and a directory that maps each
- * source's principals to engine principals, standing in for the business layer.
+ * source's principals to engine principals, standing in for the business layer. An
+ * optional vocabulary.yaml is the tenant's predicate catalogue for extraction.
  */
 
-import { readFile } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { type AclEntry, parseAs, type Source } from "@inspiration/contracts";
+import { loadVocabulary, type Vocabulary } from "@inspiration/extraction";
 import type { PrincipalResolver } from "@inspiration/source-sync";
 import { parse } from "yaml";
 
@@ -39,11 +41,14 @@ export class Corpus {
   readonly dir: string;
   readonly manifest: CorpusManifest;
   readonly sources: Source[];
+  readonly vocabulary: Vocabulary | undefined;
   readonly #directoryOf = new Map<string, Record<string, string>>();
 
-  constructor(dir: string, manifest: CorpusManifest, createdAt = new Date(0)) {
+  constructor(dir: string, manifest: CorpusManifest, options: { vocabulary?: Vocabulary; createdAt?: Date } = {}) {
+    const createdAt = options.createdAt ?? new Date(0);
     this.dir = resolve(dir);
     this.manifest = manifest;
+    this.vocabulary = options.vocabulary;
     const spaces = new Set(manifest.spaces.map((s) => s.id));
     this.sources = manifest.sources.map((s) => {
       if (!spaces.has(s.space)) throw new CorpusError(`source ${s.id}: unknown space ${s.space}`);
@@ -72,7 +77,12 @@ export class Corpus {
 
   static async load(dir: string): Promise<Corpus> {
     const text = await readFile(join(dir, "corpus.yaml"), "utf8");
-    return new Corpus(dir, parse(text) as CorpusManifest);
+    const file = join(dir, "vocabulary.yaml");
+    const found = await access(file).then(
+      () => true,
+      () => false,
+    );
+    return new Corpus(dir, parse(text) as CorpusManifest, found ? { vocabulary: await loadVocabulary(file) } : {});
   }
 
   get tenantId(): string {

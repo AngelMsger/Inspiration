@@ -2,8 +2,10 @@
  * Plugin registries.
  *
  * Connectors, parsers, extractors, diagram compilers, index backends and model providers
- * register by name. A new source or model is a new plugin, not a core change. Packages
- * declare plugins in package.json, as "<module path>#<export>":
+ * register by name. A new source or model is a new plugin, not a core change. Model mocks
+ * are named after the model task they answer for the fake provider, so a component that
+ * owns a prompt also owns the stand-in that answers it until real models are configured.
+ * Packages declare plugins in package.json, as "<module path>#<export>":
  *
  *     "inspiration": {
  *       "plugins": {
@@ -28,6 +30,7 @@ export const GROUPS = [
   "vector_indexes",
   "keyword_indexes",
   "model_providers",
+  "model_mocks",
   "data_providers",
   "view_templates",
   "agent_tools",
