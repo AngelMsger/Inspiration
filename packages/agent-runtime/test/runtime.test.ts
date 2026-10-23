@@ -15,7 +15,16 @@ import {
   parseGatewayConfig,
 } from "@inspiration/model-gateway";
 import { describe, expect, test } from "vitest";
-import { actionSchema, FunctionTool, MemoryRuns, ReplayTools, Runtime, ToolRegistry } from "../src/index.ts";
+import {
+  actionSchema,
+  FunctionTool,
+  LabeledResult,
+  MAX_RESULT_CHARS,
+  MemoryRuns,
+  ReplayTools,
+  Runtime,
+  ToolRegistry,
+} from "../src/index.ts";
 
 const TASK = "collaboration.comment_assistant";
 const TENANT = "ten_01JC000000000000000000TEN1";
@@ -296,6 +305,53 @@ describe("agent runtime", () => {
     const again = records.slice(recorded.steps.length);
     expect(again.map((r) => r.sensitivity)).toEqual(first.map((r) => r.sensitivity));
     expect(new Set(again.map((r) => r.status))).toEqual(new Set(["cached"]));
+  });
+
+  test("replay keeps the label of a result cut at MAX_RESULT_CHARS", async () => {
+    const READ: ToolSpec = { ...SEARCH, name: "read_document" };
+    const secret = new ToolRegistry([
+      new FunctionTool(READ, async () => ({ sensitivity: "secret", text: "SECRET".repeat(3000) })),
+    ]);
+    const run = (gw: Gateway, tools: ToolRegistry) =>
+      new Runtime(gw, tools, prompts()).run(spec({ tools: ["read_document"] }), "q", context());
+    const script = (gw: Gateway) => {
+      fake(gw, "cloud").script(TASK, call("read_document", { query: "budget" }));
+      fake(gw, "local").script(TASK, final({ reply: "done" }));
+    };
+    const gw = gateway();
+    script(gw);
+    const recorded = await run(gw, secret);
+    const shown = recorded.steps[0]?.result as string;
+    expect(shown.length).toBeGreaterThan(MAX_RESULT_CHARS);
+    expect(() => JSON.parse(shown)).toThrow();
+    expect(recorded.steps[0]?.sensitivity).toBe("secret");
+
+    const again = gateway();
+    script(again);
+    const replayed = await run(again, new ReplayTools([READ], recorded));
+    expect(usageOf(gw).map((r) => r.sensitivity)).toEqual(["internal", "secret"]);
+    expect(usageOf(again).map((r) => r.sensitivity)).toEqual(["internal", "secret"]);
+    expect(replayed.steps.map((s) => s.result)).toEqual(recorded.steps.map((s) => s.result));
+
+    // A trace recorded before steps carried labels fails closed instead of falling back to the context.
+    const unlabeled = { ...recorded, steps: recorded.steps.map(({ sensitivity: _, ...step }) => step) };
+    const old = gateway();
+    script(old);
+    await run(old, new ReplayTools([READ], unlabeled));
+    expect(usageOf(old).map((r) => r.sensitivity)).toEqual(["internal", "secret"]);
+  });
+
+  test("a tool labels text by returning a LabeledResult", async () => {
+    const READ: ToolSpec = { ...SEARCH, name: "read_document" };
+    const tools = new ToolRegistry([
+      new FunctionTool(READ, async () => new LabeledResult("预算表：研发部 1,200 万元", "confidential")),
+    ]);
+    const gw = gateway();
+    fake(gw, "cloud").script(TASK, call("read_document", { query: "budget" }));
+    fake(gw, "local").script(TASK, final({ reply: "done" }));
+    const result = await new Runtime(gw, tools, prompts()).run(spec({ tools: ["read_document"] }), "q", context());
+    expect(result.steps[0]?.result).toBe("预算表：研发部 1,200 万元");
+    expect(usageOf(gw).map((r) => r.sensitivity)).toEqual(["internal", "confidential"]);
   });
 
   test("the action schema is one flat object", () => {

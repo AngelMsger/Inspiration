@@ -1,4 +1,36 @@
-import type { AgentResult, AgentRunContext, Tool, ToolSpec } from "@inspiration/contracts";
+import {
+  type AgentResult,
+  type AgentRunContext,
+  SENSITIVITY_ORDER,
+  type SensitivityLabel,
+  type Tool,
+  type ToolSpec,
+} from "@inspiration/contracts";
+
+/**
+ * A tool result with its label kept apart from the value, for results that cannot carry a
+ * "sensitivity" field, such as text. The runtime gives the model only the value.
+ */
+export class LabeledResult {
+  readonly value: unknown;
+  readonly sensitivity: SensitivityLabel;
+
+  constructor(value: unknown, sensitivity: SensitivityLabel) {
+    this.value = value;
+    this.sensitivity = sensitivity;
+  }
+}
+
+/** The sensitivity label a tool put on its result, if any. */
+export function labelOf(result: unknown): SensitivityLabel | undefined {
+  if (result instanceof LabeledResult) return result.sensitivity;
+  const label =
+    typeof result === "object" && result !== null ? (result as { sensitivity?: unknown }).sensitivity : undefined;
+  return typeof label === "string" && label in SENSITIVITY_ORDER ? (label as SensitivityLabel) : undefined;
+}
+
+/** The label a replay assumes for a recorded result that has none: the highest. */
+const UNLABELED: SensitivityLabel = "secret";
 
 export class ToolRegistry {
   readonly #tools = new Map<string, Tool>();
@@ -44,32 +76,39 @@ export class FunctionTool implements Tool {
 /**
  * Tools that return the results recorded in an earlier run, in order, so a prompt or model
  * change can be evaluated against the same tool outputs. Recorded results that are JSON
- * objects are decoded again, so their sensitivity label still applies.
+ * objects are decoded again, and each comes back with the label its step recorded, which
+ * survives truncation. A step recorded without a label (an older trace) fails closed: the
+ * decoded result's own label if it is intact, otherwise the highest.
  */
 export class ReplayTools extends ToolRegistry {
   constructor(specs: readonly ToolSpec[], recorded: AgentResult) {
     super();
-    const results = new Map<string, unknown[]>();
+    const results = new Map<string, AgentResult["steps"]>();
     for (const step of recorded.steps) {
       if (step.kind !== "tool_call" || !step.tool) continue;
-      results.set(step.tool, [...(results.get(step.tool) ?? []), step.result]);
+      results.set(step.tool, [...(results.get(step.tool) ?? []), step]);
     }
     for (const spec of specs) {
       const queue = [...(results.get(spec.name) ?? [])];
       this.add(
         new FunctionTool(spec, async () => {
-          if (!queue.length) throw new RangeError(`no recorded result left for ${spec.name}`);
-          const value = queue.shift();
-          if (typeof value === "string" && value.startsWith("{")) {
-            try {
-              return JSON.parse(value);
-            } catch {
-              // a truncated or non-JSON result is replayed as text
-            }
-          }
-          return value;
+          const step = queue.shift();
+          if (!step) throw new RangeError(`no recorded result left for ${spec.name}`);
+          const value = decode(step.result);
+          return new LabeledResult(value, step.sensitivity ?? labelOf(value) ?? UNLABELED);
         }),
       );
     }
   }
+}
+
+function decode(value: unknown): unknown {
+  if (typeof value === "string" && value.startsWith("{")) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      // a truncated or non-JSON result is replayed as text
+    }
+  }
+  return value;
 }

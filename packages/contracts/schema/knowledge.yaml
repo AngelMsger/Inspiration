@@ -791,6 +791,11 @@ $defs:
         $ref: "common.yaml#/$defs/UnitId"
       relation:
         $ref: "#/$defs/LineageRelation"
+      role:
+        description: >
+          Set on cites edges: whether the span supports, contradicts or qualifies the claim.
+          Only supporting evidence makes a claim readable.
+        $ref: "#/$defs/EvidenceRole"
 
   LineageGraph:
     description: The provenance graph from a unit down to source spans.

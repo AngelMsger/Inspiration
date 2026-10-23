@@ -7,7 +7,9 @@
  *   principals in a source ACL get nothing.
  * - Spaces hold Inspiration roles: viewer < commenter < editor < steward / owner.
  * - Derived knowledge (claims, pages, SOPs) is readable only through source documents the
- *   viewer can read now, found by walking lineage. Hidden support is never counted or named.
+ *   viewer can read now, found by walking lineage along support paths: supporting evidence,
+ *   derivations and dependencies. Contradicting or qualifying evidence never makes a claim
+ *   readable. Hidden support is never counted or named.
  * - An agent acts on behalf of a person: its rights are the person's, cut down to its
  *   agent_scopes (read and discover when absent) and its space_scope.
  * - Search indexes get an IndexFilter (spaces, principal tokens, clearance) so ranking only
@@ -26,6 +28,7 @@ import type {
   DerivedReadDecision,
   IndexFilter,
   KnowledgeStore,
+  LineageGraph,
   Permission,
   Principal,
   ResourceRef,
@@ -405,8 +408,8 @@ export class AuthzService implements AuthZ, AclMirror {
   }
 
   /**
-   * Readable when at least one source version behind the unit belongs to a document the
-   * viewer can read now. readable_support lists only those source versions.
+   * Readable when at least one source version that supports the unit belongs to a document
+   * the viewer can read now. readable_support lists only those source versions.
    *
    * Document checks go to the graph in one bulk call; options.memo carries their results
    * across the units of one request (a search result page, a page's blocks).
@@ -417,10 +420,7 @@ export class AuthzService implements AuthZ, AclMirror {
     options: { memo?: Map<string, boolean> } = {},
   ): Promise<DerivedReadDecision> {
     const s = this.#actingSubject(who);
-    const graph = await this.store.lineage(unitId, LINEAGE_DEPTH);
-    const versionIds = [
-      ...new Set(graph.nodes.map((n) => n.id).filter((id) => kindOf(id) === "source_version")),
-    ].sort();
+    const versionIds = supportingVersions(await this.store.lineage(unitId, LINEAGE_DEPTH));
     const versions = (await Promise.all(versionIds.map((id) => this.store.getSourceVersion(id)))).filter(
       (v) => v !== undefined,
     );
@@ -437,4 +437,29 @@ export class AuthzService implements AuthZ, AclMirror {
     const readable = versions.filter((v) => memo.get(docOf.get(v.id) ?? "")).map((v) => v.id);
     return { allow: readable.length > 0, readable_support: readable };
   }
+}
+
+/**
+ * The source versions reachable from the graph's root along support paths: supporting
+ * evidence, a span's version, derivations and dependencies. Contradicting and qualifying
+ * evidence, supersession and mentions lead nowhere.
+ */
+export function supportingVersions(graph: LineageGraph): string[] {
+  const next = new Map<string, string[]>();
+  const link = (from: string, to: string) => next.set(from, [...(next.get(from) ?? []), to]);
+  for (const e of graph.edges) {
+    if (e.relation === "cites" && e.role === "supports") link(e.from_id, e.to_id);
+    else if (e.relation === "contains") link(e.to_id, e.from_id);
+    else if (e.relation === "derived_from" || e.relation === "depends_on") link(e.from_id, e.to_id);
+  }
+  const seen = new Set([graph.root_id]);
+  const queue = [graph.root_id];
+  for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
+    for (const to of next.get(id) ?? []) {
+      if (seen.has(to)) continue;
+      seen.add(to);
+      queue.push(to);
+    }
+  }
+  return [...seen].filter((id) => kindOf(id) === "source_version").sort();
 }

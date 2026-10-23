@@ -116,6 +116,12 @@ $defs:
         type: object
       result:
         description: The tool result as given to the model (possibly truncated).
+      sensitivity:
+        description: >
+          On tool calls, the run's label once the result joined the conversation: the context's
+          label raised by every tool result so far. Kept apart from result, which truncation can
+          cut, so a replay routes later model calls as the recorded run did.
+        $ref: "common.yaml#/$defs/SensitivityLabel"
       error:
         type: string
       usage:

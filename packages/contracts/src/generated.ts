@@ -52,6 +52,11 @@ export type AgentRunStatus =
 export type AgentStepKind = "tool_call" | "final" | "error";
 export type ToolName = string;
 /**
+ * Ordered from least to most sensitive. A derived unit takes the highest label of its sources. Model routing never sends content above a provider's allowed label.
+ *
+ */
+export type SensitivityLabel = "public" | "internal" | "confidential" | "secret";
+/**
  * Any addressable knowledge unit. Used wherever a field can point at several kinds, such as lineage, freshness dependencies, todos and search hits.
  *
  */
@@ -59,11 +64,6 @@ export type UnitId = string;
 export type PrincipalKind = "user" | "group" | "department" | "agent" | "service";
 export type TenantId = string;
 export type Permission = "discover" | "read" | "comment" | "edit" | "verify" | "publish" | "admin";
-/**
- * Ordered from least to most sensitive. A derived unit takes the highest label of its sources. Model routing never sends content above a provider's allowed label.
- *
- */
-export type SensitivityLabel = "public" | "internal" | "confidential" | "secret";
 /**
  * Capability class the caller needs. The gateway maps tiers to concrete models per deployment, so callers never hard-code a model name.
  *
@@ -470,6 +470,7 @@ export interface AgentStep {
    * The tool result as given to the model (possibly truncated).
    */
   result?: unknown;
+  sensitivity?: SensitivityLabel;
   error?: string;
   usage: TokenUsage;
   latency_ms: number;
@@ -1826,6 +1827,7 @@ export interface LineageEdge {
   from_id: UnitId;
   to_id: UnitId;
   relation: LineageRelation;
+  role?: EvidenceRole;
 }
 /**
  * The provenance graph from a unit down to source spans.

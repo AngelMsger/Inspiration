@@ -697,6 +697,10 @@
         "result": {
           "description": "The tool result as given to the model (possibly truncated)."
         },
+        "sensitivity": {
+          "description": "On tool calls, the run's label once the result joined the conversation: the context's label raised by every tool result so far. Kept apart from result, which truncation can cut, so a replay routes later model calls as the recorded run did.\n",
+          "$ref": "#/$defs/SensitivityLabel"
+        },
         "error": {
           "type": "string"
         },
@@ -4106,6 +4110,10 @@
         },
         "relation": {
           "$ref": "#/$defs/LineageRelation"
+        },
+        "role": {
+          "description": "Set on cites edges: whether the span supports, contradicts or qualifies the claim. Only supporting evidence makes a claim readable.\n",
+          "$ref": "#/$defs/EvidenceRole"
         }
       }
     },

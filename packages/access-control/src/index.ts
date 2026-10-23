@@ -34,5 +34,6 @@ export {
   type SpaceResolver,
   type SpaceRole,
   subjectOf,
+  supportingVersions,
 } from "./service.ts";
 export { BULK_CHUNK, closeClient, connect, type SpiceDBClient, SpiceDBGraph, writeSchema } from "./spicedb.ts";

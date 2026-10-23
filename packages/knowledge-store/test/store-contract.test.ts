@@ -224,7 +224,7 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
         expect.arrayContaining([
           { from_id: merged.id, to_id: a.id, relation: "derived_from" },
           { from_id: merged.id, to_id: b.id, relation: "derived_from" },
-          { from_id: a.id, to_id: ea[0]?.span_id, relation: "cites" },
+          { from_id: a.id, to_id: ea[0]?.span_id, relation: "cites", role: "supports" },
         ]),
       );
 
