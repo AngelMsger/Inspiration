@@ -74,6 +74,24 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
     expect(blocksChanged(await world.events())).toHaveLength(1);
   });
 
+  it.skipIf(skip)("blocks.changed carries on the correlation of the document.fetched it answers", async ({ world }) => {
+    const v1 = await world.ingest({ external_id: "差旅.md", text: POLICY });
+    const fetched = newEvent(
+      "document.fetched",
+      {
+        source_id: SOURCE,
+        source_version_id: v1.id,
+        external_id: "差旅.md",
+        changed: { content: true, metadata: true, acl: true },
+        deleted: false,
+      },
+      { tenantId: TENANT, producer: "source-sync" },
+    );
+    await world.normalization.onDocumentFetched(fetched);
+    const [changed] = (await world.events()).filter((e) => e.type === "blocks.changed");
+    expect(changed).toMatchObject({ causation_id: fetched.id, correlation_id: fetched.id });
+  });
+
   it.skipIf(skip)("an edit changes one block and one span; the rest keep their IDs", async ({ world }) => {
     const v1 = await world.ingest({ external_id: "差旅.md", text: POLICY });
     await world.normalization.normalize(v1.id);

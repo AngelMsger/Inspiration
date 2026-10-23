@@ -134,14 +134,15 @@ export class Extraction {
    * Extract claims from a version's added and changed blocks, and close the claims whose
    * evidence the version removed: superseded by a new claim of the same slot or a similar
    * statement from the same block, retracted otherwise. Doing it again changes nothing.
-   * Versions of one document are handled one at a time.
+   * Versions of one document are handled one at a time. Given the blocks.changed event,
+   * claims.updated carries on its correlation.
    */
-  async extract(change: BlocksChanged): Promise<ExtractionResult> {
+  async extract(change: BlocksChanged, cause?: EventEnvelope): Promise<ExtractionResult> {
     const version = await this.store.getSourceVersion(change.source_version_id);
     if (!version) throw new RangeError(`unknown source version ${change.source_version_id}`);
     const key = `${version.source_id}\x1f${version.external_id}`;
     const before = this.#running.get(key) ?? Promise.resolve();
-    const run = before.catch(() => undefined).then(() => this.#extract(version, change));
+    const run = before.catch(() => undefined).then(() => this.#extract(version, change, cause));
     this.#running.set(key, run);
     try {
       return await run;
@@ -151,14 +152,14 @@ export class Extraction {
   }
 
   readonly onBlocksChanged: EventHandler = async (event: EventEnvelope) => {
-    await this.extract(payloadOf(event, "blocks.changed"));
+    await this.extract(payloadOf(event, "blocks.changed"), event);
   };
 
   handlers(): Record<string, EventHandler> {
     return { "blocks.changed": this.onBlocksChanged };
   }
 
-  async #extract(version: SourceVersion, change: BlocksChanged): Promise<ExtractionResult> {
+  async #extract(version: SourceVersion, change: BlocksChanged, cause?: EventEnvelope): Promise<ExtractionResult> {
     const result: ExtractionResult = {
       windows: 0,
       failed_windows: 0,
@@ -211,6 +212,7 @@ export class Extraction {
       tenantId: version.tenant_id,
       producer: COMPONENT,
       subject: `${version.source_id}:${version.external_id}`,
+      ...(cause && { causation: cause }),
       occurredAt: this.clock(),
     });
     await this.store.transaction(async (tx) => {

@@ -149,6 +149,8 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
     edits_with_reviews: 1,
     states: { fresh: 14, aging: 3, at_risk: 1 },
   });
+  // The review of the forwarded copy traces back to the one source update.
+  expect(edited.asks).toEqual({ updates: 1, asking: 1, per_update: { median: 1, p90: 1, max: 1 } });
 
   // Over the next sixty days the three process documents come due.
   const later = await days(engine, corpus.tenantId, clock, 60);

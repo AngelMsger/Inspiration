@@ -3,8 +3,9 @@
  * documents, blocks and spans a tenant like this produces, how they split by kind, what
  * normalization could not parse, which duplicates it found, how many ACL entries the
  * directory could not map, what extraction made of it all (see claims.ts), which conflicts
- * governance found and what they would ask of people (see conflicts.ts), and which reviews
- * freshness scheduled or asked for (see freshness.ts).
+ * governance found and what they would ask of people (see conflicts.ts), which reviews
+ * freshness scheduled or asked for (see freshness.ts), and what each source update asked of
+ * people at once, todo requests and reviews together.
  */
 
 import type { AclChanged, BlocksChanged, ClaimsUpdated, EventEnvelope } from "@inspiration/contracts";
@@ -51,6 +52,11 @@ export interface IngestReport {
   claims: ClaimsReport;
   governance: GovernanceReport;
   freshness: FreshnessReport;
+  /**
+   * New versions of documents already known, and the todo requests and reviews each asked for
+   * at once. Every event a source update causes shares its correlation id.
+   */
+  asks: { updates: number; asking: number; per_update: Spread };
   dead_letters: number;
 }
 
@@ -68,6 +74,7 @@ class EventTally {
   requests: EventEnvelope[] = [];
   changeEvents: EventEnvelope[] = [];
   reviews: EventEnvelope[] = [];
+  fetched: EventEnvelope[] = [];
 
   static #byEngine = new WeakMap<Engine, EventTally>();
 
@@ -86,6 +93,7 @@ class EventTally {
     tally.requests = [];
     tally.changeEvents = [];
     tally.reviews = [];
+    tally.fetched = [];
     return tally;
   }
 
@@ -94,7 +102,11 @@ class EventTally {
       bump(this.events, e.type);
       fn?.(e);
     };
-    engine.observe("document.fetched", REPORT_GROUP, count());
+    engine.observe(
+      "document.fetched",
+      REPORT_GROUP,
+      count((e) => this.fetched.push(e)),
+    );
     engine.observe(
       "blocks.changed",
       REPORT_GROUP,
@@ -170,6 +182,7 @@ export async function ingest(engine: Engine, corpus: Corpus, options: { truth?: 
       ...(options.truth && { truth: options.truth }),
     }),
     freshness: await freshnessReport(engine, corpus.tenantId, { reviews: tally.reviews, changes: tally.changeEvents }),
+    asks: asksOf(tally.fetched, [...tally.requests, ...tally.reviews]),
     dead_letters: await deadLetters(engine),
   };
 }
@@ -321,6 +334,18 @@ export function plantedDuplicates(
   };
 }
 
+function asksOf(fetched: readonly EventEnvelope[], asks: readonly EventEnvelope[]): IngestReport["asks"] {
+  const perUpdate = new Map<string, number>();
+  for (const e of asks)
+    if (e.correlation_id) perUpdate.set(e.correlation_id, (perUpdate.get(e.correlation_id) ?? 0) + 1);
+  const updates = fetched.filter((e) => payloadOf(e, "document.fetched").previous_version_id);
+  return {
+    updates: updates.length,
+    asking: updates.filter((e) => perUpdate.has(e.id)).length,
+    per_update: spread(updates.map((e) => perUpdate.get(e.id) ?? 0)),
+  };
+}
+
 /** The report as a short plain-text summary for a terminal. */
 export function summary(r: IngestReport): string {
   const kv = (o: Record<string, number>) =>
@@ -349,6 +374,11 @@ export function summary(r: IngestReport): string {
     ...claimLines(r.claims, kv),
     ...governanceLines(r.governance, kv),
     ...freshnessLines(r.freshness, kv),
+    ...(r.asks.updates
+      ? [
+          `source updates ${r.asks.updates}: ${r.asks.asking} asked people for anything at once, todo requests and reviews together (per update max ${r.asks.per_update.max})`,
+        ]
+      : []),
     `events: ${kv(r.events)}; dead letters ${r.dead_letters}`,
   ];
   return lines.join("\n");

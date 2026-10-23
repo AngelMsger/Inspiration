@@ -147,14 +147,15 @@ export class Normalization {
 
   /**
    * Store a version's blocks and spans and publish blocks.changed, unless that was done
-   * before. Versions of one document are normalized one at a time.
+   * before. Versions of one document are normalized one at a time. Given the event that asked
+   * for it, blocks.changed carries on that event's correlation.
    */
-  async normalize(sourceVersionId: string): Promise<NormalizeResult> {
+  async normalize(sourceVersionId: string, cause?: EventEnvelope): Promise<NormalizeResult> {
     const version = await this.store.getSourceVersion(sourceVersionId);
     if (!version) throw new RangeError(`unknown source version ${sourceVersionId}`);
     const key = documentKey(version.source_id, version.external_id);
     const before = this.#running.get(key) ?? Promise.resolve();
-    const run = before.catch(() => undefined).then(() => this.#normalize(version));
+    const run = before.catch(() => undefined).then(() => this.#normalize(version, cause));
     this.#running.set(key, run);
     try {
       return await run;
@@ -165,7 +166,7 @@ export class Normalization {
 
   readonly onDocumentFetched: EventHandler = async (event: EventEnvelope) => {
     const fetched: DocumentFetched = payloadOf(event, "document.fetched");
-    await this.normalize(fetched.source_version_id);
+    await this.normalize(fetched.source_version_id, event);
   };
 
   /** The handlers to subscribe, by event type, under the consumer group "normalization". */
@@ -173,7 +174,7 @@ export class Normalization {
     return { "document.fetched": this.onDocumentFetched };
   }
 
-  async #normalize(version: SourceVersion): Promise<NormalizeResult> {
+  async #normalize(version: SourceVersion, cause?: EventEnvelope): Promise<NormalizeResult> {
     const key = documentKey(version.source_id, version.external_id);
     const state = await this.records.get(DOCUMENTS, key);
     if (state?.source_version_id === version.id) return { status: "already_normalized" };
@@ -221,6 +222,7 @@ export class Normalization {
       tenantId: version.tenant_id,
       producer: COMPONENT,
       subject: `${version.source_id}:${version.external_id}`,
+      ...(cause && { causation: cause }),
       occurredAt: this.clock(),
     });
     await this.store.transaction(async (tx) => {
