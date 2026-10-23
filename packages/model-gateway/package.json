@@ -1,0 +1,37 @@
+{
+  "name": "@inspiration/model-gateway",
+  "version": "0.1.0",
+  "description": "Model gateway: routing by sensitivity, fallback, budgets, response cache, structured output, metering, prompts, HTTP service and client",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "inspiration-gateway": "./src/cli/serve.ts"
+  },
+  "inspiration": {
+    "plugins": {
+      "migrations": {
+        "gateway": "./src/migrations.ts#MIGRATIONS"
+      },
+      "model_providers": {
+        "openai_compatible": "./src/providers/openai-compatible.ts#OpenAICompatibleProvider",
+        "fake": "./src/providers/fake.ts#FakeProvider"
+      }
+    }
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.5",
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/kernel": "workspace:*",
+    "hono": "^4.13.10",
+    "ioredis": "^6.0.0",
+    "pg": "^8.23.1",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@inspiration/testkit": "workspace:*",
+    "@types/pg": "^8.23.1"
+  }
+}

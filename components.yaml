@@ -1,0 +1,229 @@
+# Component manifest: who owns what, which events each component publishes and consumes,
+# which synchronous APIs it may call, and which plugin groups it provides. test/manifest.test.ts
+# checks it against the event catalogue, the plugin groups and the workspace packages.
+#
+# Every component is named for what it does. The name is also its package
+# (packages/<name>, published as @inspiration/<name>), its event producer name, its
+# consumer group and the first part of its model task names (<name>.<verb_object>).
+#
+# layer:     ingest | compile | store | serve | control (see docs/architecture.md)
+# status:    built = in the workspace with tests; planned = not started;
+#            in_progress = someone is building it (put the branch in `owner`).
+# runtime:   node (a TypeScript package) or python (a worker behind an HTTP contract).
+# plugins:   plugin groups the component's package declares, migrations included.
+# calls:     the only synchronous dependencies allowed: other components, or `blobs`
+#            (the kernel's blob store). A built component's package may depend on the
+#            libraries below and on the components it calls, nothing else.
+#
+# Engine only: people, tenants, sign-in and publishing policy belong to the business
+# layer, which calls the engine and consumes its events (docs/architecture.md).
+
+components:
+  connectors:
+    title: Connector SDK and connectors
+    layer: ingest
+    status: planned
+    runtime: node
+    owns: Source auth, enumeration, fetch, ACL read, webhooks; Feishu docs, wiki, approval and upload connectors; registered queries for QueryData
+    plugins: [connectors, data_providers]
+    publishes: [source.changed]
+    subscribes: []
+    calls: [blobs]
+
+  source-sync:
+    title: Source sync
+    layer: ingest
+    status: planned
+    runtime: node
+    owns: Cursors, 15-minute polls, nightly reconcile, rate budgets, subscription upkeep, debounce; stores source versions and ACL snapshots
+    plugins: []
+    publishes: [source.changed, document.fetched, acl.changed]
+    subscribes: [source.changed]
+    calls: [knowledge-store, blobs]
+
+  parsing:
+    title: Document parsing worker
+    layer: ingest
+    status: planned
+    runtime: python
+    owns: Stateless Office, PDF, scan and Excel parsing into normalized blocks with anchors, behind an HTTP contract; called by indexing, subscribes to nothing
+    plugins: [parsers]
+    publishes: []
+    subscribes: []
+    calls: [model-gateway, blobs]
+
+  indexing:
+    title: Normalizer and indexer
+    layer: ingest
+    status: planned
+    runtime: node
+    owns: Canonical hashing, block diff, dedup and version chains, chunking, contextual headers, embeddings, chunk ACL tokens
+    plugins: []
+    publishes: [chunks.updated]
+    subscribes: [document.fetched]
+    calls: [knowledge-store, model-gateway, parsing, blobs]
+
+  extraction:
+    title: Knowledge extraction
+    layer: compile
+    status: planned
+    runtime: node
+    owns: Claims with evidence, entity resolution, SOPs from documents and approval mining, knowledge models
+    plugins: [extractors]
+    publishes: [claims.updated]
+    subscribes: [chunks.updated, artifact.dirty, comment.created]
+    calls: [knowledge-store, model-gateway]
+
+  freshness:
+    title: Freshness engine
+    layer: compile
+    status: planned
+    runtime: node
+    owns: Dependency graph, dirty marking with early cutoff, staleness scores, TTL and assumption schedulers
+    plugins: []
+    publishes: [artifact.dirty, review.due, todo.created]
+    subscribes: [chunks.updated, claims.updated]
+    calls: [knowledge-store]
+
+  governance:
+    title: Governance agents
+    layer: compile
+    status: planned
+    runtime: node
+    owns: Conflict tiers and judge, citation audit, claim merge, coverage gaps, taxonomy gardener, each with a token budget
+    plugins: []
+    publishes: [todo.created, claims.updated]
+    subscribes: [claims.updated]
+    calls: [knowledge-store, model-gateway, agent-runtime]
+
+  page-compiler:
+    title: Page compiler
+    layer: compile
+    status: planned
+    runtime: node
+    owns: Taxonomy clustering with stable keys, cited page synthesis, diagram compilers, PageSpec output and page snapshots
+    plugins: [diagram_compilers]
+    publishes: [page.rendered]
+    subscribes: [artifact.dirty]
+    calls: [knowledge-store, model-gateway]
+
+  collaboration:
+    title: Collaboration and publishing
+    layer: control
+    status: planned
+    runtime: node
+    owns: Comments and anchoring, agent replies, overrides, todos, publish state machine, quality gates, verification expiry
+    plugins: []
+    publishes: [comment.created, unit.published, todo.created, claims.updated]
+    subscribes: [page.rendered, comment.created, todo.created, review.due]
+    calls: [knowledge-store, access-control, model-gateway, agent-runtime, retrieval]
+
+  knowledge-store:
+    title: Knowledge store
+    layer: store
+    status: built
+    runtime: node
+    owns: Schema, migrations, repository API, lineage, bitemporal reads, page snapshots, ACL snapshots, DataRef resolution (rows keep claim IDs for per-reader filtering), pgvector and pg_search index backends
+    plugins: [migrations, vector_indexes, keyword_indexes]
+    publishes: []
+    subscribes: []
+    calls: []
+
+  retrieval:
+    title: Retrieval and answers
+    layer: serve
+    status: planned
+    runtime: node
+    owns: Hybrid search, RRF, rerank, ACL pre-filter and post-check, FAQ precompute, semantic cache
+    plugins: []
+    publishes: []
+    subscribes: [acl.changed, chunks.updated, claims.updated, artifact.dirty, page.rendered, unit.published]
+    calls: [knowledge-store, access-control, model-gateway]
+
+  agent-api:
+    title: Agent API
+    layer: serve
+    status: planned
+    runtime: node
+    owns: MCP server, REST and OpenAPI, Skills export, per-call audit
+    plugins: []
+    publishes: []
+    subscribes: [unit.published]
+    calls: [retrieval, knowledge-store, access-control]
+
+  access-control:
+    title: Access control
+    layer: control
+    status: built
+    runtime: node
+    owns: SpiceDB schema and graph, source ACL mirroring, the derived-knowledge rule, search pre-filters, oversharing scan, audit log; people and groups arrive from the business layer's directory
+    plugins: []
+    publishes: []
+    subscribes: [acl.changed]
+    calls: [knowledge-store]
+
+  model-gateway:
+    title: Model gateway
+    layer: control
+    status: built
+    runtime: node
+    owns: Provider routing by sensitivity, budgets, prompt registry, response cache, cost metering, eval harness; the HTTP service other runtimes call
+    plugins: [migrations, model_providers]
+    publishes: []
+    subscribes: []
+    calls: [blobs]
+
+  agent-runtime:
+    title: Agent runtime
+    layer: control
+    status: built
+    runtime: node
+    owns: The loop built-in agents run on (AgentSpec, tool registry, step and token limits, structured output) and their run traces
+    plugins: [migrations]
+    publishes: []
+    subscribes: []
+    calls: [model-gateway]
+
+  research:
+    title: Deep research runner
+    layer: ingest
+    status: planned
+    runtime: node
+    owns: Research agent over the agent API plus approved web search; emits conclusions, assumptions and evidence as a source
+    plugins: []
+    publishes: [source.changed]
+    subscribes: [review.due]
+    calls: [model-gateway, agent-runtime, blobs]
+
+  web:
+    title: Web app and console
+    layer: serve
+    status: planned
+    runtime: node
+    owns: Reader with citations, comments, todo inbox, SOP view, admin console, cost dashboard, page history and diff view, sandboxed view embedding (built with the UI work)
+    plugins: []
+    publishes: []
+    subscribes: [todo.created, page.rendered]
+    calls: [retrieval, knowledge-store, access-control]
+
+  views:
+    title: Interactive views
+    layer: serve
+    status: planned
+    runtime: node
+    owns: ViewSpec and template registry (first 3 templates), the view generator agent, headless Chromium render check, sandbox hosting on a separate origin, view approval todos
+    plugins: [view_templates]
+    publishes: [todo.created]
+    subscribes: [page.rendered]
+    calls: [knowledge-store, model-gateway, agent-runtime, blobs]
+
+# Shared libraries, not components: any package may depend on them.
+libraries:
+  contracts:
+    owns: Generated types and validators, the event catalogue, IDs, sensitivity labels, component interfaces
+  kernel:
+    owns: Settings, logging, plugin registry, SQL migrations runner, blob store, database pools
+  eventbus:
+    owns: Postgres outbox, relay to Valkey Streams, consumer groups with retries and dead letters, in-memory bus for tests
+  testkit:
+    owns: Test fixtures for the compose stack (a migrated database per test, Valkey prefixes, SpiceDB settings); test code only

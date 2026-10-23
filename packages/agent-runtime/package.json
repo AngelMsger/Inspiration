@@ -1,0 +1,27 @@
+{
+  "name": "@inspiration/agent-runtime",
+  "version": "0.1.0",
+  "description": "Agent runtime: the loop every built-in agent runs on, with tool checks, limits, approval, traces and replay",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "inspiration": {
+    "plugins": {
+      "migrations": {
+        "agents": "./src/migrations.ts#MIGRATIONS"
+      }
+    }
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/kernel": "workspace:*",
+    "@inspiration/model-gateway": "workspace:*",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@inspiration/testkit": "workspace:*",
+    "@types/pg": "^8.23.1"
+  }
+}

@@ -1,0 +1,709 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: source.yaml
+title: Sources and ingestion
+description: >
+  Types used by the ingest plane: connectors, source sync, parsing and indexing. A source change never carries content; it tells the
+  orchestrator to fetch.
+
+$defs:
+  SourceStatus:
+    type: string
+    enum: [active, paused, error, archived]
+
+  ScopeSpec:
+    description: What part of a source to ingest. The connector defines kind and options.
+    type: object
+    required: [kind]
+    properties:
+      kind:
+        description: Connector-defined scope kind, for example "feishu.wiki_space".
+        type: string
+      ids:
+        description: External IDs of the roots to ingest (spaces, folders, approval definitions).
+        type: array
+        items:
+          type: string
+      include:
+        description: Glob patterns on the source path.
+        type: array
+        items:
+          type: string
+      exclude:
+        type: array
+        items:
+          type: string
+      options:
+        type: object
+
+  Source:
+    description: One connected system or upload area, for example one Feishu wiki space.
+    type: object
+    required: [id, tenant_id, space_id, type, name, scope, status, created_at]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/SourceId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      space_id:
+        description: The source-mirror space that holds this source's permissions.
+        $ref: "common.yaml#/$defs/SpaceId"
+      type:
+        description: Connector plugin name, for example "feishu.docx", "feishu.approval", "upload".
+        $ref: "common.yaml#/$defs/PluginName"
+      name:
+        type: string
+      scope:
+        $ref: "#/$defs/ScopeSpec"
+      status:
+        $ref: "#/$defs/SourceStatus"
+      owner_id:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      default_sensitivity:
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      default_authority:
+        description: Authority given to versions from this source unless the connector knows better.
+        $ref: "common.yaml#/$defs/Score01"
+      credentials_ref:
+        description: Name of a secret in the deployment's secret store. Never the secret itself.
+        type: string
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"
+      updated_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  AclFidelity:
+    description: >
+      exact = per-document ACL read from the source; approximate = inherited or partial;
+      connection_scoped = only "whoever the connection can see"; none = no ACL available.
+    type: string
+    enum: [exact, approximate, connection_scoped, none]
+
+  ConnectorCapabilities:
+    type: object
+    required: [list, fetch]
+    properties:
+      list:
+        type: boolean
+      fetch:
+        type: boolean
+      changes:
+        description: Supports incremental change listing from a cursor.
+        type: boolean
+      subscribe:
+        description: Can register push subscriptions (webhooks, WebSocket events).
+        type: boolean
+      acl:
+        type: boolean
+      acl_fidelity:
+        $ref: "#/$defs/AclFidelity"
+      structured_blocks:
+        description: fetch returns normalized blocks itself, so no parser is needed.
+        type: boolean
+      files:
+        description: fetch can return a binary file for the parser router.
+        type: boolean
+      process:
+        description: fetch can return approval definitions and instance logs.
+        type: boolean
+      max_requests_per_second:
+        type: number
+
+  SourceItemKind:
+    type: string
+    enum: [document, folder, file, approval_definition, approval_instance, record, report, other]
+
+  SourceRef:
+    description: A document or item inside a source.
+    type: object
+    required: [source_id, external_id]
+    properties:
+      source_id:
+        $ref: "common.yaml#/$defs/SourceId"
+      external_id:
+        description: The item's ID in the source system.
+        type: string
+      kind:
+        $ref: "#/$defs/SourceItemKind"
+      uri:
+        type: string
+      title:
+        type: string
+      parent_external_id:
+        type: string
+
+  Version:
+    description: >
+      What a connector knows about an item's revision. Content, metadata and ACL are
+      hashed separately, so a permission change never triggers re-embedding.
+    type: object
+    properties:
+      external_version:
+        type: string
+      modified_at:
+        $ref: "common.yaml#/$defs/Instant"
+      content_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+      metadata_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+      acl_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+      size_bytes:
+        type: integer
+        minimum: 0
+
+  ListedItem:
+    type: object
+    required: [ref]
+    properties:
+      ref:
+        $ref: "#/$defs/SourceRef"
+      version:
+        $ref: "#/$defs/Version"
+
+  ListPage:
+    description: One page of Connector.list results.
+    type: object
+    required: [items]
+    properties:
+      items:
+        type: array
+        items:
+          $ref: "#/$defs/ListedItem"
+      next_cursor:
+        $ref: "common.yaml#/$defs/Cursor"
+
+  ChangeKind:
+    type: string
+    enum: [created, updated, deleted, moved, acl_changed, metadata_changed]
+
+  ChangeVia:
+    type: string
+    enum: [webhook, poll, reconcile, manual]
+
+  ChangeEvent:
+    description: A hint that an item changed. It never carries content.
+    type: object
+    required: [ref, kind, observed_at, via]
+    properties:
+      ref:
+        $ref: "#/$defs/SourceRef"
+      kind:
+        $ref: "#/$defs/ChangeKind"
+      observed_at:
+        $ref: "common.yaml#/$defs/Instant"
+      via:
+        $ref: "#/$defs/ChangeVia"
+      version_hint:
+        $ref: "#/$defs/Version"
+      raw_event_id:
+        description: The source system's event ID, for deduplication.
+        type: string
+
+  ChangePage:
+    type: object
+    required: [changes, next_cursor]
+    properties:
+      changes:
+        type: array
+        items:
+          $ref: "#/$defs/ChangeEvent"
+      next_cursor:
+        $ref: "common.yaml#/$defs/Cursor"
+
+  SubscriptionInfo:
+    type: object
+    required: [subscription_id, scope_ids]
+    properties:
+      subscription_id:
+        type: string
+      scope_ids:
+        type: array
+        items:
+          type: string
+      expires_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  DocBlockKind:
+    type: string
+    enum:
+      - heading
+      - paragraph
+      - list_item
+      - table
+      - table_row
+      - table_cell
+      - code
+      - quote
+      - image
+      - formula
+      - caption
+      - form_field
+      - page_break
+      - other
+
+  CellLocation:
+    type: object
+    properties:
+      sheet:
+        type: string
+      row:
+        type: integer
+        minimum: 0
+      col:
+        type: integer
+        minimum: 0
+      range:
+        description: Spreadsheet range such as "B2:D9".
+        type: string
+
+  DocBlock:
+    description: >
+      A normalized block produced by a connector or a parser. The anchor is stable for the
+      same block across versions whenever the source allows it (Feishu block IDs, page and
+      paragraph index for files), and is what spans and citations point to.
+    type: object
+    required: [anchor, kind]
+    properties:
+      anchor:
+        type: string
+      kind:
+        $ref: "#/$defs/DocBlockKind"
+      text:
+        type: string
+      level:
+        description: Heading level or list depth.
+        type: integer
+        minimum: 0
+        maximum: 9
+      page:
+        description: 1-based page number for paginated files.
+        type: integer
+        minimum: 1
+      bbox:
+        description: "[x0, y0, x1, y1] in page coordinates."
+        type: array
+        items:
+          type: number
+        minItems: 4
+        maxItems: 4
+      cell:
+        $ref: "#/$defs/CellLocation"
+      field_key:
+        description: Form field key, for approval forms and records.
+        type: string
+      image:
+        $ref: "common.yaml#/$defs/BlobRef"
+      attrs:
+        type: object
+      children:
+        type: array
+        items:
+          $ref: "#/$defs/DocBlock"
+
+  DocumentMetadata:
+    type: object
+    properties:
+      author_external_id:
+        type: string
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"
+      modified_at:
+        $ref: "common.yaml#/$defs/Instant"
+      url:
+        type: string
+      path:
+        description: Folder or wiki path from the root of the scope.
+        type: array
+        items:
+          type: string
+      tags:
+        type: array
+        items:
+          type: string
+      extra:
+        type: object
+
+  ApprovalState:
+    description: Whether the source marks this version as authoritative.
+    type: string
+    enum: [draft, in_review, approved, archived, unknown]
+
+  FormFieldDef:
+    type: object
+    required: [key, label]
+    properties:
+      key:
+        type: string
+      label:
+        type: string
+      field_type:
+        type: string
+      options:
+        type: array
+        items:
+          type: string
+      required:
+        type: boolean
+
+  ApprovalNodeType:
+    type: string
+    enum: [start, approval, cc, condition, handler, end, other]
+
+  ApprovalNodeDef:
+    type: object
+    required: [key, name, node_type]
+    properties:
+      key:
+        type: string
+      name:
+        type: string
+      node_type:
+        $ref: "#/$defs/ApprovalNodeType"
+      approver_rule:
+        description: The source's description of who approves, as text.
+        type: string
+      order:
+        type: integer
+
+  ApprovalDefinition:
+    description: >
+      An approval process definition. Feishu definitions give the form and an ordered node
+      list but no branch edges; extraction mines the edges from instance logs.
+    type: object
+    required: [code, name, nodes]
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+      definition_version:
+        type: string
+      form_fields:
+        type: array
+        items:
+          $ref: "#/$defs/FormFieldDef"
+      nodes:
+        type: array
+        items:
+          $ref: "#/$defs/ApprovalNodeDef"
+
+  ApprovalAction:
+    type: string
+    enum: [start, approve, reject, transfer, return, add_sign, cc, auto_pass, withdraw, other]
+
+  ApprovalTimelineEntry:
+    type: object
+    required: [action, at]
+    properties:
+      node_key:
+        type: string
+      action:
+        $ref: "#/$defs/ApprovalAction"
+      actor_external_id:
+        description: Pseudonymized by the connector unless the tenant allows real IDs.
+        type: string
+      at:
+        $ref: "common.yaml#/$defs/Instant"
+      comment:
+        type: string
+
+  ApprovalInstanceStatus:
+    type: string
+    enum: [pending, approved, rejected, canceled, deleted, other]
+
+  ApprovalInstance:
+    type: object
+    required: [instance_id, definition_code, status, started_at, timeline]
+    properties:
+      instance_id:
+        type: string
+      definition_code:
+        type: string
+      status:
+        $ref: "#/$defs/ApprovalInstanceStatus"
+      started_at:
+        $ref: "common.yaml#/$defs/Instant"
+      ended_at:
+        $ref: "common.yaml#/$defs/Instant"
+      form:
+        description: Form values by field key.
+        type: object
+      timeline:
+        type: array
+        items:
+          $ref: "#/$defs/ApprovalTimelineEntry"
+
+  ProcessSnapshot:
+    description: Process data fetched from an approval or workflow source.
+    type: object
+    properties:
+      definition:
+        $ref: "#/$defs/ApprovalDefinition"
+      instances:
+        type: array
+        items:
+          $ref: "#/$defs/ApprovalInstance"
+      window:
+        description: The time range the instances were sampled from.
+        $ref: "common.yaml#/$defs/Interval"
+
+  NormalizedDocument:
+    description: >
+      What Connector.fetch returns. Exactly one of blocks, file or process is normally
+      set. When only file is set, indexing hands it to the parser router (parsing).
+    type: object
+    required: [ref, version, title, mime_type]
+    properties:
+      ref:
+        $ref: "#/$defs/SourceRef"
+      version:
+        $ref: "#/$defs/Version"
+      title:
+        type: string
+      mime_type:
+        type: string
+      language:
+        $ref: "common.yaml#/$defs/Locale"
+      approval_state:
+        $ref: "#/$defs/ApprovalState"
+      blocks:
+        type: array
+        items:
+          $ref: "#/$defs/DocBlock"
+      file:
+        $ref: "common.yaml#/$defs/BlobRef"
+      process:
+        $ref: "#/$defs/ProcessSnapshot"
+      metadata:
+        $ref: "#/$defs/DocumentMetadata"
+      acl:
+        $ref: "authz.yaml#/$defs/AclSnapshot"
+
+  Unchanged:
+    description: Connector.fetch result when the known version is still current.
+    type: object
+    required: [unchanged]
+    properties:
+      unchanged:
+        const: true
+
+  FileMeta:
+    description: What the parser router knows about a file before parsing it.
+    type: object
+    required: [mime_type, size_bytes]
+    properties:
+      mime_type:
+        type: string
+      filename:
+        type: string
+      size_bytes:
+        type: integer
+        minimum: 0
+      page_count:
+        type: integer
+      has_text_layer:
+        type: boolean
+      language:
+        $ref: "common.yaml#/$defs/Locale"
+
+  ParseHints:
+    type: object
+    properties:
+      language:
+        $ref: "common.yaml#/$defs/Locale"
+      sensitivity:
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      budget_key:
+        type: string
+      force_ocr:
+        type: boolean
+      max_pages:
+        type: integer
+
+  ParseResult:
+    type: object
+    required: [blocks, parser]
+    properties:
+      blocks:
+        type: array
+        items:
+          $ref: "#/$defs/DocBlock"
+      parser:
+        $ref: "common.yaml#/$defs/ProducerInfo"
+      confidence:
+        $ref: "common.yaml#/$defs/Score01"
+      warnings:
+        type: array
+        items:
+          type: string
+
+  SourceVersion:
+    description: One fetched revision of one item. Immutable once written.
+    type: object
+    required:
+      - id
+      - tenant_id
+      - source_id
+      - space_id
+      - external_id
+      - version
+      - title
+      - mime_type
+      - approval_state
+      - authority
+      - sensitivity
+      - fetched_at
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      source_id:
+        $ref: "common.yaml#/$defs/SourceId"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      external_id:
+        type: string
+      kind:
+        $ref: "#/$defs/SourceItemKind"
+      version:
+        $ref: "#/$defs/Version"
+      title:
+        type: string
+      mime_type:
+        type: string
+      language:
+        $ref: "common.yaml#/$defs/Locale"
+      uri:
+        type: string
+      approval_state:
+        $ref: "#/$defs/ApprovalState"
+      authority:
+        description: How much the source itself is trusted, independent of extraction quality.
+        $ref: "common.yaml#/$defs/Score01"
+      sensitivity:
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      fetched_at:
+        $ref: "common.yaml#/$defs/Instant"
+      previous_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      deleted:
+        description: Tombstone version written when the item disappears from the source.
+        type: boolean
+        default: false
+      blob:
+        $ref: "common.yaml#/$defs/BlobRef"
+      metadata:
+        $ref: "#/$defs/DocumentMetadata"
+
+  SpanKind:
+    type: string
+    enum: [block, text_range, table_cell, form_field, page_region]
+
+  SpanLocator:
+    description: Where a span sits inside its source version.
+    type: object
+    required: [block_anchor, kind]
+    properties:
+      block_anchor:
+        type: string
+      kind:
+        $ref: "#/$defs/SpanKind"
+      char_start:
+        description: Offset inside the block's text, in UTF-16 code units (JavaScript string indices).
+        type: integer
+        minimum: 0
+      char_end:
+        description: End offset, exclusive, in the same units as char_start.
+        type: integer
+        minimum: 0
+      cell:
+        $ref: "#/$defs/CellLocation"
+      field_key:
+        type: string
+      page:
+        type: integer
+        minimum: 1
+      bbox:
+        type: array
+        items:
+          type: number
+        minItems: 4
+        maxItems: 4
+
+  Span:
+    description: An exact passage, table cell or form field. Every claim points to spans.
+    type: object
+    required: [id, tenant_id, source_version_id, locator, text, text_hash, ordinal]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/SpanId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      locator:
+        $ref: "#/$defs/SpanLocator"
+      text:
+        type: string
+      text_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+      ordinal:
+        description: Position in reading order within the version.
+        type: integer
+        minimum: 0
+
+  Chunk:
+    description: A 400 to 800 token retrieval unit with a contextual header.
+    type: object
+    required:
+      - id
+      - tenant_id
+      - source_version_id
+      - space_id
+      - ordinal
+      - span_ids
+      - text
+      - token_count
+      - content_hash
+      - sensitivity
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/ChunkId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      ordinal:
+        type: integer
+        minimum: 0
+      span_ids:
+        type: array
+        minItems: 1
+        items:
+          $ref: "common.yaml#/$defs/SpanId"
+      heading_path:
+        type: array
+        items:
+          type: string
+      contextual_header:
+        description: A short LLM-written header that situates the chunk in its document.
+        type: string
+      text:
+        type: string
+      token_count:
+        type: integer
+        minimum: 0
+      content_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+      sensitivity:
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      acl_tokens:
+        description: >
+          Principal tokens that may read the chunk's source document, mirrored from the
+          source ACL by access control. Retrieval pre-filters on overlap with the viewer's tokens.
+        type: array
+        items:
+          type: string

@@ -1,0 +1,19 @@
+{
+  "name": "@inspiration/contracts",
+  "version": "0.1.0",
+  "description": "Shared contracts: types and validators generated from the JSON Schema, the event catalogue, IDs and component interfaces",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema.json": "./dist/inspiration.schema.json"
+  },
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "^16.0.0",
+    "yaml": "^2.9.1"
+  }
+}

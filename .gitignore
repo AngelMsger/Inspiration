@@ -1,0 +1,23 @@
+# Node
+node_modules/
+*.tsbuildinfo
+coverage/
+/dist/
+/build/
+
+# Python (the parsing worker)
+.venv/
+__pycache__/
+*.py[cod]
+
+# Local data and secrets
+.data/
+.env
+.env.*
+!.env.example
+config/gateway.yaml
+
+# Editors
+.idea/
+.vscode/
+.DS_Store

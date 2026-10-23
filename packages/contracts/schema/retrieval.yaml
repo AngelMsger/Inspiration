@@ -1,0 +1,227 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: retrieval.yaml
+title: Retrieval and answers
+description: >
+  The Retriever API of retrieval, used by the agent API and the web app. Every
+  response carries source, version, freshness, confidence, review status and a token
+  estimate, so a calling agent can decide how much to trust and how much to spend.
+
+$defs:
+  HitKind:
+    type: string
+    enum: [claim, sop, section, page, entity, chunk, knowledge_model]
+
+  SearchFilters:
+    type: object
+    properties:
+      knowledge_classes:
+        type: array
+        items:
+          $ref: "knowledge.yaml#/$defs/KnowledgeClass"
+      valid_at:
+        description: Only knowledge true at this time.
+        $ref: "common.yaml#/$defs/Instant"
+      known_at:
+        description: Only knowledge the system held at this time (audit queries).
+        $ref: "common.yaml#/$defs/Instant"
+      min_confidence:
+        $ref: "common.yaml#/$defs/Score01"
+      statuses:
+        type: array
+        items:
+          $ref: "knowledge.yaml#/$defs/ClaimStatus"
+      entity_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/EntityId"
+
+  SearchQuery:
+    type: object
+    required: [text]
+    properties:
+      text:
+        type: string
+        minLength: 1
+      kinds:
+        type: array
+        items:
+          $ref: "#/$defs/HitKind"
+      space_ids:
+        description: Narrow to these spaces. The permission filter applies regardless.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/SpaceId"
+      filters:
+        $ref: "#/$defs/SearchFilters"
+      top_k:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+      token_budget:
+        description: Upper bound on the size of the result as rendered for an agent.
+        type: integer
+        minimum: 100
+
+  Citation:
+    description: A readable source passage. Sources the viewer cannot read are never cited.
+    type: object
+    required: [span_id, source_version_id, source_title, quote]
+    properties:
+      span_id:
+        $ref: "common.yaml#/$defs/SpanId"
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      source_title:
+        type: string
+      uri:
+        type: string
+      quote:
+        type: string
+      locator:
+        $ref: "source.yaml#/$defs/SpanLocator"
+      fetched_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  FreshnessInfo:
+    type: object
+    required: [state, as_of]
+    properties:
+      state:
+        $ref: "knowledge.yaml#/$defs/FreshnessState"
+      as_of:
+        $ref: "common.yaml#/$defs/Instant"
+      staleness:
+        $ref: "common.yaml#/$defs/Score01"
+      review_due:
+        $ref: "common.yaml#/$defs/Instant"
+
+  ReviewStatus:
+    type: string
+    enum: [unreviewed, verified, disputed, published]
+
+  SearchHit:
+    type: object
+    required: [unit_id, kind, title, snippet, score, citations, freshness, review_status, token_estimate]
+    properties:
+      unit_id:
+        $ref: "common.yaml#/$defs/UnitId"
+      kind:
+        $ref: "#/$defs/HitKind"
+      title:
+        type: string
+      snippet:
+        type: string
+      score:
+        type: number
+      citations:
+        type: array
+        items:
+          $ref: "#/$defs/Citation"
+      freshness:
+        $ref: "#/$defs/FreshnessInfo"
+      confidence:
+        $ref: "common.yaml#/$defs/Score01"
+      review_status:
+        $ref: "#/$defs/ReviewStatus"
+      owner_id:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      token_estimate:
+        type: integer
+        minimum: 0
+
+  SearchResult:
+    type: object
+    required: [query_id, hits, token_estimate]
+    properties:
+      query_id:
+        $ref: "common.yaml#/$defs/RequestId"
+      hits:
+        type: array
+        items:
+          $ref: "#/$defs/SearchHit"
+      token_estimate:
+        type: integer
+        minimum: 0
+      next_cursor:
+        $ref: "common.yaml#/$defs/Cursor"
+
+  AnswerQuery:
+    type: object
+    required: [question]
+    properties:
+      question:
+        type: string
+        minLength: 1
+      space_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/SpaceId"
+      context:
+        description: Caller-provided context (the task the agent is doing), used to prune SOP branches.
+        type: string
+      filters:
+        $ref: "#/$defs/SearchFilters"
+      max_answer_tokens:
+        type: integer
+        minimum: 50
+
+  GroundedAnswer:
+    type: object
+    required: [answer_id, answer, citations, confidence, gaps, token_estimate]
+    properties:
+      answer_id:
+        $ref: "common.yaml#/$defs/RequestId"
+      answer:
+        $ref: "common.yaml#/$defs/Markdown"
+      citations:
+        type: array
+        items:
+          $ref: "#/$defs/Citation"
+      used_unit_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/UnitId"
+      confidence:
+        $ref: "common.yaml#/$defs/Score01"
+      gaps:
+        description: What the knowledge base could not answer, stated plainly.
+        type: array
+        items:
+          type: string
+      freshness:
+        $ref: "#/$defs/FreshnessInfo"
+      token_estimate:
+        type: integer
+        minimum: 0
+
+  # Low-level index access used by retrieval through the vector and keyword index plugins.
+  IndexHit:
+    type: object
+    required: [chunk_id, score]
+    properties:
+      chunk_id:
+        $ref: "common.yaml#/$defs/ChunkId"
+      score:
+        type: number
+      rank:
+        type: integer
+        minimum: 1
+
+  FeedbackKind:
+    type: string
+    enum: [wrong, outdated, missing, unclear, helpful]
+
+  Feedback:
+    description: report_feedback from an agent or a reader; becomes a review todo.
+    type: object
+    required: [kind, message]
+    properties:
+      kind:
+        $ref: "#/$defs/FeedbackKind"
+      unit_id:
+        $ref: "common.yaml#/$defs/UnitId"
+      query_id:
+        $ref: "common.yaml#/$defs/RequestId"
+      message:
+        type: string

@@ -1,0 +1,870 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: knowledge.yaml
+title: Compiled knowledge
+description: >
+  Claims, entities, relations, SOPs, knowledge models, freshness and governance types.
+  Three rules hold everywhere: a claim without supporting evidence is rejected; old claims
+  are superseded, never deleted; authority (about the source), confidence (about the
+  extraction) and weight (for ranking) are separate numbers.
+
+$defs:
+  ClaimType:
+    type: string
+    enum:
+      - fact
+      - rule
+      - definition
+      - metric
+      - procedure_step
+      - assumption
+      - conclusion
+      - plan
+      - opinion
+
+  ClaimStatus:
+    type: string
+    enum: [proposed, active, verified, disputed, superseded, retracted]
+
+  ClaimOrigin:
+    description: >
+      extracted = from a source by extraction; human = asserted in a comment or edit;
+      research = from a deep-research report; merged = combined by governance; mined = from
+      process logs.
+    type: string
+    enum: [extracted, human, research, merged, mined]
+
+  KnowledgeClass:
+    description: >
+      Selects the default TTL used by staleness scoring. Known values: policy, product,
+      pricing, org, process, technical, market, general. Tenants may add their own.
+    type: string
+    pattern: "^[a-z][a-z0-9_]*$"
+    examples: [policy, pricing, process]
+
+  ClaimValueKind:
+    type: string
+    enum: [text, number, money, percent, date, duration, boolean, enum, range]
+
+  ClaimValue:
+    description: >
+      A normalized value for single-valued predicates, so that tier-1 conflict detection
+      can compare values in SQL (600 yuan vs 0.06 万元, 5% vs 0.05).
+    type: object
+    required: [kind]
+    properties:
+      kind:
+        $ref: "#/$defs/ClaimValueKind"
+      text:
+        type: string
+      number:
+        type: number
+      min:
+        type: number
+      max:
+        type: number
+      unit:
+        description: Canonical unit after normalization, for example "CNY/night" or "day".
+        type: string
+      currency:
+        type: string
+        pattern: "^[A-Z]{3}$"
+      date:
+        type: string
+        format: date
+      boolean:
+        type: boolean
+      normalized:
+        description: Canonical string form used for equality checks.
+        type: string
+
+  Claim:
+    description: One atomic statement with provenance and two time axes.
+    type: object
+    required:
+      - id
+      - tenant_id
+      - space_id
+      - statement
+      - claim_type
+      - knowledge_class
+      - valid_time
+      - recorded_at
+      - confidence
+      - authority
+      - weight
+      - status
+      - origin
+      - sensitivity
+      - inputs_hash
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/ClaimId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      statement:
+        description: The claim as one self-contained sentence, conditions included.
+        type: string
+      language:
+        $ref: "common.yaml#/$defs/Locale"
+      claim_type:
+        $ref: "#/$defs/ClaimType"
+      knowledge_class:
+        $ref: "#/$defs/KnowledgeClass"
+      subject_entity_id:
+        $ref: "common.yaml#/$defs/EntityId"
+      subject_text:
+        description: Subject as written, when it is not resolved to an entity yet.
+        type: string
+      predicate:
+        description: Optional normalized predicate, for example "hotel_cap_per_night".
+        type: string
+        pattern: "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
+      object_entity_id:
+        $ref: "common.yaml#/$defs/EntityId"
+      value:
+        $ref: "#/$defs/ClaimValue"
+      qualifiers:
+        description: >
+          Conditions, scopes and exceptions that must travel with the claim
+          ("for tier-one cities", "except during trade fairs"). Atomizing must not drop them.
+        type: array
+        items:
+          type: string
+      valid_time:
+        description: When the statement is true in the world ("true when").
+        $ref: "common.yaml#/$defs/Interval"
+      recorded_at:
+        description: When the system learned it ("known when", start).
+        $ref: "common.yaml#/$defs/Instant"
+      superseded_at:
+        description: When the system stopped believing it ("known when", end).
+        $ref: "common.yaml#/$defs/Instant"
+      superseded_by:
+        $ref: "common.yaml#/$defs/ClaimId"
+      confidence:
+        description: Confidence in the extraction.
+        $ref: "common.yaml#/$defs/Score01"
+      authority:
+        description: Trust in the best supporting source.
+        $ref: "common.yaml#/$defs/Score01"
+      weight:
+        description: Ranking weight from authority, approval state, recency and corroboration.
+        type: number
+        minimum: 0
+      status:
+        $ref: "#/$defs/ClaimStatus"
+      origin:
+        $ref: "#/$defs/ClaimOrigin"
+      owner_id:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      sensitivity:
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      producer:
+        $ref: "common.yaml#/$defs/ProducerInfo"
+      inputs_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+      review_due:
+        $ref: "common.yaml#/$defs/Instant"
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"
+      updated_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  EvidenceRole:
+    type: string
+    enum: [supports, contradicts, qualifies]
+
+  ClaimEvidence:
+    description: Links a claim to the exact text that backs it.
+    type: object
+    required: [claim_id, span_id, source_version_id, role, quote]
+    properties:
+      claim_id:
+        $ref: "common.yaml#/$defs/ClaimId"
+      span_id:
+        $ref: "common.yaml#/$defs/SpanId"
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      role:
+        $ref: "#/$defs/EvidenceRole"
+      quote:
+        description: Verbatim text from the span. Must be a substring of the span text.
+        type: string
+      quote_start:
+        description: >
+          Offset of the quote inside the span text, in UTF-16 code units (JavaScript string
+          indices), so span.text.slice(quote_start, quote_end) is the quote.
+        type: integer
+        minimum: 0
+      quote_end:
+        description: End of the quote, exclusive, in the same units as quote_start.
+        type: integer
+        minimum: 0
+      entailment:
+        description: Score from the entailment check that the quote supports the claim.
+        $ref: "common.yaml#/$defs/Score01"
+
+  DerivationMethod:
+    type: string
+    enum: [merge, aggregate, infer, translate]
+
+  ClaimDerivation:
+    description: A claim built from other claims (merged, aggregated or inferred).
+    type: object
+    required: [claim_id, from_claim_ids, method]
+    properties:
+      claim_id:
+        $ref: "common.yaml#/$defs/ClaimId"
+      from_claim_ids:
+        type: array
+        minItems: 1
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      method:
+        $ref: "#/$defs/DerivationMethod"
+
+  EntityStatus:
+    type: string
+    enum: [active, merged, retired]
+
+  Entity:
+    description: A person, department, product, supplier, system or other thing claims talk about.
+    type: object
+    required: [id, tenant_id, entity_type, name, status]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/EntityId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      entity_type:
+        description: Core types are person, department, product, supplier, customer, system, location, regulation, document.
+        type: string
+        pattern: "^[a-z][a-z0-9_]*$"
+      name:
+        type: string
+      aliases:
+        type: array
+        items:
+          type: string
+      external_keys:
+        description: Hard identifiers such as credit_code, employee_id or sku.
+        type: object
+        additionalProperties:
+          type: string
+      description:
+        type: string
+      status:
+        $ref: "#/$defs/EntityStatus"
+      merged_into:
+        $ref: "common.yaml#/$defs/EntityId"
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"
+      updated_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  MentionResolution:
+    type: string
+    enum: [resolved, candidate, unresolved]
+
+  EntityMention:
+    type: object
+    required: [span_id, text, entity_type, resolution]
+    properties:
+      entity_id:
+        $ref: "common.yaml#/$defs/EntityId"
+      span_id:
+        $ref: "common.yaml#/$defs/SpanId"
+      text:
+        type: string
+      entity_type:
+        type: string
+      resolution:
+        $ref: "#/$defs/MentionResolution"
+      score:
+        $ref: "common.yaml#/$defs/Score01"
+
+  Relation:
+    description: An edge between two entities. Every edge is backed by at least one claim.
+    type: object
+    required: [id, tenant_id, subject_id, predicate, object_id, claim_ids]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/RelationId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      subject_id:
+        $ref: "common.yaml#/$defs/EntityId"
+      predicate:
+        type: string
+      object_id:
+        $ref: "common.yaml#/$defs/EntityId"
+      claim_ids:
+        type: array
+        minItems: 1
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      valid_time:
+        $ref: "common.yaml#/$defs/Interval"
+      weight:
+        type: number
+        minimum: 0
+
+  # ---------------------------------------------------------------- SOPs
+  SopStatus:
+    type: string
+    enum: [draft, in_review, verified, published, retired]
+
+  StepBasis:
+    description: Where an SOP statement comes from; shown to readers and reviewers.
+    type: string
+    enum: [from_definition, mined, inferred, document, human]
+
+  SopRole:
+    type: object
+    required: [key, name]
+    properties:
+      key:
+        type: string
+      name:
+        type: string
+      entity_id:
+        $ref: "common.yaml#/$defs/EntityId"
+
+  SopTransition:
+    type: object
+    required: [to]
+    properties:
+      to:
+        description: Target step key, or "end".
+        type: string
+      condition:
+        type: string
+      frequency:
+        description: Share of mined instances that took this transition.
+        $ref: "common.yaml#/$defs/Score01"
+      support:
+        description: Number of mined instances behind this transition.
+        type: integer
+        minimum: 0
+
+  SopStep:
+    type: object
+    required: [key, title, instruction, basis]
+    properties:
+      key:
+        type: string
+      title:
+        type: string
+      role_key:
+        type: string
+      instruction:
+        type: string
+      conditions:
+        type: array
+        items:
+          type: string
+      inputs:
+        type: array
+        items:
+          type: string
+      outputs:
+        type: array
+        items:
+          type: string
+      next:
+        type: array
+        items:
+          $ref: "#/$defs/SopTransition"
+      claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      basis:
+        $ref: "#/$defs/StepBasis"
+      support:
+        type: integer
+        minimum: 0
+      duration_p50_hours:
+        type: number
+        minimum: 0
+
+  SopException:
+    type: object
+    required: [key, condition, handling]
+    properties:
+      key:
+        type: string
+      condition:
+        type: string
+      handling:
+        type: string
+      claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+
+  ProcessOrigin:
+    type: object
+    required: [source_version_id]
+    properties:
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      definition_code:
+        type: string
+      instances_analyzed:
+        type: integer
+        minimum: 0
+      window:
+        $ref: "common.yaml#/$defs/Interval"
+
+  Sop:
+    description: A structured procedure. Every step cites claims.
+    type: object
+    required: [id, tenant_id, space_id, title, version, status, roles, steps, inputs_hash]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/SopId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      title:
+        type: string
+      purpose:
+        type: string
+      trigger:
+        type: string
+      version:
+        type: integer
+        minimum: 1
+      status:
+        $ref: "#/$defs/SopStatus"
+      owner_id:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      roles:
+        type: array
+        items:
+          $ref: "#/$defs/SopRole"
+      steps:
+        type: array
+        minItems: 1
+        items:
+          $ref: "#/$defs/SopStep"
+      exceptions:
+        type: array
+        items:
+          $ref: "#/$defs/SopException"
+      claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      origin_process:
+        $ref: "#/$defs/ProcessOrigin"
+      sensitivity:
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      review_due:
+        $ref: "common.yaml#/$defs/Instant"
+      inputs_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+      producer:
+        $ref: "common.yaml#/$defs/ProducerInfo"
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"
+      updated_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  # ---------------------------------------------------------------- business models
+  KnowledgeModelKind:
+    type: string
+    enum: [formula, decision_table, kpi]
+
+  ModelVariable:
+    type: object
+    required: [name]
+    properties:
+      name:
+        type: string
+      description:
+        type: string
+      unit:
+        type: string
+      claim_id:
+        description: The claim that defines or bounds this variable.
+        $ref: "common.yaml#/$defs/ClaimId"
+
+  DecisionRule:
+    type: object
+    required: [when, then]
+    properties:
+      when:
+        description: Conditions by input variable name.
+        type: object
+        additionalProperties:
+          type: string
+      then:
+        description: Outputs by output variable name.
+        type: object
+        additionalProperties:
+          type: string
+      claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+
+  KnowledgeModel:
+    description: A formula, decision table or KPI definition whose assumptions are claims.
+    type: object
+    required: [id, tenant_id, space_id, kind, name, inputs, status]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/KnowledgeModelId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      kind:
+        $ref: "#/$defs/KnowledgeModelKind"
+      name:
+        type: string
+      description:
+        type: string
+      expression:
+        description: Formula in a small safe expression language (arithmetic, comparisons, min, max, round).
+        type: string
+      inputs:
+        type: array
+        items:
+          $ref: "#/$defs/ModelVariable"
+      outputs:
+        type: array
+        items:
+          $ref: "#/$defs/ModelVariable"
+      rules:
+        type: array
+        items:
+          $ref: "#/$defs/DecisionRule"
+      assumption_claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      status:
+        $ref: "#/$defs/SopStatus"
+      review_due:
+        $ref: "common.yaml#/$defs/Instant"
+
+  # ---------------------------------------------------------------- deep research
+  RecheckMethod:
+    type: string
+    enum: [refetch_url, web_search, internal_query, metric]
+
+  AssumptionState:
+    type: string
+    enum: [holding, drifted, unknown]
+
+  AssumptionCheck:
+    description: >
+      How to re-check one assumption of a research report. The scheduler re-checks only
+      assumptions and marks dependent conclusions at risk when one drifts.
+    type: object
+    required: [claim_id, method, target, cadence, state]
+    properties:
+      claim_id:
+        $ref: "common.yaml#/$defs/ClaimId"
+      method:
+        $ref: "#/$defs/RecheckMethod"
+      target:
+        description: URL, search query, internal query or metric name.
+        type: string
+      params:
+        type: object
+      cadence:
+        $ref: "common.yaml#/$defs/Duration"
+      tolerance:
+        description: Human-readable tolerance, for example "within 5%".
+        type: string
+      state:
+        $ref: "#/$defs/AssumptionState"
+      last_checked_at:
+        $ref: "common.yaml#/$defs/Instant"
+      conclusion_claim_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+
+  ResearchAssumption:
+    type: object
+    required: [statement, method, target, cadence]
+    properties:
+      statement:
+        type: string
+      method:
+        $ref: "#/$defs/RecheckMethod"
+      target:
+        type: string
+      cadence:
+        $ref: "common.yaml#/$defs/Duration"
+      tolerance:
+        type: string
+      supports_conclusions:
+        description: Indexes into the report's conclusions.
+        type: array
+        items:
+          type: integer
+          minimum: 0
+
+  ResearchEvidence:
+    type: object
+    required: [uri, quote]
+    properties:
+      uri:
+        type: string
+      title:
+        type: string
+      quote:
+        type: string
+      retrieved_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  ResearchReport:
+    description: >
+      What the deep research runner (research) emits. It enters the system as a source of type
+      "inspiration.research": the report text becomes a source version, and its
+      conclusions and assumptions become claims with origin "research".
+    type: object
+    required: [question, conclusions, assumptions, evidence, produced_at]
+    properties:
+      question:
+        type: string
+      summary:
+        $ref: "common.yaml#/$defs/Markdown"
+      conclusions:
+        type: array
+        items:
+          type: string
+      assumptions:
+        type: array
+        items:
+          $ref: "#/$defs/ResearchAssumption"
+      evidence:
+        type: array
+        items:
+          $ref: "#/$defs/ResearchEvidence"
+      produced_at:
+        $ref: "common.yaml#/$defs/Instant"
+      producer:
+        $ref: "common.yaml#/$defs/ProducerInfo"
+
+  ClaimQuery:
+    description: Filter for bi-temporal claim reads (KnowledgeStore.as_of).
+    type: object
+    properties:
+      ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      space_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/SpaceId"
+      subject_entity_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/EntityId"
+      predicates:
+        type: array
+        items:
+          type: string
+      statuses:
+        type: array
+        items:
+          $ref: "#/$defs/ClaimStatus"
+      knowledge_classes:
+        type: array
+        items:
+          $ref: "#/$defs/KnowledgeClass"
+      source_version_ids:
+        description: Only claims with evidence in these source versions.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/SourceVersionId"
+      limit:
+        type: integer
+        minimum: 1
+        maximum: 10000
+        default: 1000
+
+  # ---------------------------------------------------------------- freshness
+  ArtifactState:
+    description: >
+      The freshness engine's record for one built artifact. inputs_hash combines the
+      input hashes with the producer's stage, version, model and prompt version.
+    type: object
+    required: [artifact_id, stage, inputs_hash, built_at, dirty]
+    properties:
+      artifact_id:
+        $ref: "common.yaml#/$defs/UnitId"
+      stage:
+        description: Pipeline stage, for example "chunk", "claims", "entities", "sop", "page".
+        type: string
+      inputs_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+      output_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+      producer:
+        $ref: "common.yaml#/$defs/ProducerInfo"
+      built_at:
+        $ref: "common.yaml#/$defs/Instant"
+      dirty:
+        type: boolean
+      dirty_reason:
+        $ref: "#/$defs/DirtyReason"
+
+  DependencyEdge:
+    description: artifact_id was built from input_id at input_hash.
+    type: object
+    required: [artifact_id, input_id, input_hash]
+    properties:
+      artifact_id:
+        $ref: "common.yaml#/$defs/UnitId"
+      input_id:
+        $ref: "common.yaml#/$defs/UnitId"
+      input_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+
+  DirtyReason:
+    type: string
+    enum: [input_changed, ttl_expired, prompt_upgrade, model_upgrade, assumption_drift, manual]
+
+  FreshnessState:
+    type: string
+    enum: [fresh, aging, stale, at_risk]
+
+  Staleness:
+    description: Staleness is a score, not a flag.
+    type: object
+    required: [unit_id, score, state, computed_at]
+    properties:
+      unit_id:
+        $ref: "common.yaml#/$defs/UnitId"
+      score:
+        $ref: "common.yaml#/$defs/Score01"
+      state:
+        $ref: "#/$defs/FreshnessState"
+      age_component:
+        $ref: "common.yaml#/$defs/Score01"
+      upstream_component:
+        description: Upstream changes not yet re-verified.
+        $ref: "common.yaml#/$defs/Score01"
+      contradiction_component:
+        $ref: "common.yaml#/$defs/Score01"
+      assumption_component:
+        $ref: "common.yaml#/$defs/Score01"
+      ttl:
+        $ref: "common.yaml#/$defs/Duration"
+      review_due:
+        $ref: "common.yaml#/$defs/Instant"
+      computed_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  LineageRelation:
+    type: string
+    enum: [cites, derived_from, supersedes, depends_on, mentions, contains]
+
+  LineageNode:
+    type: object
+    required: [id]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/UnitId"
+      label:
+        type: string
+
+  LineageEdge:
+    type: object
+    required: [from_id, to_id, relation]
+    properties:
+      from_id:
+        $ref: "common.yaml#/$defs/UnitId"
+      to_id:
+        $ref: "common.yaml#/$defs/UnitId"
+      relation:
+        $ref: "#/$defs/LineageRelation"
+
+  LineageGraph:
+    description: The provenance graph from a unit down to source spans.
+    type: object
+    required: [root_id, nodes, edges]
+    properties:
+      root_id:
+        $ref: "common.yaml#/$defs/UnitId"
+      nodes:
+        type: array
+        items:
+          $ref: "#/$defs/LineageNode"
+      edges:
+        type: array
+        items:
+          $ref: "#/$defs/LineageEdge"
+      truncated:
+        type: boolean
+
+  # ---------------------------------------------------------------- governance
+  ConflictClass:
+    type: string
+    enum:
+      - contradiction
+      - supersession
+      - scope_difference
+      - granularity
+      - plan_vs_fact
+      - duplicate
+      - compatible
+
+  ConflictTier:
+    type: string
+    enum: [deterministic, semantic, nli, llm_judge]
+
+  ConflictStatus:
+    type: string
+    enum: [open, auto_resolved, resolved, dismissed]
+
+  ConflictCase:
+    description: A suspected conflict between claims, found by governance.
+    type: object
+    required: [id, tenant_id, claim_ids, classification, tier, status, detected_at]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/ConflictId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      claim_ids:
+        type: array
+        minItems: 2
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      classification:
+        $ref: "#/$defs/ConflictClass"
+      tier:
+        $ref: "#/$defs/ConflictTier"
+      status:
+        $ref: "#/$defs/ConflictStatus"
+      proposed_winner_id:
+        $ref: "common.yaml#/$defs/ClaimId"
+      rationale:
+        type: string
+      confidence:
+        $ref: "common.yaml#/$defs/Score01"
+      affected_unit_ids:
+        description: Pages, SOPs and models that cite the claims.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/UnitId"
+      batch_key:
+        description: Groups similar conflicts into one todo ("12 price conflicts from the 2025 list").
+        type: string
+      detected_at:
+        $ref: "common.yaml#/$defs/Instant"
+      producer:
+        $ref: "common.yaml#/$defs/ProducerInfo"

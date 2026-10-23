@@ -1,0 +1,18 @@
+{
+  "id": "evt_01JC0000000000000000000001",
+  "type": "claims.updated",
+  "version": 1,
+  "tenant_id": "ten_01JC0000000000000000000001",
+  "occurred_at": "2026-10-20T08:12:01Z",
+  "producer": "extraction",
+  "subject": "sv_01JC0000000000000000000001",
+  "correlation_id": "evt_01JC0000000000000000000000",
+  "causation_id": "evt_01JC0000000000000000000000",
+  "data": {
+    "origin": "extracted",
+    "added": ["clm_01JC0000000000000000000001"],
+    "updated": [],
+    "superseded": [],
+    "source_version_id": "sv_01JC0000000000000000000001"
+  }
+}

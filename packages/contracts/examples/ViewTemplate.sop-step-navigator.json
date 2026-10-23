@@ -1,0 +1,25 @@
+{
+  "id": "sop.step_navigator",
+  "version": "1.0.0",
+  "title": "SOP 步骤导航",
+  "description": "逐步浏览流程，显示每一步的角色和依据。",
+  "capabilities": ["navigate", "ask"],
+  "data_schema": {
+    "type": "object",
+    "required": ["columns", "rows"],
+    "properties": {
+      "columns": {
+        "type": "array"
+      },
+      "rows": {
+        "type": "array"
+      }
+    }
+  },
+  "bundle": {
+    "uri": "file:///data/views/sop.step_navigator/1.0.0/index.html",
+    "sha256": "sha256:aa1e2d3f4a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5",
+    "size_bytes": 18233,
+    "mime_type": "text/html"
+  }
+}

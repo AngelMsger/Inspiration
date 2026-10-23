@@ -1,0 +1,6 @@
+packages:
+  - packages/*
+
+# protobufjs (via the SpiceDB client) only runs a version check on install.
+ignoredBuiltDependencies:
+  - protobufjs

@@ -1,0 +1,55 @@
+{
+  "id": "sop_01JC0000000000000000000001",
+  "tenant_id": "ten_01JC0000000000000000000001",
+  "space_id": "spc_01JC0000000000000000000001",
+  "title": "超标住宿审批",
+  "trigger": "住宿费超过城市上限",
+  "version": 2,
+  "status": "verified",
+  "roles": [
+    { "key": "traveler", "name": "出差人" },
+    { "key": "dept_head", "name": "部门负责人" },
+    { "key": "cfo", "name": "财务总监" }
+  ],
+  "steps": [
+    {
+      "key": "s1",
+      "title": "提交申请",
+      "role_key": "traveler",
+      "instruction": "在飞书审批提交「超标住宿申请」，填写城市、晚数和金额。",
+      "next": [{ "to": "s2" }],
+      "claim_ids": ["clm_01JC0000000000000000000004"],
+      "basis": "from_definition"
+    },
+    {
+      "key": "s2",
+      "title": "部门负责人审批",
+      "role_key": "dept_head",
+      "instruction": "核对出差事由和金额。",
+      "next": [
+        { "to": "s3", "condition": "金额 > 1000 元", "frequency": 0.31, "support": 66 },
+        { "to": "end", "condition": "金额 ≤ 1000 元", "frequency": 0.69, "support": 148 }
+      ],
+      "claim_ids": ["clm_01JC0000000000000000000005"],
+      "basis": "mined",
+      "support": 214,
+      "duration_p50_hours": 3.5
+    },
+    {
+      "key": "s3",
+      "title": "财务总监加签",
+      "role_key": "cfo",
+      "instruction": "审核超标金额。",
+      "next": [{ "to": "end" }],
+      "claim_ids": ["clm_01JC0000000000000000000006"],
+      "basis": "mined",
+      "support": 66
+    }
+  ],
+  "origin_process": {
+    "source_version_id": "sv_01JC0000000000000000000005",
+    "definition_code": "HOTEL_OVER_CAP",
+    "instances_analyzed": 214
+  },
+  "inputs_hash": "sha256:7a1e2d3f4a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e8f9a0b1c2d3e4f5"
+}

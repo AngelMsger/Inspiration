@@ -1,0 +1,23 @@
+{
+  "name": "@inspiration/access-control",
+  "version": "0.1.0",
+  "description": "Access control: permissions on SpiceDB, source ACL mirroring, search pre-filters, the derived-knowledge rule",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "inspiration-authz-schema": "./src/cli/write-schema.ts"
+  },
+  "dependencies": {
+    "@authzed/authzed-node": "^1.6.1",
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/kernel": "workspace:*"
+  },
+  "devDependencies": {
+    "@inspiration/eventbus": "workspace:*",
+    "@inspiration/knowledge-store": "workspace:*",
+    "@inspiration/testkit": "workspace:*"
+  }
+}
