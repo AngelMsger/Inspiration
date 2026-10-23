@@ -1,0 +1,30 @@
+{
+  "id": "evt_01JC0000000000000000000002",
+  "type": "blocks.changed",
+  "version": 1,
+  "tenant_id": "ten_01JC0000000000000000000001",
+  "occurred_at": "2026-10-20T08:11:40Z",
+  "producer": "normalization",
+  "subject": "src_01JC0000000000000000000001:制度/差旅费管理办法.md",
+  "causation_id": "evt_01JC0000000000000000000001",
+  "data": {
+    "source_id": "src_01JC0000000000000000000001",
+    "source_version_id": "sv_01JC0000000000000000000002",
+    "previous_version_id": "sv_01JC0000000000000000000001",
+    "added_block_ids": [],
+    "changed_block_ids": ["blk_7c1f0e4f9a3b2d6c8e5a1b0f4d3c2e1a"],
+    "removed_block_ids": [],
+    "unchanged_block_count": 41,
+    "added_span_ids": ["spn_2b9e4c7a1f0d3e6b8a5c4d2e1f0a9b8c"],
+    "removed_span_ids": ["spn_9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d"],
+    "duplicates": [
+      {
+        "source_id": "src_01JC0000000000000000000002",
+        "external_id": "doxcnTravelPolicy2026",
+        "source_version_id": "sv_01JC0000000000000000000007",
+        "exact": false,
+        "similarity": 0.97
+      }
+    ]
+  }
+}

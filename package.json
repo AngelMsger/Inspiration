@@ -25,6 +25,7 @@
     "@inspiration/kernel": "workspace:*",
     "@inspiration/knowledge-store": "workspace:*",
     "@inspiration/model-gateway": "workspace:*",
+    "@inspiration/normalization": "workspace:*",
     "@inspiration/source-sync": "workspace:*",
     "@inspiration/testkit": "workspace:*"
   },

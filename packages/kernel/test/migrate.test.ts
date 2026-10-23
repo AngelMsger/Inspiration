@@ -13,7 +13,14 @@ function sqlDir(files: Record<string, string>): URL {
 }
 
 test("migration sets are discovered in run order", async () => {
-  expect((await discoverMigrations()).map((s) => s.component)).toEqual(["bus", "gateway", "kb", "agents"]);
+  expect((await discoverMigrations()).map((s) => s.component)).toEqual([
+    "bus",
+    "gateway",
+    "kb",
+    "agents",
+    "sync",
+    "normalization",
+  ]);
 });
 
 describe.skipIf(!hasStack())("applying migrations", () => {

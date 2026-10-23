@@ -1107,6 +1107,24 @@ export interface BlocksChanged {
    */
   removed_span_ids: SpanId[];
   deleted?: boolean;
+  /**
+   * Other current documents of the tenant with the same or nearly the same text.
+   */
+  duplicates?: DuplicateDocument[];
+}
+/**
+ * A document whose normalized text (without whitespace, punctuation or case) equals this one's, or whose text fingerprint is within a few bits of it: a copy, a re-export, a version kept in two places. Governance decides which one is authoritative.
+ *
+ */
+export interface DuplicateDocument {
+  source_id: SourceId;
+  external_id: string;
+  source_version_id: SourceVersionId;
+  /**
+   * True when the normalized texts are equal.
+   */
+  exact: boolean;
+  similarity: Score01;
 }
 export interface BudgetStatus {
   budget_key: string;

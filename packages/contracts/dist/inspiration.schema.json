@@ -157,6 +157,7 @@
       "DocumentFetched",
       "AclChanged",
       "BlocksChanged",
+      "DuplicateDocument",
       "ClaimsUpdated",
       "CostEstimate",
       "ArtifactDirty",
@@ -1357,6 +1358,13 @@
         },
         "deleted": {
           "type": "boolean"
+        },
+        "duplicates": {
+          "description": "Other current documents of the tenant with the same or nearly the same text.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DuplicateDocument"
+          }
         }
       }
     },
@@ -3212,6 +3220,36 @@
         },
         "extra": {
           "type": "object"
+        }
+      }
+    },
+    "DuplicateDocument": {
+      "description": "A document whose normalized text (without whitespace, punctuation or case) equals this one's, or whose text fingerprint is within a few bits of it: a copy, a re-export, a version kept in two places. Governance decides which one is authoritative.\n",
+      "type": "object",
+      "required": [
+        "source_id",
+        "external_id",
+        "source_version_id",
+        "exact",
+        "similarity"
+      ],
+      "properties": {
+        "source_id": {
+          "$ref": "#/$defs/SourceId"
+        },
+        "external_id": {
+          "type": "string"
+        },
+        "source_version_id": {
+          "$ref": "#/$defs/SourceVersionId"
+        },
+        "exact": {
+          "description": "True when the normalized texts are equal.",
+          "type": "boolean"
+        },
+        "similarity": {
+          "description": "Estimated share of equal text, from the fingerprints.",
+          "$ref": "#/$defs/Score01"
         }
       }
     },

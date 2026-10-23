@@ -4,5 +4,5 @@ import type { MigrationSet } from "@inspiration/kernel";
 export const MIGRATIONS: MigrationSet = {
   component: "sync",
   directory: new URL("../migrations/", import.meta.url),
-  order: 40,
+  order: 50,
 };

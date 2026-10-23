@@ -22,7 +22,7 @@ components:
   connectors:
     title: Connector SDK and connectors
     layer: ingest
-    status: planned
+    status: built
     runtime: node
     owns: Source auth, enumeration, fetch, ACL read, webhooks; Feishu docs, wiki, approval and upload connectors; registered queries for QueryData
     plugins: [connectors]
@@ -33,10 +33,10 @@ components:
   source-sync:
     title: Source sync
     layer: ingest
-    status: planned
+    status: built
     runtime: node
     owns: Cursors, 15-minute polls, nightly reconcile, rate budgets, subscription upkeep, debounce; stores source versions and ACL snapshots
-    plugins: []
+    plugins: [migrations]
     publishes: [source.changed, document.fetched, acl.changed]
     subscribes: [source.changed]
     calls: [knowledge-store, blobs]
@@ -55,10 +55,10 @@ components:
   normalization:
     title: Normalization
     layer: ingest
-    status: planned
+    status: built
     runtime: node
     owns: Parser routing (built-in text parsers, the parsing worker for Office, PDF and scans), canonical blocks and spans with stable IDs, block diff against the previous version, duplicate documents
-    plugins: [parsers]
+    plugins: [parsers, migrations]
     publishes: [blocks.changed]
     subscribes: [document.fetched]
     calls: [knowledge-store, model-gateway, parsing, blobs]
