@@ -74,10 +74,12 @@ One Postgres instance (ParadeDB image: Postgres 16 with pgvector and pg_search) 
 
 | Schema | Owner | Contents |
 | --- | --- | --- |
-| `kb` | knowledge-store | source versions, spans, chunks (BM25 index), embeddings (HNSW), claims, evidence, derivations, dependencies, page snapshots, ACL snapshots |
+| `kb` | knowledge-store | source versions, source blocks, spans, chunks (BM25 index), embeddings (HNSW), claims, evidence, derivations, dependencies, page snapshots, ACL snapshots |
 | `bus` | eventbus | outbox and inbox |
 | `gateway` | model-gateway | usage records (budgets are sums over them) |
 | `agents` | agent-runtime | agent run traces |
+| `sync` | source-sync | registered sources; per item, the connector's version hashes and the source version they became |
+| `normalization` | normalization | per document, the version last stored as blocks (the diff base), its parser and fingerprint; the SimHash band index for duplicates |
 | `public.inspiration_migrations` | kernel | migration ledger with checksums |
 
 SpiceDB keeps its own datastore in a separate `spicedb` database on the same instance.

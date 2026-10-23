@@ -23,7 +23,18 @@ import { defineTable, type Records } from "@inspiration/eventbus";
 import { logger, registry } from "@inspiration/kernel";
 import { build, draftIds, flatten } from "./blocks.ts";
 import { align, blockDiff } from "./diff.ts";
-import { bands, type Fingerprint, fingerprint, hamming, MIN_NEAR_TEXT, MIN_TEXT, NEAR } from "./fingerprint.ts";
+import {
+  bands,
+  type Fingerprint,
+  fingerprint,
+  hamming,
+  MIN_NEAR_TEXT,
+  MIN_TEXT,
+  NEAR,
+  NEAR_SHARE,
+  probes,
+  sharedText,
+} from "./fingerprint.ts";
 
 const log = logger("normalization");
 
@@ -204,7 +215,7 @@ export class Normalization {
     };
     if (version.deleted) payload.deleted = true;
     const print = version.deleted ? undefined : fingerprint(textOf(result.blocks));
-    const duplicates = print ? await this.#duplicates(version, print) : [];
+    const duplicates = print ? await this.#duplicates(version, print, result.spans) : [];
     if (duplicates.length) payload.duplicates = duplicates;
     const event = newEvent("blocks.changed", payload, {
       tenantId: version.tenant_id,
@@ -288,12 +299,15 @@ export class Normalization {
   }
 
   /** Current documents of the tenant whose text equals or nearly equals this one. */
-  async #duplicates(version: SourceVersion, print: Fingerprint): Promise<DuplicateDocument[]> {
+  async #duplicates(version: SourceVersion, print: Fingerprint, spans: readonly Span[]): Promise<DuplicateDocument[]> {
     if (print.length < MIN_TEXT) return [];
     const self = documentKey(version.source_id, version.external_id);
     const rows = await this.records.find(
       FINGERPRINTS,
-      { tenant_id: version.tenant_id, band: bands(print.simhash) },
+      {
+        tenant_id: version.tenant_id,
+        band: print.length >= MIN_NEAR_TEXT ? probes(print.simhash) : bands(print.simhash),
+      },
       { orderBy: "key" },
     );
     const seen = new Set<string>([self]);
@@ -306,12 +320,14 @@ export class Normalization {
       const distance = hamming(theirs.simhash, print.simhash);
       const comparable = Math.min(theirs.length, print.length) >= MIN_NEAR_TEXT;
       if (!exact && (!comparable || distance > NEAR)) continue;
+      const share = exact ? 1 : sharedText(spans, await this.store.spansOf(row.source_version_id));
+      if (share < NEAR_SHARE) continue;
       out.push({
         source_id: row.source_id,
         external_id: row.external_id,
         source_version_id: row.source_version_id,
         exact,
-        similarity: exact ? 1 : Math.round((1 - distance / 64) * 1000) / 1000,
+        similarity: Math.round(share * 1000) / 1000,
       });
     }
     return out.sort((a, b) => Number(b.exact) - Number(a.exact) || b.similarity - a.similarity);

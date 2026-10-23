@@ -50,6 +50,9 @@ producer name, its consumer group and the first part of its model task names.
   plugin directly; ask `registry(group).get(name)`.
 - Delivery is at least once. Handlers must be idempotent; use `firstDelivery` (bus.inbox)
   when a side effect cannot be repeated.
+- Composition roots live in `apps/<name>` and are listed under `apps` in `components.yaml`.
+  An app wires components to the store, the bus and the blob store and may depend on any of
+  them; no package depends on an app.
 - The engine has no accounts, sign-in or UI concerns. Every API takes the tenant and the
   principal it acts for; people, tenants and policy are provisioned by the business layer
   (see `docs/architecture.md`).

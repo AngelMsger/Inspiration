@@ -139,7 +139,7 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
       ["制度/差旅.md", false],
       ["归档/差旅（副本）.txt", false],
     ]);
-    expect(nearDuplicates[0]?.similarity).toBeGreaterThan(0.9);
+    expect(nearDuplicates[0]?.similarity).toBeGreaterThan(0.8);
     expect((await world.normalization.normalize(other.id)).diff?.duplicates).toBeUndefined();
   });
 

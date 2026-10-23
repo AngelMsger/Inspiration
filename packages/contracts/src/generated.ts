@@ -1113,7 +1113,7 @@ export interface BlocksChanged {
   duplicates?: DuplicateDocument[];
 }
 /**
- * A document whose normalized text (without whitespace, punctuation or case) equals this one's, or whose text fingerprint is within a few bits of it: a copy, a re-export, a version kept in two places. Governance decides which one is authoritative.
+ * A document whose normalized text (without whitespace, punctuation or case) equals this one's, or that shares most of its sentences: a copy, a re-export, an older edition kept in an archive. Governance decides which one is authoritative.
  *
  */
 export interface DuplicateDocument {

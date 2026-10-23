@@ -24,7 +24,11 @@ The foundations are built and tested. The remaining components are specified in
 | Access control on SpiceDB | `packages/access-control` | built |
 | Model gateway, as a library and an HTTP service | `packages/model-gateway` | built |
 | Agent runtime for built-in agents | `packages/agent-runtime` | built |
-| connectors, source-sync, parsing, normalization, extraction, freshness, governance, page-compiler, collaboration, retrieval, agent-api, research, web, views | | planned |
+| Connectors: local folders, Feishu documents and approvals (recorded fixtures) | `packages/connectors` | built |
+| Source sync: versions, tombstones, ACL snapshots, principal mapping | `packages/source-sync` | built |
+| Normalization: parsers, source blocks and spans with stable IDs, block diff, duplicates | `packages/normalization` | built |
+| Engine process and CLI: ingest runs, reports, synthetic corpora | `apps/engine` | built |
+| parsing, extraction, freshness, governance, page-compiler, collaboration, retrieval, agent-api, research, web, views | | planned |
 
 Everything is TypeScript on Node 22 except the parsing worker, which is Python because the
 best document parsers are.
@@ -49,6 +53,15 @@ Tests that need the stack skip when it is not running, unless `INSPIRATION_REQUI
 is set, as it is in CI. Each one gets its own database copied from a migrated template and
 its own Valkey key prefix. `make test-unit` runs only the tests that need nothing.
 
+To run the ingest pipeline over the demo corpus ([`examples/corpus`](examples/corpus/README.md),
+a fictional company with planted duplicates and conflicts) and print what it produced:
+
+```bash
+pnpm engine ingest examples/corpus            # in memory
+pnpm engine ingest examples/corpus --stack    # Postgres and Valkey from INSPIRATION_* settings
+pnpm engine synthesize /tmp/synth --documents 2000 && pnpm engine ingest /tmp/synth --stack
+```
+
 To try the model gateway without a model server, run it with the fake providers:
 
 ```bash
@@ -64,6 +77,8 @@ packages/kernel           settings, logging, plugin registry, migrations runner,
 packages/eventbus         transactional outbox, relay to Valkey Streams, consumers, in-memory bus
 packages/testkit          fixtures for tests against the compose stack
 packages/<component>      one package per component (see components.yaml)
+apps/engine               the engine process: wires components to the store and the bus; ingest CLI
+examples/corpus           a demo tenant (Chinese enterprise documents, folder ACLs, Feishu fixtures)
 infra/                    docker compose for the prototype stack
 config/                   example configuration
 docs/                     architecture, contracts, PageSpec and views, licensing

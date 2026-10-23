@@ -21,9 +21,9 @@
  *   version whose file cannot be parsed is noted and does not replace it; a version that
  *   changed only metadata reuses its predecessor's blocks without parsing; a tombstone
  *   removes every block.
- * - Duplicates: exact (equal normalized text) and near (SimHash within 6 of 64 bits, for
- *   documents of 200 characters or more) among the tenant's current documents, reported in
- *   blocks.changed.
+ * - Duplicates: exact (equal normalized text) and near (SimHash within 9 of 64 bits, then
+ *   at least 60% of the text in shared sentences, for documents of 200 characters or more)
+ *   among the tenant's current documents, reported in blocks.changed.
  *
  * Normalization keeps its own state (the last stored version per document and the
  * fingerprint index) in the normalization schema. Delivery is at least once: a version is
@@ -40,7 +40,10 @@ export {
   MIN_NEAR_TEXT,
   MIN_TEXT,
   NEAR,
+  NEAR_SHARE,
   normalizedText,
+  probes,
+  sharedText,
 } from "./fingerprint.ts";
 export { MIGRATIONS } from "./migrations.ts";
 export {

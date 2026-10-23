@@ -1,0 +1,65 @@
+# A small demo tenant for the ingest prototype: one fictional company (青禾科技) with a
+# policy library, a team wiki, an archive folder and Feishu fixtures. README.md lists the
+# duplicates and conflicts planted in it.
+
+tenant:
+  id: ten_01QINGHE000000000000000001
+  name: 青禾科技
+
+spaces:
+  - id: spc_01QINGHE000000000000POLICY
+    name: 公司制度
+  - id: spc_01QINGHE00000000000000TEAM
+    name: 团队知识
+
+# What the business layer's directory would answer: the sources' own principal IDs mapped
+# to engine principals. Unmapped entries stay in the ACL snapshot as they are.
+directory:
+  folder:
+    group:finance: grp_01QINGHE00000000000FINANCE
+    group:hr: grp_01QINGHE000000000000000HR
+    group:admin-office: grp_01QINGHE0000000000000ADMIN
+    user:li.na: usr_01QINGHE00000000000000LINA
+    user:zhang.min: usr_01QINGHE000000000ZHANGMIN
+  feishu:
+    department:od_finance: dep_01QINGHE00000000000FINANCE
+    department:od_admin: dep_01QINGHE0000000000000ADMIN
+    user:ou_wang_wei: usr_01QINGHE0000000000WANGWEI
+    user:ou_li_na: usr_01QINGHE00000000000000LINA
+
+sources:
+  - id: src_01QINGHE00000000000POLICIES
+    type: folder
+    space: spc_01QINGHE000000000000POLICY
+    name: 制度库
+    root: 制度库
+    directory: folder
+    default_authority: 0.9
+  - id: src_01QINGHE0000000000TEAMWIKI
+    type: folder
+    space: spc_01QINGHE00000000000000TEAM
+    name: 团队知识
+    root: 团队知识
+    directory: folder
+    default_authority: 0.5
+  - id: src_01QINGHE000000000000ARCHIVE
+    type: folder
+    space: spc_01QINGHE000000000000POLICY
+    name: 历史归档
+    root: 归档
+    directory: folder
+    default_authority: 0.3
+  - id: src_01QINGHE000000000FEISHUDOC
+    type: feishu.docx
+    space: spc_01QINGHE00000000000000TEAM
+    name: 飞书知识库
+    root: feishu
+    directory: feishu
+    default_authority: 0.6
+  - id: src_01QINGHE00000000FEISHUFLOW
+    type: feishu.approval
+    space: spc_01QINGHE000000000000POLICY
+    name: 飞书审批
+    root: feishu
+    directory: feishu
+    default_authority: 0.7

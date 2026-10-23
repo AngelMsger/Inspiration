@@ -227,3 +227,10 @@ libraries:
     owns: Postgres outbox, relay to Valkey Streams, consumer groups with retries and dead letters, in-memory bus for tests
   testkit:
     owns: Test fixtures for the compose stack (a migrated database per test, Valkey prefixes, SpiceDB settings); test code only
+
+# Composition roots: deployable processes that wire components to the store, the bus and
+# the blob store (apps/<name>, published as @inspiration/<name>). An app may depend on any
+# component or library; no package depends on an app.
+apps:
+  engine:
+    owns: The engine process and its CLI; corpus manifests, ingest runs and volume reports
