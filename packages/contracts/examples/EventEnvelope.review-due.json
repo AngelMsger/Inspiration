@@ -1,0 +1,20 @@
+{
+  "id": "evt_01JC0000000000000000000004",
+  "type": "review.due",
+  "version": 1,
+  "tenant_id": "ten_01JC0000000000000000000001",
+  "occurred_at": "2026-10-23T08:20:00Z",
+  "producer": "freshness",
+  "subject": "src_01JC0000000000000000000002:制度库/人事/转发-差旅费管理办法.md",
+  "correlation_id": "evt_01JC0000000000000000000000",
+  "causation_id": "evt_01JC0000000000000000000003",
+  "data": {
+    "unit_ids": ["sv_01JC0000000000000000000005"],
+    "kind": "evidence_changed",
+    "due_at": "2026-10-23T08:20:00Z",
+    "space_id": "spc_01JC0000000000000000000001",
+    "reason": "转发-差旅费管理办法 repeats 差旅费管理办法, which changed on 2026-10-23; the copy did not.",
+    "cause_ids": ["sv_01JC0000000000000000000004"],
+    "dedupe_key": "freshness:evidence_changed:src_01JC0000000000000000000002:制度库/人事/转发-差旅费管理办法.md"
+  }
+}

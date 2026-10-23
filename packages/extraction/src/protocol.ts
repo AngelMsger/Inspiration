@@ -7,7 +7,7 @@ import type { ClaimType, ClaimValue } from "@inspiration/contracts";
 import type { PredicateEntry } from "./vocabulary.ts";
 
 export const TASK = "extraction.extract_claims";
-export const PROMPT_VERSION = "extract_claims@2";
+export const PROMPT_VERSION = "extract_claims@3";
 
 export interface WindowSpan {
   /** A reference local to the window ("s1"), so the model never sees or invents span IDs. */

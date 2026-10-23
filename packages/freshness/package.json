@@ -1,0 +1,26 @@
+{
+  "name": "@inspiration/freshness",
+  "version": "0.1.0",
+  "description": "Freshness: review clocks per document, plan days, copies an edit left behind, and staleness scores",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "inspiration": {
+    "plugins": {
+      "migrations": {
+        "freshness": "./src/migrations.ts#MIGRATIONS"
+      }
+    }
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/eventbus": "workspace:*",
+    "@inspiration/kernel": "workspace:*"
+  },
+  "devDependencies": {
+    "@inspiration/knowledge-store": "workspace:*",
+    "@inspiration/testkit": "workspace:*"
+  }
+}

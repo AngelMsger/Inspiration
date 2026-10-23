@@ -63,6 +63,8 @@ export interface World {
   close: (claims: readonly Claim[]) => Promise<GovernanceResult>;
   /** Every todo request governance published, in order. */
   requests: () => Promise<TodoRequested[]>;
+  /** Move governance's clock. */
+  setToday: (day: string) => void;
 }
 
 export const HOTEL = "hotel_cap_per_night|一线城市";
@@ -92,7 +94,8 @@ export const governanceTest = (backend: Backend) =>
           (r) => r.envelope,
         );
     }
-    const governance = new Governance({ store, records, clock: () => TODAY });
+    let now = TODAY;
+    const governance = new Governance({ store, records, clock: () => now });
 
     const state: World["state"] = async (doc, said) => {
       const version: SourceVersion = {
@@ -196,5 +199,8 @@ export const governanceTest = (backend: Backend) =>
     const requests = async () =>
       (await outbox()).filter((e) => e.type === "todo.requested").map((e) => e.data as unknown as TodoRequested);
 
-    return { store, records, governance, state, close, requests };
+    const setToday = (day: string) => {
+      now = new Date(`${day}T09:00:00Z`);
+    };
+    return { store, records, governance, state, close, requests, setToday };
   });

@@ -29,6 +29,9 @@ importers:
       '@inspiration/extraction':
         specifier: workspace:*
         version: link:packages/extraction
+      '@inspiration/freshness':
+        specifier: workspace:*
+        version: link:packages/freshness
       '@inspiration/governance':
         specifier: workspace:*
         version: link:packages/governance
@@ -81,6 +84,9 @@ importers:
       '@inspiration/extraction':
         specifier: workspace:*
         version: link:../../packages/extraction
+      '@inspiration/freshness':
+        specifier: workspace:*
+        version: link:../../packages/freshness
       '@inspiration/governance':
         specifier: workspace:*
         version: link:../../packages/governance
@@ -220,6 +226,25 @@ importers:
       '@inspiration/eventbus':
         specifier: workspace:*
         version: link:../eventbus
+      '@inspiration/knowledge-store':
+        specifier: workspace:*
+        version: link:../knowledge-store
+      '@inspiration/testkit':
+        specifier: workspace:*
+        version: link:../testkit
+
+  packages/freshness:
+    dependencies:
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@inspiration/eventbus':
+        specifier: workspace:*
+        version: link:../eventbus
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+    devDependencies:
       '@inspiration/knowledge-store':
         specifier: workspace:*
         version: link:../knowledge-store

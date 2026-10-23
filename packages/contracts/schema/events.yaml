@@ -286,10 +286,19 @@ $defs:
         $ref: "#/$defs/CostEstimate"
 
   ReviewDueKind:
+    description: >
+      ttl: the review interval of the units' knowledge class has passed since they last
+      changed. assumption: a day a plan or assumption they state has come. verification_expiry:
+      a person's verification ran out. evidence_changed: a document they repeat changed and
+      they did not.
     type: string
-    enum: [ttl, assumption, verification_expiry]
+    enum: [ttl, assumption, verification_expiry, evidence_changed]
 
   ReviewDue:
+    description: >
+      Freshness says units need a look, not what is wrong with them. Collaboration turns it
+      into a todo, merging requests with the same dedupe_key into one open todo as it does
+      for todo.requested; research may re-check the units itself.
     type: object
     required: [unit_ids, kind, due_at]
     properties:
@@ -302,6 +311,21 @@ $defs:
         $ref: "#/$defs/ReviewDueKind"
       due_at:
         $ref: "common.yaml#/$defs/Instant"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      reason:
+        description: One plain sentence for the reviewer.
+        type: string
+        minLength: 1
+      cause_ids:
+        description: For evidence_changed, the units whose change made the review due.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/UnitId"
+      dedupe_key:
+        description: Requests with the same key are one review, such as "freshness:ttl:<document>".
+        type: string
+        minLength: 1
 
   TodoRequested:
     description: >

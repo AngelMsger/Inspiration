@@ -21,6 +21,7 @@ test("migration sets are discovered in run order", async () => {
     "sync",
     "normalization",
     "governance",
+    "freshness",
   ]);
 });
 

@@ -21,6 +21,13 @@ deadline (the meeting on 2026-09-26 moved it), each a supersession of the policy
 value; 5 days of first-year leave over the guide's 7, a contradiction; and it settles the
 archive's 500 and 80 alone. That is three todo requests, two of them high priority.
 
+Freshness gives twelve documents a yearly review clock (their claims are policy) and three
+a 180-day one (process); the minutes are a record of their day, the archive is retired, and
+two documents hold only general knowledge, so none of those is ever due by age. When the
+travel policy changes, its forwarded copy in the HR folder no longer matches it, so
+freshness asks for a look at the copy (evidence_changed); the archived 2023 edition is left
+alone.
+
 ## Governance levels
 
 Front matter and `.meta.yaml` set `governance` (kept in `metadata.extra.governance`):

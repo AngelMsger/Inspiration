@@ -11,7 +11,7 @@
  * cannot do at this size. Generation is deterministic for a seed.
  */
 
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, utimes, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { PredicateEntry, Vocabulary } from "@inspiration/extraction";
 import { stringify } from "yaml";
@@ -601,6 +601,8 @@ class Writer {
   readonly truth: Stated[] = [];
   readonly duplicates: Synthesis["duplicates"] = [];
   readonly files = new Map<string, string>();
+  /** When each file last changed in the source, YYYY-MM-DD: set as its mtime. */
+  readonly modified = new Map<string, string>();
 
   constructor(seed: number) {
     this.rand = prng(seed);
@@ -637,7 +639,7 @@ class Writer {
     const p = this.pick(PROJECTS);
     const forms = [
       () => `${p}项目完成${this.pick(WORK)}，整体进度 ${this.int(10, 95)}%。`,
-      () => `${this.person()}负责${this.pick(WORK)}，预计${this.date()}完成。`,
+      () => `${this.person()}负责${this.pick(WORK)}，预计${this.date(this.int(1, 12))}完成。`,
       () => `本周处理工单 ${this.int(20, 400)} 张，平均处理时长 ${this.int(1, 48)} 小时。`,
       () => `${p}项目的主要风险是${this.pick(WORK)}延期，已与${this.person()}确认应对方案。`,
       () => `会上讨论了${this.pick(WORK)}的分工，由${this.person()}牵头，${this.person()}配合。`,
@@ -652,9 +654,32 @@ class Writer {
     return Array.from({ length: n }, () => this.filler());
   }
 
-  write(path: string, text: string): void {
+  write(path: string, text: string, modified: string): void {
     this.files.set(path, text);
+    this.modified.set(path, modified);
   }
+}
+
+/** FNV-1a: a day offset that depends on the path only, so file dates do not move the random draws. */
+function hashOf(text: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
+  return h;
+}
+
+function dayAfter(day: string, days: number): string {
+  return new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** "2026 年 3 月 5 日" as 2026-03-05. */
+function isoDay(written: string): string {
+  const [, y, m, d] = /(\d{4}) 年 (\d{1,2}) 月 (\d{1,2}) 日/.exec(written) as unknown as [
+    string,
+    string,
+    string,
+    string,
+  ];
+  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
 }
 
 function frontMatter(fields: Record<string, unknown>): string {
@@ -690,7 +715,8 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
         `本办法自 2026 年 1 月 1 日起施行。`,
       ];
       const text = `${frontMatter({ title: `${topic}管理办法`, governance: "policy", approval_state: "approved", owner: department })}# ${topic}管理办法\n\n${articles.map((a, i) => `第${i + 1}条 ${a}`).join("\n\n")}\n`;
-      w.write(path, text);
+      // Policies were last edited in December, before they took effect.
+      w.write(path, text, dayAfter("2025-12-01", hashOf(path) % 28));
       policies.push({ path, text, department });
       made++;
     }
@@ -715,6 +741,7 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
     const facts = factsOf(department);
     let path: string;
     let text: string;
+    let modified: string;
     if (kind === "guide" || kind === "faq") {
       const title = kind === "guide" ? `${department}办事指南（第 ${n} 篇）` : `${department}常见问题（第 ${n} 期）`;
       path = `部门空间/${department}/${kind === "guide" ? "指南" : "FAQ"}/${title}.md`;
@@ -724,6 +751,7 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
         return `## ${kind === "faq" ? `关于${f.topic}的问题` : f.topic}\n\n${body}`;
       });
       text = `${frontMatter({ title, governance: kind === "guide" ? "guideline" : "reference", owner: w.person() })}# ${title}\n\n${sections.join("\n\n")}\n`;
+      modified = dayAfter("2024-10-23", hashOf(path) % 730);
     } else if (kind === "minutes") {
       const month = w.int(1, 10);
       const title = `${department} 2026 年 ${month} 月第 ${n} 次例会纪要`;
@@ -745,13 +773,18 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
           `经讨论决定，自 2026 年 ${from} 月 1 日起，${f.topic}调整为：${w.pick(f.say).replace("{v}", value)}`,
         );
       } else if (w.rand() < 0.4 && facts.length) items.push(w.hearsay(path, w.pick(facts), errorRate));
-      text = `${frontMatter({ title, governance: "note", owner: w.person() })}# ${title}\n\n时间：${w.date(month)}\n参会：${Array.from({ length: w.int(3, 8) }, () => w.person()).join("、")}\n\n## 议题与决议\n\n${items.map((t, i) => `${i + 1}. ${t}`).join("\n")}\n\n## 待办\n\n${Array.from({ length: w.int(1, 4) }, () => `- ${w.filler()}`).join("\n")}\n`;
+      const owner = w.person();
+      const held = w.date(month);
+      modified = isoDay(held);
+      text = `${frontMatter({ title, governance: "note", owner, date: modified })}# ${title}\n\n时间：${held}\n参会：${Array.from({ length: w.int(3, 8) }, () => w.person()).join("、")}\n\n## 议题与决议\n\n${items.map((t, i) => `${i + 1}. ${t}`).join("\n")}\n\n## 待办\n\n${Array.from({ length: w.int(1, 4) }, () => `- ${w.filler()}`).join("\n")}\n`;
     } else if (kind === "weekly") {
       const project = w.pick(PROJECTS);
       const title = `${project}项目周报（${department}，第 ${n} 周）`;
       path = `部门空间/${department}/周报/${title}.md`;
       const rows = Array.from({ length: w.int(2, 6) }, () => `| ${w.pick(WORK)} | ${w.person()} | ${w.int(0, 100)}% |`);
-      text = `${frontMatter({ title, governance: "note", owner: w.person() })}# ${title}\n\n## 本周进展\n\n${w
+      // Reports of one department and number fall in one of the year's first 42 weeks, on its Friday.
+      modified = dayAfter("2026-01-09", 7 * ((n - 1) % 42));
+      text = `${frontMatter({ title, governance: "note", owner: w.person(), date: modified })}# ${title}\n\n## 本周进展\n\n${w
         .fillers(w.int(6, 15))
         .map((t) => `- ${t}`)
         .join(
@@ -766,11 +799,13 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
         (_, i) => `## ${i + 1}. ${w.pick(WORK)}\n\n${Array.from({ length: w.int(2, 6) }, () => w.filler()).join("")}`,
       );
       text = `${frontMatter({ title, governance: "reference", owner: w.person() })}# ${title}\n\n${parts.join("\n\n")}\n`;
+      modified = dayAfter("2024-10-23", hashOf(path) % 730);
     } else if (kind === "copy" && policies.length) {
       const source = w.pick(policies);
       path = `共享/${department}/转发-${source.path.split("/").at(-1)}`;
       if (w.files.has(path)) continue;
       text = source.text.replace("governance: policy", "governance: reference");
+      modified = dayAfter(w.modified.get(source.path) as string, 1 + (hashOf(path) % 20));
       for (const t of w.truth.filter((s) => s.document === source.path)) w.truth.push({ ...t, document: path });
       w.duplicates.push({ document: path, of: source.path, exact: true });
     } else if (kind === "edition" && policies.length) {
@@ -778,6 +813,7 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
       const year = w.pick(["2023", "2024", "2025"]);
       path = `归档/${source.department}/${source.path.split("/").at(-1)?.replace(".md", "")}（${year} 版）.md`;
       if (w.files.has(path)) continue;
+      modified = dayAfter(`${Number(year) - 1}-12-01`, hashOf(path) % 28);
       text = source.text
         .replace("approval_state: approved", "approval_state: archived")
         .replace("2026 年 1 月 1 日", `${year} 年 1 月 1 日`);
@@ -796,13 +832,15 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
       w.duplicates.push({ document: path, of: source.path, exact: false });
     } else continue;
     if (w.files.has(path)) continue;
-    w.write(path, text);
+    w.write(path, text, modified);
     made++;
   }
 
   for (const [path, text] of w.files) {
     await mkdir(dirname(join(dir, path)), { recursive: true });
     await writeFile(join(dir, path), text);
+    const at = new Date(`${w.modified.get(path)}T08:00:00Z`);
+    await utimes(join(dir, path), at, at);
   }
   for (const department of departments) {
     const group = DEPARTMENTS[department] as string;
@@ -824,6 +862,53 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
   await writeFile(join(dir, "vocabulary.yaml"), stringify(vocabulary()));
   await writeFile(join(dir, "corpus.yaml"), stringify(manifest(departments)));
   return { documents: made, statements: w.truth.length, duplicates: w.duplicates };
+}
+
+export interface EditOptions {
+  /** Share of the documents to edit. */
+  share: number;
+  seed?: number;
+  /** The day of the edits, YYYY-MM-DD: the edited files' modification time. */
+  day: string;
+}
+
+export interface Edits {
+  documents: number;
+  by_kind: Record<string, number>;
+}
+
+/**
+ * Edit a share of a synthesized corpus in place, as a stretch of ordinary work would: a
+ * policy revises one of its values, and its copies in 共享 keep the old text; any other
+ * document gains a paragraph. The archive and the copies are not edited.
+ */
+export async function edit(dir: string, options: EditOptions): Promise<Edits> {
+  const w = new Writer(options.seed ?? 2);
+  const paths = (await readdir(dir, { recursive: true }))
+    .map((p) => p.split("\\").join("/"))
+    .filter((p) => p.endsWith(".md") && !p.startsWith("归档/") && !p.startsWith("共享/"))
+    .sort();
+  const edits: Edits = { documents: 0, by_kind: {} };
+  const at = new Date(`${options.day}T08:00:00Z`);
+  for (const path of paths) {
+    if (w.rand() >= options.share) continue;
+    let text = await readFile(join(dir, path), "utf8");
+    let kind = "paragraph added";
+    if (path.startsWith("制度库/")) {
+      const stated = FACTS.flatMap((f) => f.say.map((say) => [f, say.replace("{v}", f.value)] as const)).filter(
+        ([, sentence]) => text.includes(sentence),
+      );
+      if (!stated.length) continue;
+      const [fact, sentence] = w.pick(stated);
+      text = text.replace(sentence, sentence.replace(fact.value, w.pick(fact.alternatives)));
+      kind = "policy value revised";
+    } else text = `${text.trimEnd()}\n\n${w.filler()}\n`;
+    await writeFile(join(dir, path), text);
+    await utimes(join(dir, path), at, at);
+    edits.documents++;
+    edits.by_kind[kind] = (edits.by_kind[kind] ?? 0) + 1;
+  }
+  return edits;
 }
 
 function manifest(departments: string[]): CorpusManifest {

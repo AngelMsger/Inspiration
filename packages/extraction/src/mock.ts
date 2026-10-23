@@ -44,6 +44,17 @@ export function effectiveFrom(text: string): string | undefined {
   const [year, month, day] = (m[1] ? m.slice(1, 4) : m.slice(4, 7)) as [string, string, string];
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
 }
+
+const DAY = /(?:(\d{4})\s*年\s*)?(\d{1,2})\s*月\s*(\d{1,2})\s*日/;
+
+/** The day a plan names ("预计 2026 年 11 月 20 日完成"), in the document's year when it gives none. */
+export function plannedFor(text: string, documentDate?: string): string | undefined {
+  const m = DAY.exec(text);
+  const year = m?.[1] ?? documentDate?.slice(0, 4);
+  if (!m || !year) return undefined;
+  return `${year}-${(m[2] as string).padStart(2, "0")}-${(m[3] as string).padStart(2, "0")}`;
+}
+
 const CLAUSES = /[^，；,;]+[，；,;]?/g;
 
 function claimType(text: string, fitted: boolean): ClaimType | undefined {
@@ -173,7 +184,10 @@ function rowClaim(block: WindowBlock, input: WindowInput): ExtractedClaim | unde
  */
 function passageClaims(ref: string, text: string, block: WindowBlock, input: WindowInput): ExtractedClaim[] {
   const whole = fit(text, input.vocabulary);
-  const validFrom = effectiveFrom(text) ?? (CHANGE.test(text) ? input.document.date : undefined);
+  const validFrom =
+    effectiveFrom(text) ??
+    (CHANGE.test(text) ? input.document.date : undefined) ??
+    (PLAN.test(text) ? plannedFor(text, input.document.date) : undefined);
   const clauses = (text.match(CLAUSES) ?? []).map((c) => c.trim()).filter(Boolean);
   if (whole && clauses.length > 1) {
     const valued = clauses.flatMap((clause) => {

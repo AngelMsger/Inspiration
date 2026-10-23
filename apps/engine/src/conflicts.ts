@@ -6,7 +6,7 @@
  * the synthesizer made current (its latest decision in force, else the policy's value).
  */
 
-import type { EventEnvelope, TodoRequested } from "@inspiration/contracts";
+import type { EventEnvelope, Priority } from "@inspiration/contracts";
 import { type Spread, spread, type Truth } from "./claims.ts";
 import type { Engine } from "./engine.ts";
 
@@ -40,6 +40,8 @@ function bump(counts: Record<string, number>, key: string, by = 1): void {
   counts[key] = (counts[key] ?? 0) + by;
 }
 
+const PRIORITY: readonly Priority[] = ["low", "normal", "high", "urgent"];
+
 const sameValue = (key: string, value: string) =>
   key === value || (Number.parseFloat(key) === Number.parseFloat(value) && !Number.isNaN(Number.parseFloat(value)));
 
@@ -57,17 +59,7 @@ export async function governanceReport(
     bump(byStatus, c.status);
     if (c.status === "open" && c.batch_key) openSlots.set(c.batch_key, (openSlots.get(c.batch_key) ?? 0) + 1);
   }
-  // A todo shows the slot's last request: its priority stands until a new one replaces it.
-  const last = new Map<string, TodoRequested>();
-  for (const e of run.requests) {
-    const r = e.data as unknown as TodoRequested;
-    last.set(r.dedupe_key, r);
-  }
   const byPriority: Record<string, number> = {};
-  for (const slot of openSlots.keys()) {
-    const r = last.get(`governance:conflict:${slot}`);
-    bump(byPriority, r?.priority ?? "unknown");
-  }
   const proposedBy: Record<string, number> = {};
   const decided = new Map<string, string>();
   const slots = new Set(cases.flatMap((c) => c.batch_key ?? []));
@@ -76,6 +68,9 @@ export async function governanceReport(
     if (!decision) continue;
     bump(proposedBy, decision.basis);
     decided.set(slot, decision.proposed.value);
+    // A todo has the priority of its most urgent open case, as its request said.
+    const open = decision.cases.filter((c) => c.status === "open").map((c) => PRIORITY.indexOf(c.priority));
+    if (open.length && openSlots.has(slot)) bump(byPriority, PRIORITY[Math.max(...open)] as string);
   }
   const perUpdate = new Map<string, number>();
   for (const e of run.requests)

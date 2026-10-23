@@ -6,6 +6,7 @@ import type {
   EventPublisher,
   KnowledgeStore,
   ModelGateway,
+  ReviewDue,
 } from "@inspiration/contracts";
 import {
   Consumer,
@@ -18,7 +19,8 @@ import {
   ValkeyStreamsTransport,
 } from "@inspiration/eventbus";
 import { Extraction, type ExtractionOptions } from "@inspiration/extraction";
-import { Governance } from "@inspiration/governance";
+import { Freshness } from "@inspiration/freshness";
+import { Governance, type GovernanceResult } from "@inspiration/governance";
 import { applyMigrations, LocalBlobStore, logger, openPool, type Pool, workspaceRoot } from "@inspiration/kernel";
 import { MemoryStore, PostgresStore } from "@inspiration/knowledge-store";
 import { Gateway, loadGatewayConfig } from "@inspiration/model-gateway";
@@ -41,6 +43,8 @@ export interface EngineOptions {
   models?: ModelGateway;
   /** Each tenant's predicate catalogue for extraction; the business layer will provide it. */
   vocabulary?: ExtractionOptions["vocabulary"];
+  /** What governance and freshness take as now; simulated runs move it a day at a time. */
+  clock?: () => Date;
 }
 
 /** A component as the engine runs it: event handlers by type, under the component's consumer group. */
@@ -63,6 +67,7 @@ export class Engine {
   readonly normalization: Normalization;
   readonly extraction: Extraction;
   readonly governance: Governance;
+  readonly freshness: Freshness;
   readonly consumer: Consumer;
   readonly transport: Transport;
   readonly #relay: OutboxRelay | undefined;
@@ -79,6 +84,7 @@ export class Engine {
     pool?: Pool;
     resolvePrincipal?: PrincipalResolver;
     vocabulary?: ExtractionOptions["vocabulary"];
+    clock?: () => Date;
   }) {
     this.store = parts.store;
     this.records = parts.records;
@@ -106,12 +112,15 @@ export class Engine {
       models: this.models,
       ...(parts.vocabulary && { vocabulary: parts.vocabulary }),
     });
-    this.governance = new Governance({ store: this.store, records: this.records });
+    const clock = parts.clock && { clock: parts.clock };
+    this.governance = new Governance({ store: this.store, records: this.records, ...clock });
+    this.freshness = new Freshness({ store: this.store, records: this.records, ...clock });
     const components: Running[] = [
       { group: "source-sync", handlers: () => this.sync.handlers() },
       { group: "normalization", handlers: () => this.normalization.handlers() },
       { group: "extraction", handlers: () => this.extraction.handlers() },
       { group: "governance", handlers: () => this.governance.handlers() },
+      { group: "freshness", handlers: () => this.freshness.handlers() },
     ];
     for (const c of components) {
       for (const [type, handler] of Object.entries(c.handlers())) this.consumer.subscribe(type, c.group, handler);
@@ -138,6 +147,7 @@ export class Engine {
     const resolve = {
       ...(options.resolvePrincipal && { resolvePrincipal: options.resolvePrincipal }),
       ...(options.vocabulary && { vocabulary: options.vocabulary }),
+      ...(options.clock && { clock: options.clock }),
     };
 
     let engine: Engine;
@@ -168,6 +178,18 @@ export class Engine {
     }
     engine.#closers.push(...closers.reverse());
     return engine;
+  }
+
+  /**
+   * The engine's daily work for a tenant: freshness publishes the reviews that fell due, and
+   * governance decides again the slots in which a dated change took effect. Then every
+   * event is delivered.
+   */
+  async tick(tenantId: string): Promise<{ reviews: ReviewDue[]; rechecked: GovernanceResult }> {
+    const reviews = await this.freshness.tick(tenantId);
+    const rechecked = await this.governance.recheck(tenantId);
+    await this.settle();
+    return { reviews, rechecked };
   }
 
   /** Subscribe an extra handler, for reports and tests that watch the events go by. */
