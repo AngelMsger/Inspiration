@@ -5,8 +5,16 @@
  * the facts in truth.json came out with the right value.
  */
 
-import type { BlocksChanged, Claim, ClaimsUpdated, SourceVersion, UsageRecord } from "@inspiration/contracts";
-import { slotOf, TASK } from "@inspiration/extraction";
+import {
+  type BlocksChanged,
+  type Claim,
+  type ClaimsUpdated,
+  type SourceVersion,
+  slotOf,
+  type UsageRecord,
+  valueKeyOf,
+} from "@inspiration/contracts";
+import { TASK } from "@inspiration/extraction";
 import { Gateway, MemoryUsage } from "@inspiration/model-gateway";
 import type { Corpus } from "./corpus.ts";
 import type { Engine } from "./engine.ts";
@@ -70,7 +78,7 @@ export interface TruthCheck {
 
 export interface Truth {
   facts: { key: string; value: string; slot: string }[];
-  statements: { document: string; fact: string; value: string; stance: string }[];
+  statements: { document: string; fact: string; value: string; stance: string; from?: string }[];
 }
 
 function bump(counts: Record<string, number>, key: string, by = 1): void {
@@ -78,12 +86,6 @@ function bump(counts: Record<string, number>, key: string, by = 1): void {
 }
 
 const STRIP = /[\s\p{P}\p{S}]/gu;
-
-function valueKey(claim: Claim): string | undefined {
-  return (
-    claim.value?.normalized ?? (claim.value?.number !== undefined ? String(claim.value.number) : claim.value?.text)
-  );
-}
 
 function sameValue(claim: Claim, value: string): boolean {
   if (!claim.value) return false;
@@ -159,7 +161,7 @@ export async function claimsReport(
     bump(byType, c.claim_type);
     bump(byClass, c.knowledge_class);
     const slot = slotOf(c);
-    const value = valueKey(c);
+    const value = valueKeyOf(c);
     if (slot) inSlot++;
     if (slot && value !== undefined) {
       withValue++;

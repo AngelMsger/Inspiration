@@ -15,6 +15,7 @@
     "@inspiration/contracts": "workspace:*",
     "@inspiration/eventbus": "workspace:*",
     "@inspiration/extraction": "workspace:*",
+    "@inspiration/governance": "workspace:*",
     "@inspiration/kernel": "workspace:*",
     "@inspiration/knowledge-store": "workspace:*",
     "@inspiration/model-gateway": "workspace:*",

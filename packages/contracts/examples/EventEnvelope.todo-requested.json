@@ -1,0 +1,21 @@
+{
+  "id": "evt_01JC0000000000000000000002",
+  "type": "todo.requested",
+  "version": 1,
+  "tenant_id": "ten_01JC0000000000000000000001",
+  "occurred_at": "2026-10-20T08:12:02Z",
+  "producer": "governance",
+  "subject": "hotel_cap_per_night|一线城市",
+  "correlation_id": "evt_01JC0000000000000000000000",
+  "causation_id": "evt_01JC0000000000000000000001",
+  "data": {
+    "kind": "conflict",
+    "space_id": "spc_01JC0000000000000000000001",
+    "title": "hotel_cap_per_night (一线城市): 600 CNY/night or 650 CNY/night",
+    "detail": "- **650 CNY/night**, proposed: changed on 2026-10-01 (关于调整一线城市住宿标准的通知 and 2 more)\n- 600 CNY/night: 7 statements in 4 documents, stale since 2026-10-01 (差旅费管理办法)",
+    "priority": "high",
+    "unit_ids": ["clm_01JC0000000000000000000002", "clm_01JC0000000000000000000001"],
+    "dedupe_key": "governance:conflict:hotel_cap_per_night|一线城市",
+    "batch_key": "governance:conflict:hotel_cap_per_night"
+  }
+}

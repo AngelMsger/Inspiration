@@ -2,7 +2,8 @@
  * An ingest run over a corpus, and the report the UI work sizes itself by: how many
  * documents, blocks and spans a tenant like this produces, how they split by kind, what
  * normalization could not parse, which duplicates it found, how many ACL entries the
- * directory could not map, and what extraction made of it all (see claims.ts).
+ * directory could not map, what extraction made of it all (see claims.ts), and which
+ * conflicts governance found and what they would ask of people (see conflicts.ts).
  */
 
 import type { AclChanged, BlocksChanged, ClaimsUpdated, EventEnvelope } from "@inspiration/contracts";
@@ -10,6 +11,7 @@ import { payloadOf } from "@inspiration/contracts";
 import { InMemoryTransport, ValkeyStreamsTransport } from "@inspiration/eventbus";
 import type { ItemOutcome, SyncReport } from "@inspiration/source-sync";
 import { type ClaimsReport, claimsReport, type Spread, spread, type Truth, usageMark } from "./claims.ts";
+import { type GovernanceReport, governanceReport } from "./conflicts.ts";
 import type { Corpus } from "./corpus.ts";
 import type { Engine } from "./engine.ts";
 
@@ -45,6 +47,7 @@ export interface IngestReport {
   planted?: { duplicates: number; found: number; unexpected: number };
   acl: { changes: number; entries: number; mapped: number; unmapped: string[] };
   claims: ClaimsReport;
+  governance: GovernanceReport;
   dead_letters: number;
 }
 
@@ -58,6 +61,8 @@ class EventTally {
   changes: BlocksChanged[] = [];
   acl: AclChanged[] = [];
   updates: ClaimsUpdated[] = [];
+  updateEvents: EventEnvelope[] = [];
+  requests: EventEnvelope[] = [];
 
   static #byEngine = new WeakMap<Engine, EventTally>();
 
@@ -72,6 +77,8 @@ class EventTally {
     tally.changes = [];
     tally.acl = [];
     tally.updates = [];
+    tally.updateEvents = [];
+    tally.requests = [];
     return tally;
   }
 
@@ -94,7 +101,15 @@ class EventTally {
     engine.observe(
       "claims.updated",
       REPORT_GROUP,
-      count((e) => this.updates.push(payloadOf(e, "claims.updated"))),
+      count((e) => {
+        this.updates.push(payloadOf(e, "claims.updated"));
+        this.updateEvents.push(e);
+      }),
+    );
+    engine.observe(
+      "todo.requested",
+      REPORT_GROUP,
+      count((e) => this.requests.push(e)),
     );
   }
 }
@@ -132,6 +147,11 @@ export async function ingest(engine: Engine, corpus: Corpus, options: { truth?: 
         rejected: engine.extraction.totals.rejected - before.rejected,
       },
       usageFrom,
+      ...(options.truth && { truth: options.truth }),
+    }),
+    governance: await governanceReport(engine, corpus.tenantId, {
+      requests: tally.requests,
+      updates: tally.updateEvents,
       ...(options.truth && { truth: options.truth }),
     }),
     dead_letters: await deadLetters(engine),
@@ -293,7 +313,7 @@ export function summary(r: IngestReport): string {
       .map(([k, v]) => `${k} ${v}`)
       .join(", ");
   const lines = [
-    `tenant ${r.tenant}: sync ${r.seconds.sync}s, normalization and extraction ${r.seconds.settle}s`,
+    `tenant ${r.tenant}: sync ${r.seconds.sync}s, normalization, extraction and governance ${r.seconds.settle}s`,
     ...r.sources.map(
       (s) =>
         `  ${s.name} (${s.type}): ${s.items} items, ${kv(r.sources.find((x) => x.id === s.id)?.outcomes ?? {})}` +
@@ -311,9 +331,27 @@ export function summary(r: IngestReport): string {
     ...(r.duplicates.length > 20 ? [`  ... ${r.duplicates.length - 20} more`] : []),
     `acl: ${r.acl.changes} changes, ${r.acl.entries} entries, ${r.acl.mapped} mapped; unmapped ${r.acl.unmapped.join(", ") || "none"}`,
     ...claimLines(r.claims, kv),
+    ...governanceLines(r.governance, kv),
     `events: ${kv(r.events)}; dead letters ${r.dead_letters}`,
   ];
   return lines.join("\n");
+}
+
+function governanceLines(g: GovernanceReport, kv: (o: Record<string, number>) => string): string[] {
+  const t = g.truth;
+  return [
+    `conflict cases ${g.cases.total}: ${kv(g.cases.by_class)}; ${kv(g.cases.by_status)}`,
+    `  todos ${g.todos} (${kv(g.todos_by_priority) || "none"}), values per todo median ${g.values_per_todo.median}, max ${g.values_per_todo.max}; proposed by ${kv(g.proposed_by) || "none"}`,
+    `  todo requests ${g.requests} from ${g.updates_with_requests} of ${g.updates} claims updates (per update max ${g.requests_per_update.max})`,
+    ...(t
+      ? [
+          `  truth: proposed the expected value for ${t.expected} of ${t.slots} facts (${t.ambiguous} with tied decisions)`,
+          ...t.mismatches
+            .slice(0, 5)
+            .map((m) => `    ${m.slot}: proposed ${m.proposed}, expected ${m.expected.join(" or ")}`),
+        ]
+      : []),
+  ];
 }
 
 function claimLines(c: ClaimsReport, kv: (o: Record<string, number>) => string): string[] {

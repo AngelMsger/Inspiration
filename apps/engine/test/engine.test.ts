@@ -46,6 +46,7 @@ async function scenario({ engine, corpus, dir }: Run): Promise<void> {
     "acl.changed": 19,
     "blocks.changed": 19,
     "claims.updated": 19,
+    "todo.requested": 3,
   });
   expect(first.dead_letters).toBe(0);
   expect(first.acl.unmapped).toEqual([]);
@@ -66,6 +67,22 @@ async function scenario({ engine, corpus, dir }: Run): Promise<void> {
     "annual_leave_days|工龄 1 至 10 年": { "5 day": 1, "7 day": 1 },
     budget_draft_deadline: { "11 月 15 日": 1, "11 月 20 日": 1 },
   });
+
+  // Governance settles the archived values alone and asks about the other three slots: the
+  // notice and the meeting changed a value after the policy, and the guide contradicts one.
+  expect(first.governance).toMatchObject({
+    cases: { total: 5, by_class: { supersession: 4, contradiction: 1 }, by_status: { open: 3, auto_resolved: 2 } },
+    todos: 3,
+    todos_by_priority: { high: 2, normal: 1 },
+    proposed_by: { changed: 2, authority: 2 },
+    requests: 3,
+  });
+  const proposed = async (slot: string) =>
+    (await engine.governance.slot(corpus.tenantId, slot)).decision?.proposed.value;
+  expect(await proposed("hotel_cap_per_night|一线城市")).toBe("650 CNY/night");
+  expect(await proposed("budget_draft_deadline")).toBe("11 月 20 日");
+  expect(await proposed("annual_leave_days|工龄 1 至 10 年")).toBe("5 day");
+  expect(await proposed("meal_allowance_per_day")).toBe("100 CNY/day");
 
   // The finance-only folder keeps its group, mapped through the directory.
   const [budget] = (await engine.sync.items(corpus.sources[0]?.id as string)).filter((i) =>
@@ -89,8 +106,10 @@ async function scenario({ engine, corpus, dir }: Run): Promise<void> {
   const path = join(dir, "制度库", "财务", "差旅费管理办法.md");
   await writeFile(path, (await readFile(path, "utf8")).replace("每晚限额（元） |", "每晚限额（元，含税） |"));
   const edited = await ingest(engine, corpus);
-  // The header of the hotel table changed, so its three rows are read again and restated.
+  // The header of the hotel table changed, so its three rows are read again and restated. They
+  // state the same values, so governance asks for nothing new.
   expect(edited.events).toEqual({ "document.fetched": 1, "blocks.changed": 1, "claims.updated": 1 });
+  expect(edited.governance).toMatchObject({ requests: 0, todos: 3 });
   expect(edited.claims).toMatchObject({ added: 3, closed: 3, windows: 1 });
 }
 

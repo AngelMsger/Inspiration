@@ -579,6 +579,8 @@ export interface Stated {
   fact: string;
   value: string;
   stance: "current" | "stale" | "wrong" | "decision" | "superseded";
+  /** A decision's effective day, YYYY-MM-DD. */
+  from?: string;
 }
 
 export interface SynthesisOptions {
@@ -731,9 +733,16 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
       if (w.rand() < 0.15 && facts.length) {
         const f = w.pick(facts);
         const value = w.pick(f.alternatives);
-        w.truth.push({ document: path, fact: f.key, value, stance: "decision" });
+        const from = Math.min(12, month + 1);
+        w.truth.push({
+          document: path,
+          fact: f.key,
+          value,
+          stance: "decision",
+          from: `2026-${String(from).padStart(2, "0")}-01`,
+        });
         items.push(
-          `经讨论决定，自 2026 年 ${Math.min(12, month + 1)} 月 1 日起，${f.topic}调整为：${w.pick(f.say).replace("{v}", value)}`,
+          `经讨论决定，自 2026 年 ${from} 月 1 日起，${f.topic}调整为：${w.pick(f.say).replace("{v}", value)}`,
         );
       } else if (w.rand() < 0.4 && facts.length) items.push(w.hearsay(path, w.pick(facts), errorRate));
       text = `${frontMatter({ title, governance: "note", owner: w.person() })}# ${title}\n\n时间：${w.date(month)}\n参会：${Array.from({ length: w.int(3, 8) }, () => w.person()).join("、")}\n\n## 议题与决议\n\n${items.map((t, i) => `${i + 1}. ${t}`).join("\n")}\n\n## 待办\n\n${Array.from({ length: w.int(1, 4) }, () => `- ${w.filler()}`).join("\n")}\n`;

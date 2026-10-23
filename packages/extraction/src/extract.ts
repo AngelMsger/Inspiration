@@ -16,6 +16,7 @@ import {
   type SourceBlock,
   type SourceVersion,
   type Span,
+  slotOf,
   stableId,
 } from "@inspiration/contracts";
 import { logger } from "@inspiration/kernel";
@@ -29,7 +30,7 @@ import {
   type WindowInput,
   type WindowOutput,
 } from "./protocol.ts";
-import { slotOf, type Vocabulary } from "./vocabulary.ts";
+import type { Vocabulary } from "./vocabulary.ts";
 
 const log = logger("extraction");
 
@@ -76,6 +77,13 @@ interface Window {
   /** Local span reference to span. */
   spans: Map<string, Span>;
   text: string;
+}
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/** The start of a YYYY-MM-DD day, in UTC: the engine knows no tenant time zone yet. */
+function dayStart(day: unknown): string | undefined {
+  return typeof day === "string" && DAY.test(day) && !Number.isNaN(Date.parse(day)) ? `${day}T00:00:00Z` : undefined;
 }
 
 /** Dice similarity of character bigrams. */
@@ -286,7 +294,11 @@ export class Extraction {
     const title = version.title ?? version.external_id;
     const named = `${title}\n${window.text}`;
     const input: WindowInput = {
-      document: { title, ...(version.language && { language: version.language }) },
+      document: {
+        title,
+        ...(version.language && { language: version.language }),
+        ...(dayStart(version.metadata?.extra?.date) && { date: version.metadata?.extra?.date as string }),
+      },
       vocabulary: vocabulary.filter((e) => e.aliases.some((a) => named.includes(a))),
       blocks: window.blocks,
     };
@@ -351,6 +363,8 @@ export class Extraction {
       created_at: now,
       updated_at: now,
     };
+    const start = dayStart(extracted.valid_from) ?? dayStart(version.metadata?.extra?.effective_from);
+    if (start) claim.valid_time = { start };
     if (version.language) claim.language = version.language;
     if (extracted.subject) claim.subject_text = extracted.subject;
     if (extracted.predicate) claim.predicate = extracted.predicate;

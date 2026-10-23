@@ -98,9 +98,3 @@ export function parseVocabulary(value: unknown): Vocabulary {
 export async function loadVocabulary(file: string): Promise<Vocabulary> {
   return parseVocabulary(parse(await readFile(file, "utf8")));
 }
-
-/** A slot key: the predicate and its qualifiers, sorted. Subjects are not resolved yet. */
-export function slotOf(claim: { predicate?: string; qualifiers?: readonly string[] }): string | undefined {
-  if (!claim.predicate) return undefined;
-  return [claim.predicate, ...[...(claim.qualifiers ?? [])].sort()].join("|");
-}

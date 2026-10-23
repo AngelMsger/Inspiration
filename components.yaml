@@ -88,11 +88,11 @@ components:
   governance:
     title: Governance agents
     layer: compile
-    status: planned
+    status: built
     runtime: node
     owns: Conflict tiers and judge, citation audit, claim merge, coverage gaps, taxonomy gardener, each with a token budget
-    plugins: []
-    publishes: [todo.created, claims.updated]
+    plugins: [migrations]
+    publishes: [todo.requested, claims.updated]
     subscribes: [claims.updated]
     calls: [knowledge-store, model-gateway, agent-runtime]
 
@@ -115,7 +115,7 @@ components:
     owns: Comments and anchoring, agent replies, overrides, todos, publish state machine, quality gates, verification expiry
     plugins: []
     publishes: [comment.created, unit.published, todo.created, claims.updated]
-    subscribes: [page.rendered, comment.created, todo.created, review.due]
+    subscribes: [page.rendered, comment.created, todo.requested, todo.created, review.due]
     calls: [knowledge-store, access-control, model-gateway, agent-runtime, retrieval]
 
   knowledge-store:

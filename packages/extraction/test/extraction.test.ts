@@ -24,6 +24,26 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
   const test = extractionTest(backend);
 
   describe.skipIf(skip)("extraction", () => {
+    test("a claim is true from the day its passage names, else from the document's effective date", async ({
+      world,
+    }) => {
+      const { result } = await world.version(
+        "通知.md",
+        [
+          {
+            id: "p1",
+            text: "自 2026 年 10 月 1 日起，一线城市住宿限额调整为每晚 650 元。成都的住宿标准是每晚 450 元。",
+          },
+        ],
+        { effectiveFrom: "2026-01-01" },
+      );
+      const claims = await world.store.getClaims(result.added);
+      expect(Object.fromEntries(claims.map((c) => [c.value?.number, c.valid_time]))).toEqual({
+        650: { start: "2026-10-01T00:00:00Z" },
+        450: { start: "2026-01-01T00:00:00Z" },
+      });
+    });
+
     test("claims cite verbatim quotes and fill slots from the catalogue", async ({ world }) => {
       const { version, result } = await world.version("差旅费管理办法.md", POLICY);
       expect(result).toMatchObject({ windows: 1, failed_windows: 0, rejected: 0, superseded: [], retracted: [] });

@@ -10,10 +10,11 @@
  * references ("s1"), so it can only cite spans it was given. Each table row goes with its
  * table's header row.
  *
- * A returned claim is kept when at least one quote is verbatim from its span. Its ID
- * depends on the prompt version, the statement and the cited spans, so extracting the same
- * text again gives the same claims, and a block edit leaves the claims of its unchanged
- * sentences alone. A claim whose every supporting span the version removed is closed:
+ * A returned claim is kept when at least one quote is verbatim from its span. It is true
+ * from the day its passage says it takes effect, else from the version's effective_from
+ * (front matter), else from an open start. Its ID depends on the prompt version, the
+ * statement and the cited spans, so extracting the same text again gives the same claims,
+ * and a block edit leaves the claims of its unchanged sentences alone. A claim whose every supporting span the version removed is closed:
  * - superseded by a new claim of the same slot (predicate and qualifiers);
  * - else superseded by the most similar new statement cut from the same block, at
  *   SAME_CLAIM or above;
@@ -30,6 +31,6 @@
  */
 
 export * from "./extract.ts";
-export { extractWindow, mockExtractClaims, readValue } from "./mock.ts";
+export { effectiveFrom, extractWindow, mockExtractClaims, readValue } from "./mock.ts";
 export * from "./protocol.ts";
 export * from "./vocabulary.ts";
