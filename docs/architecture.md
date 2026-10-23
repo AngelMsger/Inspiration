@@ -25,7 +25,7 @@ business layer and agents all use the same surface.
 
 | Layer | Components | Job |
 | --- | --- | --- |
-| Ingest | connectors, source-sync, parsing, indexing, research | Fetch sources with their ACLs, parse them into blocks and spans, chunk and embed |
+| Ingest | connectors, source-sync, parsing, normalization, research | Fetch sources with their ACLs, parse them, and store canonical blocks and spans with stable IDs |
 | Compile | extraction, freshness, governance, page-compiler | Claims with evidence, staleness and dirty propagation, conflicts, cited pages and diagrams |
 | Store | knowledge-store | The only owner of knowledge tables: lineage, bitemporal reads, page snapshots, search indexes |
 | Serve | retrieval, agent-api, web, views | Hybrid search and grounded answers, MCP and REST for agents, the reader UI, sandboxed interactive views |
@@ -37,7 +37,7 @@ store, database pools), **eventbus** (outbox, relay, consumers) and **testkit** 
 for the compose stack).
 
 Everything is TypeScript on Node 22 except **parsing**, a Python worker for the heavy
-document parsers (Office, PDF, scans), which indexing calls over an HTTP contract.
+document parsers (Office, PDF, scans), which normalization calls over an HTTP contract.
 
 ## How components talk
 
@@ -62,7 +62,7 @@ The main flow, from a changed document to a fresh page:
 
 ```
 source.changed -> source-sync fetch -> document.fetched (+ acl.changed -> access-control mirror)
-  -> parsing, then indexing chunks and embeds -> chunks.updated
+  -> normalization parses (the parsing worker for Office and PDF) and diffs blocks -> blocks.changed
   -> extraction -> claims.updated -> freshness -> artifact.dirty
   -> page-compiler rebuilds the page -> page.rendered
   -> retrieval reindexes, collaboration notifies, views refresh

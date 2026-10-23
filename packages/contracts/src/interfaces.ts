@@ -61,6 +61,7 @@ import type {
   SearchQuery,
   SearchResult,
   Source,
+  SourceBlock,
   SourceRef,
   SourceVersion,
   Span,
@@ -202,7 +203,7 @@ export interface ParserContext {
 }
 
 /**
- * A stateless parser, called by indexing. Heavy parsers (layout models, OCR pipelines) run
+ * A stateless parser, called by normalization. Heavy parsers (layout models, OCR pipelines) run
  * in the Python parsing worker behind this same contract.
  */
 export interface Parser {
@@ -246,8 +247,16 @@ export interface DiagramCompiler {
 
 /** Writes inside one database transaction. Events published here commit with the data. */
 export interface StoreTx {
-  /** Store an immutable version and its spans. Spans whose ID already exists are kept. */
-  putSourceVersion(version: SourceVersion, spans: readonly Span[]): Promise<void>;
+  /**
+   * Store an immutable version, with the spans of a document that has no block structure.
+   * Spans whose ID already exists are kept.
+   */
+  putSourceVersion(version: SourceVersion, spans?: readonly Span[]): Promise<void>;
+  /**
+   * Store a stored version's blocks and the spans it introduces. Blocks may list spans of
+   * earlier versions by ID. A version's blocks are written once; writing them again is a no-op.
+   */
+  putBlocks(sourceVersionId: string, blocks: readonly SourceBlock[], spans: readonly Span[]): Promise<void>;
   putChunks(
     chunks: readonly Chunk[],
     embeddings?: Readonly<Record<string, readonly number[]>>,
@@ -284,7 +293,9 @@ export interface KnowledgeStore {
   getSourceVersion(versionId: string): Promise<SourceVersion | undefined>;
   latestSourceVersion(sourceId: string, externalId: string): Promise<SourceVersion | undefined>;
   getSpans(spanIds: readonly string[]): Promise<Span[]>;
+  /** The version's spans in reading order: through its blocks, or the spans it was stored with. */
   spansOf(sourceVersionId: string): Promise<Span[]>;
+  blocksOf(sourceVersionId: string): Promise<SourceBlock[]>;
   getChunks(chunkIds: readonly string[]): Promise<Chunk[]>;
   chunksOf(sourceVersionId: string): Promise<Chunk[]>;
   getClaims(claimIds: readonly string[]): Promise<Claim[]>;

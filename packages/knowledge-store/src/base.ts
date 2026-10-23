@@ -25,6 +25,7 @@ import {
   type LineageRelation,
   type PageSnapshot,
   type PageVersionInfo,
+  type SourceBlock,
   type SourceVersion,
   type Span,
   type StoreTx,
@@ -102,6 +103,7 @@ export abstract class BaseStore implements KnowledgeStore {
   abstract latestSourceVersion(sourceId: string, externalId: string): Promise<SourceVersion | undefined>;
   abstract getSpans(spanIds: readonly string[]): Promise<Span[]>;
   abstract spansOf(sourceVersionId: string): Promise<Span[]>;
+  abstract blocksOf(sourceVersionId: string): Promise<SourceBlock[]>;
   abstract getChunks(chunkIds: readonly string[]): Promise<Chunk[]>;
   abstract chunksOf(sourceVersionId: string): Promise<Chunk[]>;
   abstract getClaims(claimIds: readonly string[]): Promise<Claim[]>;

@@ -10,6 +10,7 @@ import {
   type ClaimEvidence,
   contentHash,
   type PageSnapshot,
+  type SourceBlock,
   type SourceVersion,
   type Span,
 } from "@inspiration/contracts";
@@ -29,6 +30,41 @@ export function checkSourceVersion(version: SourceVersion, spans: readonly Span[
     }
     if (s.text_hash !== contentHash(s.text))
       throw new IntegrityError(`span ${s.id}: text_hash does not match its text`);
+  }
+}
+
+/**
+ * A version's blocks: they belong to the version, and every span they list is either new in
+ * this write (and then introduced by this version) or already stored by an earlier version.
+ */
+export function checkBlocks(
+  version: SourceVersion | undefined,
+  versionId: string,
+  blocks: readonly SourceBlock[],
+  spans: readonly Span[],
+  stored: ReadonlySet<string>,
+): void {
+  if (!version) throw new IntegrityError(`blocks for unknown source version ${versionId}`);
+  const ids = new Set<string>();
+  for (const b of blocks) {
+    if (b.source_version_id !== versionId) {
+      throw new IntegrityError(`block ${b.id} belongs to ${b.source_version_id}, not ${versionId}`);
+    }
+    if (b.tenant_id !== version.tenant_id) throw new IntegrityError(`block ${b.id} has another tenant`);
+    if (ids.has(b.id)) throw new IntegrityError(`block ${b.id} appears twice in ${versionId}`);
+    ids.add(b.id);
+    if (b.text_hash !== contentHash(b.text)) throw new IntegrityError(`block ${b.id}: text_hash does not match`);
+  }
+  checkSourceVersion(version, spans);
+  const written = new Set(spans.map((s) => s.id));
+  for (const s of spans) {
+    if (s.block_id !== undefined && !ids.has(s.block_id)) {
+      throw new IntegrityError(`span ${s.id} names block ${s.block_id}, which is not in ${versionId}`);
+    }
+  }
+  for (const b of blocks) {
+    const missing = b.span_ids.filter((id) => !written.has(id) && !stored.has(id));
+    if (missing.length) throw new IntegrityError(`block ${b.id} lists unknown spans: ${missing.join(", ")}`);
   }
 }
 

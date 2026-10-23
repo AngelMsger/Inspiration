@@ -19,6 +19,7 @@ import {
   type PageSnapshot,
   type PageVersionInfo,
   rank,
+  type SourceBlock,
   type SourceVersion,
   type Span,
   type StoreTx,
@@ -72,6 +73,25 @@ export async function writeEmbeddings(
   }
 }
 
+async function writeSpans(client: Queryable, spans: readonly Span[]): Promise<void> {
+  if (!spans.length) return;
+  const rows = spans.map((s) => ({
+    id: s.id,
+    tenant_id: s.tenant_id,
+    source_version_id: s.source_version_id,
+    ordinal: s.ordinal,
+    text: s.text,
+    doc: s,
+  }));
+  await client.query(
+    `INSERT INTO kb.spans (id, tenant_id, source_version_id, ordinal, text, doc)
+     SELECT * FROM jsonb_to_recordset($1::jsonb)
+       AS r(id text, tenant_id text, source_version_id text, ordinal integer, text text, doc jsonb)
+     ON CONFLICT (id) DO NOTHING`,
+    [JSON.stringify(rows)],
+  );
+}
+
 async function docs<T>(client: Queryable, sql: string, params: unknown[]): Promise<T[]> {
   const { rows } = await client.query<{ doc: T }>(sql, params);
   return rows.map((r) => r.doc);
@@ -103,7 +123,7 @@ export class PgTx implements StoreTx {
     return this.#client;
   }
 
-  async putSourceVersion(version: SourceVersion, spans: readonly Span[]): Promise<void> {
+  async putSourceVersion(version: SourceVersion, spans: readonly Span[] = []): Promise<void> {
     const db = this.#db();
     rules.checkSourceVersion(version, spans);
     await db.query(
@@ -122,20 +142,38 @@ export class PgTx implements StoreTx {
         JSON.stringify(version),
       ],
     );
-    if (!spans.length) return;
-    const rows = spans.map((s) => ({
-      id: s.id,
-      tenant_id: s.tenant_id,
-      source_version_id: s.source_version_id,
-      ordinal: s.ordinal,
-      text: s.text,
-      doc: s,
+    await writeSpans(db, spans);
+  }
+
+  async putBlocks(sourceVersionId: string, blocks: readonly SourceBlock[], spans: readonly Span[]): Promise<void> {
+    const db = this.#db();
+    const [version] = await docs<SourceVersion>(db, "SELECT doc FROM kb.source_versions WHERE id = $1", [
+      sourceVersionId,
+    ]);
+    const { rows: stored } = await db.query<{ id: string }>("SELECT id FROM kb.spans WHERE id = ANY($1)", [
+      [...new Set(blocks.flatMap((b) => b.span_ids))],
+    ]);
+    rules.checkBlocks(version, sourceVersionId, blocks, spans, new Set(stored.map((r) => r.id)));
+    // Serialize writers of one version, so a redelivered event cannot interleave with the first.
+    await db.query("SELECT pg_advisory_xact_lock(hashtext('kb.blocks:' || $1))", [sourceVersionId]);
+    const { rowCount } = await db.query("SELECT 1 FROM kb.blocks WHERE source_version_id = $1 LIMIT 1", [
+      sourceVersionId,
+    ]);
+    if (rowCount) return;
+    await writeSpans(db, spans);
+    if (!blocks.length) return;
+    const rows = blocks.map((b) => ({
+      source_version_id: b.source_version_id,
+      id: b.id,
+      tenant_id: b.tenant_id,
+      ordinal: b.ordinal,
+      span_ids: b.span_ids,
+      doc: b,
     }));
     await db.query(
-      `INSERT INTO kb.spans (id, tenant_id, source_version_id, ordinal, text, doc)
+      `INSERT INTO kb.blocks (source_version_id, id, tenant_id, ordinal, span_ids, doc)
        SELECT * FROM jsonb_to_recordset($1::jsonb)
-         AS r(id text, tenant_id text, source_version_id text, ordinal integer, text text, doc jsonb)
-       ON CONFLICT (id) DO NOTHING`,
+         AS r(source_version_id text, id text, tenant_id text, ordinal integer, span_ids text[], doc jsonb)`,
       [JSON.stringify(rows)],
     );
   }
@@ -394,7 +432,21 @@ export class PostgresStore extends BaseStore {
   }
 
   async spansOf(sourceVersionId: string): Promise<Span[]> {
+    const { rows } = await this.pool.query<{ ids: string[] | null }>(
+      "SELECT array_agg(s ORDER BY b.ordinal, i) AS ids FROM kb.blocks b, unnest(b.span_ids) WITH ORDINALITY AS u(s, i) WHERE b.source_version_id = $1",
+      [sourceVersionId],
+    );
+    const ids = rows[0]?.ids;
+    if (ids?.length) return this.getSpans(ids);
+    const { rowCount } = await this.pool.query("SELECT 1 FROM kb.blocks WHERE source_version_id = $1 LIMIT 1", [
+      sourceVersionId,
+    ]);
+    if (rowCount) return [];
     return this.#docs("SELECT doc FROM kb.spans WHERE source_version_id = $1 ORDER BY ordinal", [sourceVersionId]);
+  }
+
+  async blocksOf(sourceVersionId: string): Promise<SourceBlock[]> {
+    return this.#docs("SELECT doc FROM kb.blocks WHERE source_version_id = $1 ORDER BY ordinal", [sourceVersionId]);
   }
 
   async getChunks(chunkIds: readonly string[]): Promise<Chunk[]> {

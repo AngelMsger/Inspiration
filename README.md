@@ -24,7 +24,7 @@ The foundations are built and tested. The remaining components are specified in
 | Access control on SpiceDB | `packages/access-control` | built |
 | Model gateway, as a library and an HTTP service | `packages/model-gateway` | built |
 | Agent runtime for built-in agents | `packages/agent-runtime` | built |
-| connectors, source-sync, parsing, indexing, extraction, freshness, governance, page-compiler, collaboration, retrieval, agent-api, research, web, views | | planned |
+| connectors, source-sync, parsing, normalization, extraction, freshness, governance, page-compiler, collaboration, retrieval, agent-api, research, web, views | | planned |
 
 Everything is TypeScript on Node 22 except the parsing worker, which is Python because the
 best document parsers are.

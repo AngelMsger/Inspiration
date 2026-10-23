@@ -14,6 +14,9 @@ importers:
       '@inspiration/agent-runtime':
         specifier: workspace:*
         version: link:packages/agent-runtime
+      '@inspiration/connectors':
+        specifier: workspace:*
+        version: link:packages/connectors
       '@inspiration/contracts':
         specifier: workspace:*
         version: link:packages/contracts
@@ -29,6 +32,9 @@ importers:
       '@inspiration/model-gateway':
         specifier: workspace:*
         version: link:packages/model-gateway
+      '@inspiration/source-sync':
+        specifier: workspace:*
+        version: link:packages/source-sync
       '@inspiration/testkit':
         specifier: workspace:*
         version: link:packages/testkit
@@ -92,6 +98,19 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
+
+  packages/connectors:
+    dependencies:
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+    devDependencies:
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../kernel
 
   packages/contracts:
     dependencies:
@@ -196,6 +215,28 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
+
+  packages/source-sync:
+    dependencies:
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@inspiration/eventbus':
+        specifier: workspace:*
+        version: link:../eventbus
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+    devDependencies:
+      '@inspiration/connectors':
+        specifier: workspace:*
+        version: link:../connectors
+      '@inspiration/knowledge-store':
+        specifier: workspace:*
+        version: link:../knowledge-store
+      '@inspiration/testkit':
+        specifier: workspace:*
+        version: link:../testkit
 
   packages/testkit:
     dependencies:

@@ -203,6 +203,10 @@ export type PluginName = string;
 export type ViewId = string;
 export type EmbedDisplay = "card" | "full" | "steps" | "flow";
 export type BlockChangeKind = "added" | "removed" | "modified" | "moved";
+/**
+ * A block of a source document (not a page block, which has a BlockKey).
+ */
+export type SourceBlockId = string;
 export type BudgetPeriod = "day" | "month" | "total";
 export type SourceItemKind =
   | "document"
@@ -1079,6 +1083,31 @@ export interface BlockChange {
   claims_added?: ClaimId[];
   claims_removed?: ClaimId[];
 }
+/**
+ * Normalization stored a version's blocks and spans. Block and span IDs are stable across versions, so consumers redo only what changed: added and changed blocks hold the new text, and claims citing removed spans have lost that evidence. A deleted document has every block removed.
+ *
+ */
+export interface BlocksChanged {
+  source_id: SourceId;
+  source_version_id: SourceVersionId;
+  previous_version_id?: SourceVersionId;
+  added_block_ids: SourceBlockId[];
+  /**
+   * Blocks that kept their ID but whose text changed.
+   */
+  changed_block_ids: SourceBlockId[];
+  removed_block_ids: SourceBlockId[];
+  unchanged_block_count?: number;
+  /**
+   * Spans this version introduced.
+   */
+  added_span_ids: SpanId[];
+  /**
+   * Spans of the previous version that this version no longer contains.
+   */
+  removed_span_ids: SpanId[];
+  deleted?: boolean;
+}
 export interface BudgetStatus {
   budget_key: string;
   period: BudgetPeriod;
@@ -1290,17 +1319,6 @@ export interface Chunk {
    *
    */
   acl_tokens?: string[];
-}
-export interface ChunksUpdated {
-  source_version_id: SourceVersionId;
-  previous_version_id?: SourceVersionId;
-  added_chunk_ids: ChunkId[];
-  removed_chunk_ids: ChunkId[];
-  unchanged_chunk_count?: number;
-  /**
-   * Spans whose text changed. Unchanged spans keep their IDs across versions.
-   */
-  changed_span_ids: SpanId[];
 }
 /**
  * A readable source passage. Sources the viewer cannot read are never cited.
@@ -1816,7 +1834,7 @@ export interface ListedItem {
   version?: Version;
 }
 /**
- * What Connector.fetch returns. Exactly one of blocks, file or process is normally set. When only file is set, indexing hands it to the parser router (parsing).
+ * What Connector.fetch returns. Exactly one of blocks, file or process is normally set. When only file is set, normalization hands it to the parser router.
  *
  */
 export interface NormalizedDocument {
@@ -1826,6 +1844,8 @@ export interface NormalizedDocument {
   mime_type: string;
   language?: Locale;
   approval_state?: ApprovalState;
+  sensitivity?: SensitivityLabel;
+  authority?: Score01;
   blocks?: DocBlock[];
   file?: BlobRef;
   process?: ProcessSnapshot;
@@ -2247,6 +2267,46 @@ export interface Source {
   created_at: Instant;
   updated_at?: Instant;
 }
+/**
+ * One structural block (heading, paragraph, list item, table, ...) of one source version, written by normalization. The id is stable across versions: the source's native block ID where it has one (Feishu block_id, Confluence localId), otherwise derived from the document, the heading path and the text, so a block diff follows the source's own structure. A block that keeps its id but changes its text is a changed block. Spans are the citable passages inside a block; claims cite spans, never blocks.
+ *
+ */
+export interface SourceBlock {
+  id: SourceBlockId;
+  tenant_id: TenantId;
+  source_version_id: SourceVersionId;
+  parent_id?: SourceBlockId;
+  kind: DocBlockKind;
+  /**
+   * Where the block is in the source, as the connector or parser gave it.
+   */
+  anchor: string;
+  /**
+   * Heading level or list depth.
+   */
+  level?: number;
+  /**
+   * Titles of the headings above the block, outermost first.
+   */
+  heading_path?: string[];
+  /**
+   * The block's own text (a table's cells joined by tabs and newlines).
+   */
+  text: string;
+  text_hash: ContentHash;
+  /**
+   * Position in reading order within the version.
+   */
+  ordinal: number;
+  page?: number;
+  /**
+   * The block's spans in reading order. A heading or an empty block may have none.
+   */
+  span_ids: SpanId[];
+  attrs?: {
+    [k: string]: unknown | undefined;
+  };
+}
 export interface SourceChanged {
   source_id: SourceId;
   change: ChangeEvent;
@@ -2293,17 +2353,19 @@ export interface Space {
   created_at: Instant;
 }
 /**
- * An exact passage, table cell or form field. Every claim points to spans.
+ * An exact passage, table cell or form field. Every claim points to spans. A span's ID depends only on its block and text, so a span that did not change keeps its ID in later versions of the document; it is stored once, with the version that introduced it.
+ *
  */
 export interface Span {
   id: SpanId;
   tenant_id: TenantId;
   source_version_id: SourceVersionId;
+  block_id?: SourceBlockId;
   locator: SpanLocator;
   text: string;
   text_hash: ContentHash;
   /**
-   * Position in reading order within the version.
+   * Position in reading order within the version that introduced it.
    */
   ordinal: number;
 }

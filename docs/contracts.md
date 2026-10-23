@@ -84,9 +84,9 @@ chain.
 | Event | Published by | Consumed by |
 | --- | --- | --- |
 | `source.changed` | connectors, source-sync, research | source-sync |
-| `document.fetched` | source-sync | indexing |
+| `document.fetched` | source-sync | normalization |
 | `acl.changed` | source-sync | retrieval, access-control |
-| `chunks.updated` | indexing | extraction, freshness, retrieval |
+| `blocks.changed` | normalization | extraction, freshness, retrieval |
 | `claims.updated` | extraction, governance, collaboration | freshness, governance, retrieval |
 | `artifact.dirty` | freshness | extraction, page-compiler, retrieval |
 | `review.due` | freshness | collaboration, research |
