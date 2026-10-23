@@ -1,0 +1,357 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: collab.yaml
+title: Collaboration and publishing
+description: >
+  Comments, change proposals, overrides, todos and the publish flow (collaboration). A human edit is
+  stored as a pinned override bound to a block's anchor, never as a patch to generated
+  text, so regeneration can re-apply it and raise a todo instead of overwriting it.
+
+$defs:
+  TextQuote:
+    description: W3C Web Annotation style text-quote selector, the fallback when a block key moves.
+    type: object
+    required: [exact]
+    properties:
+      exact:
+        type: string
+      prefix:
+        type: string
+      suffix:
+        type: string
+
+  Anchor:
+    description: Where a comment or override attaches on a page.
+    type: object
+    required: [page_id, page_version, block_key]
+    properties:
+      page_id:
+        $ref: "common.yaml#/$defs/PageId"
+      page_version:
+        description: The version the anchor was created on.
+        type: integer
+        minimum: 1
+      block_key:
+        $ref: "page.yaml#/$defs/BlockKey"
+      claim_ids:
+        description: Claims of the anchored block at creation, used to re-anchor after regeneration.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      sentence_index:
+        type: integer
+        minimum: 0
+      row_key:
+        description: Table row key, when anchored to a row.
+        type: string
+      quote:
+        $ref: "#/$defs/TextQuote"
+
+  AuthorKind:
+    type: string
+    enum: [human, agent]
+
+  CommentIntent:
+    description: How the comment agent classified the comment.
+    type: string
+    enum: [question, correction, request, approval, other]
+
+  CommentStatus:
+    description: orphaned = the anchor could not be found after regeneration; shown in a side panel, never dropped.
+    type: string
+    enum: [open, answered, resolved, orphaned]
+
+  Comment:
+    type: object
+    required: [id, tenant_id, page_id, anchor, author_id, author_kind, body, status, created_at]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/CommentId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      page_id:
+        $ref: "common.yaml#/$defs/PageId"
+      thread_id:
+        description: The first comment of the thread. Absent on the first comment itself.
+        $ref: "common.yaml#/$defs/CommentId"
+      anchor:
+        $ref: "#/$defs/Anchor"
+      author_id:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      author_kind:
+        $ref: "#/$defs/AuthorKind"
+      on_behalf_of:
+        description: For agent comments made for a person.
+        $ref: "common.yaml#/$defs/PrincipalId"
+      body:
+        $ref: "common.yaml#/$defs/Markdown"
+      intent:
+        $ref: "#/$defs/CommentIntent"
+      status:
+        $ref: "#/$defs/CommentStatus"
+      citations:
+        description: Spans the agent cited in a reply.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/SpanId"
+      proposal_id:
+        $ref: "common.yaml#/$defs/ProposalId"
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"
+      updated_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  ProposalKind:
+    type: string
+    enum: [edit_block, add_block, remove_block, restructure, claim_change]
+
+  ProposalStatus:
+    type: string
+    enum: [proposed, accepted, rejected, applied, superseded]
+
+  ClaimChangeOp:
+    type: string
+    enum: [add, retract, supersede, update]
+
+  ClaimChange:
+    type: object
+    required: [op]
+    properties:
+      op:
+        $ref: "#/$defs/ClaimChangeOp"
+      claim_id:
+        $ref: "common.yaml#/$defs/ClaimId"
+      claim:
+        $ref: "knowledge.yaml#/$defs/Claim"
+
+  ChangeProposal:
+    description: An edit the agent proposes in response to a comment or a governance finding.
+    type: object
+    required: [id, tenant_id, page_id, kind, proposed_by, rationale, status, created_at]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/ProposalId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      page_id:
+        $ref: "common.yaml#/$defs/PageId"
+      block_key:
+        $ref: "page.yaml#/$defs/BlockKey"
+      comment_id:
+        $ref: "common.yaml#/$defs/CommentId"
+      kind:
+        $ref: "#/$defs/ProposalKind"
+      after:
+        $ref: "page.yaml#/$defs/Block"
+      claim_changes:
+        type: array
+        items:
+          $ref: "#/$defs/ClaimChange"
+      rationale:
+        type: string
+      evidence_span_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/SpanId"
+      proposed_by:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      status:
+        $ref: "#/$defs/ProposalStatus"
+      auto_applicable:
+        description: True only for changes policy allows without review, such as typo fixes.
+        type: boolean
+      decided_by:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      decided_at:
+        $ref: "common.yaml#/$defs/Instant"
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  OverrideMode:
+    description: >
+      replace = show content instead of the generated block; hide = hide the block;
+      insert_after = add content after the anchored block; pin = freeze the generated
+      block as it is now.
+    type: string
+    enum: [replace, hide, insert_after, pin]
+
+  OverrideStatus:
+    description: conflicted = sources now disagree with the override; its author has a todo.
+    type: string
+    enum: [active, conflicted, retired]
+
+  Override:
+    type: object
+    required: [id, tenant_id, page_id, anchor, mode, author_id, status, created_at]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/OverrideId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      page_id:
+        $ref: "common.yaml#/$defs/PageId"
+      anchor:
+        $ref: "#/$defs/Anchor"
+      mode:
+        $ref: "#/$defs/OverrideMode"
+      content:
+        $ref: "page.yaml#/$defs/Block"
+      author_id:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      reason:
+        type: string
+      asserted_claim_ids:
+        description: Human-origin claims created because the edit asserts new facts.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      status:
+        $ref: "#/$defs/OverrideStatus"
+      conflict_todo_id:
+        $ref: "common.yaml#/$defs/TodoId"
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"
+      updated_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  TodoKind:
+    type: string
+    enum:
+      - conflict
+      - stale
+      - override_conflict
+      - review_due
+      - assumption_drift
+      - comment_followup
+      - publish_review
+      - coverage_gap
+      - extraction_review
+      - feedback
+
+  TodoStatus:
+    type: string
+    enum: [open, in_progress, done, dismissed]
+
+  Priority:
+    type: string
+    enum: [low, normal, high, urgent]
+
+  TodoResolution:
+    description: A one-click resolution offered on a todo.
+    type: object
+    required: [key, label]
+    properties:
+      key:
+        type: string
+      label:
+        type: string
+      description:
+        type: string
+      effect:
+        description: Machine-readable effect, interpreted by the todo's producer.
+        type: object
+
+  Todo:
+    type: object
+    required: [id, tenant_id, space_id, kind, title, priority, status, unit_ids, created_by, created_at]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/TodoId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      kind:
+        $ref: "#/$defs/TodoKind"
+      title:
+        type: string
+      detail:
+        $ref: "common.yaml#/$defs/Markdown"
+      priority:
+        $ref: "#/$defs/Priority"
+      status:
+        $ref: "#/$defs/TodoStatus"
+      assignee_id:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      unit_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/UnitId"
+      resolutions:
+        type: array
+        items:
+          $ref: "#/$defs/TodoResolution"
+      batch_key:
+        type: string
+      created_by:
+        $ref: "common.yaml#/$defs/ComponentName"
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"
+      due_at:
+        $ref: "common.yaml#/$defs/Instant"
+      resolved_by:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      resolved_with:
+        description: Key of the chosen resolution.
+        type: string
+      resolved_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  PublishState:
+    type: string
+    enum: [draft, in_review, published, retired]
+
+  QualityGate:
+    type: string
+    enum: [citations, conflicts, pii, permission_widening, freshness]
+
+  QualityGateResult:
+    type: object
+    required: [gate, passed]
+    properties:
+      gate:
+        $ref: "#/$defs/QualityGate"
+      passed:
+        type: boolean
+      details:
+        type: string
+      unit_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/UnitId"
+
+  PublishRequest:
+    description: Bottom-up publishing of a unit from one space into a wider one.
+    type: object
+    required: [id, tenant_id, unit_id, from_space_id, to_space_id, requested_by, state, created_at]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/PublishRequestId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      unit_id:
+        $ref: "common.yaml#/$defs/UnitId"
+      from_space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      to_space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      requested_by:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      state:
+        $ref: "#/$defs/PublishState"
+      gates:
+        type: array
+        items:
+          $ref: "#/$defs/QualityGateResult"
+      widens_visibility:
+        description: True when readers of the target space could not read some sources. Needs source-owner approval.
+        type: boolean
+      approver_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/PrincipalId"
+      decided_by:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      decided_at:
+        $ref: "common.yaml#/$defs/Instant"
+      created_at:
+        $ref: "common.yaml#/$defs/Instant"

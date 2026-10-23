@@ -1,0 +1,47 @@
+# Model gateway config for local development and CI: two fake providers, no model server.
+# Copy to gateway.yaml and replace the fake providers with openai_compatible ones to use real
+# models (see packages/model-gateway/src/config.ts for every field).
+currency: CNY
+
+providers:
+  # Stands in for a cloud API: may only see public and internal content.
+  - name: cloud
+    kind: fake
+    max_sensitivity: internal
+    models:
+      - name: fake-flash
+        operations: [complete]
+        tiers: [flash, standard]
+        price: {input: 1.0, output: 2.0, cached_input: 0.2}
+      - name: fake-flagship
+        operations: [complete]
+        tiers: [flagship]
+        price: {input: 4.0, output: 16.0}
+
+  # Stands in for models inside the customer network: may see everything.
+  - name: local
+    kind: fake
+    max_sensitivity: secret
+    models:
+      - name: fake-local-chat
+        operations: [complete]
+        tiers: [flash, standard, flagship]
+        json_schema: true
+      - {name: fake-embedding, operations: [embed], dimensions: 1024}
+      - {name: fake-reranker, operations: [rerank]}
+      - {name: fake-ocr, operations: [ocr]}
+
+routes:
+  # Process mining reads approval and workflow logs, which stay local.
+  - match: "extraction.mine_*"
+    prefer: [local/fake-local-chat]
+
+budgets:
+  - match: "tenant:*"
+    period: month
+    limit: 5000
+  - match: "*"
+    period: month
+
+cache:
+  backend: memory

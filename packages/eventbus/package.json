@@ -1,0 +1,34 @@
+{
+  "name": "@inspiration/eventbus",
+  "version": "0.1.0",
+  "description": "Event bus: Postgres outbox, relay to Valkey Streams, consumer groups with retries and dead letters, in-memory bus for tests",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "inspiration-relay": "./src/cli/relay.ts"
+  },
+  "inspiration": {
+    "plugins": {
+      "migrations": {
+        "bus": "./src/migrations.ts#MIGRATIONS"
+      },
+      "event_transports": {
+        "valkey": "./src/valkey.ts#ValkeyStreamsTransport",
+        "memory": "./src/memory.ts#InMemoryTransport"
+      }
+    }
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/kernel": "workspace:*",
+    "ioredis": "^6.0.0",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@inspiration/testkit": "workspace:*",
+    "@types/pg": "^8.23.1"
+  }
+}

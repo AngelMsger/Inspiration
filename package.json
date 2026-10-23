@@ -1,0 +1,36 @@
+{
+  "name": "inspiration-workspace",
+  "private": true,
+  "description": "Inspiration monorepo: workspace root (not a package)",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "contracts": "node packages/contracts/codegen/generate.ts",
+    "contracts:check": "node packages/contracts/codegen/generate.ts --check",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:unit": "INSPIRATION_STACK=off vitest run"
+  },
+  "dependencies": {
+    "@inspiration/access-control": "workspace:*",
+    "@inspiration/agent-runtime": "workspace:*",
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/eventbus": "workspace:*",
+    "@inspiration/kernel": "workspace:*",
+    "@inspiration/knowledge-store": "workspace:*",
+    "@inspiration/model-gateway": "workspace:*",
+    "@inspiration/testkit": "workspace:*"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@types/node": "^22.18.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3",
+    "yaml": "^2.9.1"
+  }
+}

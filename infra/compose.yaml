@@ -1,0 +1,77 @@
+# Prototype stack on one node. PostgreSQL is the centre: knowledge tables, vectors
+# (pgvector), Chinese BM25 (ParadeDB pg_search with jieba), the event outbox, audit and
+# SpiceDB's own database all live in one instance.
+#
+#   make up     start everything and wait until healthy
+#   make down   stop (data is kept in named volumes; `make clean` drops it)
+
+name: inspiration
+
+services:
+  postgres:
+    image: paradedb/paradedb:0.26.2-pg16
+    environment:
+      POSTGRES_USER: inspiration
+      POSTGRES_PASSWORD: ${INSPIRATION_PG_PASSWORD:-inspiration}
+      POSTGRES_DB: inspiration
+    ports:
+      - "${INSPIRATION_PG_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inspiration -d inspiration && psql -U inspiration -d spicedb -c 'select 1' >/dev/null"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+
+  valkey:
+    # Valkey (BSD-3) instead of Redis: Redis 7.4+ is RSALv2/SSPLv1/AGPLv3, which needs a
+    # licence review before private delivery. Same protocol, same Streams API.
+    image: valkey/valkey:8.1-alpine
+    command: ["valkey-server", "--appendonly", "yes", "--save", ""]
+    ports:
+      - "${INSPIRATION_VALKEY_PORT:-6379}:6379"
+    volumes:
+      - valkeydata:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  spicedb-migrate:
+    image: authzed/spicedb:v1.57.0
+    command:
+      - migrate
+      - head
+      - --datastore-engine=postgres
+      - --datastore-conn-uri=postgres://inspiration:${INSPIRATION_PG_PASSWORD:-inspiration}@postgres:5432/spicedb?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  spicedb:
+    image: authzed/spicedb:v1.57.0
+    command:
+      - serve
+      - --grpc-preshared-key=${INSPIRATION_SPICEDB_KEY:-inspiration-dev-key}
+      - --datastore-engine=postgres
+      - --datastore-conn-uri=postgres://inspiration:${INSPIRATION_PG_PASSWORD:-inspiration}@postgres:5432/spicedb?sslmode=disable
+      - --http-enabled
+    ports:
+      - "${INSPIRATION_SPICEDB_PORT:-50051}:50051"
+      - "${INSPIRATION_SPICEDB_HTTP_PORT:-8443}:8443"
+    depends_on:
+      spicedb-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:50051"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:
+  valkeydata:

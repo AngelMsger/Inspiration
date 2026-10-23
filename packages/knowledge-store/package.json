@@ -1,0 +1,36 @@
+{
+  "name": "@inspiration/knowledge-store",
+  "version": "0.1.0",
+  "description": "Knowledge store: schema, repository API, lineage, bi-temporal reads, page snapshots, DataRef resolution, pgvector and pg_search indexes",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "inspiration": {
+    "plugins": {
+      "migrations": {
+        "kb": "./src/migrations.ts#MIGRATIONS"
+      },
+      "vector_indexes": {
+        "pgvector": "./src/indexes.ts#PgVectorIndex",
+        "memory": "./src/indexes.ts#MemoryVectorIndex"
+      },
+      "keyword_indexes": {
+        "pg_search": "./src/indexes.ts#PgSearchIndex",
+        "memory": "./src/indexes.ts#MemoryKeywordIndex"
+      }
+    }
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/eventbus": "workspace:*",
+    "@inspiration/kernel": "workspace:*",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@inspiration/testkit": "workspace:*",
+    "@types/pg": "^8.23.1"
+  }
+}

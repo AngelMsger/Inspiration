@@ -1,0 +1,20 @@
+{
+  "name": "@inspiration/kernel",
+  "version": "0.1.0",
+  "description": "Shared runtime: settings, plugin registry, SQL migrations, Postgres pools, blob stores",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "inspiration-migrate": "./src/cli/migrate.ts"
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.23.1"
+  }
+}
