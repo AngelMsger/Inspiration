@@ -374,7 +374,7 @@ export function daysSummary(d: DaysReport): string {
       .map(([k, v]) => `${k} ${v}`)
       .join(", ");
   return [
-    `days ${d.from} to ${d.to}: backlog on the first day ${kv(d.backlog) || "none"}`,
+    `days ${d.from} to ${d.to}: backlog on the first day ${kv(d.backlog) || "none"}; ${d.campaign} marked for a first-review campaign`,
     `  reviews after it ${kv(d.reviews) || "none"}; per day median ${d.per_day.median}, p90 ${d.per_day.p90}, max ${d.per_day.max} (${d.busiest.day}); per week median ${d.per_week.median}, max ${d.per_week.max}`,
     `  governance decided ${d.rechecked_slots} slots again as dated changes took effect, ${d.recheck_requests} todo requests`,
     `  states on the last day: ${kv(d.states_at_end) || "none"}`,

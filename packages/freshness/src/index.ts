@@ -15,8 +15,11 @@
  *   classes sets the document's next ttl review; a plan day still ahead gets an assumption
  *   review on that day.
  * - tick(tenant) publishes every review that has fallen due, each once; the engine calls it
- *   once a day. Each review carries a dedupe_key per document and kind
- *   ("freshness:ttl:<document>"), so repeated ones merge into one todo.
+ *   once a day. A ttl review that was already due when freshness first saw the document is
+ *   marked backlog: on a tenant's first sweep that is most of them, and they belong in a
+ *   first-review campaign rather than in owners' inboxes. Each review carries a dedupe_key
+ *   per document and kind ("freshness:ttl:<document>"), so repeated ones merge into one
+ *   todo.
  * - staleness(tenant, units) scores current source versions and claims: age against the
  *   review interval, a document it repeats having changed, a plan day having come.
  *

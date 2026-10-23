@@ -40,6 +40,8 @@ export interface DaysReport {
   to: string;
   /** Reviews published by the first tick: what was due when the run ended. */
   backlog: Record<string, number>;
+  /** Reviews marked backlog (already due when their document arrived), on any day: a first-review campaign. */
+  campaign: number;
   /** Reviews published by the later ticks, by kind. */
   reviews: Record<string, number>;
   per_day: Spread;
@@ -137,6 +139,7 @@ export async function days(
     from,
     to: addDays(from, count - 1),
     backlog: {},
+    campaign: 0,
     reviews: {},
     per_day: spread([]),
     per_week: spread([]),
@@ -153,6 +156,7 @@ export async function days(
     const { reviews, rechecked } = await engine.tick(tenantId);
     report.rechecked_slots += rechecked.slots.length;
     report.recheck_requests += rechecked.requests.length;
+    report.campaign += reviews.filter((r) => r.backlog).length;
     if (i === 0) {
       for (const r of reviews) bump(report.backlog, r.kind);
       continue;

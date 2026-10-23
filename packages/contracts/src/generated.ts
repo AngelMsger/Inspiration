@@ -2171,6 +2171,11 @@ export interface ReviewDue {
    * Requests with the same key are one review, such as "freshness:ttl:<document>".
    */
   dedupe_key?: string;
+  /**
+   * The review was already due when freshness first saw the document, as most are on a tenant's first sweep: work for a first-review campaign, not for an owner's inbox.
+   *
+   */
+  backlog?: boolean;
 }
 /**
  * What part of a source to ingest. The connector defines kind and options.

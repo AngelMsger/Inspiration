@@ -5668,6 +5668,10 @@
           "description": "Requests with the same key are one review, such as \"freshness:ttl:<document>\".",
           "type": "string",
           "minLength": 1
+        },
+        "backlog": {
+          "description": "The review was already due when freshness first saw the document, as most are on a tenant's first sweep: work for a first-review campaign, not for an owner's inbox.\n",
+          "type": "boolean"
         }
       }
     },

@@ -171,6 +171,21 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect(await world.reviews()).toHaveLength(1);
     });
 
+    test("a review already due when its document arrives is marked as backlog", async ({ world }) => {
+      world.setToday("2026-03-01");
+      await world.put({ path: "报销常见问题.md", modified: "2025-01-01" }, [
+        { text: "差旅费应在返回后 30 天内报销。", knowledge_class: "policy" },
+      ]);
+      await world.put({ path: "差旅费管理办法.md", modified: "2026-01-10" }, [
+        { text: "一线城市住宿限额为每晚 600 元。", knowledge_class: "policy" },
+      ]);
+      expect((await world.freshness.tick(TENANT)).map((r) => [r.reason, r.backlog])).toEqual([
+        ["报销常见问题 last changed on 2025-01-01; documents with policy claims are reviewed every 365 days.", true],
+      ]);
+      world.setToday("2027-01-10");
+      expect((await world.freshness.tick(TENANT)).map((r) => r.backlog)).toEqual([undefined]);
+    });
+
     test("a deleted document is forgotten, and a redelivered event changes nothing", async ({ world }) => {
       const guide = await world.put({ path: "办事指南.md", modified: "2026-05-01" }, [
         { text: "出差结束后 30 日内须提交报销。", knowledge_class: "process" },

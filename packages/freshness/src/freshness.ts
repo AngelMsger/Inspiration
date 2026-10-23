@@ -62,6 +62,8 @@ export interface DocumentState {
   lapsed: string[];
   /** The day of the ttl review already published for this version and interval. */
   ttl_published?: string;
+  /** The day freshness first saw the document, in any version. */
+  first_seen: string;
 }
 
 /** One direction of two documents that repeat each other. */
@@ -360,6 +362,7 @@ export class Freshness {
       changed_on: dayOf(modified < now ? modified : now),
       claims: { ...before?.claims },
       lapsed: before?.lapsed ?? [],
+      first_seen: before?.first_seen ?? dayOf(now),
     };
     this.#setInterval(state);
     return state;
@@ -441,6 +444,7 @@ export class Freshness {
         kind: "ttl",
         reason: `${state.title} last changed on ${state.changed_on}; documents with ${state.review_class} claims are reviewed every ${state.interval_days} days.`,
         dedupe_key: `${COMPONENT}:ttl:${state.document}`,
+        ...(d.day <= state.first_seen && { backlog: true }),
       };
     }
     const [first, ...rest] = d.claim_ids.filter((id) => id in state.claims);
