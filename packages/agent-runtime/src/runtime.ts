@@ -10,6 +10,10 @@
  *
  * Tools are shared with the agent API's MCP tools. Write tools only propose: a tool result
  * that carries "proposal_id" or "todo_id" is collected into proposal_ids.
+ *
+ * A tool labels its result with a "sensitivity" field, or by returning a LabeledResult when
+ * the result is not an object. Each tool_call step records the run's label after the call
+ * apart from the result, which is cut at MAX_RESULT_CHARS, so replays keep the routing.
  */
 
 import {
@@ -25,7 +29,6 @@ import {
   type ModelGateway,
   maxLabel,
   newId,
-  SENSITIVITY_ORDER,
   type SensitivityLabel,
   schemaErrors,
   type TokenUsage,
@@ -34,7 +37,7 @@ import {
 import { logger } from "@inspiration/kernel";
 import type { PromptRegistry } from "@inspiration/model-gateway";
 import type { RunStore } from "./runs.ts";
-import type { ToolRegistry } from "./tools.ts";
+import { LabeledResult, labelOf, type ToolRegistry } from "./tools.ts";
 
 const log = logger("agent-runtime");
 
@@ -69,12 +72,6 @@ function truncate(value: unknown): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** The sensitivity label a tool put on its result, if any. */
-function labelOf(result: unknown): SensitivityLabel | undefined {
-  const label = isRecord(result) ? result.sensitivity : undefined;
-  return typeof label === "string" && label in SENSITIVITY_ORDER ? (label as SensitivityLabel) : undefined;
 }
 
 function addUsage(a: TokenUsage, b: TokenUsage): TokenUsage {
@@ -220,16 +217,17 @@ export class Runtime implements AgentRuntimeInterface {
         messages.push({ role: "user", content: `Error: ${problem}` });
         continue;
       }
-      let result: unknown;
+      let returned: unknown;
       let toolError: string | undefined;
       try {
-        result = await this.tools.get(name).run(args, ctx);
+        returned = await this.tools.get(name).run(args, ctx);
       } catch (e) {
         // A failing tool is reported to the model, which may try something else.
         toolError = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
       }
-      const label = labelOf(result);
+      const label = labelOf(returned);
       if (label) sensitivity = maxLabel(sensitivity, label);
+      const result = returned instanceof LabeledResult ? returned.value : returned;
       if (isRecord(result)) {
         for (const key of ["proposal_id", "todo_id"]) if (result[key]) proposals.push(String(result[key]));
       }
@@ -241,6 +239,7 @@ export class Runtime implements AgentRuntimeInterface {
         tool: name,
         arguments: args,
         result: shown,
+        sensitivity,
         ...(toolError !== undefined ? { error: toolError } : {}),
         usage: completion.usage,
         latency_ms: ms(),

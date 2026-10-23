@@ -298,6 +298,49 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
     });
   });
 
+  describe.skipIf(skip)("contradicting evidence", () => {
+    test("only supporting evidence makes a claim readable", async ({ w }) => {
+      const { kb, store } = w;
+      const [managers, [secret]] = kb.sourceVersion(["差旅：一线城市住宿每晚不超过600元。"], {
+        external_id: "doc-managers",
+      });
+      const [all, [open]] = kb.sourceVersion(["差旅：一线城市住宿每晚不超过650元。"], { external_id: "doc-all" });
+      await store.transaction(async (tx) => {
+        await tx.putSourceVersion(managers, [secret]);
+        await tx.putSourceVersion(all, [open]);
+      });
+      const [claim, evidence] = kb.claim("一线城市住宿上限为每晚600元", secret);
+      await store.transaction((tx) => tx.upsertClaims([claim], evidence));
+      const before = await w.authz.canReadDerived(w.who("carol"), claim.id);
+      expect(before).toEqual({ allow: false, readable_support: [] });
+
+      // carol can read doc-all, which now contradicts the claim and, in a second span role, qualifies it.
+      const against = kb.claim(claim.statement, open)[1].flatMap((e) => [
+        { ...e, claim_id: claim.id, role: "contradicts" as const },
+        { ...e, claim_id: claim.id, role: "qualifies" as const },
+      ]);
+      await store.transaction((tx) => tx.upsertClaims([], against));
+      const lineage = await store.lineage(claim.id);
+      expect(lineage.edges.filter((e) => e.relation === "cites").map((e) => e.role)).toEqual(
+        expect.arrayContaining(["supports", "contradicts", "qualifies"]),
+      );
+
+      expect(await w.authz.canReadDerived(w.who("carol"), claim.id)).toEqual({ allow: false, readable_support: [] });
+      expect(await w.can("carol", "read", { type: "claim", id: claim.id })).toBe(false);
+      expect(await w.authz.canReadDerived(w.who("alice"), claim.id)).toEqual({
+        allow: true,
+        readable_support: [managers.id],
+      });
+
+      // A claim derived from it inherits only its support.
+      const [derived] = kb.claim("一线城市住宿有上限");
+      await store.transaction((tx) =>
+        tx.upsertClaims([derived], [], [{ claim_id: derived.id, from_claim_ids: [claim.id], method: "infer" }]),
+      );
+      expect(await w.authz.canReadDerived(w.who("carol"), derived.id)).toEqual({ allow: false, readable_support: [] });
+    });
+  });
+
   describe.skipIf(skip)("agents", () => {
     test("agents act with the person's rights, cut to their scope", async ({ w }) => {
       const space: ResourceRef = { type: "space", id: w.space };

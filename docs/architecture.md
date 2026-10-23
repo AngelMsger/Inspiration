@@ -101,7 +101,9 @@ deployment can move to Milvus or OpenSearch without touching retrieval.
   find them.
 - **Derived knowledge follows its sources.** A claim, page or SOP is readable only through
   source documents the viewer can read now. Access control decides this at read time by
-  walking lineage, so it can never drift from the source ACLs. Hidden support is never
+  walking lineage along support paths (supporting evidence, derivations, dependencies), so it
+  can never drift from the source ACLs; evidence that contradicts or qualifies a claim never
+  makes it readable. Hidden support is never
   counted or named. Document checks for one request go to SpiceDB in bulk and are memoised;
   retrieval keeps each indexed derived unit's supporting documents so its pre-filter still
   applies.

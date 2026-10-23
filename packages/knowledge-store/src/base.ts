@@ -17,6 +17,7 @@ import {
   type DataRef,
   type DataTable,
   type DependencyEdge,
+  type EvidenceRole,
   type KnowledgeStore,
   kindOf,
   type LineageEdge,
@@ -127,11 +128,11 @@ export abstract class BaseStore implements KnowledgeStore {
     const node = (id: string, label?: string) => {
       if (!nodes.has(id) || (label && !nodes.get(id)?.label)) nodes.set(id, label ? { id, label } : { id });
     };
-    const edge = (fromId: string, toId: string, relation: LineageRelation) => {
-      const key = `${fromId}\x1f${toId}\x1f${relation}`;
+    const edge = (fromId: string, toId: string, relation: LineageRelation, role?: EvidenceRole) => {
+      const key = `${fromId}\x1f${toId}\x1f${relation}\x1f${role ?? ""}`;
       if (seenEdges.has(key)) return;
       seenEdges.add(key);
-      edges.push({ from_id: fromId, to_id: toId, relation });
+      edges.push({ from_id: fromId, to_id: toId, relation, ...(role && { role }) });
     };
     const labelVersions = async (ids: readonly string[]) => {
       for (const id of ids) {
@@ -170,7 +171,7 @@ export abstract class BaseStore implements KnowledgeStore {
         }
         for (const e of await this.evidenceOf(claimIds)) {
           node(e.span_id);
-          edge(e.claim_id, e.span_id, "cites");
+          edge(e.claim_id, e.span_id, "cites", e.role);
           next.push(e.span_id);
         }
         for (const d of await this.derivationsOf(claimIds)) {
