@@ -21,8 +21,14 @@ export interface InboxReport {
   by_kind: Record<string, number>;
   /** Members with a card or a note. */
   owners: number;
-  /** Review cards, per owner and week with any, and owner weeks over the budget. */
-  cards: { total: number; per_owner_week: Spread; over_budget: number; todos_per_card: Spread };
+  /** Review cards, per owner and week with any, and owner weeks over the budget; their todos per owner and week. */
+  cards: {
+    total: number;
+    per_owner_week: Spread;
+    over_budget: number;
+    todos_per_card: Spread;
+    todos_per_owner_week: Spread;
+  };
   /** The same todos in the weeks they fell due, as many cards as the card size takes. */
   without_budget: { per_owner_week: Spread; over_budget: number };
   /** Todos the budget moved to a later week, and by how many weeks. */
@@ -43,6 +49,7 @@ export async function inboxReport(engine: Engine, tenantId: string): Promise<Inb
   const owners = new Set<string>();
   const cards = new Map<string, number>();
   const cardsPerWeek = new Map<string, number>();
+  const todosPerWeek = new Map<string, number>();
   const due = new Map<string, number>();
   const notes = new Map<string, number>();
   const deferred: number[] = [];
@@ -75,6 +82,7 @@ export async function inboxReport(engine: Engine, tenantId: string): Promise<Inb
   for (const { todo: t, due_week } of reviews) {
     if (!cards.has(t.batch_key as string)) bump(cardsPerWeek, `${t.assignee_id}\x1f${t.week}`);
     bump(cards, t.batch_key as string);
+    bump(todosPerWeek, `${t.assignee_id}\x1f${t.week}`);
     bump(due, `${t.assignee_id}\x1f${t.taxonomy_key ?? ""}\x1f${due_week}`);
     if (t.week !== due_week) deferred.push(weeksBetween(due_week, t.week as string));
   }
@@ -96,6 +104,7 @@ export async function inboxReport(engine: Engine, tenantId: string): Promise<Inb
       per_owner_week: spread([...cardsPerWeek.values()]),
       over_budget: [...cardsPerWeek.values()].filter((n) => n > budget).length,
       todos_per_card: spread([...cards.values()]),
+      todos_per_owner_week: spread([...todosPerWeek.values()]),
     },
     without_budget: {
       per_owner_week: spread([...unbudgeted.values()]),
@@ -117,7 +126,7 @@ export function inboxLines(r: InboxReport): string[] {
   const c = r.cards;
   return [
     `inbox: ${r.todos} todos (${kv(r.by_kind) || "none"}), ${r.open} open, ${r.withdrawn} withdrawn, for ${r.owners} owners`,
-    `  cards ${c.total}, per owner and week median ${c.per_owner_week.median}, max ${c.per_owner_week.max} (budget ${r.budget}; ${c.over_budget} owner weeks over it); todos per card median ${c.todos_per_card.median}, max ${c.todos_per_card.max}`,
+    `  cards ${c.total}, per owner and week median ${c.per_owner_week.median}, max ${c.per_owner_week.max} (budget ${r.budget}; ${c.over_budget} owner weeks over it); todos per card median ${c.todos_per_card.median}, max ${c.todos_per_card.max}; todos per owner and week median ${c.todos_per_owner_week.median}, p90 ${c.todos_per_owner_week.p90}, max ${c.todos_per_owner_week.max}`,
     `  without the budget: per owner and week median ${r.without_budget.per_owner_week.median}, max ${r.without_budget.per_owner_week.max} (${r.without_budget.over_budget} owner weeks over ${r.budget}); ${r.deferred.todos} todos moved later, by median ${r.deferred.weeks.median}, max ${r.deferred.weeks.max} weeks`,
     `  notes ${r.notes.total}, per owner and week median ${r.notes.per_owner_week.median}, max ${r.notes.per_owner_week.max}; first-review campaign ${r.campaign.todos} todos on ${r.campaign.cards} cards; steward ${r.steward.todos} todos on ${r.steward.cards} cards`,
   ];

@@ -86,6 +86,7 @@ const REVIEW_KIND: Record<ReviewDueKind, TodoKind> = {
 };
 
 const URGENT = new Set(["high", "urgent"]);
+const PRIORITY: readonly Todo["priority"][] = ["low", "normal", "high", "urgent"];
 
 /** What a request or a due review asks for, before it is a todo. */
 interface Request {
@@ -246,7 +247,10 @@ export class Inbox {
     return this.records.find(ITEMS, options.open ? { tenant_id: tenantId, status: OPEN } : { tenant_id: tenantId });
   }
 
-  /** Cards with their todos, optionally one assignee's or one week's, open todos only. */
+  /**
+   * Cards with their todos, optionally one assignee's or one week's, open todos only. A card
+   * lists its todos by priority, then oldest first.
+   */
   async cards(tenantId: string, filter: { assignee?: string; week?: string } = {}): Promise<Card[]> {
     const items = await this.records.find(ITEMS, {
       tenant_id: tenantId,
@@ -271,6 +275,15 @@ export class Inbox {
       }
       card.todos.push(todo);
     }
+    // Most urgent first, then oldest, a conflict before the reviews that ride on it.
+    const later = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+    const decision = (t: Todo) => (t.kind === "conflict" ? 0 : 1);
+    const order = (a: Todo, b: Todo) =>
+      PRIORITY.indexOf(b.priority) - PRIORITY.indexOf(a.priority) ||
+      later(a.created_at, b.created_at) ||
+      decision(a) - decision(b) ||
+      later(a.id, b.id);
+    for (const card of cards.values()) card.todos.sort(order);
     return [...cards.values()].sort((a, b) =>
       a.week !== b.week ? ((a.week ?? "") < (b.week ?? "") ? -1 : 1) : a.batch_key < b.batch_key ? -1 : 1,
     );
@@ -398,14 +411,21 @@ export class Inbox {
     };
     if (t.kind === "note")
       return set(due, route.owner ? `notes:${route.owner}:${due}` : `notes:steward:${t.space_id}:${due}`);
-    if (item.campaign) return set(due, `campaign:${t.space_id}:${topic}`);
+    // Campaign and steward cards hold at most cardSize todos, as an owner's do.
+    const fill = async (base: string) => {
+      for (let n = 1; ; n++) {
+        const on = await tx.find(ITEMS, { tenant_id: t.tenant_id, batch_key: part(base, n) });
+        if (on.filter((i) => i.todo.id !== t.id).length < this.settings.cardSize) return part(base, n);
+      }
+    };
+    if (item.campaign) return set(due, await fill(`campaign:${t.space_id}:${topic}`));
     if (t.kind === "stale" && item.correlation_id) {
       const host = (
         await tx.find(ITEMS, { tenant_id: t.tenant_id, correlation_id: item.correlation_id, status: OPEN })
       ).find((i) => i.todo.kind === "conflict");
       if (host) return this.#ride(item, host);
     }
-    if (!route.owner) return set(due, `steward:${t.space_id}:${topic}:${due}`);
+    if (!route.owner) return set(due, await fill(`steward:${t.space_id}:${topic}:${due}`));
 
     const owner = route.owner;
     const urgent = URGENT.has(t.priority);

@@ -210,5 +210,22 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       const items = await world.inbox.items(TENANT);
       expect(items.filter((i) => i.todo.week !== i.due_week)).toHaveLength(8);
     });
+
+    test("campaign and steward cards hold at most `cardSize` todos too", async ({ world }) => {
+      await world.topics({ key: "t-hotel", owner_id: LI }, { key: "t-rooms" });
+      for (const n of [1, 2, 3]) {
+        const hotel = await world.document([`住宿规定第 ${n} 条。`], "t-hotel");
+        await world.review({ unit_ids: [hotel.version.id], backlog: true });
+        const rooms = await world.document([`会议室规定第 ${n} 条。`], "t-rooms");
+        await world.review({ unit_ids: [rooms.version.id] });
+      }
+      const cards = await world.inbox.cards(TENANT);
+      expect(cards.map((c) => [c.batch_key, c.todos.length])).toEqual([
+        [`campaign:${SPACE}:t-hotel`, 2],
+        [`campaign:${SPACE}:t-hotel:2`, 1],
+        [`steward:${SPACE}:t-rooms:2026-W43`, 2],
+        [`steward:${SPACE}:t-rooms:2026-W43:2`, 1],
+      ]);
+    });
   });
 });

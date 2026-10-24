@@ -27,6 +27,8 @@
  * - Reviews already due when freshness first saw their document (backlog) go on a
  *   first-review campaign card per space and topic, nobody's budget.
  * - Todos of a topic nobody owns, or of no topic, go on the space steward's card of the week.
+ * - Campaign and steward cards hold at most `cardSize` todos too; the rest start a next card
+ *   ("<card>:2").
  *
  * A todo stays in its week until it is resolved; nothing moves it on when the week passes.
  * Updates of one tenant run one at a time in a process, and the inbox mark commits with the
