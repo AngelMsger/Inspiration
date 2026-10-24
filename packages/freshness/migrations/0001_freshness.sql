@@ -33,3 +33,11 @@ CREATE TABLE freshness.due (
 
 CREATE INDEX due_day ON freshness.due (tenant_id, day COLLATE "C");
 CREATE INDEX due_document ON freshness.due (tenant_id, document);
+
+-- Deleted documents: the version that deleted them. Anything later about an older or the
+-- deleted version changes nothing, so a late claims update cannot bring a document back.
+CREATE TABLE freshness.deleted (
+    key       text PRIMARY KEY,
+    tenant_id text NOT NULL,
+    doc       jsonb NOT NULL
+);

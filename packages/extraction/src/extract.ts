@@ -19,6 +19,7 @@ import {
   slotOf,
   stableId,
 } from "@inspiration/contracts";
+import { defineTable, type Records } from "@inspiration/eventbus";
 import { logger } from "@inspiration/kernel";
 import { PromptRegistry } from "@inspiration/model-gateway";
 import {
@@ -45,6 +46,7 @@ const PROMPTS_DIR = new URL("../prompts/", import.meta.url).pathname;
 
 export interface ExtractionOptions {
   store: KnowledgeStore;
+  records: Records;
   models: ModelGateway;
   /** Defaults to the prompts shipped in this package. */
   prompts?: PromptRegistry;
@@ -63,7 +65,23 @@ export interface ExtractionResult {
   retracted: string[];
   /** Claims the model returned without a verbatim quote from a span it was given. */
   rejected: number;
+  /** A later version of the document was extracted already, so this one changed nothing. */
+  outdated?: true;
 }
+
+/** The latest version of a document extraction has worked on. */
+export interface DocumentMark {
+  tenant_id: string;
+  source_id: string;
+  external_id: string;
+  source_version_id: string;
+  fetched_at: string;
+}
+
+export const DOCUMENTS = defineTable<DocumentMark>("extraction.documents", {
+  key: (d) => `${d.source_id}\x1f${d.external_id}`,
+  columns: { tenant_id: (d) => d.tenant_id },
+});
 
 interface Built {
   claim: Claim;
@@ -103,6 +121,7 @@ function similarity(a: string, b: string): number {
 
 export class Extraction {
   readonly store: KnowledgeStore;
+  readonly records: Records;
   readonly models: ModelGateway;
   readonly prompts: PromptRegistry;
   readonly clock: () => Date;
@@ -114,6 +133,7 @@ export class Extraction {
 
   constructor(options: ExtractionOptions) {
     this.store = options.store;
+    this.records = options.records;
     this.models = options.models;
     this.clock = options.clock ?? (() => new Date());
     this.windowChars = options.windowChars ?? WINDOW_CHARS;
@@ -133,9 +153,9 @@ export class Extraction {
   /**
    * Extract claims from a version's added and changed blocks, and close the claims whose
    * evidence the version removed: superseded by a new claim of the same slot or a similar
-   * statement from the same block, retracted otherwise. Doing it again changes nothing.
-   * Versions of one document are handled one at a time. Given the blocks.changed event,
-   * claims.updated carries on its correlation.
+   * statement from the same block, retracted otherwise. Doing it again changes nothing, and
+   * so does a version older than one already extracted. Versions of one document are handled
+   * one at a time. Given the blocks.changed event, claims.updated carries on its correlation.
    */
   async extract(change: BlocksChanged, cause?: EventEnvelope): Promise<ExtractionResult> {
     const version = await this.store.getSourceVersion(change.source_version_id);
@@ -168,6 +188,10 @@ export class Extraction {
       retracted: [],
       rejected: 0,
     };
+    if (await this.#outdated(version)) {
+      log.debug("skipped an older version", { source_version: version.id });
+      return { ...result, outdated: true };
+    }
     const extracted: Built[] = [];
     const targets = new Set([...change.added_block_ids, ...change.changed_block_ids]);
     if (!change.deleted && targets.size) {
@@ -190,7 +214,7 @@ export class Extraction {
     this.totals.windows += result.windows;
     this.totals.failed_windows += result.failed_windows;
     this.totals.rejected += result.rejected;
-    const byId = new Map(extracted.map((e) => [e.claim.id, e]));
+    const byId = new Map((await this.#occurrences(version, extracted)).map((e) => [e.claim.id, e]));
     const stored = new Set((await this.store.getClaims([...byId.keys()])).map((c) => c.id));
     const fresh = [...byId.values()].filter((e) => !stored.has(e.claim.id));
     const lost = await this.#lost(change.removed_span_ids, [...byId.values()]);
@@ -341,7 +365,18 @@ export class Extraction {
     if (!cited.length) return undefined;
     const spanIds = [...new Set(cited.map((c) => c.span.id))].sort();
     const statement = extracted.statement.trim();
-    const id = stableId("claim", version.tenant_id, PROMPT_VERSION, statement, ...spanIds);
+    // What the claim says, not only its words: under a renamed heading the same sentence
+    // can have another subject.
+    const says = JSON.stringify([
+      statement,
+      extracted.claim_type,
+      extracted.knowledge_class ?? "general",
+      extracted.subject ?? null,
+      extracted.predicate ?? null,
+      extracted.value ?? null,
+      extracted.qualifiers ?? [],
+    ]);
+    const id = stableId("claim", version.tenant_id, PROMPT_VERSION, says, ...spanIds);
     const confidence = extracted.confidence ?? 0.7;
     const authority = version.authority ?? 0.5;
     const now = this.clock().toISOString();
@@ -388,8 +423,47 @@ export class Extraction {
   }
 
   /**
+   * True when a later version of the document was extracted already. Otherwise the version
+   * becomes the document's latest, before its claims are written: a crash in between leaves
+   * the mark on this version, whose redelivery is then extracted again.
+   */
+  async #outdated(version: SourceVersion): Promise<boolean> {
+    const mark: DocumentMark = {
+      tenant_id: version.tenant_id,
+      source_id: version.source_id,
+      external_id: version.external_id,
+      source_version_id: version.id,
+      fetched_at: version.fetched_at,
+    };
+    const latest = await this.records.get(DOCUMENTS, DOCUMENTS.key(mark));
+    if (latest?.source_version_id === version.id) return false;
+    if (latest && version.fetched_at < latest.fetched_at) return true;
+    await this.records.transaction((tx) => tx.put(DOCUMENTS, [mark]));
+    return false;
+  }
+
+  /**
+   * The claims as they occur in this version. A claim that was closed and is stated again (a
+   * value changed back, a document restored) is a new occurrence: its ID comes from the
+   * closed claim's and the version's, so the closed claim keeps its known-when interval and
+   * extracting the version again finds the same occurrence.
+   */
+  async #occurrences(version: SourceVersion, extracted: readonly Built[]): Promise<Built[]> {
+    const closed = new Set(
+      (await this.store.getClaims([...new Set(extracted.map((e) => e.claim.id))]))
+        .filter((c) => c.superseded_at !== undefined)
+        .map((c) => c.id),
+    );
+    return extracted.map((e) => {
+      if (!closed.has(e.claim.id)) return e;
+      const id = stableId("claim", e.claim.id, version.id);
+      return { ...e, claim: { ...e.claim, id }, evidence: e.evidence.map((x) => ({ ...x, claim_id: id })) };
+    });
+  }
+
+  /**
    * Current claims that a new claim restates: it cites exactly the same spans, but says it
-   * differently (a changed table header, another prompt version).
+   * differently (a changed table header, a renamed heading, another prompt version).
    */
   async #restated(fresh: readonly Built[], extracted: ReadonlySet<string>): Promise<{ claim: Claim; by: string }[]> {
     const spansOf = (e: readonly ClaimEvidence[]) =>

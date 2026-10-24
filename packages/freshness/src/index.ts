@@ -12,8 +12,11 @@
  *   changed").
  * - On claims.updated, it keeps the knowledge class of each current claim and the day each
  *   plan names (the claim's valid_time start). The shortest review interval among the
- *   classes sets the document's next ttl review; a plan day still ahead gets an assumption
- *   review on that day.
+ *   classes of claims that are not plans sets the document's next ttl review; a plan day
+ *   still ahead gets an assumption review on that day.
+ * - A deleted document is forgotten, and the version that deleted it is kept: events about
+ *   it or an older version change nothing, so a late claims.updated cannot bring it back.
+ *   A later version restores it.
  * - tick(tenant) publishes every review that has fallen due, each once; the engine calls it
  *   once a day. A ttl review that was already due when freshness first saw the document is
  *   marked backlog: on a tenant's first sweep that is most of them, and they belong in a

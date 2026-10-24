@@ -11,6 +11,7 @@ import {
   type Span,
   stableId,
 } from "@inspiration/contracts";
+import { MemoryRecords, PgRecords, type Records } from "@inspiration/eventbus";
 import { openPool, workspaceRoot } from "@inspiration/kernel";
 import { MemoryStore, PostgresStore } from "@inspiration/knowledge-store";
 import { Gateway, loadGatewayConfig, type MemoryUsage } from "@inspiration/model-gateway";
@@ -97,11 +98,16 @@ function pieces(para: Para): string[] {
 export const extractionTest = (backend: Backend) =>
   // biome-ignore lint/correctness/noEmptyPattern: Vitest reads fixture dependencies from this pattern
   test.extend("world", async ({}, { onCleanup }): Promise<World> => {
+    // Every reading of the clock is a second later, so known-when intervals never collapse.
+    let seconds = 0;
+    const clock = () => new Date(Date.UTC(2026, 9, 1) + ++seconds * 1000);
     let store: MemoryStore | PostgresStore;
+    let records: Records;
     let events: () => Promise<EventEnvelope[]>;
     if (backend === "memory") {
-      const memory = new MemoryStore();
+      const memory = new MemoryStore({ clock });
       store = memory;
+      records = new MemoryRecords();
       events = async () => [...memory.published];
     } else {
       const db = await createTestDatabase();
@@ -110,14 +116,15 @@ export const extractionTest = (backend: Backend) =>
         await pool.end();
         await db.drop();
       });
-      store = new PostgresStore(pool);
+      store = new PostgresStore(pool, { clock });
+      records = new PgRecords(pool);
       events = async () =>
         (await pool.query<{ envelope: EventEnvelope }>("SELECT envelope FROM bus.outbox ORDER BY seq")).rows.map(
           (r) => r.envelope,
         );
     }
     const gateway = await Gateway.create(loadGatewayConfig(join(workspaceRoot(), "config", "gateway.dev.yaml")));
-    const extraction = new Extraction({ store, models: gateway, vocabulary: () => VOCABULARY });
+    const extraction = new Extraction({ store, records, models: gateway, vocabulary: () => VOCABULARY, clock });
     const last = new Map<string, { version: SourceVersion; blocks: SourceBlock[] }>();
     let tick = 0;
 
@@ -189,7 +196,13 @@ export const extractionTest = (backend: Backend) =>
         source_id: SOURCE,
         source_version_id: sv.id,
         added_block_ids: blocks.filter((b) => !before.has(b.id)).map((b) => b.id),
-        changed_block_ids: blocks.filter((b) => before.has(b.id) && before.get(b.id)?.text !== b.text).map((b) => b.id),
+        // As normalization does: a block under other headings is changed too.
+        changed_block_ids: blocks
+          .filter((b) => {
+            const old = before.get(b.id);
+            return old && (old.text !== b.text || String(old.heading_path) !== String(b.heading_path));
+          })
+          .map((b) => b.id),
         removed_block_ids: [...before.keys()].filter((id) => !now.has(id)),
         added_span_ids: [...current].filter((id) => !known.has(id)),
         removed_span_ids: [...known].filter((id) => !current.has(id)),

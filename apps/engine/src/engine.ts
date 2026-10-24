@@ -109,6 +109,7 @@ export class Engine {
     });
     this.extraction = new Extraction({
       store: this.store,
+      records: this.records,
       models: this.models,
       ...(parts.vocabulary && { vocabulary: parts.vocabulary }),
     });

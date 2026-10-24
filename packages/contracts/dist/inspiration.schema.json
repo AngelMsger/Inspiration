@@ -1335,7 +1335,7 @@
           }
         },
         "changed_block_ids": {
-          "description": "Blocks that kept their ID but whose text changed.",
+          "description": "Blocks that kept their ID but whose text, kind or heading path changed. A block under a renamed heading is changed although its text and spans are not, since what it says depends on the headings above it.\n",
           "type": "array",
           "items": {
             "$ref": "#/$defs/SourceBlockId"

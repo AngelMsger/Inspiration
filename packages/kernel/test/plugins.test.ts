@@ -58,6 +58,7 @@ describe("plugin registry", () => {
     expect(registry("migrations").names()).toEqual([
       "agents",
       "bus",
+      "extraction",
       "freshness",
       "gateway",
       "governance",
