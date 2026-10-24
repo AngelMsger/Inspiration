@@ -81,6 +81,44 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("700 CNY/night");
     });
 
+    test("reference documents never outvote or hold up a governed value, and alone ask nobody", async ({ world }) => {
+      await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
+      // Trusted and dated later, but a reference document.
+      const blog = await world.state({ title: "差旅攻略", authority: 0.95, level: "reference" }, [
+        { text: "自 2026 年 10 月 1 日起，北京住宿每晚 800 元。", value: 800, from: "2026-10-01" },
+      ]);
+      expect(blog.result).toEqual({ slots: [HOTEL], requests: [] });
+      const { decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.proposed.value).toBe("600 CNY/night");
+      expect(decision?.cases).toEqual([
+        {
+          value: "800 CNY/night",
+          classification: "contradiction",
+          status: "auto_resolved",
+          priority: "low",
+          confidence: 0.6,
+          rationale:
+            "Only reference documents state 800 CNY/night; the governed 600 CNY/night holds. A note for the owner, not a todo.",
+        },
+      ]);
+
+      // Reference documents alone: decided for readers, with nobody to ask.
+      const NEW_TIER = "hotel_cap_per_night|新一线城市";
+      await world.state({ title: "新人入职指南", authority: 0.5, level: "reference" }, [
+        { text: "成都住宿每晚 450 元。", value: 450, slot: NEW_TIER },
+      ]);
+      const faq = await world.state({ title: "员工问答", authority: 0.4, level: "reference" }, [
+        { text: "成都出差每晚可住 500 元。", value: 500, slot: NEW_TIER },
+      ]);
+      expect(faq.result).toEqual({ slots: [NEW_TIER], requests: [] });
+      const alone = await world.governance.slot(TENANT, NEW_TIER);
+      expect(alone.decision?.proposed.value).toBe("450 CNY/night");
+      expect(alone.decision?.cases.map((c) => [c.value, c.classification, c.status])).toEqual([
+        ["500 CNY/night", "contradiction", "open"],
+      ]);
+      expect(await world.requests()).toEqual([]);
+    });
+
     test("a contradiction proposes the more authoritative source and asks once", async ({ world }) => {
       const policy = await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
       const guide = await world.state(GUIDE, [{ text: "去北京出差，住宿每晚 700 元以内。", value: 700 }]);

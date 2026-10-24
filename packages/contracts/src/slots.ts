@@ -6,12 +6,18 @@
 import type { Claim } from "./generated.ts";
 
 /**
- * A claim's slot: its predicate and its qualifiers, sorted ("hotel_cap_per_night|一线城市").
- * Undefined without a predicate. Subjects are not resolved yet, so they are not part of it.
+ * A claim's slot key: the one it carries, else its subject entity when resolved, its
+ * predicate and its qualifiers, sorted ("hotel_cap_per_night|一线城市",
+ * "ent_…/hotel_cap_per_night|一线城市"). Undefined without a predicate. Subjects as written are
+ * not part of it: the catalogue turns them into qualifiers (北京 is 一线城市).
  */
-export function slotOf(claim: Pick<Claim, "predicate" | "qualifiers">): string | undefined {
+export function slotOf(
+  claim: Pick<Claim, "slot_key" | "subject_entity_id" | "predicate" | "qualifiers">,
+): string | undefined {
+  if (claim.slot_key) return claim.slot_key;
   if (!claim.predicate) return undefined;
-  return [claim.predicate, ...[...(claim.qualifiers ?? [])].sort()].join("|");
+  const fact = [claim.predicate, ...[...(claim.qualifiers ?? [])].sort()].join("|");
+  return claim.subject_entity_id ? `${claim.subject_entity_id}/${fact}` : fact;
 }
 
 /** What two claims of a slot compare: the normalized value, else its number or text. */

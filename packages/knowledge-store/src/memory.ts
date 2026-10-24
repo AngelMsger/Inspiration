@@ -320,6 +320,12 @@ export class MemoryStore extends BaseStore {
     return structuredClone(out.slice(0, query.limit || QUERY_LIMIT));
   }
 
+  async claimsInSlot(tenantId: string, slotKey: string): Promise<Claim[]> {
+    const out = [...this.#state.claims.values()].filter((c) => c.tenant_id === tenantId && c.slot_key === slotKey);
+    out.sort((a, b) => latest(a.recorded_at, b.recorded_at) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    return structuredClone(out);
+  }
+
   async dependents(artifactIds: readonly string[]): Promise<string[]> {
     const wanted = new Set(artifactIds);
     const ids = [...this.#state.dependencies.values()].filter((e) => wanted.has(e.input_id)).map((e) => e.artifact_id);

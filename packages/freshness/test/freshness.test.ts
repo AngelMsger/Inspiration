@@ -15,17 +15,21 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         { text: "协议酒店价格每季度更新一次。", knowledge_class: "pricing" },
         { text: "预计 2026 年 6 月 1 日上线新的差旅系统。", on: "2026-06-01" },
       ]);
-      // Records of a day and general knowledge are never due by age.
+      // Records of a day, general knowledge and reference documents are never due by age.
       await world.put({ path: "财务部例会纪要.md", modified: "2026-01-12", date: "2026-01-12" }, [
         { text: "会议确定住宿限额维持不变。", knowledge_class: "policy" },
       ]);
       await world.put({ path: "项目方案.md", modified: "2025-01-01" }, [{ text: "检索模块 P95 延迟 420 毫秒。" }]);
+      const guide = await world.put({ path: "差旅攻略.md", modified: "2025-01-01", level: "reference" }, [
+        { text: "北京出差住宿每晚 600 元以内。", knowledge_class: "policy" },
+      ]);
 
       expect((await world.freshness.upcoming(TENANT)).map((d) => [d.document.split(":")[1], d.kind, d.day])).toEqual([
         ["差旅费管理办法.md", "ttl", "2026-04-10"],
         ["差旅费管理办法.md", "assumption", "2026-06-01"],
       ]);
       expect(await world.freshness.tick(TENANT)).toEqual([]);
+      expect((await world.freshness.documents(TENANT)).map((d) => d.source_version_id)).not.toContain(guide.version.id);
       const [early] = await world.freshness.staleness(TENANT, [policy.version.id]);
       expect(early).toMatchObject({
         state: "fresh",

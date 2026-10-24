@@ -8,6 +8,11 @@
  *       await tx.publish(newEvent("claims.updated", payload, options)); // commits with the data
  *     });
  *
+ * slot(tenant, key) reads one fact slot from every claim with that slot_key: its variants
+ * (the values current claims state, with counts and up to five representatives) and its
+ * versions (every value stated, from when the system first knew it to when the last claim
+ * stating it closed).
+ *
  * Test data builders are in "@inspiration/knowledge-store/testing".
  */
 
@@ -18,3 +23,4 @@ export { MIGRATIONS } from "./migrations.ts";
 export { PgTx, PostgresStore, searchText, vectorLiteral, writeEmbeddings } from "./postgres.ts";
 export { type AsOf, matches, QUERY_LIMIT, toSql } from "./query.ts";
 export { IntegrityError } from "./rules.ts";
+export { factSlot, REPRESENTATIVES } from "./slots.ts";

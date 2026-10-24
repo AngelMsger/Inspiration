@@ -5,6 +5,7 @@ import {
   type ClaimType,
   contentHash,
   type EventEnvelope,
+  type GovernanceLevel,
   type KnowledgeStore,
   newEvent,
   newId,
@@ -48,6 +49,7 @@ export interface Doc {
   approval_state?: SourceVersion["approval_state"];
   /** Front matter effective_from. */
   effective_from?: string;
+  level?: GovernanceLevel;
 }
 
 export interface World {
@@ -111,6 +113,7 @@ export const governanceTest = (backend: Backend) =>
         authority: doc.authority,
         sensitivity: "internal",
         fetched_at: TODAY.toISOString(),
+        ...(doc.level && { governance_level: doc.level }),
         ...(doc.effective_from && { metadata: { extra: { effective_from: doc.effective_from } } }),
       };
       const spans: Span[] = [];
@@ -138,6 +141,7 @@ export const governanceTest = (backend: Backend) =>
           knowledge_class: "policy",
           predicate,
           ...(qualifiers.length && { qualifiers }),
+          slot_key: s.slot ?? HOTEL,
           value: {
             kind: "money",
             number: s.value,

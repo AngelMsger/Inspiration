@@ -13,6 +13,7 @@
 
 import { mkdir, readdir, readFile, utimes, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import type { GovernanceLevel } from "@inspiration/contracts";
 import type { PredicateEntry, Vocabulary } from "@inspiration/extraction";
 import { stringify } from "yaml";
 import type { CorpusManifest } from "./corpus.ts";
@@ -714,7 +715,7 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
         ...boilerplate.slice(0, w.int(5, boilerplate.length)),
         `本办法自 2026 年 1 月 1 日起施行。`,
       ];
-      const text = `${frontMatter({ title: `${topic}管理办法`, governance: "policy", approval_state: "approved", owner: department })}# ${topic}管理办法\n\n${articles.map((a, i) => `第${i + 1}条 ${a}`).join("\n\n")}\n`;
+      const text = `${frontMatter({ title: `${topic}管理办法`, governance_level: "governed", approval_state: "approved", owner: department })}# ${topic}管理办法\n\n${articles.map((a, i) => `第${i + 1}条 ${a}`).join("\n\n")}\n`;
       // Policies were last edited in December, before they took effect.
       w.write(path, text, dayAfter("2025-12-01", hashOf(path) % 28));
       policies.push({ path, text, department });
@@ -750,7 +751,7 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
         const body = [w.hearsay(path, f, errorRate), ...w.fillers(w.int(1, 4))].join("");
         return `## ${kind === "faq" ? `关于${f.topic}的问题` : f.topic}\n\n${body}`;
       });
-      text = `${frontMatter({ title, governance: kind === "guide" ? "guideline" : "reference", owner: w.person() })}# ${title}\n\n${sections.join("\n\n")}\n`;
+      text = `${frontMatter({ title, governance_level: kind === "guide" ? "governed" : "reference", owner: w.person() })}# ${title}\n\n${sections.join("\n\n")}\n`;
       modified = dayAfter("2024-10-23", hashOf(path) % 730);
     } else if (kind === "minutes") {
       const month = w.int(1, 10);
@@ -776,7 +777,7 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
       const owner = w.person();
       const held = w.date(month);
       modified = isoDay(held);
-      text = `${frontMatter({ title, governance: "note", owner, date: modified })}# ${title}\n\n时间：${held}\n参会：${Array.from({ length: w.int(3, 8) }, () => w.person()).join("、")}\n\n## 议题与决议\n\n${items.map((t, i) => `${i + 1}. ${t}`).join("\n")}\n\n## 待办\n\n${Array.from({ length: w.int(1, 4) }, () => `- ${w.filler()}`).join("\n")}\n`;
+      text = `${frontMatter({ title, governance_level: "reference", owner, date: modified })}# ${title}\n\n时间：${held}\n参会：${Array.from({ length: w.int(3, 8) }, () => w.person()).join("、")}\n\n## 议题与决议\n\n${items.map((t, i) => `${i + 1}. ${t}`).join("\n")}\n\n## 待办\n\n${Array.from({ length: w.int(1, 4) }, () => `- ${w.filler()}`).join("\n")}\n`;
     } else if (kind === "weekly") {
       const project = w.pick(PROJECTS);
       const title = `${project}项目周报（${department}，第 ${n} 周）`;
@@ -784,7 +785,7 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
       const rows = Array.from({ length: w.int(2, 6) }, () => `| ${w.pick(WORK)} | ${w.person()} | ${w.int(0, 100)}% |`);
       // Reports of one department and number fall in one of the year's first 42 weeks, on its Friday.
       modified = dayAfter("2026-01-09", 7 * ((n - 1) % 42));
-      text = `${frontMatter({ title, governance: "note", owner: w.person(), date: modified })}# ${title}\n\n## 本周进展\n\n${w
+      text = `${frontMatter({ title, governance_level: "search_only", owner: w.person(), date: modified })}# ${title}\n\n## 本周进展\n\n${w
         .fillers(w.int(6, 15))
         .map((t) => `- ${t}`)
         .join(
@@ -798,13 +799,13 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
         { length: w.int(3, 6) },
         (_, i) => `## ${i + 1}. ${w.pick(WORK)}\n\n${Array.from({ length: w.int(2, 6) }, () => w.filler()).join("")}`,
       );
-      text = `${frontMatter({ title, governance: "reference", owner: w.person() })}# ${title}\n\n${parts.join("\n\n")}\n`;
+      text = `${frontMatter({ title, governance_level: "reference", owner: w.person() })}# ${title}\n\n${parts.join("\n\n")}\n`;
       modified = dayAfter("2024-10-23", hashOf(path) % 730);
     } else if (kind === "copy" && policies.length) {
       const source = w.pick(policies);
       path = `共享/${department}/转发-${source.path.split("/").at(-1)}`;
       if (w.files.has(path)) continue;
-      text = source.text.replace("governance: policy", "governance: reference");
+      text = source.text.replace("governance_level: governed", "governance_level: reference");
       modified = dayAfter(w.modified.get(source.path) as string, 1 + (hashOf(path) % 20));
       for (const t of w.truth.filter((s) => s.document === source.path)) w.truth.push({ ...t, document: path });
       w.duplicates.push({ document: path, of: source.path, exact: true });
@@ -919,7 +920,14 @@ function manifest(departments: string[]): CorpusManifest {
   departments.forEach((d, i) => {
     folder[`group:${DEPARTMENTS[d]}`] = `grp_01SYNTH${String(i).padStart(18, "0")}`;
   });
-  const source = (id: string, space: string, name: string, root: string, authority: number) => ({
+  const source = (
+    id: string,
+    space: string,
+    name: string,
+    root: string,
+    authority: number,
+    level: GovernanceLevel,
+  ) => ({
     id,
     type: "folder",
     space,
@@ -927,6 +935,7 @@ function manifest(departments: string[]): CorpusManifest {
     root,
     directory: "folder",
     default_authority: authority,
+    governance_level: level,
   });
   return {
     tenant: { id: tenant, name: "合成企业" },
@@ -936,10 +945,10 @@ function manifest(departments: string[]): CorpusManifest {
     ],
     directory: { folder },
     sources: [
-      source("src_01SYNTH00000000000000POLICIES", policy, "制度库", "制度库", 0.9),
-      source("src_01SYNTH0000000000000000TEAMS", teams, "部门空间", "部门空间", 0.5),
-      source("src_01SYNTH000000000000000ARCHIVE", policy, "历史归档", "归档", 0.3),
-      source("src_01SYNTH0000000000000000SHARED", teams, "共享", "共享", 0.4),
+      source("src_01SYNTH00000000000000POLICIES", policy, "制度库", "制度库", 0.9, "governed"),
+      source("src_01SYNTH0000000000000000TEAMS", teams, "部门空间", "部门空间", 0.5, "reference"),
+      source("src_01SYNTH000000000000000ARCHIVE", policy, "历史归档", "归档", 0.3, "governed"),
+      source("src_01SYNTH0000000000000000SHARED", teams, "共享", "共享", 0.4, "reference"),
     ],
   };
 }

@@ -267,7 +267,7 @@
   ],
   "link_share_entity": "tenant_readable",
   "properties": {
-    "governance": "guideline",
+    "governance_level": "reference",
     "approval_state": "approved"
   }
 }

@@ -8,7 +8,9 @@ import {
   type EventEnvelope,
   type EventHandler,
   GatewayException,
+  type GovernanceLevel,
   type KnowledgeStore,
+  levelOf,
   type ModelGateway,
   newEvent,
   type ProducerInfo,
@@ -65,6 +67,11 @@ export interface ExtractionResult {
   retracted: string[];
   /** Claims the model returned without a verbatim quote from a span it was given. */
   rejected: number;
+  /**
+   * Claims a reference document states outside any catalogue slot, left unwritten until a
+   * page or an answer uses their passage.
+   */
+  unused?: number;
   /** A later version of the document was extracted already, so this one changed nothing. */
   outdated?: true;
 }
@@ -126,8 +133,14 @@ export class Extraction {
   readonly prompts: PromptRegistry;
   readonly clock: () => Date;
   readonly windowChars: number;
-  /** Totals since the process started, for run reports. */
-  readonly totals = { windows: 0, failed_windows: 0, rejected: 0 };
+  /** Totals since the process started, for run reports; model calls also by the document's level. */
+  readonly totals = {
+    windows: 0,
+    failed_windows: 0,
+    rejected: 0,
+    unused: 0,
+    windows_by_level: { governed: 0, reference: 0, search_only: 0 } as Record<GovernanceLevel, number>,
+  };
   readonly #vocabulary: NonNullable<ExtractionOptions["vocabulary"]>;
   readonly #running = new Map<string, Promise<unknown>>();
 
@@ -156,13 +169,42 @@ export class Extraction {
    * statement from the same block, retracted otherwise. Doing it again changes nothing, and
    * so does a version older than one already extracted. Versions of one document are handled
    * one at a time. Given the blocks.changed event, claims.updated carries on its correlation.
+   *
+   * How much is read depends on the version's governance level: all of a governed version;
+   * of a reference version only the blocks that name a catalogue fact, keeping the claims
+   * that fill a slot; nothing of a search-only version.
    */
   async extract(change: BlocksChanged, cause?: EventEnvelope): Promise<ExtractionResult> {
     const version = await this.store.getSourceVersion(change.source_version_id);
     if (!version) throw new RangeError(`unknown source version ${change.source_version_id}`);
+    return this.#serial(version, () => this.#extract(version, change, { cause }));
+  }
+
+  /**
+   * Extract blocks of a reference version now, because a page or an answer cites them: every
+   * claim they state is written, as for a governed version. Extracting them again changes
+   * nothing. A governed version is extracted in full already and a search-only one never is,
+   * so for those, and for a version older than one already extracted, nothing happens.
+   */
+  async extractOnUse(sourceVersionId: string, blockIds: readonly string[]): Promise<ExtractionResult> {
+    const version = await this.store.getSourceVersion(sourceVersionId);
+    if (!version) throw new RangeError(`unknown source version ${sourceVersionId}`);
+    const use: BlocksChanged = {
+      source_id: version.source_id,
+      source_version_id: version.id,
+      added_block_ids: [],
+      changed_block_ids: levelOf(version) === "reference" && !version.deleted ? [...blockIds] : [],
+      removed_block_ids: [],
+      added_span_ids: [],
+      removed_span_ids: [],
+    };
+    return this.#serial(version, () => this.#extract(version, use, { use: true }));
+  }
+
+  async #serial<T>(version: SourceVersion, fn: () => Promise<T>): Promise<T> {
     const key = `${version.source_id}\x1f${version.external_id}`;
     const before = this.#running.get(key) ?? Promise.resolve();
-    const run = before.catch(() => undefined).then(() => this.#extract(version, change, cause));
+    const run = before.catch(() => undefined).then(fn);
     this.#running.set(key, run);
     try {
       return await run;
@@ -179,7 +221,12 @@ export class Extraction {
     return { "blocks.changed": this.onBlocksChanged };
   }
 
-  async #extract(version: SourceVersion, change: BlocksChanged, cause?: EventEnvelope): Promise<ExtractionResult> {
+  async #extract(
+    version: SourceVersion,
+    change: BlocksChanged,
+    options: { cause?: EventEnvelope; use?: boolean },
+  ): Promise<ExtractionResult> {
+    const { cause } = options;
     const result: ExtractionResult = {
       windows: 0,
       failed_windows: 0,
@@ -193,10 +240,16 @@ export class Extraction {
       return { ...result, outdated: true };
     }
     const extracted: Built[] = [];
+    const level = levelOf(version);
     const targets = new Set([...change.added_block_ids, ...change.changed_block_ids]);
-    if (!change.deleted && targets.size) {
+    if (!change.deleted && level !== "search_only" && targets.size) {
       const vocabulary = (await this.#vocabulary(version.tenant_id))?.predicates ?? [];
-      for (const window of await this.#windows(version, targets)) {
+      // Unless a page or an answer uses it, a reference document is read only where it names a
+      // catalogue fact, and only the claims that fill a slot are kept.
+      const slotsOnly = level === "reference" && !options.use;
+      const names = slotsOnly ? vocabulary.flatMap((e) => e.aliases) : [];
+      const touches = slotsOnly ? (text: string) => names.some((a) => text.includes(a)) : undefined;
+      for (const window of await this.#windows(version, targets, touches)) {
         result.windows++;
         const output = await this.#complete(version, window, vocabulary);
         if (!output) {
@@ -204,6 +257,10 @@ export class Extraction {
           continue;
         }
         for (const claim of output.claims) {
+          if (slotsOnly && !claim.predicate) {
+            result.unused = (result.unused ?? 0) + 1;
+            continue;
+          }
           const built = this.#build(version, window, claim);
           if (built) extracted.push(built);
           else result.rejected++;
@@ -214,6 +271,8 @@ export class Extraction {
     this.totals.windows += result.windows;
     this.totals.failed_windows += result.failed_windows;
     this.totals.rejected += result.rejected;
+    this.totals.unused += result.unused ?? 0;
+    this.totals.windows_by_level[level] += result.windows;
     const byId = new Map((await this.#occurrences(version, extracted)).map((e) => [e.claim.id, e]));
     const stored = new Set((await this.store.getClaims([...byId.keys()])).map((c) => c.id));
     const fresh = [...byId.values()].filter((e) => !stored.has(e.claim.id));
@@ -266,8 +325,15 @@ export class Extraction {
     return result;
   }
 
-  /** Target blocks in reading order, cut into windows of about windowChars characters. */
-  async #windows(version: SourceVersion, targets: ReadonlySet<string>): Promise<Window[]> {
+  /**
+   * Target blocks in reading order, cut into windows of about windowChars characters. Given
+   * touches, only the blocks whose text, headings or table header it accepts.
+   */
+  async #windows(
+    version: SourceVersion,
+    targets: ReadonlySet<string>,
+    touches?: (text: string) => boolean,
+  ): Promise<Window[]> {
     const blocks = (await this.store.blocksOf(version.id)).sort((a, b) => a.ordinal - b.ordinal);
     // A table row is read with its table's header row, which is never sent on its own; a
     // changed header changes how every row of its table reads.
@@ -279,8 +345,15 @@ export class Extraction {
     }
     const headerIds = new Set([...headerRows.values()].map((b) => b.id));
     const rereadTables = new Set([...headerRows].filter(([, h]) => targets.has(h.id)).map(([table]) => table));
+    const named = (b: SourceBlock) => {
+      const header = b.kind === "table_row" && b.parent_id ? headerRows.get(b.parent_id) : undefined;
+      return [b.text, ...(b.heading_path ?? []), header?.text ?? ""].some((t) => touches?.(t));
+    };
     const wanted = blocks.filter(
-      (b) => (targets.has(b.id) || (b.parent_id !== undefined && rereadTables.has(b.parent_id))) && b.span_ids.length,
+      (b) =>
+        (targets.has(b.id) || (b.parent_id !== undefined && rereadTables.has(b.parent_id))) &&
+        b.span_ids.length &&
+        (!touches || named(b)),
     );
     const needed = [...new Set([...wanted, ...headerRows.values()].flatMap((b) => b.span_ids))];
     const spans = new Map((await this.store.getSpans(needed)).map((s) => [s.id, s]));
@@ -407,6 +480,8 @@ export class Extraction {
     if (extracted.predicate) claim.predicate = extracted.predicate;
     if (extracted.value) claim.value = extracted.value;
     if (extracted.qualifiers?.length) claim.qualifiers = extracted.qualifiers;
+    const slot = slotOf(claim);
+    if (slot) claim.slot_key = slot;
     const evidence = cited.map(
       (c): ClaimEvidence => ({
         claim_id: id,

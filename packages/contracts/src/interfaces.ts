@@ -39,6 +39,7 @@ import type {
   EmbedRequest,
   EmbedResult,
   EventEnvelope,
+  FactSlot,
   FileMeta,
   GroundedAnswer,
   IndexFilter,
@@ -303,6 +304,8 @@ export interface KnowledgeStore {
   claimsCiting(spanIds: readonly string[]): Promise<string[]>;
   /** Bitemporal read. knownAt defaults to now (current beliefs); validAt to no filter. */
   asOf(query: ClaimQuery, options?: { validAt?: Date; knownAt?: Date }): Promise<Claim[]>;
+  /** A fact slot's variants and versions, from every claim with the slot key; undefined when none has it. */
+  slot(tenantId: string, slotKey: string): Promise<FactSlot | undefined>;
   lineage(unitId: string, depth?: number): Promise<LineageGraph>;
   /** Artifacts built directly from any of the given inputs. */
   dependents(artifactIds: readonly string[]): Promise<string[]>;

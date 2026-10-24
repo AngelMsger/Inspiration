@@ -5,6 +5,7 @@ import {
   type EventHandler,
   type KnowledgeStore,
   kindOf,
+  levelOf,
   newEvent,
   payloadOf,
   type ReviewDue,
@@ -77,7 +78,7 @@ export interface Copy {
   similarity: number;
 }
 
-/** A deleted document, and the version that deleted it. */
+/** A document freshness no longer follows, and the version from which it stopped: deleted, or not governed. */
 export interface Deletion {
   tenant_id: string;
   document: string;
@@ -201,7 +202,8 @@ export class Freshness {
       const gone = await tx.get(DELETED, key(tenantId, document));
       if (gone && !after(version, gone)) return;
       const copies = await tx.find(COPIES, { tenant_id: tenantId, document });
-      if (change.deleted) {
+      // Only governed documents have owners and review cycles.
+      if (change.deleted || levelOf(version) !== "governed") {
         await this.#forget(tx, version, copies);
         return;
       }
@@ -262,8 +264,9 @@ export class Freshness {
     const tenantId = event.tenant_id;
     await this.records.transaction(async (tx) => {
       if (!(await tx.firstDelivery(COMPONENT, event.id))) return;
-      // Extraction closes a deleted document's claims after the deletion: nothing to keep.
-      if (version.deleted) return;
+      // Extraction closes a deleted document's claims after the deletion: nothing to keep. A
+      // reference document's claims have no review clock.
+      if (version.deleted || levelOf(version) !== "governed") return;
       const gone = await tx.get(DELETED, key(tenantId, documentOf(version)));
       if (gone && !after(version, gone)) return;
       const before = await tx.get(DOCUMENTS, key(tenantId, documentOf(version)));

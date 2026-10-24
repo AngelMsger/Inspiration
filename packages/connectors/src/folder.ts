@@ -3,8 +3,8 @@
  * external ID. Files go to the parser router unchanged; the connector only adds what the
  * directory says about them.
  *
- * - Markdown front matter: title, approval_state, sensitivity, authority, owner, tags and
- *   any other key (kept in metadata.extra, for example `governance: reference`).
+ * - Markdown front matter: title, approval_state, sensitivity, authority,
+ *   governance_level, owner, tags and any other key (kept in metadata.extra).
  * - `.meta.yaml` in a folder: the same keys as defaults for every file below it; deeper
  *   folders and front matter win.
  * - `.acl.yaml` in a folder: who may read the files below it, as short entries
@@ -28,6 +28,7 @@ import {
   type Cursor,
   canonicalJson,
   contentHash,
+  isGovernanceLevel,
   type ListedItem,
   type ListPage,
   type NormalizedDocument,
@@ -256,7 +257,7 @@ export class FolderConnector implements Connector {
     const name = basename(f.path);
     const title = typeof meta.title === "string" ? meta.title : (titleOf(data, ext) ?? name.slice(0, -ext.length));
     const file = await this.#ctx.blobs.put(data, { mimeType, filename: name });
-    const { title: _title, approval_state, sensitivity, authority, owner, tags, ...extra } = meta;
+    const { title: _title, approval_state, sensitivity, authority, governance_level, owner, tags, ...extra } = meta;
     const doc: NormalizedDocument = {
       ref: this.#ref(f, title),
       version,
@@ -278,6 +279,7 @@ export class FolderConnector implements Connector {
     }
     if (typeof sensitivity === "string" && LABELS.has(sensitivity)) doc.sensitivity = sensitivity as SensitivityLabel;
     if (typeof authority === "number" && authority >= 0 && authority <= 1) doc.authority = authority;
+    if (isGovernanceLevel(governance_level)) doc.governance_level = governance_level;
     return doc;
   }
 

@@ -10,12 +10,21 @@
  * references ("s1"), so it can only cite spans it was given. Each table row goes with its
  * table's header row.
  *
+ * How much of a version is read depends on its governance level:
+ * - governed: every added and changed block.
+ * - reference: only the blocks that name a catalogue fact (an alias in the text, the
+ *   headings or the table header), and of their claims only those that fill a slot; the
+ *   rest are counted as unused. extractOnUse(version, blocks), for a page or an answer that
+ *   cites a passage, reads those blocks in full.
+ * - search_only: nothing.
+ *
  * A returned claim is kept when at least one quote is verbatim from its span. It is true
  * from the day its passage says it takes effect (a plan: the day it is planned for), else
  * from the version's effective_from (front matter), else from an open start. Its ID depends
  * on the prompt version, what the claim says (statement, subject, predicate, value,
  * qualifiers, type and class) and the cited spans, so extracting the same text again gives
  * the same claims, and a block edit leaves the claims of its unchanged sentences alone. A
+ * claim with a predicate gets its slot_key (subject entity, predicate and qualifiers). A
  * claim that was closed and is stated again (a value changed back, a document restored) is
  * a new occurrence with an ID from the version, so the earlier interval stays as it was. A
  * claim whose every supporting span the version removed is closed:
@@ -35,8 +44,9 @@
  * Until real models are configured, the fake provider answers through the mock in
  * mock.ts, a model_mocks plugin.
  *
- * Not yet built: entity resolution, SOPs from documents and approval mining, and the
- * artifact.dirty and comment.created subscriptions.
+ * Not yet built: entity resolution, SOPs from documents and approval mining, the
+ * artifact.dirty and comment.created subscriptions, and reading a document again when its
+ * level changes without a new version.
  */
 
 export * from "./extract.ts";

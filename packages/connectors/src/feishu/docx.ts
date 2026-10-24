@@ -19,6 +19,7 @@ import {
   contentHash,
   type DocBlock,
   type DocBlockKind,
+  isGovernanceLevel,
   type ListPage,
   type NormalizedDocument,
   type ScopeSpec,
@@ -183,7 +184,7 @@ export class FeishuDocxConnector implements Connector {
     const doc = await this.api.document(ref.external_id);
     const version = this.#version(doc);
     if (sameVersion(known, version)) return { unchanged: true };
-    const { approval_state, sensitivity, ...extra } = doc.properties ?? {};
+    const { approval_state, sensitivity, governance_level, ...extra } = doc.properties ?? {};
     const out: NormalizedDocument = {
       ref: this.#ref(doc),
       version,
@@ -204,6 +205,7 @@ export class FeishuDocxConnector implements Connector {
       out.approval_state = approval_state as ApprovalState;
     }
     if (typeof sensitivity === "string" && LABELS.has(sensitivity)) out.sensitivity = sensitivity as SensitivityLabel;
+    if (isGovernanceLevel(governance_level)) out.governance_level = governance_level;
     return out;
   }
 

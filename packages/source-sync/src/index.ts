@@ -13,6 +13,9 @@
  * did. A permission change alone writes no new version, so nothing is re-parsed or
  * re-embedded. Items gone from the listing get a tombstone version (deleted: true).
  *
+ * Each version gets its governance level: the item's (front matter, folder defaults,
+ * document properties), else the source's, else reference.
+ *
  * The stored blob is the NormalizedDocument without its ACL: blocks for structured sources,
  * a file reference for the parser router, or a process snapshot. Normalization reads it.
  * ACL entries are mapped to engine principals with the resolver the business layer provides;

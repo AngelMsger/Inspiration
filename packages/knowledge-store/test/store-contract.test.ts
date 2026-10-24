@@ -275,6 +275,75 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       await rejects(store, (tx) => tx.supersede("clm_01JC000000000000000NOSUCH", next.id, "x"), /unknown claim/);
     });
 
+    test("a fact slot reads its variants and versions", async ({ store, kb }) => {
+      const SLOT = "hotel_cap_per_night|一线城市";
+      const cap = (n: number, weight: number, start?: string) => ({
+        predicate: "hotel_cap_per_night",
+        qualifiers: ["一线城市"],
+        slot_key: SLOT,
+        value: { kind: "money" as const, number: n, unit: "CNY/night", normalized: `${n} CNY/night` },
+        weight,
+        ...(start && { valid_time: { start } }),
+      });
+      const [, archive] = await seed(store, kb, ["一线城市每晚不超过500元。"]);
+      const [, policy] = await seed(store, kb, ["一线城市每晚不超过600元。"]);
+      const [, guide] = await seed(store, kb, ["北京住宿每晚600元以内。"]);
+      const [, notice] = await seed(store, kb, ["自10月1日起一线城市每晚不超过650元。"]);
+      const [old, evOld] = kb.claim("一线城市住宿上限为每晚500元", archive[0], cap(500, 0.3));
+      await store.transaction((tx) => tx.upsertClaims([old], evOld));
+      const [p600, evP] = kb.claim("一线城市住宿上限为每晚600元", policy[0], cap(600, 0.9, "2026-01-01T00:00:00Z"));
+      const [g600, evG] = kb.claim("北京住宿上限为每晚600元", guide[0], cap(600, 0.5));
+      const [n650, evN] = kb.claim("一线城市住宿上限为每晚650元", notice[0], cap(650, 0.5, "2026-10-01T00:00:00Z"));
+      const [other, evO] = kb.claim("超标须审批", policy[0], {
+        predicate: "approval_needed",
+        slot_key: "approval_needed",
+      });
+      await store.transaction(async (tx) => {
+        await tx.upsertClaims([p600, g600, n650, other], [...evP, ...evG, ...evN, ...evO]);
+        kb.tick();
+        await tx.supersede(old.id, p600.id, "the 2026 policy");
+      });
+      const [closed] = await store.getClaims([old.id]);
+
+      const slot = await store.slot(kb.tenantId, SLOT);
+      expect(slot).toEqual({
+        tenant_id: kb.tenantId,
+        slot_key: SLOT,
+        predicate: "hotel_cap_per_night",
+        qualifiers: ["一线城市"],
+        variants: [
+          {
+            value: "600 CNY/night",
+            claim_count: 2,
+            source_version_count: 2,
+            claim_ids: [p600.id, g600.id],
+            source_version_ids: [policy[0]?.source_version_id, guide[0]?.source_version_id],
+            valid_from: "2026-01-01T00:00:00Z",
+          },
+          {
+            value: "650 CNY/night",
+            claim_count: 1,
+            source_version_count: 1,
+            claim_ids: [n650.id],
+            source_version_ids: [notice[0]?.source_version_id],
+            valid_from: "2026-10-01T00:00:00Z",
+          },
+        ],
+        versions: [
+          { value: "500 CNY/night", claim_count: 1, known_from: old.recorded_at, known_to: closed?.superseded_at },
+          {
+            value: "600 CNY/night",
+            claim_count: 2,
+            known_from: p600.recorded_at,
+            valid_from: "2026-01-01T00:00:00Z",
+          },
+          { value: "650 CNY/night", claim_count: 1, known_from: n650.recorded_at, valid_from: "2026-10-01T00:00:00Z" },
+        ],
+      });
+      expect(await store.slot(kb.tenantId, "annual_leave_days")).toBeUndefined();
+      expect(await store.slot("ten_01JC0000000000000000OTHER", SLOT)).toBeUndefined();
+    });
+
     test("claim queries filter", async ({ store, kb }) => {
       const [sv, spans] = await seed(store, kb);
       const [otherSv, otherSpans] = await seed(store, kb, ["第一条 本制度适用于全体员工。"]);

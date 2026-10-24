@@ -3,10 +3,12 @@
  * the todos they would make once collaboration merges requests by dedupe key, how many
  * todo requests each source update caused, how many values a person chooses between per
  * todo, and, for a synthesized corpus, whether the proposed value of each fact is the one
- * the synthesizer made current (its latest decision in force, else the policy's value).
+ * the synthesizer made current: its latest decision in force in a governed document, else
+ * the policy's value. A decision only reference documents record is a note for the owner,
+ * and the governed value holds.
  */
 
-import type { EventEnvelope, Priority } from "@inspiration/contracts";
+import type { EventEnvelope, GovernanceLevel, Priority } from "@inspiration/contracts";
 import { type Spread, spread, type Truth } from "./claims.ts";
 import type { Engine } from "./engine.ts";
 
@@ -33,6 +35,8 @@ export interface GovernanceTruth {
   expected: number;
   /** Facts whose latest decisions in force tie on the day with different values. */
   ambiguous: number;
+  /** Facts with a later decision in force that only reference documents record: notes, not values. */
+  notes: number;
   mismatches: { slot: string; proposed: string; expected: string[] }[];
 }
 
@@ -48,7 +52,13 @@ const sameValue = (key: string, value: string) =>
 export async function governanceReport(
   engine: Engine,
   tenantId: string,
-  run: { requests: readonly EventEnvelope[]; updates: readonly EventEnvelope[]; truth?: Truth },
+  run: {
+    requests: readonly EventEnvelope[];
+    updates: readonly EventEnvelope[];
+    truth?: Truth;
+    /** The level of each document, by its path in the corpus; absent ones count as governed. */
+    levels?: ReadonlyMap<string, GovernanceLevel>;
+  },
 ): Promise<GovernanceReport> {
   const cases = await engine.governance.conflicts(tenantId);
   const byClass: Record<string, number> = {};
@@ -87,20 +97,34 @@ export async function governanceReport(
     requests_per_update: spread(run.updates.map((u) => perUpdate.get(u.id) ?? 0)),
   };
   if (run.truth)
-    report.truth = checkProposals(run.truth, decided, engine.governance.clock().toISOString().slice(0, 10));
+    report.truth = checkProposals(
+      run.truth,
+      decided,
+      engine.governance.clock().toISOString().slice(0, 10),
+      run.levels ?? new Map(),
+    );
   return report;
 }
 
-function checkProposals(truth: Truth, decided: Map<string, string>, today: string): GovernanceTruth {
-  const check: GovernanceTruth = { slots: 0, expected: 0, ambiguous: 0, mismatches: [] };
+function checkProposals(
+  truth: Truth,
+  decided: Map<string, string>,
+  today: string,
+  levels: ReadonlyMap<string, GovernanceLevel>,
+): GovernanceTruth {
+  const check: GovernanceTruth = { slots: 0, expected: 0, ambiguous: 0, notes: 0, mismatches: [] };
+  const latestOf = (decisions: Truth["statements"]) =>
+    decisions.reduce((day, s) => ((s.from as string) > day ? (s.from as string) : day), "");
   for (const fact of truth.facts) {
     const proposed = decided.get(fact.slot);
     if (proposed === undefined) continue;
     check.slots++;
-    const decisions = truth.statements.filter(
+    const inForce = truth.statements.filter(
       (s) => s.fact === fact.key && s.stance === "decision" && s.from !== undefined && s.from <= today,
     );
-    const latest = decisions.reduce((day, s) => ((s.from as string) > day ? (s.from as string) : day), "");
+    const decisions = inForce.filter((s) => (levels.get(s.document) ?? "governed") === "governed");
+    const latest = latestOf(decisions);
+    if (latestOf(inForce) > latest) check.notes++;
     const expected = latest
       ? [...new Set(decisions.filter((s) => s.from === latest).map((s) => s.value))]
       : [fact.value];

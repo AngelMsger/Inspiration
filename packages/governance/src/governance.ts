@@ -6,6 +6,7 @@ import {
   type EventEnvelope,
   type EventHandler,
   type KnowledgeStore,
+  levelOf,
   newEvent,
   type Priority,
   type ProducerInfo,
@@ -21,6 +22,7 @@ import { logger } from "@inspiration/kernel";
 import {
   type CaseDraft,
   decide,
+  governedIn,
   groupsOf,
   type Member,
   nextChangeDay,
@@ -119,6 +121,7 @@ function memberOf(claim: Claim, version: SourceVersion | undefined): Member | un
     authority: claim.authority,
     weight: claim.weight,
     archived: RETIRED.has(version?.approval_state ?? ""),
+    ...(version && levelOf(version) !== "governed" && { reference: true as const }),
     source_version_id: version?.id ?? "",
     document: version?.title ?? version?.external_id ?? "",
   };
@@ -391,17 +394,19 @@ export class Governance {
     });
     if (changed.length) await tx.put(CONFLICTS, changed);
 
+    // Only a slot that governed documents state has an owner to ask.
     const open = (decision?.cases ?? []).filter((c) => c.status === "open");
+    const asks = decision !== undefined && open.length > 0 && governedIn(decision.proposed) > 0;
     const state = await tx.get(SLOTS, slotKey(tenantId, slot));
     const fingerprint =
-      decision && open.length
+      decision && asks
         ? contentHash(
             JSON.stringify([decision.proposed.value, open.map((c) => [c.value, c.classification, c.priority])]),
           )
         : "";
     if ((state?.requested ?? "") === fingerprint) return undefined;
     await tx.put(SLOTS, [{ tenant_id: tenantId, slot, requested: fingerprint }]);
-    if (!decision || !open.length) return undefined;
+    if (!decision || !asks) return undefined;
     const request = todoOf(decision, open, new Map(groups.map((g) => [g.value, g])));
     await tx.publish(
       newEvent("todo.requested", request, {

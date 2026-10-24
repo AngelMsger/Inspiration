@@ -63,6 +63,12 @@ $defs:
       default_authority:
         description: Authority given to versions from this source unless the connector knows better.
         $ref: "common.yaml#/$defs/Score01"
+      governance_level:
+        description: >
+          The level of the source's items unless a folder or the item sets its own. Absent:
+          reference, the level of uploads and web pages. The admin picks one when connecting a
+          wiki space.
+        $ref: "#/$defs/GovernanceLevel"
       credentials_ref:
         description: Name of a secret in the deployment's secret store. Never the secret itself.
         type: string
@@ -323,6 +329,16 @@ $defs:
       extra:
         type: object
 
+  GovernanceLevel:
+    description: >
+      How much of a source the engine governs. governed: fully extracted, and its claims get
+      owners, review clocks and conflict todos. reference: extracted only on use (a passage
+      that touches a catalogue slot, or one a page or an answer cites), with no owners, reviews
+      or todos; a value that differs from a governed one is a note, never a conflict todo.
+      search_only: never extracted, only searched.
+    type: string
+    enum: [governed, reference, search_only]
+
   ApprovalState:
     description: Whether the source marks this version as authoritative.
     type: string
@@ -472,6 +488,11 @@ $defs:
       authority:
         description: Trust in this item, when the connector knows better than the source's default.
         $ref: "common.yaml#/$defs/Score01"
+      governance_level:
+        description: >
+          The item's level, when the item or a folder above it sets one (front matter, folder
+          defaults, document properties); otherwise the source's applies.
+        $ref: "#/$defs/GovernanceLevel"
       blocks:
         type: array
         items:
@@ -589,6 +610,12 @@ $defs:
         $ref: "common.yaml#/$defs/Score01"
       sensitivity:
         $ref: "common.yaml#/$defs/SensitivityLabel"
+      governance_level:
+        description: >
+          The level this version is governed at, resolved by source sync: the item's, else the
+          source's, else reference. Versions written before levels have none and count as
+          governed.
+        $ref: "#/$defs/GovernanceLevel"
       fetched_at:
         $ref: "common.yaml#/$defs/Instant"
       previous_version_id:
