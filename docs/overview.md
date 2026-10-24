@@ -520,7 +520,7 @@ flowchart LR
 | Entity, relation | Resolved people, departments, products, suppliers; every edge backed by a statement | Planned |
 | Procedure, model | Steps, roles, conditions; formulas and decision tables whose assumptions are statements | Planned |
 | Page | PageSpec versions with sentences bound to statements; mirror pages for the Original view | Contract only |
-| Source node | The Sources tree: placement of each document in its source's hierarchy | Designed |
+| Source node | The Sources tree: the position of each document in its source's hierarchy | Designed |
 
 Rules the knowledge store enforces: a claim without supporting evidence or a derivation is
 rejected; an evidence quote must be a verbatim substring of its span; claims are never deleted;
