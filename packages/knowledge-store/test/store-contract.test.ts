@@ -62,6 +62,62 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       expect((await store.getSourceVersion(sv.id))?.title).toBe(sv.title);
     });
 
+    test("blocks give a version its structure and share unchanged spans", async ({ store, kb }) => {
+      const [v1, [s1, s2]] = kb.sourceVersion(POLICY);
+      const b1 = kb.block(v1, [s1]);
+      const b2 = kb.block(v1, [s2 as typeof s1]);
+      await store.transaction(async (tx) => {
+        await tx.putSourceVersion(v1);
+        await tx.putBlocks(
+          v1.id,
+          [b2, b1],
+          [
+            { ...s1, block_id: b1.id },
+            { ...(s2 as typeof s1), block_id: b2.id },
+          ],
+        );
+      });
+      // The second version keeps the first passage and rewrites the second.
+      const [v2, [s3]] = kb.sourceVersion(["第四条 超标住宿须经分管副总审批。"]);
+      const b1v2 = { ...kb.block(v2, [s1]), id: b1.id };
+      const b2v2 = { ...kb.block(v2, [s3], { ordinal: 1 }), id: b2.id };
+      await store.transaction(async (tx) => {
+        await tx.putSourceVersion(v2);
+        await tx.putBlocks(v2.id, [b1v2, b2v2], [{ ...s3, block_id: b2.id }]);
+      });
+      expect((await store.spansOf(v1.id)).map((s) => s.text)).toEqual(POLICY);
+      expect((await store.spansOf(v2.id)).map((s) => s.id)).toEqual([s1.id, s3.id]);
+      expect((await store.getSpans([s1.id]))[0]?.source_version_id).toBe(v1.id);
+      expect((await store.blocksOf(v1.id)).map((b) => b.id)).toEqual([b1.id, b2.id]);
+      expect(await store.blocksOf(v2.id)).toEqual([b1v2, b2v2]);
+
+      // Blocks are written once per version.
+      await store.transaction((tx) => tx.putBlocks(v2.id, [b1v2], []));
+      expect(await store.blocksOf(v2.id)).toHaveLength(2);
+    });
+
+    test("block writes are checked", async ({ store, kb }) => {
+      const [v1, [s1]] = kb.sourceVersion(POLICY);
+      await store.transaction((tx) => tx.putSourceVersion(v1));
+      const block = kb.block(v1, [s1]);
+      await rejects(store, (tx) => tx.putBlocks("sv_01JC000000000000000UNKNOWN", [], []), /unknown source version/);
+      await rejects(store, (tx) => tx.putBlocks(v1.id, [block], []), /lists unknown spans/);
+      await rejects(store, (tx) => tx.putBlocks(v1.id, [block, block], [s1]), /appears twice/);
+      await rejects(
+        store,
+        (tx) => tx.putBlocks(v1.id, [{ ...block, text: "changed" }], [s1]),
+        /text_hash does not match/,
+      );
+      await rejects(
+        store,
+        (tx) => tx.putBlocks(v1.id, [block], [{ ...s1, block_id: "blk_01JC000000000000000UNKNOWN" }]),
+        /not in sv_/,
+      );
+      const [other] = kb.sourceVersion(POLICY);
+      await rejects(store, (tx) => tx.putBlocks(v1.id, [kb.block(other, [])], []), /belongs to/);
+      expect(await store.blocksOf(v1.id)).toEqual([]);
+    });
+
     test("the latest source version follows fetch time", async ({ store, kb }) => {
       const [v1] = await seed(store, kb);
       const [v2, spans2] = kb.sourceVersion(["第三条 住宿标准：一线城市每晚不超过650元。"]);

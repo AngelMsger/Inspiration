@@ -1,0 +1,100 @@
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
+import { describe, expect, test } from "vitest";
+import { Corpus, Engine, ingest } from "../src/index.ts";
+
+const CORPUS = new URL("../../../examples/corpus/", import.meta.url).pathname;
+const FINANCE = "grp_01QINGHE00000000000FINANCE";
+
+interface Run {
+  engine: Engine;
+  corpus: Corpus;
+  dir: string;
+}
+
+/** A copy of the demo corpus, so a test can edit it, and an engine over the given backend. */
+async function open(stack?: { databaseUrl: string; streamPrefix: string }): Promise<Run & { close(): Promise<void> }> {
+  const dir = await mkdtemp(join(tmpdir(), "inspiration-engine-"));
+  await cp(CORPUS, join(dir, "corpus"), { recursive: true });
+  const corpus = await Corpus.load(join(dir, "corpus"));
+  const engine = await Engine.open({
+    blobDir: join(dir, "blobs"),
+    resolvePrincipal: corpus.resolvePrincipal,
+    ...(stack && { databaseUrl: stack.databaseUrl, valkeyUrl: VALKEY_URL, streamPrefix: stack.streamPrefix }),
+  });
+  return {
+    engine,
+    corpus,
+    dir: join(dir, "corpus"),
+    close: async () => {
+      await engine.close();
+      await rm(dir, { recursive: true, force: true });
+    },
+  };
+}
+
+async function scenario({ engine, corpus, dir }: Run): Promise<void> {
+  const first = await ingest(engine, corpus);
+  expect(first.documents).toMatchObject({ total: 19, by_status: { parsed: 17, structured: 2 } });
+  expect(first.documents.by_parser).toEqual({ markdown: 14, html: 1, csv: 1, text: 1 });
+  expect(first.documents.by_governance).toMatchObject({ policy: 10, guideline: 3, reference: 3, note: 2, process: 1 });
+  expect(first.events).toEqual({ "document.fetched": 19, "acl.changed": 19, "blocks.changed": 19 });
+  expect(first.dead_letters).toBe(0);
+  expect(first.acl.unmapped).toEqual([]);
+  // The forwarded copy is exact; the 2023 edition is near both the policy and its copy.
+  expect(first.duplicates.map((d) => [d.document, d.duplicate_of, d.exact]).sort()).toEqual([
+    ["制度库/财务/差旅费管理办法.md", "制度库/人事/转发-差旅费管理办法.md", true],
+    ["归档/差旅费管理办法（2023 版）.md", "制度库/人事/转发-差旅费管理办法.md", false],
+    ["归档/差旅费管理办法（2023 版）.md", "制度库/财务/差旅费管理办法.md", false],
+  ]);
+  expect(first.blocks.by_kind).toMatchObject({ table: 9, form_field: 4 });
+
+  // The finance-only folder keeps its group, mapped through the directory.
+  const [budget] = (await engine.sync.items(corpus.sources[0]?.id as string)).filter((i) =>
+    i.external_id.startsWith("财务/内部/"),
+  );
+  const version = await engine.store.getSourceVersion(budget?.source_version_id as string);
+  expect(version?.sensitivity).toBe("confidential");
+  const acl = await engine.store.getAclSnapshot(
+    version?.source_id as string,
+    version?.external_id as string,
+    version?.version.acl_hash as string,
+  );
+  expect(acl?.entries.filter((e) => e.role === "viewer").map((e) => e.principal_id)).toEqual([FINANCE]);
+
+  // Nothing changed: the second run fetches and normalizes nothing.
+  const again = await ingest(engine, corpus);
+  expect(again.events).toEqual({});
+  expect(again.sources.every((s) => s.outcomes.unchanged === s.items)).toBe(true);
+
+  // An edit to one article is one changed block downstream.
+  const path = join(dir, "制度库", "财务", "差旅费管理办法.md");
+  await writeFile(path, (await readFile(path, "utf8")).replace("每晚限额（元） |", "每晚限额（元，含税） |"));
+  const edited = await ingest(engine, corpus);
+  expect(edited.events).toEqual({ "document.fetched": 1, "blocks.changed": 1 });
+}
+
+describe("ingesting the demo corpus", () => {
+  test("in memory", async () => {
+    const run = await open();
+    try {
+      await scenario(run);
+    } finally {
+      await run.close();
+    }
+  });
+
+  describe.skipIf(!hasStack())("on the stack", () => {
+    stackTest("Postgres with the outbox relayed to Valkey Streams", async ({ databaseUrl, streamPrefix, valkey }) => {
+      expect(valkey).toBeDefined(); // removes this run's stream keys afterwards
+      const run = await open({ databaseUrl, streamPrefix });
+      try {
+        await scenario(run);
+      } finally {
+        await run.close();
+      }
+    });
+  });
+});

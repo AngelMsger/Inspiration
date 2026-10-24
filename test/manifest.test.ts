@@ -29,13 +29,15 @@ const ROOT = new URL("../", import.meta.url);
 const manifest = parse(readFileSync(new URL("components.yaml", ROOT), "utf8")) as {
   components: Record<string, Component>;
   libraries: Record<string, { owns: string }>;
+  apps: Record<string, { owns: string }>;
 };
 const components = Object.entries(manifest.components);
 const names = new Set(Object.keys(manifest.components));
 const libraries = new Set(Object.keys(manifest.libraries));
+const apps = new Set(Object.keys(manifest.apps));
 
-function packageJson(name: string): PackageJson | undefined {
-  const path = new URL(`packages/${name}/package.json`, ROOT);
+function packageJson(name: string, dir = "packages"): PackageJson | undefined {
+  const path = new URL(`${dir}/${name}/package.json`, ROOT);
   return existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as PackageJson) : undefined;
 }
 
@@ -103,6 +105,19 @@ test("every workspace package is a component or a library", () => {
   expect(packages.filter((p) => !names.has(p) && !libraries.has(p))).toEqual([]);
   const built = components.filter(([, c]) => c.status === "built").map(([n]) => n);
   expect(packages.filter((p) => names.has(p)).sort()).toEqual(built.sort());
+});
+
+test("every app is listed, and no package depends on an app", () => {
+  const found = readdirSync(new URL("apps/", ROOT)).filter((d) => packageJson(d, "apps"));
+  expect(found.sort()).toEqual([...apps].sort());
+  for (const name of apps) {
+    expect(packageJson(name, "apps")?.name).toBe(`@inspiration/${name}`);
+    expect(names.has(name) || libraries.has(name)).toBe(false);
+  }
+  const packages = readdirSync(new URL("packages/", ROOT)).filter((d) => packageJson(d));
+  for (const name of packages) {
+    expect(internalDependencies(packageJson(name) as PackageJson).filter((d) => apps.has(d))).toEqual([]);
+  }
 });
 
 test("the event table in docs/contracts.md matches the manifest", () => {

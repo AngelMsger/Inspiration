@@ -1,6 +1,7 @@
 /** Identifier and hash helpers shared by every component. */
 
 import { createHash, getRandomValues } from "node:crypto";
+import type { Version } from "./generated.ts";
 
 /** Prefix of every ID kind, as used in schema/common.yaml. */
 export const PREFIXES = {
@@ -8,6 +9,7 @@ export const PREFIXES = {
   space: "spc",
   source: "src",
   source_version: "sv",
+  source_block: "blk",
   span: "spn",
   chunk: "chk",
   claim: "clm",
@@ -80,4 +82,16 @@ export function contentHash(data: string | Uint8Array): string {
 /** Order-sensitive hash of other hashes and version strings (for inputs_hash). */
 export function combineHashes(...parts: string[]): string {
   return contentHash(parts.join("\x1f"));
+}
+
+/**
+ * Whether two versions of a source item are the same: equal content, metadata and ACL
+ * hashes, or, when either side has no content hash, an equal source revision.
+ */
+export function sameVersion(a: Version | undefined, b: Version | undefined): boolean {
+  if (!a || !b) return false;
+  if (a.content_hash && b.content_hash) {
+    return a.content_hash === b.content_hash && a.metadata_hash === b.metadata_hash && a.acl_hash === b.acl_hash;
+  }
+  return a.external_version !== undefined && a.external_version === b.external_version;
 }

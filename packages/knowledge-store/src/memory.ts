@@ -15,6 +15,7 @@ import type {
   EventPublisher,
   PageSnapshot,
   PageVersionInfo,
+  SourceBlock,
   SourceVersion,
   Span,
   StoreTx,
@@ -34,6 +35,8 @@ const latest = (a: string, b: string) => Date.parse(a) - Date.parse(b);
 
 class State {
   versions = new Map<string, SourceVersion>();
+  /** By source version, in reading order. */
+  blocks = new Map<string, readonly SourceBlock[]>();
   spans = new Map<string, Span>();
   chunks = new Map<string, Chunk>();
   embeddings = new Map<string, Embedding>();
@@ -76,11 +79,20 @@ export class MemoryTx implements StoreTx {
     return this.#s;
   }
 
-  async putSourceVersion(version: SourceVersion, spans: readonly Span[]): Promise<void> {
+  async putSourceVersion(version: SourceVersion, spans: readonly Span[] = []): Promise<void> {
     const s = this.#state();
     rules.checkSourceVersion(version, spans);
     if (!s.versions.has(version.id)) s.versions.set(version.id, structuredClone(version));
     for (const sp of spans) if (!s.spans.has(sp.id)) s.spans.set(sp.id, structuredClone(sp));
+  }
+
+  async putBlocks(sourceVersionId: string, blocks: readonly SourceBlock[], spans: readonly Span[]): Promise<void> {
+    const s = this.#state();
+    const listed = blocks.flatMap((b) => b.span_ids).filter((id) => s.spans.has(id));
+    rules.checkBlocks(s.versions.get(sourceVersionId), sourceVersionId, blocks, spans, new Set(listed));
+    if (s.blocks.has(sourceVersionId)) return;
+    for (const sp of spans) if (!s.spans.has(sp.id)) s.spans.set(sp.id, structuredClone(sp));
+    s.blocks.set(sourceVersionId, structuredClone([...blocks].sort((a, b) => a.ordinal - b.ordinal)));
   }
 
   async putChunks(
@@ -254,8 +266,18 @@ export class MemoryStore extends BaseStore {
   }
 
   async spansOf(sourceVersionId: string): Promise<Span[]> {
+    const blocks = this.#state.blocks.get(sourceVersionId);
+    if (blocks)
+      return pick(
+        this.#state.spans,
+        blocks.flatMap((b) => b.span_ids),
+      );
     const spans = [...this.#state.spans.values()].filter((s) => s.source_version_id === sourceVersionId);
     return structuredClone(spans.sort((a, b) => a.ordinal - b.ordinal));
+  }
+
+  async blocksOf(sourceVersionId: string): Promise<SourceBlock[]> {
+    return structuredClone([...(this.#state.blocks.get(sourceVersionId) ?? [])]);
   }
 
   async getChunks(chunkIds: readonly string[]): Promise<Chunk[]> {

@@ -23,6 +23,10 @@ $defs:
   SourceVersionId:
     type: string
     pattern: "^sv_[0-9A-Za-z]{8,64}$"
+  SourceBlockId:
+    description: A block of a source document (not a page block, which has a BlockKey).
+    type: string
+    pattern: "^blk_[0-9A-Za-z]{8,64}$"
   SpanId:
     type: string
     pattern: "^spn_[0-9A-Za-z]{8,64}$"
@@ -87,7 +91,7 @@ $defs:
       Any addressable knowledge unit. Used wherever a field can point at several kinds,
       such as lineage, freshness dependencies, todos and search hits.
     type: string
-    pattern: "^(src|sv|spn|chk|clm|ent|rel|sop|kmd|pg|cmt|ovr|prp|todo|cfl|view)_[0-9A-Za-z]{8,64}$"
+    pattern: "^(src|sv|blk|spn|chk|clm|ent|rel|sop|kmd|pg|cmt|ovr|prp|todo|cfl|view)_[0-9A-Za-z]{8,64}$"
   PrincipalId:
     description: >
       A canonical principal. usr = person, grp = group, dep = department,

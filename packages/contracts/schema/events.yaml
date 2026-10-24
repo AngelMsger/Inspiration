@@ -19,8 +19,8 @@ x-events:
   acl.changed:
     payload: AclChanged
     version: 1
-  chunks.updated:
-    payload: ChunksUpdated
+  blocks.changed:
+    payload: BlocksChanged
     version: 1
   claims.updated:
     payload: ClaimsUpdated
@@ -146,30 +146,87 @@ $defs:
       snapshot:
         $ref: "authz.yaml#/$defs/AclSnapshot"
 
-  ChunksUpdated:
+  BlocksChanged:
+    description: >
+      Normalization stored a version's blocks and spans. Block and span IDs are stable across
+      versions, so consumers redo only what changed: added and changed blocks hold the new
+      text, and claims citing removed spans have lost that evidence. A deleted document has
+      every block removed.
     type: object
-    required: [source_version_id, added_chunk_ids, removed_chunk_ids, changed_span_ids]
+    required:
+      - source_id
+      - source_version_id
+      - added_block_ids
+      - changed_block_ids
+      - removed_block_ids
+      - added_span_ids
+      - removed_span_ids
     properties:
+      source_id:
+        $ref: "common.yaml#/$defs/SourceId"
       source_version_id:
         $ref: "common.yaml#/$defs/SourceVersionId"
       previous_version_id:
         $ref: "common.yaml#/$defs/SourceVersionId"
-      added_chunk_ids:
+      added_block_ids:
         type: array
         items:
-          $ref: "common.yaml#/$defs/ChunkId"
-      removed_chunk_ids:
+          $ref: "common.yaml#/$defs/SourceBlockId"
+      changed_block_ids:
+        description: >
+          Blocks that kept their ID but whose text, kind or heading path changed. A block under
+          a renamed heading is changed although its text and spans are not, since what it says
+          depends on the headings above it.
         type: array
         items:
-          $ref: "common.yaml#/$defs/ChunkId"
-      unchanged_chunk_count:
+          $ref: "common.yaml#/$defs/SourceBlockId"
+      removed_block_ids:
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/SourceBlockId"
+      unchanged_block_count:
         type: integer
         minimum: 0
-      changed_span_ids:
-        description: Spans whose text changed. Unchanged spans keep their IDs across versions.
+      added_span_ids:
+        description: Spans this version introduced.
         type: array
         items:
           $ref: "common.yaml#/$defs/SpanId"
+      removed_span_ids:
+        description: Spans of the previous version that this version no longer contains.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/SpanId"
+      deleted:
+        type: boolean
+      duplicates:
+        description: Other current documents of the tenant with the same or nearly the same text.
+        type: array
+        items:
+          $ref: "#/$defs/DuplicateDocument"
+
+  DuplicateDocument:
+    description: >
+      A document whose normalized text (without whitespace, punctuation or case) equals this
+      one's, or that shares most of its sentences: a copy, a re-export, an older edition kept
+      in an archive. Governance decides which one is authoritative.
+    type: object
+    required: [source_id, external_id, source_version_id, exact, similarity]
+    properties:
+      source_id:
+        $ref: "common.yaml#/$defs/SourceId"
+      external_id:
+        type: string
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      exact:
+        description: True when the normalized texts are equal.
+        type: boolean
+      similarity:
+        description: >
+          Share of the two documents' text that sits in sentences both contain, weighted by
+          length: 1 for equal texts, about 0.9 for an edition with a few changed figures.
+        $ref: "common.yaml#/$defs/Score01"
 
   ClaimsUpdated:
     type: object

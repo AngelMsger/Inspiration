@@ -16,8 +16,8 @@
       "payload": "AclChanged",
       "version": 1
     },
-    "chunks.updated": {
-      "payload": "ChunksUpdated",
+    "blocks.changed": {
+      "payload": "BlocksChanged",
       "version": 1
     },
     "claims.updated": {
@@ -112,6 +112,7 @@
       "SpaceId",
       "SourceId",
       "SourceVersionId",
+      "SourceBlockId",
       "SpanId",
       "ChunkId",
       "ClaimId",
@@ -155,7 +156,8 @@
       "ChangedParts",
       "DocumentFetched",
       "AclChanged",
-      "ChunksUpdated",
+      "BlocksChanged",
+      "DuplicateDocument",
       "ClaimsUpdated",
       "CostEstimate",
       "ArtifactDirty",
@@ -371,6 +373,7 @@
       "SourceVersion",
       "SpanKind",
       "SpanLocator",
+      "SourceBlock",
       "Span",
       "Chunk"
     ]
@@ -1298,6 +1301,77 @@
         "human"
       ]
     },
+    "BlocksChanged": {
+      "description": "Normalization stored a version's blocks and spans. Block and span IDs are stable across versions, so consumers redo only what changed: added and changed blocks hold the new text, and claims citing removed spans have lost that evidence. A deleted document has every block removed.\n",
+      "type": "object",
+      "required": [
+        "source_id",
+        "source_version_id",
+        "added_block_ids",
+        "changed_block_ids",
+        "removed_block_ids",
+        "added_span_ids",
+        "removed_span_ids"
+      ],
+      "properties": {
+        "source_id": {
+          "$ref": "#/$defs/SourceId"
+        },
+        "source_version_id": {
+          "$ref": "#/$defs/SourceVersionId"
+        },
+        "previous_version_id": {
+          "$ref": "#/$defs/SourceVersionId"
+        },
+        "added_block_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceBlockId"
+          }
+        },
+        "changed_block_ids": {
+          "description": "Blocks that kept their ID but whose text, kind or heading path changed. A block under a renamed heading is changed although its text and spans are not, since what it says depends on the headings above it.\n",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceBlockId"
+          }
+        },
+        "removed_block_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceBlockId"
+          }
+        },
+        "unchanged_block_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "added_span_ids": {
+          "description": "Spans this version introduced.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpanId"
+          }
+        },
+        "removed_span_ids": {
+          "description": "Spans of the previous version that this version no longer contains.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpanId"
+          }
+        },
+        "deleted": {
+          "type": "boolean"
+        },
+        "duplicates": {
+          "description": "Other current documents of the tenant with the same or nearly the same text.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DuplicateDocument"
+          }
+        }
+      }
+    },
     "BudgetPeriod": {
       "type": "string",
       "enum": [
@@ -1775,46 +1849,6 @@
     "ChunkId": {
       "type": "string",
       "pattern": "^chk_[0-9A-Za-z]{8,64}$"
-    },
-    "ChunksUpdated": {
-      "type": "object",
-      "required": [
-        "source_version_id",
-        "added_chunk_ids",
-        "removed_chunk_ids",
-        "changed_span_ids"
-      ],
-      "properties": {
-        "source_version_id": {
-          "$ref": "#/$defs/SourceVersionId"
-        },
-        "previous_version_id": {
-          "$ref": "#/$defs/SourceVersionId"
-        },
-        "added_chunk_ids": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/ChunkId"
-          }
-        },
-        "removed_chunk_ids": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/ChunkId"
-          }
-        },
-        "unchanged_chunk_count": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "changed_span_ids": {
-          "description": "Spans whose text changed. Unchanged spans keep their IDs across versions.",
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/SpanId"
-          }
-        }
-      }
     },
     "Citation": {
       "description": "A readable source passage. Sources the viewer cannot read are never cited.",
@@ -3193,6 +3227,36 @@
         }
       }
     },
+    "DuplicateDocument": {
+      "description": "A document whose normalized text (without whitespace, punctuation or case) equals this one's, or that shares most of its sentences: a copy, a re-export, an older edition kept in an archive. Governance decides which one is authoritative.\n",
+      "type": "object",
+      "required": [
+        "source_id",
+        "external_id",
+        "source_version_id",
+        "exact",
+        "similarity"
+      ],
+      "properties": {
+        "source_id": {
+          "$ref": "#/$defs/SourceId"
+        },
+        "external_id": {
+          "type": "string"
+        },
+        "source_version_id": {
+          "$ref": "#/$defs/SourceVersionId"
+        },
+        "exact": {
+          "description": "True when the normalized texts are equal.",
+          "type": "boolean"
+        },
+        "similarity": {
+          "description": "Share of the two documents' text that sits in sentences both contain, weighted by length: 1 for equal texts, about 0.9 for an edition with a few changed figures.\n",
+          "$ref": "#/$defs/Score01"
+        }
+      }
+    },
     "Duration": {
       "description": "ISO 8601 duration, for example \"P30D\" or \"PT15M\".",
       "type": "string",
@@ -4304,7 +4368,7 @@
       }
     },
     "NormalizedDocument": {
-      "description": "What Connector.fetch returns. Exactly one of blocks, file or process is normally set. When only file is set, indexing hands it to the parser router (parsing).\n",
+      "description": "What Connector.fetch returns. Exactly one of blocks, file or process is normally set. When only file is set, normalization hands it to the parser router.\n",
       "type": "object",
       "required": [
         "ref",
@@ -4330,6 +4394,14 @@
         },
         "approval_state": {
           "$ref": "#/$defs/ApprovalState"
+        },
+        "sensitivity": {
+          "description": "The item's own label, when the source has one; otherwise the source's default applies.",
+          "$ref": "#/$defs/SensitivityLabel"
+        },
+        "authority": {
+          "description": "Trust in this item, when the connector knows better than the source's default.",
+          "$ref": "#/$defs/Score01"
         },
         "blocks": {
           "type": "array",
@@ -6166,6 +6238,87 @@
         }
       }
     },
+    "SourceBlock": {
+      "description": "One structural block (heading, paragraph, list item, table, ...) of one source version, written by normalization. The id is stable across versions: the source's native block ID where it has one (Feishu block_id, Confluence localId), otherwise derived from the document, the heading path and the text, so a block diff follows the source's own structure. A block that keeps its id but changes its text is a changed block. Spans are the citable passages inside a block; claims cite spans, never blocks.\n",
+      "type": "object",
+      "required": [
+        "id",
+        "tenant_id",
+        "source_version_id",
+        "kind",
+        "anchor",
+        "text",
+        "text_hash",
+        "ordinal",
+        "span_ids"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/SourceBlockId"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        },
+        "source_version_id": {
+          "$ref": "#/$defs/SourceVersionId"
+        },
+        "parent_id": {
+          "description": "The enclosing block (a table for its rows, a list for its items), if any.",
+          "$ref": "#/$defs/SourceBlockId"
+        },
+        "kind": {
+          "$ref": "#/$defs/DocBlockKind"
+        },
+        "anchor": {
+          "description": "Where the block is in the source, as the connector or parser gave it.",
+          "type": "string"
+        },
+        "level": {
+          "description": "Heading level or list depth.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9
+        },
+        "heading_path": {
+          "description": "Titles of the headings above the block, outermost first.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "text": {
+          "description": "The block's own text (a table's cells joined by tabs and newlines).",
+          "type": "string"
+        },
+        "text_hash": {
+          "$ref": "#/$defs/ContentHash"
+        },
+        "ordinal": {
+          "description": "Position in reading order within the version.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "page": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "span_ids": {
+          "description": "The block's spans in reading order. A heading or an empty block may have none.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpanId"
+          }
+        },
+        "attrs": {
+          "type": "object"
+        }
+      }
+    },
+    "SourceBlockId": {
+      "description": "A block of a source document (not a page block, which has a BlockKey).",
+      "type": "string",
+      "pattern": "^blk_[0-9A-Za-z]{8,64}$"
+    },
     "SourceChanged": {
       "type": "object",
       "required": [
@@ -6376,7 +6529,7 @@
       ]
     },
     "Span": {
-      "description": "An exact passage, table cell or form field. Every claim points to spans.",
+      "description": "An exact passage, table cell or form field. Every claim points to spans. A span's ID depends only on its block and text, so a span that did not change keeps its ID in later versions of the document; it is stored once, with the version that introduced it.\n",
       "type": "object",
       "required": [
         "id",
@@ -6395,7 +6548,11 @@
           "$ref": "#/$defs/TenantId"
         },
         "source_version_id": {
+          "description": "The version that first contained the span.",
           "$ref": "#/$defs/SourceVersionId"
+        },
+        "block_id": {
+          "$ref": "#/$defs/SourceBlockId"
         },
         "locator": {
           "$ref": "#/$defs/SpanLocator"
@@ -6407,7 +6564,7 @@
           "$ref": "#/$defs/ContentHash"
         },
         "ordinal": {
-          "description": "Position in reading order within the version.",
+          "description": "Position in reading order within the version that introduced it.",
           "type": "integer",
           "minimum": 0
         }
@@ -6961,7 +7118,7 @@
     "UnitId": {
       "description": "Any addressable knowledge unit. Used wherever a field can point at several kinds, such as lineage, freshness dependencies, todos and search hits.\n",
       "type": "string",
-      "pattern": "^(src|sv|spn|chk|clm|ent|rel|sop|kmd|pg|cmt|ovr|prp|todo|cfl|view)_[0-9A-Za-z]{8,64}$"
+      "pattern": "^(src|sv|blk|spn|chk|clm|ent|rel|sop|kmd|pg|cmt|ovr|prp|todo|cfl|view)_[0-9A-Za-z]{8,64}$"
     },
     "UnitPublished": {
       "type": "object",

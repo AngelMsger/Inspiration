@@ -1,0 +1,26 @@
+{
+  "name": "@inspiration/connectors",
+  "version": "0.1.0",
+  "description": "Connectors: local folders, Feishu documents and Feishu approvals",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "inspiration": {
+    "plugins": {
+      "connectors": {
+        "folder": "./src/folder.ts#folderConnector",
+        "feishu.docx": "./src/feishu/docx.ts#feishuDocxConnector",
+        "feishu.approval": "./src/feishu/approval.ts#feishuApprovalConnector"
+      }
+    }
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@inspiration/kernel": "workspace:*"
+  }
+}

@@ -1,0 +1,273 @@
+{
+  "meta": {
+    "document_id": "doxcnTravelFaq",
+    "revision_id": 41,
+    "title": "差旅报销答疑",
+    "modified_at": "2026-10-08T09:30:00Z",
+    "path": ["财务部", "报销"],
+    "owner_id": "ou_wang_wei"
+  },
+  "blocks": [
+    {
+      "block_id": "doxFaqPage",
+      "block_type": 1,
+      "page": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "差旅报销答疑"
+            }
+          }
+        ]
+      },
+      "children": ["doxFaqH1", "doxFaqP1", "doxFaqH2", "doxFaqP2", "doxFaqT1", "doxFaqH3", "doxFaqL1", "doxFaqL2"]
+    },
+    {
+      "block_id": "doxFaqH1",
+      "block_type": 3,
+      "parent_id": "doxFaqPage",
+      "heading1": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "住宿标准"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "block_id": "doxFaqP1",
+      "block_type": 2,
+      "parent_id": "doxFaqPage",
+      "text": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "一线城市每晚 650 元，自 2026 年 10 月 1 日起执行；新一线城市每晚 450 元；其他城市每晚 350 元。"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "block_id": "doxFaqH2",
+      "block_type": 3,
+      "parent_id": "doxFaqPage",
+      "heading1": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "伙食补助"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "block_id": "doxFaqP2",
+      "block_type": 2,
+      "parent_id": "doxFaqPage",
+      "text": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "伙食补助每天 100 元，不需要发票。会议统一安排用餐的当天不发。"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "block_id": "doxFaqT1",
+      "block_type": 31,
+      "parent_id": "doxFaqPage",
+      "table": {
+        "cells": ["doxC1", "doxC2", "doxC3", "doxC4", "doxC5", "doxC6"],
+        "property": {
+          "row_size": 3,
+          "column_size": 2
+        }
+      }
+    },
+    {
+      "block_id": "doxC1",
+      "block_type": 32,
+      "parent_id": "doxFaqT1",
+      "children": ["doxC1t"]
+    },
+    {
+      "block_id": "doxC1t",
+      "block_type": 2,
+      "parent_id": "doxC1",
+      "text": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "报销金额"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "block_id": "doxC2",
+      "block_type": 32,
+      "parent_id": "doxFaqT1",
+      "children": ["doxC2t"]
+    },
+    {
+      "block_id": "doxC2t",
+      "block_type": 2,
+      "parent_id": "doxC2",
+      "text": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "审批人"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "block_id": "doxC3",
+      "block_type": 32,
+      "parent_id": "doxFaqT1",
+      "children": ["doxC3t"]
+    },
+    {
+      "block_id": "doxC3t",
+      "block_type": 2,
+      "parent_id": "doxC3",
+      "text": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "5000 元以下"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "block_id": "doxC4",
+      "block_type": 32,
+      "parent_id": "doxFaqT1",
+      "children": ["doxC4t"]
+    },
+    {
+      "block_id": "doxC4t",
+      "block_type": 2,
+      "parent_id": "doxC4",
+      "text": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "部门负责人"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "block_id": "doxC5",
+      "block_type": 32,
+      "parent_id": "doxFaqT1",
+      "children": ["doxC5t"]
+    },
+    {
+      "block_id": "doxC5t",
+      "block_type": 2,
+      "parent_id": "doxC5",
+      "text": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "5000 元及以上"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "block_id": "doxC6",
+      "block_type": 32,
+      "parent_id": "doxFaqT1",
+      "children": ["doxC6t"]
+    },
+    {
+      "block_id": "doxC6t",
+      "block_type": 2,
+      "parent_id": "doxC6",
+      "text": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "部门负责人、财务总监"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "block_id": "doxFaqH3",
+      "block_type": 3,
+      "parent_id": "doxFaqPage",
+      "heading1": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "报销步骤"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "block_id": "doxFaqL1",
+      "block_type": 13,
+      "parent_id": "doxFaqPage",
+      "ordered": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "在费控系统中新建差旅报销单，关联出差申请。"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "block_id": "doxFaqL2",
+      "block_type": 13,
+      "parent_id": "doxFaqPage",
+      "ordered": {
+        "elements": [
+          {
+            "text_run": {
+              "content": "上传发票和行程单，提交后等待审批。"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "members": [
+    {
+      "member_type": "opendepartmentid",
+      "member_id": "od_finance",
+      "perm": "edit"
+    },
+    {
+      "member_type": "openid",
+      "member_id": "ou_wang_wei",
+      "perm": "full_access"
+    }
+  ],
+  "link_share_entity": "tenant_readable",
+  "properties": {
+    "governance": "guideline",
+    "approval_state": "approved"
+  }
+}

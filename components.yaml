@@ -22,10 +22,10 @@ components:
   connectors:
     title: Connector SDK and connectors
     layer: ingest
-    status: planned
+    status: built
     runtime: node
     owns: Source auth, enumeration, fetch, ACL read, webhooks; Feishu docs, wiki, approval and upload connectors; registered queries for QueryData
-    plugins: [connectors, data_providers]
+    plugins: [connectors]
     publishes: [source.changed]
     subscribes: []
     calls: [blobs]
@@ -33,10 +33,10 @@ components:
   source-sync:
     title: Source sync
     layer: ingest
-    status: planned
+    status: built
     runtime: node
     owns: Cursors, 15-minute polls, nightly reconcile, rate budgets, subscription upkeep, debounce; stores source versions and ACL snapshots
-    plugins: []
+    plugins: [migrations]
     publishes: [source.changed, document.fetched, acl.changed]
     subscribes: [source.changed]
     calls: [knowledge-store, blobs]
@@ -46,20 +46,20 @@ components:
     layer: ingest
     status: planned
     runtime: python
-    owns: Stateless Office, PDF, scan and Excel parsing into normalized blocks with anchors, behind an HTTP contract; called by indexing, subscribes to nothing
+    owns: Stateless Office, PDF, scan and Excel parsing into normalized blocks with anchors, behind an HTTP contract; called by normalization, subscribes to nothing
     plugins: [parsers]
     publishes: []
     subscribes: []
     calls: [model-gateway, blobs]
 
-  indexing:
-    title: Normalizer and indexer
+  normalization:
+    title: Normalization
     layer: ingest
-    status: planned
+    status: built
     runtime: node
-    owns: Canonical hashing, block diff, dedup and version chains, chunking, contextual headers, embeddings, chunk ACL tokens
-    plugins: []
-    publishes: [chunks.updated]
+    owns: Parser routing (built-in text parsers, the parsing worker for Office, PDF and scans), canonical blocks and spans with stable IDs, block diff against the previous version, duplicate documents
+    plugins: [parsers, migrations]
+    publishes: [blocks.changed]
     subscribes: [document.fetched]
     calls: [knowledge-store, model-gateway, parsing, blobs]
 
@@ -71,7 +71,7 @@ components:
     owns: Claims with evidence, entity resolution, SOPs from documents and approval mining, knowledge models
     plugins: [extractors]
     publishes: [claims.updated]
-    subscribes: [chunks.updated, artifact.dirty, comment.created]
+    subscribes: [blocks.changed, artifact.dirty, comment.created]
     calls: [knowledge-store, model-gateway]
 
   freshness:
@@ -82,7 +82,7 @@ components:
     owns: Dependency graph, dirty marking with early cutoff, staleness scores, TTL and assumption schedulers
     plugins: []
     publishes: [artifact.dirty, review.due, todo.created]
-    subscribes: [chunks.updated, claims.updated]
+    subscribes: [blocks.changed, claims.updated]
     calls: [knowledge-store]
 
   governance:
@@ -137,7 +137,7 @@ components:
     owns: Hybrid search, RRF, rerank, ACL pre-filter and post-check, FAQ precompute, semantic cache
     plugins: []
     publishes: []
-    subscribes: [acl.changed, chunks.updated, claims.updated, artifact.dirty, page.rendered, unit.published]
+    subscribes: [acl.changed, blocks.changed, claims.updated, artifact.dirty, page.rendered, unit.published]
     calls: [knowledge-store, access-control, model-gateway]
 
   agent-api:
@@ -227,3 +227,10 @@ libraries:
     owns: Postgres outbox, relay to Valkey Streams, consumer groups with retries and dead letters, in-memory bus for tests
   testkit:
     owns: Test fixtures for the compose stack (a migrated database per test, Valkey prefixes, SpiceDB settings); test code only
+
+# Composition roots: deployable processes that wire components to the store, the bus and
+# the blob store (apps/<name>, published as @inspiration/<name>). An app may depend on any
+# component or library; no package depends on an app.
+apps:
+  engine:
+    owns: The engine process and its CLI; corpus manifests, ingest runs and volume reports

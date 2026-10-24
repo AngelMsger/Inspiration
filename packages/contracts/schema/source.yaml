@@ -2,8 +2,8 @@ $schema: https://json-schema.org/draft/2020-12/schema
 $id: source.yaml
 title: Sources and ingestion
 description: >
-  Types used by the ingest plane: connectors, source sync, parsing and indexing. A source change never carries content; it tells the
-  orchestrator to fetch.
+  Types used by the ingest plane: connectors, source sync, parsing and normalization. A source change never carries content; it
+  tells source sync to fetch.
 
 $defs:
   SourceStatus:
@@ -450,7 +450,7 @@ $defs:
   NormalizedDocument:
     description: >
       What Connector.fetch returns. Exactly one of blocks, file or process is normally
-      set. When only file is set, indexing hands it to the parser router (parsing).
+      set. When only file is set, normalization hands it to the parser router.
     type: object
     required: [ref, version, title, mime_type]
     properties:
@@ -466,6 +466,12 @@ $defs:
         $ref: "common.yaml#/$defs/Locale"
       approval_state:
         $ref: "#/$defs/ApprovalState"
+      sensitivity:
+        description: The item's own label, when the source has one; otherwise the source's default applies.
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      authority:
+        description: Trust in this item, when the connector knows better than the source's default.
+        $ref: "common.yaml#/$defs/Score01"
       blocks:
         type: array
         items:
@@ -631,8 +637,66 @@ $defs:
         minItems: 4
         maxItems: 4
 
+  SourceBlock:
+    description: >
+      One structural block (heading, paragraph, list item, table, ...) of one source version,
+      written by normalization. The id is stable across versions: the source's native block
+      ID where it has one (Feishu block_id, Confluence localId), otherwise derived from the
+      document, the heading path and the text, so a block diff follows the source's own
+      structure. A block that keeps its id but changes its text is a changed block. Spans are
+      the citable passages inside a block; claims cite spans, never blocks.
+    type: object
+    required: [id, tenant_id, source_version_id, kind, anchor, text, text_hash, ordinal, span_ids]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/SourceBlockId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      parent_id:
+        description: The enclosing block (a table for its rows, a list for its items), if any.
+        $ref: "common.yaml#/$defs/SourceBlockId"
+      kind:
+        $ref: "#/$defs/DocBlockKind"
+      anchor:
+        description: Where the block is in the source, as the connector or parser gave it.
+        type: string
+      level:
+        description: Heading level or list depth.
+        type: integer
+        minimum: 0
+        maximum: 9
+      heading_path:
+        description: Titles of the headings above the block, outermost first.
+        type: array
+        items:
+          type: string
+      text:
+        description: The block's own text (a table's cells joined by tabs and newlines).
+        type: string
+      text_hash:
+        $ref: "common.yaml#/$defs/ContentHash"
+      ordinal:
+        description: Position in reading order within the version.
+        type: integer
+        minimum: 0
+      page:
+        type: integer
+        minimum: 1
+      span_ids:
+        description: The block's spans in reading order. A heading or an empty block may have none.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/SpanId"
+      attrs:
+        type: object
+
   Span:
-    description: An exact passage, table cell or form field. Every claim points to spans.
+    description: >
+      An exact passage, table cell or form field. Every claim points to spans. A span's ID
+      depends only on its block and text, so a span that did not change keeps its ID in
+      later versions of the document; it is stored once, with the version that introduced it.
     type: object
     required: [id, tenant_id, source_version_id, locator, text, text_hash, ordinal]
     properties:
@@ -641,7 +705,10 @@ $defs:
       tenant_id:
         $ref: "common.yaml#/$defs/TenantId"
       source_version_id:
+        description: The version that first contained the span.
         $ref: "common.yaml#/$defs/SourceVersionId"
+      block_id:
+        $ref: "common.yaml#/$defs/SourceBlockId"
       locator:
         $ref: "#/$defs/SpanLocator"
       text:
@@ -649,7 +716,7 @@ $defs:
       text_hash:
         $ref: "common.yaml#/$defs/ContentHash"
       ordinal:
-        description: Position in reading order within the version.
+        description: Position in reading order within the version that introduced it.
         type: integer
         minimum: 0
 

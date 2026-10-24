@@ -14,16 +14,21 @@
     "format": "biome check --write .",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "test:unit": "INSPIRATION_STACK=off vitest run"
+    "test:unit": "INSPIRATION_STACK=off vitest run",
+    "engine": "node apps/engine/src/cli.ts"
   },
   "dependencies": {
     "@inspiration/access-control": "workspace:*",
     "@inspiration/agent-runtime": "workspace:*",
+    "@inspiration/connectors": "workspace:*",
     "@inspiration/contracts": "workspace:*",
+    "@inspiration/engine": "workspace:*",
     "@inspiration/eventbus": "workspace:*",
     "@inspiration/kernel": "workspace:*",
     "@inspiration/knowledge-store": "workspace:*",
     "@inspiration/model-gateway": "workspace:*",
+    "@inspiration/normalization": "workspace:*",
+    "@inspiration/source-sync": "workspace:*",
     "@inspiration/testkit": "workspace:*"
   },
   "devDependencies": {

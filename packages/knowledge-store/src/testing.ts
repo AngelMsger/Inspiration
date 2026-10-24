@@ -15,6 +15,7 @@ import {
   contentHash,
   newId,
   type PageSnapshot,
+  type SourceBlock,
   type SourceVersion,
   type Span,
 } from "@inspiration/contracts";
@@ -76,6 +77,24 @@ export class Sample {
       text,
       text_hash: contentHash(text),
       ordinal,
+    };
+  }
+
+  /** A paragraph of the version listing these spans by ID; they may come from earlier versions. */
+  block(version: SourceVersion, spans: readonly Span[], overrides: Partial<SourceBlock> = {}): SourceBlock {
+    const text = spans.map((s) => s.text).join("");
+    const ordinal = overrides.ordinal ?? spans[0]?.ordinal ?? 0;
+    return {
+      id: newId("source_block"),
+      tenant_id: version.tenant_id,
+      source_version_id: version.id,
+      kind: "paragraph",
+      anchor: `b${ordinal}`,
+      text,
+      text_hash: contentHash(text),
+      ordinal,
+      span_ids: spans.map((s) => s.id),
+      ...overrides,
     };
   }
 

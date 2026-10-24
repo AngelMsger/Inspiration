@@ -103,7 +103,7 @@ export function subjectOf(principalId: string): SubjectRef {
 }
 
 /**
- * Principal tokens for chunk.acl_tokens (written by indexing), matching scopeFilter's
+ * Principal tokens for chunk.acl_tokens (written by retrieval), matching scopeFilter's
  * principal_tokens. Every chunk also carries system:<tenant> for service principals.
  */
 export function aclTokens(snapshot: AclSnapshot, tenantId: string): string[] {

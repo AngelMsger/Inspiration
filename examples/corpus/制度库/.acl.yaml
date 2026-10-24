@@ -1,0 +1,2 @@
+readers: [tenant]
+editors: [group:admin-office]
