@@ -1,4 +1,4 @@
-import { newEvent } from "@inspiration/contracts";
+import { type EventEnvelope, newEvent } from "@inspiration/contracts";
 import { describe, expect } from "vitest";
 import { BACKENDS, freshnessTest, TENANT } from "./fixtures.ts";
 
@@ -67,7 +67,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect((await world.freshness.upcoming(TENANT)).map((d) => [d.kind, d.day])).toEqual([["ttl", "2027-04-10"]]);
     });
 
-    test("a plan's day brings an assumption review; a day already past, or a record's plan, does not", async ({
+    test("a plan's day brings an assumption review; a day already past, a record's plan or a plan without a day does not", async ({
       world,
     }) => {
       const report = await world.put({ path: "星火项目方案.md", modified: "2026-10-19" }, [
@@ -79,6 +79,10 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       // A weekly report is a record of its week: the next report says what became of its plans.
       await world.put({ path: "星火项目周报.md", modified: "2026-10-23", date: "2026-10-23" }, [
         { text: "预计 11 月 25 日完成验收。", on: "2026-11-25" },
+      ]);
+      // A plan without a day is still a plan: its class sets no review interval.
+      await world.put({ path: "协议酒店调价计划.md", modified: "2026-10-01" }, [
+        { text: "明年将调整协议酒店价格。", type: "plan", knowledge_class: "pricing" },
       ]);
       expect((await world.freshness.upcoming(TENANT)).map((d) => [d.kind, d.day])).toEqual([
         ["assumption", "2026-11-20"],
@@ -186,50 +190,41 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect((await world.freshness.tick(TENANT)).map((r) => r.backlog)).toEqual([undefined]);
     });
 
-    test("a deleted document is forgotten, and a redelivered event changes nothing", async ({ world }) => {
+    test("a deleted document stays deleted: neither a redelivered nor a late event brings it back", async ({
+      world,
+    }) => {
       const guide = await world.put({ path: "办事指南.md", modified: "2026-05-01" }, [
         { text: "出差结束后 30 日内须提交报销。", knowledge_class: "process" },
       ]);
-      const change = newEvent(
-        "blocks.changed",
-        {
-          source_id: guide.version.source_id,
-          source_version_id: guide.version.id,
-          added_block_ids: [],
-          changed_block_ids: [],
-          removed_block_ids: [],
-          unchanged_block_count: 0,
-          added_span_ids: [],
-          removed_span_ids: [],
-        },
-        { tenantId: TENANT, producer: "normalization" },
-      );
-      await world.deliver(change);
-      await world.deliver(change);
+      await world.deliver(guide.events[0] as EventEnvelope);
       expect((await world.freshness.upcoming(TENANT)).map((d) => d.day)).toEqual(["2026-10-28"]);
 
+      // An edit whose events are still on their way when the document is deleted.
       world.setToday("2026-10-24");
-      const gone = await world.put({ path: "办事指南.md", modified: "2026-10-24" }, [], { previous: guide });
-      await world.deliver(
-        newEvent(
-          "blocks.changed",
-          {
-            source_id: gone.version.source_id,
-            source_version_id: gone.version.id,
-            previous_version_id: guide.version.id,
-            added_block_ids: [],
-            changed_block_ids: [],
-            removed_block_ids: [],
-            unchanged_block_count: 0,
-            added_span_ids: [],
-            removed_span_ids: [],
-            deleted: true,
-          },
-          { tenantId: TENANT, producer: "normalization" },
-        ),
+      const edit = await world.put(
+        { path: "办事指南.md", modified: "2026-10-24" },
+        [{ text: "出差结束后 15 日内须提交报销。", knowledge_class: "process" }],
+        { previous: guide, hold: true },
       );
+      world.setToday("2026-10-25");
+      const gone = await world.put({ path: "办事指南.md", modified: "2026-10-25" }, [], {
+        previous: edit,
+        deleted: true,
+      });
+      expect(await world.freshness.documents(TENANT)).toEqual([]);
+      for (const event of [...edit.events, ...gone.events]) await world.deliver(event);
       expect(await world.freshness.documents(TENANT)).toEqual([]);
       expect(await world.freshness.upcoming(TENANT)).toEqual([]);
+
+      // Restored, it is a document again, with a new clock.
+      world.setToday("2026-10-26");
+      const back = await world.put(
+        { path: "办事指南.md", modified: "2026-10-26" },
+        [{ text: "出差结束后 15 日内须提交报销。", knowledge_class: "process" }],
+        { previous: gone },
+      );
+      expect((await world.freshness.documents(TENANT)).map((d) => d.source_version_id)).toEqual([back.version.id]);
+      expect((await world.freshness.upcoming(TENANT)).map((d) => [d.kind, d.day])).toEqual([["ttl", "2027-04-24"]]);
     });
   });
 });

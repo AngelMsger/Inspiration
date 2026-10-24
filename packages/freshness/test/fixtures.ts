@@ -55,6 +55,8 @@ export interface Stored {
   version: SourceVersion;
   claims: Claim[];
   reviews: ReviewDue[];
+  /** Its blocks.changed and claims.updated. */
+  events: EventEnvelope[];
 }
 
 export interface World {
@@ -63,12 +65,18 @@ export interface World {
   freshness: Freshness;
   /**
    * Store a version of a document with one claim per statement, then deliver its
-   * blocks.changed and claims.updated to freshness. The previous version's claims close.
+   * blocks.changed and claims.updated to freshness, unless they are held back for later.
+   * The previous version's claims close. A deleted version states nothing.
    */
   put: (
     doc: Doc,
     said: readonly Said[],
-    options?: { previous?: Stored; duplicates?: { of: Stored; similarity: number }[] },
+    options?: {
+      previous?: Stored;
+      duplicates?: { of: Stored; similarity: number }[];
+      deleted?: boolean;
+      hold?: boolean;
+    },
   ) => Promise<Stored>;
   /** Deliver an event to freshness, as the bus would. */
   deliver: (event: EventEnvelope) => Promise<void>;
@@ -127,11 +135,12 @@ export const freshnessTest = (backend: Backend) =>
         fetched_at: now.toISOString(),
         metadata: { modified_at: `${doc.modified}T08:00:00Z`, ...(extra && { extra }) },
         ...(options.previous && { previous_version_id: options.previous.version.id }),
+        ...(options.deleted && { deleted: true }),
       };
       const spans: Span[] = [];
       const claims: Claim[] = [];
       const evidence: ClaimEvidence[] = [];
-      for (const [i, s] of said.entries()) {
+      for (const [i, s] of (options.deleted ? [] : said).entries()) {
         const span: Span = {
           id: stableId("span", version.id, String(i)),
           tenant_id: TENANT,
@@ -197,6 +206,7 @@ export const freshnessTest = (backend: Backend) =>
         removed_span_ids: [],
         ...(options.previous && { previous_version_id: options.previous.version.id }),
         ...(duplicates.length && { duplicates }),
+        ...(options.deleted && { deleted: true }),
       };
       const update: ClaimsUpdated = {
         origin: "extracted",
@@ -205,13 +215,16 @@ export const freshnessTest = (backend: Backend) =>
         superseded: closed.map((c) => c.id),
         source_version_id: version.id,
       };
-      await deliver(newEvent("blocks.changed", change, { tenantId: TENANT, producer: "normalization" }));
-      await deliver(newEvent("claims.updated", update, { tenantId: TENANT, producer: "extraction" }));
+      const events = [
+        newEvent("blocks.changed", change, { tenantId: TENANT, producer: "normalization" }),
+        newEvent("claims.updated", update, { tenantId: TENANT, producer: "extraction" }),
+      ];
+      if (!options.hold) for (const event of events) await deliver(event);
       const reviews = (await outbox())
         .slice(before)
         .filter((e) => e.type === "review.due")
         .map((e) => e.data as unknown as ReviewDue);
-      return { version, claims, reviews };
+      return { version, claims, reviews, events };
     };
 
     const setToday = (day: string) => {

@@ -30,7 +30,9 @@ export const COMPONENT = "freshness";
 /** What freshness keeps of a current claim. */
 export interface ClaimNote {
   knowledge_class: string;
-  /** For a plan, the day it names. */
+  /** A plan: it sets no review interval, dated or not. */
+  plan?: true;
+  /** For a plan, the day it names, when it names one. */
   plan_on?: string;
 }
 
@@ -75,6 +77,14 @@ export interface Copy {
   similarity: number;
 }
 
+/** A deleted document, and the version that deleted it. */
+export interface Deletion {
+  tenant_id: string;
+  document: string;
+  source_version_id: string;
+  fetched_at: string;
+}
+
 /** A review that falls due on a day. */
 export interface Due {
   tenant_id: string;
@@ -97,6 +107,11 @@ export const COPIES = defineTable<Copy>("freshness.copies", {
   columns: { tenant_id: (c) => c.tenant_id, document: (c) => c.document },
 });
 
+export const DELETED = defineTable<Deletion>("freshness.deleted", {
+  key: (d) => key(d.tenant_id, d.document),
+  columns: { tenant_id: (d) => d.tenant_id },
+});
+
 export const DUE = defineTable<Due>("freshness.due", {
   key: (d) => (d.kind === "ttl" ? key(d.tenant_id, d.document, d.kind) : key(d.tenant_id, d.document, d.kind, d.day)),
   columns: { tenant_id: (d) => d.tenant_id, document: (d) => d.document, day: (d) => d.day },
@@ -114,6 +129,9 @@ export interface FreshnessOptions {
 }
 
 export const documentOf = (v: Pick<SourceVersion, "source_id" | "external_id">) => `${v.source_id}:${v.external_id}`;
+
+/** True when the version came after the one that deleted its document, so it can bring the document back. */
+const after = (v: SourceVersion, gone: Deletion) => v.id !== gone.source_version_id && v.fetched_at >= gone.fetched_at;
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -180,11 +198,14 @@ export class Freshness {
       if (!(await tx.firstDelivery(COMPONENT, event.id))) return;
       const before = await tx.get(DOCUMENTS, key(tenantId, document));
       if (before && before.fetched_at > version.fetched_at) return;
+      const gone = await tx.get(DELETED, key(tenantId, document));
+      if (gone && !after(version, gone)) return;
       const copies = await tx.find(COPIES, { tenant_id: tenantId, document });
       if (change.deleted) {
-        await this.#forget(tx, tenantId, document, copies);
+        await this.#forget(tx, version, copies);
         return;
       }
+      if (gone) await tx.delete(DELETED, [key(tenantId, document)]);
       const state = this.#stateOf(version, before);
       await tx.put(DOCUMENTS, [state]);
       await this.#schedule(tx, state);
@@ -241,13 +262,20 @@ export class Freshness {
     const tenantId = event.tenant_id;
     await this.records.transaction(async (tx) => {
       if (!(await tx.firstDelivery(COMPONENT, event.id))) return;
+      // Extraction closes a deleted document's claims after the deletion: nothing to keep.
+      if (version.deleted) return;
+      const gone = await tx.get(DELETED, key(tenantId, documentOf(version)));
+      if (gone && !after(version, gone)) return;
       const before = await tx.get(DOCUMENTS, key(tenantId, documentOf(version)));
       const state = before && before.fetched_at > version.fetched_at ? before : this.#stateOf(version, before);
       for (const id of [...update.superseded, ...update.updated]) delete state.claims[id];
       for (const c of claims) {
         if (!LIVE_STATUSES.has(c.status)) continue;
         const note: ClaimNote = { knowledge_class: c.knowledge_class };
-        if (c.claim_type === "plan" && c.valid_time.start) note.plan_on = dayOf(c.valid_time.start);
+        if (c.claim_type === "plan") {
+          note.plan = true;
+          if (c.valid_time.start) note.plan_on = dayOf(c.valid_time.start);
+        }
         state.claims[c.id] = note;
       }
       state.lapsed = state.lapsed.filter((id) => id in state.claims);
@@ -371,7 +399,7 @@ export class Freshness {
   #setInterval(state: DocumentState): void {
     const classes = new Set(
       Object.values(state.claims)
-        .filter((c) => c.plan_on === undefined)
+        .filter((c) => !c.plan)
         .map((c) => c.knowledge_class),
     );
     const interval = reviewInterval(classes, this.intervals(state.tenant_id));
@@ -419,8 +447,13 @@ export class Freshness {
     if (changed.length) await tx.put(DUE, changed);
   }
 
-  async #forget(tx: RecordTx, tenantId: string, document: string, copies: readonly Copy[]): Promise<void> {
+  async #forget(tx: RecordTx, version: SourceVersion, copies: readonly Copy[]): Promise<void> {
+    const tenantId = version.tenant_id;
+    const document = documentOf(version);
     await tx.delete(DOCUMENTS, [key(tenantId, document)]);
+    await tx.put(DELETED, [
+      { tenant_id: tenantId, document, source_version_id: version.id, fetched_at: version.fetched_at },
+    ]);
     const due = await tx.find(DUE, { tenant_id: tenantId, document });
     if (due.length)
       await tx.delete(
