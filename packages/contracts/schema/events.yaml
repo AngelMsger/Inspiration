@@ -173,7 +173,10 @@ $defs:
         items:
           $ref: "common.yaml#/$defs/SourceBlockId"
       changed_block_ids:
-        description: Blocks that kept their ID but whose text changed.
+        description: >
+          Blocks that kept their ID but whose text, kind or heading path changed. A block under
+          a renamed heading is changed although its text and spans are not, since what it says
+          depends on the headings above it.
         type: array
         items:
           $ref: "common.yaml#/$defs/SourceBlockId"
