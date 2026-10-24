@@ -20,6 +20,7 @@
   "dependencies": {
     "@inspiration/access-control": "workspace:*",
     "@inspiration/agent-runtime": "workspace:*",
+    "@inspiration/collaboration": "workspace:*",
     "@inspiration/connectors": "workspace:*",
     "@inspiration/contracts": "workspace:*",
     "@inspiration/engine": "workspace:*",

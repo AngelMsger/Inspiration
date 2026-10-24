@@ -5,8 +5,9 @@
  * directory could not map, what extraction made of it all (see claims.ts), which conflicts
  * governance found and what they would ask of people (see conflicts.ts), which reviews
  * freshness scheduled or asked for (see freshness.ts), the knowledge outline page-compiler
- * clustered (see outline.ts), and what each source update asked of people at once, todo
- * requests and reviews together.
+ * clustered (see outline.ts), who owns its topics (see owners.ts), what the inbox holds for
+ * them (see inbox.ts), and what each source update asked of people at once, todo requests
+ * and reviews together.
  */
 
 import type { AclChanged, BlocksChanged, ClaimsUpdated, EventEnvelope, GovernanceLevel } from "@inspiration/contracts";
@@ -18,7 +19,9 @@ import { type GovernanceReport, governanceReport } from "./conflicts.ts";
 import type { Corpus } from "./corpus.ts";
 import type { Engine } from "./engine.ts";
 import { type DaysReport, type FreshnessReport, freshnessReport } from "./freshness.ts";
+import { type InboxReport, inboxLines, inboxReport } from "./inbox.ts";
 import { type OutlineReport, outlineLines, outlineReport } from "./outline.ts";
+import { assignOwners, type OwnersReport, ownersLines } from "./owners.ts";
 
 export type { Spread } from "./claims.ts";
 
@@ -55,6 +58,8 @@ export interface IngestReport {
   governance: GovernanceReport;
   freshness: FreshnessReport;
   outline: OutlineReport;
+  owners: OwnersReport;
+  inbox: InboxReport;
   /**
    * New versions of documents already known, and the todo requests and reviews each asked for
    * at once. Every event a source update causes shares its correlation id.
@@ -75,6 +80,8 @@ class EventTally {
   updates: ClaimsUpdated[] = [];
   updateEvents: EventEnvelope[] = [];
   requests: EventEnvelope[] = [];
+  notes: EventEnvelope[] = [];
+  withdrawn: EventEnvelope[] = [];
   changeEvents: EventEnvelope[] = [];
   reviews: EventEnvelope[] = [];
   fetched: EventEnvelope[] = [];
@@ -94,6 +101,8 @@ class EventTally {
     tally.updates = [];
     tally.updateEvents = [];
     tally.requests = [];
+    tally.notes = [];
+    tally.withdrawn = [];
     tally.changeEvents = [];
     tally.reviews = [];
     tally.fetched = [];
@@ -134,7 +143,10 @@ class EventTally {
     engine.observe(
       "todo.requested",
       REPORT_GROUP,
-      count((e) => this.requests.push(e)),
+      count((e) => {
+        const r = payloadOf(e, "todo.requested");
+        (r.withdrawn ? this.withdrawn : r.kind === "note" ? this.notes : this.requests).push(e);
+      }),
     );
     engine.observe(
       "review.due",
@@ -188,11 +200,15 @@ export async function ingest(engine: Engine, corpus: Corpus, options: { truth?: 
     }),
     governance: await governanceReport(engine, corpus.tenantId, {
       requests: tally.requests,
+      notes: tally.notes.length,
+      withdrawn: tally.withdrawn.length,
       updates: tally.updateEvents,
       ...(options.truth && { truth: options.truth, levels: await levelsOf(engine, corpus, tally.changes) }),
     }),
     freshness: await freshnessReport(engine, corpus.tenantId, { reviews: tally.reviews, changes: tally.changeEvents }),
     outline: await outlineReport(engine, corpus.tenantId),
+    owners: await assignOwners(engine, corpus),
+    inbox: await inboxReport(engine, corpus.tenantId),
     asks: asksOf(tally.fetched, [...tally.requests, ...tally.reviews]),
     dead_letters: await deadLetters(engine),
   };
@@ -399,6 +415,8 @@ export function summary(r: IngestReport): string {
     ...governanceLines(r.governance, kv),
     ...freshnessLines(r.freshness, kv),
     ...outlineLines(r.outline),
+    ...ownersLines(r.owners),
+    ...inboxLines(r.inbox),
     ...(r.asks.updates
       ? [
           `source updates ${r.asks.updates}: ${r.asks.asking} asked people for anything at once, todo requests and reviews together (per update max ${r.asks.per_update.max})`,
@@ -441,7 +459,7 @@ function governanceLines(g: GovernanceReport, kv: (o: Record<string, number>) =>
   return [
     `conflict cases ${g.cases.total}: ${kv(g.cases.by_class)}; ${kv(g.cases.by_status)}`,
     `  todos ${g.todos} (${kv(g.todos_by_priority) || "none"}), values per todo median ${g.values_per_todo.median}, max ${g.values_per_todo.max}; proposed by ${kv(g.proposed_by) || "none"}`,
-    `  todo requests ${g.requests} from ${g.updates_with_requests} of ${g.updates} claims updates (per update max ${g.requests_per_update.max})`,
+    `  todo requests ${g.requests} from ${g.updates_with_requests} of ${g.updates} claims updates (per update max ${g.requests_per_update.max}); notes ${g.notes}; withdrawn ${g.withdrawn}`,
     ...(t
       ? [
           `  truth: proposed the expected value for ${t.expected} of ${t.slots} facts (${t.ambiguous} with tied decisions; ${t.notes} with a later decision only reference documents record, a note)`,

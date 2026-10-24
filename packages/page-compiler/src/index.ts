@@ -35,6 +35,9 @@
  *   retired when they have no statements left.
  * - A topic an owner confirmed, or one that holds a confirmed placement, is never dissolved
  *   or retired, and confirmed placements and those a page or a person made never move.
+ * - A topic keeps its owner (owner_id) through re-clustering. The business layer names
+ *   owners; setOwner(tenant, topic, member) keeps one, and documentsIn(tenant) lists the
+ *   documents each topic holds, with their sections and statements, to choose from.
  * The knowledge store is written before page-compiler's own records. After a crash in
  * between, the next run starts again from the earlier topics and retires the ones the
  * interrupted run proposed.
@@ -44,8 +47,8 @@
  * follow shared headings and wording rather than meaning.
  *
  * Not yet built: pages (PageSpec synthesis with citations, page snapshots and
- * page.rendered), diagram compilers, the artifact.dirty subscription, owners for topics,
- * and moving a statement's placement when a page cites it.
+ * page.rendered), diagram compilers, the artifact.dirty subscription, and moving a
+ * statement's placement when a page cites it.
  */
 
 export * from "./cluster.ts";

@@ -20,7 +20,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         },
         [{ text: "一线城市住宿限额为每晚 500 元。", value: 500 }],
       );
-      expect(archive.result).toEqual({ slots: [HOTEL], requests: [] });
+      expect(archive.result).toEqual({ slots: [HOTEL], requests: [], notes: [], withdrawn: [] });
       await world.state({ title: "常见问题", authority: 0.5 }, [{ text: "北京出差住宿每晚 600 元。", value: 600 }]);
       const notice = await world.state({ title: "关于调整一线城市住宿标准的通知", authority: 0.5 }, [
         { text: "自 2026 年 10 月 1 日起，住宿限额由每晚 600 元调整为每晚 650 元。", value: 650, from: "2026-10-01" },
@@ -51,6 +51,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
           unit_ids: [notice.claims[0]?.id, policy.claims[0]?.id],
           dedupe_key: "governance:conflict:hotel_cap_per_night|一线城市",
           batch_key: "governance:conflict:hotel_cap_per_night",
+          slot_key: HOTEL,
         },
       ]);
     });
@@ -82,12 +83,27 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
     });
 
     test("reference documents never outvote or hold up a governed value, and alone ask nobody", async ({ world }) => {
-      await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
+      const policy = await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
       // Trusted and dated later, but a reference document.
       const blog = await world.state({ title: "差旅攻略", authority: 0.95, level: "reference" }, [
         { text: "自 2026 年 10 月 1 日起，北京住宿每晚 800 元。", value: 800, from: "2026-10-01" },
       ]);
-      expect(blog.result).toEqual({ slots: [HOTEL], requests: [] });
+      // Not a todo: a note for the owner, naming the reference document, its date and both values.
+      const note = {
+        kind: "note",
+        space_id: SPACE,
+        title: "hotel_cap_per_night (一线城市): 800 CNY/night in 差旅攻略, 600 CNY/night holds",
+        detail: [
+          "- **600 CNY/night** holds: 1 statement in 1 document, the most authoritative 差旅费管理办法.",
+          "- 800 CNY/night (from 2026-10-01): 1 statement in 1 document, the most authoritative 差旅攻略. 差旅攻略, a reference document, says 800 CNY/night from 2026-10-01; the governed 600 CNY/night holds until a governed document says so. A note for the owner, not a todo.",
+        ].join("\n"),
+        priority: "low",
+        unit_ids: [policy.claims[0]?.id, blog.claims[0]?.id],
+        dedupe_key: "governance:note:hotel_cap_per_night|一线城市:800 CNY/night",
+        batch_key: "governance:note:hotel_cap_per_night|一线城市",
+        slot_key: HOTEL,
+      };
+      expect(blog.result).toEqual({ slots: [HOTEL], requests: [], notes: [note], withdrawn: [] });
       const { decision } = await world.governance.slot(TENANT, HOTEL);
       expect(decision?.proposed.value).toBe("600 CNY/night");
       expect(decision?.cases).toEqual([
@@ -99,6 +115,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
           confidence: 0.6,
           rationale:
             "差旅攻略, a reference document, says 800 CNY/night from 2026-10-01; the governed 600 CNY/night holds until a governed document says so. A note for the owner, not a todo.",
+          note: true,
         },
       ]);
 
@@ -110,13 +127,22 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       const faq = await world.state({ title: "员工问答", authority: 0.4, level: "reference" }, [
         { text: "成都出差每晚可住 500 元。", value: 500, slot: NEW_TIER },
       ]);
-      expect(faq.result).toEqual({ slots: [NEW_TIER], requests: [] });
+      expect(faq.result).toEqual({ slots: [NEW_TIER], requests: [], notes: [], withdrawn: [] });
       const alone = await world.governance.slot(TENANT, NEW_TIER);
       expect(alone.decision?.proposed.value).toBe("450 CNY/night");
       expect(alone.decision?.cases.map((c) => [c.value, c.classification, c.status])).toEqual([
         ["500 CNY/night", "contradiction", "open"],
       ]);
-      expect(await world.requests()).toEqual([]);
+      expect(await world.requests()).toEqual([note]);
+
+      // A governed notice says it too: the note goes, and the change is the owner's to confirm.
+      const notice = await world.state({ title: "关于调整住宿标准的通知", authority: 0.5 }, [
+        { text: "自 2026 年 10 月 1 日起，北京住宿每晚 800 元。", value: 800, from: "2026-10-01" },
+      ]);
+      expect(notice.result).toMatchObject({ notes: [], withdrawn: [{ ...note, withdrawn: true }] });
+      expect(notice.result.requests.map((r) => r.title)).toEqual([
+        "hotel_cap_per_night (一线城市): 800 CNY/night or 600 CNY/night",
+      ]);
     });
 
     test("a change only a reference document states is named in the case against its value", async ({ world }) => {
@@ -152,7 +178,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       const again = await world.state({ title: "新人入职指南（第 2 版）", authority: 0.5 }, [
         { text: "北京住宿每晚 700 元。", value: 700 },
       ]);
-      expect(again.result).toEqual({ slots: [HOTEL], requests: [] });
+      expect(again.result).toEqual({ slots: [HOTEL], requests: [], notes: [], withdrawn: [] });
       const groups = (await world.governance.slot(TENANT, HOTEL)).groups;
       expect(Object.fromEntries(groups.map((g) => [g.value, [g.count, g.versions.length]]))).toEqual({
         "600 CNY/night": [1, 1],
@@ -160,7 +186,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       });
 
       // A redelivered update is a no-op.
-      expect(await world.governance.apply(again.event)).toEqual({ slots: [], requests: [] });
+      expect(await world.governance.apply(again.event)).toEqual({ slots: [], requests: [], notes: [], withdrawn: [] });
       expect((await world.governance.slot(TENANT, HOTEL)).groups.find((g) => g.value === "700 CNY/night")?.count).toBe(
         2,
       );
@@ -193,7 +219,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       ]);
 
       world.setToday("2026-11-30");
-      expect(await world.governance.recheck(TENANT)).toEqual({ slots: [], requests: [] });
+      expect(await world.governance.recheck(TENANT)).toEqual({ slots: [], requests: [], notes: [], withdrawn: [] });
       world.setToday("2026-12-01");
       const due = await world.governance.recheck(TENANT);
       expect(due.slots).toEqual([HOTEL]);
@@ -201,7 +227,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         ["hotel_cap_per_night (一线城市): 650 CNY/night or 600 CNY/night", "high"],
       ]);
       expect((await world.governance.conflicts(TENANT, "open")).map((c) => c.classification)).toEqual(["supersession"]);
-      expect(await world.governance.recheck(TENANT)).toEqual({ slots: [], requests: [] });
+      expect(await world.governance.recheck(TENANT)).toEqual({ slots: [], requests: [], notes: [], withdrawn: [] });
       expect(await world.requests()).toHaveLength(2);
     });
 
@@ -234,7 +260,9 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect(guide.result.requests).toHaveLength(1);
 
       const closed = await world.close(guide.claims);
-      expect(closed).toEqual({ slots: [HOTEL], requests: [] });
+      // Nothing is left to decide, so the todo request is withdrawn.
+      const asked = guide.result.requests[0];
+      expect(closed).toEqual({ slots: [HOTEL], requests: [], notes: [], withdrawn: [{ ...asked, withdrawn: true }] });
       expect((await world.governance.conflicts(TENANT)).map((c) => [c.status, c.rationale])).toEqual([
         ["auto_resolved", "No longer in conflict."],
       ]);
@@ -246,6 +274,11 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       ]);
       expect(back.result.requests).toHaveLength(1);
       expect(await world.governance.conflicts(TENANT, "open")).toHaveLength(1);
+      expect((await world.requests()).map((r) => [r.kind, r.withdrawn ?? false])).toEqual([
+        ["conflict", false],
+        ["conflict", true],
+        ["conflict", false],
+      ]);
     });
   });
 });

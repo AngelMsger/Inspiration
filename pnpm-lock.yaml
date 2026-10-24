@@ -14,6 +14,9 @@ importers:
       '@inspiration/agent-runtime':
         specifier: workspace:*
         version: link:packages/agent-runtime
+      '@inspiration/collaboration':
+        specifier: workspace:*
+        version: link:packages/collaboration
       '@inspiration/connectors':
         specifier: workspace:*
         version: link:packages/connectors
@@ -75,6 +78,9 @@ importers:
 
   apps/engine:
     dependencies:
+      '@inspiration/collaboration':
+        specifier: workspace:*
+        version: link:../../packages/collaboration
       '@inspiration/connectors':
         specifier: workspace:*
         version: link:../../packages/connectors
@@ -162,6 +168,25 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
+
+  packages/collaboration:
+    dependencies:
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@inspiration/eventbus':
+        specifier: workspace:*
+        version: link:../eventbus
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+    devDependencies:
+      '@inspiration/knowledge-store':
+        specifier: workspace:*
+        version: link:../knowledge-store
+      '@inspiration/testkit':
+        specifier: workspace:*
+        version: link:../testkit
 
   packages/connectors:
     dependencies:

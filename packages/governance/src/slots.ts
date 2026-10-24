@@ -87,6 +87,8 @@ export interface CaseDraft {
   priority: Priority;
   confidence: number;
   rationale: string;
+  /** Only reference documents state the value, against a governed one: a note for the owner. */
+  note?: true;
 }
 
 export interface SlotDecision {
@@ -248,6 +250,7 @@ export function decide(groups: readonly ValueGroup[], today: string): SlotDecisi
           status: "auto_resolved",
           priority: "low",
           confidence: 0.6,
+          note: true,
           rationale: said
             ? `${said}; the governed ${proposed.value} holds until a governed document says so. A note for the owner, not a todo.`
             : `Only reference documents state ${g.value}; the governed ${proposed.value} holds. A note for the owner, not a todo.`,

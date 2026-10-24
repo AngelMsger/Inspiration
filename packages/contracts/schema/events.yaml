@@ -368,8 +368,16 @@ $defs:
       batch_key:
         description: Groups similar todos in the inbox.
         type: string
+      slot_key:
+        description: The fact slot a conflict or a note is about.
+        type: string
       suggested_assignee_id:
         $ref: "common.yaml#/$defs/PrincipalId"
+      withdrawn:
+        description: >
+          The reason went away: collaboration dismisses the open todo with this key, and
+          creates none when there is no open one. A later request with the key opens a new todo.
+        type: boolean
 
   TodoCreated:
     type: object

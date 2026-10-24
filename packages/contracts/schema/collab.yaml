@@ -214,6 +214,10 @@ $defs:
         $ref: "common.yaml#/$defs/Instant"
 
   TodoKind:
+    description: >
+      note: a value only reference documents state disagrees with the governed one (备注). It
+      asks for no decision: the owner acknowledges it, and it is not counted against the
+      weekly budget.
     type: string
     enum:
       - conflict
@@ -226,6 +230,7 @@ $defs:
       - coverage_gap
       - extraction_review
       - feedback
+      - note
 
   TodoStatus:
     type: string
@@ -281,7 +286,21 @@ $defs:
         items:
           $ref: "#/$defs/TodoResolution"
       batch_key:
+        description: >
+          The inbox card the todo is on. Collaboration groups an owner's todos about one topic
+          in one week on a card, at most 20 to a card.
         type: string
+      taxonomy_key:
+        description: The topic its units are placed in. The topic's owner, or its area's, is the assignee.
+        $ref: "page.yaml#/$defs/TopicKey"
+      slot_key:
+        description: The fact slot a conflict or a note is about.
+        type: string
+      week:
+        description: >
+          The week it is scheduled in: the week it fell due, or a later one when the
+          assignee's weekly budget of cards was full.
+        $ref: "#/$defs/IsoWeek"
       created_by:
         $ref: "common.yaml#/$defs/ComponentName"
       created_at:
@@ -295,6 +314,11 @@ $defs:
         type: string
       resolved_at:
         $ref: "common.yaml#/$defs/Instant"
+
+  IsoWeek:
+    description: An ISO 8601 week, "2026-W44".
+    type: string
+    pattern: "^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$"
 
   PublishState:
     type: string

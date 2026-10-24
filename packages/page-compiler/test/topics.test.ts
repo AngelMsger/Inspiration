@@ -54,6 +54,27 @@ describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
     },
   );
 
+  test.skipIf(skip)("a topic keeps the owner it is given, and lists the documents it holds", async ({ world: w }) => {
+    const OWNER = "mem_01JC000000000000000000LINA";
+    await guides(w);
+    await w.topics.recluster(TENANT);
+    const hotel = (await w.store.topics(TENANT, SPACE)).find((n) => n.title === "差旅住宿") as TaxonomyNode;
+    expect(await w.topics.setOwner(TENANT, hotel.key, OWNER)).toMatchObject({ key: hotel.key, owner_id: OWNER });
+    await w.doc("指南四", [{ heading: "差旅住宿", sentences: about("差旅住宿", 3, 20) }]);
+    await w.topics.recluster(TENANT);
+    expect((await w.store.topics(TENANT, SPACE)).find((n) => n.key === hotel.key)?.owner_id).toBe(OWNER);
+
+    const documents = (await w.topics.documentsIn(TENANT)).get(hotel.key) ?? [];
+    expect(documents.map((d) => [d.title, d.sections, d.statements]).sort()).toEqual([
+      ["指南一", 1, 3],
+      ["指南三", 1, 3],
+      ["指南二", 1, 3],
+      ["指南四", 1, 3],
+    ]);
+    expect(await w.topics.setOwner(TENANT, hotel.key, undefined)).not.toHaveProperty("owner_id");
+    await expect(w.topics.setOwner(TENANT, "t-missing", OWNER)).rejects.toThrow(RangeError);
+  });
+
   test.skipIf(skip)(
     "a new section joins the nearest topic at once, and its statements leave with it",
     async ({ world: w }) => {

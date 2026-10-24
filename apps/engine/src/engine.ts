@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { Inbox } from "@inspiration/collaboration";
 import type {
   BlobStore,
   EventEnvelope,
@@ -70,6 +71,7 @@ export class Engine {
   readonly governance: Governance;
   readonly freshness: Freshness;
   readonly topics: Topics;
+  readonly inbox: Inbox;
   readonly consumer: Consumer;
   readonly transport: Transport;
   readonly #relay: OutboxRelay | undefined;
@@ -119,6 +121,7 @@ export class Engine {
     this.governance = new Governance({ store: this.store, records: this.records, ...clock });
     this.freshness = new Freshness({ store: this.store, records: this.records, ...clock });
     this.topics = new Topics({ store: this.store, records: this.records, models: this.models, ...clock });
+    this.inbox = new Inbox({ store: this.store, records: this.records, ...clock });
     const components: Running[] = [
       { group: "source-sync", handlers: () => this.sync.handlers() },
       { group: "normalization", handlers: () => this.normalization.handlers() },
@@ -126,6 +129,7 @@ export class Engine {
       { group: "governance", handlers: () => this.governance.handlers() },
       { group: "freshness", handlers: () => this.freshness.handlers() },
       { group: "page-compiler", handlers: () => this.topics.handlers() },
+      { group: "collaboration", handlers: () => this.inbox.handlers() },
     ];
     for (const c of components) {
       for (const [type, handler] of Object.entries(c.handlers())) this.consumer.subscribe(type, c.group, handler);

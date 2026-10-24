@@ -110,10 +110,10 @@ components:
   collaboration:
     title: Collaboration and publishing
     layer: control
-    status: planned
+    status: built
     runtime: node
-    owns: Comments and anchoring, agent replies, overrides, todos, publish state machine, quality gates, verification expiry
-    plugins: []
+    owns: The inbox (todos merged by dedupe key, routed to topic owners, on weekly cards within a budget; notes; first-review campaigns), comments and anchoring, agent replies, overrides, publish state machine, quality gates, verification expiry
+    plugins: [migrations]
     publishes: [comment.created, unit.published, todo.created, claims.updated]
     subscribes: [page.rendered, comment.created, todo.requested, todo.created, review.due]
     calls: [knowledge-store, access-control, model-gateway, agent-runtime, retrieval]

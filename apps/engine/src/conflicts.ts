@@ -21,8 +21,12 @@ export interface GovernanceReport {
   values_per_todo: Spread;
   /** Why each conflicting slot's proposed value holds. */
   proposed_by: Record<string, number>;
-  /** todo.requested events, and the claims updates that caused them. */
+  /** todo.requested events but notes and withdrawals, and the claims updates that caused them. */
   requests: number;
+  /** Notes requested: values only reference documents state, against a governed one. */
+  notes: number;
+  /** Requests and notes withdrawn because their reason went away. */
+  withdrawn: number;
   updates: number;
   updates_with_requests: number;
   requests_per_update: Spread;
@@ -54,6 +58,8 @@ export async function governanceReport(
   tenantId: string,
   run: {
     requests: readonly EventEnvelope[];
+    notes: number;
+    withdrawn: number;
     updates: readonly EventEnvelope[];
     truth?: Truth;
     /** The level of each document, by its path in the corpus; absent ones count as governed. */
@@ -92,6 +98,8 @@ export async function governanceReport(
     values_per_todo: spread([...openSlots.values()].map((n) => n + 1)),
     proposed_by: proposedBy,
     requests: run.requests.length,
+    notes: run.notes,
+    withdrawn: run.withdrawn,
     updates: run.updates.length,
     updates_with_requests: perUpdate.size,
     requests_per_update: spread(run.updates.map((u) => perUpdate.get(u.id) ?? 0)),

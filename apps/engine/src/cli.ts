@@ -11,7 +11,7 @@
  * reference documents as their first citation would, and times it (see onuse.ts). --edit
  * edits that share of a synthesized corpus in place (see edit in synthesize.ts) and ingests
  * it again, reporting the second round on its own. --days then runs the daily tick for n
- * days from today.
+ * days from today and reports the inbox at the end: every owner's cards and notes per week.
  *
  * synthesize writes a synthetic corpus of about n documents, with truth.json listing every
  * fact it states, for scale runs.
@@ -26,6 +26,7 @@ import type { Truth } from "./claims.ts";
 import { Corpus } from "./corpus.ts";
 import { Engine, type EngineOptions } from "./engine.ts";
 import { days, SimulatedClock } from "./freshness.ts";
+import { inboxLines, inboxReport } from "./inbox.ts";
 import { daysSummary, ingest, plantedDuplicates, summary } from "./ingest.ts";
 import { onUse, onUseSummary } from "./onuse.ts";
 import { edit, synthesize } from "./synthesize.ts";
@@ -108,8 +109,9 @@ async function main(argv: string[]): Promise<number> {
     }
     if (values.days) {
       const simulated = await days(engine, corpus.tenantId, clock, Number(values.days));
-      console.log(`\n${daysSummary(simulated)}`);
-      out.days = simulated;
+      const inbox = await inboxReport(engine, corpus.tenantId);
+      console.log(`\n${daysSummary(simulated)}\n${inboxLines(inbox).join("\n")}`);
+      out.days = { ...simulated, inbox };
     }
     if (values.json) await writeFile(values.json, `${JSON.stringify(out, null, 2)}\n`);
     return deadLetters ? 1 : 0;
