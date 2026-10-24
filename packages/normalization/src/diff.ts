@@ -8,6 +8,10 @@
  * takes the ID of the most similar unmatched block of the same kind in the previous
  * version, when they are similar enough. That block is then "changed", and its unchanged
  * sentences keep their span IDs, so claims citing them keep their evidence.
+ *
+ * A block also counts as changed when only its context changed: its kind, or the headings
+ * above it (a renamed heading, or a paragraph moved under another one). Extraction reads a
+ * block with its headings, so what it says may have changed although its text did not.
  */
 
 import type { SourceBlock, Span } from "@inspiration/contracts";
@@ -133,6 +137,12 @@ export interface BlockDiff {
   removed_span_ids: string[];
 }
 
+function sameContext(a: SourceBlock, b: SourceBlock): boolean {
+  const x = a.heading_path ?? [];
+  const y = b.heading_path ?? [];
+  return a.kind === b.kind && x.length === y.length && x.every((h, i) => h === y[i]);
+}
+
 /** What changed from the previous version's blocks and spans to the current ones. */
 export function blockDiff(
   previous: { blocks: readonly SourceBlock[]; spans: readonly Span[] },
@@ -151,7 +161,7 @@ export function blockDiff(
   for (const b of current.blocks) {
     const old = before.get(b.id);
     if (!old) diff.added_block_ids.push(b.id);
-    else if (old.text_hash !== b.text_hash) diff.changed_block_ids.push(b.id);
+    else if (old.text_hash !== b.text_hash || !sameContext(old, b)) diff.changed_block_ids.push(b.id);
     else diff.unchanged_block_count++;
   }
   const spansBefore = new Set(previous.spans.map((s) => s.id));

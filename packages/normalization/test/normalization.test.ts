@@ -98,6 +98,34 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
     expect(spans.find((s) => s.text.includes("650"))?.source_version_id).toBe(v2.id);
   });
 
+  it.skipIf(skip)(
+    "a renamed heading changes the blocks under it, which keep their IDs and spans",
+    async ({ world }) => {
+      const v1 = await world.ingest({ external_id: "差旅.md", text: POLICY });
+      await world.normalization.normalize(v1.id);
+      const v2 = await world.ingest({
+        external_id: "差旅.md",
+        text: POLICY.replace("第二章 住宿标准", "第二章 出差补贴"),
+      });
+      const { diff } = await world.normalization.normalize(v2.id);
+      const before = await world.store.blocksOf(v1.id);
+      const after = await world.store.blocksOf(v2.id);
+      // The paragraph and the table under the heading keep their IDs and are changed. A parsed
+      // heading with other text is another block.
+      const under = after.filter((b) => b.heading_path?.includes("第二章 出差补贴"));
+      expect(under.map((b) => b.kind)).toEqual(["paragraph", "table", "table_row", "table_row", "table_row"]);
+      const known = new Set(before.map((b) => b.id));
+      expect(under.every((b) => known.has(b.id))).toBe(true);
+      const heading = after.find((b) => b.text === "第二章 出差补贴")?.id;
+      expect(diff?.added_block_ids).toEqual([heading]);
+      expect(diff?.removed_block_ids).toEqual([before.find((b) => b.text === "第二章 住宿标准")?.id]);
+      expect(diff?.changed_block_ids.sort()).toEqual(under.map((b) => b.id).sort());
+      expect(diff?.unchanged_block_count).toBe(3);
+      expect(diff?.added_span_ids).toEqual([]);
+      expect(diff?.removed_span_ids).toEqual([]);
+    },
+  );
+
   it.skipIf(skip)("a metadata-only version reuses the blocks without parsing", async ({ world }) => {
     const v1 = await world.ingest({ external_id: "差旅.md", text: POLICY });
     await world.normalization.normalize(v1.id);
