@@ -1094,7 +1094,8 @@ export interface BlocksChanged {
   previous_version_id?: SourceVersionId;
   added_block_ids: SourceBlockId[];
   /**
-   * Blocks that kept their ID but whose text changed.
+   * Blocks that kept their ID but whose text, kind or heading path changed. A block under a renamed heading is changed although its text and spans are not, since what it says depends on the headings above it.
+   *
    */
   changed_block_ids: SourceBlockId[];
   removed_block_ids: SourceBlockId[];

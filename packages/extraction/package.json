@@ -9,6 +9,9 @@
   },
   "inspiration": {
     "plugins": {
+      "migrations": {
+        "extraction": "./src/migrations.ts#MIGRATIONS"
+      },
       "model_mocks": {
         "extraction.extract_claims": "./src/mock.ts#mockExtractClaims"
       }
@@ -16,12 +19,12 @@
   },
   "dependencies": {
     "@inspiration/contracts": "workspace:*",
+    "@inspiration/eventbus": "workspace:*",
     "@inspiration/kernel": "workspace:*",
     "@inspiration/model-gateway": "workspace:*",
     "yaml": "^2.9.1"
   },
   "devDependencies": {
-    "@inspiration/eventbus": "workspace:*",
     "@inspiration/knowledge-store": "workspace:*",
     "@inspiration/testkit": "workspace:*"
   }
