@@ -437,7 +437,7 @@ else.
    `Sandbox`. Each has an in-process implementation and, where useful, an HTTP one with the same
    interface.
 
-| Event | Published by | Consumed by | State |
+| Event | Published by | Consumed by | State of the publisher |
 | --- | --- | --- | --- |
 | `source.changed` | connectors, source-sync, research | source-sync | Built |
 | `document.fetched` | source-sync | normalization | Built |
@@ -447,7 +447,7 @@ else.
 | `artifact.dirty` | freshness | extraction, page-compiler, retrieval | Planned |
 | `review.due` | freshness | collaboration, research | Built |
 | `todo.requested` | governance; views (designed) | collaboration | Built |
-| `todo.created` | collaboration | business layer (notifications, approvals, web) | Built |
+| `todo.created` | collaboration | business layer (notifications, approvals, web) | In review |
 | `page.rendered` | page-compiler | collaboration, retrieval, views | Planned |
 | `comment.created` | collaboration | extraction, collaboration | Planned |
 | `unit.published` | collaboration | retrieval, agent-api, business layer | Planned |
@@ -839,6 +839,10 @@ time depends more on review and integration than on these person-week figures.
   UI's internationalization rules.
 - [Statements at scale](design/statements-at-scale.md): two outlines, fact slots, governance levels,
   grouped review and the measured volumes.
+- [Business layer](design/business-layer.md): accounts, workspaces, publishing, governance roles,
+  agent access and the business-layer plan.
+- [Business layer and engine contract](design/business-engine-contract.md): the commands, events,
+  principal token and schema changes between the two layers.
 - [Architecture](architecture.md): components, how they talk, storage and security as built.
 - [Contracts](contracts.md): changing schemas, IDs, events, versioning.
 - [PageSpec and views](pagespec.md): pages compared with Claude Artifacts, and the view sandbox.

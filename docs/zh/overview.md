@@ -342,7 +342,7 @@ flowchart TB
 3. **契约包中的同步接口：** `AuthZ`、`ModelGateway`、`Retriever`、`AgentRuntime`、blob 存储，以及之后的
    `SourceSync.fetch_now`、`CredentialBroker` 和 `Sandbox`。每个接口都有进程内实现，必要时还有接口相同的 HTTP 实现。
 
-| 事件 | 发布方 | 消费方 | 状态 |
+| 事件 | 发布方 | 消费方 | 发布方的状态 |
 | --- | --- | --- | --- |
 | `source.changed` | connectors、source-sync、research | source-sync | 已构建 |
 | `document.fetched` | source-sync | normalization | 已构建 |
@@ -352,7 +352,7 @@ flowchart TB
 | `artifact.dirty` | freshness | extraction、page-compiler、retrieval | 计划中 |
 | `review.due` | freshness | collaboration、research | 已构建 |
 | `todo.requested` | governance；views（已设计） | collaboration | 已构建 |
-| `todo.created` | collaboration | 业务层（notifications、approvals、web） | 已构建 |
+| `todo.created` | collaboration | 业务层（notifications、approvals、web） | 审阅中 |
 | `page.rendered` | page-compiler | collaboration、retrieval、views | 计划中 |
 | `comment.created` | collaboration | extraction、collaboration | 计划中 |
 | `unit.published` | collaboration | retrieval、agent-api、业务层 | 计划中 |
@@ -669,6 +669,8 @@ retrieval 和 Agent API、带 `fetch_now` 和 `web_search` 的研究、parsing �
 
 - [界面原则](design/ui-principles.md)：交互原则、视觉系统、关键界面，以及界面的国际化规则。
 - [规模化的陈述](design/statements-at-scale.md)：两份大纲、事实槽、治理级别、分组复核和实测数量。
+- [业务层](design/business-layer.md)：账户、工作区、发布、治理角色、Agent 访问和业务层计划。
+- [业务层与引擎契约](design/business-engine-contract.md)：两层之间的命令、事件、主体令牌和 schema 改动。
 - [架构](../architecture.md)（英文）：已构建的组件、通信方式、存储和安全。
 - [契约](../contracts.md)（英文）：修改 schema、ID、事件、版本管理。
 - [PageSpec 与视图](../pagespec.md)（英文）：页面与 Claude Artifacts 的对比，以及视图沙箱。

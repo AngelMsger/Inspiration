@@ -189,21 +189,24 @@ Each approval runs on a policy: a mode (single owner, any one participant, all, 
 The engine re-checks that every approver may verify in the scope before it applies the decision. It never trusts the vote count alone.
 
 ```mermaid
-flowchart LR
-  subgraph engine[Engine]
-    detected[Conflict detected] --> participants[Participants from freshness ownership]
-    meanwhile>"Meanwhile, readers and agents see the last verified value, marked disputed"]
-    apply["Engine applies the decision: re-checks each approver, records votes and rule"]
+sequenceDiagram
+  participant E as Engine
+  participant B as Business layer
+  participant P as Participants
+  participant A as Arbiter
+  E->>B: todo.created: knowledge conflict, participants from freshness ownership
+  Note over E: Meanwhile readers and agents see the last verified value, marked disputed
+  B->>P: Approval opened: mode, deadline, arbiter
+  P->>B: Votes, or a proposed edit that restarts the vote
+  alt Agreed before the deadline
+    B->>E: Decide: resolution and approvers
+  else Split vote or deadline passed
+    B->>A: Escalate
+    A->>B: Decision
+    B->>E: Decide: resolution and approvers
   end
-  subgraph business[Business layer]
-    opened["Approval opened: mode, deadline, arbiter"] --> vote[Participants vote or propose an edit]
-    vote --> agreed{Agreed before the deadline?}
-    arbiter[Arbiter decides]
-  end
-  participants --> opened
-  agreed -- yes --> apply
-  agreed -- "split vote or deadline passed" --> arbiter
-  arbiter --> apply
+  E->>E: Re-check each approver, apply, record votes and rule
+  E-->>B: decision.applied
 ```
 
 The engine detects and applies; people decide in the business layer; the arbiter path keeps a disputed fact from staying open forever.
@@ -257,36 +260,26 @@ The business layer is ten components in one TypeScript service plus the web app,
 flowchart TB
   browser[Browser]
   idp[Identity provider]
+  agents[CLI and MCP clients]
   im["Feishu, Lark, DingTalk"]
-  clients[CLI and MCP clients]
   subgraph business["Business layer: people, workspaces, policy, workflows"]
-    web[web and BFF]
-    accounts[accounts]
-    tenancy[tenancy]
-    directory[directory]
-    grants[access-grants]
-    connections[connections]
-    publishing[publishing]
-    approvals[approvals]
-    notifications[notifications]
-    admin[admin]
-    billing["billing (phase 3)"]
+    direction LR
+    identity["web and BFF<br/>accounts · tenancy<br/>directory · access-grants"]
+    workflow["connections · publishing<br/>approvals · notifications<br/>admin · billing (phase 3)"]
   end
+  protocol["Protocol<br/>down: commands and queries, signed principal, idempotent<br/>up: events for todos, publishing, decisions, usage<br/>the engine never calls the business layer"]
   subgraph engine["Engine: knowledge, permissions, agent API, no product UI"]
-    pipeline[Ingest and compile pipeline]
-    governance[Collaboration and governance]
-    agentapi["Agent API: MCP and REST"]
-    store[Knowledge store and retrieval]
-    access[Access control and audit]
-    broker["Credential broker, models"]
+    direction LR
+    pipeline["Ingest and compile pipeline<br/>Collaboration and governance"]
+    agentapi["Agent API<br/>MCP and REST"]
+    platform["Knowledge store and retrieval<br/>Access control and audit<br/>Credential broker, models"]
   end
-  browser -- session --> web
-  idp -- OIDC sign-in --> accounts
-  notifications -- approval cards --> im
-  clients -- OAuth sign-in --> grants
-  clients -- access token --> agentapi
-  business == "commands and queries: signed principal, idempotent" ==> engine
-  engine -. "events: todos, publishing, decisions, usage" .-> business
+  browser -- session --> identity
+  idp -- OIDC sign-in --> identity
+  agents -- OAuth sign-in --> identity
+  im <-- approval cards --> workflow
+  business --- protocol --- engine
+  agents -- access token --> agentapi
 ```
 
 The browser reaches the engine only through the business layer, while the CLI and MCP clients sign in with the business layer and then call the engine's agent API directly with that token.
@@ -402,23 +395,23 @@ The UI says "workspace" for a tenant, "member" for a member and "account" for a 
 | Concept | UI term | 中文 | 日本語 (draft) | Note |
 | --- | --- | --- | --- | --- |
 | Tenant | Workspace | 工作区 | ワークスペース | Never shown for a personal tenant: a solo user sees only their library until they invite someone or create a team workspace |
-| Personal tenant | My library | 我的知识库 (in the switcher: 个人知识库) | マイライブラリ (in the switcher: 個人ライブラリ) | A solo user sees no workspace words at all |
+| Personal tenant | Personal library | 我的知识库 (in the switcher: 个人知识库) | マイライブラリ (in the switcher: 個人ライブラリ) | A solo user sees no workspace words at all |
 | Member | Member | 成员 | メンバー |  |
 | Personal space in a workspace | My space | 我的空间 | マイスペース | Private to the member. Admins cannot see into it |
 | Team or org space | Space | 空间 | スペース |  |
 | Claim | Statement | 陈述 | 記述 | "Claim" stays an engine word |
-| Tenant connection | Workspace connection | 工作区连接 | ワークスペース接続 |  |
-| Member connection | Personal connection | 个人连接 | 個人接続 |  |
-| Freshness by tenant connection | Keep fresh with the workspace connection | 通过工作区连接保持更新 | ワークスペース接続で最新に保つ | Default when one exists |
+| Tenant connection | Workspace connection | 工作区连接 | ワークスペースの接続 |  |
+| Member connection | Personal connection | 个人连接 | 個人の接続 |  |
+| Freshness by tenant connection | Keep fresh with the workspace connection | 通过工作区连接保持更新 | ワークスペースの接続で最新に保つ | Default when one exists |
 | Freshness by member connection | Keep fresh with my connection | 通过我的连接保持更新 | 自分の接続で最新に保つ | Needs the publisher's consent |
-| Snapshot | Publish a snapshot | 发布快照 | スナップショットとして公開 | Needs a review date |
+| Snapshot | Publish a snapshot | 发布快照 | スナップショットを公開 | Needs a review date |
 | Space audience | Who can read this | 可见范围 | 公開範囲 | Set by admins and stewards |
 | Audience gap | Some readers can't open the original | 部分读者无法打开原文 | 一部の閲覧者は原文を開けません | A warning, never a block |
-| Source permissions tightened; quarantine | Source permissions tightened; Hide the affected knowledge first | 来源权限收紧；先隐藏受影响的知识 | ソースの権限が厳しくなりました；影響するナレッジを先に非表示にする | Quarantine is a policy option; notify is the default |
+| Source permissions tightened; quarantine | Source permissions tightened; Hide the affected knowledge first | 来源权限收紧；先隐藏受影响的知识 | ソースの権限が縮小されました；影響するナレッジを先に非表示にする | Quarantine is a policy option; notify is the default |
 | Freshness owner | Freshness owner | 保鲜负责人 | 鮮度担当者 |  |
 | Steward | Steward | 知识管理员 | ナレッジ管理者 |  |
 | Arbiter | Arbiter | 仲裁人 | 裁定者 |  |
-| Approval modes | Single, Any one, Everyone, At least n | 单人、或签、会签、至少 n 人 | 単独承認、いずれか1名、全員承認、n名以上 |  |
+| Approval modes | Single, Any one, Everyone, At least n | 单人、或签、会签、至少 n 人 | 単独承認、いずれか承認、全員承認、n名以上 |  |
 | Disputed value | Disputed | 有争议 | 異論あり |  |
 | Precedence rule | Rule | 裁决规则 | 裁定ルール |  |
 | Claim on an external tenant | Verified Feishu organization | 已认证飞书企业 | 認証済みの Lark 組織 | Avoid "claim". Shows Lark instead of Feishu for Lark tenants |

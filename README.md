@@ -96,6 +96,9 @@ technical design in one document, with what is built, in review and planned.
 
 - [UI principles](docs/design/ui-principles.md) and
   [Statements at scale](docs/design/statements-at-scale.md): the adopted UI and review design.
+- [Business layer](docs/design/business-layer.md) and
+  [Business layer and engine contract](docs/design/business-engine-contract.md): accounts,
+  workspaces, publishing and approvals above the engine, and the contract between the two.
 - [Architecture](docs/architecture.md): engine and business layer, components, how they
   talk, storage, security.
 - [Contracts](docs/contracts.md): changing schemas, code generation, IDs, events,

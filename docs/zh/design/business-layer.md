@@ -189,21 +189,24 @@ Inspiration 分为两层。**引擎**没有产品界面，只负责知识、权�
 引擎在执行决定前，会重新确认每位审批人都有权在该范围内核实，从不只看票数。
 
 ```mermaid
-flowchart LR
-  subgraph engine[引擎]
-    detected[发现冲突] --> participants[参与人来自保鲜负责人设置]
-    meanwhile>"在此期间，读者和智能体看到最近一次核实过的取值，并标为“有争议”"]
-    apply["引擎执行决定：逐一复核审批人资格，记录投票和所用规则"]
+sequenceDiagram
+  participant E as 引擎
+  participant B as 业务层
+  participant P as 参与人
+  participant A as 仲裁人
+  E->>B: todo.created：知识冲突，参与人来自保鲜负责人设置
+  Note over E: 在此期间，读者和智能体看到最近一次核实过的取值，并标为“有争议”
+  B->>P: 发起审批：方式、截止时间、仲裁人
+  P->>B: 投票，或提出修改（投票重新开始）
+  alt 截止前达成一致
+    B->>E: 决定：方案和审批人
+  else 票数分歧或已过截止时间
+    B->>A: 升级
+    A->>B: 裁决
+    B->>E: 决定：方案和审批人
   end
-  subgraph business[业务层]
-    opened["发起审批：方式、截止时间、仲裁人"] --> vote[参与人投票或提出修改]
-    vote --> agreed{截止前达成一致？}
-    arbiter[仲裁人裁决]
-  end
-  participants --> opened
-  agreed -- 是 --> apply
-  agreed -- 票数分歧或已过截止时间 --> arbiter
-  arbiter --> apply
+  E->>E: 逐一复核审批人资格，执行，记录投票和所用规则
+  E-->>B: decision.applied
 ```
 
 引擎负责发现和执行，人在业务层做决定；仲裁这条路保证有争议的事实不会一直悬而未决。
@@ -242,7 +245,7 @@ Inspiration 从第一个版本起就面向英文、中文和日文用户。大�
 - **产品文字不写在代码里。** 界面文字、邮件、通知和聊天卡片都来自三种语言的消息目录，复数和变量用 ICU MessageFormat。任何一种语言缺少某条文字，构建就失败。每种语言的用词来自同一份术语表，即下文的术语表。
 - **登录页。** 身份提供方的页面跟随账号语言。Logto 自带英文、中文和日文。
 - **用户输入的内容原样显示。** 空间名称、策略文字、评论和审批理由都按原文显示，从不机器翻译。
-- **按市场接入聊天应用。** 飞书和钉钉服务国内团队。飞书的国际版 Lark 的 API 几乎相同，只是域名不同，所以同一套集成也服务日本和其他地区的 Lark 团队。邮件和应用内收件箱在所有地区都可用。
+- **按市场接入聊天应用。** 飞书和钉钉服务国内团队。飞书的国际版 Lark 的 API 几乎相同，只是域名不同，所以同一套集成也服务日本和其他地区的 Lark 团队。邮件和应用内待办箱在所有地区都可用。
 - **每个租户一个地区。** 租户在创建时确定地区（开通命令带这个字段），数据留在该地区。在中国大陆提供公开 SaaS 需要第 5 项决定里列出的备案和许可；其他用户由一个全球地区服务。
 
 三种语言的知识本身（解析、搜索、抽取，以及跨语言识别同一事实）属于引擎，不在本文范围内。业务线第 1 阶段因此在 accounts 和 notifications 上增加约 0.5 人周；Web 应用的文字目录包含在它的 8 人周里。
@@ -257,36 +260,26 @@ Inspiration 从第一个版本起就面向英文、中文和日文用户。大�
 flowchart TB
   browser[浏览器]
   idp[身份提供方]
+  agents[CLI 与 MCP 客户端]
   im["飞书、Lark、钉钉"]
-  clients[CLI 与 MCP 客户端]
   subgraph business["业务层：人、工作区、策略、流程"]
-    web[web 与 BFF]
-    accounts[accounts]
-    tenancy[tenancy]
-    directory[directory]
-    grants[access-grants]
-    connections[connections]
-    publishing[publishing]
-    approvals[approvals]
-    notifications[notifications]
-    admin[admin]
-    billing["billing（第 3 阶段）"]
+    direction LR
+    identity["web 与 BFF<br/>accounts · tenancy<br/>directory · access-grants"]
+    workflow["connections · publishing<br/>approvals · notifications<br/>admin · billing（第 3 阶段）"]
   end
+  protocol["协议<br/>向下：命令与查询，签名主体，幂等<br/>向上：待办、发布、决定、用量的事件<br/>引擎从不调用业务层"]
   subgraph engine["引擎：知识、权限、智能体接口，不含产品界面"]
-    pipeline[采集与编译流水线]
-    governance[协作与治理]
-    agentapi["智能体接口：MCP 与 REST"]
-    store[知识存储与检索]
-    access[访问控制与审计]
-    broker["凭据代理、模型"]
+    direction LR
+    pipeline["采集与编译流水线<br/>协作与治理"]
+    agentapi["智能体接口<br/>MCP 与 REST"]
+    platform["知识存储与检索<br/>访问控制与审计<br/>凭据代理、模型"]
   end
-  browser -- 会话 --> web
-  idp -- OIDC 登录 --> accounts
-  notifications -- 审批卡片 --> im
-  clients -- OAuth 登录 --> grants
-  clients -- 访问令牌 --> agentapi
-  business == "命令与查询：签名主体，幂等" ==> engine
-  engine -. "事件：待办、发布、决定、用量" .-> business
+  browser -- 会话 --> identity
+  idp -- OIDC 登录 --> identity
+  agents -- OAuth 登录 --> identity
+  im <-- 审批卡片 --> workflow
+  business --- protocol --- engine
+  agents -- 访问令牌 --> agentapi
 ```
 
 浏览器只通过业务层访问引擎；CLI 和 MCP 客户端先在业务层登录，再拿着该令牌直接调用引擎的智能体接口。
@@ -300,7 +293,7 @@ flowchart TB
 | connections | 工作区连接和个人连接的连接流程、用个人连接为已发布来源保鲜的同意、对外部企业的认领 | 凭据代理：发起、完成、启用、丢弃、吊销 | 1（认领在第 2 阶段） |
 | publishing | 发布向导：目标空间、每个来源的保鲜方式、覆盖检查、“部分读者无法打开原文”提醒、审批路由 | 发布请求及其检查（覆盖、可读差异、敏感信息、冲突） | 1 |
 | approvals | 发布、冲突、快照和加入申请的多方审批：策略、投票、截止时间、升级、决定记录 | 对待办和发布请求的决定命令 | 1（单人）、2（联合） |
-| notifications | 收件箱、邮件、带审批按钮的飞书、Lark 和钉钉机器人卡片、摘要、偏好设置、消息目录 | 无。消费引擎事件 | 1 |
+| notifications | 待办箱、邮件、带审批按钮的飞书、Lark 和钉钉机器人卡片、摘要、偏好设置、消息目录 | 无。消费引擎事件 | 1 |
 | admin | 空间可见范围、工作区策略、角色预设、负责人指定、审计查看、用量查看 | 策略、负责人、审计和用量接口 | 1 |
 | billing | 套餐、席位、配额和成员上限、模型预算 | 预算上限、用量记录 | 3 |
 | web | 产品 Web 应用及其面向前端的后端（界面设计见 [UI 原则](ui-principles.md)） | 以上全部，以登录成员的身份 | 1 |
@@ -344,7 +337,7 @@ Web 后端保持浏览器会话，并在每个租户上下文中签发一个主�
 | 事件 | 使用方 | main 上已有 |
 | --- | --- | --- |
 | `todo.created` | 通知、审批（为冲突开启联合审批） | 是 |
-| `todo.updated` | 收件箱状态、审批（撤回过时的审批） | 否 |
+| `todo.updated` | 待办箱状态、审批（撤回过时的审批） | 否 |
 | `publish_request.updated` | 发布、通知 | 否 |
 | `unit.published` | 通知、管理动态 | 是 |
 | `decision.applied` | 审批（用方案 ID 关闭记录） | 否 |
@@ -402,23 +395,23 @@ Web 应用已在计划内（8 人周）。计费在第 3 阶段，约再加 3 �
 | 概念 | 界面用语（英文） | 中文 | 日本語（初稿） | 说明 |
 | --- | --- | --- | --- | --- |
 | 租户 | Workspace | 工作区 | ワークスペース | 个人租户从不显示：单人用户只看到自己的知识库，直到邀请他人或创建团队工作区 |
-| 个人租户 | My library | 我的知识库（切换器中显示为 个人知识库） | マイライブラリ（切换器中显示为 個人ライブラリ） | 单人用户完全看不到“工作区”一类的字眼 |
+| 个人租户 | Personal library | 我的知识库（切换器中显示为 个人知识库） | マイライブラリ（切换器中显示为 個人ライブラリ） | 单人用户完全看不到“工作区”一类的字眼 |
 | 成员 | Member | 成员 | メンバー |  |
 | 工作区中的个人空间 | My space | 我的空间 | マイスペース | 仅成员本人可见，管理员也看不到 |
 | 团队或组织空间 | Space | 空间 | スペース |  |
 | claim | Statement | 陈述 | 記述 | “claim”只作为引擎用词 |
-| 租户连接 | Workspace connection | 工作区连接 | ワークスペース接続 |  |
-| 成员连接 | Personal connection | 个人连接 | 個人接続 |  |
-| 通过租户连接保鲜 | Keep fresh with the workspace connection | 通过工作区连接保持更新 | ワークスペース接続で最新に保つ | 有工作区连接时为默认 |
+| 租户连接 | Workspace connection | 工作区连接 | ワークスペースの接続 |  |
+| 成员连接 | Personal connection | 个人连接 | 個人の接続 |  |
+| 通过租户连接保鲜 | Keep fresh with the workspace connection | 通过工作区连接保持更新 | ワークスペースの接続で最新に保つ | 有工作区连接时为默认 |
 | 通过成员连接保鲜 | Keep fresh with my connection | 通过我的连接保持更新 | 自分の接続で最新に保つ | 需要发布人同意 |
-| 快照 | Publish a snapshot | 发布快照 | スナップショットとして公開 | 需要设定复核日期 |
+| 快照 | Publish a snapshot | 发布快照 | スナップショットを公開 | 需要设定复核日期 |
 | 空间可见范围 | Who can read this | 可见范围 | 公開範囲 | 由管理员和知识管理员设定 |
 | 可读差异 | Some readers can't open the original | 部分读者无法打开原文 | 一部の閲覧者は原文を開けません | 只是提醒，从不阻止 |
-| 来源权限收紧；隔离 | Source permissions tightened; Hide the affected knowledge first | 来源权限收紧；先隐藏受影响的知识 | ソースの権限が厳しくなりました；影響するナレッジを先に非表示にする | 隔离是可选的策略，默认只通知 |
+| 来源权限收紧；隔离 | Source permissions tightened; Hide the affected knowledge first | 来源权限收紧；先隐藏受影响的知识 | ソースの権限が縮小されました；影響するナレッジを先に非表示にする | 隔离是可选的策略，默认只通知 |
 | 保鲜负责人 | Freshness owner | 保鲜负责人 | 鮮度担当者 |  |
 | 知识管理员 | Steward | 知识管理员 | ナレッジ管理者 |  |
 | 仲裁人 | Arbiter | 仲裁人 | 裁定者 |  |
-| 审批方式 | Single, Any one, Everyone, At least n | 单人、或签、会签、至少 n 人 | 単独承認、いずれか1名、全員承認、n名以上 |  |
+| 审批方式 | Single, Any one, Everyone, At least n | 单人、或签、会签、至少 n 人 | 単独承認、いずれか承認、全員承認、n名以上 |  |
 | 有争议的取值 | Disputed | 有争议 | 異論あり |  |
 | 优先规则 | Rule | 裁决规则 | 裁定ルール |  |
 | 对外部租户的认领 | Verified Feishu organization | 已认证飞书企业 | 認証済みの Lark 組織 | 避免使用“认领”一词。Lark 租户显示 Lark 而不是飞书 |
@@ -433,7 +426,7 @@ Web 应用已在计划内（8 人周）。计费在第 3 阶段，约再加 3 �
 | 邀请与加入 | 邀请、加入申请、已验证域名 | 待处理、已接受、已过期；批准或拒绝申请 |
 | 连接 | 工作区连接和个人连接 | 待同意、已启用、需要重新授权、已暂停、已吊销、被公司策略禁止 |
 | 发布向导 | 内容单元、目标空间、来源 | 选择目标空间，为每个来源选择保鲜方式（并显示覆盖差异），查看空间的可见范围和“部分读者无法打开原文”提醒，使用我的连接时确认同意，提交。请求状态：草稿、审核中、已发布、已撤下 |
-| 收件箱 | 按类型分组的待办 | 待处理、处理中、已完成、已忽略；按批次分组；在卡片上直接审批 |
+| 待办箱 | 按类型分组的待办 | 待处理、处理中、已完成、已忽略；按批次分组；在卡片上直接审批 |
 | 冲突处理 | 两条陈述及其证据、受影响的页面、可选项 | 参与人及其投票、审批方式、截止时间、仲裁人；期间读者看到什么；“设为裁决规则”。审批状态：进行中、已同意、有分歧、已升级、已裁决、已撤回、已过期 |
 | 为什么是这个值？ | 决定记录、裁决规则 | 谁同意的、何时同意、适用了哪条规则 |
 | 管理后台 | 成员、带可见范围和角色的空间树、发布队列、按主题的负责人、策略、工作区默认语言、已验证域名以及飞书或 Lark 企业、已授权应用、审计日志、用量 | 角色预设：单人、团队、企业 |
