@@ -5,29 +5,34 @@
 // SOPs) is not stored here: access control decides it at read time from the documents behind each
 // claim, so it always follows the sources the viewer can read now.
 
-/** A person's membership of a tenant (usr_), provisioned by the business layer's directory. */
-definition user {}
+/**
+ * A member: one person inside one tenant (mem_), provisioned by the business layer's directory.
+ * Principal IDs are unique only within their tenant, so members, services, groups and
+ * departments have the object ID "<tenant id>|<principal id>" (see principalObjectId in
+ * src/service.ts).
+ */
+definition member {}
 
 /** An internal service account: pipelines and governance agents. */
 definition service {}
 
 definition group {
-    relation member: user | group#member
+    relation member: member | group#member
 }
 
 /** Departments nest: a department's members include its sub-departments' members. */
 definition department {
-    relation member: user | department#member
+    relation member: member | department#member
 }
 
 definition tenant {
-    relation admin: user
-    relation member: user | group#member | department#member
+    relation admin: member
+    relation member: member | group#member | department#member
     relation service: service
 
     // Sensitivity clearance above the default "internal" of every member.
-    relation confidential_reader: user | group#member | department#member
-    relation secret_reader: user | group#member
+    relation confidential_reader: member | group#member | department#member
+    relation secret_reader: member | group#member
 
     permission administer = admin
     permission everyone = member + admin
@@ -39,11 +44,11 @@ definition tenant {
 definition space {
     relation tenant: tenant
     relation parent: space
-    relation owner: user
-    relation steward: user | group#member
-    relation editor: user | group#member | department#member
-    relation commenter: user | group#member | department#member | tenant#member
-    relation viewer: user | group#member | department#member | tenant#member
+    relation owner: member
+    relation steward: member | group#member
+    relation editor: member | group#member | department#member
+    relation commenter: member | group#member | department#member | tenant#member
+    relation viewer: member | group#member | department#member | tenant#member
 
     permission system = tenant->system
     permission admin = owner + tenant->administer + parent->admin
@@ -67,14 +72,14 @@ definition source {
 definition document {
     relation source: source
     relation parent: document
-    relation owner: user | group#member | department#member
-    relation editor: user | group#member | department#member
-    relation commenter: user | group#member | department#member
-    relation viewer: user | group#member | department#member | tenant#member
+    relation owner: member | group#member | department#member
+    relation editor: member | group#member | department#member
+    relation commenter: member | group#member | department#member
+    relation viewer: member | group#member | department#member | tenant#member
 
     // "Anyone in the company with the link": readable, and reported by the oversharing scan.
     relation link_viewer: tenant#member
-    relation public_viewer: user:*
+    relation public_viewer: member:*
 
     permission read = viewer + commenter + editor + owner + link_viewer + public_viewer + parent->read + source->system
     permission discover = read

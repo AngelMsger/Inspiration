@@ -1,4 +1,4 @@
-import type { AgentResult } from "@inspiration/contracts";
+import type { AgentResult, Principal } from "@inspiration/contracts";
 import { openPool } from "@inspiration/kernel";
 import { hasStack, stackTest as test } from "@inspiration/testkit";
 import { describe, expect } from "vitest";
@@ -24,9 +24,17 @@ describe.skipIf(!hasStack())("run store on Postgres", () => {
         started_at: now,
         finished_at: now,
       };
-      await runs.save(result, { principalId: "agt_01JC000000000000000000AGT1" });
-      await runs.save({ ...result, status: "completed" }, { principalId: "agt_01JC000000000000000000AGT1" });
+      const agent: Principal = {
+        id: "agt_01JC000000000000000000AGT1",
+        kind: "agent",
+        tenant_id: "ten_01JC00000000000000000TEN1",
+        on_behalf_of: "mem_01JC000000000000000000MEM1",
+      };
+      await runs.save(result, agent);
+      await runs.save({ ...result, status: "completed" }, agent);
       expect(await runs.get(result.run_id)).toEqual({ ...result, status: "completed" });
+      const { rows } = await pool.query("SELECT tenant_id, principal, on_behalf_of FROM agents.runs");
+      expect(rows).toEqual([{ tenant_id: agent.tenant_id, principal: agent.id, on_behalf_of: agent.on_behalf_of }]);
       expect(await runs.get("run_01JC0000000000000000MISSING")).toBeUndefined();
     } finally {
       await pool.end();

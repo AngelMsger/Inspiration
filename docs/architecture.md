@@ -16,7 +16,16 @@ The **business layer** (a separate system) owns people and tenants: the external
 provider, accounts that are members of many tenants, personal tenants, publishing policy and
 admin governance. It provisions the engine (members, groups, spaces, policy) through engine
 commands and reacts to engine events. Calls go down, events come up: the engine never calls
-the business layer. An engine person ID (`usr_`) is one tenant membership, never an account.
+the business layer.
+
+There are three IDs: the tenant (`ten_`), the business layer's user, which is the account
+(`usr_`), and the member (`mem_`), which is one user inside one tenant. User IDs never reach
+the engine; its only person ID is the member ID. A member ID is unique only within its
+tenant (the business layer may give a person the same member ID in every tenant they join),
+and nothing derives one ID from another or reads meaning into an ID's body. So everything
+the engine keeps outside a tenant's own rows keys principals by tenant: the permission graph
+(`<ten_…>|<mem_…>`, likewise for services, groups and departments), index principal
+tokens, and agent runs.
 
 Engine APIs are tenant- and membership-aware and free of UI concerns, so the web app, the
 business layer and agents all use the same surface.
@@ -121,8 +130,9 @@ deployment can move to Milvus or OpenSearch without touching retrieval.
 - **Sensitivity routing.** Every model call carries the highest sensitivity label of its
   content. Each model provider has a maximum label; confidential and secret content only
   ever reaches models inside the customer network.
-- **Agents act for a person.** An agent principal must carry `on_behalf_of`. Its rights are
-  the person's rights cut down to its scopes (read-only by default) and spaces. Built-in
+- **Agents act for a member.** An agent principal must carry `on_behalf_of`, a member of
+  its tenant. Its rights are the member's rights cut down to its scopes (read-only by
+  default) and spaces. Built-in
   agent tools only read or propose; nothing an agent does changes knowledge without a
   person approving it.
 

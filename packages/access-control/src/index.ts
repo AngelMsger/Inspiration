@@ -1,5 +1,6 @@
 /**
- * Access control: permissions for people and agents, on SpiceDB.
+ * Access control: permissions for members and agents, on SpiceDB. Members, services, groups
+ * and departments are keyed by tenant, since their IDs are unique only within it.
  *
  *     const service = new AuthzService(new SpiceDBGraph(connect(endpoint, key)), store); // or new MemoryGraph()
  *     await service.mirror(aclSnapshot, { spaceId });                // on acl.changed
@@ -30,6 +31,7 @@ export {
   documentRef,
   LINEAGE_DEPTH,
   PrincipalError,
+  principalObjectId,
   SPACE_ROLES,
   type SpaceResolver,
   type SpaceRole,

@@ -131,7 +131,7 @@ export class Runtime implements AgentRuntimeInterface {
     const runId = newId("run");
     const who = ctx.principal;
     if (who.kind === "agent" && !who.on_behalf_of)
-      throw new RangeError("an agent principal must act on behalf of a person");
+      throw new RangeError("an agent principal must act on behalf of a member");
     const toolSpecs = this.tools.specs(spec.tools);
     const allowed = new Set(toolSpecs.map((t) => t.name));
     const schema = actionSchema(spec, toolSpecs);
@@ -267,7 +267,7 @@ export class Runtime implements AgentRuntimeInterface {
     if (error !== undefined) result.error = error;
     if (this.runs) {
       try {
-        await this.runs.save(result, { principalId: who.id });
+        await this.runs.save(result, who);
       } catch (e) {
         // A lost trace must not lose the result.
         log.error("failed to save agent run", { run: runId, error: e });

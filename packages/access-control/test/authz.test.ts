@@ -31,6 +31,7 @@ import {
   MemoryGraph,
   obj,
   PrincipalError,
+  principalObjectId,
   rel,
   SpiceDBGraph,
   subject,
@@ -60,10 +61,10 @@ function entry(kind: AclPrincipalKind, principalId?: string, role: AclRole = "vi
 }
 
 const NAMES = {
-  alice: "user",
-  bob: "user",
-  carol: "user",
-  dave: "user",
+  alice: "member",
+  bob: "member",
+  carol: "member",
+  dave: "member",
   svc: "service",
   finance: "group",
   managers: "group",
@@ -95,10 +96,10 @@ class World {
     for (const user of ["alice", "bob", "carol"] as const) await authz.addTenantMember(tenant, ids[user]);
     await authz.addService(tenant, ids.svc);
     await authz.grantClearance(tenant, ids.carol, "confidential");
-    await authz.addMember(ids.finance, ids.alice);
-    await authz.addMember(ids.managers, ids.finance);
-    await authz.addMember(ids.sales, ids.bob);
-    await authz.addMember(ids.company, ids.sales);
+    await authz.addMember(tenant, ids.finance, ids.alice);
+    await authz.addMember(tenant, ids.managers, ids.finance);
+    await authz.addMember(tenant, ids.sales, ids.bob);
+    await authz.addMember(tenant, ids.company, ids.sales);
 
     await authz.createSpace(space, { tenantId: tenant, ownerId: ids.alice });
     await authz.grantSpace(space, "viewer", tenant);
@@ -123,7 +124,7 @@ class World {
   }
 
   who(name: Name): Principal {
-    const kind = NAMES[name] === "service" ? "service" : "user";
+    const kind = NAMES[name] === "service" ? "service" : "member";
     return { id: this.ids[name], kind, tenant_id: this.tenant };
   }
 
@@ -352,6 +353,44 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
       expect(await w.can(w.agent("carol"), "read", w.doc("doc-managers"))).toBe(false);
       const orphan: Principal = { id: newId("agent"), kind: "agent", tenant_id: w.tenant };
       await expect(w.authz.check(orphan, "read", space)).rejects.toThrow(PrincipalError);
+      await expect(w.authz.check(w.agent("finance"), "read", space)).rejects.toThrow(PrincipalError);
+    });
+  });
+
+  describe.skipIf(skip)("tenants", () => {
+    test("the same principal ID in another tenant shares none of its rights", async ({ w }) => {
+      // The business layer may give a person the same member ID in every tenant they join.
+      const other = newId("tenant");
+      const otherSpace: ResourceRef = { type: "space", id: newId("space") };
+      const elsewhere = (name: Name): Principal => ({ ...w.who(name), tenant_id: other });
+      for (const name of ["alice", "bob", "carol"] as const) await w.authz.addTenantMember(other, w.ids[name]);
+      await w.authz.createSpace(otherSpace.id, { tenantId: other, ownerId: w.ids.bob });
+      await w.authz.grantSpace(otherSpace.id, "viewer", w.ids.carol);
+      await w.authz.addMember(other, w.ids.finance, w.ids.bob);
+
+      expect(await w.can(elsewhere("alice"), "read", w.doc("doc-managers"))).toBe(false);
+      expect(await w.can(elsewhere("alice"), "read", { type: "space", id: w.space })).toBe(false);
+      expect(await w.can(elsewhere("bob"), "admin", otherSpace)).toBe(true);
+      expect(await w.can("bob", "admin", otherSpace)).toBe(false);
+      expect(await w.can(elsewhere("carol"), "read", otherSpace)).toBe(true);
+      expect(await w.can("carol", "read", otherSpace)).toBe(false);
+      // The other tenant's group with the same ID is another group.
+      expect(await w.can("bob", "read", { type: "space", id: w.financeSpace })).toBe(false);
+
+      const filter = await w.authz.scopeFilter(elsewhere("alice"), "read");
+      expect(filter.space_ids).toEqual([]);
+      expect(filter.principal_tokens).not.toContain(principalObjectId(w.tenant, w.ids.alice));
+      expect(filter.principal_tokens).not.toContain(principalObjectId(w.tenant, w.ids.finance));
+
+      // Removing a member in one tenant leaves the other alone.
+      await w.authz.addMember(other, w.ids.finance, w.ids.alice);
+      await w.authz.removeMember(other, w.ids.finance, w.ids.alice);
+      expect(await w.can("alice", "read", { type: "space", id: w.financeSpace })).toBe(true);
+
+      await expect(w.authz.grantSpace(otherSpace.id, "viewer", w.tenant)).rejects.toThrow(PrincipalError);
+      await expect(
+        w.authz.createSpace(newId("space"), { tenantId: other, ownerId: w.ids.bob, parentId: w.space }),
+      ).rejects.toThrow(/another tenant/);
     });
   });
 
@@ -359,12 +398,13 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
     test("the scope filter matches chunk tokens", async ({ w }) => {
       const alice = await w.authz.scopeFilter(w.who("alice"), "read");
       expect([...alice.space_ids].sort()).toEqual([w.space, w.financeSpace].sort());
+      const token = (name: Name) => principalObjectId(w.tenant, w.ids[name]);
       expect(alice.principal_tokens).toEqual(
-        expect.arrayContaining([w.ids.alice, w.ids.finance, w.ids.managers, `tenant:${w.tenant}`]),
+        expect.arrayContaining([token("alice"), token("finance"), token("managers"), `tenant:${w.tenant}`]),
       );
       expect(alice.max_sensitivity).toBe("internal");
       const bob = await w.authz.scopeFilter(w.who("bob"), "read");
-      expect(bob.principal_tokens).toEqual(expect.arrayContaining([w.ids.sales, w.ids.company]));
+      expect(bob.principal_tokens).toEqual(expect.arrayContaining([token("sales"), token("company")]));
       const carol = await w.authz.scopeFilter(w.who("carol"), "read");
       expect(carol.max_sensitivity).toBe("confidential");
       const dave = await w.authz.scopeFilter(w.who("dave"), "read");
@@ -372,7 +412,7 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
       expect(dave.max_sensitivity).toBe("public");
 
       const tokens = aclTokens(acl(w.source, "doc-managers", [entry("group", w.ids.managers)]), w.tenant);
-      expect(tokens).toEqual([w.ids.managers, `system:${w.tenant}`].sort());
+      expect(tokens).toEqual([token("managers"), `system:${w.tenant}`].sort());
       expect(tokens.some((t) => alice.principal_tokens.includes(t))).toBe(true);
       expect(tokens.some((t) => carol.principal_tokens.includes(t))).toBe(false);
 
@@ -444,9 +484,9 @@ unitTest("the in-memory graph rejects relationships the schema forbids", async (
   await expect(g.write({ touch: [rel(obj("group", "grp_x"), "member", subject("tenant", "ten_x"))] })).rejects.toThrow(
     GraphError,
   );
-  await expect(g.write({ touch: [rel(obj("space", "spc_x"), "approver", subject("user", "usr_x"))] })).rejects.toThrow(
-    /no relation/,
-  );
+  await expect(
+    g.write({ touch: [rel(obj("space", "spc_x"), "approver", subject("member", "ten_x|mem_x"))] }),
+  ).rejects.toThrow(/no relation/);
   expect(() => new MemoryGraph("definition a { relation r: a\n permission p = r & r }")).toThrow(/only unions/);
 });
 
@@ -458,7 +498,7 @@ describe.skipIf(!hasStack())("SpiceDB", () => {
       await schemaWritten;
       const graph = new SpiceDBGraph(client);
       await expect(
-        graph.write({ touch: [rel(obj("space", newId("space")), "approver", subject("user", newId("user")))] }),
+        graph.write({ touch: [rel(obj("space", newId("space")), "approver", subject("member", newId("member")))] }),
       ).rejects.toThrow(GraphError);
     } finally {
       closeClient(client);

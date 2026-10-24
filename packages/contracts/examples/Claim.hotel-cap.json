@@ -17,7 +17,7 @@
   "weight": 0.88,
   "status": "verified",
   "origin": "extracted",
-  "owner_id": "usr_01JC0000000000000000000001",
+  "owner_id": "mem_01JC0000000000000000000001",
   "sensitivity": "internal",
   "producer": {
     "component": "extraction",

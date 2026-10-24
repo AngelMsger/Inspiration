@@ -1,10 +1,11 @@
 /** Agent run traces (agents.runs), kept for review, replay and evals. */
 
-import type { AgentResult } from "@inspiration/contracts";
+import type { AgentResult, Principal } from "@inspiration/contracts";
 import type { Pool } from "@inspiration/kernel";
 
 export interface RunStore {
-  save(result: AgentResult, options: { principalId: string }): Promise<void>;
+  /** Keep a run with the principal it ran as. */
+  save(result: AgentResult, principal: Principal): Promise<void>;
   get(runId: string): Promise<AgentResult | undefined>;
 }
 
@@ -22,8 +23,9 @@ export class MemoryRuns implements RunStore {
 }
 
 const UPSERT = `
-INSERT INTO agents.runs (run_id, agent, version, status, trace_id, principal, started_at, finished_at, result)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+INSERT INTO agents.runs (run_id, agent, version, status, trace_id, tenant_id, principal, on_behalf_of, started_at,
+    finished_at, result)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 ON CONFLICT (run_id) DO UPDATE SET status = excluded.status, finished_at = excluded.finished_at,
     result = excluded.result`;
 
@@ -34,14 +36,16 @@ export class PostgresRuns implements RunStore {
     this.pool = pool;
   }
 
-  async save(r: AgentResult, options: { principalId: string }): Promise<void> {
+  async save(r: AgentResult, principal: Principal): Promise<void> {
     await this.pool.query(UPSERT, [
       r.run_id,
       r.agent,
       r.agent_version,
       r.status,
       r.trace_id,
-      options.principalId,
+      principal.tenant_id,
+      principal.id,
+      principal.on_behalf_of ?? null,
       r.started_at,
       r.finished_at,
       JSON.stringify(r),

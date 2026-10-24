@@ -98,7 +98,7 @@ function context(principal: Partial<Principal> = {}, overrides: Partial<AgentRun
       id: "agt_01JC000000000000000000AGT1",
       kind: "agent",
       tenant_id: TENANT,
-      on_behalf_of: "usr_01JC000000000000000000USR1",
+      on_behalf_of: "mem_01JC000000000000000000MEM1",
       ...principal,
     },
     budget_key: `tenant:${TENANT}/collaboration`,
