@@ -215,7 +215,7 @@ $defs:
 
   TodoKind:
     description: >
-      note: a value only reference documents state disagrees with the governed one (备注). It
+      note: a value only reference documents state disagrees with the governed one. It
       asks for no decision: the owner acknowledges it, and it is not counted against the
       weekly budget.
     type: string

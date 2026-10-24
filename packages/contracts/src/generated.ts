@@ -386,7 +386,7 @@ export type SpaceKind = "personal" | "team" | "org" | "source_mirror";
  */
 export type TopicStatus = "proposed" | "confirmed" | "retired";
 /**
- * note: a value only reference documents state disagrees with the governed one (备注). It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget.
+ * note: a value only reference documents state disagrees with the governed one. It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget.
  *
  */
 export type TodoKind =

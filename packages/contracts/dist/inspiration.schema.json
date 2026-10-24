@@ -7264,7 +7264,7 @@
       "pattern": "^todo_[0-9A-Za-z]{8,64}$"
     },
     "TodoKind": {
-      "description": "note: a value only reference documents state disagrees with the governed one (备注). It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget.\n",
+      "description": "note: a value only reference documents state disagrees with the governed one. It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget.\n",
       "type": "string",
       "enum": [
         "conflict",
