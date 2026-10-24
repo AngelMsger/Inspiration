@@ -55,7 +55,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       ]);
     });
 
-    test("a document that takes effect later does not change the current value before then", async ({ world }) => {
+    test("a document that takes effect later changes the current value only from its day", async ({ world }) => {
       const current = await world.state({ title: "差旅费管理办法", authority: 0.8, effective_from: "2026-01-01" }, [
         { text: "一线城市住宿限额为每晚 600 元。", value: 600 },
       ]);
@@ -74,6 +74,11 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
           rationale: "700 CNY/night takes effect on 2027-01-01.",
         },
       ]);
+
+      // On its day the slot is decided again, and the new edition is current.
+      world.setToday("2027-01-01");
+      expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("700 CNY/night");
     });
 
     test("a contradiction proposes the more authoritative source and asks once", async ({ world }) => {
