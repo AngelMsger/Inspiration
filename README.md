@@ -27,8 +27,9 @@ The foundations are built and tested. The remaining components are specified in
 | Connectors: local folders, Feishu documents and approvals (recorded fixtures) | `packages/connectors` | built |
 | Source sync: versions, tombstones, ACL snapshots, principal mapping | `packages/source-sync` | built |
 | Normalization: parsers, source blocks and spans with stable IDs, block diff, duplicates | `packages/normalization` | built |
+| Extraction: claims with verbatim evidence, predicate catalogue and slots, supersede on edits (mocked model) | `packages/extraction` | built |
 | Engine process and CLI: ingest runs, reports, synthetic corpora | `apps/engine` | built |
-| parsing, extraction, freshness, governance, page-compiler, collaboration, retrieval, agent-api, research, web, views | | planned |
+| parsing, freshness, governance, page-compiler, collaboration, retrieval, agent-api, research, web, views | | planned |
 
 Everything is TypeScript on Node 22 except the parsing worker, which is Python because the
 best document parsers are.
@@ -53,7 +54,7 @@ Tests that need the stack skip when it is not running, unless `INSPIRATION_REQUI
 is set, as it is in CI. Each one gets its own database copied from a migrated template and
 its own Valkey key prefix. `make test-unit` runs only the tests that need nothing.
 
-To run the ingest pipeline over the demo corpus ([`examples/corpus`](examples/corpus/README.md),
+To run the ingest pipeline (sync, normalization, extraction) over the demo corpus ([`examples/corpus`](examples/corpus/README.md),
 a fictional company with planted duplicates and conflicts) and print what it produced:
 
 ```bash

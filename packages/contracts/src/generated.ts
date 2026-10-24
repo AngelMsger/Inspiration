@@ -1413,6 +1413,10 @@ export interface ClaimsUpdated {
   origin: ClaimOrigin;
   added: ClaimId[];
   updated: ClaimId[];
+  /**
+   * Claims whose "known when" interval closed: superseded by a newer claim, or retracted because their source no longer states them.
+   *
+   */
   superseded: ClaimId[];
   source_version_id?: SourceVersionId;
   comment_id?: CommentId;

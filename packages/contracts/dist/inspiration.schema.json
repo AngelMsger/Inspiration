@@ -2312,6 +2312,7 @@
           }
         },
         "superseded": {
+          "description": "Claims whose \"known when\" interval closed: superseded by a newer claim, or retracted because their source no longer states them.\n",
           "type": "array",
           "items": {
             "$ref": "#/$defs/ClaimId"

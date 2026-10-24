@@ -13,6 +13,7 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import type { PredicateEntry, Vocabulary } from "@inspiration/extraction";
 import { stringify } from "yaml";
 import type { CorpusManifest } from "./corpus.ts";
 
@@ -277,6 +278,244 @@ export const FACTS: Fact[] = [
     ["预算 {v} 万元以上的市场活动须经总经理审批。", "活动预算超过 {v} 万要总经理批。"],
   ),
 ];
+
+interface Slot {
+  predicate: string;
+  label: string;
+  aliases: string[];
+  qualifier?: { name: string; aliases: string[] };
+  value: PredicateEntry["value"];
+}
+
+const money = (unit: string, words = ["元"]): PredicateEntry["value"] => ({
+  kind: "money",
+  unit,
+  currency: "CNY",
+  words,
+});
+const duration = (unit: string, words: string[]): PredicateEntry["value"] => ({ kind: "duration", unit, words });
+const count = (unit: string, words: string[]): PredicateEntry["value"] => ({ kind: "number", unit, words });
+const choice = (key: string): PredicateEntry["value"] => {
+  const fact = FACTS.find((f) => f.key === key) as Fact;
+  return { kind: "enum", values: [fact.value, ...fact.alternatives] };
+};
+
+/**
+ * How the tenant's predicate catalogue names each fact: the words documents use for it,
+ * the qualifier that tells facts sharing a predicate apart, and the value's unit. The
+ * synthesizer writes it as vocabulary.yaml, and truth.json gives each fact its slot.
+ */
+export const SLOTS: Record<string, Slot> = {
+  hotel_tier1: {
+    predicate: "hotel_cap_per_night",
+    label: "住宿限额（每晚）",
+    aliases: ["住宿"],
+    qualifier: { name: "一线城市", aliases: ["一线城市", "北京"] },
+    value: money("CNY/night"),
+  },
+  hotel_tier2: {
+    predicate: "hotel_cap_per_night",
+    label: "住宿限额（每晚）",
+    aliases: ["住宿"],
+    qualifier: { name: "新一线城市", aliases: ["新一线城市", "成都"] },
+    value: money("CNY/night"),
+  },
+  meal_allowance: {
+    predicate: "meal_allowance_per_day",
+    label: "伙食补助（每天）",
+    aliases: ["伙食补助"],
+    value: money("CNY/day"),
+  },
+  travel_claim_days: {
+    predicate: "travel_claim_deadline_days",
+    label: "差旅报销时限",
+    aliases: ["报销申请", "天内报销"],
+    value: duration("day", ["日", "天"]),
+  },
+  taxi_cap: {
+    predicate: "taxi_cap_per_day",
+    label: "市内打车上限（每天）",
+    aliases: ["打车", "出租车"],
+    value: money("CNY/day"),
+  },
+  payment_day: {
+    predicate: "reimbursement_payment_day",
+    label: "报销付款日",
+    aliases: ["报销款"],
+    value: choice("payment_day"),
+  },
+  annual_leave: {
+    predicate: "annual_leave_days",
+    label: "年休假天数",
+    aliases: ["年休假", "年假"],
+    value: duration("day", ["天"]),
+  },
+  core_hours: {
+    predicate: "core_working_hours",
+    label: "核心工作时间",
+    aliases: ["核心工作时间", "必须在岗"],
+    value: choice("core_hours"),
+  },
+  missed_punch: {
+    predicate: "missed_punch_per_month",
+    label: "每月补卡次数",
+    aliases: ["补卡"],
+    value: count("times", ["次"]),
+  },
+  probation: {
+    predicate: "probation_months",
+    label: "试用期",
+    aliases: ["试用期"],
+    value: duration("month", ["个月"]),
+  },
+  salary_day: {
+    predicate: "salary_pay_day",
+    label: "工资发放日",
+    aliases: ["工资"],
+    value: count("day_of_month", ["日", "号"]),
+  },
+  room_hours: {
+    predicate: "meeting_room_max_hours",
+    label: "会议室单次预订时长",
+    aliases: ["会议室单次预订", "小时的会议室"],
+    value: duration("hour", ["小时", "个小时"]),
+  },
+  room_release: {
+    predicate: "meeting_room_release_minutes",
+    label: "会议室未签到释放时间",
+    aliases: ["自动释放", "会被释放"],
+    value: duration("minute", ["分钟"]),
+  },
+  laptop_cycle: {
+    predicate: "laptop_replacement_years",
+    label: "笔记本更换周期",
+    aliases: ["更换周期", "申请更换"],
+    value: duration("year", ["年"]),
+  },
+  direct_purchase: {
+    predicate: "direct_purchase_limit",
+    label: "直接采购限额",
+    aliases: ["直接询价采购", "比价流程"],
+    value: money("10k CNY", ["万元"]),
+  },
+  tender_threshold: {
+    predicate: "tender_threshold",
+    label: "公开招标起点",
+    aliases: ["公开招标", "必须招标"],
+    value: money("10k CNY", ["万元"]),
+  },
+  quote_suppliers: {
+    predicate: "min_quote_suppliers",
+    label: "比价供应商数",
+    aliases: ["供应商"],
+    value: count("suppliers", ["家"]),
+  },
+  password_days: {
+    predicate: "password_rotation_days",
+    label: "密码更换周期",
+    aliases: ["密码"],
+    value: duration("day", ["天"]),
+  },
+  lost_device_hours: {
+    predicate: "lost_device_report_hours",
+    label: "设备丢失上报时限",
+    aliases: ["设备丢失", "丢了"],
+    value: duration("hour", ["小时"]),
+  },
+  ai_tool_rule: {
+    predicate: "external_ai_tool_restriction",
+    label: "外部 AI 工具禁用范围",
+    aliases: ["外部 AI 工具"],
+    value: choice("ai_tool_rule"),
+  },
+  contract_review_days: {
+    predicate: "contract_review_days",
+    label: "合同审核时限",
+    aliases: ["合同审核", "收到合同"],
+    value: duration("working_day", ["个工作日"]),
+  },
+  nda_required: {
+    predicate: "nda_required_for",
+    label: "须签保密协议的对象",
+    aliases: ["保密协议", "NDA"],
+    value: choice("nda_required"),
+  },
+  discount_approval: {
+    predicate: "discount_approval_threshold",
+    label: "折扣审批起点",
+    aliases: ["折扣", "打折"],
+    value: { kind: "percent", unit: "percent", words: ["%"] },
+  },
+  payment_term: {
+    predicate: "payment_term_days",
+    label: "回款期限",
+    aliases: ["付款期限", "回款周期"],
+    value: duration("day", ["天"]),
+  },
+  first_response: {
+    predicate: "ticket_first_response_minutes",
+    label: "工单首次响应时限",
+    aliases: ["首次响应"],
+    value: duration("minute", ["分钟"]),
+  },
+  refund_days: {
+    predicate: "refund_processing_days",
+    label: "退款处理时限",
+    aliases: ["退款"],
+    value: duration("working_day", ["个工作日"]),
+  },
+  review_approvers: {
+    predicate: "code_review_approvers",
+    label: "代码评审人数",
+    aliases: ["评审人", "审过"],
+    value: count("people", ["名", "个人"]),
+  },
+  release_window: {
+    predicate: "release_window",
+    label: "发布窗口",
+    aliases: ["发布窗口", "线上发布"],
+    value: choice("release_window"),
+  },
+  oncall_minutes: {
+    predicate: "oncall_response_minutes",
+    label: "值班响应时限",
+    aliases: ["告警"],
+    value: duration("minute", ["分钟"]),
+  },
+  campaign_approval: {
+    predicate: "campaign_approval_threshold",
+    label: "市场活动审批起点",
+    aliases: ["市场活动", "活动预算"],
+    value: money("10k CNY", ["万元", "万"]),
+  },
+};
+
+/** The slot key of a fact, as extraction's slotOf writes it. */
+export function slotOfFact(key: string): string {
+  const slot = SLOTS[key];
+  if (!slot) throw new RangeError(`no slot for fact ${key}`);
+  return slot.qualifier ? `${slot.predicate}|${slot.qualifier.name}` : slot.predicate;
+}
+
+/** The catalogue the synthetic tenant gives extraction: one entry per predicate. */
+export function vocabulary(): Vocabulary {
+  const entries = new Map<string, PredicateEntry>();
+  for (const slot of Object.values(SLOTS)) {
+    const entry = entries.get(slot.predicate) ?? {
+      predicate: slot.predicate,
+      label: slot.label,
+      knowledge_class: "policy",
+      aliases: [],
+      value: slot.value,
+    };
+    entry.aliases = [...new Set([...entry.aliases, ...slot.aliases])];
+    if (slot.qualifier) entry.qualifiers = [...(entry.qualifiers ?? []), slot.qualifier];
+    if (slot.value.values)
+      entry.value = { ...entry.value, values: [...new Set([...(entry.value.values ?? []), ...slot.value.values])] };
+    entries.set(slot.predicate, entry);
+  }
+  return { predicates: [...entries.values()] };
+}
 
 const DEPARTMENTS: Record<string, string> = {
   财务部: "finance",
@@ -568,10 +807,12 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
   for (const root of ["制度库", "归档", "共享"]) await mkdir(join(dir, root), { recursive: true });
   await writeFile(join(dir, "制度库", ".acl.yaml"), "readers: [tenant]\n");
   await writeFile(join(dir, "制度库", ".meta.yaml"), "authority: 0.9\nlanguage: zh-CN\n");
+  const facts = FACTS.map((f) => ({ ...f, slot: slotOfFact(f.key) }));
   await writeFile(
     join(dir, "truth.json"),
-    `${JSON.stringify({ facts: FACTS, statements: w.truth, duplicates: w.duplicates }, null, 1)}\n`,
+    `${JSON.stringify({ facts, statements: w.truth, duplicates: w.duplicates }, null, 1)}\n`,
   );
+  await writeFile(join(dir, "vocabulary.yaml"), stringify(vocabulary()));
   await writeFile(join(dir, "corpus.yaml"), stringify(manifest(departments)));
   return { documents: made, statements: w.truth.length, duplicates: w.duplicates };
 }

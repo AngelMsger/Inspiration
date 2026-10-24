@@ -26,6 +26,9 @@ importers:
       '@inspiration/eventbus':
         specifier: workspace:*
         version: link:packages/eventbus
+      '@inspiration/extraction':
+        specifier: workspace:*
+        version: link:packages/extraction
       '@inspiration/kernel':
         specifier: workspace:*
         version: link:packages/kernel
@@ -72,6 +75,9 @@ importers:
       '@inspiration/eventbus':
         specifier: workspace:*
         version: link:../../packages/eventbus
+      '@inspiration/extraction':
+        specifier: workspace:*
+        version: link:../../packages/extraction
       '@inspiration/kernel':
         specifier: workspace:*
         version: link:../../packages/kernel
@@ -189,6 +195,31 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
+
+  packages/extraction:
+    dependencies:
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@inspiration/eventbus':
+        specifier: workspace:*
+        version: link:../eventbus
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+      '@inspiration/model-gateway':
+        specifier: workspace:*
+        version: link:../model-gateway
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+    devDependencies:
+      '@inspiration/knowledge-store':
+        specifier: workspace:*
+        version: link:../knowledge-store
+      '@inspiration/testkit':
+        specifier: workspace:*
+        version: link:../testkit
 
   packages/kernel:
     dependencies:

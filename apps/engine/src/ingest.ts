@@ -1,24 +1,21 @@
 /**
  * An ingest run over a corpus, and the report the UI work sizes itself by: how many
  * documents, blocks and spans a tenant like this produces, how they split by kind, what
- * normalization could not parse, which duplicates it found and how many ACL entries the
- * directory could not map.
+ * normalization could not parse, which duplicates it found, how many ACL entries the
+ * directory could not map, and what extraction made of it all (see claims.ts).
  */
 
-import type { AclChanged, BlocksChanged, EventEnvelope } from "@inspiration/contracts";
+import type { AclChanged, BlocksChanged, ClaimsUpdated, EventEnvelope } from "@inspiration/contracts";
 import { payloadOf } from "@inspiration/contracts";
 import { InMemoryTransport, ValkeyStreamsTransport } from "@inspiration/eventbus";
 import type { ItemOutcome, SyncReport } from "@inspiration/source-sync";
+import { type ClaimsReport, claimsReport, type Spread, spread, type Truth, usageMark } from "./claims.ts";
 import type { Corpus } from "./corpus.ts";
 import type { Engine } from "./engine.ts";
 
-const REPORT_GROUP = "engine-report";
+export type { Spread } from "./claims.ts";
 
-export interface Spread {
-  median: number;
-  p90: number;
-  max: number;
-}
+const REPORT_GROUP = "engine-report";
 
 export interface IngestReport {
   tenant: string;
@@ -47,14 +44,8 @@ export interface IngestReport {
   /** Against truth.json, when the corpus has one (synthesized corpora do). */
   planted?: { duplicates: number; found: number; unexpected: number };
   acl: { changes: number; entries: number; mapped: number; unmapped: string[] };
+  claims: ClaimsReport;
   dead_letters: number;
-}
-
-function spread(values: readonly number[]): Spread {
-  if (!values.length) return { median: 0, p90: 0, max: 0 };
-  const sorted = [...values].sort((a, b) => a - b);
-  const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] as number;
-  return { median: at(0.5), p90: at(0.9), max: sorted.at(-1) as number };
 }
 
 function bump(counts: Record<string, number>, key: string, by = 1): void {
@@ -66,6 +57,7 @@ class EventTally {
   events: Record<string, number> = {};
   changes: BlocksChanged[] = [];
   acl: AclChanged[] = [];
+  updates: ClaimsUpdated[] = [];
 
   static #byEngine = new WeakMap<Engine, EventTally>();
 
@@ -79,6 +71,7 @@ class EventTally {
     tally.events = {};
     tally.changes = [];
     tally.acl = [];
+    tally.updates = [];
     return tally;
   }
 
@@ -98,12 +91,22 @@ class EventTally {
       REPORT_GROUP,
       count((e) => this.acl.push(payloadOf(e, "acl.changed"))),
     );
+    engine.observe(
+      "claims.updated",
+      REPORT_GROUP,
+      count((e) => this.updates.push(payloadOf(e, "claims.updated"))),
+    );
   }
 }
 
-/** Register the corpus's sources, sync each once, deliver every event, and report. */
-export async function ingest(engine: Engine, corpus: Corpus): Promise<IngestReport> {
+/**
+ * Register the corpus's sources, sync each once, deliver every event, and report. With the
+ * corpus's truth.json, the report checks extracted facts against it.
+ */
+export async function ingest(engine: Engine, corpus: Corpus, options: { truth?: Truth } = {}): Promise<IngestReport> {
   const tally = EventTally.for(engine);
+  const usageFrom = usageMark(engine);
+  const before = { ...engine.extraction.totals };
   const started = performance.now();
   const runs: { source: (typeof corpus.sources)[number]; report: SyncReport }[] = [];
   for (const source of corpus.sources) {
@@ -120,6 +123,17 @@ export async function ingest(engine: Engine, corpus: Corpus): Promise<IngestRepo
     events: tally.events,
     duplicates: await duplicates(engine, corpus, tally.changes),
     acl: aclSummary(tally.acl),
+    claims: await claimsReport(engine, corpus, {
+      changes: tally.changes,
+      updates: tally.updates,
+      totals: {
+        windows: engine.extraction.totals.windows - before.windows,
+        failed_windows: engine.extraction.totals.failed_windows - before.failed_windows,
+        rejected: engine.extraction.totals.rejected - before.rejected,
+      },
+      usageFrom,
+      ...(options.truth && { truth: options.truth }),
+    }),
     dead_letters: await deadLetters(engine),
   };
 }
@@ -279,7 +293,7 @@ export function summary(r: IngestReport): string {
       .map(([k, v]) => `${k} ${v}`)
       .join(", ");
   const lines = [
-    `tenant ${r.tenant}: sync ${r.seconds.sync}s, normalization ${r.seconds.settle}s`,
+    `tenant ${r.tenant}: sync ${r.seconds.sync}s, normalization and extraction ${r.seconds.settle}s`,
     ...r.sources.map(
       (s) =>
         `  ${s.name} (${s.type}): ${s.items} items, ${kv(r.sources.find((x) => x.id === s.id)?.outcomes ?? {})}` +
@@ -296,7 +310,35 @@ export function summary(r: IngestReport): string {
       .map((d) => `  ${d.document} ≈ ${d.duplicate_of} (${d.exact ? "exact" : `similarity ${d.similarity}`})`),
     ...(r.duplicates.length > 20 ? [`  ... ${r.duplicates.length - 20} more`] : []),
     `acl: ${r.acl.changes} changes, ${r.acl.entries} entries, ${r.acl.mapped} mapped; unmapped ${r.acl.unmapped.join(", ") || "none"}`,
+    ...claimLines(r.claims, kv),
     `events: ${kv(r.events)}; dead letters ${r.dead_letters}`,
   ];
   return lines.join("\n");
+}
+
+function claimLines(c: ClaimsReport, kv: (o: Record<string, number>) => string): string[] {
+  const pct = (n: number, of: number) => (of ? `${Math.round((100 * n) / of)}%` : "0%");
+  const m = c.models;
+  return [
+    `claims ${c.added} (per document median ${c.per_document.median}, p90 ${c.per_document.p90}, max ${c.per_document.max}); closed ${c.closed}; ${c.windows} windows, ${c.failed_windows} failed, ${c.rejected} claims rejected`,
+    ...Object.entries(c.by_governance)
+      .sort(([, a], [, b]) => b.claims - a.claims)
+      .map(
+        ([k, g]) =>
+          `  ${k}: ${g.claims} claims in ${g.documents} documents (median ${g.per_document.median}, p90 ${g.per_document.p90})`,
+      ),
+    `  types: ${kv(c.by_type)}`,
+    `  in a slot ${c.in_slot} (${pct(c.in_slot, c.added)}), with a value ${c.with_value}, ${c.slots} slots; after merging about ${c.after_merging}`,
+    `  slots with conflicting values ${c.conflicts.slots} (${c.conflicts.claims} claims)${c.conflicts.top.length ? ":" : ""}`,
+    ...c.conflicts.top.slice(0, 5).map((t) => `    ${t.slot}: ${kv(t.values)}`),
+    `  model calls ${m.calls} (${m.cached} cached): ${m.input_tokens} input and ${m.output_tokens} output tokens, cost ${m.cost}; ${kv(m.by_route)}`,
+    ...(c.truth
+      ? [
+          `  truth: ${c.truth.found} of ${c.truth.statements} fact statements found with their value (${pct(c.truth.found, c.truth.statements)}), ${c.truth.wrong_value} with another value, ${c.truth.missed} missed`,
+          `    by stance: ${Object.entries(c.truth.by_stance)
+            .map(([k, v]) => `${k} ${v.found}/${v.statements}`)
+            .join(", ")}`,
+        ]
+      : []),
+  ];
 }

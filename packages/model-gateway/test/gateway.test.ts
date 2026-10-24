@@ -1,7 +1,14 @@
 import { type ChatMessage, GatewayException, type SensitivityLabel } from "@inspiration/contracts";
-import { MemoryBlobStore } from "@inspiration/kernel";
+import { MemoryBlobStore, registry } from "@inspiration/kernel";
 import { describe, expect, test } from "vitest";
-import { FakeProvider, type MemoryUsage, minimalInstance, ProviderError } from "../src/index.ts";
+import {
+  FakeProvider,
+  type MemoryUsage,
+  type MockResponder,
+  minimalInstance,
+  type ProviderConfig,
+  ProviderError,
+} from "../src/index.ts";
 import { completionRequest, gatewayConfig, makeGateway, SCHEMA } from "./fixtures.ts";
 
 function usageOf(gateway: { usage: unknown }): MemoryUsage {
@@ -207,6 +214,20 @@ describe("structured output", () => {
     );
     expect(out.provider).toBe("local");
     expect(out.json).toEqual({ claims: [] });
+  });
+
+  test("a provider with options.mocks answers through the task's model_mocks plugin", async () => {
+    const echo: MockResponder = (messages, { task }) => JSON.stringify({ claims: [task, messages.at(-1)?.content] });
+    registry("model_mocks").register("test.echo_claims", echo, { replace: true });
+    const request = completionRequest("x", {
+      task: "test.echo_claims",
+      response_schema: SCHEMA,
+      sensitivity: "secret",
+    });
+    const local = gatewayConfig().providers.find((p) => p.name === "local") as ProviderConfig;
+    const mocked = makeGateway({ providers: { local: new FakeProvider({ ...local, options: { mocks: true } }) } });
+    expect((await mocked.complete(request)).json).toEqual({ claims: ["test.echo_claims", "x"] });
+    expect((await makeGateway().complete(request)).json).toEqual({ claims: [] });
   });
 
   test("minimalInstance covers common shapes", () => {

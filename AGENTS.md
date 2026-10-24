@@ -77,6 +77,10 @@ producer name, its consumer group and the first part of its model task names.
   routing, budgets, metering and evals.
 - Pass the content's sensitivity label on every call. The gateway refuses to send content
   to a provider that is not cleared for it.
+- Until real models are configured, a component that owns a model task ships a
+  deterministic stand-in for it: a `model_mocks` plugin named after the task. The fake
+  providers in `config/gateway.dev.yaml` (`options.mocks: true`) answer with it, so the
+  pipeline runs end to end; numbers from a mock measure the pipeline, not model quality.
 - Prompts are versioned YAML files (`PromptRegistry.loadDir`). Change the version whenever
   the text changes; the version is part of every artifact's inputs hash.
 - Built-in agents run on the agent runtime (`Runtime`) with an `AgentSpec` named

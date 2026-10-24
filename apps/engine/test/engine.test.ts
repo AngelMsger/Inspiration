@@ -22,6 +22,7 @@ async function open(stack?: { databaseUrl: string; streamPrefix: string }): Prom
   const engine = await Engine.open({
     blobDir: join(dir, "blobs"),
     resolvePrincipal: corpus.resolvePrincipal,
+    vocabulary: () => corpus.vocabulary,
     ...(stack && { databaseUrl: stack.databaseUrl, valkeyUrl: VALKEY_URL, streamPrefix: stack.streamPrefix }),
   });
   return {
@@ -40,7 +41,12 @@ async function scenario({ engine, corpus, dir }: Run): Promise<void> {
   expect(first.documents).toMatchObject({ total: 19, by_status: { parsed: 17, structured: 2 } });
   expect(first.documents.by_parser).toEqual({ markdown: 14, html: 1, csv: 1, text: 1 });
   expect(first.documents.by_governance).toMatchObject({ policy: 10, guideline: 3, reference: 3, note: 2, process: 1 });
-  expect(first.events).toEqual({ "document.fetched": 19, "acl.changed": 19, "blocks.changed": 19 });
+  expect(first.events).toEqual({
+    "document.fetched": 19,
+    "acl.changed": 19,
+    "blocks.changed": 19,
+    "claims.updated": 19,
+  });
   expect(first.dead_letters).toBe(0);
   expect(first.acl.unmapped).toEqual([]);
   // The forwarded copy is exact; the 2023 edition is near both the policy and its copy.
@@ -50,6 +56,16 @@ async function scenario({ engine, corpus, dir }: Run): Promise<void> {
     ["归档/差旅费管理办法（2023 版）.md", "制度库/财务/差旅费管理办法.md", false],
   ]);
   expect(first.blocks.by_kind).toMatchObject({ table: 9, form_field: 4 });
+
+  // Every planted value conflict comes out as a slot with more than one value.
+  expect(first.events["claims.updated"]).toBe(19);
+  expect(first.claims).toMatchObject({ windows: 19, failed_windows: 0, rejected: 0, closed: 0 });
+  expect(Object.fromEntries(first.claims.conflicts.top.map((t) => [t.slot, t.values]))).toEqual({
+    "hotel_cap_per_night|一线城市": { "600 CNY/night": 7, "650 CNY/night": 3, "500 CNY/night": 1 },
+    meal_allowance_per_day: { "100 CNY/day": 3, "80 CNY/day": 1 },
+    "annual_leave_days|工龄 1 至 10 年": { "5 day": 1, "7 day": 1 },
+    budget_draft_deadline: { "11 月 15 日": 1, "11 月 20 日": 1 },
+  });
 
   // The finance-only folder keeps its group, mapped through the directory.
   const [budget] = (await engine.sync.items(corpus.sources[0]?.id as string)).filter((i) =>
@@ -73,7 +89,9 @@ async function scenario({ engine, corpus, dir }: Run): Promise<void> {
   const path = join(dir, "制度库", "财务", "差旅费管理办法.md");
   await writeFile(path, (await readFile(path, "utf8")).replace("每晚限额（元） |", "每晚限额（元，含税） |"));
   const edited = await ingest(engine, corpus);
-  expect(edited.events).toEqual({ "document.fetched": 1, "blocks.changed": 1 });
+  // The header of the hotel table changed, so its three rows are read again and restated.
+  expect(edited.events).toEqual({ "document.fetched": 1, "blocks.changed": 1, "claims.updated": 1 });
+  expect(edited.claims).toMatchObject({ added: 3, closed: 3, windows: 1 });
 }
 
 describe("ingesting the demo corpus", () => {

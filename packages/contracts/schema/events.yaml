@@ -243,6 +243,9 @@ $defs:
         items:
           $ref: "common.yaml#/$defs/ClaimId"
       superseded:
+        description: >
+          Claims whose "known when" interval closed: superseded by a newer claim, or retracted
+          because their source no longer states them.
         type: array
         items:
           $ref: "common.yaml#/$defs/ClaimId"
