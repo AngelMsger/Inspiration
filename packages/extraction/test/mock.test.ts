@@ -1,6 +1,6 @@
 import { slotOf } from "@inspiration/contracts";
 import { describe, expect, test } from "vitest";
-import { effectiveFrom, extractWindow, parseVocabulary, readValue, VocabularyError } from "../src/index.ts";
+import { effectiveFrom, extractWindow, parseVocabulary, plannedFor, readValue, VocabularyError } from "../src/index.ts";
 import { VOCABULARY } from "./fixtures.ts";
 
 const [hotel, deadline] = VOCABULARY.predicates as [
@@ -45,6 +45,18 @@ describe("the extraction mock", () => {
       }).map((c) => c.valid_from);
     expect(window("2026-09-26")).toEqual(["2026-09-26"]);
     expect(window()).toEqual([undefined]);
+  });
+
+  test("a plan takes effect on the day it is planned for, in the document's year when it names none", () => {
+    expect(plannedFor("王伟负责接口联调，预计 2026 年 11 月 20 日完成。")).toBe("2026-11-20");
+    expect(plannedFor("预计 3 月 5 日上线。", "2027-01-10")).toBe("2027-03-05");
+    expect(plannedFor("预计 3 月 5 日上线。")).toBeUndefined();
+    const [plan] = extractWindow({
+      document: { title: "星火项目周报", date: "2026-10-19" },
+      vocabulary: [],
+      blocks: [{ kind: "list_item", heading_path: [], spans: [{ ref: "s1", text: "预计 12 月 1 日完成灰度发布。" }] }],
+    });
+    expect(plan).toMatchObject({ claim_type: "plan", valid_from: "2026-12-01" });
   });
 
   test("passages that state nothing checkable are skipped; the longest alias picks the qualifier", () => {

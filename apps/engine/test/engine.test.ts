@@ -1,9 +1,9 @@
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, readdir, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
-import { Corpus, Engine, ingest } from "../src/index.ts";
+import { Corpus, days, Engine, ingest, SimulatedClock } from "../src/index.ts";
 
 const CORPUS = new URL("../../../examples/corpus/", import.meta.url).pathname;
 const FINANCE = "grp_01QINGHE00000000000FINANCE";
@@ -12,14 +12,28 @@ interface Run {
   engine: Engine;
   corpus: Corpus;
   dir: string;
+  clock: SimulatedClock;
+}
+
+/** Set a file's modification time, which the folder connector reports as when it last changed. */
+async function touch(path: string, day: string): Promise<void> {
+  const at = new Date(`${day}T08:00:00Z`);
+  await utimes(path, at, at);
 }
 
 /** A copy of the demo corpus, so a test can edit it, and an engine over the given backend. */
 async function open(stack?: { databaseUrl: string; streamPrefix: string }): Promise<Run & { close(): Promise<void> }> {
   const dir = await mkdtemp(join(tmpdir(), "inspiration-engine-"));
   await cp(CORPUS, join(dir, "corpus"), { recursive: true });
+  // Every document last changed on one day, so review clocks do not depend on the checkout.
+  for (const file of await readdir(join(dir, "corpus"), { recursive: true })) {
+    if (file.endsWith(".md") || file.endsWith(".html") || file.endsWith(".csv") || file.endsWith(".txt"))
+      await touch(join(dir, "corpus", file), "2026-06-01");
+  }
   const corpus = await Corpus.load(join(dir, "corpus"));
+  const clock = new SimulatedClock(new Date("2026-10-23T09:00:00Z"));
   const engine = await Engine.open({
+    clock: clock.now,
     blobDir: join(dir, "blobs"),
     resolvePrincipal: corpus.resolvePrincipal,
     vocabulary: () => corpus.vocabulary,
@@ -28,6 +42,7 @@ async function open(stack?: { databaseUrl: string; streamPrefix: string }): Prom
   return {
     engine,
     corpus,
+    clock,
     dir: join(dir, "corpus"),
     close: async () => {
       await engine.close();
@@ -36,7 +51,7 @@ async function open(stack?: { databaseUrl: string; streamPrefix: string }): Prom
   };
 }
 
-async function scenario({ engine, corpus, dir }: Run): Promise<void> {
+async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
   const first = await ingest(engine, corpus);
   expect(first.documents).toMatchObject({ total: 19, by_status: { parsed: 17, structured: 2 } });
   expect(first.documents.by_parser).toEqual({ markdown: 14, html: 1, csv: 1, text: 1 });
@@ -77,6 +92,16 @@ async function scenario({ engine, corpus, dir }: Run): Promise<void> {
     proposed_by: { changed: 2, authority: 2 },
     requests: 3,
   });
+  // Policies are reviewed yearly and processes every 180 days; minutes, the archive and
+  // general notes never by age. Nothing is due yet; the process documents are aging.
+  expect(first.freshness).toMatchObject({
+    documents: 19,
+    by_review_class: { policy: 12, process: 3 },
+    never_due: { dated: 1, archived: 1, no_interval: 2 },
+    overdue: 0,
+    states: { fresh: 15, aging: 3 },
+    reviews: {},
+  });
   const proposed = async (slot: string) =>
     (await engine.governance.slot(corpus.tenantId, slot)).decision?.proposed.value;
   expect(await proposed("hotel_cap_per_night|一线城市")).toBe("650 CNY/night");
@@ -105,12 +130,31 @@ async function scenario({ engine, corpus, dir }: Run): Promise<void> {
   // An edit to one article is one changed block downstream.
   const path = join(dir, "制度库", "财务", "差旅费管理办法.md");
   await writeFile(path, (await readFile(path, "utf8")).replace("每晚限额（元） |", "每晚限额（元，含税） |"));
+  await touch(path, "2026-10-23");
   const edited = await ingest(engine, corpus);
   // The header of the hotel table changed, so its three rows are read again and restated. They
-  // state the same values, so governance asks for nothing new.
-  expect(edited.events).toEqual({ "document.fetched": 1, "blocks.changed": 1, "claims.updated": 1 });
+  // state the same values, so governance asks for nothing new. The forwarded copy no longer
+  // matches the policy, so freshness asks for a look at it; the archived edition is left alone.
+  expect(edited.events).toEqual({
+    "document.fetched": 1,
+    "blocks.changed": 1,
+    "claims.updated": 1,
+    "review.due": 1,
+  });
   expect(edited.governance).toMatchObject({ requests: 0, todos: 3 });
   expect(edited.claims).toMatchObject({ added: 3, closed: 3, windows: 1 });
+  expect(edited.freshness).toMatchObject({
+    reviews: { evidence_changed: 1 },
+    edits: 1,
+    edits_with_reviews: 1,
+    states: { fresh: 14, aging: 3, at_risk: 1 },
+  });
+  // The review of the forwarded copy traces back to the one source update.
+  expect(edited.asks).toEqual({ updates: 1, asking: 1, per_update: { median: 1, p90: 1, max: 1 } });
+
+  // Over the next sixty days the three process documents come due.
+  const later = await days(engine, corpus.tenantId, clock, 60);
+  expect(later).toMatchObject({ backlog: {}, reviews: { ttl: 3 }, rechecked_slots: 0 });
 }
 
 describe("ingesting the demo corpus", () => {

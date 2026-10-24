@@ -18,8 +18,9 @@
  * Updates of one tenant run one at a time in a process, and the inbox mark commits with the
  * rows, so a redelivered event changes nothing. Run one governance consumer per tenant.
  *
- * A slot is decided when its claims change. A dated change that comes into effect later is
- * seen at the slot's next update, until freshness schedules a re-decision for the day.
+ * A slot is decided when its claims change, and again on the first day a dated change it
+ * holds takes effect: recheck(tenant) decides the slots that are due, and the engine calls
+ * it once a day.
  *
  * Not built yet: the semantic, NLI and model-judge tiers for claims without a slot, citation
  * audit, claim merge into canonical claims, coverage gaps and the taxonomy gardener; and

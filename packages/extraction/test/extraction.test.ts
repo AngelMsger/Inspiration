@@ -1,7 +1,7 @@
-import { type ClaimsUpdated, payloadOf } from "@inspiration/contracts";
+import { type ClaimsUpdated, newEvent, payloadOf } from "@inspiration/contracts";
 import type { FakeProvider } from "@inspiration/model-gateway";
 import { describe, expect } from "vitest";
-import { BACKENDS, extractionTest, type Para } from "./fixtures.ts";
+import { BACKENDS, extractionTest, type Para, TENANT } from "./fixtures.ts";
 
 const HEADING = ["差旅费管理办法", "第三章 住宿"];
 
@@ -107,6 +107,25 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       });
       expect(again.added).toEqual([]);
       expect(claimsUpdated(await world.events())).toHaveLength(1);
+    });
+
+    test("claims.updated carries on the correlation of the blocks.changed it answers", async ({ world }) => {
+      const cause = newEvent(
+        "blocks.changed",
+        {
+          source_id: "src_01JC0000000000000000FOLDER",
+          source_version_id: "sv_01JC00000000000000000001",
+          added_block_ids: [],
+          changed_block_ids: [],
+          removed_block_ids: [],
+          added_span_ids: [],
+          removed_span_ids: [],
+        },
+        { tenantId: TENANT, producer: "normalization", correlationId: "evt_01JC000000000000000000SYNC" },
+      );
+      await world.version("制度/差旅.md", POLICY, { cause });
+      const [event] = (await world.events()).filter((e) => e.type === "claims.updated");
+      expect(event).toMatchObject({ causation_id: cause.id, correlation_id: "evt_01JC000000000000000000SYNC" });
     });
 
     test("an edit supersedes the claims whose sentences changed and keeps the rest", async ({ world }) => {

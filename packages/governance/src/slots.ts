@@ -150,6 +150,17 @@ export function changeAsOf(g: ValueGroup, today: string): Member | undefined {
   return g.changes.filter((c) => (c.stated_from as string) <= today).at(-1);
 }
 
+/** The first day after today on which a group comes into force or a change it holds takes effect. */
+export function nextChangeDay(groups: readonly ValueGroup[], today: string): string | undefined {
+  let next: string | undefined;
+  for (const g of groups) {
+    for (const day of [g.earliest_live_from ?? "", ...g.changes.map((c) => c.stated_from as string)]) {
+      if (day > today && (next === undefined || day < next)) next = day;
+    }
+  }
+  return next;
+}
+
 /** The groups of a slot, built from its members. */
 export function groupsOf(members: readonly Member[]): ValueGroup[] {
   const groups = new Map<string, ValueGroup>();

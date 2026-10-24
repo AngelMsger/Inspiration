@@ -2,8 +2,10 @@
  * An ingest run over a corpus, and the report the UI work sizes itself by: how many
  * documents, blocks and spans a tenant like this produces, how they split by kind, what
  * normalization could not parse, which duplicates it found, how many ACL entries the
- * directory could not map, what extraction made of it all (see claims.ts), and which
- * conflicts governance found and what they would ask of people (see conflicts.ts).
+ * directory could not map, what extraction made of it all (see claims.ts), which conflicts
+ * governance found and what they would ask of people (see conflicts.ts), which reviews
+ * freshness scheduled or asked for (see freshness.ts), and what each source update asked of
+ * people at once, todo requests and reviews together.
  */
 
 import type { AclChanged, BlocksChanged, ClaimsUpdated, EventEnvelope } from "@inspiration/contracts";
@@ -14,6 +16,7 @@ import { type ClaimsReport, claimsReport, type Spread, spread, type Truth, usage
 import { type GovernanceReport, governanceReport } from "./conflicts.ts";
 import type { Corpus } from "./corpus.ts";
 import type { Engine } from "./engine.ts";
+import { type DaysReport, type FreshnessReport, freshnessReport } from "./freshness.ts";
 
 export type { Spread } from "./claims.ts";
 
@@ -48,6 +51,12 @@ export interface IngestReport {
   acl: { changes: number; entries: number; mapped: number; unmapped: string[] };
   claims: ClaimsReport;
   governance: GovernanceReport;
+  freshness: FreshnessReport;
+  /**
+   * New versions of documents already known, and the todo requests and reviews each asked for
+   * at once. Every event a source update causes shares its correlation id.
+   */
+  asks: { updates: number; asking: number; per_update: Spread };
   dead_letters: number;
 }
 
@@ -63,6 +72,9 @@ class EventTally {
   updates: ClaimsUpdated[] = [];
   updateEvents: EventEnvelope[] = [];
   requests: EventEnvelope[] = [];
+  changeEvents: EventEnvelope[] = [];
+  reviews: EventEnvelope[] = [];
+  fetched: EventEnvelope[] = [];
 
   static #byEngine = new WeakMap<Engine, EventTally>();
 
@@ -79,6 +91,9 @@ class EventTally {
     tally.updates = [];
     tally.updateEvents = [];
     tally.requests = [];
+    tally.changeEvents = [];
+    tally.reviews = [];
+    tally.fetched = [];
     return tally;
   }
 
@@ -87,11 +102,18 @@ class EventTally {
       bump(this.events, e.type);
       fn?.(e);
     };
-    engine.observe("document.fetched", REPORT_GROUP, count());
+    engine.observe(
+      "document.fetched",
+      REPORT_GROUP,
+      count((e) => this.fetched.push(e)),
+    );
     engine.observe(
       "blocks.changed",
       REPORT_GROUP,
-      count((e) => this.changes.push(payloadOf(e, "blocks.changed"))),
+      count((e) => {
+        this.changes.push(payloadOf(e, "blocks.changed"));
+        this.changeEvents.push(e);
+      }),
     );
     engine.observe(
       "acl.changed",
@@ -110,6 +132,11 @@ class EventTally {
       "todo.requested",
       REPORT_GROUP,
       count((e) => this.requests.push(e)),
+    );
+    engine.observe(
+      "review.due",
+      REPORT_GROUP,
+      count((e) => this.reviews.push(e)),
     );
   }
 }
@@ -154,6 +181,8 @@ export async function ingest(engine: Engine, corpus: Corpus, options: { truth?: 
       updates: tally.updateEvents,
       ...(options.truth && { truth: options.truth }),
     }),
+    freshness: await freshnessReport(engine, corpus.tenantId, { reviews: tally.reviews, changes: tally.changeEvents }),
+    asks: asksOf(tally.fetched, [...tally.requests, ...tally.reviews]),
     dead_letters: await deadLetters(engine),
   };
 }
@@ -305,6 +334,18 @@ export function plantedDuplicates(
   };
 }
 
+function asksOf(fetched: readonly EventEnvelope[], asks: readonly EventEnvelope[]): IngestReport["asks"] {
+  const perUpdate = new Map<string, number>();
+  for (const e of asks)
+    if (e.correlation_id) perUpdate.set(e.correlation_id, (perUpdate.get(e.correlation_id) ?? 0) + 1);
+  const updates = fetched.filter((e) => payloadOf(e, "document.fetched").previous_version_id);
+  return {
+    updates: updates.length,
+    asking: updates.filter((e) => perUpdate.has(e.id)).length,
+    per_update: spread(updates.map((e) => perUpdate.get(e.id) ?? 0)),
+  };
+}
+
 /** The report as a short plain-text summary for a terminal. */
 export function summary(r: IngestReport): string {
   const kv = (o: Record<string, number>) =>
@@ -313,7 +354,7 @@ export function summary(r: IngestReport): string {
       .map(([k, v]) => `${k} ${v}`)
       .join(", ");
   const lines = [
-    `tenant ${r.tenant}: sync ${r.seconds.sync}s, normalization, extraction and governance ${r.seconds.settle}s`,
+    `tenant ${r.tenant}: sync ${r.seconds.sync}s, normalization, extraction, governance and freshness ${r.seconds.settle}s`,
     ...r.sources.map(
       (s) =>
         `  ${s.name} (${s.type}): ${s.items} items, ${kv(r.sources.find((x) => x.id === s.id)?.outcomes ?? {})}` +
@@ -332,9 +373,42 @@ export function summary(r: IngestReport): string {
     `acl: ${r.acl.changes} changes, ${r.acl.entries} entries, ${r.acl.mapped} mapped; unmapped ${r.acl.unmapped.join(", ") || "none"}`,
     ...claimLines(r.claims, kv),
     ...governanceLines(r.governance, kv),
+    ...freshnessLines(r.freshness, kv),
+    ...(r.asks.updates
+      ? [
+          `source updates ${r.asks.updates}: ${r.asks.asking} asked people for anything at once, todo requests and reviews together (per update max ${r.asks.per_update.max})`,
+        ]
+      : []),
     `events: ${kv(r.events)}; dead letters ${r.dead_letters}`,
   ];
   return lines.join("\n");
+}
+
+function freshnessLines(f: FreshnessReport, kv: (o: Record<string, number>) => string): string[] {
+  const n = f.never_due;
+  return [
+    `freshness: ${f.documents} documents; review clocks by class ${kv(f.by_review_class) || "none"}; never due: ${n.dated} dated, ${n.archived} archived, ${n.no_interval} without an interval`,
+    `  next review in days median ${f.review_in_days.median}, p90 ${f.review_in_days.p90}; ${f.overdue} overdue; ${f.plans_ahead.days} plan days ahead in ${f.plans_ahead.documents} documents`,
+    `  states: ${kv(f.states) || "none"}; reviews published ${kv(f.reviews) || "none"}`,
+    ...(f.edits
+      ? [`  edits ${f.edits}, ${f.edits_with_reviews} with reviews at once (per edit max ${f.reviews_per_edit.max})`]
+      : []),
+  ];
+}
+
+/** The daily ticks after a run, as a short summary. */
+export function daysSummary(d: DaysReport): string {
+  const kv = (o: Record<string, number>) =>
+    Object.entries(o)
+      .sort(([, a], [, b]) => b - a)
+      .map(([k, v]) => `${k} ${v}`)
+      .join(", ");
+  return [
+    `days ${d.from} to ${d.to}: backlog on the first day ${kv(d.backlog) || "none"}; ${d.campaign} marked for a first-review campaign`,
+    `  reviews after it ${kv(d.reviews) || "none"}; per day median ${d.per_day.median}, p90 ${d.per_day.p90}, max ${d.per_day.max} (${d.busiest.day}); per week median ${d.per_week.median}, max ${d.per_week.max}`,
+    `  governance decided ${d.rechecked_slots} slots again as dated changes took effect, ${d.recheck_requests} todo requests`,
+    `  states on the last day: ${kv(d.states_at_end) || "none"}`,
+  ].join("\n");
 }
 
 function governanceLines(g: GovernanceReport, kv: (o: Record<string, number>) => string): string[] {

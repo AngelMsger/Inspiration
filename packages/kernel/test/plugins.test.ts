@@ -59,6 +59,7 @@ describe("plugin registry", () => {
       "agents",
       "bus",
       "extraction",
+      "freshness",
       "gateway",
       "governance",
       "kb",

@@ -82,7 +82,7 @@ export interface World {
   version: (
     externalId: string,
     paras: readonly Para[],
-    options?: { deleted?: boolean; sensitivity?: SensitivityLabel; effectiveFrom?: string },
+    options?: { deleted?: boolean; sensitivity?: SensitivityLabel; effectiveFrom?: string; cause?: EventEnvelope },
   ) => Promise<{ version: SourceVersion; change: BlocksChanged; result: ExtractionResult }>;
   events: () => Promise<EventEnvelope[]>;
   /** The sensitivity of every model call so far. */
@@ -210,7 +210,7 @@ export const extractionTest = (backend: Backend) =>
         ...(options.deleted && { deleted: true }),
       };
       last.set(externalId, { version: sv, blocks });
-      return { version: sv, change, result: await extraction.extract(change) };
+      return { version: sv, change, result: await extraction.extract(change, options.cause) };
     };
 
     return {

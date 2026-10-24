@@ -55,7 +55,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       ]);
     });
 
-    test("a document that takes effect later does not change the current value before then", async ({ world }) => {
+    test("a document that takes effect later changes the current value only from its day", async ({ world }) => {
       const current = await world.state({ title: "差旅费管理办法", authority: 0.8, effective_from: "2026-01-01" }, [
         { text: "一线城市住宿限额为每晚 600 元。", value: 600 },
       ]);
@@ -74,6 +74,11 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
           rationale: "700 CNY/night takes effect on 2027-01-01.",
         },
       ]);
+
+      // On its day the slot is decided again, and the new edition is current.
+      world.setToday("2027-01-01");
+      expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("700 CNY/night");
     });
 
     test("a contradiction proposes the more authoritative source and asks once", async ({ world }) => {
@@ -119,6 +124,28 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         ["700 CNY/night", "plan_vs_fact", "low", "700 CNY/night takes effect on 2027-01-01."],
         ["800 CNY/night", "plan_vs_fact", "low", "Only plans state 800 CNY/night."],
       ]);
+    });
+
+    test("a change announced for later is decided again on the day it takes effect", async ({ world }) => {
+      await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
+      const notice = await world.state({ title: "关于调整住宿标准的通知", authority: 0.5 }, [
+        { text: "自 2026 年 12 月 1 日起，住宿限额调整为每晚 650 元。", value: 650, from: "2026-12-01" },
+      ]);
+      expect(notice.result.requests.map((r) => [r.title, r.priority])).toEqual([
+        ["hotel_cap_per_night (一线城市): 600 CNY/night or 650 CNY/night", "low"],
+      ]);
+
+      world.setToday("2026-11-30");
+      expect(await world.governance.recheck(TENANT)).toEqual({ slots: [], requests: [] });
+      world.setToday("2026-12-01");
+      const due = await world.governance.recheck(TENANT);
+      expect(due.slots).toEqual([HOTEL]);
+      expect(due.requests.map((r) => [r.title, r.priority])).toEqual([
+        ["hotel_cap_per_night (一线城市): 650 CNY/night or 600 CNY/night", "high"],
+      ]);
+      expect((await world.governance.conflicts(TENANT, "open")).map((c) => c.classification)).toEqual(["supersession"]);
+      expect(await world.governance.recheck(TENANT)).toEqual({ slots: [], requests: [] });
+      expect(await world.requests()).toHaveLength(2);
     });
 
     test("the latest change in effect wins, even when the same value is announced again for later", async ({

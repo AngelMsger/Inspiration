@@ -23,6 +23,7 @@ import {
   decide,
   groupsOf,
   type Member,
+  nextChangeDay,
   type SlotDecision,
   type ValueGroup,
   withMember,
@@ -59,6 +60,18 @@ export interface SlotState {
 export const SLOTS = defineTable<SlotState>("governance.slots", {
   key: (s) => slotKey(s.tenant_id, s.slot),
   columns: { tenant_id: (s) => s.tenant_id },
+});
+
+/** The next day a slot's decision can change without new claims. */
+export interface Recheck {
+  tenant_id: string;
+  slot: string;
+  day: string;
+}
+
+export const RECHECKS = defineTable<Recheck>("governance.rechecks", {
+  key: (r) => slotKey(r.tenant_id, r.slot),
+  columns: { tenant_id: (r) => r.tenant_id, day: (r) => r.day },
 });
 
 function groupKey(tenantId: string, slot: string, value: string): string {
@@ -186,13 +199,25 @@ export class Governance {
 
   /** Bring the slots of the claims an update added or closed up to date. Delivering it again changes nothing. */
   async apply(event: EventEnvelope): Promise<GovernanceResult> {
-    const before = this.#running.get(event.tenant_id) ?? Promise.resolve();
-    const run = before.catch(() => undefined).then(() => this.#apply(event));
-    this.#running.set(event.tenant_id, run);
+    return this.#serial(event.tenant_id, () => this.#apply(event));
+  }
+
+  /**
+   * Decide again every slot of the tenant in which a dated change has taken effect since it
+   * was last decided. The engine calls it once a day; calling it again changes nothing.
+   */
+  async recheck(tenantId: string): Promise<GovernanceResult> {
+    return this.#serial(tenantId, () => this.#recheck(tenantId));
+  }
+
+  async #serial<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {
+    const before = this.#running.get(tenantId) ?? Promise.resolve();
+    const run = before.catch(() => undefined).then(fn);
+    this.#running.set(tenantId, run);
     try {
       return await run;
     } finally {
-      if (this.#running.get(event.tenant_id) === run) this.#running.delete(event.tenant_id);
+      if (this.#running.get(tenantId) === run) this.#running.delete(tenantId);
     }
   }
 
@@ -262,16 +287,41 @@ export class Governance {
       }
 
       for (const slot of [...slots].sort()) {
-        const request = await this.#decide(tx, event, slot);
+        const request = await this.#decide(tx, event.tenant_id, slot, event);
         result.slots.push(slot);
         if (request) result.requests.push(request);
       }
     });
     this.totals.events++;
-    this.totals.slots += result.slots.length;
-    this.totals.requests += result.requests.length;
+    this.#count(result);
     if (result.requests.length) log.debug("requested todos", { event: event.id, requests: result.requests.length });
     return result;
+  }
+
+  async #recheck(tenantId: string): Promise<GovernanceResult> {
+    const result: GovernanceResult = { slots: [], requests: [] };
+    const today = this.#today();
+    for (;;) {
+      const due = (await this.records.find(RECHECKS, { tenant_id: tenantId }, { orderBy: "day", limit: 200 })).filter(
+        (r) => r.day <= today,
+      );
+      if (!due.length) break;
+      await this.records.transaction(async (tx) => {
+        for (const r of due) {
+          const request = await this.#decide(tx, tenantId, r.slot);
+          result.slots.push(r.slot);
+          if (request) result.requests.push(request);
+        }
+      });
+    }
+    this.#count(result);
+    if (result.slots.length) log.debug("rechecked slots", { tenant: tenantId, slots: result.slots.length });
+    return result;
+  }
+
+  #count(result: GovernanceResult): void {
+    this.totals.slots += result.slots.length;
+    this.totals.requests += result.requests.length;
   }
 
   /** The source version of every claim: the update's, else the version its evidence comes from. */
@@ -294,10 +344,19 @@ export class Governance {
   }
 
   /** Decide a slot again, write its cases, and return a todo request when the decision changed. */
-  async #decide(tx: RecordTx, event: EventEnvelope, slot: string): Promise<TodoRequested | undefined> {
-    const tenantId = event.tenant_id;
+  async #decide(
+    tx: RecordTx,
+    tenantId: string,
+    slot: string,
+    cause?: EventEnvelope,
+  ): Promise<TodoRequested | undefined> {
+    const today = this.#today();
     const groups = await tx.find(VALUE_GROUPS, { tenant_id: tenantId, slot });
-    const decision = decide(groups, this.#today());
+    const decision = decide(groups, today);
+    const recheck = await tx.get(RECHECKS, slotKey(tenantId, slot));
+    const next = decision ? nextChangeDay(groups, today) : undefined;
+    if (next && next !== recheck?.day) await tx.put(RECHECKS, [{ tenant_id: tenantId, slot, day: next }]);
+    else if (!next && recheck) await tx.delete(RECHECKS, [slotKey(tenantId, slot)]);
     const existing = new Map((await tx.find(CONFLICTS, { tenant_id: tenantId, slot })).map((c) => [c.id, c]));
     const now = this.clock().toISOString();
     const cases: ConflictCase[] = [];
@@ -349,7 +408,7 @@ export class Governance {
         tenantId,
         producer: COMPONENT,
         subject: slot,
-        causation: event,
+        ...(cause && { causation: cause }),
         occurredAt: this.clock(),
       }),
     );

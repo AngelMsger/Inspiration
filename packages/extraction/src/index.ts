@@ -11,14 +11,14 @@
  * table's header row.
  *
  * A returned claim is kept when at least one quote is verbatim from its span. It is true
- * from the day its passage says it takes effect, else from the version's effective_from
- * (front matter), else from an open start. Its ID depends on the prompt version, what the
- * claim says (statement, subject, predicate, value, qualifiers, type and class) and the
- * cited spans, so extracting the same text again gives the same claims, and a block edit
- * leaves the claims of its unchanged sentences alone. A claim that was closed and is stated
- * again (a value changed back, a document restored) is a new occurrence with an ID from the
- * version, so the earlier interval stays as it was. A claim whose every supporting span the
- * version removed is closed:
+ * from the day its passage says it takes effect (a plan: the day it is planned for), else
+ * from the version's effective_from (front matter), else from an open start. Its ID depends
+ * on the prompt version, what the claim says (statement, subject, predicate, value,
+ * qualifiers, type and class) and the cited spans, so extracting the same text again gives
+ * the same claims, and a block edit leaves the claims of its unchanged sentences alone. A
+ * claim that was closed and is stated again (a value changed back, a document restored) is
+ * a new occurrence with an ID from the version, so the earlier interval stays as it was. A
+ * claim whose every supporting span the version removed is closed:
  * - superseded by a new claim of the same slot (predicate and qualifiers);
  * - else superseded by the most similar new statement cut from the same block, at
  *   SAME_CLAIM or above;
@@ -41,6 +41,6 @@
 
 export * from "./extract.ts";
 export * from "./migrations.ts";
-export { effectiveFrom, extractWindow, mockExtractClaims, readValue } from "./mock.ts";
+export { effectiveFrom, extractWindow, mockExtractClaims, plannedFor, readValue } from "./mock.ts";
 export * from "./protocol.ts";
 export * from "./vocabulary.ts";

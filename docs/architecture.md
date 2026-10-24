@@ -65,6 +65,8 @@ source.changed -> source-sync fetch -> document.fetched (+ acl.changed -> access
   -> normalization parses (the parsing worker for Office and PDF) and diffs blocks -> blocks.changed
   -> extraction -> claims.updated -> freshness -> artifact.dirty
                                    -> governance compares slot values -> todo.requested -> collaboration
+  freshness: review clocks, plan days, copies left behind -> review.due -> collaboration, research
+  the engine's daily tick: freshness publishes due reviews, governance rechecks dated changes
   -> page-compiler rebuilds the page -> page.rendered
   -> retrieval reindexes, collaboration notifies, views refresh
 ```

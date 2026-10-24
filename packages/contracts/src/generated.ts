@@ -352,7 +352,11 @@ export type RenderCheckName =
   | "protocol";
 export type ViewportName = "phone" | "desktop";
 export type ViewTheme = "light" | "dark";
-export type ReviewDueKind = "ttl" | "assumption" | "verification_expiry";
+/**
+ * ttl: the review interval of the units' knowledge class has passed since they last changed. assumption: a day a plan or assumption they state has come. verification_expiry: a person's verification ran out. evidence_changed: a document they repeat changed and they did not.
+ *
+ */
+export type ReviewDueKind = "ttl" | "assumption" | "verification_expiry" | "evidence_changed";
 export type ReviewStatus = "unreviewed" | "verified" | "disputed" | "published";
 export type SopId = string;
 /**
@@ -2144,6 +2148,10 @@ export interface ResearchReport {
   produced_at: Instant;
   producer?: ProducerInfo;
 }
+/**
+ * Freshness says units need a look, not what is wrong with them. Collaboration turns it into a todo, merging requests with the same dedupe_key into one open todo as it does for todo.requested; research may re-check the units itself.
+ *
+ */
 export interface ReviewDue {
   /**
    * @minItems 1
@@ -2151,6 +2159,24 @@ export interface ReviewDue {
   unit_ids: [UnitId, ...UnitId[]];
   kind: ReviewDueKind;
   due_at: Instant;
+  space_id?: SpaceId;
+  /**
+   * One plain sentence for the reviewer.
+   */
+  reason?: string;
+  /**
+   * For evidence_changed, the units whose change made the review due.
+   */
+  cause_ids?: UnitId[];
+  /**
+   * Requests with the same key are one review, such as "freshness:ttl:<document>".
+   */
+  dedupe_key?: string;
+  /**
+   * The review was already due when freshness first saw the document, as most are on a tenant's first sweep: work for a first-review campaign, not for an owner's inbox.
+   *
+   */
+  backlog?: boolean;
 }
 /**
  * What part of a source to ingest. The connector defines kind and options.

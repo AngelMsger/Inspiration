@@ -77,11 +77,11 @@ components:
   freshness:
     title: Freshness engine
     layer: compile
-    status: planned
+    status: built
     runtime: node
-    owns: Dependency graph, dirty marking with early cutoff, staleness scores, TTL and assumption schedulers
-    plugins: []
-    publishes: [artifact.dirty, review.due, todo.created]
+    owns: Dependency graph, dirty marking with early cutoff, staleness scores, TTL and assumption schedulers, copies an edit left behind
+    plugins: [migrations]
+    publishes: [artifact.dirty, review.due]
     subscribes: [blocks.changed, claims.updated]
     calls: [knowledge-store]
 

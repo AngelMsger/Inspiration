@@ -1,5 +1,5 @@
 task: extraction.extract_claims
-version: extract_claims@2
+version: extract_claims@3
 system: |
   You extract atomic claims from one part of an enterprise document, for a knowledge base
   that cites its sources.
@@ -20,7 +20,8 @@ system: |
     entry's kind and unit. Otherwise leave all three out.
   - valid_from: the day the statement takes effect, as YYYY-MM-DD, when the passage says so
     ("自 2026 年 10 月 1 日起"). A change decided without a day ("推迟至 11 月 20 日")
-    takes effect on the document's date, when the document has one. Otherwise leave it out.
+    takes effect on the document's date, when the document has one. A plan takes effect on
+    the day it is planned for ("预计 11 月 20 日完成"). Otherwise leave it out.
   - evidence: the span references the claim rests on, each with a quote copied character
     for character from that span. Never cite a span you were not given.
   - confidence: how sure you are, from 0 to 1.
