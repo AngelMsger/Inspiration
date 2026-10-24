@@ -55,7 +55,15 @@ describe("plugin registry", () => {
   });
 
   test("the workspace declares its own plugins", () => {
-    expect(registry("migrations").names()).toEqual(["agents", "bus", "gateway", "kb", "normalization", "sync"]);
+    expect(registry("migrations").names()).toEqual([
+      "agents",
+      "bus",
+      "extraction",
+      "gateway",
+      "kb",
+      "normalization",
+      "sync",
+    ]);
     expect(registry("event_transports").names()).toEqual(["memory", "valkey"]);
     expect(registry("model_providers").names()).toEqual(["fake", "openai_compatible"]);
   });
