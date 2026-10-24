@@ -55,6 +55,27 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       ]);
     });
 
+    test("a document that takes effect later does not change the current value before then", async ({ world }) => {
+      const current = await world.state({ title: "差旅费管理办法", authority: 0.8, effective_from: "2026-01-01" }, [
+        { text: "一线城市住宿限额为每晚 600 元。", value: 600 },
+      ]);
+      // The new edition's claims take its effective date, as extraction gives them.
+      await world.state({ title: "差旅费管理办法（2027 版）", authority: 0.9, effective_from: "2027-01-01" }, [
+        { text: "一线城市住宿限额为每晚 700 元。", value: 700 },
+      ]);
+      const { decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.proposed.value).toBe("600 CNY/night");
+      expect(decision?.proposed.best.claim_id).toBe(current.claims[0]?.id);
+      expect(decision?.cases).toMatchObject([
+        {
+          value: "700 CNY/night",
+          classification: "plan_vs_fact",
+          priority: "low",
+          rationale: "700 CNY/night takes effect on 2027-01-01.",
+        },
+      ]);
+    });
+
     test("a contradiction proposes the more authoritative source and asks once", async ({ world }) => {
       const policy = await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
       const guide = await world.state(GUIDE, [{ text: "去北京出差，住宿每晚 700 元以内。", value: 700 }]);

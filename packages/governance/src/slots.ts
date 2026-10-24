@@ -35,6 +35,11 @@ export interface Member {
   claim_type: string;
   authority: number;
   weight: number;
+  /**
+   * The day from which it can count as the slot's current value: when the claim takes effect,
+   * by its own words or by its document's date. Absent when it holds from the start.
+   */
+  live_from?: string;
   /** The day the statement says it takes effect, when that is not just its document's date. */
   stated_from?: string;
   /** The effective date of its document (front matter effective_from). */
@@ -124,7 +129,7 @@ export function withMember(group: ValueGroup | undefined, m: Member): ValueGroup
   if (group === undefined || outranks(m, g.best)) g.best = m;
   if (isLive(m)) {
     g.live++;
-    const from = m.stated_from ?? "";
+    const from = m.live_from ?? "";
     if (g.earliest_live_from === undefined || from < g.earliest_live_from) g.earliest_live_from = from;
     if (m.stated_from) {
       const day = m.stated_from;

@@ -109,7 +109,10 @@ function memberOf(claim: Claim, version: SourceVersion | undefined): Member | un
     source_version_id: version?.id ?? "",
     document: version?.title ?? version?.external_id ?? "",
   };
-  // A start equal to the document's effective date is the document's, not a change it states.
+  // Either way the claim counts only from its start. A start equal to the document's
+  // effective date is the document's, not a change it states.
+  const from = start ?? documentFrom;
+  if (from) member.live_from = from;
   if (start && start !== documentFrom) member.stated_from = start;
   if (documentFrom) member.document_from = documentFrom;
   return member;
