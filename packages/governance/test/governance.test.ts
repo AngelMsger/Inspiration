@@ -98,7 +98,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
           priority: "low",
           confidence: 0.6,
           rationale:
-            "Only reference documents state 800 CNY/night; the governed 600 CNY/night holds. A note for the owner, not a todo.",
+            "差旅攻略, a reference document, says 800 CNY/night from 2026-10-01; the governed 600 CNY/night holds until a governed document says so. A note for the owner, not a todo.",
         },
       ]);
 
@@ -117,6 +117,25 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         ["500 CNY/night", "contradiction", "open"],
       ]);
       expect(await world.requests()).toEqual([]);
+    });
+
+    test("a change only a reference document states is named in the case against its value", async ({ world }) => {
+      await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
+      await world.state(GUIDE, [{ text: "去北京出差，住宿每晚 800 元以内。", value: 800 }]);
+      await world.state({ title: "经营会纪要", authority: 0.6, level: "reference" }, [
+        { text: "经讨论决定，自 2026 年 10 月 1 日起，北京住宿每晚 800 元。", value: 800, from: "2026-10-01" },
+      ]);
+      const { decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.proposed.value).toBe("600 CNY/night");
+      expect(decision?.cases).toMatchObject([
+        {
+          value: "800 CNY/night",
+          classification: "contradiction",
+          status: "open",
+          rationale:
+            "600 CNY/night comes from the more authoritative 差旅费管理办法 (0.9); 800 CNY/night from 新人入职指南 (0.5). 经营会纪要, a reference document, says 800 CNY/night from 2026-10-01.",
+        },
+      ]);
     });
 
     test("a contradiction proposes the more authoritative source and asks once", async ({ world }) => {

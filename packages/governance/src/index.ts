@@ -12,7 +12,8 @@
  *   contradiction, with the proposed value's best claim as proposed_winner_id.
  * - Governed documents decide a slot they state. A value only reference documents state is
  *   an auto-resolved contradiction, a note for the owner rather than a todo, and a change a
- *   reference document dates moves nothing.
+ *   reference document dates moves nothing; the case names that change, so the owner learns
+ *   of it.
  * - A case whose value is no longer stated, or is now the proposed one, is auto-resolved.
  * - When a slot's open cases or proposed value change, governance publishes one
  *   todo.requested for the slot (dedupe_key "governance:conflict:<slot>"); a new statement

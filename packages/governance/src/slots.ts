@@ -13,7 +13,8 @@
  *   only takes effect after today.
  * - A slot that governed documents state is decided among their values: a value only
  *   reference documents state is a note against it, settled without a person, and a change
- *   a reference document states moves nothing.
+ *   a reference document states moves nothing. The case names that change, so the owner
+ *   learns of it.
  * - The leader is the in-force group whose best member is the most authoritative.
  * - A change beats the leader when it took effect after the leader's own date, the later of
  *   its document's effective date and any change it states, and no later than today: a
@@ -192,6 +193,13 @@ function since(g: ValueGroup, today: string, governed: boolean): string {
   return changed > documented ? changed : documented;
 }
 
+/** A change to the group's value that only a reference document states, after the proposed value's own date. */
+function referenceChange(g: ValueGroup, proposed: ValueGroup, today: string): string | undefined {
+  const change = changeAsOf(g, today);
+  if (!change?.reference || (change.stated_from as string) <= since(proposed, today, true)) return undefined;
+  return `${change.document}, a reference document, says ${g.value} from ${change.stated_from}`;
+}
+
 function documents(g: ValueGroup): string {
   return g.versions.length === 1 ? "1 document" : `${g.versions.length} documents`;
 }
@@ -232,6 +240,7 @@ export function decide(groups: readonly ValueGroup[], today: string): SlotDecisi
           rationale: `Only archived documents state ${g.value}.`,
         };
       }
+      const said = governedSlot ? referenceChange(g, proposed, today) : undefined;
       if (governedSlot && governedIn(g) === 0 && g.live > 0) {
         return {
           ...base,
@@ -239,7 +248,9 @@ export function decide(groups: readonly ValueGroup[], today: string): SlotDecisi
           status: "auto_resolved",
           priority: "low",
           confidence: 0.6,
-          rationale: `Only reference documents state ${g.value}; the governed ${proposed.value} holds. A note for the owner, not a todo.`,
+          rationale: said
+            ? `${said}; the governed ${proposed.value} holds until a governed document says so. A note for the owner, not a todo.`
+            : `Only reference documents state ${g.value}; the governed ${proposed.value} holds. A note for the owner, not a todo.`,
         };
       }
       if (g.live === 0) {
@@ -280,7 +291,7 @@ export function decide(groups: readonly ValueGroup[], today: string): SlotDecisi
         status: "open",
         priority: governed ? "high" : "normal",
         confidence: 0.6,
-        rationale: `${proposed.value} comes from the more authoritative ${proposed.best.document} (${proposed.best.authority}); ${g.value} from ${g.best.document} (${g.best.authority}).`,
+        rationale: `${proposed.value} comes from the more authoritative ${proposed.best.document} (${proposed.best.authority}); ${g.value} from ${g.best.document} (${g.best.authority}).${said ? ` ${said}.` : ""}`,
       };
     });
   return changed
