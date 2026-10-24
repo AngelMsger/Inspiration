@@ -27,10 +27,12 @@ import {
   type LineageRelation,
   type PageSnapshot,
   type PageVersionInfo,
+  type Placement,
   type SourceBlock,
   type SourceVersion,
   type Span,
   type StoreTx,
+  type TaxonomyNode,
 } from "@inspiration/contracts";
 import { IntegrityError } from "./rules.ts";
 import { factSlot } from "./slots.ts";
@@ -115,6 +117,9 @@ export abstract class BaseStore implements KnowledgeStore {
   abstract asOf(query: ClaimQuery, options?: { validAt?: Date; knownAt?: Date }): Promise<Claim[]>;
   /** Every claim with the slot key, current or closed, the earliest recorded first. */
   abstract claimsInSlot(tenantId: string, slotKey: string): Promise<Claim[]>;
+  abstract topics(tenantId: string, spaceId?: string): Promise<TaxonomyNode[]>;
+  abstract placementsOf(claimIds: readonly string[]): Promise<Placement[]>;
+  abstract placementsIn(tenantId: string, taxonomyKey: string): Promise<Placement[]>;
   abstract dependents(artifactIds: readonly string[]): Promise<string[]>;
   abstract getPage(pageId: string, version?: number): Promise<PageSnapshot | undefined>;
   abstract pageHistory(pageId: string): Promise<PageVersionInfo[]>;

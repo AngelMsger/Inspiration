@@ -64,6 +64,7 @@ describe("plugin registry", () => {
       "governance",
       "kb",
       "normalization",
+      "page-compiler",
       "sync",
     ]);
     expect(registry("event_transports").names()).toEqual(["memory", "valkey"]);

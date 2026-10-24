@@ -47,6 +47,9 @@ importers:
       '@inspiration/normalization':
         specifier: workspace:*
         version: link:packages/normalization
+      '@inspiration/page-compiler':
+        specifier: workspace:*
+        version: link:packages/page-compiler
       '@inspiration/source-sync':
         specifier: workspace:*
         version: link:packages/source-sync
@@ -102,6 +105,9 @@ importers:
       '@inspiration/normalization':
         specifier: workspace:*
         version: link:../../packages/normalization
+      '@inspiration/page-compiler':
+        specifier: workspace:*
+        version: link:../../packages/page-compiler
       '@inspiration/source-sync':
         specifier: workspace:*
         version: link:../../packages/source-sync
@@ -385,6 +391,28 @@ importers:
       '@types/mdast':
         specifier: ^4.0.4
         version: 4.0.4
+
+  packages/page-compiler:
+    dependencies:
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@inspiration/eventbus':
+        specifier: workspace:*
+        version: link:../eventbus
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+      '@inspiration/model-gateway':
+        specifier: workspace:*
+        version: link:../model-gateway
+    devDependencies:
+      '@inspiration/knowledge-store':
+        specifier: workspace:*
+        version: link:../knowledge-store
+      '@inspiration/testkit':
+        specifier: workspace:*
+        version: link:../testkit
 
   packages/source-sync:
     dependencies:

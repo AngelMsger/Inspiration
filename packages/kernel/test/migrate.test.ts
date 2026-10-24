@@ -23,6 +23,7 @@ test("migration sets are discovered in run order", async () => {
     "extraction",
     "governance",
     "freshness",
+    "page-compiler",
   ]);
 });
 

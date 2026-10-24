@@ -99,12 +99,12 @@ components:
   page-compiler:
     title: Page compiler
     layer: compile
-    status: planned
+    status: built
     runtime: node
-    owns: Taxonomy clustering with stable keys, cited page synthesis, diagram compilers, PageSpec output and page snapshots
-    plugins: [diagram_compilers]
+    owns: Taxonomy clustering with stable keys and statement placements, cited page synthesis, diagram compilers, PageSpec output and page snapshots
+    plugins: [migrations, model_mocks]
     publishes: [page.rendered]
-    subscribes: [artifact.dirty]
+    subscribes: [artifact.dirty, claims.updated]
     calls: [knowledge-store, model-gateway]
 
   collaboration:

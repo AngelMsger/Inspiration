@@ -1040,13 +1040,15 @@ $defs:
           $ref: "#/$defs/BlockChange"
 
   TaxonomyNode:
-    description: A node in the document tree. Keys are stable across re-clustering.
+    description: >
+      A topic in a space's knowledge outline (area, topic or subtopic, at most three levels).
+      Statements are placed in topics (see Placement). Keys are stable across re-clustering
+      and never reused.
     type: object
     required: [key, tenant_id, space_id, title, ordinal]
     properties:
       key:
-        type: string
-        pattern: "^[a-z0-9][a-z0-9._/-]{0,199}$"
+        $ref: "#/$defs/TopicKey"
       tenant_id:
         $ref: "common.yaml#/$defs/TenantId"
       space_id:
@@ -1056,12 +1058,34 @@ $defs:
       summary:
         type: string
       parent_key:
-        type: string
+        $ref: "#/$defs/TopicKey"
       ordinal:
         type: integer
         minimum: 0
       page_id:
         $ref: "common.yaml#/$defs/PageId"
+      status:
+        description: Absent on nodes written before topics had a status; they count as confirmed.
+        $ref: "#/$defs/TopicStatus"
+      owner_id:
+        description: The member who answers for the topic's statements and confirms its placements.
+        $ref: "common.yaml#/$defs/PrincipalId"
+      statement_count:
+        description: Current statements placed in the topic, its subtopics included.
+        type: integer
+        minimum: 0
+
+  TopicKey:
+    type: string
+    pattern: "^[a-z0-9][a-z0-9._/-]{0,199}$"
+
+  TopicStatus:
+    description: >
+      proposed: made by clustering and not yet confirmed; readers never see it, owners do.
+      confirmed: an owner confirmed it, so re-clustering keeps it and never moves its
+      confirmed placements. retired: it has no statements left; its key is not reused.
+    type: string
+    enum: [proposed, confirmed, retired]
 
   # ------------------------------------------------------------ sandbox protocol
   # Messages between the host page and a sandboxed view, sent with postMessage.

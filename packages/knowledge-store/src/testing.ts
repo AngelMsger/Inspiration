@@ -15,9 +15,11 @@ import {
   contentHash,
   newId,
   type PageSnapshot,
+  type Placement,
   type SourceBlock,
   type SourceVersion,
   type Span,
+  type TaxonomyNode,
 } from "@inspiration/contracts";
 
 export const T0 = new Date("2026-01-01T00:00:00Z");
@@ -150,6 +152,32 @@ export class Sample {
       ...(start >= 0 && { quote_start: start, quote_end: start + q.length }),
     };
     return [claim, [evidence]];
+  }
+
+  topic(key: string, overrides: Partial<TaxonomyNode> = {}): TaxonomyNode {
+    return {
+      key,
+      tenant_id: this.tenantId,
+      space_id: this.spaceId,
+      title: "差旅住宿",
+      ordinal: 0,
+      status: "proposed",
+      ...overrides,
+    };
+  }
+
+  /** The claim's placement in a topic, by clustering unless overridden. */
+  placement(claim: Claim, taxonomyKey: string, overrides: Partial<Placement> = {}): Placement {
+    return {
+      tenant_id: claim.tenant_id,
+      claim_id: claim.id,
+      space_id: claim.space_id,
+      taxonomy_key: taxonomyKey,
+      placed_by: "clustering",
+      confirmed: false,
+      placed_at: this.tick().toISOString(),
+      ...overrides,
+    };
   }
 
   page(

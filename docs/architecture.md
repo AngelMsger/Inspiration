@@ -97,6 +97,24 @@ resolved, predicate and sorted qualifiers). `KnowledgeStore.slot()` reads a slot
 handful of rows however many statements it holds: the current values with their counts and
 representatives, and the values it held over time.
 
+## The knowledge outline
+
+Every statement has two outlines. The source outline (document, heading path, passage) comes
+from its evidence spans. The knowledge outline (space, area, topic, subtopic) comes from a
+placement (`Placement`: claim, topic key, page block, placed_by, confirmed).
+
+- Page-compiler clusters the sections of current governed documents into topics, per space.
+  Topics are `TaxonomyNode`s, at most three levels deep, with keys that stay the same from
+  one re-clustering to the next.
+- A statement with a fact slot sits where most of its slot's statements are. That is also
+  the only way a reference document's statements are placed.
+- A governed statement without a topic is unfiled (未归类) and shows under its source
+  section.
+- Clustering proposes topics, and an owner confirms them. Confirmed topics, and placements
+  made or confirmed by a person or a page, never move. At most `budget` (5%) of the placed
+  statements change topic in one re-clustering.
+- `KnowledgeStore.topics()`, `placementsOf()` and `placementsIn()` read the outline.
+
 ## Storage
 
 One Postgres instance (ParadeDB image: Postgres 16 with pgvector and pg_search) holds:

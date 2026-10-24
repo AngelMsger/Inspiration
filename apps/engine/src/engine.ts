@@ -25,6 +25,7 @@ import { applyMigrations, LocalBlobStore, logger, openPool, type Pool, workspace
 import { MemoryStore, PostgresStore } from "@inspiration/knowledge-store";
 import { Gateway, loadGatewayConfig } from "@inspiration/model-gateway";
 import { Normalization } from "@inspiration/normalization";
+import { Topics } from "@inspiration/page-compiler";
 import { type PrincipalResolver, SourceSync } from "@inspiration/source-sync";
 
 const log = logger("engine");
@@ -68,6 +69,7 @@ export class Engine {
   readonly extraction: Extraction;
   readonly governance: Governance;
   readonly freshness: Freshness;
+  readonly topics: Topics;
   readonly consumer: Consumer;
   readonly transport: Transport;
   readonly #relay: OutboxRelay | undefined;
@@ -116,12 +118,14 @@ export class Engine {
     const clock = parts.clock && { clock: parts.clock };
     this.governance = new Governance({ store: this.store, records: this.records, ...clock });
     this.freshness = new Freshness({ store: this.store, records: this.records, ...clock });
+    this.topics = new Topics({ store: this.store, records: this.records, models: this.models, ...clock });
     const components: Running[] = [
       { group: "source-sync", handlers: () => this.sync.handlers() },
       { group: "normalization", handlers: () => this.normalization.handlers() },
       { group: "extraction", handlers: () => this.extraction.handlers() },
       { group: "governance", handlers: () => this.governance.handlers() },
       { group: "freshness", handlers: () => this.freshness.handlers() },
+      { group: "page-compiler", handlers: () => this.topics.handlers() },
     ];
     for (const c of components) {
       for (const [type, handler] of Object.entries(c.handlers())) this.consumer.subscribe(type, c.group, handler);

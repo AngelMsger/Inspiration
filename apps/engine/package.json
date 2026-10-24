@@ -21,6 +21,7 @@
     "@inspiration/knowledge-store": "workspace:*",
     "@inspiration/model-gateway": "workspace:*",
     "@inspiration/normalization": "workspace:*",
+    "@inspiration/page-compiler": "workspace:*",
     "@inspiration/source-sync": "workspace:*",
     "yaml": "^2.9.1"
   },
