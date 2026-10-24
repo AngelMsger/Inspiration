@@ -82,7 +82,7 @@ export interface World {
   version: (
     externalId: string,
     paras: readonly Para[],
-    options?: { deleted?: boolean; sensitivity?: SensitivityLabel },
+    options?: { deleted?: boolean; sensitivity?: SensitivityLabel; effectiveFrom?: string },
   ) => Promise<{ version: SourceVersion; change: BlocksChanged; result: ExtractionResult }>;
   events: () => Promise<EventEnvelope[]>;
   /** The sensitivity of every model call so far. */
@@ -146,6 +146,7 @@ export const extractionTest = (backend: Backend) =>
         fetched_at: new Date(Date.UTC(2026, 9, 1, 0, tick)).toISOString(),
         ...(previous && { previous_version_id: previous.version.id }),
         ...(options.deleted && { deleted: true }),
+        ...(options.effectiveFrom && { metadata: { extra: { effective_from: options.effectiveFrom } } }),
       };
       const known = new Set(previous?.blocks.flatMap((b) => b.span_ids));
       const blocks: SourceBlock[] = [];

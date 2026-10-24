@@ -64,6 +64,7 @@ The main flow, from a changed document to a fresh page:
 source.changed -> source-sync fetch -> document.fetched (+ acl.changed -> access-control mirror)
   -> normalization parses (the parsing worker for Office and PDF) and diffs blocks -> blocks.changed
   -> extraction -> claims.updated -> freshness -> artifact.dirty
+                                   -> governance compares slot values -> todo.requested -> collaboration
   -> page-compiler rebuilds the page -> page.rendered
   -> retrieval reindexes, collaboration notifies, views refresh
 ```

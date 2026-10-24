@@ -1,5 +1,6 @@
+import { slotOf } from "@inspiration/contracts";
 import { describe, expect, test } from "vitest";
-import { extractWindow, parseVocabulary, readValue, slotOf, VocabularyError } from "../src/index.ts";
+import { effectiveFrom, extractWindow, parseVocabulary, readValue, VocabularyError } from "../src/index.ts";
 import { VOCABULARY } from "./fixtures.ts";
 
 const [hotel, deadline] = VOCABULARY.predicates as [
@@ -18,6 +19,32 @@ describe("the extraction mock", () => {
       normalized: "600 CNY/night",
     });
     expect(readValue("住宿费凭发票报销。", hotel)).toBeUndefined();
+    // A calendar day is when, not how long.
+    expect(readValue("自 2026 年 7 月 1 日起，出差结束后 60 天内报销。", deadline)).toMatchObject({ number: 60 });
+    expect(readValue("自 2026 年 7 月 1 日起，", deadline)).toBeUndefined();
+  });
+
+  test("a passage's effective day is read in both written forms", () => {
+    expect(effectiveFrom("自 2026 年 10 月 1 日起，住宿限额调整为每晚 650 元。")).toBe("2026-10-01");
+    expect(effectiveFrom("2027-01-15 起执行。")).toBe("2027-01-15");
+    expect(effectiveFrom("2026 年 9 月 28 日")).toBeUndefined();
+  });
+
+  test("a change decided without a day takes the document's date", () => {
+    const window = (date?: string) =>
+      extractWindow({
+        document: { title: "经营会纪要", ...(date && { date }) },
+        vocabulary: VOCABULARY.predicates,
+        blocks: [
+          {
+            kind: "list_item",
+            heading_path: ["决议"],
+            spans: [{ ref: "s1", text: "一线城市住宿限额调整为每晚 650 元。" }],
+          },
+        ],
+      }).map((c) => c.valid_from);
+    expect(window("2026-09-26")).toEqual(["2026-09-26"]);
+    expect(window()).toEqual([undefined]);
   });
 
   test("passages that state nothing checkable are skipped; the longest alias picks the qualifier", () => {

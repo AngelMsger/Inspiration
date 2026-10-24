@@ -60,6 +60,7 @@ describe("plugin registry", () => {
       "bus",
       "extraction",
       "gateway",
+      "governance",
       "kb",
       "normalization",
       "sync",

@@ -31,6 +31,9 @@ x-events:
   review.due:
     payload: ReviewDue
     version: 1
+  todo.requested:
+    payload: TodoRequested
+    version: 1
   todo.created:
     payload: TodoCreated
     version: 1
@@ -302,6 +305,42 @@ $defs:
         $ref: "#/$defs/ReviewDueKind"
       due_at:
         $ref: "common.yaml#/$defs/Instant"
+
+  TodoRequested:
+    description: >
+      A component asks for a human todo. Collaboration owns todos: it merges requests with
+      the same dedupe_key into one open todo, publishing todo.created when it opens a new
+      one, and a later request with the key replaces that todo's title, detail, priority
+      and units. Requests carry small facts; the detail is a summary, not content.
+    type: object
+    required: [kind, space_id, title, priority, unit_ids, dedupe_key]
+    properties:
+      kind:
+        $ref: "collab.yaml#/$defs/TodoKind"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      title:
+        type: string
+        minLength: 1
+      detail:
+        $ref: "common.yaml#/$defs/Markdown"
+      priority:
+        $ref: "collab.yaml#/$defs/Priority"
+      unit_ids:
+        description: The units a person decides on, such as one claim per competing value.
+        type: array
+        minItems: 1
+        items:
+          $ref: "common.yaml#/$defs/UnitId"
+      dedupe_key:
+        description: Requests with the same key are one todo ("governance:conflict:<slot>").
+        type: string
+        minLength: 1
+      batch_key:
+        description: Groups similar todos in the inbox.
+        type: string
+      suggested_assignee_id:
+        $ref: "common.yaml#/$defs/PrincipalId"
 
   TodoCreated:
     type: object

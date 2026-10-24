@@ -2477,6 +2477,32 @@ export interface TodoCreated {
   priority: Priority;
   batch_key?: string;
 }
+/**
+ * A component asks for a human todo. Collaboration owns todos: it merges requests with the same dedupe_key into one open todo, publishing todo.created when it opens a new one, and a later request with the key replaces that todo's title, detail, priority and units. Requests carry small facts; the detail is a summary, not content.
+ *
+ */
+export interface TodoRequested {
+  kind: TodoKind;
+  space_id: SpaceId;
+  title: string;
+  detail?: Markdown;
+  priority: Priority;
+  /**
+   * The units a person decides on, such as one claim per competing value.
+   *
+   * @minItems 1
+   */
+  unit_ids: [UnitId, ...UnitId[]];
+  /**
+   * Requests with the same key are one todo ("governance:conflict:<slot>").
+   */
+  dedupe_key: string;
+  /**
+   * Groups similar todos in the inbox.
+   */
+  batch_key?: string;
+  suggested_assignee_id?: PrincipalId;
+}
 export interface ToolSpec {
   name: ToolName;
   description: string;

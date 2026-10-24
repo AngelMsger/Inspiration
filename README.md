@@ -29,7 +29,8 @@ The foundations are built and tested. The remaining components are specified in
 | Normalization: parsers, source blocks and spans with stable IDs, block diff, duplicates | `packages/normalization` | built |
 | Extraction: claims with verbatim evidence, predicate catalogue and slots, supersede on edits (mocked model) | `packages/extraction` | built |
 | Engine process and CLI: ingest runs, reports, synthetic corpora | `apps/engine` | built |
-| parsing, freshness, governance, page-compiler, collaboration, retrieval, agent-api, research, web, views | | planned |
+| Governance: fact slots and their values, conflict cases with a proposed value, one todo request per conflicting slot | `packages/governance` | built |
+| parsing, freshness, page-compiler, collaboration, retrieval, agent-api, research, web, views | | planned |
 
 Everything is TypeScript on Node 22 except the parsing worker, which is Python because the
 best document parsers are.

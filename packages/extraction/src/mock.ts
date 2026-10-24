@@ -9,7 +9,8 @@
  * from the catalogue entries in the prompt: the entry with the longest alias in the text,
  * the qualifier with the longest alias, and the last number before one of the entry's
  * unit words (in a table, the number under a header naming one) or the longest of its enum
- * values.
+ * values. A passage that says when it takes effect ("自 2026 年 10 月 1 日起") gives its
+ * claims valid_from; a change without a day ("推迟至 11 月 20 日") takes the document's date.
  *
  * What it does not do, and a model will: rewrite a statement to stand alone (statements are
  * the passage as written), split a passage into several claims, resolve pronouns, or read
@@ -32,6 +33,17 @@ const QUESTION = /[？?]\s*$/;
 const MIN_CHARS = 8;
 
 const SENTENCE_END = /[。；;！!]\s*$/;
+const EFFECTIVE = /自\s*(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*起|(\d{4})-(\d{2})-(\d{2})\s*起/;
+
+const CHANGE = /调整为|调整至|推迟至|提前至|延长至|缩短至|改为|变更为/;
+
+/** The day a passage says it takes effect, as YYYY-MM-DD. */
+export function effectiveFrom(text: string): string | undefined {
+  const m = EFFECTIVE.exec(text);
+  if (!m) return undefined;
+  const [year, month, day] = (m[1] ? m.slice(1, 4) : m.slice(4, 7)) as [string, string, string];
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+}
 const CLAUSES = /[^，；,;]+[，；,;]?/g;
 
 function claimType(text: string, fitted: boolean): ClaimType | undefined {
@@ -76,6 +88,9 @@ function fit(text: string, vocabulary: readonly PredicateEntry[], context = ""):
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+/** Calendar days ("2026 年 10 月 1 日", "11 月 20 日", "2026-10-01"), whose numbers are not values. */
+const DATES = /(?:\d{4}\s*年\s*)?\d{1,2}\s*月\s*\d{1,2}\s*日|\d{4}-\d{2}-\d{2}/g;
+
 export function readValue(text: string, entry: PredicateEntry): ClaimValue | undefined {
   const v = entry.value;
   if (v.kind === "enum" || v.kind === "text" || v.kind === "boolean") {
@@ -87,7 +102,7 @@ export function readValue(text: string, entry: PredicateEntry): ClaimValue | und
     ? `(\\d+(?:\\.\\d+)?)\\s*(?:${words.map(escapeRegExp).join("|")})`
     : "(\\d+(?:\\.\\d+)?)";
   // The last number wins: conditions come first in Chinese ("满 1 年……年休假 5 天").
-  const match = [...text.matchAll(new RegExp(pattern, "g"))].at(-1);
+  const match = [...text.replace(DATES, " ").matchAll(new RegExp(pattern, "g"))].at(-1);
   if (!match?.[1]) return undefined;
   const number = Number(match[1]);
   return {
@@ -106,6 +121,7 @@ function claimOf(
   value: ClaimValue | undefined,
   block: WindowBlock,
   input: WindowInput,
+  validFrom?: string,
 ): ExtractedClaim | undefined {
   const type = claimType(statement, fitted !== undefined);
   if (!type) return undefined;
@@ -117,6 +133,7 @@ function claimOf(
     confidence: fitted ? 0.9 : 0.7,
     evidence,
   };
+  if (validFrom) claim.valid_from = validFrom;
   if (fitted) {
     claim.predicate = fitted.entry.predicate;
     if (fitted.qualifier) claim.qualifiers = [fitted.qualifier];
@@ -156,6 +173,7 @@ function rowClaim(block: WindowBlock, input: WindowInput): ExtractedClaim | unde
  */
 function passageClaims(ref: string, text: string, block: WindowBlock, input: WindowInput): ExtractedClaim[] {
   const whole = fit(text, input.vocabulary);
+  const validFrom = effectiveFrom(text) ?? (CHANGE.test(text) ? input.document.date : undefined);
   const clauses = (text.match(CLAUSES) ?? []).map((c) => c.trim()).filter(Boolean);
   if (whole && clauses.length > 1) {
     const valued = clauses.flatMap((clause) => {
@@ -168,11 +186,12 @@ function passageClaims(ref: string, text: string, block: WindowBlock, input: Win
       return valued.flatMap(({ clause, fitted, value, named }) => {
         const quote = clause.replace(/[，；,;]$/, "");
         const statement = named ? `${quote}。` : `${fitted.entry.label}：${quote}。`;
-        return claimOf(statement, [{ span: ref, quote }], fitted, value, block, input) ?? [];
+        return claimOf(statement, [{ span: ref, quote }], fitted, value, block, input, validFrom) ?? [];
       });
     }
   }
-  const claim = claimOf(text, [{ span: ref, quote: text }], whole, whole && readValue(text, whole.entry), block, input);
+  const value = whole && readValue(text, whole.entry);
+  const claim = claimOf(text, [{ span: ref, quote: text }], whole, value, block, input, validFrom);
   return claim ? [claim] : [];
 }
 

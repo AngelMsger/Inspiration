@@ -15,6 +15,12 @@ budget deadline). The travel reimbursement deadline is not among them because it
 statements carry different qualifiers (差旅 and 日常费用), which is what governance has to
 reconcile.
 
+Governance then proposes the values the table below expects: 650 for the hotel cap (the
+notice changed it on 2026-10-01, after the policy took effect) and 11-20 for the budget
+deadline (the meeting on 2026-09-26 moved it), each a supersession of the policy-library
+value; 5 days of first-year leave over the guide's 7, a contradiction; and it settles the
+archive's 500 and 80 alone. That is three todo requests, two of them high priority.
+
 ## Governance levels
 
 Front matter and `.meta.yaml` set `governance` (kept in `metadata.extra.governance`):

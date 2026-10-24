@@ -18,6 +18,7 @@ import {
   ValkeyStreamsTransport,
 } from "@inspiration/eventbus";
 import { Extraction, type ExtractionOptions } from "@inspiration/extraction";
+import { Governance } from "@inspiration/governance";
 import { applyMigrations, LocalBlobStore, logger, openPool, type Pool, workspaceRoot } from "@inspiration/kernel";
 import { MemoryStore, PostgresStore } from "@inspiration/knowledge-store";
 import { Gateway, loadGatewayConfig } from "@inspiration/model-gateway";
@@ -61,6 +62,7 @@ export class Engine {
   readonly sync: SourceSync;
   readonly normalization: Normalization;
   readonly extraction: Extraction;
+  readonly governance: Governance;
   readonly consumer: Consumer;
   readonly transport: Transport;
   readonly #relay: OutboxRelay | undefined;
@@ -105,10 +107,12 @@ export class Engine {
       models: this.models,
       ...(parts.vocabulary && { vocabulary: parts.vocabulary }),
     });
+    this.governance = new Governance({ store: this.store, records: this.records });
     const components: Running[] = [
       { group: "source-sync", handlers: () => this.sync.handlers() },
       { group: "normalization", handlers: () => this.normalization.handlers() },
       { group: "extraction", handlers: () => this.extraction.handlers() },
+      { group: "governance", handlers: () => this.governance.handlers() },
     ];
     for (const c of components) {
       for (const [type, handler] of Object.entries(c.handlers())) this.consumer.subscribe(type, c.group, handler);

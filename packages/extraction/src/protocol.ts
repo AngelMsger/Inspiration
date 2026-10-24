@@ -7,7 +7,7 @@ import type { ClaimType, ClaimValue } from "@inspiration/contracts";
 import type { PredicateEntry } from "./vocabulary.ts";
 
 export const TASK = "extraction.extract_claims";
-export const PROMPT_VERSION = "extract_claims@1";
+export const PROMPT_VERSION = "extract_claims@2";
 
 export interface WindowSpan {
   /** A reference local to the window ("s1"), so the model never sees or invents span IDs. */
@@ -24,7 +24,8 @@ export interface WindowBlock {
 }
 
 export interface WindowInput {
-  document: { title: string; language?: string };
+  /** date: the day the document was written, YYYY-MM-DD, when its metadata says (`date`). */
+  document: { title: string; language?: string; date?: string };
   /** The catalogue entries whose aliases occur in the window. */
   vocabulary: PredicateEntry[];
   blocks: WindowBlock[];
@@ -38,6 +39,8 @@ export interface ExtractedClaim {
   predicate?: string;
   qualifiers?: string[];
   value?: ClaimValue;
+  /** The day the statement takes effect, when the passage says ("自 2026 年 10 月 1 日起"). */
+  valid_from?: string;
   confidence?: number;
   evidence: { span: string; quote: string }[];
 }
@@ -89,6 +92,7 @@ export const OUTPUT_SCHEMA: Record<string, unknown> = {
               normalized: { type: "string" },
             },
           },
+          valid_from: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
           confidence: { type: "number", minimum: 0, maximum: 1 },
           evidence: {
             type: "array",
