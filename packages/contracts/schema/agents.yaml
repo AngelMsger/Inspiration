@@ -83,8 +83,8 @@ $defs:
     properties:
       principal:
         description: >
-          The identity the agent acts as. Assistants triggered by a person run as an agent
-          principal on behalf of that person; governance agents run as a service principal.
+          The identity the agent acts as. Assistants triggered by a member run as an agent
+          principal on behalf of that member; governance agents run as a service principal.
         $ref: "authz.yaml#/$defs/Principal"
       budget_key:
         type: string

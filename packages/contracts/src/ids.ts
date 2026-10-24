@@ -28,7 +28,7 @@ export const PREFIXES = {
   event: "evt",
   run: "run",
   request: "req",
-  user: "usr",
+  member: "mem",
   group: "grp",
   department: "dep",
   agent: "agt",

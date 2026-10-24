@@ -10,8 +10,11 @@
  *   viewer can read now, found by walking lineage along support paths: supporting evidence,
  *   derivations and dependencies. Contradicting or qualifying evidence never makes a claim
  *   readable. Hidden support is never counted or named.
- * - An agent acts on behalf of a person: its rights are the person's, cut down to its
+ * - An agent acts on behalf of a member: its rights are the member's, cut down to its
  *   agent_scopes (read and discover when absent) and its space_scope.
+ * - Principal IDs are unique only within their tenant (a person may have the same member ID
+ *   in every tenant they join). Members, services, groups and departments are therefore
+ *   keyed by tenant in the graph, and a principal only ever gets rights in its own tenant.
  * - Search indexes get an IndexFilter (spaces, principal tokens, clearance) so ranking only
  *   ever sees rows the viewer may read; results are still re-checked before they leave.
  *
@@ -84,18 +87,28 @@ export function documentRef(sourceId: string, externalId: string): ResourceRef {
 }
 
 /**
- * Graph subject for a canonical principal ID: users and services directly, groups and
- * departments as their member sets, a tenant as everyone in it.
+ * SpiceDB object ID of a tenant's member, service, group or department. The same principal
+ * ID in two tenants is two objects.
  */
-export function subjectOf(principalId: string): SubjectRef {
+export function principalObjectId(tenantId: string, principalId: string): string {
+  return `${tenantId}|${principalId}`;
+}
+
+/**
+ * Graph subject for a canonical principal ID in a tenant: members and services directly,
+ * groups and departments as their member sets, the tenant itself as everyone in it.
+ */
+export function subjectOf(tenantId: string, principalId: string): SubjectRef {
   const kind = kindOf(principalId);
   switch (kind) {
-    case "user":
+    case "member":
     case "service":
-      return subject(kind, principalId);
+      return subject(kind, principalObjectId(tenantId, principalId));
     case "group":
     case "department":
+      return subject(kind, principalObjectId(tenantId, principalId), "member");
     case "tenant":
+      if (principalId !== tenantId) throw new PrincipalError(`${principalId} is another tenant`);
       return subject(kind, principalId, "member");
     default:
       throw new PrincipalError(`${principalId} cannot hold a permission directly`);
@@ -113,7 +126,7 @@ export function aclTokens(snapshot: AclSnapshot, tenantId: string): string[] {
       case "user":
       case "group":
       case "department":
-        if (e.principal_id) tokens.add(e.principal_id);
+        if (e.principal_id) tokens.add(principalObjectId(tenantId, e.principal_id));
         break;
       case "tenant":
       case "anyone_in_tenant":
@@ -148,52 +161,62 @@ export class AuthzService implements AuthZ, AclMirror {
   // ------------------------------------------------------ directory and spaces (admin writes)
 
   addTenantMember(tenantId: string, principalId: string): Promise<string | undefined> {
-    return this.#touch(rel(obj("tenant", tenantId), "member", subjectOf(principalId)));
+    return this.#touch(rel(obj("tenant", tenantId), "member", subjectOf(tenantId, principalId)));
   }
 
-  addTenantAdmin(tenantId: string, userId: string): Promise<string | undefined> {
-    return this.#touch(rel(obj("tenant", tenantId), "admin", subjectOf(userId)));
+  addTenantAdmin(tenantId: string, memberId: string): Promise<string | undefined> {
+    return this.#touch(rel(obj("tenant", tenantId), "admin", subjectOf(tenantId, memberId)));
   }
 
   addService(tenantId: string, serviceId: string): Promise<string | undefined> {
-    return this.#touch(rel(obj("tenant", tenantId), "service", subjectOf(serviceId)));
+    return this.#touch(rel(obj("tenant", tenantId), "service", subjectOf(tenantId, serviceId)));
   }
 
   grantClearance(tenantId: string, principalId: string, label: SensitivityLabel): Promise<string | undefined> {
     const relation = { confidential: "confidential_reader", secret: "secret_reader" }[label as string];
     if (!relation) throw new RangeError("clearance above internal is granted as confidential or secret");
-    return this.#touch(rel(obj("tenant", tenantId), relation, subjectOf(principalId)));
+    return this.#touch(rel(obj("tenant", tenantId), relation, subjectOf(tenantId, principalId)));
   }
 
-  /** Add a user or nested group to a group, or a user or sub-department to a department. */
-  addMember(containerId: string, memberId: string): Promise<string | undefined> {
-    return this.#touch(rel(this.#container(containerId), "member", subjectOf(memberId)));
+  /** Add a member or nested group to a group, or a member or sub-department to a department. */
+  addMember(tenantId: string, containerId: string, memberId: string): Promise<string | undefined> {
+    return this.#touch(rel(this.#container(tenantId, containerId), "member", subjectOf(tenantId, memberId)));
   }
 
-  removeMember(containerId: string, memberId: string): Promise<string | undefined> {
-    return this.graph.write({ delete: [rel(this.#container(containerId), "member", subjectOf(memberId))] });
+  removeMember(tenantId: string, containerId: string, memberId: string): Promise<string | undefined> {
+    return this.graph.write({
+      delete: [rel(this.#container(tenantId, containerId), "member", subjectOf(tenantId, memberId))],
+    });
   }
 
-  createSpace(
+  /** Create a space in a tenant; a parent space must be in the same tenant. */
+  async createSpace(
     spaceId: string,
     options: { tenantId: string; ownerId: string; parentId?: string },
   ): Promise<string | undefined> {
     const space = obj("space", spaceId);
     const rels = [
       rel(space, "tenant", subject("tenant", options.tenantId)),
-      rel(space, "owner", subjectOf(options.ownerId)),
+      rel(space, "owner", subjectOf(options.tenantId, options.ownerId)),
     ];
-    if (options.parentId) rels.push(rel(space, "parent", subject("space", options.parentId)));
+    if (options.parentId) {
+      if ((await this.#tenantOf(options.parentId)) !== options.tenantId) {
+        throw new RangeError(`space ${options.parentId} is in another tenant`);
+      }
+      rels.push(rel(space, "parent", subject("space", options.parentId)));
+    }
     return this.graph.write({ touch: rels });
   }
 
-  grantSpace(spaceId: string, role: SpaceRole, principalId: string): Promise<string | undefined> {
+  /** Grant a role on a space to a principal of the space's own tenant. */
+  async grantSpace(spaceId: string, role: SpaceRole, principalId: string): Promise<string | undefined> {
     if (!SPACE_ROLES.includes(role)) throw new RangeError(`unknown space role ${JSON.stringify(role)}`);
-    return this.#touch(rel(obj("space", spaceId), role, subjectOf(principalId)));
+    return this.#touch(rel(obj("space", spaceId), role, subjectOf(await this.#tenantOf(spaceId), principalId)));
   }
 
-  revokeSpace(spaceId: string, role: SpaceRole, principalId: string): Promise<string | undefined> {
-    return this.graph.write({ delete: [rel(obj("space", spaceId), role, subjectOf(principalId))] });
+  async revokeSpace(spaceId: string, role: SpaceRole, principalId: string): Promise<string | undefined> {
+    const subj = subjectOf(await this.#tenantOf(spaceId), principalId);
+    return this.graph.write({ delete: [rel(obj("space", spaceId), role, subj)] });
   }
 
   registerSource(sourceId: string, spaceId: string): Promise<string | undefined> {
@@ -204,19 +227,24 @@ export class AuthzService implements AuthZ, AclMirror {
     return this.graph.write({ touch: [r] });
   }
 
-  #container(id: string): ObjectRef {
+  #container(tenantId: string, id: string): ObjectRef {
     const kind = kindOf(id);
     if (kind !== "group" && kind !== "department") throw new RangeError(`${id} is not a group or department`);
-    return obj(kind, id);
+    return obj(kind, principalObjectId(tenantId, id));
+  }
+
+  async #tenantOf(spaceId: string): Promise<string> {
+    const [tenant] = await this.graph.read("space", spaceId, "tenant");
+    if (!tenant) throw new RangeError(`space ${spaceId} is not registered`);
+    return tenant.subject.id;
   }
 
   // ------------------------------------------------------ AclMirror
 
   /** Make the document's relationships equal to the snapshot, in one atomic write. */
   async mirror(snapshot: AclSnapshot, { spaceId }: { spaceId: string }): Promise<string | undefined> {
-    const [tenant] = await this.graph.read("space", spaceId, "tenant");
-    if (!tenant) throw new RangeError(`space ${spaceId} is not registered`);
-    const everyone = subject("tenant", tenant.subject.id, "member");
+    const tenantId = await this.#tenantOf(spaceId);
+    const everyone = subject("tenant", tenantId, "member");
     const source = snapshot.source_id;
     const doc = obj("document", documentObjectId(source, snapshot.external_id));
     const desired = new Map<string, Relationship>();
@@ -228,7 +256,7 @@ export class AuthzService implements AuthZ, AclMirror {
     if (snapshot.inherits_from_external_id) {
       want("parent", subject("document", documentObjectId(source, snapshot.inherits_from_external_id)));
     }
-    const prefixes = { user: "usr_", group: "grp_", department: "dep_" } as const;
+    const prefixes = { user: "mem_", group: "grp_", department: "dep_" } as const;
     for (const e of snapshot.entries) {
       switch (e.principal_kind) {
         case "user":
@@ -236,7 +264,7 @@ export class AuthzService implements AuthZ, AclMirror {
         case "department":
           // Unmapped principals, and IDs of the wrong kind, are denied.
           if (e.principal_id?.startsWith(prefixes[e.principal_kind])) {
-            want(DOCUMENT_ROLES[e.role], subjectOf(e.principal_id));
+            want(DOCUMENT_ROLES[e.role], subjectOf(tenantId, e.principal_id));
           }
           break;
         case "tenant":
@@ -247,7 +275,7 @@ export class AuthzService implements AuthZ, AclMirror {
           want("link_viewer", everyone);
           break;
         case "public":
-          want("public_viewer", subject("user", "*"));
+          want("public_viewer", subject("member", "*"));
           break;
         case "external":
           break;
@@ -272,10 +300,11 @@ export class AuthzService implements AuthZ, AclMirror {
 
   #actingSubject(who: Principal): SubjectRef {
     if (who.kind === "agent") {
-      if (!who.on_behalf_of) throw new PrincipalError("an agent principal must act on behalf of a person");
-      return subjectOf(who.on_behalf_of);
+      if (!who.on_behalf_of) throw new PrincipalError("an agent principal must act on behalf of a member");
+      if (kindOf(who.on_behalf_of) !== "member") throw new PrincipalError("an agent acts on behalf of a member");
+      return subjectOf(who.tenant_id, who.on_behalf_of);
     }
-    if (who.kind === "user" || who.kind === "service") return subjectOf(who.id);
+    if (who.kind === "member" || who.kind === "service") return subjectOf(who.tenant_id, who.id);
     throw new PrincipalError(`a ${who.kind} principal cannot make requests`);
   }
 

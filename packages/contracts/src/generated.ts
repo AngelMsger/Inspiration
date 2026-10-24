@@ -13,7 +13,7 @@ export type ContentHash = string;
  */
 export type AclFidelity = "exact" | "approximate" | "connection_scoped" | "none";
 /**
- * anyone_in_tenant and anyone_with_link are tracked separately because existing oversharing ("anyone in the company with the link") is the biggest go-live risk.
+ * Principals as the source system names them: a user is a person there, which the directory maps to a member. anyone_in_tenant and anyone_with_link are tracked separately because existing oversharing ("anyone in the company with the link") is the biggest go-live risk.
  *
  */
 export type AclPrincipalKind =
@@ -26,7 +26,7 @@ export type AclPrincipalKind =
   | "public"
   | "external";
 /**
- * A canonical principal. usr = person, grp = group, dep = department, agt = agent identity, svc = internal service account.
+ * A canonical principal. mem = member (one person inside one tenant), grp = group, dep = department, agt = agent identity, svc = internal service account. Principal IDs are unique only within their tenant, so anything kept outside a tenant's own rows keeps the tenant with them. The business layer's user (account) IDs never reach the engine.
  *
  */
 export type PrincipalId = string;
@@ -61,7 +61,7 @@ export type SensitivityLabel = "public" | "internal" | "confidential" | "secret"
  *
  */
 export type UnitId = string;
-export type PrincipalKind = "user" | "group" | "department" | "agent" | "service";
+export type PrincipalKind = "member" | "group" | "department" | "agent" | "service";
 export type TenantId = string;
 export type Permission = "discover" | "read" | "comment" | "edit" | "verify" | "publish" | "admin";
 /**
@@ -495,7 +495,7 @@ export interface AgentRunContext {
   sensitivity?: SensitivityLabel;
 }
 /**
- * The caller of any API. Agent principals must carry on_behalf_of.
+ * The caller of any API. Agent principals must carry on_behalf_of, the member they act for.
  */
 export interface Principal {
   id: PrincipalId;
@@ -504,11 +504,11 @@ export interface Principal {
   display_name?: string;
   on_behalf_of?: PrincipalId;
   /**
-   * For agents, the permissions the agent was granted. Effective rights are the intersection with the person's.
+   * For agents, the permissions the agent was granted. Effective rights are the intersection with the member's.
    */
   agent_scopes?: Permission[];
   /**
-   * For agents, the spaces the agent may touch. Absent means every space the person can read.
+   * For agents, the spaces the agent may touch. Absent means every space the member can read.
    */
   space_scope?: SpaceId[];
 }

@@ -453,7 +453,7 @@
       ]
     },
     "AclPrincipalKind": {
-      "description": "anyone_in_tenant and anyone_with_link are tracked separately because existing oversharing (\"anyone in the company with the link\") is the biggest go-live risk.\n",
+      "description": "Principals as the source system names them: a user is a person there, which the directory maps to a member. anyone_in_tenant and anyone_with_link are tracked separately because existing oversharing (\"anyone in the company with the link\") is the biggest go-live risk.\n",
       "type": "string",
       "enum": [
         "user",
@@ -593,7 +593,7 @@
       ],
       "properties": {
         "principal": {
-          "description": "The identity the agent acts as. Assistants triggered by a person run as an agent principal on behalf of that person; governance agents run as a service principal.\n",
+          "description": "The identity the agent acts as. Assistants triggered by a member run as an agent principal on behalf of that member; governance agents run as a service principal.\n",
           "$ref": "#/$defs/Principal"
         },
         "budget_key": {
@@ -4896,7 +4896,7 @@
       "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)*$"
     },
     "Principal": {
-      "description": "The caller of any API. Agent principals must carry on_behalf_of.",
+      "description": "The caller of any API. Agent principals must carry on_behalf_of, the member they act for.",
       "type": "object",
       "required": [
         "id",
@@ -4920,14 +4920,14 @@
           "$ref": "#/$defs/PrincipalId"
         },
         "agent_scopes": {
-          "description": "For agents, the permissions the agent was granted. Effective rights are the intersection with the person's.",
+          "description": "For agents, the permissions the agent was granted. Effective rights are the intersection with the member's.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/Permission"
           }
         },
         "space_scope": {
-          "description": "For agents, the spaces the agent may touch. Absent means every space the person can read.",
+          "description": "For agents, the spaces the agent may touch. Absent means every space the member can read.",
           "type": "array",
           "items": {
             "$ref": "#/$defs/SpaceId"
@@ -4936,14 +4936,14 @@
       }
     },
     "PrincipalId": {
-      "description": "A canonical principal. usr = person, grp = group, dep = department, agt = agent identity, svc = internal service account.\n",
+      "description": "A canonical principal. mem = member (one person inside one tenant), grp = group, dep = department, agt = agent identity, svc = internal service account. Principal IDs are unique only within their tenant, so anything kept outside a tenant's own rows keeps the tenant with them. The business layer's user (account) IDs never reach the engine.\n",
       "type": "string",
-      "pattern": "^(usr|grp|dep|agt|svc)_[0-9A-Za-z]{8,64}$"
+      "pattern": "^(mem|grp|dep|agt|svc)_[0-9A-Za-z]{8,64}$"
     },
     "PrincipalKind": {
       "type": "string",
       "enum": [
-        "user",
+        "member",
         "group",
         "department",
         "agent",

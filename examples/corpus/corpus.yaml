@@ -19,13 +19,13 @@ directory:
     group:finance: grp_01QINGHE00000000000FINANCE
     group:hr: grp_01QINGHE000000000000000HR
     group:admin-office: grp_01QINGHE0000000000000ADMIN
-    user:li.na: usr_01QINGHE00000000000000LINA
-    user:zhang.min: usr_01QINGHE000000000ZHANGMIN
+    user:li.na: mem_01QINGHE00000000000000LINA
+    user:zhang.min: mem_01QINGHE000000000ZHANGMIN
   feishu:
     department:od_finance: dep_01QINGHE00000000000FINANCE
     department:od_admin: dep_01QINGHE0000000000000ADMIN
-    user:ou_wang_wei: usr_01QINGHE0000000000WANGWEI
-    user:ou_li_na: usr_01QINGHE00000000000000LINA
+    user:ou_wang_wei: mem_01QINGHE0000000000WANGWEI
+    user:ou_li_na: mem_01QINGHE00000000000000LINA
 
 sources:
   - id: src_01QINGHE00000000000POLICIES

@@ -98,7 +98,7 @@ function context(principal: Partial<Principal> = {}, overrides: Partial<AgentRun
       id: "agt_01JC000000000000000000AGT1",
       kind: "agent",
       tenant_id: TENANT,
-      on_behalf_of: "usr_01JC000000000000000000USR1",
+      on_behalf_of: "mem_01JC000000000000000000MEM1",
       ...principal,
     },
     budget_key: `tenant:${TENANT}/collaboration`,
@@ -185,7 +185,12 @@ describe("agent runtime", () => {
     );
     expect(result.run_id).toMatch(/^run_/);
     expect(result.trace_id).toBe("trace-1");
-    expect(await runs.get(result.run_id)).toEqual(result);
+    expect(await runs.get(TENANT, result.run_id)).toEqual({
+      tenant_id: TENANT,
+      principal: "agt_01JC000000000000000000AGT1",
+      on_behalf_of: "mem_01JC000000000000000000MEM1",
+      result,
+    });
   });
 
   test("invalid arguments are reported to the model", async () => {

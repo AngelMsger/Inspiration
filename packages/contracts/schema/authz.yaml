@@ -4,15 +4,15 @@ title: Identity, permissions and audit
 description: >
   Types for access control. Source ACLs are mirrored as relationship tuples in SpiceDB. Retrieval
   pre-filters inside the index with IndexFilter, then re-checks each result. Agents always
-  act on behalf of a person, with that person's rights intersected with the agent's scope.
+  act on behalf of a member, with that member's rights intersected with the agent's scope.
 
 $defs:
   PrincipalKind:
     type: string
-    enum: [user, group, department, agent, service]
+    enum: [member, group, department, agent, service]
 
   Principal:
-    description: The caller of any API. Agent principals must carry on_behalf_of.
+    description: The caller of any API. Agent principals must carry on_behalf_of, the member they act for.
     type: object
     required: [id, kind, tenant_id]
     properties:
@@ -27,12 +27,12 @@ $defs:
       on_behalf_of:
         $ref: "common.yaml#/$defs/PrincipalId"
       agent_scopes:
-        description: For agents, the permissions the agent was granted. Effective rights are the intersection with the person's.
+        description: For agents, the permissions the agent was granted. Effective rights are the intersection with the member's.
         type: array
         items:
           $ref: "#/$defs/Permission"
       space_scope:
-        description: For agents, the spaces the agent may touch. Absent means every space the person can read.
+        description: For agents, the spaces the agent may touch. Absent means every space the member can read.
         type: array
         items:
           $ref: "common.yaml#/$defs/SpaceId"
@@ -105,7 +105,8 @@ $defs:
 
   AclPrincipalKind:
     description: >
-      anyone_in_tenant and anyone_with_link are tracked separately because existing
+      Principals as the source system names them: a user is a person there, which the
+      directory maps to a member. anyone_in_tenant and anyone_with_link are tracked separately because existing
       oversharing ("anyone in the company with the link") is the biggest go-live risk.
     type: string
     enum: [user, group, department, tenant, anyone_in_tenant, anyone_with_link, public, external]
