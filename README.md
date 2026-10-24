@@ -84,12 +84,18 @@ apps/engine               the engine process: wires components to the store and 
 examples/corpus           a demo tenant (Chinese enterprise documents, folder ACLs, Feishu fixtures)
 infra/                    docker compose for the prototype stack
 config/                   example configuration
-docs/                     architecture, contracts, PageSpec and views, licensing
+docs/                     overview, design, architecture, contracts, PageSpec and views, licensing
+docs/zh/                  Chinese copies of the overview and design docs
 test/                     repo-wide checks (the component manifest)
 ```
 
 ## Documentation
 
+Start with the [overview](docs/overview.md) ([中文](docs/zh/overview.md)): the product and
+technical design in one document, with what is built, in review and planned.
+
+- [UI principles](docs/design/ui-principles.md) and
+  [Statements at scale](docs/design/statements-at-scale.md): the adopted UI and review design.
 - [Architecture](docs/architecture.md): engine and business layer, components, how they
   talk, storage, security.
 - [Contracts](docs/contracts.md): changing schemas, code generation, IDs, events,
