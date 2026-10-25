@@ -20,6 +20,9 @@
  * - The new sections commit first, together with the store writes they call for
  *   (page_compiler.pending, with absolute counts). If the store writes then fail, the
  *   tenant's next update or re-clustering finishes them before it reads anything.
+ * - A tenant has one writer: updates and re-clusterings of a tenant run one at a time in one
+ *   Topics instance, and absolute counts rely on that. Run one page-compiler consumer per
+ *   tenant; two writers would need a tenant lock or revision fencing first.
  *
  * recluster(tenant) clusters every space's governed sections again (cluster.ts), starting
  * from the last run's topics, and places every statement. It goes through these steps:
