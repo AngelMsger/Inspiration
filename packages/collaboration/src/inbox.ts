@@ -124,6 +124,10 @@ function majority(keys: readonly string[]): string | undefined {
 
 const part = (base: string, n: number) => (n > 1 ? `${base}:${n}` : base);
 
+/** A copy review a source update left: it goes on the card of a conflict the same update opened. */
+const rides = (i: Item): i is Item & { correlation_id: string } =>
+  i.todo.kind === "stale" && i.correlation_id !== undefined && !i.campaign;
+
 export function cardKind(batchKey: string): CardKind {
   const kind = batchKey.split(":")[0];
   if (kind === "card") return "review";
@@ -196,28 +200,38 @@ export class Inbox {
   /**
    * Route open todos again after topics or their owners changed: a todo whose topic or owner
    * is no longer the one it has moves to the new owner's card, within the budget from its due
-   * week; a copy review follows its conflict todo. Urgent and high todos go first.
+   * week. A copy review follows the open conflict todo of its source update; one whose
+   * conflict closed is routed on its own. Urgent and high todos go first.
    */
   async reroute(tenantId: string): Promise<{ moved: number }> {
     return this.#serial(tenantId, async () => {
       const topics = await this.#topics(tenantId);
       const open = await this.records.find(ITEMS, { tenant_id: tenantId, status: OPEN });
+      const byId = new Map(open.map((i) => [i.todo.id, i]));
+      const hosts = new Map<Item, Item>();
+      for (const item of open) {
+        if (!rides(item)) continue;
+        const host =
+          (item.with_todo ? byId.get(item.with_todo) : undefined) ??
+          open.find((h) => h.todo.kind === "conflict" && h.correlation_id === item.correlation_id);
+        if (host) hosts.set(item, host);
+      }
       const rank = (i: Item) => (URGENT.has(i.todo.priority) ? 0 : 1);
       let moved = 0;
       for (const item of open
-        .filter((i) => !i.with_todo && !i.campaign)
+        .filter((i) => !hosts.has(i) && !i.campaign)
         .sort((a, b) => rank(a) - rank(b) || (a.todo.created_at < b.todo.created_at ? -1 : 1))) {
         const route = await this.#route(item.todo.unit_ids, topics);
-        if (route.topic === item.todo.taxonomy_key && route.owner === item.todo.assignee_id) continue;
+        const same = route.topic === item.todo.taxonomy_key && route.owner === item.todo.assignee_id;
+        if (same && !item.with_todo) continue;
         await this.records.transaction(async (tx) => {
           await this.#schedule(tx, item, route);
           await tx.put(ITEMS, [item]);
         });
         moved++;
       }
-      for (const item of open.filter((i) => i.with_todo)) {
-        const host = await this.records.get(ITEMS, item.with_todo as string);
-        if (!host || host.todo.batch_key === item.todo.batch_key) continue;
+      for (const [item, host] of hosts) {
+        if (item.with_todo === host.todo.id && item.todo.batch_key === host.todo.batch_key) continue;
         this.#ride(item, host);
         await this.records.transaction((tx) => tx.put(ITEMS, [item]));
         moved++;
@@ -347,7 +361,15 @@ export class Inbox {
           ...(request.campaign && { campaign: true }),
         };
         await this.#schedule(tx, item, route);
-        await tx.put(ITEMS, [item]);
+        // Copy reviews its source update left before the conflict came ride on it too.
+        const riders =
+          item.todo.kind === "conflict" && item.correlation_id
+            ? (await tx.find(ITEMS, { tenant_id: tenantId, correlation_id: item.correlation_id, status: OPEN })).filter(
+                (i) => rides(i) && !i.with_todo,
+              )
+            : [];
+        for (const r of riders) this.#ride(r, item);
+        await tx.put(ITEMS, [item, ...riders]);
         const t = item.todo;
         await tx.publish(
           newEvent(
@@ -419,7 +441,7 @@ export class Inbox {
       }
     };
     if (item.campaign) return set(due, await fill(`campaign:${t.space_id}:${topic}`));
-    if (t.kind === "stale" && item.correlation_id) {
+    if (rides(item)) {
       const host = (
         await tx.find(ITEMS, { tenant_id: t.tenant_id, correlation_id: item.correlation_id, status: OPEN })
       ).find((i) => i.todo.kind === "conflict");

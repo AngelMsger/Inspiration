@@ -15,7 +15,7 @@
  *   the case names that change, so the owner learns of it. Governance publishes a note for
  *   such a value (todo.requested of kind note, dedupe_key "governance:note:<slot>:<value>")
  *   naming the reference document, the date it gives and both values, and again only when
- *   one of those changes. A note asks for no decision.
+ *   one of those or the statements it points to change. A note asks for no decision.
  * - A case whose value is no longer stated, or is now the proposed one, is auto-resolved.
  * - When a slot's open cases or proposed value change, governance publishes one
  *   todo.requested for the slot (dedupe_key "governance:conflict:<slot>"); a new statement

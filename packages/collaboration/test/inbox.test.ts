@@ -1,5 +1,7 @@
 import { newEvent } from "@inspiration/contracts";
+import { InMemoryBus } from "@inspiration/eventbus";
 import { describe, expect } from "vitest";
+import { COMPONENT } from "../src/index.ts";
 import { BACKENDS, inboxTest, LI, SPACE, TENANT, WANG } from "./fixtures.ts";
 
 describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
@@ -121,6 +123,67 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         [`steward:${SPACE}:unfiled:2026-W43`, null, ["review_due"]],
       ]);
       expect(cards[0]?.todos[0]).toMatchObject({ priority: "low", taxonomy_key: "t-hotel" });
+    });
+
+    test("a copy review rides on its conflict's card whichever of the two comes first", async ({ world }) => {
+      await world.topics(
+        { key: "t-hotel", owner_id: LI },
+        { key: "t-leave", owner_id: WANG },
+        { key: "t-meals", owner_id: WANG },
+        { key: "t-rooms", owner_id: LI },
+      );
+      const hotel = await world.document(["The first-tier hotel cap is 600 a night."], "t-hotel");
+      const leave = await world.document(["Annual leave is 5 days."], "t-leave");
+      const meals = await world.document(["Meals are capped at 100 a day."], "t-meals");
+      const rooms = await world.document(["Meeting rooms are booked a day ahead."], "t-rooms");
+      const copy = (of: typeof hotel, cause: typeof hotel) => ({
+        kind: "evidence_changed" as const,
+        unit_ids: [of.version.id],
+        cause_ids: [cause.version.id],
+      });
+
+      // Queued together, the consumer takes the review first: it reads review.due before todo.requested.
+      const bus = new InMemoryBus();
+      for (const [type, handler] of Object.entries(world.inbox.handlers())) bus.subscribe(type, COMPONENT, handler);
+      await bus.publish(
+        world.requestEvent({ unit_ids: hotel.claims.map((c) => c.id) }, "evt_01JC0000000000000000UPDATE1"),
+        world.reviewEvent(copy(leave, hotel), "evt_01JC0000000000000000UPDATE1"),
+      );
+      await bus.drain();
+      expect((await world.created()).map((t) => t.kind)).toEqual(["stale", "conflict"]);
+      // The other way round.
+      await world.request({ unit_ids: meals.claims.map((c) => c.id) }, "evt_01JC0000000000000000UPDATE2");
+      await world.review(copy(rooms, meals), "evt_01JC0000000000000000UPDATE2");
+
+      const cards = await world.inbox.cards(TENANT);
+      expect(cards.map((c) => [c.batch_key, c.todos.map((t) => t.kind)])).toEqual([
+        [`card:${LI}:t-hotel:2026-W43`, ["conflict", "stale"]],
+        [`card:${WANG}:t-meals:2026-W43`, ["conflict", "stale"]],
+      ]);
+      expect(await world.inbox.reroute(TENANT)).toEqual({ moved: 0 });
+    });
+
+    test("a copy review whose conflict closed is routed on its own", async ({ world }) => {
+      await world.topics({ key: "t-hotel", owner_id: LI }, { key: "t-leave", owner_id: WANG });
+      const hotel = await world.document(["The first-tier hotel cap is 600 a night."], "t-hotel");
+      const leave = await world.document(["Annual leave is 5 days."], "t-leave");
+      const conflict = { unit_ids: hotel.claims.map((c) => c.id) };
+      await world.request(conflict, "evt_01JC00000000000000000UPDATE");
+      await world.review(
+        { kind: "evidence_changed", unit_ids: [leave.version.id], cause_ids: [hotel.version.id] },
+        "evt_01JC00000000000000000UPDATE",
+      );
+      await world.request({ ...conflict, withdrawn: true });
+      expect((await world.inbox.cards(TENANT)).map((c) => c.batch_key)).toEqual([`card:${LI}:t-hotel:2026-W43`]);
+
+      // The hotel topic changes hands; the review goes to the owner of its own topic.
+      await world.topics({ key: "t-hotel", owner_id: WANG });
+      expect(await world.inbox.reroute(TENANT)).toEqual({ moved: 1 });
+      expect((await world.inbox.cards(TENANT)).map((c) => [c.batch_key, c.todos.map((t) => t.kind)])).toEqual([
+        [`card:${WANG}:t-leave:2026-W43`, ["stale"]],
+      ]);
+      expect((await world.inbox.items(TENANT, { open: true }))[0]?.with_todo).toBeUndefined();
+      expect(await world.inbox.reroute(TENANT)).toEqual({ moved: 0 });
     });
 
     test("notes sit outside the budget, on one card a week, and one action acknowledges them", async ({ world }) => {

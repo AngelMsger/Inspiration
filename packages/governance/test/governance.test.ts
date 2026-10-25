@@ -1,3 +1,4 @@
+import { type Claim, type ClaimsUpdated, newEvent } from "@inspiration/contracts";
 import { describe, expect } from "vitest";
 import { BACKENDS, governanceTest, HOTEL, SPACE, TENANT } from "./fixtures.ts";
 
@@ -143,6 +144,38 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect(notice.result.requests.map((r) => r.title)).toEqual([
         "hotel_cap_per_night (一线城市): 800 CNY/night or 600 CNY/night",
       ]);
+    });
+
+    test("a note is said again when its date changes, not when another document states the governed value", async ({
+      world,
+    }) => {
+      await world.state(POLICY, [{ text: "The first-tier hotel cap is 600 a night.", value: 600 }]);
+      const tips = await world.state({ title: "Travel tips", authority: 0.95, level: "reference" }, [
+        { text: "From 2026-10-01 the Beijing hotel cap is 800 a night.", value: 800, from: "2026-10-01" },
+      ]);
+      const [first] = tips.result.notes;
+      expect(first?.detail).toContain("800 CNY/night (from 2026-10-01)");
+
+      // Extraction reads the same statement again as taking effect a month later.
+      const claim = tips.claims[0] as Claim;
+      await world.store.transaction((tx) =>
+        tx.upsertClaims([{ ...claim, valid_time: { start: "2026-11-01T00:00:00Z" } }], []),
+      );
+      const update: ClaimsUpdated = { origin: "extracted", added: [], updated: [claim.id], superseded: [] };
+      const moved = await world.governance.apply(
+        newEvent("claims.updated", update, { tenantId: TENANT, producer: "extraction" }),
+      );
+      expect(moved.notes.map((n) => [n.title, n.dedupe_key, n.unit_ids])).toEqual([
+        [first?.title, first?.dedupe_key, first?.unit_ids],
+      ]);
+      expect(moved.notes[0]?.detail).toContain("800 CNY/night (from 2026-11-01)");
+
+      // A less authoritative governed document saying 600 too changes nothing the note says.
+      const faq = await world.state({ title: "Expense FAQ", authority: 0.6 }, [
+        { text: "Hotels in first-tier cities are capped at 600 a night.", value: 600 },
+      ]);
+      expect(faq.result).toMatchObject({ notes: [], withdrawn: [] });
+      expect((await world.requests()).filter((r) => r.kind === "note")).toHaveLength(2);
     });
 
     test("a change only a reference document states is named in the case against its value", async ({ world }) => {

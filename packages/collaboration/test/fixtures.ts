@@ -29,6 +29,8 @@ export const BACKENDS: { backend: Backend; skip: boolean }[] = [
   { backend: "postgres", skip: !hasStack() },
 ];
 
+type RequestOf<T> = Omit<Partial<T>, "unit_ids"> & { unit_ids: string[] };
+
 export interface World {
   store: KnowledgeStore;
   records: Records;
@@ -38,15 +40,12 @@ export interface World {
   /** A governed document with one claim per statement, its claims placed in the topic when one is given. */
   document: (statements: readonly string[], topic?: string) => Promise<{ version: SourceVersion; claims: Claim[] }>;
   /** Deliver a todo request, as governance would publish it. */
-  request: (
-    request: Omit<Partial<TodoRequested>, "unit_ids"> & { unit_ids: string[] },
-    correlation?: string,
-  ) => Promise<void>;
+  request: (request: RequestOf<TodoRequested>, correlation?: string) => Promise<void>;
   /** Deliver a due review, as freshness would publish it. */
-  review: (
-    review: Omit<Partial<ReviewDue>, "unit_ids"> & { unit_ids: string[] },
-    correlation?: string,
-  ) => Promise<void>;
+  review: (review: RequestOf<ReviewDue>, correlation?: string) => Promise<void>;
+  /** The events request and review deliver. */
+  requestEvent: (request: RequestOf<TodoRequested>, correlation?: string) => EventEnvelope;
+  reviewEvent: (review: RequestOf<ReviewDue>, correlation?: string) => EventEnvelope;
   deliver: (event: EventEnvelope) => Promise<void>;
   setToday: (day: string) => void;
   /** Every todo.created the inbox published, in order. */
@@ -120,7 +119,7 @@ export const inboxTest = (backend: Backend, settings: Partial<InboxSettings> = {
       return correlation ? { ...event, correlation_id: correlation } : event;
     };
 
-    const request: World["request"] = async (r, correlation) => {
+    const requestEvent: World["requestEvent"] = (r, correlation) => {
       const data: TodoRequested = {
         kind: "conflict",
         space_id: SPACE,
@@ -130,10 +129,10 @@ export const inboxTest = (backend: Backend, settings: Partial<InboxSettings> = {
         ...r,
         unit_ids: r.unit_ids as [string, ...string[]],
       };
-      await deliver(envelope("todo.requested", data, "governance", correlation));
+      return envelope("todo.requested", data, "governance", correlation);
     };
 
-    const review: World["review"] = async (r, correlation) => {
+    const reviewEvent: World["reviewEvent"] = (r, correlation) => {
       const data: ReviewDue = {
         kind: "ttl",
         due_at: now.toISOString(),
@@ -143,7 +142,7 @@ export const inboxTest = (backend: Backend, settings: Partial<InboxSettings> = {
         ...r,
         unit_ids: r.unit_ids as [string, ...string[]],
       };
-      await deliver(envelope("review.due", data, "freshness", correlation));
+      return envelope("review.due", data, "freshness", correlation);
     };
 
     const setToday = (day: string) => {
@@ -151,5 +150,18 @@ export const inboxTest = (backend: Backend, settings: Partial<InboxSettings> = {
     };
     const created = async () =>
       (await outbox()).filter((e) => e.type === "todo.created").map((e) => e.data as unknown as TodoCreated);
-    return { store, records, inbox, topics, document, request, review, deliver, setToday, created };
+    return {
+      store,
+      records,
+      inbox,
+      topics,
+      document,
+      request: (r, correlation) => deliver(requestEvent(r, correlation)),
+      review: (r, correlation) => deliver(reviewEvent(r, correlation)),
+      requestEvent,
+      reviewEvent,
+      deliver,
+      setToday,
+      created,
+    };
   });

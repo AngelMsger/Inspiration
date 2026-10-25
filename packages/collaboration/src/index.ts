@@ -23,7 +23,8 @@
  * - Notes (kind note) go on the owner's notes card of the week, outside the budget, and one
  *   action acknowledges them (acknowledge).
  * - A copy review (stale) from the same source update as an open conflict todo, sharing its
- *   correlation_id, goes on that conflict's card.
+ *   correlation_id, goes on that conflict's card, whichever of the two came first. When the
+ *   conflict closes, reroute routes the review on its own.
  * - Reviews already due when freshness first saw their document (backlog) go on a
  *   first-review campaign card per space and topic, nobody's budget.
  * - Todos of a topic nobody owns, or of no topic, go on the space steward's card of the week.

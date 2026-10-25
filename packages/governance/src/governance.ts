@@ -61,7 +61,16 @@ export interface SlotState {
   /** The last todo request, while the slot asks for one: withdrawn when it stops asking. */
   asked?: TodoRequested;
   /** The notes as last published, while their values are only stated by reference documents. */
-  notes?: TodoRequested[];
+  notes?: Note[];
+}
+
+/**
+ * A note, and what it says that its owner should hear again when it changes: both values,
+ * the reference document and the date it states, and the statements it points to.
+ */
+export interface Note {
+  request: TodoRequested;
+  said: string;
 }
 
 export const SLOTS = defineTable<SlotState>("governance.slots", {
@@ -192,9 +201,9 @@ function withdrawal(request: TodoRequested): TodoRequested {
 }
 
 /** The note for a value only reference documents state: what they say, and the governed value that holds. */
-function noteOf(proposed: ValueGroup, other: ValueGroup, draft: CaseDraft): TodoRequested {
+function noteOf(proposed: ValueGroup, other: ValueGroup, draft: CaseDraft): Note {
   const since = other.best.stated_from ?? other.best.document_from;
-  return {
+  const request: TodoRequested = {
     kind: "note",
     space_id: proposed.best.space_id,
     title: `${slotLabel(proposed.slot)}: ${other.value} in ${other.best.document}, ${proposed.value} holds`,
@@ -208,6 +217,7 @@ function noteOf(proposed: ValueGroup, other: ValueGroup, draft: CaseDraft): Todo
     batch_key: `${COMPONENT}:note:${proposed.slot}`,
     slot_key: proposed.slot,
   };
+  return { request, said: contentHash(JSON.stringify([request.title, since ?? "", request.unit_ids])) };
 }
 
 /**
@@ -455,15 +465,17 @@ export class Governance {
     const state = await tx.get(SLOTS, slotKey(tenantId, slot));
     const withdrawn: TodoRequested[] = [];
 
-    // A note is published again only when what it says changed: its title names both values
-    // and the reference document.
+    // A note is published again only when what it says changed (Note.said), not whenever
+    // another document states the governed value.
     const notes = (decision?.cases ?? [])
       .filter((d) => d.note)
       .map((d) => noteOf(decision?.proposed as ValueGroup, groups.find((g) => g.value === d.value) as ValueGroup, d));
-    const last = new Map((state?.notes ?? []).map((n) => [n.dedupe_key, n]));
-    const fresh = notes.filter((n) => last.get(n.dedupe_key)?.title !== n.title);
-    const live = new Set(notes.map((n) => n.dedupe_key));
-    withdrawn.push(...[...last.values()].filter((n) => !live.has(n.dedupe_key)).map(withdrawal));
+    const last = new Map((state?.notes ?? []).map((n) => [n.request.dedupe_key, n]));
+    const fresh = notes.filter((n) => last.get(n.request.dedupe_key)?.said !== n.said);
+    const live = new Set(notes.map((n) => n.request.dedupe_key));
+    withdrawn.push(
+      ...[...last.values()].filter((n) => !live.has(n.request.dedupe_key)).map((n) => withdrawal(n.request)),
+    );
 
     // Only a slot that governed documents state has an owner to ask.
     const open = (decision?.cases ?? []).filter((c) => c.status === "open");
@@ -481,7 +493,7 @@ export class Governance {
     if (!asks && state?.asked) withdrawn.push(withdrawal(state.asked));
 
     const asked = request ?? (asks ? state?.asked : undefined);
-    const published = notes.map((n) => (fresh.includes(n) ? n : (last.get(n.dedupe_key) as TodoRequested)));
+    const published = notes.map((n) => (fresh.includes(n) ? n : (last.get(n.request.dedupe_key) as Note)));
     const updated: SlotState = {
       tenant_id: tenantId,
       slot,
@@ -492,8 +504,9 @@ export class Governance {
     if (canonicalJson(updated) !== canonicalJson(state ?? { tenant_id: tenantId, slot, requested: "" })) {
       await tx.put(SLOTS, [updated]);
     }
-    const out = [...fresh, ...withdrawn, ...(request ? [request] : [])];
+    const said = fresh.map((n) => n.request);
+    const out = [...said, ...withdrawn, ...(request ? [request] : [])];
     if (out.length) await tx.publish(...out.map(event));
-    return { ...(request && { request }), notes: fresh, withdrawn };
+    return { ...(request && { request }), notes: said, withdrawn };
   }
 }
