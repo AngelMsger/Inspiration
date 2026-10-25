@@ -209,6 +209,39 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       ]);
     });
 
+    test("reference documents neither bring a governed value forward nor plan one into a todo", async ({ world }) => {
+      await world.state({ title: "Travel policy", authority: 0.8, effective_from: "2026-01-01" }, [
+        { text: "The first-tier hotel cap is 600 a night.", value: 600 },
+      ]);
+      await world.state({ title: "Travel policy (2027 edition)", authority: 0.9, effective_from: "2027-01-01" }, [
+        { text: "The first-tier hotel cap is 700 a night.", value: 700 },
+      ]);
+      // A reference FAQ says 700 already: the 2027 edition still holds only from its own day.
+      await world.state({ title: "Travel FAQ", authority: 0.5, level: "reference" }, [
+        { text: "Hotels in first-tier cities are capped at 700 a night.", value: 700 },
+      ]);
+      // A plan only a reference document states is a note, not a decision for the owner.
+      const plan = await world.state({ title: "Budget proposal", authority: 0.5, level: "reference" }, [
+        { text: "We plan to raise the first-tier hotel cap to 800 a night.", value: 800, type: "plan" },
+      ]);
+      expect(plan.result.requests).toEqual([]);
+      const { decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.proposed.value).toBe("600 CNY/night");
+      expect(decision?.cases.map((c) => [c.value, c.classification, c.status, c.rationale])).toEqual([
+        ["700 CNY/night", "plan_vs_fact", "open", "700 CNY/night takes effect on 2027-01-01."],
+        [
+          "800 CNY/night",
+          "plan_vs_fact",
+          "auto_resolved",
+          "Only reference documents plan 800 CNY/night; the governed 600 CNY/night holds. A note for the owner, not a todo.",
+        ],
+      ]);
+
+      world.setToday("2027-01-01");
+      expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("700 CNY/night");
+    });
+
     test("a change announced for later is decided again on the day it takes effect", async ({ world }) => {
       await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
       const notice = await world.state({ title: "关于调整住宿标准的通知", authority: 0.5 }, [

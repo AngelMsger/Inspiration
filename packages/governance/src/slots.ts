@@ -11,8 +11,9 @@
  * Which value a slot should hold, from its groups:
  * - A group is in force when some member is neither archived nor a plan, and no such member
  *   only takes effect after today.
- * - A slot that governed documents state is decided among their values: a value only
- *   reference documents state is a note against it, settled without a person, and a change
+ * - A slot that governed documents state is decided among their values, and a group there is
+ *   in force by its governed members' dates alone. A value only reference documents state,
+ *   whether as a fact or a plan, is a note against it, settled without a person, and a change
  *   a reference document states moves nothing. The case names that change, so the owner
  *   learns of it.
  * - The leader is the in-force group whose best member is the most authoritative.
@@ -69,6 +70,8 @@ export interface ValueGroup {
   governed: number;
   archived: number;
   plans: number;
+  /** Members from reference documents, live or not. */
+  reference?: number;
   /** Source versions that state the value, in the order they were seen. */
   versions: string[];
   /** Live members first, then the highest authority and weight. */
@@ -77,6 +80,8 @@ export interface ValueGroup {
   changes: Member[];
   /** The earliest day a live member takes effect; "" when one is in effect from the start. */
   earliest_live_from?: string;
+  /** The same for live members from governed documents. */
+  earliest_governed_from?: string;
 }
 
 export interface CaseDraft {
@@ -136,15 +141,19 @@ export function withMember(group: ValueGroup | undefined, m: Member): ValueGroup
         changes: [],
       };
   g.count++;
+  if (m.reference) g.reference = (g.reference ?? 0) + 1;
   if (m.archived) g.archived++;
   if (m.claim_type === "plan") g.plans++;
   if (!g.versions.includes(m.source_version_id)) g.versions.push(m.source_version_id);
   if (group === undefined || outranks(m, g.best)) g.best = m;
   if (isLive(m)) {
     g.live++;
-    if (isGoverned(m)) g.governed = (g.governed ?? 0) + 1;
     const from = m.live_from ?? "";
     if (g.earliest_live_from === undefined || from < g.earliest_live_from) g.earliest_live_from = from;
+    if (isGoverned(m)) {
+      g.governed = (g.governed ?? 0) + 1;
+      if (g.earliest_governed_from === undefined || from < g.earliest_governed_from) g.earliest_governed_from = from;
+    }
     if (m.stated_from) {
       const day = m.stated_from;
       const same = g.changes.findIndex((c) => c.stated_from === day);
@@ -168,7 +177,8 @@ export function changeAsOf(g: ValueGroup, today: string, governed = false): Memb
 export function nextChangeDay(groups: readonly ValueGroup[], today: string): string | undefined {
   let next: string | undefined;
   for (const g of groups) {
-    for (const day of [g.earliest_live_from ?? "", ...g.changes.map((c) => c.stated_from as string)]) {
+    const starts = [g.earliest_live_from ?? "", g.earliest_governed_from ?? ""];
+    for (const day of [...starts, ...g.changes.map((c) => c.stated_from as string)]) {
       if (day > today && (next === undefined || day < next)) next = day;
     }
   }
@@ -185,8 +195,17 @@ export function groupsOf(members: readonly Member[]): ValueGroup[] {
 /** Live members from governed documents. Groups counted before levels have no count: all were governed. */
 export const governedIn = (g: ValueGroup) => g.governed ?? g.live;
 
-const inForce = (g: ValueGroup, today: string) =>
-  g.live > 0 && g.earliest_live_from !== undefined && g.earliest_live_from <= today;
+/** The first day the group's value holds; in a governed slot, by its governed members alone. */
+const startOf = (g: ValueGroup, governed: boolean) =>
+  governed && g.governed !== undefined ? g.earliest_governed_from : g.earliest_live_from;
+
+const inForce = (g: ValueGroup, today: string, governed: boolean) => {
+  const start = startOf(g, governed);
+  return (governed ? governedIn(g) : g.live) > 0 && start !== undefined && start <= today;
+};
+
+/** Every member is from a reference document. Groups counted before levels had none. */
+const referenceOnly = (g: ValueGroup) => (g.reference ?? 0) === g.count;
 
 /** The day from which the group's value is known to hold: its document's date or its own change. */
 function since(g: ValueGroup, today: string, governed: boolean): string {
@@ -210,7 +229,7 @@ function documents(g: ValueGroup): string {
 export function decide(groups: readonly ValueGroup[], today: string): SlotDecision | undefined {
   if (groups.length < 2) return undefined;
   const governedSlot = groups.some((g) => governedIn(g) > 0);
-  const current = groups.filter((g) => inForce(g, today) && (!governedSlot || governedIn(g) > 0));
+  const current = groups.filter((g) => inForce(g, today, governedSlot));
   const pool = current.length ? current : groups;
   const leader = pool.reduce((a, b) => (outranks(b.best, a.best) ? b : a));
   const baseline = since(leader, today, governedSlot);
@@ -243,6 +262,16 @@ export function decide(groups: readonly ValueGroup[], today: string): SlotDecisi
         };
       }
       const said = governedSlot ? referenceChange(g, proposed, today) : undefined;
+      if (governedSlot && referenceOnly(g) && g.live === 0) {
+        return {
+          ...base,
+          classification: "plan_vs_fact",
+          status: "auto_resolved",
+          priority: "low",
+          confidence: 0.6,
+          rationale: `Only reference documents plan ${g.value}; the governed ${proposed.value} holds. A note for the owner, not a todo.`,
+        };
+      }
       if (governedSlot && governedIn(g) === 0 && g.live > 0) {
         return {
           ...base,
@@ -266,14 +295,14 @@ export function decide(groups: readonly ValueGroup[], today: string): SlotDecisi
           rationale: `Only plans state ${g.value}.`,
         };
       }
-      if (!inForce(g, today)) {
+      if (!inForce(g, today, governedSlot)) {
         return {
           ...base,
           classification: "plan_vs_fact",
           status: "open",
           priority: "low",
           confidence: 0.7,
-          rationale: `${g.value} takes effect on ${g.earliest_live_from}.`,
+          rationale: `${g.value} takes effect on ${startOf(g, governedSlot)}.`,
         };
       }
       if (changed && day && since(g, today, governedSlot) < day) {
