@@ -72,7 +72,7 @@ grant      string               # agent grant ID, for revocation
 
 ## 对现有文件的改动
 
-- **`authz.yaml`、`packages/access-control/schema.zed`：** `Principal.auth_context` 和 `Principal.locale`（都可选）。`ResourceType` 新增 `connection` 和 `agent`。`tenant`：新增关系 `security_admin`、`auditor`。`space`：新增关系 `arbiter`；个人空间只有 `owner`，不继承租户上的任何关系。单元（页面、SOP、来源）：新增关系 `publisher`。`publish_request`：新增关系 `approver`，只授予请求内条目的读取权。陈述、页面和 SOP 的读取权 = 其所在空间的读取权（不做血缘遍历）。
+- **`authz.yaml`、`packages/access-control/schema.zed`：** `Principal.auth_context` 和 `Principal.locale`（都可选）。`ResourceType` 新增 `connection` 和 `agent`。`tenant`：新增关系 `security_admin`、`auditor`。`space`：新增关系 `arbiter`；个人空间只有 `owner`，不继承租户上的任何关系。单元（页面、SOP、来源）：新增关系 `publisher`。`publish_request`：新增关系 `approver`，只授予请求内条目的读取权。陈述、页面和 SOP 的读取权 = 其所在空间的读取权；陈述还需要一个读者能读的证明，证据片段和派生输入按可读空间检查，而不是按来源 ACL 检查（规则 6）。
 - **`collab.yaml`：**
   - 新增 `SourceFreshness` workspace_connection | member_connection | snapshot。
   - `PublishRequest`：单个 `unit_id` 改为 `items[]`（页面、SOP、来源、文件夹子树）；`to_space_id` 即目标空间；在已有的 `gates` 旁新增 `source_actions[] { source_id, subtree?, freshness, connection_id?, consent_id?, review_at? }` 和 `checks { coverage: CoverageDiff[], audience_gap: AudienceGap, sensitivity { suggested_label, findings[] }, conflicts: ConflictPreview[] }`。
@@ -111,7 +111,7 @@ grant      string               # agent grant ID, for revocation
 
 净增约 4.5 人周。
 
-- **第 1 阶段（3.5）：** 令牌校验和服务主体 0.5；开通、对账和成员离开 1；策略与负责人 1；发布到租户域 1.5（借助 `source.moved` 的移动与重建约 0.5、保鲜方式选择、同意、覆盖、可读差异、新文档扫描）；两个知识域和按空间判定可见性 0.5（域 +1，取消沿血缘推导的可读性 −0.5）；多人决定 0.5；SSO 和通讯录同步移出访问控制 −1.5。
+- **第 1 阶段（3.5）：** 令牌校验和服务主体 0.5；开通、对账和成员离开 1；策略与负责人 1；发布到租户域 1.5（借助 `source.moved` 的移动与重建约 0.5、保鲜方式选择、同意、覆盖、可读差异、新文档扫描）；两个知识域和按空间与证明判定可见性 0.5（域 +1，派生可读性的遍历改为检查空间而不是来源 ACL −0.5）；多人决定 0.5；SSO 和通讯录同步移出访问控制 −1.5。
 - **第 2 阶段（1）：** 成员离开的细节 0.5；裁决规则和争议标记 0.5。
 - **语言：** `locale` 声明和待办上的消息键包含在上面第 1 阶段的各项里。
 

@@ -381,7 +381,7 @@ The two layers are built in parallel, after about one week of contract work. The
 | Engine: provisioning, reconcile, offboarding | 1 | 0.5 |
 | Engine: policy and ownership | 1 | 0 |
 | Engine: publishing into the tenant domain, freshness choice, coverage, audience gap | 1.5 | 0 |
-| Engine: two knowledge domains, visibility by space instead of lineage | 0.5 | 0 |
+| Engine: two knowledge domains, visibility by space and proof instead of source ACLs | 0.5 | 0 |
 | Engine: multi-approver decisions, rules, dispute marker | 0.5 | 0.5 |
 | Engine: SSO and directory sync moved out of access control | −1.5 | 0 |
 | **Engine, net** | **3.5** | **1** |

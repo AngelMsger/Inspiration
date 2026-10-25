@@ -72,7 +72,7 @@ The token maps onto the existing `Principal` (`authz.yaml`), which gains an opti
 
 ## Changes to existing files
 
-- **`authz.yaml`, `packages/access-control/schema.zed`:** `Principal.auth_context` and `Principal.locale` (both optional). `ResourceType` adds `connection` and `agent`. `tenant`: relations `security_admin`, `auditor`. `space`: relation `arbiter`; a personal space has only `owner` and no relation inherited from the tenant. Units (page, SOP, source): relation `publisher`. `publish_request`: relation `approver`, which grants read on the request's items only. Claim, page and SOP read = read on their space (no lineage walk).
+- **`authz.yaml`, `packages/access-control/schema.zed`:** `Principal.auth_context` and `Principal.locale` (both optional). `ResourceType` adds `connection` and `agent`. `tenant`: relations `security_admin`, `auditor`. `space`: relation `arbiter`; a personal space has only `owner` and no relation inherited from the tenant. Units (page, SOP, source): relation `publisher`. `publish_request`: relation `approver`, which grants read on the request's items only. Claim, page and SOP read = read on their space; a claim also needs one proof the reader can read, with evidence spans and derivation inputs checked against readable spaces, not source ACLs (rule 6).
 - **`collab.yaml`:**
   - New `SourceFreshness` workspace_connection | member_connection | snapshot.
   - `PublishRequest`: one `unit_id` becomes `items[]` (pages, SOPs, sources, folder subtrees); `to_space_id` is the target; new `source_actions[] { source_id, subtree?, freshness, connection_id?, consent_id?, review_at? }` and `checks { coverage: CoverageDiff[], audience_gap: AudienceGap, sensitivity { suggested_label, findings[] }, conflicts: ConflictPreview[] }` beside the existing `gates`.
@@ -111,7 +111,7 @@ Offboarding a member: remove their tuples; revoke their member connections, cons
 
 About 4.5 person-weeks net.
 
-- **Phase 1 (3.5):** token verification and service principals 0.5; provisioning, reconcile and offboarding 1; policy and ownership 1; publishing into the tenant domain 1.5 (move with rebuild via `source.moved` about 0.5, freshness choice, consent, coverage, audience gap, new-document scan); two knowledge domains and visibility by space 0.5 (domains +1, dropping lineage-derived read −0.5); multi-approver decisions 0.5; SSO and directory sync moved out of access control −1.5.
+- **Phase 1 (3.5):** token verification and service principals 0.5; provisioning, reconcile and offboarding 1; policy and ownership 1; publishing into the tenant domain 1.5 (move with rebuild via `source.moved` about 0.5, freshness choice, consent, coverage, audience gap, new-document scan); two knowledge domains and visibility by space and proof 0.5 (domains +1, the derived-read walk checking spaces instead of source ACLs −0.5); multi-approver decisions 0.5; SSO and directory sync moved out of access control −1.5.
 - **Phase 2 (1):** offboarding details 0.5; precedence rules and dispute marker 0.5.
 - **Languages:** the `locale` claim and message keys on todos fit inside the phase 1 items above.
 
