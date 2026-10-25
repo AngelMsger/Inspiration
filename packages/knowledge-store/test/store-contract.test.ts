@@ -292,7 +292,9 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       const [old, evOld] = kb.claim("一线城市住宿上限为每晚500元", archive[0], cap(500, 0.3));
       await store.transaction((tx) => tx.upsertClaims([old], evOld));
       const [p600, evP] = kb.claim("一线城市住宿上限为每晚600元", policy[0], cap(600, 0.9, "2026-01-01T00:00:00Z"));
-      const [g600, evG] = kb.claim("北京住宿上限为每晚600元", guide[0], cap(600, 0.5));
+      // A claim without its own slot key is in the slot its predicate and qualifiers make.
+      const { slot_key: _key, ...unkeyed } = cap(600, 0.5);
+      const [g600, evG] = kb.claim("北京住宿上限为每晚600元", guide[0], unkeyed);
       const [n650, evN] = kb.claim("一线城市住宿上限为每晚650元", notice[0], cap(650, 0.5, "2026-10-01T00:00:00Z"));
       const [other, evO] = kb.claim("超标须审批", policy[0], {
         predicate: "approval_needed",

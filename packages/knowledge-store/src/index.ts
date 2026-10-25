@@ -8,7 +8,8 @@
  *       await tx.publish(newEvent("claims.updated", payload, options)); // commits with the data
  *     });
  *
- * slot(tenant, key) reads one fact slot from every claim with that slot_key: its variants
+ * slot(tenant, key) reads one fact slot from every claim whose slot key (slotOf: its own
+ * slot_key, else its subject, predicate and qualifiers) is that key: its variants
  * (the values current claims state, with counts and up to five representatives) and its
  * versions (every value stated, from when the system first knew it to when the last claim
  * stating it closed).
