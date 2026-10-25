@@ -133,7 +133,7 @@ A source published with a live connection keeps bringing in new documents from t
 
 ### Why merging stays simple
 
-All published knowledge sits under one permission model, so the tenant domain can merge entities, deduplicate statements and find conflicts across every space without splitting a merged page by who can read which source. A reader sees a statement and its citations only from spaces they can read, which is a set lookup, not a walk through lineage. A's and B's private knowledge is never merged at all until each of them publishes.
+All published knowledge sits under one permission model, so the tenant domain can merge entities, deduplicate statements and find conflicts across every space without splitting a merged page by who can read which source. A reader sees a statement and its citations only from spaces they can read, which is a set lookup over its evidence and derivation inputs, not a walk through source permissions. A's and B's private knowledge is never merged at all until each of them publishes.
 
 ### Guard against shadow IT
 

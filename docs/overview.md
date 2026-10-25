@@ -549,19 +549,33 @@ provisions.
   commenter, editor, steward) are granted top down and inherited down the space tree. The
   publisher of a unit keeps a grant on it, and a publish request's approvers can read only its
   items.
+- **A statement also needs a proof the reader can read.** A proof is an evidence span in a
+  readable space, or a derivation whose inputs are all readable. Two documents that each state a
+  price are alternative proofs, and either one is enough; a margin computed from a price and a cost
+  needs both.
+- **Crossing audiences takes an approval.** A derivation whose inputs sit in spaces with different
+  audiences is seen only by readers who can read every input. To show it to the whole audience of
+  its space, the stewards of the input spaces that audience cannot read approve a publish request
+  for it. If one of those spaces later narrows its audience, its steward gets a todo to keep or
+  withdraw the approval.
 - **Citations across spaces.** A citation into another space is shown only if the reader can read
-  that space; otherwise it shows as restricted, and a statement whose evidence is all unreadable is
-  hidden. The readable-space set is looked up once per request and memoized.
+  that space; otherwise it shows as restricted. A statement with no readable proof is hidden, and
+  so is everything built from it: a proposed value, a conflict variant, a page sentence, an answer.
+  The readable-space set is looked up once per request and memoized.
 - **No existence leaks.** Hidden citations, counts and graph edges are dropped, never shown as "3
-  hidden". Shared answer caches are keyed by readable spaces and clearance.
+  hidden". Shared answer caches are keyed by readable spaces and clearance, an entry is dropped
+  when a unit it used changes label, proof or grant, and an answer that used a unit readable only
+  through the reader's own grant (as publisher or approver) is never shared.
 - **Search is filtered inside the index** by readable spaces and sensitivity, and every top result
   is checked again before it leaves the server.
 - **Source ACLs are advisory.** Source-sync keeps ACL snapshots and identity links only for the
   audience-gap warning and the source-restricted todo.
 - **Built today:** access-control on SpiceDB with tenant-keyed principals, source ACL mirroring,
   search scope filters and consistency tokens, and a lineage walk that decides derived units from
-  their source documents. Replacing that lineage rule with the space rule above is the next change
-  to access-control; retrieval is not built yet, so nothing else depends on the old rule.
+  their source documents. That walk accepts any one readable source, which is right for alternative
+  evidence and too loose for jointly required inputs; nothing built writes such derivations yet.
+  Replacing it with the space and proof rules above is the next change to access-control;
+  retrieval is not built yet, so nothing else depends on the old rule.
 
 ### Models and agents
 
@@ -751,7 +765,9 @@ then switch on real models. A proposed order for the remaining stages, for discu
 1. **Merge option C** (#8, #9, #10), then the language cleanup: language rules into resource files,
    the repo test against Chinese and Japanese in code, and Chinese copies of the other docs.
 2. **Engine side of the business contract:** the principal token, provisioning and the seed
-   command, the two-domain space rule in access-control, and domain keys on slots and conflicts.
+   command, the two-domain space and proof rules in access-control, and domain keys on slots and
+   conflicts. A permission fixture covers four cases: alternative proofs, jointly required inputs,
+   an approved cross-space publication, and a later narrowing of an input space.
 3. **Pages and views of sources:** cited page synthesis, PageSpec snapshots and diffs, the
    dependency graph with `artifact.dirty`, mirror pages and the Sources tree.
 4. **Search and agents:** retrieval with its own indexes, grounded answers, the topic overview read,
@@ -767,7 +783,7 @@ are repeated on real content. The gates are targets to calibrate on pilot data:
 
 | Gate | When | Criteria |
 | --- | --- | --- |
-| G1, prototype | End of real-model validation | Citation entailment at or above 95%; zero leaks on the permission red-team set (personal-space isolation, cross-space citations, shared answers, graph paths); conflict-queue precision at or above 50%; one procedure domain verified by its owners; agent tokens per task measured against a chunk-only baseline; and, added for internationalization, an evaluation corpus in Chinese, Japanese and English |
+| G1, prototype | End of real-model validation | Citation entailment at or above 95%; zero leaks on the permission red-team set (personal-space isolation, cross-space citations and derivations, shared answers, graph paths); conflict-queue precision at or above 50%; one procedure domain verified by its owners; agent tokens per task measured against a chunk-only baseline; and, added for internationalization, an evaluation corpus in Chinese, Japanese and English |
 | G2, pilot | About month 6 | A design partner runs it with at least five stewards active weekly; permission revocation reaches every reader within 15 minutes at p95; retrieval Recall@10 beats the chunk baseline on the partner's own set; signed commercial intent |
 | G3, product v1 | About month 12 | Classified protection level 3 control pack, domestic-infrastructure compatibility certificates (Kylin, Kunpeng or Hygon, KingbaseES, Ascend), air-gapped install in under one day, two paying customers |
 
@@ -831,7 +847,8 @@ time depends more on review and integration than on these person-week figures.
   Drive, SharePoint), and which first design partner and industry the pilot targets.
 - Whether readers of another language should get whole pages translated on request, beyond
   translated passages in citations.
-- The order of the remaining prototype stages proposed above.
+- The order of the remaining prototype stages proposed above, and whether a small, capped probe
+  with a real model on real documents should run before every stage is mocked.
 
 ## Further reading
 
