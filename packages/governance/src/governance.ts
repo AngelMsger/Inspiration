@@ -28,6 +28,7 @@ import {
   type Member,
   nextChangeDay,
   type SlotDecision,
+  upgraded,
   type ValueGroup,
   withMember,
 } from "./slots.ts";
@@ -278,7 +279,7 @@ export class Governance {
 
   /** The value groups of a slot and the decision over them. */
   async slot(tenantId: string, slot: string): Promise<{ groups: ValueGroup[]; decision?: SlotDecision }> {
-    const groups = await this.records.find(VALUE_GROUPS, { tenant_id: tenantId, slot });
+    const groups = (await this.records.find(VALUE_GROUPS, { tenant_id: tenantId, slot })).map(upgraded);
     const decision = decide(groups, this.#today());
     return decision ? { groups, decision } : { groups };
   }
@@ -326,7 +327,8 @@ export class Governance {
         if (lost.has(key)) {
           [group] = groupsOf(await tx.find(MEMBERS, { tenant_id: event.tenant_id, slot, value }));
         } else {
-          group = await tx.get(VALUE_GROUPS, key);
+          const stored = await tx.get(VALUE_GROUPS, key);
+          group = stored && upgraded(stored);
           for (const m of fresh) if (m.slot === slot && m.value === value) group = withMember(group, m);
         }
         if (group) await tx.put(VALUE_GROUPS, [group]);
@@ -415,7 +417,7 @@ export class Governance {
     cause?: EventEnvelope,
   ): Promise<{ request?: TodoRequested; notes: TodoRequested[]; withdrawn: TodoRequested[] }> {
     const today = this.#today();
-    const groups = await tx.find(VALUE_GROUPS, { tenant_id: tenantId, slot });
+    const groups = (await tx.find(VALUE_GROUPS, { tenant_id: tenantId, slot })).map(upgraded);
     const decision = decide(groups, today);
     const recheck = await tx.get(RECHECKS, slotKey(tenantId, slot));
     const next = decision ? nextChangeDay(groups, today) : undefined;

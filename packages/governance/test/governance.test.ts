@@ -1,5 +1,6 @@
 import { type Claim, type ClaimsUpdated, newEvent } from "@inspiration/contracts";
 import { describe, expect } from "vitest";
+import { VALUE_GROUPS } from "../src/index.ts";
 import { BACKENDS, governanceTest, HOTEL, SPACE, TENANT } from "./fixtures.ts";
 
 const POLICY = { title: "差旅费管理办法", authority: 0.9, effective_from: "2026-01-01" };
@@ -276,6 +277,35 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       world.setToday("2027-01-01");
       expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
       expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("700 CNY/night");
+    });
+
+    test("groups stored before governance levels keep their governed date when a governed statement joins", async ({
+      world,
+    }) => {
+      await world.state({ title: "Travel policy", authority: 0.9, effective_from: "2026-01-01" }, [
+        { text: "The first-tier hotel cap is 600 a night.", value: 600 },
+      ]);
+      await world.state({ title: "Onboarding guide", authority: 0.5 }, [
+        { text: "First-tier hotels are capped at 500 a night.", value: 500 },
+      ]);
+      // The groups as governance stored them before levels: no governed count or date.
+      const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
+      const legacy = stored.map(({ governed: _governed, earliest_governed_from: _from, reference: _ref, ...g }) => g);
+      await world.records.transaction((tx) => tx.put(VALUE_GROUPS, legacy as typeof stored));
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("600 CNY/night");
+
+      // The 2027 edition says 600 too, from its own day: 600 still holds today.
+      await world.state({ title: "Travel policy (2027 edition)", authority: 0.8, effective_from: "2027-01-01" }, [
+        { text: "The first-tier hotel cap stays 600 a night.", value: 600 },
+      ]);
+      const { groups, decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.proposed.value).toBe("600 CNY/night");
+      expect(groups.find((g) => g.value === "600 CNY/night")).toMatchObject({
+        live: 2,
+        governed: 2,
+        earliest_live_from: "2026-01-01",
+        earliest_governed_from: "2026-01-01",
+      });
     });
 
     test("a change announced for later is decided again on the day it takes effect", async ({ world }) => {
