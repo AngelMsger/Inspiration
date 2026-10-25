@@ -17,6 +17,9 @@
  * - Placements of statements the document no longer states are removed, and the topics'
  *   statement counts change with them in the same transaction. The update reads the
  *   document as it is now, so a late or repeated delivery changes nothing.
+ * - The new sections commit first, together with the store writes they call for
+ *   (page_compiler.pending, with absolute counts). If the store writes then fail, the
+ *   tenant's next update or re-clustering finishes them before it reads anything.
  *
  * recluster(tenant) clusters every space's governed sections again (cluster.ts), starting
  * from the last run's topics, and places every statement. It goes through these steps:
@@ -34,7 +37,8 @@
  * - Topics written to the knowledge store are proposed until an owner confirms them, and
  *   retired when they have no statements left.
  * - A topic an owner confirmed, or one that holds a confirmed placement, is never dissolved
- *   or retired, and confirmed placements and those a page or a person made never move.
+ *   or retired, even as the last subtopic of a split, and confirmed placements and those a
+ *   page or a person made never move.
  * - A topic keeps its owner (owner_id) through re-clustering. The business layer names
  *   owners; setOwner(tenant, topic, member) keeps one, and documentsIn(tenant) lists the
  *   documents each topic holds, with their sections and statements, to choose from.

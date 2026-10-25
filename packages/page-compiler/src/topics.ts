@@ -97,6 +97,20 @@ export interface SlotTopic {
   topic: string;
 }
 
+/**
+ * Store writes an update decided on, kept with the sections they follow from until the store
+ * has them. The knowledge store and these records commit separately; counts are absolute,
+ * so writing them again is the same as writing them once.
+ */
+export interface PendingWrite {
+  tenant_id: string;
+  document: string;
+  /** Statement counts of the topics that change, by key. */
+  counts: Record<string, number>;
+  place: Placement[];
+  unplace: string[];
+}
+
 const key = (...parts: string[]) => parts.join("\x1f");
 
 export const SECTIONS = defineTable<Section>("page_compiler.sections", {
@@ -113,6 +127,11 @@ export const TOPICS = defineTable<TopicState>("page_compiler.topics", {
 export const SLOTS = defineTable<SlotTopic>("page_compiler.slots", {
   key: (s) => key(s.tenant_id, s.space_id, s.slot_key),
   columns: { tenant_id: (s) => s.tenant_id },
+});
+
+export const PENDING = defineTable<PendingWrite>("page_compiler.pending", {
+  key: (p) => key(p.tenant_id, p.document),
+  columns: { tenant_id: (p) => p.tenant_id },
 });
 
 export const documentOf = (v: Pick<SourceVersion, "source_id" | "external_id">) => `${v.source_id}:${v.external_id}`;
@@ -368,6 +387,7 @@ export class Topics {
     // repeated delivery changes nothing.
     const latest = (await this.store.latestSourceVersion(version.source_id, version.external_id)) ?? version;
     const tenantId = latest.tenant_id;
+    await this.#flush(tenantId);
     const old = await this.records.find(SECTIONS, { tenant_id: tenantId, document: documentOf(latest) });
     const oldByKey = new Map(old.map((s) => [s.key, s]));
     const built = await this.#sectionsOf(latest);
@@ -456,24 +476,54 @@ export class Topics {
       }
     }
 
-    if (place.length || unplace.length || delta.size) {
-      const nodes = delta.size ? await this.#recounted(tenantId, delta) : [];
-      await this.store.transaction(async (tx) => {
-        if (nodes.length) await tx.putTopics(nodes);
-        if (unplace.length) await tx.unplace(unplace);
-        if (place.length) await tx.place(place);
-      });
-    }
+    // The counts above are the old sections' contributions taken away and the new ones added,
+    // so the new sections and the store writes commit together, before the store has them.
+    const nodes = delta.size ? await this.#recounted(tenantId, delta) : [];
+    const pending: PendingWrite | undefined =
+      place.length || unplace.length || nodes.length
+        ? {
+            tenant_id: tenantId,
+            document: documentOf(latest),
+            counts: Object.fromEntries(nodes.map((n) => [n.key, n.statement_count ?? 0])),
+            place,
+            unplace,
+          }
+        : undefined;
     const keys = new Set(sections.map((s) => s.key));
     const gone = old.filter((s) => !keys.has(s.key)).map((s) => s.key);
     const changed = sections.filter((s) => canonical(s) !== canonical(oldByKey.get(s.key) ?? {}));
-    if (changed.length || gone.length) {
+    if (changed.length || gone.length || pending) {
       await this.records.transaction(async (tx) => {
         if (gone.length) await tx.delete(SECTIONS, gone);
         if (changed.length) await tx.put(SECTIONS, changed);
+        if (pending) await tx.put(PENDING, [pending]);
       });
     }
+    if (pending) await this.#write(pending);
     this.totals.updates++;
+  }
+
+  /**
+   * Finish the store writes of updates that failed after their sections committed. It runs
+   * before anything else reads or changes the tenant's counts, so absolute counts stay right.
+   */
+  async #flush(tenantId: string): Promise<void> {
+    for (const p of await this.records.find(PENDING, { tenant_id: tenantId })) await this.#write(p);
+  }
+
+  async #write(p: PendingWrite): Promise<void> {
+    const counts = Object.entries(p.counts);
+    const nodes = counts.length ? new Map((await this.store.topics(p.tenant_id)).map((n) => [n.key, n])) : new Map();
+    const writes = counts.flatMap(([k, count]) => {
+      const n = nodes.get(k);
+      return n && n.statement_count !== count ? [{ ...n, statement_count: count }] : [];
+    });
+    await this.store.transaction(async (tx) => {
+      if (writes.length) await tx.putTopics(writes);
+      if (p.unplace.length) await tx.unplace(p.unplace);
+      if (p.place.length) await tx.place(p.place);
+    });
+    await this.records.transaction((tx) => tx.delete(PENDING, [PENDING.key(p)]));
   }
 
   /** The tenant's topic nodes whose statement counts the delta changes, counted again up the tree. */
@@ -627,6 +677,7 @@ export class Topics {
   // ------------------------------------------------------------ re-clustering
 
   async #recluster(tenantId: string): Promise<ReclusterReport> {
+    await this.#flush(tenantId);
     const sections = await this.records.find(SECTIONS, { tenant_id: tenantId });
     const states = await this.records.find(TOPICS, { tenant_id: tenantId });
     const nodes = new Map((await this.store.topics(tenantId)).map((n) => [n.key, n]));

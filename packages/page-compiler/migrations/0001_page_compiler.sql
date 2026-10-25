@@ -32,3 +32,12 @@ CREATE TABLE page_compiler.slots (
 );
 
 CREATE INDEX slots_tenant ON page_compiler.slots (tenant_id);
+
+-- Store writes an update decided on, until the knowledge store has them.
+CREATE TABLE page_compiler.pending (
+    key       text PRIMARY KEY,
+    tenant_id text NOT NULL,
+    doc       jsonb NOT NULL
+);
+
+CREATE INDEX pending_tenant ON page_compiler.pending (tenant_id);

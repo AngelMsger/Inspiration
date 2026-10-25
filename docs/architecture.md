@@ -149,7 +149,7 @@ One Postgres instance (ParadeDB image: Postgres 16 with pgvector and pg_search) 
 | `extraction` | extraction | per document, the latest version extracted |
 | `freshness` | freshness | per document, its review clock, claim classes and plan days; copies; reviews due by day; deleted documents |
 | `governance` | governance | slot members and value groups, conflict cases, what each slot last asked and the notes it left, recheck days |
-| `page_compiler` | page-compiler | sections with their embeddings and topics, the last clustering's topics and centroids, the topic of each fact slot |
+| `page_compiler` | page-compiler | sections with their embeddings and topics, the last clustering's topics and centroids, the topic of each fact slot, store writes an update has yet to finish |
 | `collaboration` | collaboration | the inbox: every todo with its dedupe key, card, week and the week it fell due |
 | `public.inspiration_migrations` | kernel | migration ledger with checksums |
 
