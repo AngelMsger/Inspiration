@@ -23,6 +23,7 @@ import {
   type SourceVersion,
   type Span,
   type StoreTx,
+  slotOf,
 } from "@inspiration/contracts";
 import { writeOutbox } from "@inspiration/eventbus";
 import { type Pool, type PoolClient, type Queryable, withTransaction } from "@inspiration/kernel";
@@ -261,7 +262,7 @@ export class PgTx implements StoreTx {
         knowledge_class: c.knowledge_class,
         subject_entity_id: c.subject_entity_id ?? null,
         predicate: c.predicate ?? null,
-        slot_key: c.slot_key ?? null,
+        slot_key: slotOf(c) ?? null,
         valid_from: c.valid_time.start ?? null,
         valid_to: c.valid_time.end ?? null,
         recorded_at: c.recorded_at,

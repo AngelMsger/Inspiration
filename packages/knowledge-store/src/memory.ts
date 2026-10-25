@@ -20,6 +20,7 @@ import type {
   Span,
   StoreTx,
 } from "@inspiration/contracts";
+import { slotOf } from "@inspiration/contracts";
 import { BaseStore, type StoreOptions } from "./base.ts";
 import { matches, QUERY_LIMIT } from "./query.ts";
 import * as rules from "./rules.ts";
@@ -321,7 +322,7 @@ export class MemoryStore extends BaseStore {
   }
 
   async claimsInSlot(tenantId: string, slotKey: string): Promise<Claim[]> {
-    const out = [...this.#state.claims.values()].filter((c) => c.tenant_id === tenantId && c.slot_key === slotKey);
+    const out = [...this.#state.claims.values()].filter((c) => c.tenant_id === tenantId && slotOf(c) === slotKey);
     out.sort((a, b) => latest(a.recorded_at, b.recorded_at) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     return structuredClone(out);
   }
