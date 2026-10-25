@@ -274,6 +274,55 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect(items.filter((i) => i.todo.week !== i.due_week)).toHaveLength(8);
     });
 
+    test("copy reviews on a full conflict card go on its next part, however they come to ride", async ({ world }) => {
+      await world.topics({ key: "t-hotel", owner_id: LI }, { key: "t-leave", owner_id: WANG });
+      const hotel = await world.document(
+        ["The first-tier hotel cap is 600 a night.", "The second-tier cap is 450.", "The third-tier cap is 350."],
+        "t-hotel",
+      );
+      const leave = await Promise.all([1, 2, 3].map((n) => world.document([`Leave rule ${n}.`], "t-leave")));
+      const [c1, c2, c3] = hotel.claims.map((c) => c.id) as [string, string, string];
+      const copy = (n: number) => ({
+        kind: "evidence_changed" as const,
+        unit_ids: [leave[n]?.version.id as string],
+        cause_ids: [hotel.version.id],
+      });
+      const update = (n: number) => `evt_01JC0000000000000000UPDATE${n}`;
+      const layout = async () =>
+        (await world.inbox.cards(TENANT)).map((c) => [c.batch_key, c.todos.map((t) => t.kind)]);
+
+      // Two conflicts fill a card; a copy review of the first comes after.
+      await world.request({ unit_ids: [c1] }, update(1));
+      await world.request({ unit_ids: [c2] }, update(2));
+      await world.review(copy(0), update(1));
+      // Two copy reviews come before their conflict, which then takes them along.
+      await world.review(copy(1), update(3));
+      await world.review(copy(2), update(3));
+      await world.request({ unit_ids: [c3] }, update(3));
+      const card = `card:${LI}:t-hotel:2026-W43`;
+      expect(await layout()).toEqual([
+        [card, ["conflict", "conflict"]],
+        [`${card}:2`, ["conflict", "stale"]],
+        [`${card}:3`, ["stale", "stale"]],
+      ]);
+
+      // The hotel topic changes hands: conflicts and their reviews move, two to a card.
+      await world.topics({ key: "t-hotel", owner_id: WANG });
+      expect(await world.inbox.reroute(TENANT)).toEqual({ moved: 6 });
+      const cards = await world.inbox.cards(TENANT);
+      expect(cards.map((c) => [c.batch_key, c.todos.length])).toEqual([
+        [`card:${WANG}:t-hotel:2026-W43`, 2],
+        [`card:${WANG}:t-hotel:2026-W43:2`, 2],
+        [`card:${WANG}:t-hotel:2026-W43:3`, 2],
+      ]);
+      const items = new Map((await world.inbox.items(TENANT)).map((i) => [i.todo.id, i]));
+      for (const rider of [...items.values()].filter((i) => i.with_todo)) {
+        expect(items.get(rider.with_todo as string)?.correlation_id).toBe(rider.correlation_id);
+      }
+      expect([...items.values()].filter((i) => i.with_todo)).toHaveLength(3);
+      expect(await world.inbox.reroute(TENANT)).toEqual({ moved: 0 });
+    });
+
     test("campaign and steward cards hold at most `cardSize` todos too", async ({ world }) => {
       await world.topics({ key: "t-hotel", owner_id: LI }, { key: "t-rooms" });
       for (const n of [1, 2, 3]) {

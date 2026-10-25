@@ -124,6 +124,12 @@ function majority(keys: readonly string[]): string | undefined {
 
 const part = (base: string, n: number) => (n > 1 ? `${base}:${n}` : base);
 
+/** A card's key without its part number, and the number. Weeks and topic keys never end in a bare number. */
+function partsOf(batchKey: string): [string, number] {
+  const m = /^(.*):(\d+)$/.exec(batchKey);
+  return m ? [m[1] as string, Number(m[2])] : [batchKey, 1];
+}
+
 /** A copy review a source update left: it goes on the card of a conflict the same update opened. */
 const rides = (i: Item): i is Item & { correlation_id: string } =>
   i.todo.kind === "stale" && i.correlation_id !== undefined && !i.campaign;
@@ -231,9 +237,13 @@ export class Inbox {
         moved++;
       }
       for (const [item, host] of hosts) {
-        if (item.with_todo === host.todo.id && item.todo.batch_key === host.todo.batch_key) continue;
-        this.#ride(item, host);
-        await this.records.transaction((tx) => tx.put(ITEMS, [item]));
+        const [base] = partsOf(host.todo.batch_key as string);
+        const on = item.todo.batch_key && partsOf(item.todo.batch_key)[0] === base;
+        if (item.with_todo === host.todo.id && on && item.todo.assignee_id === host.todo.assignee_id) continue;
+        await this.records.transaction(async (tx) => {
+          await this.#ride(tx, item, host);
+          await tx.put(ITEMS, [item]);
+        });
         moved++;
       }
       this.totals.rerouted += moved;
@@ -368,8 +378,11 @@ export class Inbox {
                 (i) => rides(i) && !i.with_todo,
               )
             : [];
-        for (const r of riders) this.#ride(r, item);
-        await tx.put(ITEMS, [item, ...riders]);
+        await tx.put(ITEMS, [item]);
+        for (const r of riders) {
+          await this.#ride(tx, r, item);
+          await tx.put(ITEMS, [r]);
+        }
         const t = item.todo;
         await tx.publish(
           newEvent(
@@ -434,18 +447,13 @@ export class Inbox {
     if (t.kind === "note")
       return set(due, route.owner ? `notes:${route.owner}:${due}` : `notes:steward:${t.space_id}:${due}`);
     // Campaign and steward cards hold at most cardSize todos, as an owner's do.
-    const fill = async (base: string) => {
-      for (let n = 1; ; n++) {
-        const on = await tx.find(ITEMS, { tenant_id: t.tenant_id, batch_key: part(base, n) });
-        if (on.filter((i) => i.todo.id !== t.id).length < this.settings.cardSize) return part(base, n);
-      }
-    };
+    const fill = (base: string) => this.#room(tx, t.tenant_id, base, t.id);
     if (item.campaign) return set(due, await fill(`campaign:${t.space_id}:${topic}`));
     if (rides(item)) {
       const host = (
         await tx.find(ITEMS, { tenant_id: t.tenant_id, correlation_id: item.correlation_id, status: OPEN })
       ).find((i) => i.todo.kind === "conflict");
-      if (host) return this.#ride(item, host);
+      if (host) return this.#ride(tx, item, host);
     }
     if (!route.owner) return set(due, await fill(`steward:${t.space_id}:${topic}:${due}`));
 
@@ -473,18 +481,30 @@ export class Inbox {
     set(due, (await slot(due)).key);
   }
 
-  /** A copy review on its conflict todo's card. */
-  #ride(item: Item, host: Item): void {
+  /**
+   * A copy review with its conflict todo: the conflict's owner, topic and week, on its card,
+   * or on the next part of that card with room when it is full.
+   */
+  async #ride(tx: RecordTx, item: Item, host: Item): Promise<void> {
     const { assignee_id: _assignee, taxonomy_key: _topic, week: _week, batch_key: _batch, ...todo } = item.todo;
     const h = host.todo;
+    const [base, n] = partsOf(h.batch_key as string);
     item.todo = {
       ...todo,
       ...(h.assignee_id && { assignee_id: h.assignee_id }),
       ...(h.taxonomy_key && { taxonomy_key: h.taxonomy_key }),
       ...(h.week && { week: h.week }),
-      ...(h.batch_key && { batch_key: h.batch_key }),
+      batch_key: await this.#room(tx, h.tenant_id, base, item.todo.id, n),
     };
     item.with_todo = h.id;
+  }
+
+  /** The first part of a card, from part `from` on, with room for the todo `id`. */
+  async #room(tx: RecordTx, tenantId: string, base: string, id: string, from = 1): Promise<string> {
+    for (let n = from; ; n++) {
+      const on = await tx.find(ITEMS, { tenant_id: tenantId, batch_key: part(base, n) });
+      if (on.filter((i) => i.todo.id !== id).length < this.settings.cardSize) return part(base, n);
+    }
   }
 
   async #close(

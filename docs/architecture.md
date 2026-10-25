@@ -130,8 +130,8 @@ the people who own the topics, in amounts a person can keep up with.
   with room, except high and urgent todos.
 - Notes, where reference documents state another value than the governed one, go on a
   weekly notes card outside the budget, and one action acknowledges them.
-- A copy review rides on the card of the conflict its source update opened, in whichever
-  order the two arrive, until that conflict closes. Reviews already
+- A copy review rides on the card of the conflict its source update opened (on its next
+  part when the card is full), in whichever order the two arrive, until that conflict closes. Reviews already
   due when a document is first seen go to a first-review campaign per topic. The todos of
   topics nobody owns go to the space's steward.
 
