@@ -121,6 +121,19 @@ function outranks(a: Member, b: Member): boolean {
   return a.claim_id < b.claim_id;
 }
 
+/**
+ * A group as it is counted now. Groups stored before governance levels have no governed
+ * count or date; every member was governed then, so those are its live ones.
+ */
+export function upgraded(g: ValueGroup): ValueGroup {
+  if (g.governed !== undefined) return g;
+  return {
+    ...g,
+    governed: g.live,
+    ...(g.earliest_live_from !== undefined && { earliest_governed_from: g.earliest_live_from }),
+  };
+}
+
 /** The group with one more member. */
 export function withMember(group: ValueGroup | undefined, m: Member): ValueGroup {
   const g: ValueGroup = group
@@ -149,7 +162,7 @@ export function withMember(group: ValueGroup | undefined, m: Member): ValueGroup
     const from = m.live_from ?? "";
     if (g.earliest_live_from === undefined || from < g.earliest_live_from) g.earliest_live_from = from;
     if (isGoverned(m)) {
-      g.governed = (g.governed ?? 0) + 1;
+      g.governed++;
       if (g.earliest_governed_from === undefined || from < g.earliest_governed_from) g.earliest_governed_from = from;
     }
     if (m.stated_from) {
@@ -190,12 +203,11 @@ export function groupsOf(members: readonly Member[]): ValueGroup[] {
   return [...groups.values()];
 }
 
-/** Live members from governed documents. Groups counted before levels have no count: all were governed. */
-export const governedIn = (g: ValueGroup) => g.governed ?? g.live;
+/** Live members from governed documents. */
+export const governedIn = (g: ValueGroup) => g.governed;
 
 /** The first day the group's value holds; in a governed slot, by its governed members alone. */
-const startOf = (g: ValueGroup, governed: boolean) =>
-  governed && g.governed !== undefined ? g.earliest_governed_from : g.earliest_live_from;
+const startOf = (g: ValueGroup, governed: boolean) => (governed ? g.earliest_governed_from : g.earliest_live_from);
 
 const inForce = (g: ValueGroup, today: string, governed: boolean) => {
   const start = startOf(g, governed);
