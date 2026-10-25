@@ -225,6 +225,9 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         { text: "We plan to raise the first-tier hotel cap to 800 a night.", value: 800, type: "plan" },
       ]);
       expect(plan.result.requests).toEqual([]);
+      expect(plan.result.notes.map((n) => n.title)).toEqual([
+        "hotel_cap_per_night (一线城市): 800 CNY/night in Budget proposal, 600 CNY/night holds",
+      ]);
       const { decision } = await world.governance.slot(TENANT, HOTEL);
       expect(decision?.proposed.value).toBe("600 CNY/night");
       expect(decision?.cases.map((c) => [c.value, c.classification, c.status, c.rationale])).toEqual([

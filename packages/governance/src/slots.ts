@@ -269,6 +269,7 @@ export function decide(groups: readonly ValueGroup[], today: string): SlotDecisi
           status: "auto_resolved",
           priority: "low",
           confidence: 0.6,
+          note: true,
           rationale: `Only reference documents plan ${g.value}; the governed ${proposed.value} holds. A note for the owner, not a todo.`,
         };
       }
