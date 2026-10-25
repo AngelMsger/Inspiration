@@ -113,6 +113,31 @@ describe("cluster", () => {
     expect(same.topics.map((t) => t.level)).toEqual([2]);
   });
 
+  test("a split left with one subtopic is undone, unless an owner confirmed that subtopic", () => {
+    const units = [...group("cap", { 0: 1, 3: 0.55 }, 8, 4), ...group("booking", { 0: 1, 4: 0.55 }, 8, 4)];
+    const options = { maxStatements: 40, subJoin: 0.8 };
+    const first = cluster("spc", units, [], options);
+    const [again, anchors] = rerun(units, first);
+    const parent = first.topics.find((t) => t.level === 2)?.key as string;
+    const cap = topicOf(first, "cap-00") as string;
+    const booking = topicOf(first, "booking-00") as string;
+    // The booking sections are gone; only the cap sections are left.
+    const left = again.filter((u) => u.key.startsWith("cap"));
+
+    const undone = cluster("spc", left, anchors, options);
+    expect(undone.topics.map((t) => t.key)).toEqual([parent]);
+    expect(undone.retired).toEqual([booking, cap].sort());
+
+    const owned = anchors.map((a) => (a.key === cap ? { ...a, confirmed: true } : a));
+    const kept = cluster("spc", left, owned, options);
+    expect(kept.topics.map((t) => [t.key, t.level, t.leaf])).toEqual([
+      [parent, 2, false],
+      [cap, 3, true],
+    ]);
+    expect(topicOf(kept, "cap-00")).toBe(cap);
+    expect(kept.retired).toEqual([booking]);
+  });
+
   test("the change budget keeps most moves for a later run", () => {
     const units = [...group("a", { 0: 1 }, 20, 1), ...group("b", { 1: 1 }, 20, 1)];
     const first = cluster("spc", units, []);

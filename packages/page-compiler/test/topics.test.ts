@@ -1,8 +1,26 @@
 import type { TaxonomyNode } from "@inspiration/contracts";
 import { Sample } from "@inspiration/knowledge-store/testing";
 import { describe, expect } from "vitest";
-import { SECTIONS } from "../src/index.ts";
+import { PENDING, SECTIONS, Topics } from "../src/index.ts";
 import { about, BACKENDS, SPACE, TENANT, topicsTest, type World } from "./fixtures.ts";
+
+/** The world's store and records, with the nth transaction across them lost before it commits. */
+function losing(w: World, nth: number) {
+  const kinds: string[] = [];
+  const lose = <T extends object>(target: T, kind: string): T =>
+    new Proxy(target, {
+      get(t, prop) {
+        const v = Reflect.get(t, prop);
+        if (typeof v !== "function") return v;
+        if (prop !== "transaction") return v.bind(t);
+        return (fn: unknown) => {
+          kinds.push(kind);
+          return kinds.length === nth ? Promise.reject(new Error("lost")) : v.call(t, fn);
+        };
+      },
+    });
+  return { store: lose(w.store, "store"), records: lose(w.records, "records"), kinds: () => kinds };
+}
 
 describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
   const test = topicsTest(backend);
@@ -79,6 +97,40 @@ describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
       await w.topics.update(v1);
       expect(await counted()).toBe(9);
       expect(await w.records.count(SECTIONS, { tenant_id: TENANT })).toBe(9);
+    },
+  );
+
+  test.skipIf(skip)(
+    "an update that fails between its writes is finished by the next one, which counts each statement once",
+    async ({ world: w }) => {
+      await guides(w);
+      await w.topics.recluster(TENANT);
+      const leave = (await w.store.topics(TENANT, SPACE)).find((n) => n.title === "年休假") as TaxonomyNode;
+      const counted = async () =>
+        (await w.store.topics(TENANT, SPACE)).find((n) => n.key === leave.key)?.statement_count;
+      const added = about("年休假", 5, 20);
+      // Each edit loses one of its three commits: the sections with the store writes they call
+      // for, the store writes, and forgetting them. Then claims.updated comes again, twice.
+      for (const [lost, sentences, before, after] of [
+        [1, added.slice(0, 3), 9, 12],
+        [2, added.slice(0, 2), 12, 11],
+        [3, [...added.slice(0, 2), ...added.slice(3)], 13, 13],
+      ] as const) {
+        const v = await w.doc("leave-guide", [{ heading: "年休假", sentences: [...sentences] }], { update: false });
+        const failing = losing(w, lost);
+        await expect(
+          new Topics({ store: failing.store, records: failing.records, models: w.gateway }).update(v),
+        ).rejects.toThrow("lost");
+        expect(failing.kinds()).toEqual(["records", "store", "records"].slice(0, lost));
+        expect(await counted()).toBe(before);
+        await w.topics.update(v);
+        await w.topics.update(v);
+        expect(await counted()).toBe(after);
+        for (const s of sentences) expect((await w.placement(s))?.taxonomy_key).toBe(leave.key);
+      }
+      expect(await w.records.count(PENDING, { tenant_id: TENANT })).toBe(0);
+      expect((await w.topics.recluster(TENANT)).churn.moved).toBe(0);
+      expect(await counted()).toBe(13);
     },
   );
 

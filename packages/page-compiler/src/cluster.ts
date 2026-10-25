@@ -13,7 +13,8 @@
  *   sections are about one thing more often than not.
  * - Subtopics: a topic with more than maxStatements statements, or one split before, is
  *   split the same way at `subJoin`. Subtopics too small for minStatements merge into their
- *   closest sibling, and a split that leaves one subtopic is undone.
+ *   closest sibling, and a split that leaves one subtopic is undone, unless an owner confirmed
+ *   that subtopic.
  * - Change budget: statements that would leave a topic that still exists move only up to
  *   `budget` of the statements placed before; the moves that gain least wait for a later
  *   run.
@@ -264,7 +265,7 @@ export function cluster(
       );
       into.members.push(...small.members);
     }
-    if (children.length < 2) {
+    if (children.length < 2 && !children.some((c) => anchorByKey.get(c.key)?.confirmed)) {
       for (const u of t.members) leafOf.set(u.key, t.key);
       continue;
     }

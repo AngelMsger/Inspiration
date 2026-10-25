@@ -60,6 +60,8 @@ export interface World {
       sensitivity?: SensitivityLabel;
       deleted?: boolean;
       space?: string;
+      /** False stores the version without updating its sections. */
+      update?: boolean;
     },
   ) => Promise<SourceVersion>;
   /** The current claim stating this sentence. */
@@ -203,7 +205,7 @@ export const topicsTest = (backend: Backend, cluster: Partial<ClusterOptions> = 
         }
       });
       last.set(externalId, { blocks, claims });
-      await topics.update(version);
+      if (options.update !== false) await topics.update(version);
       return version;
     };
 
