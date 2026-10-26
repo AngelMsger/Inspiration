@@ -164,6 +164,16 @@ trees to browse it:
   Only changed blocks are read again, only statements whose evidence changed are superseded, and
   only pages that cite them are rebuilt. If a re-read yields the same statements, nothing further
   happens.
+- **A source that corrects itself syncs silently.** When one document changes its own value, the
+  new statement supersedes the old one and nobody is asked; the Trace view keeps both. Only sources
+  that disagree with each other need a person, and the conflict shows how many distinct documents
+  support each value, with their authority.
+- **Deleted sources keep their knowledge until someone decides.** Knowledge never disappears
+  silently. Statements stay, with "Source deleted" on their citations, and each affected topic
+  owner gets one todo per deleted document or folder: keep it as a snapshot (the default, also
+  after 30 days without a decision), point it to a replacement, or retire it. Moves are recognized
+  and followed silently, and many documents vanishing at once is treated as a lost connection, not
+  as deletions. See [Source changes](design/source-changes.md).
 - **Review dates come from the knowledge itself.** Each governed document gets a review clock from
   the classes of its statements (for example yearly for policy, every 180 days for process), a
   review on each date a plan names, and an immediate review for copies an edit left behind.
@@ -181,6 +191,11 @@ trees to browse it:
 - **One trigger, one todo.** Requests for the same slot or document merge into one todo, which is
   routed to the owner of its topic, else the nearest owner above it, else the space owner, else
   the super admin. Nothing is ever unowned.
+- **One cause, one review.** A cause that would produce more than 20 todos or touch more than 3
+  topics, such as a policy's new version or a reorganized folder, becomes one change review for the
+  owner of the smallest scope that covers it. It is decided in bulk, with a record per item. Engine
+  causes such as a model upgrade stay silent while values stay the same, and go to evaluation, not
+  to inboxes, when they do not.
 - **Weekly inbox cards.** An owner's todos about one topic in one week share one inbox card of at
   most 20 items. Each owner gets at most 10 cards a week; the rest wait for the next week with
   room, except urgent ones. Notes sit on their own weekly card outside the budget and are
@@ -500,7 +515,8 @@ flowchart LR
 3. **Extract.** Extraction reads only added and changed blocks of governed documents, and of
    reference documents only those that name a known fact. Each window is one model call. A
    statement is kept only if its quote is verbatim; statements whose evidence disappeared are
-   superseded or retracted.
+   superseded or retracted. Under the source-changes design, a deleted document's statements are
+   held until their owner decides.
 4. **Govern.** Governance keeps each slot's values counted incrementally, proposes the value that
    holds, opens conflict cases for the others, and sends one todo request per slot. It is
    deterministic today; semantic, NLI and model-judge tiers come later for statements without a
@@ -762,7 +778,7 @@ by owner, topic and week already keeps every owner under it.
 **Designed and decided, not built:** the two-domain permission rule and the principal token,
 publishing, credential broker and sandbox, the Sources tree and mirror pages, pages and views,
 retrieval and the agent API, research with `fetch_now` and `web_search`, the parsing worker,
-internationalization, and the whole business layer and UI.
+source deletions and change reviews, internationalization, and the whole business layer and UI.
 
 ## Plan
 
@@ -810,7 +826,8 @@ document's estimate.
 | Business layer, phases 1 and 2 | 16 |
 | Engine work for the business boundary (net) | 4.5 |
 | Internationalization (engine 3.5, UI 3, business 0.5) | 7 |
-| **Total** | **about 113** |
+| Source changes (deletions, moves, change reviews) | 3 |
+| **Total** | **about 116** |
 
 After that, pilot and product-v1 work for Artifact-level editing (templates, Word and PDF export,
 block editor, real-time co-editing, the view host API, mobile, share links) is about 19 to 27, and
@@ -848,6 +865,7 @@ time depends more on review and integration than on these person-week figures.
 | 2026-10-26 | Three product roles: super admin, owner (of a space, topic, page or procedure) and member; finer roles stay internal and product roles are bundles of them |
 | 2026-10-26 | Usage follows mainstream AI products: seats fill a workspace pool, members have default caps, the super admin sees usage but never content; details come with billing |
 | 2026-10-26 | Chinese terms: the workspace is 企业, the governance levels are 严格, 宽松 and 仅检索 |
+| 2026-10-26 | Source changes: knowledge never disappears silently; a deleted source is kept and marked until its owner decides; a large change is reviewed once, as a whole |
 
 ## Open questions for the next discussion
 
@@ -872,6 +890,8 @@ time depends more on review and integration than on these person-week figures.
   agent access and the business-layer plan.
 - [Business layer and engine contract](design/business-engine-contract.md): the commands, events,
   principal token and schema changes between the two layers.
+- [Source changes](design/source-changes.md): what happens when a source corrects itself, is
+  deleted or changes at scale, and when a person is asked.
 - [Architecture](architecture.md): components, how they talk, storage and security as built.
 - [Contracts](contracts.md): changing schemas, IDs, events, versioning.
 - [PageSpec and views](pagespec.md): pages compared with Claude Artifacts, and the view sandbox.
