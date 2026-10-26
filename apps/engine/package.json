@@ -11,6 +11,7 @@
     "inspiration-engine": "./src/cli.ts"
   },
   "dependencies": {
+    "@inspiration/collaboration": "workspace:*",
     "@inspiration/connectors": "workspace:*",
     "@inspiration/contracts": "workspace:*",
     "@inspiration/eventbus": "workspace:*",

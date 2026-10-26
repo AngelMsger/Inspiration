@@ -115,6 +115,26 @@ placement (`Placement`: claim, topic key, page block, placed_by, confirmed).
   statements change topic in one re-clustering.
 - `KnowledgeStore.topics()`, `placementsOf()` and `placementsIn()` read the outline.
 
+## The inbox
+
+Collaboration turns `todo.requested` and `review.due` into todos and puts them in front of
+the people who own the topics, in amounts a person can keep up with.
+
+- There is one open todo per dedupe key. A later request updates it, and a request marked
+  withdrawn (its reason went away) dismisses it.
+- A todo's topic comes from its claims' placements. Its assignee is the topic's owner, or
+  the nearest owner above it. The business layer names owners, and the topic keeps them
+  (`TaxonomyNode.owner_id`).
+- An owner's todos about one topic in one ISO week share a card (`Todo.batch_key`) of at
+  most 20. An owner gets at most 10 cards a week; the rest wait for the first later week
+  with room, except high and urgent todos.
+- Notes, where reference documents state another value than the governed one, go on a
+  weekly notes card outside the budget, and one action acknowledges them.
+- A copy review rides on the card of the conflict its source update opened (on its next
+  part when the card is full), in whichever order the two arrive, until that conflict closes. Reviews already
+  due when a document is first seen go to a first-review campaign per topic. The todos of
+  topics nobody owns go to the space's steward.
+
 ## Storage
 
 One Postgres instance (ParadeDB image: Postgres 16 with pgvector and pg_search) holds:
@@ -127,6 +147,11 @@ One Postgres instance (ParadeDB image: Postgres 16 with pgvector and pg_search) 
 | `agents` | agent-runtime | agent run traces |
 | `sync` | source-sync | registered sources; per item, the connector's version hashes and the source version they became |
 | `normalization` | normalization | per document, the version last stored as blocks (the diff base), its parser and fingerprint; the SimHash band index for duplicates |
+| `extraction` | extraction | per document, the latest version extracted |
+| `freshness` | freshness | per document, its review clock, claim classes and plan days; copies; reviews due by day; deleted documents |
+| `governance` | governance | slot members and value groups, conflict cases, what each slot last asked and the notes it left, recheck days |
+| `page_compiler` | page-compiler | sections with their embeddings and topics, the last clustering's topics and centroids, the topic of each fact slot, store writes an update has yet to finish |
+| `collaboration` | collaboration | the inbox: every todo with its dedupe key, card, week and the week it fell due |
 | `public.inspiration_migrations` | kernel | migration ledger with checksums |
 
 SpiceDB keeps its own datastore in a separate `spicedb` database on the same instance.

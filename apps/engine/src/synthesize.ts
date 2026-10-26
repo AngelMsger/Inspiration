@@ -533,6 +533,15 @@ const DEPARTMENTS: Record<string, string> = {
 
 const SURNAMES = "王李张刘陈杨黄赵吴周徐孙马朱胡郭何林罗高".split("");
 const GIVEN = "伟芳娜敏静丽强磊军洋勇艳杰涛明超秀霞平刚桂英华文".split("");
+
+/**
+ * A department's knowledge staff: three people, the first its policy owner, who write its
+ * guides. They are the directory's members, so topics can get owners.
+ */
+export function staffOf(department: string): string[] {
+  const i = Object.keys(DEPARTMENTS).indexOf(department);
+  return [0, 1, 2].map((j) => `${SURNAMES[(3 * i + j) % SURNAMES.length]}${GIVEN[(7 * i + 5 * j + 1) % GIVEN.length]}`);
+}
 const PROJECTS = ["星火", "启明", "北斗", "青云", "远航", "磐石", "飞鸿", "长风", "晨曦", "知行", "鲲鹏", "云帆"];
 const WORK = [
   "需求评审",
@@ -715,7 +724,7 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
         ...boilerplate.slice(0, w.int(5, boilerplate.length)),
         `本办法自 2026 年 1 月 1 日起施行。`,
       ];
-      const text = `${frontMatter({ title: `${topic}管理办法`, governance_level: "governed", approval_state: "approved", owner: department })}# ${topic}管理办法\n\n${articles.map((a, i) => `第${i + 1}条 ${a}`).join("\n\n")}\n`;
+      const text = `${frontMatter({ title: `${topic}管理办法`, governance_level: "governed", approval_state: "approved", owner: staffOf(department)[0] })}# ${topic}管理办法\n\n${articles.map((a, i) => `第${i + 1}条 ${a}`).join("\n\n")}\n`;
       // Policies were last edited in December, before they took effect.
       w.write(path, text, dayAfter("2025-12-01", hashOf(path) % 28));
       policies.push({ path, text, department });
@@ -751,7 +760,8 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
         const body = [w.hearsay(path, f, errorRate), ...w.fillers(w.int(1, 4))].join("");
         return `## ${kind === "faq" ? `关于${f.topic}的问题` : f.topic}\n\n${body}`;
       });
-      text = `${frontMatter({ title, governance_level: kind === "guide" ? "governed" : "reference", owner: w.person() })}# ${title}\n\n${sections.join("\n\n")}\n`;
+      const owner = kind === "guide" ? w.pick(staffOf(department)) : w.person();
+      text = `${frontMatter({ title, governance_level: kind === "guide" ? "governed" : "reference", owner })}# ${title}\n\n${sections.join("\n\n")}\n`;
       modified = dayAfter("2024-10-23", hashOf(path) % 730);
     } else if (kind === "minutes") {
       const month = w.int(1, 10);
@@ -919,6 +929,9 @@ function manifest(departments: string[]): CorpusManifest {
   const folder: Record<string, string> = {};
   departments.forEach((d, i) => {
     folder[`group:${DEPARTMENTS[d]}`] = `grp_01SYNTH${String(i).padStart(18, "0")}`;
+    staffOf(d).forEach((name, j) => {
+      folder[`user:${name}`] = `mem_01SYNTH${String(3 * i + j).padStart(18, "0")}`;
+    });
   });
   const source = (
     id: string,

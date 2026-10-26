@@ -106,6 +106,7 @@
       "Priority",
       "TodoResolution",
       "Todo",
+      "IsoWeek",
       "PublishState",
       "QualityGate",
       "QualityGateResult",
@@ -4077,6 +4078,11 @@
         }
       }
     },
+    "IsoWeek": {
+      "description": "An ISO 8601 week, \"2026-W44\".",
+      "type": "string",
+      "pattern": "^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$"
+    },
     "KnowledgeClass": {
       "description": "Selects the default TTL used by staleness scoring. Known values: policy, product, pricing, org, process, technical, market, general. Tenants may add their own.\n",
       "type": "string",
@@ -7188,7 +7194,20 @@
           }
         },
         "batch_key": {
+          "description": "The inbox card the todo is on. Collaboration groups an owner's todos about one topic in one week on a card, at most 20 to a card.\n",
           "type": "string"
+        },
+        "taxonomy_key": {
+          "description": "The topic its units are placed in. The topic's owner, or its area's, is the assignee.",
+          "$ref": "#/$defs/TopicKey"
+        },
+        "slot_key": {
+          "description": "The fact slot a conflict or a note is about.",
+          "type": "string"
+        },
+        "week": {
+          "description": "The week it is scheduled in: the week it fell due, or a later one when the assignee's weekly budget of cards was full.\n",
+          "$ref": "#/$defs/IsoWeek"
         },
         "created_by": {
           "$ref": "#/$defs/ComponentName"
@@ -7245,6 +7264,7 @@
       "pattern": "^todo_[0-9A-Za-z]{8,64}$"
     },
     "TodoKind": {
+      "description": "note: a value only reference documents state disagrees with the governed one. It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget.\n",
       "type": "string",
       "enum": [
         "conflict",
@@ -7256,7 +7276,8 @@
         "publish_review",
         "coverage_gap",
         "extraction_review",
-        "feedback"
+        "feedback",
+        "note"
       ]
     },
     "TodoRequested": {
@@ -7304,8 +7325,16 @@
           "description": "Groups similar todos in the inbox.",
           "type": "string"
         },
+        "slot_key": {
+          "description": "The fact slot a conflict or a note is about.",
+          "type": "string"
+        },
         "suggested_assignee_id": {
           "$ref": "#/$defs/PrincipalId"
+        },
+        "withdrawn": {
+          "description": "The reason went away: collaboration dismisses the open todo with this key, and creates none when there is no open one. A later request with the key opens a new todo.\n",
+          "type": "boolean"
         }
       }
     },

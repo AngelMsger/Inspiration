@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
-import { Corpus, days, Engine, ingest, SimulatedClock } from "../src/index.ts";
+import { Corpus, days, Engine, inboxReport, ingest, SimulatedClock } from "../src/index.ts";
 
 const CORPUS = new URL("../../../examples/corpus/", import.meta.url).pathname;
 const FINANCE = "grp_01QINGHE00000000000FINANCE";
@@ -62,7 +62,8 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
     "acl.changed": 19,
     "blocks.changed": 19,
     "claims.updated": 18,
-    "todo.requested": 2,
+    // Two conflicts, two notes, and the FAQ's note withdrawn once the notice stated its value.
+    "todo.requested": 5,
   });
   expect(first.dead_letters).toBe(0);
   expect(first.acl.unmapped).toEqual([]);
@@ -100,6 +101,8 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
     todos_by_priority: { high: 1, normal: 1 },
     proposed_by: { changed: 1, authority: 3 },
     requests: 2,
+    notes: 2,
+    withdrawn: 1,
   });
   // Only the 14 governed documents keep review clocks. Policies are reviewed yearly and
   // processes every 180 days; the archive and general notes never by age. Nothing is due
@@ -141,6 +144,27 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
     ["报销相关", 14],
     ["新人入职指南", 10],
     ["费用报销管理规定", 6],
+  ]);
+  // Each topic's owner is the member who wrote most of its documents. The inbox puts the two
+  // conflicts on their owners' cards and the minutes' note on a notes card; nothing waits.
+  expect(first.owners).toMatchObject({ topics: 10, owned: 9, assigned: 9, owners: 2, rerouted: 3 });
+  expect(first.inbox).toMatchObject({
+    todos: 4,
+    open: 3,
+    withdrawn: 1,
+    by_kind: { conflict: 2, note: 2 },
+    owners: 2,
+    cards: { total: 2, over_budget: 0 },
+    deferred: { todos: 0 },
+    notes: { total: 1 },
+    campaign: { todos: 0 },
+    steward: { todos: 0 },
+  });
+  const cards = await engine.inbox.cards(corpus.tenantId);
+  expect(cards.map((c) => [c.kind, c.todos.map((t) => t.title)])).toEqual([
+    ["review", ["annual_leave_days (工龄 1 至 10 年): 5 day or 7 day"]],
+    ["review", ["hotel_cap_per_night (一线城市): 650 CNY/night or 600 CNY/night"]],
+    ["notes", ["budget_draft_deadline: 11 月 20 日 in 2026 年 9 月经营会纪要, 11 月 15 日 holds"]],
   ]);
   const proposed = async (slot: string) =>
     (await engine.governance.slot(corpus.tenantId, slot)).decision?.proposed.value;
@@ -196,6 +220,10 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
   // Over the next sixty days the three process documents come due.
   const later = await days(engine, corpus.tenantId, clock, 60);
   expect(later).toMatchObject({ backlog: {}, reviews: { ttl: 3 }, rechecked_slots: 0 });
+  expect(await inboxReport(engine, corpus.tenantId)).toMatchObject({
+    open: 6,
+    by_kind: { conflict: 2, note: 2, review_due: 3 },
+  });
 }
 
 describe("ingesting the demo corpus", () => {

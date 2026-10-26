@@ -98,6 +98,12 @@ export class Corpus {
     return spec ? `${spec.root}/${externalId}` : externalId;
   }
 
+  /** The member a source's user is, as its directory section maps them. */
+  memberOf(sourceId: string, user: string): string | undefined {
+    const id = this.#directoryOf.get(sourceId)?.[`user:${user}`];
+    return id?.startsWith("mem_") ? id : undefined;
+  }
+
   /** The directory lookup source sync calls for every ACL entry without an engine principal. */
   readonly resolvePrincipal: PrincipalResolver = (source: Source, entry: AclEntry) =>
     entry.external_id === undefined

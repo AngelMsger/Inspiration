@@ -314,6 +314,10 @@ export type GatewayOperation = "complete" | "embed" | "rerank" | "ocr";
  */
 export type GovernanceLevel = "governed" | "reference" | "search_only";
 export type HitKind = "claim" | "sop" | "section" | "page" | "entity" | "chunk" | "knowledge_model";
+/**
+ * An ISO 8601 week, "2026-W44".
+ */
+export type IsoWeek = string;
 export type KnowledgeModelId = string;
 export type KnowledgeModelKind = "formula" | "decision_table" | "kpi";
 export type SopStatus = "draft" | "in_review" | "verified" | "published" | "retired";
@@ -381,6 +385,10 @@ export type SpaceKind = "personal" | "team" | "org" | "source_mirror";
  *
  */
 export type TopicStatus = "proposed" | "confirmed" | "retired";
+/**
+ * note: a value only reference documents state disagrees with the governed one. It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget.
+ *
+ */
 export type TodoKind =
   | "conflict"
   | "stale"
@@ -391,7 +399,8 @@ export type TodoKind =
   | "publish_review"
   | "coverage_gap"
   | "extraction_review"
-  | "feedback";
+  | "feedback"
+  | "note";
 export type TodoStatus = "open" | "in_progress" | "done" | "dismissed";
 /**
  * read = no side effects; propose = creates a proposal or a todo that a person accepts in collaboration.
@@ -2571,7 +2580,17 @@ export interface Todo {
   assignee_id?: PrincipalId;
   unit_ids: UnitId[];
   resolutions?: TodoResolution[];
+  /**
+   * The inbox card the todo is on. Collaboration groups an owner's todos about one topic in one week on a card, at most 20 to a card.
+   *
+   */
   batch_key?: string;
+  taxonomy_key?: TopicKey;
+  /**
+   * The fact slot a conflict or a note is about.
+   */
+  slot_key?: string;
+  week?: IsoWeek;
   created_by: ComponentName;
   created_at: Instant;
   due_at?: Instant;
@@ -2628,7 +2647,16 @@ export interface TodoRequested {
    * Groups similar todos in the inbox.
    */
   batch_key?: string;
+  /**
+   * The fact slot a conflict or a note is about.
+   */
+  slot_key?: string;
   suggested_assignee_id?: PrincipalId;
+  /**
+   * The reason went away: collaboration dismisses the open todo with this key, and creates none when there is no open one. A later request with the key opens a new todo.
+   *
+   */
+  withdrawn?: boolean;
 }
 export interface ToolSpec {
   name: ToolName;

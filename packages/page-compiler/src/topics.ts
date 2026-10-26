@@ -206,6 +206,16 @@ export interface TopicsOptions {
   cluster?: Partial<ClusterOptions>;
 }
 
+/** A document with sections in a topic. */
+export interface TopicDocument {
+  /** source_id:external_id */
+  document: string;
+  source_version_id: string;
+  title: string;
+  sections: number;
+  statements: number;
+}
+
 /** What one re-clustering of a tenant did. */
 export interface ReclusterReport {
   tenant_id: string;
@@ -311,6 +321,52 @@ export class Topics {
    */
   async recluster(tenantId: string): Promise<ReclusterReport> {
     return this.#serial(tenantId, () => this.#recluster(tenantId));
+  }
+
+  /**
+   * Make a member the owner of a topic, or no one's with undefined. The owner answers for
+   * the topic's statements and gets its reviews; re-clustering keeps it. People and the
+   * business layer assign owners.
+   */
+  async setOwner(tenantId: string, topicKey: string, ownerId: string | undefined): Promise<TaxonomyNode> {
+    return this.#serial(tenantId, async () => {
+      const node = (await this.store.topics(tenantId)).find((n) => n.key === topicKey);
+      if (!node) throw new RangeError(`unknown topic ${topicKey}`);
+      const { owner_id: _owner, ...rest } = node;
+      const next: TaxonomyNode = ownerId === undefined ? rest : { ...rest, owner_id: ownerId };
+      if (next.owner_id !== node.owner_id) await this.store.transaction((tx) => tx.putTopics([next]));
+      return next;
+    });
+  }
+
+  /**
+   * The documents whose governed sections each topic holds, by leaf topic, with how many
+   * of their sections and statements are there, the most first.
+   */
+  async documentsIn(tenantId: string): Promise<Map<string, TopicDocument[]>> {
+    const out = new Map<string, Map<string, TopicDocument>>();
+    for (const s of await this.records.find(SECTIONS, { tenant_id: tenantId })) {
+      if (!s.topic || !clustered(s)) continue;
+      const d = entry(
+        entry(out, s.topic, () => new Map<string, TopicDocument>()),
+        s.document,
+        () => ({
+          document: s.document,
+          source_version_id: s.source_version_id,
+          title: s.title,
+          sections: 0,
+          statements: 0,
+        }),
+      );
+      d.sections++;
+      d.statements += s.claims.length;
+    }
+    return new Map(
+      [...out].map(([k, docs]) => [
+        k,
+        [...docs.values()].sort((a, b) => b.statements - a.statements || (a.document < b.document ? -1 : 1)),
+      ]),
+    );
   }
 
   async #serial<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {

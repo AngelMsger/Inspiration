@@ -21,7 +21,8 @@ the policy took effect), a supersession of the policy-library value, and 5 days 
 first-year leave over the guide's 7, a contradiction; it settles the archive's 500 and 80
 alone. The budget deadline stays at the budget note's 11-15: the meeting minutes that moved
 it to 11-20 are a reference document, so their decision is a note for the owner, not a
-todo. That is two todo requests, one of them high priority.
+todo. That is two todo requests, one of them high priority, and one note. The FAQ's 650 is a
+note too until the notice states it, and then governance withdraws that note.
 
 Freshness keeps review clocks only for the 14 governed documents: eight get a yearly one
 (their claims are policy) and three a 180-day one (process); the archive is retired and two
@@ -59,6 +60,19 @@ area, using the fake embeddings, which only see shared characters:
   (会议室管理规定, 薪酬管理办法, 数据分级与保护规范).
 - The reference statements of a slot (the forwarded copy, the FAQ, the minutes) join the
   slot's topic.
+
+## Owners and the inbox
+
+The demo stands in for the business layer: each topic's owner is the member who wrote most
+of its documents (front matter `owner`), so 9 of the 10 topics get one of two members. The
+inbox then puts each todo in front of its topic's owner:
+- the two conflicts (hotel cap, first-year leave) on their owners' cards for the week;
+- the minutes' budget deadline on the owner's notes card, outside the weekly budget of 10
+  cards;
+- the withdrawn FAQ note nowhere: it was dismissed when the notice made 650 governed.
+
+Over the next sixty days the three process documents come due for review and join their
+owners' cards.
 
 ## Permissions
 

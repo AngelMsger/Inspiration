@@ -2,6 +2,7 @@ import {
   type Claim,
   type ClaimsUpdated,
   type ConflictCase,
+  canonicalJson,
   contentHash,
   type EventEnvelope,
   type EventHandler,
@@ -52,12 +53,25 @@ export const CONFLICTS = defineTable<ConflictCase>("governance.conflicts", {
   columns: { tenant_id: (c) => c.tenant_id, slot: (c) => c.batch_key, status: (c) => c.status },
 });
 
-/** What governance last asked a person to decide for a slot. */
+/** What governance last asked a person to decide for a slot, and the notes it left. */
 export interface SlotState {
   tenant_id: string;
   slot: string;
   /** A hash of the decision in the last todo request; "" after the conflict went away. */
   requested: string;
+  /** The last todo request, while the slot asks for one: withdrawn when it stops asking. */
+  asked?: TodoRequested;
+  /** The notes as last published, while their values are only stated by reference documents. */
+  notes?: Note[];
+}
+
+/**
+ * A note, and what it says that its owner should hear again when it changes: both values,
+ * the reference document and the date it states, and the statements it points to.
+ */
+export interface Note {
+  request: TodoRequested;
+  said: string;
 }
 
 export const SLOTS = defineTable<SlotState>("governance.slots", {
@@ -101,6 +115,10 @@ export interface GovernanceResult {
   slots: string[];
   /** Todo requests published, one per slot whose decision changed. */
   requests: TodoRequested[];
+  /** Notes requested, one per value only reference documents state, when what it says changed. */
+  notes: TodoRequested[];
+  /** Conflict requests and notes withdrawn because the reason for them went away. */
+  withdrawn: TodoRequested[];
 }
 
 /** The slot of a current claim with a value, as the member governance keeps for it. */
@@ -174,7 +192,33 @@ function todoOf(decision: SlotDecision, open: readonly CaseDraft[], groups: Map<
     unit_ids: [proposed.best.claim_id, ...contenders.map((g) => g.best.claim_id)],
     dedupe_key: `${COMPONENT}:conflict:${proposed.slot}`,
     batch_key: `${COMPONENT}:conflict:${predicate}`,
+    slot_key: proposed.slot,
   };
+}
+
+/** The request that withdraws an earlier one. */
+function withdrawal(request: TodoRequested): TodoRequested {
+  return { ...request, withdrawn: true };
+}
+
+/** The note for a value only reference documents state: what they say, and the governed value that holds. */
+function noteOf(proposed: ValueGroup, other: ValueGroup, draft: CaseDraft): Note {
+  const since = other.best.stated_from ?? other.best.document_from;
+  const request: TodoRequested = {
+    kind: "note",
+    space_id: proposed.best.space_id,
+    title: `${slotLabel(proposed.slot)}: ${other.value} in ${other.best.document}, ${proposed.value} holds`,
+    detail: [
+      `- **${proposed.value}** holds: ${statements(proposed)}.`,
+      `- ${other.value}${since ? ` (from ${since})` : ""}: ${statements(other)}. ${draft.rationale}`,
+    ].join("\n"),
+    priority: "low",
+    unit_ids: [proposed.best.claim_id, other.best.claim_id],
+    dedupe_key: `${COMPONENT}:note:${proposed.slot}:${other.value}`,
+    batch_key: `${COMPONENT}:note:${proposed.slot}`,
+    slot_key: proposed.slot,
+  };
+  return { request, said: contentHash(JSON.stringify([request.title, since ?? "", request.unit_ids])) };
 }
 
 /**
@@ -187,7 +231,7 @@ export class Governance {
   readonly store: KnowledgeStore;
   readonly records: Records;
   readonly clock: () => Date;
-  readonly totals = { events: 0, slots: 0, requests: 0 };
+  readonly totals = { events: 0, slots: 0, requests: 0, notes: 0, withdrawn: 0 };
   /** Updates of one tenant run one at a time: value groups are counted incrementally. */
   readonly #running = new Map<string, Promise<unknown>>();
 
@@ -250,7 +294,7 @@ export class Governance {
   }
 
   async #apply(event: EventEnvelope): Promise<GovernanceResult> {
-    const result: GovernanceResult = { slots: [], requests: [] };
+    const result: GovernanceResult = { slots: [], requests: [], notes: [], withdrawn: [] };
     if (event.producer === COMPONENT) return result;
     const update: ClaimsUpdated = payloadOf(event, "claims.updated");
     const reread = [...update.added, ...update.updated];
@@ -292,19 +336,28 @@ export class Governance {
       }
 
       for (const slot of [...slots].sort()) {
-        const request = await this.#decide(tx, event.tenant_id, slot, event);
+        const { request, notes, withdrawn } = await this.#decide(tx, event.tenant_id, slot, event);
         result.slots.push(slot);
         if (request) result.requests.push(request);
+        result.notes.push(...notes);
+        result.withdrawn.push(...withdrawn);
       }
     });
     this.totals.events++;
     this.#count(result);
-    if (result.requests.length) log.debug("requested todos", { event: event.id, requests: result.requests.length });
+    if (result.requests.length || result.notes.length || result.withdrawn.length) {
+      log.debug("requested todos", {
+        event: event.id,
+        requests: result.requests.length,
+        notes: result.notes.length,
+        withdrawn: result.withdrawn.length,
+      });
+    }
     return result;
   }
 
   async #recheck(tenantId: string): Promise<GovernanceResult> {
-    const result: GovernanceResult = { slots: [], requests: [] };
+    const result: GovernanceResult = { slots: [], requests: [], notes: [], withdrawn: [] };
     const today = this.#today();
     for (;;) {
       const due = (await this.records.find(RECHECKS, { tenant_id: tenantId }, { orderBy: "day", limit: 200 })).filter(
@@ -313,9 +366,11 @@ export class Governance {
       if (!due.length) break;
       await this.records.transaction(async (tx) => {
         for (const r of due) {
-          const request = await this.#decide(tx, tenantId, r.slot);
+          const { request, notes, withdrawn } = await this.#decide(tx, tenantId, r.slot);
           result.slots.push(r.slot);
           if (request) result.requests.push(request);
+          result.notes.push(...notes);
+          result.withdrawn.push(...withdrawn);
         }
       });
     }
@@ -327,6 +382,8 @@ export class Governance {
   #count(result: GovernanceResult): void {
     this.totals.slots += result.slots.length;
     this.totals.requests += result.requests.length;
+    this.totals.notes += result.notes.length;
+    this.totals.withdrawn += result.withdrawn.length;
   }
 
   /** The source version of every claim: the update's, else the version its evidence comes from. */
@@ -348,13 +405,17 @@ export class Governance {
     return out;
   }
 
-  /** Decide a slot again, write its cases, and return a todo request when the decision changed. */
+  /**
+   * Decide a slot again, write its cases, and return a todo request when the decision
+   * changed, a note for each value only reference documents state when what it says changed,
+   * and a withdrawal for a request or a note whose reason went away.
+   */
   async #decide(
     tx: RecordTx,
     tenantId: string,
     slot: string,
     cause?: EventEnvelope,
-  ): Promise<TodoRequested | undefined> {
+  ): Promise<{ request?: TodoRequested; notes: TodoRequested[]; withdrawn: TodoRequested[] }> {
     const today = this.#today();
     const groups = (await tx.find(VALUE_GROUPS, { tenant_id: tenantId, slot })).map(upgraded);
     const decision = decide(groups, today);
@@ -395,30 +456,59 @@ export class Governance {
       return !before || JSON.stringify({ ...before, detected_at: "" }) !== JSON.stringify({ ...c, detected_at: "" });
     });
     if (changed.length) await tx.put(CONFLICTS, changed);
-
-    // Only a slot that governed documents state has an owner to ask.
-    const open = (decision?.cases ?? []).filter((c) => c.status === "open");
-    const asks = decision !== undefined && open.length > 0 && governedIn(decision.proposed) > 0;
-    const state = await tx.get(SLOTS, slotKey(tenantId, slot));
-    const fingerprint =
-      decision && asks
-        ? contentHash(
-            JSON.stringify([decision.proposed.value, open.map((c) => [c.value, c.classification, c.priority])]),
-          )
-        : "";
-    if ((state?.requested ?? "") === fingerprint) return undefined;
-    await tx.put(SLOTS, [{ tenant_id: tenantId, slot, requested: fingerprint }]);
-    if (!decision || !asks) return undefined;
-    const request = todoOf(decision, open, new Map(groups.map((g) => [g.value, g])));
-    await tx.publish(
+    const event = (request: TodoRequested) =>
       newEvent("todo.requested", request, {
         tenantId,
         producer: COMPONENT,
         subject: slot,
         ...(cause && { causation: cause }),
         occurredAt: this.clock(),
-      }),
+      });
+    const state = await tx.get(SLOTS, slotKey(tenantId, slot));
+    const withdrawn: TodoRequested[] = [];
+
+    // A note is published again only when what it says changed (Note.said), not whenever
+    // another document states the governed value.
+    const notes = (decision?.cases ?? [])
+      .filter((d) => d.note)
+      .map((d) => noteOf(decision?.proposed as ValueGroup, groups.find((g) => g.value === d.value) as ValueGroup, d));
+    const last = new Map((state?.notes ?? []).map((n) => [n.request.dedupe_key, n]));
+    const fresh = notes.filter((n) => last.get(n.request.dedupe_key)?.said !== n.said);
+    const live = new Set(notes.map((n) => n.request.dedupe_key));
+    withdrawn.push(
+      ...[...last.values()].filter((n) => !live.has(n.request.dedupe_key)).map((n) => withdrawal(n.request)),
     );
-    return request;
+
+    // Only a slot that governed documents state has an owner to ask.
+    const open = (decision?.cases ?? []).filter((c) => c.status === "open");
+    const asks = decision !== undefined && open.length > 0 && governedIn(decision.proposed) > 0;
+    const fingerprint =
+      decision && asks
+        ? contentHash(
+            JSON.stringify([decision.proposed.value, open.map((c) => [c.value, c.classification, c.priority])]),
+          )
+        : "";
+    const request =
+      decision && asks && (state?.requested ?? "") !== fingerprint
+        ? todoOf(decision, open, new Map(groups.map((g) => [g.value, g])))
+        : undefined;
+    if (!asks && state?.asked) withdrawn.push(withdrawal(state.asked));
+
+    const asked = request ?? (asks ? state?.asked : undefined);
+    const published = notes.map((n) => (fresh.includes(n) ? n : (last.get(n.request.dedupe_key) as Note)));
+    const updated: SlotState = {
+      tenant_id: tenantId,
+      slot,
+      requested: fingerprint,
+      ...(asked && { asked }),
+      ...(published.length > 0 && { notes: published }),
+    };
+    if (canonicalJson(updated) !== canonicalJson(state ?? { tenant_id: tenantId, slot, requested: "" })) {
+      await tx.put(SLOTS, [updated]);
+    }
+    const said = fresh.map((n) => n.request);
+    const out = [...said, ...withdrawn, ...(request ? [request] : [])];
+    if (out.length) await tx.publish(...out.map(event));
+    return { ...(request && { request }), notes: said, withdrawn };
   }
 }
