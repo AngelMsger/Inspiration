@@ -62,7 +62,7 @@ them; the [glossary](#languages) lists those in all three languages.
 | Topic and placement | Topics form the knowledge outline (area, topic, subtopic). A placement puts a statement under a topic; a statement without one is unfiled | Topic |
 | Page, procedure, card | The readable forms built from statements: knowledge pages, procedures (SOPs) and cards about one thing (a city, a supplier, a role) | Knowledge page, Procedure, Card |
 | Todo and note | A todo asks a person to decide or review something. A note tells an owner something without asking for a decision | Inbox |
-| Owner, super admin | An owner is named for a space, topic, page or procedure: they approve what is published there, keep it current and decide its conflicts, and the nearest owner above takes anything that has none. The super admin runs the company and is the last fallback | Owner, Super admin |
+| Owner, super admin | An owner is named for a space, topic, page or procedure: they approve what is published there, keep it current and decide its conflicts, and the nearest owner above takes anything that has none. The super admin runs the company and is the last fallback | Space owner, Topic owner, Page owner, Procedure owner (never a bare Owner); Super admin |
 
 ## Functional design
 
@@ -74,7 +74,7 @@ the knowledge machinery behind it.
 | Person | Main jobs | What they see |
 | --- | --- | --- |
 | Member | Read, ask, comment, publish from My space | Pages with small citation numbers. Only two marks appear in the text: Outdated and Disputed |
-| Owner | For a space, topic, page or procedure: approve publishing into it, keep it current, decide its conflicts | Their inbox, and the Trace view of statements, sources and lineage. A space owner also sees the space's backlog and first-review campaigns |
+| Space, topic, page or procedure owner | Approve publishing into their scope, keep it current, decide its conflicts | Their inbox, and the Trace view of statements, sources and lineage. A space owner also sees the space's backlog and first-review campaigns |
 | Super admin | Members, spaces and audiences, connections, policies, sensitivity labels, audit, agents, plan and usage | The admin console, with usage per member. Never anyone's My space, and never what anyone asked, read or researched |
 | Agent developer (a member) | Connect agents through MCP or REST | Connected apps, scopes and audit |
 
@@ -343,7 +343,7 @@ Japanese column is proposed and waits for review.
 | Knowledge tree, Sources tree | 知识树, 来源树 | ナレッジツリー, ソースツリー |
 | Original, Annotated, Knowledge views | 原文, 批注, 知识 | 原文, 注釈, ナレッジ |
 | Fresh, Review due, Outdated, Disputed | 有效, 待复核, 已过时, 有争议 | 有効, 要確認, 旧版, 異論あり |
-| Owner, Super admin | 负责人, 超级管理员 | 担当者, 特権管理者 |
+| Space owner, Topic owner, Page owner, Procedure owner; Super admin | 空间负责人、主题负责人、页面负责人、流程负责人；超级管理员 | スペース担当者、トピック担当者、ページ担当者、手順担当者；特権管理者 |
 | Rule | 裁决规则 | 裁定ルール |
 | Any one, Everyone (approval modes) | 或签, 会签 | いずれか承認, 全員承認 |
 | Who can read this | 可见范围 | 公開範囲 |
@@ -876,7 +876,7 @@ time depends more on review and integration than on these person-week figures.
 | 2026-10-24 | Three views and two trees for reading |
 | 2026-10-24 | Pipeline boundaries: normalization before extraction and indexing, retrieval owns every index, freshness emits signals only, collaboration owns every todo |
 | 2026-10-24 | English, Chinese and Japanese from the first release; no Chinese in code or comments; docs in English with a Chinese copy |
-| 2026-10-26 | Three product roles: super admin, owner (of a space, topic, page or procedure) and member; finer roles stay internal and product roles are bundles of them |
+| 2026-10-26 | Three product roles: super admin, owner (of a space, topic, page or procedure) and member; finer roles stay internal and product roles are bundles of them. An owner is always named with its scope, such as topic owner, never a bare Owner |
 | 2026-10-26 | Usage follows mainstream AI products: seats fill a company pool, members have default caps, the super admin sees usage but never content; details come with billing |
 | 2026-10-26 | Chinese terms: the company is 企业, the governance levels are 严格, 宽松 and 仅检索. English says Company and Japanese 企業 to match 企业; never "workspace" |
 | 2026-10-26 | Source changes: knowledge never disappears silently; a deleted source is kept and marked until its owner decides; a large change is reviewed once, as a whole |

@@ -156,7 +156,7 @@ The product has three roles, kept few on purpose while the product is young. Per
 | Role | Scope | Can do | In solo use | In a company |
 | --- | --- | --- | --- | --- |
 | Super admin | Company | Members, spaces and their audiences, connections, policies, sensitivity labels and model routing limits, claims on external tenants, audit, agents, plan, billing and usage, deleting the company. The last fallback owner, and the fallback decider for conflicts across spaces. Sees usage per member, never content: shared content only through an audited break-glass step, and never a My space | The person | The creator, and anyone they add |
-| Owner | A space, topic, page, SOP or model | Approves publishing into the scope, verifies, keeps it current (stale, review-due and conflict todos) and decides its conflicts. A space owner takes anything in the space that has no nearer owner, and decides joint approvals in the space that stall | The person | Named by the super admin, or by the owner of the scope above |
+| Owner, always named with its scope (space owner, topic owner) | A space, topic, page, SOP or model | Approves publishing into the scope, verifies, keeps it current (stale, review-due and conflict todos) and decides its conflicts. A space owner takes anything in the space that has no nearer owner, and decides joint approvals in the space that stall | The person | Named by the super admin, or by the owner of the scope above |
 | Member | Company | Reads, asks, comments and edits within each space's audience; owns their My space and publishes from it. Guests (later) are members limited to named spaces, with an expiry | The person | Everyone else |
 
 Inside, the engine keeps finer roles: a space grants `viewer`, `commenter`, `editor`, `steward` and `owner`, and topics, pages and SOPs carry an owner. A product role is a bundle of them: a space owner holds the space's `owner` and `steward` roles, and a member gets `viewer`, `commenter` or `editor` from the space's audience. A later preset, such as the separate system, security and audit admins that government and state-owned buyers in China expect, is a new bundle of the same permissions rather than new code.
@@ -409,7 +409,7 @@ The UI says "company" for a tenant, "member" for a member and "account" for a us
 | Space audience | Who can read this | 可见范围 | 公開範囲 | Set by the super admin or the space owner |
 | Audience gap | Some readers can't open the original | 部分读者无法打开原文 | 一部の閲覧者は原文を開けません | A warning, never a block |
 | Source permissions tightened; quarantine | Source permissions tightened; Hide the affected knowledge first | 来源权限收紧；先隐藏受影响的知识 | ソースの権限が縮小されました；影響するナレッジを先に非表示にする | Quarantine is a policy option; notify is the default |
-| Owner | Owner, shown by scope: Space owner, Topic owner, Page owner, Procedure owner | 负责人：空间负责人、主题负责人、页面负责人、流程负责人 | 担当者：スペース担当者、トピック担当者、ページ担当者、手順担当者 | Replaces steward, freshness owner and arbiter |
+| Owner | Space owner, Topic owner, Page owner, Procedure owner; never a bare Owner | 空间负责人、主题负责人、页面负责人、流程负责人 | スペース担当者、トピック担当者、ページ担当者、手順担当者 | Replaces steward, freshness owner and arbiter. A bare "Owner" is ambiguous, so the UI always names the scope |
 | Super admin | Super admin | 超级管理员 | 特権管理者 | Also covers security and audit for now |
 | Fallback decider | Decides after the deadline | 截止后决定 | 期限後に決定 | The space owner, or the super admin across spaces |
 | Approval modes | Single, Any one, Everyone, At least n | 单人、或签、会签、至少 n 人 | 単独承認、いずれか承認、全員承認、n名以上 |  |

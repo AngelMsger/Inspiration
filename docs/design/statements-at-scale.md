@@ -26,7 +26,7 @@ Together they make an owner's work grow with topics and source changes rather th
 | Statement | The smallest governed unit: one fact with its status, owner, effective date and passages | Claim |
 | Topic | A node of a space's knowledge outline, at most three levels deep (area, topic, subtopic) | TaxonomyNode |
 | Knowledge page, procedure, card | The forms readers see. They are written from statements; a card describes one thing, such as a city, a supplier or a role | PageSpec, Sop |
-| Owner | The member who answers for a topic's statements: confirms where they belong, reviews them and decides conflicts. The UI shows it by scope, as topic owner | TaxonomyNode.owner_id |
+| Topic owner | The member who answers for a topic's statements: confirms where they belong, reviews them and decides conflicts. Never a bare "owner" in the UI | TaxonomyNode.owner_id |
 | Space owner | The owner of a whole space, who takes over topics without an owner | Space role `owner` |
 | Todo | A piece of work for a person, shown on a card in the inbox | Todo |
 

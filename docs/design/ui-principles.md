@@ -7,7 +7,7 @@ Status: adopted design, 2026-10-24. The screens are drawn on the product owner's
 | Role | What they do |
 | --- | --- |
 | Member | A person in a company. Reads knowledge pages, asks, comments, and keeps their own material in My space. Most members are readers, most of the time |
-| Owner | Named for a space, topic, page or procedure. Approves what is published there, keeps its statements current, confirms where they belong and decides its conflicts. A space owner also takes over topics without an owner, works backlogs in bulk and decides a vote that splits or runs late |
+| Space, topic, page or procedure owner | Named for a space, topic, page or procedure. Approves what is published there, keeps its statements current, confirms where they belong and decides its conflicts. A space owner also takes over topics without an owner, works backlogs in bulk and decides a vote that splits or runs late |
 | Super admin | Runs the company: members, spaces and who can read them, connections to source apps, policies, audit and usage. Never sees into My space, or what anyone asked or read |
 | Someone working alone | Has a personal library and never sees companies, spaces, members or publishing |
 
@@ -155,7 +155,7 @@ The Chinese terms are adopted. The Japanese terms are proposed and wait for the 
 | Trace view | 追溯 | 追跡 | Owners only |
 | Governed, Reference, Search only | 严格, 宽松, 仅检索 | 規程, 参考, 検索のみ | Governance levels |
 | Fresh, Review due, Outdated, Disputed | 有效, 待复核, 已过时, 有争议 | 有効, 要確認, 旧版, 異論あり | Only Outdated and Disputed show inline |
-| Owner (Space owner, Topic owner, Page owner, Procedure owner), Super admin | 负责人（空间负责人、主题负责人、页面负责人、流程负责人）, 超级管理员 | 担当者（スペース担当者、トピック担当者、ページ担当者、手順担当者）, 特権管理者 | With Member, the only roles the UI shows |
+| Space owner, Topic owner, Page owner, Procedure owner; Super admin | 空间负责人、主题负责人、页面负责人、流程负责人；超级管理员 | スペース担当者、トピック担当者、ページ担当者、手順担当者；特権管理者 | With Member, the only roles the UI shows. An owner is always named with its scope, never a bare "Owner" (负责人, 担当者) |
 | Rule | 裁决规则 | 裁定ルール | Made from a decision with "Make this a rule" |
 | Any one, Everyone (joint approval) | 或签, 会签 | いずれか承認, 全員承認 | Approval modes |
 | Who can read this | 可见范围 | 公開範囲 | Always with a count |
@@ -178,7 +178,7 @@ Adopted on 2026-10-23 and 2026-10-24:
 
 Adopted on 2026-10-26:
 
-- Three roles in the UI: member, owner (shown by scope) and super admin.
+- Three roles in the UI: member, owner and super admin. An owner is always named with its scope (space owner, topic owner, page owner, procedure owner), because a bare "owner" is ambiguous.
 - In Chinese, a company is 企业 and the governance levels are 严格, 宽松 and 仅检索. English says Company and Japanese 企業, to match.
 
 ## Still open
