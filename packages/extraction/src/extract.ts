@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import {
   type BlocksChanged,
   type ChatMessage,
@@ -44,7 +45,7 @@ export const WINDOW_CHARS = 1500;
 /** Statement similarity at which a claim from an edited block replaces one that lost its evidence. */
 export const SAME_CLAIM = 0.5;
 
-const PROMPTS_DIR = new URL("../prompts/", import.meta.url).pathname;
+const PROMPTS_DIR = fileURLToPath(new URL("../prompts/", import.meta.url));
 
 export interface ExtractionOptions {
   store: KnowledgeStore;

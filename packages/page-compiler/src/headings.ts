@@ -7,7 +7,7 @@
 
 import { loadLanguages } from "@inspiration/kernel";
 
-export const PACKS = loadLanguages(new URL("../languages/", import.meta.url).pathname);
+export const PACKS = loadLanguages(new URL("../languages/", import.meta.url));
 
 const patterns = (key: string) => PACKS.flatMap((p) => p.list(key).map((source) => new RegExp(source, "iu")));
 

@@ -20,7 +20,7 @@ export const MAX_PASSAGE = 400;
 /** Pieces shorter than this, such as a list number standing alone, join the next passage. */
 const MIN_PASSAGE = 4;
 
-const PACKS = loadLanguages(new URL("../languages/", import.meta.url).pathname);
+const PACKS = loadLanguages(new URL("../languages/", import.meta.url));
 const all = (key: string) => new Set(PACKS.flatMap((p) => p.list(key)));
 
 const TERMINATORS = all("terminators");

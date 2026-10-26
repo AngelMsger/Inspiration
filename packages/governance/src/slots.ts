@@ -69,7 +69,10 @@ export interface ValueGroup {
   live: number;
   /** Live members from governed documents. */
   governed: number;
-  /** The same members by the day they take effect; "" for those in effect from the start. */
+  /**
+   * The same members by the day they take effect; "" for those in effect from the start.
+   * Groups stored before it was kept are counted again from their members (storedGroups).
+   */
   governed_from?: Record<string, number>;
   archived: number;
   plans: number;
@@ -146,24 +149,6 @@ function leads(a: ValueGroup, b: ValueGroup, today: string): boolean {
   const [x, y] = [governedAsOf(a, today), governedAsOf(b, today)];
   if (x !== y) return x > y;
   return a.best.claim_id < b.best.claim_id;
-}
-
-/**
- * A group as it is counted now. Groups stored before governance levels have no governed
- * count or date; every member was governed then, so those are its live ones. Groups stored
- * before governed members were counted by day count them all from the earliest one's day.
- */
-export function upgraded(g: ValueGroup): ValueGroup {
-  if (g.governed_from !== undefined) return g;
-  const legacy = g.governed === undefined;
-  const governed = legacy ? g.live : g.governed;
-  const from = legacy ? g.earliest_live_from : g.earliest_governed_from;
-  return {
-    ...g,
-    governed,
-    ...(from !== undefined && { earliest_governed_from: from }),
-    governed_from: governed ? { [from ?? ""]: governed } : {},
-  };
 }
 
 /** The group with one more member. */

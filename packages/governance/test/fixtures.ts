@@ -67,6 +67,8 @@ export interface World {
   requests: () => Promise<TodoRequested[]>;
   /** Move governance's clock. */
   setToday: (day: string) => void;
+  /** Run SQL against the test database; Postgres only. */
+  sql?: (text: string) => Promise<void>;
 }
 
 export const HOTEL = "hotel_cap_per_night|tier-1 city";
@@ -77,6 +79,7 @@ export const governanceTest = (backend: Backend) =>
     let store: MemoryStore | PostgresStore;
     let records: Records;
     let outbox: () => Promise<EventEnvelope[]>;
+    let sql: World["sql"];
     if (backend === "memory") {
       store = new MemoryStore();
       const memory = new MemoryRecords();
@@ -91,6 +94,9 @@ export const governanceTest = (backend: Backend) =>
       });
       store = new PostgresStore(pool);
       records = new PgRecords(pool);
+      sql = async (text) => {
+        await pool.query(text);
+      };
       outbox = async () =>
         (await pool.query<{ envelope: EventEnvelope }>("SELECT envelope FROM bus.outbox ORDER BY seq")).rows.map(
           (r) => r.envelope,
@@ -206,5 +212,5 @@ export const governanceTest = (backend: Backend) =>
     const setToday = (day: string) => {
       now = new Date(`${day}T09:00:00Z`);
     };
-    return { store, records, governance, state, close, requests, setToday };
+    return { store, records, governance, state, close, requests, setToday, ...(sql && { sql }) };
   });

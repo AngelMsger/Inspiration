@@ -68,7 +68,7 @@ interface Tenant {
   slots: Record<string, Slot>;
 }
 
-const PACKS = loadLanguages(new URL("../languages/", import.meta.url).pathname);
+const PACKS = loadLanguages(new URL("../languages/", import.meta.url));
 
 function places(pack: LanguagePack, key: string): Places {
   const p = pack.section(key);
