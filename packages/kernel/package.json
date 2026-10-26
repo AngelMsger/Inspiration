@@ -1,7 +1,7 @@
 {
   "name": "@inspiration/kernel",
   "version": "0.1.0",
-  "description": "Shared runtime: settings, plugin registry, SQL migrations, Postgres pools, blob stores",
+  "description": "Shared runtime: settings, plugin registry, SQL migrations, Postgres pools, blob stores, language packs",
   "private": true,
   "type": "module",
   "exports": {
@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@inspiration/contracts": "workspace:*",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "yaml": "^2.9.1"
   },
   "devDependencies": {
     "@types/pg": "^8.23.1"

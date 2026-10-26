@@ -62,21 +62,21 @@ describe("folder connector", () => {
   }
 
   test("lists files with version hashes, skipping hidden and unknown files", async () => {
-    await put("corpus/hr/差旅制度.md", "# 差旅管理制度\n\n第三条 住宿标准。");
+    await put("corpus/hr/travel.md", "# Travel policy\n\nArticle 3 Hotel standards.");
     await put("corpus/hr/.acl.yaml", "readers: [group:hr]\n");
     await put("corpus/notes.txt", "plain");
     await put("corpus/tool.exe", "binary");
     await put("corpus/.git/config", "x");
     const { connector } = await folder();
     const page = await connector.list({ kind: "folder" });
-    expect(page.items.map((i) => i.ref.external_id)).toEqual(["hr/差旅制度.md", "notes.txt"]);
+    expect(page.items.map((i) => i.ref.external_id)).toEqual(["hr/travel.md", "notes.txt"]);
     const [first] = page.items;
     expect(first?.version?.content_hash).toMatch(/^sha256:/);
     expect(first?.ref.parent_external_id).toBe("hr");
     expect(page.next_cursor).toBeUndefined();
 
     const scoped = await connector.list({ kind: "folder", include: ["hr/**"], exclude: ["**/*.txt"] });
-    expect(scoped.items.map((i) => i.ref.external_id)).toEqual(["hr/差旅制度.md"]);
+    expect(scoped.items.map((i) => i.ref.external_id)).toEqual(["hr/travel.md"]);
   });
 
   test("fetch returns the file, metadata and ACL, and Unchanged for a known version", async () => {
@@ -85,13 +85,13 @@ describe("folder connector", () => {
     await put("corpus/finance/.acl.yaml", "readers: [group:finance, tenant]\neditors: [user:li.na]\ninherit: true\n");
     await put("corpus/.acl.yaml", "owners: [user:admin]\n");
     await put(
-      "corpus/finance/报销.md",
-      "---\ntitle: 费用报销办法\napproval_state: approved\nowner: li.na\ntags: [财务]\nknowledge_class: policy\n---\n# 报销\n\n正文",
+      "corpus/finance/expenses.md",
+      "---\ntitle: Expense policy\napproval_state: approved\nowner: li.na\ntags: [finance]\nknowledge_class: policy\n---\n# Expenses\n\nThe text",
     );
     const { connector, blobs } = await folder();
     const [item] = (await connector.list({ kind: "folder" })).items;
     const doc = asDocument(await connector.fetch(item?.ref ?? { source_id: "", external_id: "" }));
-    expect(doc.title).toBe("费用报销办法");
+    expect(doc.title).toBe("Expense policy");
     expect(doc.mime_type).toBe("text/markdown");
     expect(doc.approval_state).toBe("approved");
     expect(doc.sensitivity).toBe("confidential");
@@ -99,12 +99,12 @@ describe("folder connector", () => {
     expect(doc.metadata).toMatchObject({
       path: ["finance"],
       author_external_id: "li.na",
-      tags: ["财务"],
+      tags: ["finance"],
       extra: { knowledge_class: "policy" },
     });
     expect(
       new TextDecoder().decode(await blobs.get(doc.file ?? { uri: "", sha256: "", size_bytes: 0, mime_type: "" })),
-    ).toContain("正文");
+    ).toContain("The text");
     expect(doc.acl?.entries).toEqual([
       { principal_kind: "anyone_in_tenant", role: "viewer" },
       { principal_kind: "group", external_id: "finance", role: "viewer" },
@@ -123,15 +123,15 @@ describe("folder connector", () => {
   });
 
   test("titles fall back to the first heading, then the file name", async () => {
-    await put("corpus/a.md", "intro\n\n## 第二章 总则\n");
+    await put("corpus/a.md", "intro\n\n## Chapter 2 General provisions\n");
     await put("corpus/b.txt", "no title");
-    await put("corpus/c.html", "<html><head><title> 公告 </title></head></html>");
+    await put("corpus/c.html", "<html><head><title> Notice </title></head></html>");
     const { connector } = await folder();
     const titles = [];
     for (const item of (await connector.list({ kind: "folder" })).items) {
       titles.push(asDocument(await connector.fetch(item.ref)).title);
     }
-    expect(titles).toEqual(["第二章 总则", "b", "公告"]);
+    expect(titles).toEqual(["Chapter 2 General provisions", "b", "Notice"]);
   });
 
   test("refuses paths outside the root", async () => {
@@ -156,29 +156,45 @@ test("globs", () => {
 });
 
 const DOC: FeishuDocument = {
-  meta: { document_id: "doxcnPolicy", revision_id: 7, title: "差旅管理制度", modified_at: T0, path: ["行政", "制度"] },
+  meta: {
+    document_id: "doxcnPolicy",
+    revision_id: 7,
+    title: "Travel policy",
+    modified_at: T0,
+    path: ["Administration", "Policies"],
+  },
   blocks: [
     { block_id: "doxcnPolicy", block_type: 1, children: ["h1", "p1", "l1", "t1"] },
     {
       block_id: "h1",
       block_type: 3,
       parent_id: "doxcnPolicy",
-      heading1: { elements: [{ text_run: { content: "第三条 住宿" } }] },
+      heading1: { elements: [{ text_run: { content: "Article 3 Hotels" } }] },
     },
     {
       block_id: "p1",
       block_type: 2,
       parent_id: "doxcnPolicy",
-      text: { elements: [{ text_run: { content: "一线城市每晚不超过" } }, { text_run: { content: "600元。" } }] },
+      text: {
+        elements: [
+          { text_run: { content: "Tier-1 cities: at most " } },
+          { text_run: { content: "600 yuan a night." } },
+        ],
+      },
     },
     {
       block_id: "l1",
       block_type: 13,
       parent_id: "doxcnPolicy",
-      ordered: { elements: [{ text_run: { content: "提交申请" } }] },
+      ordered: { elements: [{ text_run: { content: "Submit the request" } }] },
       children: ["l2"],
     },
-    { block_id: "l2", block_type: 12, parent_id: "l1", bullet: { elements: [{ text_run: { content: "附发票" } }] } },
+    {
+      block_id: "l2",
+      block_type: 12,
+      parent_id: "l1",
+      bullet: { elements: [{ text_run: { content: "Attach the invoices" } }] },
+    },
     {
       block_id: "t1",
       block_type: 31,
@@ -186,11 +202,11 @@ const DOC: FeishuDocument = {
       table: { cells: ["c1", "c2", "c3", "c4"], property: { row_size: 2, column_size: 2 } },
     },
     { block_id: "c1", block_type: 32, children: ["c1t"] },
-    { block_id: "c1t", block_type: 2, text: { elements: [{ text_run: { content: "城市" } }] } },
+    { block_id: "c1t", block_type: 2, text: { elements: [{ text_run: { content: "City" } }] } },
     { block_id: "c2", block_type: 32, children: ["c2t"] },
-    { block_id: "c2t", block_type: 2, text: { elements: [{ text_run: { content: "上限" } }] } },
+    { block_id: "c2t", block_type: 2, text: { elements: [{ text_run: { content: "Cap" } }] } },
     { block_id: "c3", block_type: 32, children: ["c3t"] },
-    { block_id: "c3t", block_type: 2, text: { elements: [{ text_run: { content: "北京" } }] } },
+    { block_id: "c3t", block_type: 2, text: { elements: [{ text_run: { content: "Beijing" } }] } },
     { block_id: "c4", block_type: 32, children: ["c4t"] },
     { block_id: "c4t", block_type: 2, text: { elements: [{ text_run: { content: "600" } }] } },
   ],
@@ -203,19 +219,19 @@ const DOC: FeishuDocument = {
     approval_state: "approved",
     sensitivity: "internal",
     governance_level: "governed",
-    owner_team: "行政部",
+    owner_team: "Administration",
   },
 };
 
 const APPROVAL: FeishuApproval = {
   definition: {
     approval_code: "CONTRACT-01",
-    approval_name: "合同审批",
-    form: [{ id: "amount", name: "合同金额", type: "number", required: true }],
+    approval_name: "Contract approval",
+    form: [{ id: "amount", name: "Contract amount", type: "number", required: true }],
     node_list: [
-      { node_id: "start", name: "发起", node_type: "START" },
-      { node_id: "legal", name: "法务审核", node_type: "APPROVAL", approver: "法务部" },
-      { node_id: "end", name: "结束", node_type: "END" },
+      { node_id: "start", name: "Start", node_type: "START" },
+      { node_id: "legal", name: "Legal review", node_type: "APPROVAL", approver: "Legal" },
+      { node_id: "end", name: "End", node_type: "END" },
     ],
   },
   instances: [
@@ -248,20 +264,20 @@ describe("feishu connectors on fixtures", () => {
     expect(item?.version?.external_version).toBe("7");
     const doc = asDocument(await connector.fetch(item?.ref ?? { source_id: "", external_id: "" }));
     expect(doc.blocks?.map((b) => [b.anchor, b.kind, b.text])).toEqual([
-      ["h1", "heading", "第三条 住宿"],
-      ["p1", "paragraph", "一线城市每晚不超过600元。"],
-      ["l1", "list_item", "提交申请"],
+      ["h1", "heading", "Article 3 Hotels"],
+      ["p1", "paragraph", "Tier-1 cities: at most 600 yuan a night."],
+      ["l1", "list_item", "Submit the request"],
       ["t1", "table", undefined],
     ]);
-    expect(doc.blocks?.[2]?.children?.map((b) => b.text)).toEqual(["附发票"]);
+    expect(doc.blocks?.[2]?.children?.map((b) => b.text)).toEqual(["Attach the invoices"]);
     const table = doc.blocks?.[3];
     expect(table?.children?.[1]?.children?.map((c) => [c.anchor, c.text])).toEqual([
-      ["c3", "北京"],
+      ["c3", "Beijing"],
       ["c4", "600"],
     ]);
-    expect(doc.metadata?.path).toEqual(["行政", "制度"]);
+    expect(doc.metadata?.path).toEqual(["Administration", "Policies"]);
     expect(doc.governance_level).toBe("governed");
-    expect(doc.metadata?.extra).toEqual({ owner_team: "行政部" });
+    expect(doc.metadata?.extra).toEqual({ owner_team: "Administration" });
     expect(doc.acl?.entries.map((e) => [e.principal_kind, e.external_id ?? "", e.role])).toEqual([
       ["anyone_in_tenant", "", "viewer"],
       ["group", "oc_finance", "viewer"],

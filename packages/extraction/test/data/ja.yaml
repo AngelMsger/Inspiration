@@ -1,0 +1,98 @@
+# Japanese cases for the extraction mock (mock.test.ts). Each language file has the same
+# fields; see en.yaml for what each one checks.
+
+vocabulary:
+  predicates:
+    - predicate: hotel_cap_per_night
+      label: 宿泊費上限（1泊）
+      knowledge_class: policy
+      aliases: [宿泊]
+      qualifiers:
+        - { name: 東京23区, aliases: [東京23区, 東京都区部] }
+        - { name: 政令指定都市, aliases: [政令指定都市, 大阪, 名古屋] }
+      value: { kind: money, unit: JPY/night, currency: JPY, words: [円] }
+    - predicate: travel_claim_deadline_days
+      label: 出張精算期限
+      knowledge_class: policy
+      aliases: [精算]
+      value: { kind: duration, unit: day, words: [日以内, 日] }
+    - predicate: payment_day
+      label: 精算金支払日
+      aliases: [精算金]
+      value: { kind: enum, values: [毎週水曜日, 毎週金曜日] }
+
+values:
+  - text: 勤続1年以上10年未満の場合、出張終了後30日以内に精算する。
+    predicate: travel_claim_deadline_days
+    value: { number: 30 }
+  - text: 1泊15000円。
+    predicate: hotel_cap_per_night
+    value: { kind: money, number: 15000, unit: JPY/night, currency: JPY, normalized: 15000 JPY/night }
+  - text: 宿泊費は領収書により精算する。
+    predicate: hotel_cap_per_night
+    value: null
+  # "1日" is a calendar day, not a time limit.
+  - text: 2026年7月1日から、出張終了後60日以内に精算する。
+    predicate: travel_claim_deadline_days
+    value: { number: 60 }
+  - text: 2026年7月1日から、
+    predicate: travel_claim_deadline_days
+    value: null
+  - text: 大阪は1泊12,000円。
+    predicate: hotel_cap_per_night
+    value: { number: 12000 }
+  - text: 承認された精算金は毎週水曜日に支払われる。
+    predicate: payment_day
+    value: { kind: enum, text: 毎週水曜日, normalized: 毎週水曜日 }
+
+effective:
+  - { text: 2026年10月1日から、東京23区の宿泊費上限を1泊18000円に改定する。, day: "2026-10-01" }
+  - { text: 2027-01-15より施行する。, day: "2027-01-15" }
+  - { text: 2026年9月28日, day: null }
+
+change: { title: 経営会議議事録, date: "2026-09-26", heading: [決議事項], text: 東京23区の宿泊費上限を1泊18000円に変更する。 }
+
+plans:
+  - { text: 佐藤が結合テストを担当し、2026年11月20日に完了する予定。, day: "2026-11-20" }
+  - { text: 3月5日にリリースする予定。, document_date: "2027-01-10", day: "2027-03-05" }
+  - { text: 3月5日にリリースする予定。, day: null }
+
+plan: { title: 星火プロジェクト週報, date: "2026-10-19", text: 12月1日に段階的リリースを完了する見込み。, day: "2026-12-01" }
+
+window:
+  title: 出張
+  spans:
+    - 政令指定都市の宿泊費上限は1泊12000円とする。
+    - 宿泊は事前に予約が必要ですか？
+    - 皆さんありがとうございました。
+    - 研究開発部は2027年に40人を採用する計画です。
+  claims:
+    - [s1, rule, "hotel_cap_per_night|政令指定都市"]
+    - [s4, plan, null]
+
+clauses:
+  text: 東京23区の宿泊費上限は1泊18000円、政令指定都市は1泊12000円とする。
+  statements: [東京23区の宿泊費上限は1泊18000円。, 宿泊費上限（1泊）：政令指定都市は1泊12000円とする。]
+  qualifiers: [東京23区, 政令指定都市]
+
+rows:
+  - title: 都市別の宿泊料金.csv
+    header: [都市, 区分, 宿泊費の上限（円/泊）]
+    cells: [大阪, 政令指定都市, "12000"]
+    statement: 都市：大阪、区分：政令指定都市、宿泊費の上限（円/泊）：12000。
+    slot: "hotel_cap_per_night|政令指定都市"
+    number: 12000
+  - title: 都市別の宿泊料金.csv
+    header: [都市, 1泊の上限（円）]
+    cells: [名古屋, "12000"]
+    statement: 都市：名古屋、1泊の上限（円）：12000。
+    slot: "hotel_cap_per_night|政令指定都市"
+    number: 12000
+  # Kanji alone reads as Chinese; the document's language tag says otherwise.
+  - title: 都市別宿泊料金表.csv
+    language: ja-JP
+    header: [都市, 区分, 宿泊費上限（円/泊）]
+    cells: [大阪, 政令指定都市, "12000"]
+    statement: 都市：大阪、区分：政令指定都市、宿泊費上限（円/泊）：12000。
+    slot: "hotel_cap_per_night|政令指定都市"
+    number: 12000

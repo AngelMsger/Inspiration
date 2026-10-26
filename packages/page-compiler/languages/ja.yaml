@@ -1,0 +1,19 @@
+# How page-compiler reads Japanese headings, and how the page-compiler.name_topics stand-in
+# (src/mock.ts) names topics in Japanese. See zh.yaml for the fields.
+
+numbering:
+  - '第[一二三四五六七八九十百千〇\d]+[章節条部編]'
+  - '[（(][一二三四五六七八九十\d]+[）)]'
+  - '\d+(?:\.\d+)*[.．]?'
+faq:
+  - '^(.+)(?:に関する|についての)(?:質問|よくある質問|Q&A)$'
+brackets:
+  - '[（(][^）)]*[）)]'
+
+related: "{title}関連"
+untitled: 無題
+summary: "{title}に関する規定と説明。"
+summary_from: "{title}に関する規定と説明（{documents}など）。"
+list_mark: "、"
+title_length: 16
+shared_length: 2

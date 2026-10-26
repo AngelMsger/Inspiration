@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { LocalBlobStore, loadSettings, MemoryBlobStore } from "../src/index.ts";
 
-const data = new TextEncoder().encode("差旅报销制度 v3");
+const data = new TextEncoder().encode("Reisekosten – travel policy v3");
 
 describe.each([
   ["local", () => new LocalBlobStore(mkdtempSync(join(tmpdir(), "inspiration-blobs-")))],

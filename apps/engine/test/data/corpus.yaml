@@ -1,0 +1,51 @@
+# What ingesting the demo corpus (examples/corpus) finds, in the corpus's own words: document
+# paths, slot keys and values, topic titles and inbox cards. engine.test.ts reads it.
+
+# The forwarded copy is exact; the 2023 edition is near both the policy and its copy:
+# [document, duplicate of, exact].
+duplicates:
+  - [制度库/财务/差旅费管理办法.md, 制度库/人事/转发-差旅费管理办法.md, true]
+  - [归档/差旅费管理办法（2023 版）.md, 制度库/人事/转发-差旅费管理办法.md, false]
+  - [归档/差旅费管理办法（2023 版）.md, 制度库/财务/差旅费管理办法.md, false]
+
+# The planted value conflicts: each slot with its values and how many claims state each.
+conflicts:
+  "hotel_cap_per_night|一线城市": { "600 CNY/night": 7, "650 CNY/night": 3, "500 CNY/night": 1 }
+  meal_allowance_per_day: { "100 CNY/day": 3, "80 CNY/day": 1 }
+  "annual_leave_days|工龄 1 至 10 年": { "5 day": 1, "7 day": 1 }
+  budget_draft_deadline: { "11 月 15 日": 1, "11 月 20 日": 1 }
+
+# The value governance proposes for each of them.
+proposed:
+  "hotel_cap_per_night|一线城市": 650 CNY/night
+  budget_draft_deadline: 11 月 15 日
+  "annual_leave_days|工龄 1 至 10 年": 5 day
+  meal_allowance_per_day: 100 CNY/day
+
+# The outline: [topic title, statements], sorted by title.
+topics:
+  - [2027 年度预算编制说明, 6]
+  - [IT 设备申领说明, 7]
+  - [住宿, 21]
+  - [审批权限, 6]
+  - [差旅费管理办法, 13]
+  - [年休假, 5]
+  - [报销, 8]
+  - [报销相关, 14]
+  - [新人入职指南, 10]
+  - [费用报销管理规定, 6]
+
+# The inbox: [card kind, the titles of its todos].
+cards:
+  - [review, ["annual_leave_days (工龄 1 至 10 年): 5 day or 7 day"]]
+  - [review, ["hotel_cap_per_night (一线城市): 650 CNY/night or 600 CNY/night"]]
+  - [notes, ["budget_draft_deadline: 11 月 20 日 in 2026 年 9 月经营会纪要, 11 月 15 日 holds"]]
+
+# The folder only the finance group may read.
+confidential: 财务/内部/
+
+# An edit to the header of the policy's hotel table.
+edit:
+  path: [制度库, 财务, 差旅费管理办法.md]
+  from: 每晚限额（元） |
+  to: 每晚限额（元，含税） |

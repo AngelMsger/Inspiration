@@ -1,0 +1,13 @@
+# Chinese passages and queries for the keyword index tests (indexes.test.ts). Postgres
+# segments Chinese with jieba and folds traditional characters to simplified ones, so the
+# query for hotel standards (住宿标准) finds the passage written in traditional characters.
+documents:
+  # Article 3, hotel standards: at most 600 yuan a night in tier-1 cities, 450 elsewhere.
+  cap: "第三条 住宿标准：一线城市每晚不超过600元，其他城市每晚不超过450元。"
+  # Article 5, in traditional characters: hotel standards for business trips follow city tiers.
+  trad: "第五條 出差住宿標準按城市等級執行。"
+  # Article 4: hotels above the standard need the department head's approval.
+  approval: "第四条 超标住宿须经部门负责人审批。"
+queries:
+  standards: "住宿标准"
+  hotel: "住宿"

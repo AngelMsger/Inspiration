@@ -16,10 +16,12 @@ stepping on each other. Read them before you change anything.
 
 ```
 packages/<name>/
-  package.json        "@inspiration/<name>"; plugin declarations under "inspiration.plugins"
-  src/index.ts        the public API; its doc comment describes the component's behaviour
-  src/migrations.ts   only if the component owns tables, with migrations/NNNN_<what>.sql
-  test/*.test.ts      Vitest tests; shared fixtures in test/fixtures.ts
+  package.json          "@inspiration/<name>"; plugin declarations under "inspiration.plugins"
+  src/index.ts          the public API; its doc comment describes the component's behaviour
+  src/migrations.ts     only if the component owns tables, with migrations/NNNN_<what>.sql
+  languages/<tag>.yaml  only if it reads or writes words of a language: en.yaml, ja.yaml, zh.yaml
+  test/*.test.ts        Vitest tests; shared fixtures in test/fixtures.ts
+  test/data/            test data in languages other than English, read with testData
 ```
 
 The name is kebab case and says what the component does. It is also the component's event
@@ -118,6 +120,24 @@ producer name, its consumer group and the first part of its model task names.
 - Public behaviour is described in the doc comment of `src/index.ts` or in `docs/`.
 - The change lands through a pull request.
 
+## Languages
+
+The product serves English, Chinese and Japanese users, and more languages later.
+
+- Code, comments, prompts and configuration are in English. `test/languages.test.ts`
+  rejects Han and kana anywhere else than in the places below.
+- The words, punctuation and patterns a component needs to read or write a language are
+  data: a language pack per BCP 47 tag in `languages/` (`loadLanguages` and `languageOf` in
+  the kernel). Supporting a language means adding packs, not code. Every component's packs
+  cover en, ja and zh. Documents have no language tag yet, so reading uses all packs at once
+  and packs must not collide; writing follows the document's tag, else `languageOf`.
+- Tests are in English where the language does not matter. Where it does, the cases live in
+  `test/data/<tag>.yaml` (`testData` from `@inspiration/testkit`), and a test runs over each
+  language with `describe.each`. Sample data in `examples/` may be in any language.
+- Docs are written in English and every doc in `docs/` has a Chinese copy at the same path in
+  `docs/zh/` (a README beside its data as `README.zh.md`). Change both in the same pull
+  request.
+
 ## Style
 
 - TypeScript that Node 22 runs directly by stripping types: import local files with their
@@ -127,4 +147,4 @@ producer name, its consumer group and the first part of its model task names.
   `camelCase`. Biome formats with a line width of 120.
 - Errors are `Error` subclasses with a `name`; unknown names and IDs raise `RangeError`.
 - Comments explain why, not what. Match the density and idiom of the surrounding code.
-- Write user-facing text in plain English; Chinese test data is welcome and expected.
+- Write user-facing text in plain English (see Languages).

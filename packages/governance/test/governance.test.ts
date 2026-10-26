@@ -1,31 +1,69 @@
+import { readFileSync } from "node:fs";
 import { type Claim, type ClaimsUpdated, newEvent } from "@inspiration/contracts";
 import { describe, expect } from "vitest";
-import { VALUE_GROUPS } from "../src/index.ts";
-import { BACKENDS, governanceTest, HOTEL, SPACE, TENANT } from "./fixtures.ts";
+import { RECHECKS, VALUE_GROUPS } from "../src/index.ts";
+import { BACKENDS, governanceTest, HOTEL, SPACE, TENANT, type World } from "./fixtures.ts";
 
-const POLICY = { title: "差旅费管理办法", authority: 0.9, effective_from: "2026-01-01" };
-const GUIDE = { title: "新人入职指南", authority: 0.5 };
+const POLICY = { title: "Travel policy", authority: 0.9, effective_from: "2026-01-01" };
+const GUIDE = { title: "Onboarding guide", authority: 0.5 };
+
+/**
+ * The slot's state as governance stored it before governed statements were counted by day:
+ * no governed_from in its groups, and no recheck for the day a governed statement takes
+ * effect.
+ */
+async function storedBeforeDayCounts(world: World): Promise<void> {
+  const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
+  const legacy = stored.map(({ governed_from: _days, ...g }) => g);
+  await world.records.transaction(async (tx) => {
+    await tx.put(VALUE_GROUPS, legacy as typeof stored);
+    await tx.delete(
+      RECHECKS,
+      (await tx.find(RECHECKS, { tenant_id: TENANT })).map((r) => `${r.tenant_id}\x1f${r.slot}`),
+    );
+  });
+}
+
+/** Two governed documents of equal authority state 600 and 650; the claim IDs, random here, pick the leader. */
+async function tied(world: World): Promise<{ leader: number; other: number }> {
+  await world.state({ title: "Travel policy", authority: 0.9 }, [
+    { text: "The hotel cap is 600 yuan a night.", value: 600 },
+  ]);
+  await world.state({ title: "Travel standard", authority: 0.9 }, [
+    { text: "The hotel cap is 650 yuan a night.", value: 650 },
+  ]);
+  const proposed = (await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value;
+  return proposed === "600 CNY/night" ? { leader: 600, other: 650 } : { leader: 650, other: 600 };
+}
 
 describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
   const test = governanceTest(backend);
 
   describe.skipIf(skip)("governance", () => {
     test("a dated change outranks the policy until it is revised; archived values settle alone", async ({ world }) => {
-      const policy = await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
+      const policy = await world.state(POLICY, [
+        { text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 },
+      ]);
       expect(policy.result.requests).toEqual([]);
       const archive = await world.state(
         {
-          title: "差旅费管理办法（2023 版）",
+          title: "Travel policy (2023 edition)",
           authority: 0.3,
           approval_state: "archived",
           effective_from: "2023-03-01",
         },
-        [{ text: "一线城市住宿限额为每晚 500 元。", value: 500 }],
+        [{ text: "The hotel cap in tier-1 cities is 500 yuan a night.", value: 500 }],
       );
       expect(archive.result).toEqual({ slots: [HOTEL], requests: [], notes: [], withdrawn: [] });
-      await world.state({ title: "常见问题", authority: 0.5 }, [{ text: "北京出差住宿每晚 600 元。", value: 600 }]);
-      const notice = await world.state({ title: "关于调整一线城市住宿标准的通知", authority: 0.5 }, [
-        { text: "自 2026 年 10 月 1 日起，住宿限额由每晚 600 元调整为每晚 650 元。", value: 650, from: "2026-10-01" },
+      await world.state({ title: "FAQ", authority: 0.5 }, [
+        { text: "Trips to Beijing: hotels 600 yuan a night.", value: 600 },
+      ]);
+      const notice = await world.state({ title: "Notice on the tier-1 city hotel standard", authority: 0.5 }, [
+        {
+          text: "From 1 October 2026 the hotel cap rises from 600 to 650 yuan a night.",
+          value: 650,
+          from: "2026-10-01",
+        },
       ]);
 
       const { decision } = await world.governance.slot(TENANT, HOTEL);
@@ -44,14 +82,14 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         {
           kind: "conflict",
           space_id: SPACE,
-          title: "hotel_cap_per_night (一线城市): 650 CNY/night or 600 CNY/night",
+          title: "hotel_cap_per_night (tier-1 city): 650 CNY/night or 600 CNY/night",
           detail: [
-            "- **650 CNY/night**, proposed (changed on 2026-10-01 in 关于调整一线城市住宿标准的通知): 1 statement in 1 document, the most authoritative 关于调整一线城市住宿标准的通知.",
-            "- 600 CNY/night, supersession: 2 statements in 2 documents, the most authoritative 差旅费管理办法. 600 CNY/night (2 documents, the most authoritative 差旅费管理办法) predates the change to 650 CNY/night on 2026-10-01 in 关于调整一线城市住宿标准的通知.",
+            "- **650 CNY/night**, proposed (changed on 2026-10-01 in Notice on the tier-1 city hotel standard): 1 statement in 1 document, the most authoritative Notice on the tier-1 city hotel standard.",
+            "- 600 CNY/night, supersession: 2 statements in 2 documents, the most authoritative Travel policy. 600 CNY/night (2 documents, the most authoritative Travel policy) predates the change to 650 CNY/night on 2026-10-01 in Notice on the tier-1 city hotel standard.",
           ].join("\n"),
           priority: "high",
           unit_ids: [notice.claims[0]?.id, policy.claims[0]?.id],
-          dedupe_key: "governance:conflict:hotel_cap_per_night|一线城市",
+          dedupe_key: "governance:conflict:hotel_cap_per_night|tier-1 city",
           batch_key: "governance:conflict:hotel_cap_per_night",
           slot_key: HOTEL,
         },
@@ -59,12 +97,12 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
     });
 
     test("a document that takes effect later changes the current value only from its day", async ({ world }) => {
-      const current = await world.state({ title: "差旅费管理办法", authority: 0.8, effective_from: "2026-01-01" }, [
-        { text: "一线城市住宿限额为每晚 600 元。", value: 600 },
+      const current = await world.state({ title: "Travel policy", authority: 0.8, effective_from: "2026-01-01" }, [
+        { text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 },
       ]);
       // The new edition's claims take its effective date, as extraction gives them.
-      await world.state({ title: "差旅费管理办法（2027 版）", authority: 0.9, effective_from: "2027-01-01" }, [
-        { text: "一线城市住宿限额为每晚 700 元。", value: 700 },
+      await world.state({ title: "Travel policy (2027 edition)", authority: 0.9, effective_from: "2027-01-01" }, [
+        { text: "The hotel cap in tier-1 cities is 700 yuan a night.", value: 700 },
       ]);
       const { decision } = await world.governance.slot(TENANT, HOTEL);
       expect(decision?.proposed.value).toBe("600 CNY/night");
@@ -85,24 +123,26 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
     });
 
     test("reference documents never outvote or hold up a governed value, and alone ask nobody", async ({ world }) => {
-      const policy = await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
+      const policy = await world.state(POLICY, [
+        { text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 },
+      ]);
       // Trusted and dated later, but a reference document.
-      const blog = await world.state({ title: "差旅攻略", authority: 0.95, level: "reference" }, [
-        { text: "自 2026 年 10 月 1 日起，北京住宿每晚 800 元。", value: 800, from: "2026-10-01" },
+      const blog = await world.state({ title: "Travel tips", authority: 0.95, level: "reference" }, [
+        { text: "From 1 October 2026, hotels in Beijing 800 yuan a night.", value: 800, from: "2026-10-01" },
       ]);
       // Not a todo: a note for the owner, naming the reference document, its date and both values.
       const note = {
         kind: "note",
         space_id: SPACE,
-        title: "hotel_cap_per_night (一线城市): 800 CNY/night in 差旅攻略, 600 CNY/night holds",
+        title: "hotel_cap_per_night (tier-1 city): 800 CNY/night in Travel tips, 600 CNY/night holds",
         detail: [
-          "- **600 CNY/night** holds: 1 statement in 1 document, the most authoritative 差旅费管理办法.",
-          "- 800 CNY/night (from 2026-10-01): 1 statement in 1 document, the most authoritative 差旅攻略. 差旅攻略, a reference document, says 800 CNY/night from 2026-10-01; the governed 600 CNY/night holds until a governed document says so. A note for the owner, not a todo.",
+          "- **600 CNY/night** holds: 1 statement in 1 document, the most authoritative Travel policy.",
+          "- 800 CNY/night (from 2026-10-01): 1 statement in 1 document, the most authoritative Travel tips. Travel tips, a reference document, says 800 CNY/night from 2026-10-01; the governed 600 CNY/night holds until a governed document says so. A note for the owner, not a todo.",
         ].join("\n"),
         priority: "low",
         unit_ids: [policy.claims[0]?.id, blog.claims[0]?.id],
-        dedupe_key: "governance:note:hotel_cap_per_night|一线城市:800 CNY/night",
-        batch_key: "governance:note:hotel_cap_per_night|一线城市",
+        dedupe_key: "governance:note:hotel_cap_per_night|tier-1 city:800 CNY/night",
+        batch_key: "governance:note:hotel_cap_per_night|tier-1 city",
         slot_key: HOTEL,
       };
       expect(blog.result).toEqual({ slots: [HOTEL], requests: [], notes: [note], withdrawn: [] });
@@ -116,18 +156,18 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
           priority: "low",
           confidence: 0.6,
           rationale:
-            "差旅攻略, a reference document, says 800 CNY/night from 2026-10-01; the governed 600 CNY/night holds until a governed document says so. A note for the owner, not a todo.",
+            "Travel tips, a reference document, says 800 CNY/night from 2026-10-01; the governed 600 CNY/night holds until a governed document says so. A note for the owner, not a todo.",
           note: true,
         },
       ]);
 
       // Reference documents alone: decided for readers, with nobody to ask.
-      const NEW_TIER = "hotel_cap_per_night|新一线城市";
-      await world.state({ title: "新人入职指南", authority: 0.5, level: "reference" }, [
-        { text: "成都住宿每晚 450 元。", value: 450, slot: NEW_TIER },
+      const NEW_TIER = "hotel_cap_per_night|new tier-1 city";
+      await world.state({ title: "Onboarding guide", authority: 0.5, level: "reference" }, [
+        { text: "Hotels in Chengdu 450 yuan a night.", value: 450, slot: NEW_TIER },
       ]);
-      const faq = await world.state({ title: "员工问答", authority: 0.4, level: "reference" }, [
-        { text: "成都出差每晚可住 500 元。", value: 500, slot: NEW_TIER },
+      const faq = await world.state({ title: "Staff Q&A", authority: 0.4, level: "reference" }, [
+        { text: "Trips to Chengdu: hotels up to 500 yuan a night.", value: 500, slot: NEW_TIER },
       ]);
       expect(faq.result).toEqual({ slots: [NEW_TIER], requests: [], notes: [], withdrawn: [] });
       const alone = await world.governance.slot(TENANT, NEW_TIER);
@@ -138,12 +178,12 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect(await world.requests()).toEqual([note]);
 
       // A governed notice says it too: the note goes, and the change is the owner's to confirm.
-      const notice = await world.state({ title: "关于调整住宿标准的通知", authority: 0.5 }, [
-        { text: "自 2026 年 10 月 1 日起，北京住宿每晚 800 元。", value: 800, from: "2026-10-01" },
+      const notice = await world.state({ title: "Notice on the hotel standard", authority: 0.5 }, [
+        { text: "From 1 October 2026, hotels in Beijing 800 yuan a night.", value: 800, from: "2026-10-01" },
       ]);
       expect(notice.result).toMatchObject({ notes: [], withdrawn: [{ ...note, withdrawn: true }] });
       expect(notice.result.requests.map((r) => r.title)).toEqual([
-        "hotel_cap_per_night (一线城市): 800 CNY/night or 600 CNY/night",
+        "hotel_cap_per_night (tier-1 city): 800 CNY/night or 600 CNY/night",
       ]);
     });
 
@@ -180,10 +220,14 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
     });
 
     test("a change only a reference document states is named in the case against its value", async ({ world }) => {
-      await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
-      await world.state(GUIDE, [{ text: "去北京出差，住宿每晚 800 元以内。", value: 800 }]);
-      await world.state({ title: "经营会纪要", authority: 0.6, level: "reference" }, [
-        { text: "经讨论决定，自 2026 年 10 月 1 日起，北京住宿每晚 800 元。", value: 800, from: "2026-10-01" },
+      await world.state(POLICY, [{ text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 }]);
+      await world.state(GUIDE, [{ text: "On trips to Beijing, hotels within 800 yuan a night.", value: 800 }]);
+      await world.state({ title: "Management meeting minutes", authority: 0.6, level: "reference" }, [
+        {
+          text: "Decided after discussion: from 1 October 2026, hotels in Beijing 800 yuan a night.",
+          value: 800,
+          from: "2026-10-01",
+        },
       ]);
       const { decision } = await world.governance.slot(TENANT, HOTEL);
       expect(decision?.proposed.value).toBe("600 CNY/night");
@@ -193,24 +237,28 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
           classification: "contradiction",
           status: "open",
           rationale:
-            "600 CNY/night comes from the more authoritative 差旅费管理办法 (0.9); 800 CNY/night from 新人入职指南 (0.5). 经营会纪要, a reference document, says 800 CNY/night from 2026-10-01.",
+            "600 CNY/night comes from the more authoritative Travel policy (0.9); 800 CNY/night from Onboarding guide (0.5). Management meeting minutes, a reference document, says 800 CNY/night from 2026-10-01.",
         },
       ]);
     });
 
     test("a contradiction proposes the more authoritative source and asks once", async ({ world }) => {
-      const policy = await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
-      const guide = await world.state(GUIDE, [{ text: "去北京出差，住宿每晚 700 元以内。", value: 700 }]);
+      const policy = await world.state(POLICY, [
+        { text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 },
+      ]);
+      const guide = await world.state(GUIDE, [
+        { text: "On trips to Beijing, hotels within 700 yuan a night.", value: 700 },
+      ]);
       expect(guide.result.requests).toMatchObject([
-        { title: "hotel_cap_per_night (一线城市): 600 CNY/night or 700 CNY/night", priority: "normal" },
+        { title: "hotel_cap_per_night (tier-1 city): 600 CNY/night or 700 CNY/night", priority: "normal" },
       ]);
       expect(guide.result.requests[0]?.unit_ids).toEqual([policy.claims[0]?.id, guide.claims[0]?.id]);
       const [conflict] = await world.governance.conflicts(TENANT);
       expect(conflict).toMatchObject({ classification: "contradiction", status: "open", batch_key: HOTEL });
 
       // Another document repeating a known value changes counts, not the decision.
-      const again = await world.state({ title: "新人入职指南（第 2 版）", authority: 0.5 }, [
-        { text: "北京住宿每晚 700 元。", value: 700 },
+      const again = await world.state({ title: "Onboarding guide (second edition)", authority: 0.5 }, [
+        { text: "Hotels in Beijing 700 yuan a night.", value: 700 },
       ]);
       expect(again.result).toEqual({ slots: [HOTEL], requests: [], notes: [], withdrawn: [] });
       const groups = (await world.governance.slot(TENANT, HOTEL)).groups;
@@ -227,13 +275,83 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect(await world.requests()).toHaveLength(1);
     });
 
-    test("plans and later dates do not override what is in force", async ({ world }) => {
-      await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
-      await world.state({ title: "2027 年预算方案", authority: 0.5 }, [
-        { text: "计划将一线城市住宿限额提高到每晚 800 元。", value: 800, type: "plan" },
+    test("between equally authoritative statements, the value more governed statements state leads", async ({
+      world,
+    }) => {
+      // The policy states its article and, in passing, another number for the same slot; a
+      // governed copy repeats the article. Claim IDs are random here, so six slots would catch
+      // a tie left to them.
+      const slots = Array.from({ length: 6 }, (_, k) => `hotel_cap_per_night|city ${k + 1}`);
+      await world.state(
+        POLICY,
+        slots.flatMap((slot, k) => [
+          { slot, text: `Article ${k + 1} The hotel cap is 600 yuan a night.`, value: 600 },
+          { slot, text: `Objections to article ${k + 1} are heard within 650 hours.`, value: 650 },
+        ]),
+      );
+      await world.state(
+        { ...POLICY, title: "Travel policy (forwarded)" },
+        slots.map((slot, k) => ({ slot, text: `Article ${k + 1} The hotel cap is 600 yuan a night.`, value: 600 })),
+      );
+      for (const slot of slots) {
+        expect((await world.governance.slot(TENANT, slot)).decision?.proposed.value, slot).toBe("600 CNY/night");
+      }
+    });
+
+    test("a reference document does not break a tie between governed values", async ({ world }) => {
+      const { leader, other } = await tied(world);
+      await world.state({ title: "Travel FAQ", authority: 0.5, level: "reference" }, [
+        { text: `Hotels are capped at ${other} a night.`, value: other },
       ]);
-      await world.state({ title: "关于 2027 年住宿标准的通知", authority: 0.5 }, [
-        { text: "自 2027 年 1 月 1 日起，住宿限额调整为每晚 700 元。", value: 700, from: "2027-01-01" },
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${leader} CNY/night`);
+    });
+
+    test("a governed statement that takes effect later counts toward a tie from its day", async ({ world }) => {
+      const { leader, other } = await tied(world);
+      await world.state({ title: "Travel policy (2027 edition)", authority: 0.5, effective_from: "2027-01-01" }, [
+        { text: `The hotel cap is ${other} yuan a night.`, value: other },
+      ]);
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${leader} CNY/night`);
+      expect((await world.records.find(RECHECKS, { tenant_id: TENANT })).map((r) => [r.slot, r.day])).toEqual([
+        [HOTEL, "2027-01-01"],
+      ]);
+
+      world.setToday("2026-12-31");
+      expect((await world.governance.recheck(TENANT)).slots).toEqual([]);
+      world.setToday("2027-01-01");
+      expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${other} CNY/night`);
+    });
+
+    test("groups stored before the day counts are counted again from their members", async ({ world }) => {
+      const { leader, other } = await tied(world);
+      await world.state({ title: "Travel policy (2027 edition)", authority: 0.5, effective_from: "2027-01-01" }, [
+        { text: `The hotel cap is ${other} yuan a night.`, value: other },
+      ]);
+      await storedBeforeDayCounts(world);
+
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${leader} CNY/night`);
+      // A new statement in the slot stores the groups recounted and schedules the day again.
+      await world.state({ title: "Travel FAQ", authority: 0.5, level: "reference" }, [
+        { text: `Hotels are capped at ${other} a night.`, value: other },
+      ]);
+      expect((await world.records.find(RECHECKS, { tenant_id: TENANT })).map((r) => r.day)).toEqual(["2027-01-01"]);
+      const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
+      expect(stored.find((g) => g.value === `${other} CNY/night`)?.governed_from).toEqual({ "": 1, "2027-01-01": 1 });
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${leader} CNY/night`);
+
+      world.setToday("2027-01-01");
+      expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${other} CNY/night`);
+    });
+
+    test("plans and later dates do not override what is in force", async ({ world }) => {
+      await world.state(POLICY, [{ text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 }]);
+      await world.state({ title: "Budget proposal for 2027", authority: 0.5 }, [
+        { text: "The plan is to raise the tier-1 city hotel cap to 800 yuan a night.", value: 800, type: "plan" },
+      ]);
+      await world.state({ title: "Notice on the 2027 hotel standard", authority: 0.5 }, [
+        { text: "From 1 January 2027 the hotel cap is 700 yuan a night.", value: 700, from: "2027-01-01" },
       ]);
       const { decision } = await world.governance.slot(TENANT, HOTEL);
       expect(decision?.proposed.value).toBe("600 CNY/night");
@@ -260,7 +378,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       ]);
       expect(plan.result.requests).toEqual([]);
       expect(plan.result.notes.map((n) => n.title)).toEqual([
-        "hotel_cap_per_night (一线城市): 800 CNY/night in Budget proposal, 600 CNY/night holds",
+        "hotel_cap_per_night (tier-1 city): 800 CNY/night in Budget proposal, 600 CNY/night holds",
       ]);
       const { decision } = await world.governance.slot(TENANT, HOTEL);
       expect(decision?.proposed.value).toBe("600 CNY/night");
@@ -290,7 +408,9 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       ]);
       // The groups as governance stored them before levels: no governed count or date.
       const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
-      const legacy = stored.map(({ governed: _governed, earliest_governed_from: _from, reference: _ref, ...g }) => g);
+      const legacy = stored.map(
+        ({ governed: _governed, governed_from: _days, earliest_governed_from: _from, reference: _ref, ...g }) => g,
+      );
       await world.records.transaction((tx) => tx.put(VALUE_GROUPS, legacy as typeof stored));
       expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("600 CNY/night");
 
@@ -309,12 +429,12 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
     });
 
     test("a change announced for later is decided again on the day it takes effect", async ({ world }) => {
-      await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
-      const notice = await world.state({ title: "关于调整住宿标准的通知", authority: 0.5 }, [
-        { text: "自 2026 年 12 月 1 日起，住宿限额调整为每晚 650 元。", value: 650, from: "2026-12-01" },
+      await world.state(POLICY, [{ text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 }]);
+      const notice = await world.state({ title: "Notice on the hotel standard", authority: 0.5 }, [
+        { text: "From 1 December 2026 the hotel cap is 650 yuan a night.", value: 650, from: "2026-12-01" },
       ]);
       expect(notice.result.requests.map((r) => [r.title, r.priority])).toEqual([
-        ["hotel_cap_per_night (一线城市): 600 CNY/night or 650 CNY/night", "low"],
+        ["hotel_cap_per_night (tier-1 city): 600 CNY/night or 650 CNY/night", "low"],
       ]);
 
       world.setToday("2026-11-30");
@@ -323,7 +443,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       const due = await world.governance.recheck(TENANT);
       expect(due.slots).toEqual([HOTEL]);
       expect(due.requests.map((r) => [r.title, r.priority])).toEqual([
-        ["hotel_cap_per_night (一线城市): 650 CNY/night or 600 CNY/night", "high"],
+        ["hotel_cap_per_night (tier-1 city): 650 CNY/night or 600 CNY/night", "high"],
       ]);
       expect((await world.governance.conflicts(TENANT, "open")).map((c) => c.classification)).toEqual(["supersession"]);
       expect(await world.governance.recheck(TENANT)).toEqual({ slots: [], requests: [], notes: [], withdrawn: [] });
@@ -333,14 +453,14 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
     test("the latest change in effect wins, even when the same value is announced again for later", async ({
       world,
     }) => {
-      await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
+      await world.state(POLICY, [{ text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 }]);
       const notice = (title: string, value: number, from: string) =>
         world.state({ title, authority: 0.5 }, [
-          { text: `自 ${from} 起，住宿限额调整为每晚 ${value} 元。`, value, from },
+          { text: `From ${from} the hotel cap is ${value} yuan a night.`, value, from },
         ]);
-      await notice("六月通知", 650, "2026-06-01");
-      const august = await notice("八月通知", 700, "2026-08-01");
-      await notice("明年通知", 700, "2027-01-01");
+      await notice("June notice", 650, "2026-06-01");
+      const august = await notice("August notice", 700, "2026-08-01");
+      await notice("Notice for next year", 700, "2027-01-01");
       const { decision } = await world.governance.slot(TENANT, HOTEL);
       expect([decision?.proposed.value, decision?.basis, decision?.change?.claim_id]).toEqual([
         "700 CNY/night",
@@ -354,8 +474,10 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
     });
 
     test("a conflict whose statements go away settles, and asks again when it comes back", async ({ world }) => {
-      await world.state(POLICY, [{ text: "一线城市住宿限额为每晚 600 元。", value: 600 }]);
-      const guide = await world.state(GUIDE, [{ text: "去北京出差，住宿每晚 700 元以内。", value: 700 }]);
+      await world.state(POLICY, [{ text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 }]);
+      const guide = await world.state(GUIDE, [
+        { text: "On trips to Beijing, hotels within 700 yuan a night.", value: 700 },
+      ]);
       expect(guide.result.requests).toHaveLength(1);
 
       const closed = await world.close(guide.claims);
@@ -368,8 +490,8 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       const { groups, decision } = await world.governance.slot(TENANT, HOTEL);
       expect([groups.map((g) => g.value), decision]).toEqual([["600 CNY/night"], undefined]);
 
-      const back = await world.state({ title: "新人入职指南（修订）", authority: 0.5 }, [
-        { text: "北京住宿每晚 700 元。", value: 700 },
+      const back = await world.state({ title: "Onboarding guide (revised)", authority: 0.5 }, [
+        { text: "Hotels in Beijing 700 yuan a night.", value: 700 },
       ]);
       expect(back.result.requests).toHaveLength(1);
       expect(await world.governance.conflicts(TENANT, "open")).toHaveLength(1);
@@ -379,5 +501,25 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         ["conflict", false],
       ]);
     });
+  });
+});
+
+// Migrations run only on Postgres; the memory store holds nothing from before them.
+describe.skipIf(BACKENDS[1]?.skip)("postgres backend", () => {
+  const test = governanceTest("postgres");
+
+  test("the migration rechecks slots whose groups were stored before the day counts", async ({ world }) => {
+    const { leader, other } = await tied(world);
+    await world.state({ title: "Travel policy (2027 edition)", authority: 0.5, effective_from: "2027-01-01" }, [
+      { text: `The hotel cap is ${other} yuan a night.`, value: other },
+    ]);
+    await storedBeforeDayCounts(world);
+
+    await world.sql?.(readFileSync(new URL("../migrations/0003_recount_groups.sql", import.meta.url), "utf8"));
+    expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
+    expect((await world.records.find(RECHECKS, { tenant_id: TENANT })).map((r) => r.day)).toEqual(["2027-01-01"]);
+    const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
+    expect(stored.every((g) => g.governed_from)).toBe(true);
+    expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${leader} CNY/night`);
   });
 });

@@ -43,11 +43,17 @@ its web app and agents all use the same surface.
 
 Shared libraries sit under all of them: **contracts** (types, validators, the event
 catalogue, component interfaces), **kernel** (settings, logging, plugins, migrations, blob
-store, database pools), **eventbus** (outbox, relay, consumers) and **testkit** (fixtures
-for the compose stack).
+store, database pools, language packs), **eventbus** (outbox, relay, consumers) and
+**testkit** (fixtures for the compose stack, test data).
 
 Everything is TypeScript on Node 22 except **parsing**, a Python worker for the heavy
 document parsers (Office, PDF, scans), which normalization calls over an HTTP contract.
+
+The engine reads and writes English, Chinese and Japanese. What a component knows about a
+language (cue words, punctuation, how dates and numbering are written, the words its model
+stand-ins write) is data: a language pack per tag in its `languages/` directory, so a new
+language takes new packs, not new code. Until documents carry a language tag, a component
+reads every text with all its packs and writes in the language the text looks to be in.
 
 ## How components talk
 

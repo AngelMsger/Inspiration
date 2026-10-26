@@ -123,10 +123,10 @@ function visible(c: Chunk, filter: IndexFilter): boolean {
   );
 }
 
-const WORD = /[0-9a-z]+|[㐀-鿿]/g;
-const CJK = /^[㐀-鿿]$/;
+const WORD = /[0-9a-z]+|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/gu;
+const CJK = /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]$/u;
 
-/** Latin words plus CJK unigrams and bigrams: a crude stand-in for jieba. */
+/** Latin words plus unigrams and bigrams of Han and kana characters: a crude stand-in for jieba. */
 export function terms(text: string): string[] {
   const tokens = text.toLowerCase().match(WORD) ?? [];
   const cjk = tokens.filter((t) => CJK.test(t));

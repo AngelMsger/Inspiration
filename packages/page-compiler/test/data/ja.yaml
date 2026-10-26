@@ -1,0 +1,17 @@
+# Japanese cases for the naming mock (mock.test.ts). See zh.yaml for the fields. Several of
+# these titles are kanji only, which reads as Chinese: the request's language decides.
+
+headings:
+  topics:
+    - { level: 2, headings: [[第3章 宿泊費, 3], [交通費, 1]], documents: [出張旅費規程] }
+    - { level: 2, headings: [[宿泊費, 1], [東京23区の宿泊基準, 1]], documents: [規程, 通知] }
+    - { level: 2, headings: [[付録, 1], [その他, 1]], documents: [新入社員ガイド（2026年版）] }
+  titles: [宿泊費, 宿泊, 新入社員ガイド]
+
+areas:
+  topics:
+    - { level: 1, headings: [], documents: [出張旅費規程], topics: [出張宿泊, 出張手当] }
+    - { level: 1, headings: [], documents: [経費精算規程], topics: [精算, 精算期限] }
+    - { level: 2, headings: [[総則, 4]], documents: [購買管理規程], topics: [管理規程, 購買承認管理規程] }
+    - { level: 1, headings: [], documents: [人事部手続きガイド], topics: [相見積もり, 勤怠] }
+  titles: [出張, 精算関連, 管理規程関連, 人事部手続きガイド]

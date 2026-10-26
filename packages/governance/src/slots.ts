@@ -2,7 +2,7 @@
  * Fact slots and their values, and the deterministic tier of conflict detection: the pure
  * part of governance.
  *
- * A slot is a predicate with its qualifiers ("hotel_cap_per_night|一线城市"); every current
+ * A slot is a predicate with its qualifiers ("hotel_cap_per_night|tier-1 city"); every current
  * claim with a slot and a value is a member of the slot's group for that value. A group
  * keeps counts and representatives, so a slot with a thousand statements is still a
  * handful of rows: its most authoritative member, and the best member for each day on which
@@ -16,7 +16,8 @@
  *   whether as a fact or a plan, is a note against it, settled without a person, and a change
  *   a reference document states moves nothing. The case names that change, so the owner
  *   learns of it.
- * - The leader is the in-force group whose best member is the most authoritative.
+ * - The leader is the in-force group whose best member is the most authoritative; between
+ *   equally authoritative ones, the value more governed statements in effect today state.
  * - A change beats the leader when it took effect after the leader's own date, the later of
  *   its document's effective date and any change it states, and no later than today: a
  *   notice that the cap is 650 from October outranks the policy that says 600 from January
@@ -68,6 +69,11 @@ export interface ValueGroup {
   live: number;
   /** Live members from governed documents. */
   governed: number;
+  /**
+   * The same members by the day they take effect; "" for those in effect from the start.
+   * Groups stored before it was kept are counted again from their members (storedGroups).
+   */
+  governed_from?: Record<string, number>;
   archived: number;
   plans: number;
   /** Members from reference documents, live or not. */
@@ -114,26 +120,35 @@ export const MAX_CHANGES = 32;
 const isLive = (m: Member) => !m.archived && m.claim_type !== "plan";
 const isGoverned = (m: Member) => isLive(m) && !m.reference;
 
+/** How a ranks against b, by everything but their IDs: positive when a ranks above b, 0 on a tie. */
+function rank(a: Member, b: Member): number {
+  if (isLive(a) !== isLive(b)) return isLive(a) ? 1 : -1;
+  if (isGoverned(a) !== isGoverned(b)) return isGoverned(a) ? 1 : -1;
+  if (a.authority !== b.authority) return a.authority > b.authority ? 1 : -1;
+  if (a.weight !== b.weight) return a.weight > b.weight ? 1 : -1;
+  return 0;
+}
+
 /** True when a ranks above b as the representative of a group. */
 function outranks(a: Member, b: Member): boolean {
-  if (isLive(a) !== isLive(b)) return isLive(a);
-  if (isGoverned(a) !== isGoverned(b)) return isGoverned(a);
-  if (a.authority !== b.authority) return a.authority > b.authority;
-  if (a.weight !== b.weight) return a.weight > b.weight;
-  return a.claim_id < b.claim_id;
+  const r = rank(a, b);
+  return r ? r > 0 : a.claim_id < b.claim_id;
 }
 
 /**
- * A group as it is counted now. Groups stored before governance levels have no governed
- * count or date; every member was governed then, so those are its live ones.
+ * True when group a leads b: its best member outranks b's, or the two tie and more governed
+ * statements in effect today state a's value. Without the count a tie would fall to the
+ * claim IDs, and a side remark in a policy ("objections within 5 working days") could
+ * outrank the article the policy and its copies state. Reference documents and statements
+ * that take effect later are not counted: a FAQ, or next year's policy, would decide today's
+ * value.
  */
-export function upgraded(g: ValueGroup): ValueGroup {
-  if (g.governed !== undefined) return g;
-  return {
-    ...g,
-    governed: g.live,
-    ...(g.earliest_live_from !== undefined && { earliest_governed_from: g.earliest_live_from }),
-  };
+function leads(a: ValueGroup, b: ValueGroup, today: string): boolean {
+  const r = rank(a.best, b.best);
+  if (r) return r > 0;
+  const [x, y] = [governedAsOf(a, today), governedAsOf(b, today)];
+  if (x !== y) return x > y;
+  return a.best.claim_id < b.best.claim_id;
 }
 
 /** The group with one more member. */
@@ -147,6 +162,7 @@ export function withMember(group: ValueGroup | undefined, m: Member): ValueGroup
         count: 0,
         live: 0,
         governed: 0,
+        governed_from: {},
         archived: 0,
         plans: 0,
         versions: [],
@@ -165,6 +181,7 @@ export function withMember(group: ValueGroup | undefined, m: Member): ValueGroup
     if (g.earliest_live_from === undefined || from < g.earliest_live_from) g.earliest_live_from = from;
     if (isGoverned(m)) {
       g.governed++;
+      g.governed_from = { ...g.governed_from, [from]: (g.governed_from?.[from] ?? 0) + 1 };
       if (g.earliest_governed_from === undefined || from < g.earliest_governed_from) g.earliest_governed_from = from;
     }
     if (m.stated_from) {
@@ -186,11 +203,14 @@ export function changeAsOf(g: ValueGroup, today: string, governed = false): Memb
   return g.changes.filter((c) => (c.stated_from as string) <= today && (!governed || !c.reference)).at(-1);
 }
 
-/** The first day after today on which a group comes into force or a change it holds takes effect. */
+/**
+ * The first day after today on which a group comes into force, a change it holds takes
+ * effect, or one of its governed statements does and counts for it.
+ */
 export function nextChangeDay(groups: readonly ValueGroup[], today: string): string | undefined {
   let next: string | undefined;
   for (const g of groups) {
-    const starts = [g.earliest_live_from ?? "", g.earliest_governed_from ?? ""];
+    const starts = [g.earliest_live_from ?? "", g.earliest_governed_from ?? "", ...Object.keys(g.governed_from ?? {})];
     for (const day of [...starts, ...g.changes.map((c) => c.stated_from as string)]) {
       if (day > today && (next === undefined || day < next)) next = day;
     }
@@ -207,6 +227,13 @@ export function groupsOf(members: readonly Member[]): ValueGroup[] {
 
 /** Live members from governed documents. */
 export const governedIn = (g: ValueGroup) => g.governed;
+
+/** Live members from governed documents that are in effect by today. */
+export function governedAsOf(g: ValueGroup, today: string): number {
+  let n = 0;
+  for (const [day, count] of Object.entries(g.governed_from ?? {})) if (day <= today) n += count;
+  return n;
+}
 
 /** The first day the group's value holds; in a governed slot, by its governed members alone. */
 const startOf = (g: ValueGroup, governed: boolean) => (governed ? g.earliest_governed_from : g.earliest_live_from);
@@ -243,7 +270,7 @@ export function decide(groups: readonly ValueGroup[], today: string): SlotDecisi
   const governedSlot = groups.some((g) => governedIn(g) > 0);
   const current = groups.filter((g) => inForce(g, today, governedSlot));
   const pool = current.length ? current : groups;
-  const leader = pool.reduce((a, b) => (outranks(b.best, a.best) ? b : a));
+  const leader = pool.reduce((a, b) => (leads(b, a, today) ? b : a));
   const baseline = since(leader, today, governedSlot);
   // The latest change in effect after the leader's own date; on a tie, the better source.
   let changed: { group: ValueGroup; change: Member } | undefined;

@@ -123,7 +123,7 @@ export const inboxTest = (backend: Backend, settings: Partial<InboxSettings> = {
       const data: TodoRequested = {
         kind: "conflict",
         space_id: SPACE,
-        title: "hotel_cap_per_night (一线城市): 650 CNY/night or 600 CNY/night",
+        title: "hotel_cap_per_night (tier-1 city): 650 CNY/night or 600 CNY/night",
         priority: "normal",
         dedupe_key: `governance:conflict:${r.unit_ids.join(",")}`,
         ...r,
@@ -137,7 +137,7 @@ export const inboxTest = (backend: Backend, settings: Partial<InboxSettings> = {
         kind: "ttl",
         due_at: now.toISOString(),
         space_id: SPACE,
-        reason: "差旅费管理办法 last changed on 2025-10-01; documents with policy claims are reviewed every 365 days.",
+        reason: "Travel policy last changed on 2025-10-01; documents with policy claims are reviewed every 365 days.",
         dedupe_key: `freshness:ttl:${r.unit_ids.join(",")}`,
         ...r,
         unit_ids: r.unit_ids as [string, ...string[]],

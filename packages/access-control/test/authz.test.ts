@@ -149,7 +149,7 @@ class World {
     const out: Record<string, string> = {};
     const spans: Record<string, Parameters<Sample["claim"]>[1]> = {};
     for (const ext of ["doc-managers", "doc-all", "doc-company"]) {
-      const [sv, [span]] = kb.sourceVersion([`${ext}: 住宿标准每晚600元。`], { external_id: ext });
+      const [sv, [span]] = kb.sourceVersion([`${ext}: hotels at most 600 yuan a night.`], { external_id: ext });
       spans[ext] = span;
       out[`sv:${ext}`] = sv.id;
       await store.transaction((tx) => tx.putSourceVersion(sv, [span]));
@@ -302,15 +302,17 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
   describe.skipIf(skip)("contradicting evidence", () => {
     test("only supporting evidence makes a claim readable", async ({ w }) => {
       const { kb, store } = w;
-      const [managers, [secret]] = kb.sourceVersion(["差旅：一线城市住宿每晚不超过600元。"], {
+      const [managers, [secret]] = kb.sourceVersion(["Travel: hotels in tier-1 cities at most 600 yuan a night."], {
         external_id: "doc-managers",
       });
-      const [all, [open]] = kb.sourceVersion(["差旅：一线城市住宿每晚不超过650元。"], { external_id: "doc-all" });
+      const [all, [open]] = kb.sourceVersion(["Travel: hotels in tier-1 cities at most 650 yuan a night."], {
+        external_id: "doc-all",
+      });
       await store.transaction(async (tx) => {
         await tx.putSourceVersion(managers, [secret]);
         await tx.putSourceVersion(all, [open]);
       });
-      const [claim, evidence] = kb.claim("一线城市住宿上限为每晚600元", secret);
+      const [claim, evidence] = kb.claim("The tier-1 city hotel cap is 600 yuan a night", secret);
       await store.transaction((tx) => tx.upsertClaims([claim], evidence));
       const before = await w.authz.canReadDerived(w.who("carol"), claim.id);
       expect(before).toEqual({ allow: false, readable_support: [] });
@@ -334,7 +336,7 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
       });
 
       // A claim derived from it inherits only its support.
-      const [derived] = kb.claim("一线城市住宿有上限");
+      const [derived] = kb.claim("Tier-1 city hotels have a cap");
       await store.transaction((tx) =>
         tx.upsertClaims([derived], [], [{ claim_id: derived.id, from_claim_ids: [claim.id], method: "infer" }]),
       );
@@ -474,7 +476,7 @@ unitTest("ACL tokens for open documents", () => {
 
 unitTest("document IDs are valid SpiceDB IDs", () => {
   expect(documentObjectId("src_1", "folder/doc-1")).toBe("src_1|folder/doc-1");
-  const odd = documentObjectId("src_1", "报告 2026.docx");
+  const odd = documentObjectId("src_1", "Bericht März 2026.docx");
   expect(odd).toMatch(/^src_1\|=[A-Za-z0-9_-]+$/);
   expect(documentObjectId("src_1", "=x")).not.toBe("src_1|=x");
 });

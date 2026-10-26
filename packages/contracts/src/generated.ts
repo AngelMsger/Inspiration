@@ -1280,7 +1280,7 @@ export interface Claim {
    */
   qualifiers?: string[];
   /**
-   * The fact slot the claim fills when it states a single-valued fact: its subject entity when resolved, its predicate and its qualifiers, normalized ("hotel_cap_per_night|一线城市"). Claims with one slot key state the same fact; their values are the slot's variants and versions (FactSlot).
+   * The fact slot the claim fills when it states a single-valued fact: its subject entity when resolved, its predicate and its qualifiers, normalized ("hotel_cap_per_night|tier-1 city"). Claims with one slot key state the same fact; their values are the slot's variants and versions (FactSlot).
    *
    */
   slot_key?: string;
@@ -1305,7 +1305,7 @@ export interface Claim {
   updated_at?: Instant;
 }
 /**
- * A normalized value for single-valued predicates, so that tier-1 conflict detection can compare values in SQL (600 yuan vs 0.06 万元, 5% vs 0.05).
+ * A normalized value for single-valued predicates, so that tier-1 conflict detection can compare values in SQL (600 yuan vs 0.06 ten-thousand yuan, 5% vs 0.05).
  *
  */
 export interface ClaimValue {
@@ -2105,7 +2105,7 @@ export interface ParseResult {
   warnings?: string[];
 }
 /**
- * Where a statement sits in the knowledge outline: its topic, and the page block that cites it when a page does. A claim has at most one. A current claim of a governed document without one is unfiled (未归类) and shows under its source section.
+ * Where a statement sits in the knowledge outline: its topic, and the page block that cites it when a page does. A claim has at most one. A current claim of a governed document without one is unfiled and shows under its source section.
  *
  */
 export interface Placement {

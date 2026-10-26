@@ -235,14 +235,14 @@ export const topicsTest = (backend: Backend, cluster: Partial<ClusterOptions> = 
 /** Sentences about a subject that share its words, as sections about one thing do. */
 export function about(subject: string, n: number, offset = 0): string[] {
   const say = [
-    `${subject}按公司规定执行。`,
-    `${subject}由部门负责人审批。`,
-    `${subject}的标准每年复核一次。`,
-    `${subject}相关问题请咨询人事部。`,
-    `${subject}的申请须在系统中提交。`,
-    `${subject}记录保存三年。`,
+    `${subject} follows the company rules.`,
+    `${subject} is approved by the head of the department.`,
+    `${subject} standards are reviewed once a year.`,
+    `Questions on ${subject.toLowerCase()} go to HR.`,
+    `${subject} requests are filed in the system.`,
+    `${subject} records are kept for three years.`,
   ];
   return Array.from({ length: n }, (_, i) => say[(i + offset) % say.length] as string).map(
-    (s, i) => `${s.slice(0, -1)}（第${offset + i + 1}条）。`,
+    (s, i) => `${s.slice(0, -1)} (article ${offset + i + 1}).`,
   );
 }

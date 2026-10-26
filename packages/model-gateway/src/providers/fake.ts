@@ -5,8 +5,8 @@
  * sets `options.mocks: true`, the model_mocks plugin named after the task, otherwise a
  * minimal JSON value that satisfies the response schema, otherwise a fixed text derived
  * from the prompt. Mocks are opt-in so a test of the gateway itself sees the plain fake.
- * embed: hashed character n-grams, so texts that share words get similar vectors and
- * retrieval tests behave sensibly. rerank: n-gram overlap. ocr: the image bytes as text.
+ * embed: hashed words and character n-grams (ngrams), so texts that share words get similar
+ * vectors and retrieval tests behave sensibly. rerank: their overlap. ocr: the image bytes as text.
  */
 
 import { createHash } from "node:crypto";
@@ -35,19 +35,28 @@ export type MockResponder = (
   options: { task: string; responseSchema?: Record<string, unknown> },
 ) => string | Promise<string>;
 
-const CJK = /[一-鿿]/g;
+const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/gu;
 
-/** Rough count: CJK characters are about one token each, other text about four characters. */
+/** Rough count: Han and kana characters are about one token each, other text about four characters. */
 export function estimateTokens(text: string): number {
   const cjk = text.match(CJK)?.length ?? 0;
   const rest = [...text].length - cjk;
   return cjk + Math.max(Math.floor(rest / 4), text ? 1 : 0);
 }
 
-/** Character unigrams and bigrams of the text without whitespace, lower-cased. */
+/** Runs of letters of scripts that separate words with spaces: not Han or kana. */
+const WORD = /(?:(?![\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}])\p{L})+/gu;
+
+/**
+ * The features of a text, lower-cased: its words in scripts that separate them ("hotel"),
+ * then character unigrams and bigrams of the rest without whitespace (Han, kana, digits and
+ * punctuation), since Chinese and Japanese words are a character or two. Letter pairs alone
+ * would make every English text look alike.
+ */
 export function ngrams(text: string): string[] {
-  const chars = [...text.toLowerCase().replace(/\s/g, "")];
-  const out: string[] = [];
+  const lower = text.toLowerCase();
+  const out: string[] = lower.match(WORD) ?? [];
+  const chars = [...lower.replace(WORD, "").replace(/\s/g, "")];
   for (const n of [1, 2]) for (let i = 0; i + n <= chars.length; i++) out.push(chars.slice(i, i + n).join(""));
   return out;
 }

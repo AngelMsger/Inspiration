@@ -31,7 +31,7 @@ export interface PredicateEntry {
     /** Canonical unit, for example "CNY/night" or "day". */
     unit?: string;
     currency?: string;
-    /** Unit words that follow a number in documents, for example ["元"] or ["天", "日"]. */
+    /** Unit words that follow a number in documents, for example ["yuan"] or ["days", "day"]. */
     words?: string[];
     /** The known values of an enum, as written. */
     values?: string[];
@@ -88,6 +88,12 @@ const SCHEMA = {
     },
   },
 };
+
+/** The words a text names, in any case: a catalogue writes "hotel" and a document "Hotels". */
+export function mentioned(text: string, words: readonly string[]): string[] {
+  const folded = text.toLowerCase();
+  return words.filter((w) => folded.includes(w.toLowerCase()));
+}
 
 export function parseVocabulary(value: unknown): Vocabulary {
   const errors = schemaErrors(SCHEMA, value);

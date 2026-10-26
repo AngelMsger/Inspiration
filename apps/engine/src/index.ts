@@ -33,7 +33,6 @@ export {
   type EditOptions,
   type Edits,
   edit,
-  FACTS,
   type Stated,
   type Synthesis,
   type SynthesisOptions,

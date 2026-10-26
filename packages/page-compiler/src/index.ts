@@ -10,7 +10,7 @@
  *   embedding plus its text's (the heading path and the first EMBED_CHARS characters),
  *   normalized, through the model gateway with the document's sensitivity and the budget
  *   key tenant:<id>/page-compiler. A new or changed one joins the nearest topic at `join`
- *   similarity or more, or stays unfiled (未归类) until the next re-clustering.
+ *   similarity or more, or stays unfiled until the next re-clustering.
  * - A statement with a fact slot goes to the topic most of the slot's statements are in,
  *   from any section of the space. Statements of reference documents are placed only that
  *   way, and those of archived and search-only documents not at all.

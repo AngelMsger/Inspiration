@@ -1,0 +1,21 @@
+# What the extraction.extract_claims stand-in (src/mock.ts) looks for in Japanese text, and how
+# it writes the statements it builds. See zh.yaml for the fields. Cue words keep their kana,
+# so that they never match Chinese text, which every pack reads too.
+
+normative: [しなければならない, してはならない, ものとする, を超えない, 以内とする, 以下とする, 以上とする, を得ること, を負う, 原則として, に限る]
+definition: [とは, をいう]
+plan: [予定, 見込み, する計画]
+decision: [決定した, 決定された, 合意した, 承認された]
+change: [に変更, に延期, に繰り上げ, に延長, に短縮, に改定]
+question_marks: ["？", "?"]
+sentence_ends: ["。", "！"]
+clause_marks: ["、", "，"]
+effective:
+  - '(?<year>\d{4})\s*年\s*(?<month>\d{1,2})\s*月\s*(?<day>\d{1,2})\s*日\s*(?:から|より)'
+  - '(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})\s*(?:から|より)'
+days:
+  - '(?:(?<year>\d{4})\s*年\s*)?(?<month>\d{1,2})\s*月\s*(?<day>\d{1,2})\s*日'
+
+label_mark: "："
+list_mark: "、"
+full_stop: "。"

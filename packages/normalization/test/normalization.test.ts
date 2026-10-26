@@ -6,28 +6,28 @@ import { describe, expect, test } from "vitest";
 import { Normalization } from "../src/index.ts";
 import { BACKENDS, NO_MODELS, normalizationTest, SOURCE, TENANT } from "./fixtures.ts";
 
-const POLICY = `# 差旅费管理办法
+const POLICY = `# Travel policy
 
-## 第一章 总则
+## Chapter 1 General provisions
 
-第一条 为规范公司差旅费管理，制定本办法。第二条 本办法适用于全体员工。
+Article 1 This policy governs the company's travel expenses. Article 2 This policy applies to all staff.
 
-## 第二章 住宿标准
+## Chapter 2 Hotel standards
 
-第三条 一线城市住宿标准为每晚 600 元。
+Article 3 The hotel standard in tier-1 cities is 600 yuan a night.
 
-| 城市 | 标准 |
+| City | Standard |
 | --- | --- |
-| 北京 | 600 |
-| 成都 | 450 |
+| Beijing | 600 |
+| Chengdu | 450 |
 `;
 
 const ARTICLES = [
-  "第四条 出差人员应优先乘坐公共交通工具，确需乘坐出租车的，凭票据据实报销。",
-  "第五条 乘坐飞机须经部门负责人批准，一般乘坐经济舱。",
-  "第六条 乘坐火车的，高级管理人员可乘坐一等座，其他人员乘坐二等座。",
-  "第七条 自驾出差的，按每公里 1.2 元的标准给予补贴，不再报销过路费以外的其他费用。",
-  "第八条 出差结束后十个工作日内，应在费控系统中提交报销申请并附上全部原始票据。",
+  "Article 4 Travellers take public transport where they can; a taxi that is really needed is refunded against its receipt.",
+  "Article 5 Flights need the department head's approval and are normally in economy class.",
+  "Article 6 On trains, senior managers may travel first class and everyone else second class.",
+  "Article 7 Trips by one's own car are paid 1.2 yuan a kilometre, and nothing beyond tolls is refunded.",
+  "Article 8 Within ten working days after a trip, file the claim in the expense system with every original receipt.",
 ].join("\n\n");
 
 const blocksChanged = (events: EventEnvelope[]) =>
@@ -37,7 +37,7 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
   const it = normalizationTest(backend);
 
   it.skipIf(skip)("a first version gets its blocks, spans and one blocks.changed", async ({ world }) => {
-    const v1 = await world.ingest({ external_id: "制度/差旅.md", text: POLICY });
+    const v1 = await world.ingest({ external_id: "policies/travel.md", text: POLICY });
     const result = await world.normalization.normalize(v1.id);
     expect(result.status).toBe("parsed");
 
@@ -55,9 +55,9 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
     ]);
     const spans = await world.store.spansOf(v1.id);
     expect(spans.map((s) => s.text).slice(0, 3)).toEqual([
-      "第一条 为规范公司差旅费管理，制定本办法。",
-      "第二条 本办法适用于全体员工。",
-      "第三条 一线城市住宿标准为每晚 600 元。",
+      "Article 1 This policy governs the company's travel expenses.",
+      "Article 2 This policy applies to all staff.",
+      "Article 3 The hotel standard in tier-1 cities is 600 yuan a night.",
     ]);
     const [changed, ...more] = blocksChanged(await world.events());
     expect(more).toEqual([]);
@@ -75,13 +75,13 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
   });
 
   it.skipIf(skip)("blocks.changed carries on the correlation of the document.fetched it answers", async ({ world }) => {
-    const v1 = await world.ingest({ external_id: "差旅.md", text: POLICY });
+    const v1 = await world.ingest({ external_id: "travel.md", text: POLICY });
     const fetched = newEvent(
       "document.fetched",
       {
         source_id: SOURCE,
         source_version_id: v1.id,
-        external_id: "差旅.md",
+        external_id: "travel.md",
         changed: { content: true, metadata: true, acl: true },
         deleted: false,
       },
@@ -93,13 +93,16 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
   });
 
   it.skipIf(skip)("an edit changes one block and one span; the rest keep their IDs", async ({ world }) => {
-    const v1 = await world.ingest({ external_id: "差旅.md", text: POLICY });
+    const v1 = await world.ingest({ external_id: "travel.md", text: POLICY });
     await world.normalization.normalize(v1.id);
-    const v2 = await world.ingest({ external_id: "差旅.md", text: POLICY.replace("每晚 600 元", "每晚 650 元") });
+    const v2 = await world.ingest({
+      external_id: "travel.md",
+      text: POLICY.replace("600 yuan a night", "650 yuan a night"),
+    });
     const { diff } = await world.normalization.normalize(v2.id);
     const before = await world.store.blocksOf(v1.id);
     const after = await world.store.blocksOf(v2.id);
-    const edited = before.find((b) => b.text.startsWith("第三条")) as (typeof before)[number];
+    const edited = before.find((b) => b.text.startsWith("Article 3")) as (typeof before)[number];
     expect(diff).toMatchObject({
       previous_version_id: v1.id,
       added_block_ids: [],
@@ -119,24 +122,24 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
   it.skipIf(skip)(
     "a renamed heading changes the blocks under it, which keep their IDs and spans",
     async ({ world }) => {
-      const v1 = await world.ingest({ external_id: "差旅.md", text: POLICY });
+      const v1 = await world.ingest({ external_id: "travel.md", text: POLICY });
       await world.normalization.normalize(v1.id);
       const v2 = await world.ingest({
-        external_id: "差旅.md",
-        text: POLICY.replace("第二章 住宿标准", "第二章 出差补贴"),
+        external_id: "travel.md",
+        text: POLICY.replace("Chapter 2 Hotel standards", "Chapter 2 Travel allowances"),
       });
       const { diff } = await world.normalization.normalize(v2.id);
       const before = await world.store.blocksOf(v1.id);
       const after = await world.store.blocksOf(v2.id);
       // The paragraph and the table under the heading keep their IDs and are changed. A parsed
       // heading with other text is another block.
-      const under = after.filter((b) => b.heading_path?.includes("第二章 出差补贴"));
+      const under = after.filter((b) => b.heading_path?.includes("Chapter 2 Travel allowances"));
       expect(under.map((b) => b.kind)).toEqual(["paragraph", "table", "table_row", "table_row", "table_row"]);
       const known = new Set(before.map((b) => b.id));
       expect(under.every((b) => known.has(b.id))).toBe(true);
-      const heading = after.find((b) => b.text === "第二章 出差补贴")?.id;
+      const heading = after.find((b) => b.text === "Chapter 2 Travel allowances")?.id;
       expect(diff?.added_block_ids).toEqual([heading]);
-      expect(diff?.removed_block_ids).toEqual([before.find((b) => b.text === "第二章 住宿标准")?.id]);
+      expect(diff?.removed_block_ids).toEqual([before.find((b) => b.text === "Chapter 2 Hotel standards")?.id]);
       expect(diff?.changed_block_ids.sort()).toEqual(under.map((b) => b.id).sort());
       expect(diff?.unchanged_block_count).toBe(3);
       expect(diff?.added_span_ids).toEqual([]);
@@ -145,9 +148,9 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
   );
 
   it.skipIf(skip)("a metadata-only version reuses the blocks without parsing", async ({ world }) => {
-    const v1 = await world.ingest({ external_id: "差旅.md", text: POLICY });
+    const v1 = await world.ingest({ external_id: "travel.md", text: POLICY });
     await world.normalization.normalize(v1.id);
-    const v2 = await world.ingest({ external_id: "差旅.md", text: POLICY, metadata: "approved" });
+    const v2 = await world.ingest({ external_id: "travel.md", text: POLICY, metadata: "approved" });
     const result = await world.normalization.normalize(v2.id);
     expect(result.status).toBe("unchanged");
     expect(result.diff).toMatchObject({ added_block_ids: [], changed_block_ids: [], unchanged_block_count: 9 });
@@ -157,9 +160,9 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
   });
 
   it.skipIf(skip)("a tombstone removes every block", async ({ world }) => {
-    const v1 = await world.ingest({ external_id: "差旅.md", text: POLICY });
+    const v1 = await world.ingest({ external_id: "travel.md", text: POLICY });
     await world.normalization.normalize(v1.id);
-    const gone = await world.ingest({ external_id: "差旅.md" }, { deleted: true });
+    const gone = await world.ingest({ external_id: "travel.md" }, { deleted: true });
     const { diff } = await world.normalization.normalize(gone.id);
     expect(diff?.deleted).toBe(true);
     expect(diff?.removed_block_ids).toHaveLength(9);
@@ -168,22 +171,25 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
   });
 
   it.skipIf(skip)("copies of a document are reported as duplicates", async ({ world }) => {
-    const policy = `${POLICY}\n## 第三章 交通\n\n${ARTICLES}`;
-    const a = await world.ingest({ external_id: "制度/差旅.md", text: policy });
+    const policy = `${POLICY}\n## Chapter 3 Transport\n\n${ARTICLES}`;
+    const a = await world.ingest({ external_id: "policies/travel.md", text: policy });
     await world.normalization.normalize(a.id);
-    const copy = await world.ingest({ external_id: "归档/差旅（副本）.txt", text: policy.replaceAll("#", "") });
+    const copy = await world.ingest({ external_id: "archive/travel (copy).txt", text: policy.replaceAll("#", "") });
     const near = await world.ingest({
-      external_id: "归档/差旅-旧版.md",
-      text: policy.replace("每晚 600 元", "每晚 550 元").replace("全体员工", "全体正式员工"),
+      external_id: "archive/travel-old.md",
+      text: policy.replace("600 yuan a night", "550 yuan a night").replace("all staff", "all permanent staff"),
     });
-    const other = await world.ingest({ external_id: "制度/会议.md", text: "# 会议室管理\n\n会议室须提前一天预订。" });
+    const other = await world.ingest({
+      external_id: "policies/meetings.md",
+      text: "# Meeting rooms\n\nMeeting rooms are booked a day ahead.",
+    });
     expect((await world.normalization.normalize(copy.id)).diff?.duplicates).toEqual([
-      { source_id: SOURCE, external_id: "制度/差旅.md", source_version_id: a.id, exact: true, similarity: 1 },
+      { source_id: SOURCE, external_id: "policies/travel.md", source_version_id: a.id, exact: true, similarity: 1 },
     ]);
     const nearDuplicates = (await world.normalization.normalize(near.id)).diff?.duplicates ?? [];
     expect(nearDuplicates.map((d) => [d.external_id, d.exact])).toEqual([
-      ["制度/差旅.md", false],
-      ["归档/差旅（副本）.txt", false],
+      ["policies/travel.md", false],
+      ["archive/travel (copy).txt", false],
     ]);
     expect(nearDuplicates[0]?.similarity).toBeGreaterThan(0.8);
     expect((await world.normalization.normalize(other.id)).diff?.duplicates).toBeUndefined();
@@ -191,12 +197,15 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
 
   it.skipIf(skip)("connector blocks keep their native IDs; approval definitions become blocks", async ({ world }) => {
     const blocks = (text: string) => [
-      { anchor: "doxH1", kind: "heading" as const, level: 1, text: "报销流程" },
+      { anchor: "doxH1", kind: "heading" as const, level: 1, text: "Expense claims" },
       { anchor: "doxP1", kind: "paragraph" as const, text },
     ];
-    const v1 = await world.ingest({ external_id: "doxcnA", blocks: blocks("先提交申请。") });
+    const v1 = await world.ingest({ external_id: "doxcnA", blocks: blocks("File the request first.") });
     await world.normalization.normalize(v1.id);
-    const v2 = await world.ingest({ external_id: "doxcnA", blocks: blocks("全部改写的新内容，与原文无关。") });
+    const v2 = await world.ingest({
+      external_id: "doxcnA",
+      blocks: blocks("Rewritten throughout, unrelated to the original."),
+    });
     const { diff } = await world.normalization.normalize(v2.id);
     expect(diff?.changed_block_ids).toHaveLength(1);
     expect(diff?.added_block_ids).toEqual([]);
@@ -206,11 +215,11 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
       process: {
         definition: {
           code: "APPROVAL-TRAVEL",
-          name: "出差申请",
-          form_fields: [{ key: "city", label: "目的城市", options: ["北京", "成都"], required: true }],
+          name: "Trip request",
+          form_fields: [{ key: "city", label: "Destination", options: ["Beijing", "Chengdu"], required: true }],
           nodes: [
-            { key: "start", name: "发起", node_type: "start" },
-            { key: "manager", name: "直属上级审批", node_type: "approval" },
+            { key: "start", name: "Start", node_type: "start" },
+            { key: "manager", name: "Manager approval", node_type: "approval" },
           ],
         },
         instances: [],
@@ -219,37 +228,37 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
     expect((await world.normalization.normalize(approval.id)).status).toBe("structured");
     const steps = await world.store.blocksOf(approval.id);
     expect(steps.map((b) => [b.kind, b.text])).toEqual([
-      ["heading", "出差申请"],
-      ["form_field", "目的城市: 北京 / 成都"],
-      ["list_item", "发起"],
-      ["list_item", "直属上级审批"],
+      ["heading", "Trip request"],
+      ["form_field", "Destination: Beijing / Chengdu"],
+      ["list_item", "Start"],
+      ["list_item", "Manager approval"],
     ]);
     const [field] = await world.store.spansOf(approval.id);
     expect(field?.locator).toMatchObject({ kind: "form_field", field_key: "city" });
   });
 
   it.skipIf(skip)("a file that fails to parse leaves the last good version as the base", async ({ world }) => {
-    const v1 = await world.ingest({ external_id: "表.csv", text: "部门,限额\n财务部,500\n" });
+    const v1 = await world.ingest({ external_id: "caps.csv", text: "department,cap\nfinance,500\n" });
     await world.normalization.normalize(v1.id);
-    const broken = await world.ingest({ external_id: "表.csv", text: '部门,"限额\n' });
+    const broken = await world.ingest({ external_id: "caps.csv", text: 'department,"cap\n' });
     expect((await world.normalization.normalize(broken.id)).status).toBe("failed");
     const [state] = await world.normalization.documents(SOURCE);
     expect(state?.source_version_id).toBe(v1.id);
     expect(state?.failed?.source_version_id).toBe(broken.id);
-    const v3 = await world.ingest({ external_id: "表.csv", text: "部门,限额\n财务部,600\n" });
+    const v3 = await world.ingest({ external_id: "caps.csv", text: "department,cap\nfinance,600\n" });
     const { diff } = await world.normalization.normalize(v3.id);
     expect(diff?.previous_version_id).toBe(v1.id);
     expect(diff?.changed_block_ids).toHaveLength(2); // the table and its second row
   });
 
   it.skipIf(skip)("files without a parser are noted, not retried", async ({ world }) => {
-    const pdf = await world.ingest({ external_id: "扫描件.pdf", text: "%PDF-1.7" });
+    const pdf = await world.ingest({ external_id: "scan.pdf", text: "%PDF-1.7" });
     expect((await world.normalization.normalize(pdf.id)).status).toBe("unsupported");
     expect((await world.normalization.documents(SOURCE))[0]?.warnings).toEqual(["no parser for application/pdf"]);
   });
 
   it.skipIf(skip)("document.fetched is handled under the normalization group", async ({ world }) => {
-    const v1 = await world.ingest({ external_id: "a.md", text: "# A\n\n正文。" });
+    const v1 = await world.ingest({ external_id: "a.md", text: "# A\n\nThe text." });
     const event = newEvent(
       "document.fetched",
       {

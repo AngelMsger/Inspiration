@@ -250,7 +250,11 @@ describe("embed, rerank, ocr", () => {
 
   test("embed routes by sensitivity and returns unit vectors", async () => {
     const gateway = makeGateway();
-    const texts: [string, ...string[]] = ["出差住宿标准每晚600元", "住宿标准 每晚 600 元 出差", "季度营收报告"];
+    const texts: [string, ...string[]] = [
+      "hotel standard 600 yuan a night on trips",
+      "on trips: hotel standard, 600 yuan a night",
+      "quarterly revenue report",
+    ];
     const out = await gateway.embed({ texts, input_type: "document", sensitivity: "internal", budget_key: "k" });
     expect([out.provider, out.model, out.dimensions]).toEqual(["cloud", "cloud-embed", 64]);
     for (const v of out.vectors) expect(dot(v, v)).toBeCloseTo(1, 6);
@@ -284,7 +288,7 @@ describe("embed, rerank, ocr", () => {
     const blobs = new MemoryBlobStore();
     const gateway = makeGateway({ blobs });
     const page =
-      "# 差旅制度\n\n住宿标准每晚 600 元。\n\n| 城市 | 上限 |\n|---|---|\n| 北京 | 600 |\n\n- 一线城市\n- 其他城市";
+      "# Travel policy\n\nHotels at most 600 yuan a night.\n\n| City | Cap |\n|---|---|\n| Beijing | 600 |\n\n- Tier-1 cities\n- Other cities";
     const image = await blobs.put(new TextEncoder().encode(page), { mimeType: "image/png" });
     const out = await gateway.ocr({ image, page: 3, sensitivity: "secret", budget_key: "k" });
     expect([out.provider, out.model]).toEqual(["local", "local-ocr"]);

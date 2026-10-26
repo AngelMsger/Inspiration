@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import {
   type BlocksChanged,
   type ChatMessage,
@@ -33,7 +34,7 @@ import {
   type WindowInput,
   type WindowOutput,
 } from "./protocol.ts";
-import type { Vocabulary } from "./vocabulary.ts";
+import { mentioned, type Vocabulary } from "./vocabulary.ts";
 
 const log = logger("extraction");
 
@@ -44,7 +45,7 @@ export const WINDOW_CHARS = 1500;
 /** Statement similarity at which a claim from an edited block replaces one that lost its evidence. */
 export const SAME_CLAIM = 0.5;
 
-const PROMPTS_DIR = new URL("../prompts/", import.meta.url).pathname;
+const PROMPTS_DIR = fileURLToPath(new URL("../prompts/", import.meta.url));
 
 export interface ExtractionOptions {
   store: KnowledgeStore;
@@ -248,7 +249,7 @@ export class Extraction {
       // catalogue fact, and only the claims that fill a slot are kept.
       const slotsOnly = level === "reference" && !options.use;
       const names = slotsOnly ? vocabulary.flatMap((e) => e.aliases) : [];
-      const touches = slotsOnly ? (text: string) => names.some((a) => text.includes(a)) : undefined;
+      const touches = slotsOnly ? (text: string) => mentioned(text, names).length > 0 : undefined;
       for (const window of await this.#windows(version, targets, touches)) {
         result.windows++;
         const output = await this.#complete(version, window, vocabulary);
@@ -398,7 +399,7 @@ export class Extraction {
         ...(version.language && { language: version.language }),
         ...(dayStart(version.metadata?.extra?.date) && { date: version.metadata?.extra?.date as string }),
       },
-      vocabulary: vocabulary.filter((e) => e.aliases.some((a) => named.includes(a))),
+      vocabulary: vocabulary.filter((e) => mentioned(named, e.aliases).length > 0),
       blocks: window.blocks,
     };
     try {

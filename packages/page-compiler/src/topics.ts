@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import {
   type ChatMessage,
   type Claim,
@@ -21,7 +22,7 @@ import {
   type TaxonomyNode,
 } from "@inspiration/contracts";
 import { defineTable, type Records } from "@inspiration/eventbus";
-import { logger } from "@inspiration/kernel";
+import { languageOf, logger } from "@inspiration/kernel";
 import { PromptRegistry } from "@inspiration/model-gateway";
 import { type Anchor, CLUSTER_DEFAULTS, type ClusterOptions, cluster, dot, type Level, type Topic } from "./cluster.ts";
 import { cleanHeading } from "./headings.ts";
@@ -47,7 +48,7 @@ const EMBED_BATCH = 64;
 /** IDs per store read. */
 const READ_BATCH = 500;
 
-const PROMPTS_DIR = new URL("../prompts/", import.meta.url).pathname;
+const PROMPTS_DIR = fileURLToPath(new URL("../prompts/", import.meta.url));
 const RETIRED = new Set(["archived", "retired"]);
 const LIVE_STATUSES = new Set(["active", "verified", "disputed"]);
 
@@ -231,7 +232,7 @@ export interface ReclusterReport {
   };
   /** Current statements with a topic, by their document's level. */
   placed: Record<GovernanceLevel, number>;
-  /** Statements of current governed documents without a topic (未归类). */
+  /** Statements of current governed documents without a topic (unfiled). */
   unfiled: number;
   /**
    * Statements clustering had placed before the run: those now in another topic or none,
@@ -983,7 +984,8 @@ export class Topics {
         }),
       }),
       sensitivity: maxLabel("public", ...below.map((s) => s.sensitivity)),
-      language: byCount(languages)[0]?.[0] ?? "zh",
+      // Until documents carry a language tag, the language their headings and titles look to be in.
+      language: byCount(languages)[0]?.[0] ?? languageOf([...headings.keys(), ...documents.keys()].join("\n")),
     };
   }
 

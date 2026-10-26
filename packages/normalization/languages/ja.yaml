@@ -1,0 +1,5 @@
+# How Japanese text breaks into passages (see src/sentences.ts).
+
+terminators: ["。", "！", "？"]
+closers: ["」", "』", "）", "】"]
+commas: ["、", "，"]

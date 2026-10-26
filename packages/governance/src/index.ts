@@ -6,7 +6,11 @@
  * that slot's value group, counted incrementally, and decides the slot again (the rules are
  * in slots.ts):
  * - The proposed value is the most authoritative one in force, unless a statement dated
- *   later than it changed the value ("自 2026 年 10 月 1 日起……调整为 650 元").
+ *   later than it changed the value ("from 1 October 2026 ... raised to 650 yuan").
+ *   Between equally authoritative values, the one more governed statements in effect today
+ *   state is proposed. That counts statements, so a copy of a policy counts too, while the
+ *   support people are shown is to count a copy once: an assumption still to be checked
+ *   against a corpus built for it.
  * - Every other value gets a ConflictCase from the deterministic tier: a supersession
  *   (auto-resolved when only archived documents state it), plan versus fact, or a
  *   contradiction, with the proposed value's best claim as proposed_winner_id.
@@ -28,9 +32,9 @@
  * Updates of one tenant run one at a time in a process, and the inbox mark commits with the
  * rows, so a redelivered event changes nothing. Run one governance consumer per tenant.
  *
- * A slot is decided when its claims change, and again on the first day a dated change it
- * holds takes effect: recheck(tenant) decides the slots that are due, and the engine calls
- * it once a day.
+ * A slot is decided when its claims change, and again on the first day a dated change or a
+ * governed statement it holds takes effect: recheck(tenant) decides the slots that are due,
+ * and the engine calls it once a day.
  *
  * Not built yet: the semantic, NLI and model-judge tiers for claims without a slot, citation
  * audit, claim merge into canonical claims, coverage gaps and the taxonomy gardener.

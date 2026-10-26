@@ -16,7 +16,7 @@ import { MemoryRecords, PgRecords, type Records } from "@inspiration/eventbus";
 import { openPool, workspaceRoot } from "@inspiration/kernel";
 import { MemoryStore, PostgresStore } from "@inspiration/knowledge-store";
 import { Gateway, loadGatewayConfig, type MemoryUsage } from "@inspiration/model-gateway";
-import { createTestDatabase, hasStack } from "@inspiration/testkit";
+import { createTestDatabase, hasStack, testData } from "@inspiration/testkit";
 import { test } from "vitest";
 import { Extraction, type ExtractionResult, parseVocabulary, type Vocabulary } from "../src/index.ts";
 
@@ -31,36 +31,12 @@ export const BACKENDS: { backend: Backend; skip: boolean }[] = [
   { backend: "postgres", skip: !hasStack() },
 ];
 
-export const VOCABULARY: Vocabulary = parseVocabulary({
-  predicates: [
-    {
-      predicate: "hotel_cap_per_night",
-      label: "住宿限额（每晚）",
-      knowledge_class: "policy",
-      aliases: ["住宿"],
-      qualifiers: [
-        { name: "一线城市", aliases: ["一线城市", "北京"] },
-        { name: "新一线城市", aliases: ["新一线城市", "成都"] },
-      ],
-      value: { kind: "money", unit: "CNY/night", currency: "CNY", words: ["元"] },
-    },
-    {
-      predicate: "travel_claim_deadline_days",
-      label: "差旅报销时限",
-      knowledge_class: "policy",
-      aliases: ["报销申请", "天内报销"],
-      value: { kind: "duration", unit: "day", words: ["日", "天"] },
-    },
-    {
-      predicate: "payment_day",
-      label: "报销付款日",
-      aliases: ["报销款"],
-      value: { kind: "enum", values: ["每周三", "每周五"] },
-    },
-  ],
-});
+/** The catalogue the tests use: a hotel cap per night by city tier, a claim deadline and a payment day. */
+export const VOCABULARY: Vocabulary = parseVocabulary(
+  testData<{ vocabulary: unknown }>(import.meta.url, "en.yaml").vocabulary,
+);
 
-/** A block of a test document. Paragraph sentences end at "。"; table rows separate cells with tabs. */
+/** A block of a test document. Paragraph sentences end at a full stop and a space; table rows separate cells with tabs. */
 export interface Para {
   id: string;
   text: string;
@@ -99,7 +75,7 @@ export interface World {
 function pieces(para: Para): string[] {
   if (para.kind === "table") return [];
   if (para.kind === "table_row") return para.text.split("\t");
-  return para.text.match(/[^。]+。?/g) ?? [];
+  return para.text.split(/(?<=[.?!])\s+/).filter(Boolean);
 }
 
 export const extractionTest = (backend: Backend) =>

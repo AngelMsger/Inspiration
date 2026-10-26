@@ -1,0 +1,30 @@
+# What the extraction.extract_claims stand-in (src/mock.ts) looks for in Chinese text, and how
+# it writes the statements it builds. Patterns are JavaScript regular expressions, compiled
+# with the i and u flags; dates name their parts with the groups year, month and day.
+
+# Words that make a passage a rule.
+normative: [须, 必须, 应当, 应在, 应于, 应经, 不得, 禁止, 严禁, 不超过, 不低于, 不少于, 至少, 最多, 上限, 限额, 负责, 审批, 批准, 方可, 一律, 原则上, 要求]
+definition: [是指, 指的是, 定义为, 系指]
+plan: [计划, 将于, 预计, 拟于, 下一步]
+decision: [决定, 会议确定, 会议同意, 一致同意]
+# A change decided without a day: it takes effect on the document's date.
+change: [调整为, 调整至, 推迟至, 提前至, 延长至, 缩短至, 改为, 变更为]
+# A passage ending in one of these asks rather than states.
+question_marks: ["？", "?"]
+# A passage ending in one of these is a sentence, not a title.
+sentence_ends: ["。", "；", ";", "！", "!"]
+# Where a passage that gives several values splits into clauses. Unlike the words above,
+# these and the writing marks below apply only to text in this language.
+clause_marks: ["，", "；", ",", ";"]
+# The day a passage says it takes effect.
+effective:
+  - '自\s*(?<year>\d{4})\s*年\s*(?<month>\d{1,2})\s*月\s*(?<day>\d{1,2})\s*日\s*起'
+  - '(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})\s*起'
+# Calendar days, whose numbers are not values; a plan takes effect on the first.
+days:
+  - '(?:(?<year>\d{4})\s*年\s*)?(?<month>\d{1,2})\s*月\s*(?<day>\d{1,2})\s*日'
+
+# Writing: a label and its text ("每晚限额（元）：600"), items of a list, the end of a sentence.
+label_mark: "："
+list_mark: "，"
+full_stop: "。"

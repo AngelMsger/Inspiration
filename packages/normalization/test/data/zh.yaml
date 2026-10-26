@@ -1,0 +1,28 @@
+# Chinese cases for the normalization unit tests (units.test.ts).
+
+# How text breaks into passages: sentences, the clauses of an article ended by "；", closing
+# quotes kept with their sentence, a short fragment ("注：", note:) joined to the next one.
+passages:
+  - text: "第一条 为规范差旅费管理，制定本办法。第二条 适用于：（一）国内出差；（二）境外出差。\nHotels cost 600 RMB, e.g. in Beijing. Meals are extra."
+    passages:
+      - "第一条 为规范差旅费管理，制定本办法。"
+      - "第二条 适用于：（一）国内出差；"
+      - "（二）境外出差。"
+      - "Hotels cost 600 RMB, e.g. in Beijing."
+      - "Meals are extra."
+  - text: "他说：“同意。”然后离开。"
+    passages: ["他说：“同意。”", "然后离开。"]
+  - text: "注：\n报销需附发票。"
+    passages: ["注：\n报销需附发票。"]
+
+# An over-long sentence: two runs of characters and the comma it is cut at.
+cut: { first: "甲", comma: "，", second: "乙", stop: "。" }
+
+# Fingerprints: thirty articles ({n} is the number), a change of formatting that must not
+# count (a full-width comma written as an ASCII one), a light edit (one article number in
+# characters) and an unrelated text.
+fingerprint:
+  article: "第{n}条 员工出差应当按照公司规定的标准报销住宿、交通和餐饮费用，超出部分由个人承担。"
+  reformat: ["，", ", "]
+  edit: ["第3条", "第三条"]
+  other: "会议室预订须提前一天在行政系统提交申请，并注明参会人数和设备需求。"

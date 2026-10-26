@@ -1,20 +1,25 @@
 /**
  * A synthetic tenant for scale runs: a company of ten departments whose policies,
  * guidelines, FAQs, meeting notes, weekly reports and project documents state a known set
- * of facts (住宿限额, 年假天数, 采购审批额度, ...). Most documents state a fact's current value;
- * some state a stale or wrong one, meeting notes record decisions that change a value, the
- * archive keeps older policy editions, and a shared folder holds copies.
+ * of facts (hotel caps, annual leave days, purchase approval limits, ...). Most documents
+ * state a fact's current value; some state a stale or wrong one, meeting notes record
+ * decisions that change a value, the archive keeps older policy editions, and a shared
+ * folder holds copies.
  *
  * Next to the corpus it writes truth.json: which document states which fact with which
  * value and why (current, stale, wrong, decision, superseded). Extraction, conflict
  * detection and topic clustering can be measured against it, which hand-written test data
  * cannot do at this size. Generation is deterministic for a seed.
+ *
+ * The tenant's names, departments, facts and the text of its documents come from a pack in
+ * languages/ (zh, the only one so far); this file holds the shape of the corpus and the draws.
  */
 
 import { mkdir, readdir, readFile, utimes, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import type { GovernanceLevel } from "@inspiration/contracts";
+import type { ClaimValueKind, GovernanceLevel } from "@inspiration/contracts";
 import type { PredicateEntry, Vocabulary } from "@inspiration/extraction";
+import { type LanguagePack, loadLanguages } from "@inspiration/kernel";
 import { stringify } from "yaml";
 import type { CorpusManifest } from "./corpus.ts";
 
@@ -24,261 +29,9 @@ interface Fact {
   topic: string;
   value: string;
   alternatives: string[];
-  /** Sentences stating the fact; {v} is the value. */
+  /** Sentences stating the fact; {value} is the value. */
   say: string[];
 }
-
-const F = (key: string, department: string, topic: string, value: string, alternatives: string[], say: string[]) => ({
-  key,
-  department,
-  topic,
-  value,
-  alternatives,
-  say,
-});
-
-export const FACTS: Fact[] = [
-  F(
-    "hotel_tier1",
-    "财务部",
-    "差旅住宿",
-    "600",
-    ["500", "650"],
-    ["一线城市住宿限额为每晚 {v} 元。", "出差到北京、上海、广州、深圳的，住宿费每晚不超过 {v} 元。"],
-  ),
-  F(
-    "hotel_tier2",
-    "财务部",
-    "差旅住宿",
-    "450",
-    ["400", "500"],
-    ["新一线城市住宿限额为每晚 {v} 元。", "成都、杭州、武汉、南京的住宿标准是每晚 {v} 元。"],
-  ),
-  F(
-    "meal_allowance",
-    "财务部",
-    "差旅补助",
-    "100",
-    ["80", "120"],
-    ["伙食补助每人每天 {v} 元，包干使用。", "出差期间每天的伙食补助为 {v} 元。"],
-  ),
-  F(
-    "travel_claim_days",
-    "财务部",
-    "报销时限",
-    "30",
-    ["60", "45"],
-    ["出差结束后 {v} 日内须提交差旅报销申请。", "差旅费应在返回后 {v} 天内报销，逾期不予受理。"],
-  ),
-  F(
-    "taxi_cap",
-    "财务部",
-    "差旅交通",
-    "150",
-    ["100", "200"],
-    ["市内打车费用每日上限 {v} 元。", "确需乘坐出租车的，每天最多报销 {v} 元。"],
-  ),
-  F(
-    "payment_day",
-    "财务部",
-    "报销付款",
-    "每周三",
-    ["每周五", "每月 10 日"],
-    ["审批通过的报销款于{v}统一支付。", "报销款{v}打到工资卡。"],
-  ),
-  F(
-    "annual_leave",
-    "人事部",
-    "年休假",
-    "5",
-    ["7", "10"],
-    ["工作满 1 年不满 10 年的员工，年休假 {v} 天。", "入职满一年后可享受 {v} 天年假。"],
-  ),
-  F(
-    "core_hours",
-    "人事部",
-    "工作时间",
-    "10:00 至 16:00",
-    ["9:30 至 16:30", "9:00 至 17:00"],
-    ["公司核心工作时间为 {v}。", "弹性工作制下，{v} 必须在岗。"],
-  ),
-  F(
-    "missed_punch",
-    "人事部",
-    "考勤",
-    "3",
-    ["2", "5"],
-    ["漏打卡每月可补卡 {v} 次。", "每个月最多补卡 {v} 次，超出按缺勤处理。"],
-  ),
-  F(
-    "probation",
-    "人事部",
-    "试用期",
-    "3",
-    ["6", "2"],
-    ["新员工试用期为 {v} 个月。", "试用期一般 {v} 个月，表现优秀可申请提前转正。"],
-  ),
-  F(
-    "salary_day",
-    "人事部",
-    "薪酬发放",
-    "10",
-    ["15", "5"],
-    ["工资于每月 {v} 日发放。", "每月 {v} 号发工资，遇节假日提前。"],
-  ),
-  F(
-    "room_hours",
-    "行政部",
-    "会议室",
-    "4",
-    ["2", "3"],
-    ["会议室单次预订不超过 {v} 小时。", "每次最多可以订 {v} 个小时的会议室。"],
-  ),
-  F(
-    "room_release",
-    "行政部",
-    "会议室",
-    "15",
-    ["10", "30"],
-    ["预订后 {v} 分钟未签到的会议室自动释放。", "超过 {v} 分钟没人使用，会议室会被释放。"],
-  ),
-  F(
-    "laptop_cycle",
-    "行政部",
-    "IT 设备",
-    "4",
-    ["3", "5"],
-    ["笔记本电脑的更换周期为 {v} 年。", "电脑满 {v} 年可以申请更换。"],
-  ),
-  F(
-    "direct_purchase",
-    "采购部",
-    "采购审批",
-    "5",
-    ["3", "10"],
-    ["单笔 {v} 万元以下的采购可由需求部门直接询价采购。", "{v} 万元以内的采购不需要走比价流程。"],
-  ),
-  F(
-    "tender_threshold",
-    "采购部",
-    "招标",
-    "50",
-    ["100", "30"],
-    ["单笔金额 {v} 万元以上的采购须公开招标。", "超过 {v} 万元的项目必须招标。"],
-  ),
-  F(
-    "quote_suppliers",
-    "采购部",
-    "比价",
-    "3",
-    ["2", "5"],
-    ["比价采购须邀请不少于 {v} 家供应商。", "比价时至少要找 {v} 家供应商报价。"],
-  ),
-  F(
-    "password_days",
-    "信息安全组",
-    "账号安全",
-    "90",
-    ["180", "60"],
-    ["办公系统密码每 {v} 天须更换一次。", "密码有效期为 {v} 天，到期须修改。"],
-  ),
-  F(
-    "lost_device_hours",
-    "信息安全组",
-    "设备丢失",
-    "24",
-    ["48", "12"],
-    ["设备丢失须在 {v} 小时内报告信息安全组。", "电脑或手机丢了，要在 {v} 小时内上报。"],
-  ),
-  F(
-    "ai_tool_rule",
-    "信息安全组",
-    "外部 AI 工具",
-    "内部及以上级别",
-    ["机密及以上级别", "所有"],
-    ["{v}的数据不得输入未经评估的外部 AI 工具。", "禁止把{v}的资料贴到外部 AI 工具里。"],
-  ),
-  F(
-    "contract_review_days",
-    "法务部",
-    "合同审核",
-    "3",
-    ["5", "2"],
-    ["法务部在收到合同后 {v} 个工作日内完成审核。", "合同审核一般需要 {v} 个工作日。"],
-  ),
-  F(
-    "nda_required",
-    "法务部",
-    "保密协议",
-    "所有外部合作方",
-    ["金额 10 万元以上的合作方", "核心供应商"],
-    ["与{v}合作前须签署保密协议。", "{v}都要先签 NDA。"],
-  ),
-  F(
-    "discount_approval",
-    "销售部",
-    "折扣审批",
-    "15%",
-    ["20%", "10%"],
-    ["折扣超过 {v} 的报价须经销售总监审批。", "给客户打折超过 {v} 要找销售总监批。"],
-  ),
-  F(
-    "payment_term",
-    "销售部",
-    "回款",
-    "30",
-    ["45", "60"],
-    ["标准合同的付款期限为验收后 {v} 天。", "客户回款周期按 {v} 天约定。"],
-  ),
-  F(
-    "first_response",
-    "客服中心",
-    "响应时效",
-    "30",
-    ["15", "60"],
-    ["客户工单须在 {v} 分钟内首次响应。", "工单首次响应时间不超过 {v} 分钟。"],
-  ),
-  F(
-    "refund_days",
-    "客服中心",
-    "退款",
-    "7",
-    ["15", "3"],
-    ["退款申请在 {v} 个工作日内处理完毕。", "客户退款一般 {v} 个工作日到账。"],
-  ),
-  F(
-    "review_approvers",
-    "研发中心",
-    "代码评审",
-    "2",
-    ["1", "3"],
-    ["合并到主干的代码须经至少 {v} 名评审人批准。", "每个合并请求要 {v} 个人审过。"],
-  ),
-  F(
-    "release_window",
-    "研发中心",
-    "发布",
-    "每周二、周四",
-    ["每周三", "每周一至周四"],
-    ["生产环境发布窗口为{v}。", "线上发布只在{v}进行。"],
-  ),
-  F(
-    "oncall_minutes",
-    "研发中心",
-    "值班",
-    "15",
-    ["30", "10"],
-    ["值班工程师须在告警后 {v} 分钟内响应。", "收到告警 {v} 分钟内要有人接手。"],
-  ),
-  F(
-    "campaign_approval",
-    "市场部",
-    "市场活动",
-    "10",
-    ["20", "5"],
-    ["预算 {v} 万元以上的市场活动须经总经理审批。", "活动预算超过 {v} 万要总经理批。"],
-  ),
-];
 
 interface Slot {
   predicate: string;
@@ -288,220 +41,124 @@ interface Slot {
   value: PredicateEntry["value"];
 }
 
-const money = (unit: string, words = ["元"]): PredicateEntry["value"] => ({
-  kind: "money",
-  unit,
-  currency: "CNY",
-  words,
-});
-const duration = (unit: string, words: string[]): PredicateEntry["value"] => ({ kind: "duration", unit, words });
-const count = (unit: string, words: string[]): PredicateEntry["value"] => ({ kind: "number", unit, words });
-const choice = (key: string): PredicateEntry["value"] => {
-  const fact = FACTS.find((f) => f.key === key) as Fact;
-  return { kind: "enum", values: [fact.value, ...fact.alternatives] };
-};
+type Places = Record<"policies" | "teams" | "archive" | "shared", string>;
 
-/**
- * How the tenant's predicate catalogue names each fact: the words documents use for it,
- * the qualifier that tells facts sharing a predicate apart, and the value's unit. The
- * synthesizer writes it as vocabulary.yaml, and truth.json gives each fact its slot.
- */
-export const SLOTS: Record<string, Slot> = {
-  hotel_tier1: {
-    predicate: "hotel_cap_per_night",
-    label: "住宿限额（每晚）",
-    aliases: ["住宿"],
-    qualifier: { name: "一线城市", aliases: ["一线城市", "北京"] },
-    value: money("CNY/night"),
-  },
-  hotel_tier2: {
-    predicate: "hotel_cap_per_night",
-    label: "住宿限额（每晚）",
-    aliases: ["住宿"],
-    qualifier: { name: "新一线城市", aliases: ["新一线城市", "成都"] },
-    value: money("CNY/night"),
-  },
-  meal_allowance: {
-    predicate: "meal_allowance_per_day",
-    label: "伙食补助（每天）",
-    aliases: ["伙食补助"],
-    value: money("CNY/day"),
-  },
-  travel_claim_days: {
-    predicate: "travel_claim_deadline_days",
-    label: "差旅报销时限",
-    aliases: ["报销申请", "天内报销"],
-    value: duration("day", ["日", "天"]),
-  },
-  taxi_cap: {
-    predicate: "taxi_cap_per_day",
-    label: "市内打车上限（每天）",
-    aliases: ["打车", "出租车"],
-    value: money("CNY/day"),
-  },
-  payment_day: {
-    predicate: "reimbursement_payment_day",
-    label: "报销付款日",
-    aliases: ["报销款"],
-    value: choice("payment_day"),
-  },
-  annual_leave: {
-    predicate: "annual_leave_days",
-    label: "年休假天数",
-    aliases: ["年休假", "年假"],
-    value: duration("day", ["天"]),
-  },
-  core_hours: {
-    predicate: "core_working_hours",
-    label: "核心工作时间",
-    aliases: ["核心工作时间", "必须在岗"],
-    value: choice("core_hours"),
-  },
-  missed_punch: {
-    predicate: "missed_punch_per_month",
-    label: "每月补卡次数",
-    aliases: ["补卡"],
-    value: count("times", ["次"]),
-  },
-  probation: {
-    predicate: "probation_months",
-    label: "试用期",
-    aliases: ["试用期"],
-    value: duration("month", ["个月"]),
-  },
-  salary_day: {
-    predicate: "salary_pay_day",
-    label: "工资发放日",
-    aliases: ["工资"],
-    value: count("day_of_month", ["日", "号"]),
-  },
-  room_hours: {
-    predicate: "meeting_room_max_hours",
-    label: "会议室单次预订时长",
-    aliases: ["会议室单次预订", "小时的会议室"],
-    value: duration("hour", ["小时", "个小时"]),
-  },
-  room_release: {
-    predicate: "meeting_room_release_minutes",
-    label: "会议室未签到释放时间",
-    aliases: ["自动释放", "会被释放"],
-    value: duration("minute", ["分钟"]),
-  },
-  laptop_cycle: {
-    predicate: "laptop_replacement_years",
-    label: "笔记本更换周期",
-    aliases: ["更换周期", "申请更换"],
-    value: duration("year", ["年"]),
-  },
-  direct_purchase: {
-    predicate: "direct_purchase_limit",
-    label: "直接采购限额",
-    aliases: ["直接询价采购", "比价流程"],
-    value: money("10k CNY", ["万元"]),
-  },
-  tender_threshold: {
-    predicate: "tender_threshold",
-    label: "公开招标起点",
-    aliases: ["公开招标", "必须招标"],
-    value: money("10k CNY", ["万元"]),
-  },
-  quote_suppliers: {
-    predicate: "min_quote_suppliers",
-    label: "比价供应商数",
-    aliases: ["供应商"],
-    value: count("suppliers", ["家"]),
-  },
-  password_days: {
-    predicate: "password_rotation_days",
-    label: "密码更换周期",
-    aliases: ["密码"],
-    value: duration("day", ["天"]),
-  },
-  lost_device_hours: {
-    predicate: "lost_device_report_hours",
-    label: "设备丢失上报时限",
-    aliases: ["设备丢失", "丢了"],
-    value: duration("hour", ["小时"]),
-  },
-  ai_tool_rule: {
-    predicate: "external_ai_tool_restriction",
-    label: "外部 AI 工具禁用范围",
-    aliases: ["外部 AI 工具"],
-    value: choice("ai_tool_rule"),
-  },
-  contract_review_days: {
-    predicate: "contract_review_days",
-    label: "合同审核时限",
-    aliases: ["合同审核", "收到合同"],
-    value: duration("working_day", ["个工作日"]),
-  },
-  nda_required: {
-    predicate: "nda_required_for",
-    label: "须签保密协议的对象",
-    aliases: ["保密协议", "NDA"],
-    value: choice("nda_required"),
-  },
-  discount_approval: {
-    predicate: "discount_approval_threshold",
-    label: "折扣审批起点",
-    aliases: ["折扣", "打折"],
-    value: { kind: "percent", unit: "percent", words: ["%"] },
-  },
-  payment_term: {
-    predicate: "payment_term_days",
-    label: "回款期限",
-    aliases: ["付款期限", "回款周期"],
-    value: duration("day", ["天"]),
-  },
-  first_response: {
-    predicate: "ticket_first_response_minutes",
-    label: "工单首次响应时限",
-    aliases: ["首次响应"],
-    value: duration("minute", ["分钟"]),
-  },
-  refund_days: {
-    predicate: "refund_processing_days",
-    label: "退款处理时限",
-    aliases: ["退款"],
-    value: duration("working_day", ["个工作日"]),
-  },
-  review_approvers: {
-    predicate: "code_review_approvers",
-    label: "代码评审人数",
-    aliases: ["评审人", "审过"],
-    value: count("people", ["名", "个人"]),
-  },
-  release_window: {
-    predicate: "release_window",
-    label: "发布窗口",
-    aliases: ["发布窗口", "线上发布"],
-    value: choice("release_window"),
-  },
-  oncall_minutes: {
-    predicate: "oncall_response_minutes",
-    label: "值班响应时限",
-    aliases: ["告警"],
-    value: duration("minute", ["分钟"]),
-  },
-  campaign_approval: {
-    predicate: "campaign_approval_threshold",
-    label: "市场活动审批起点",
-    aliases: ["市场活动", "活动预算"],
-    value: money("10k CNY", ["万元", "万"]),
-  },
-};
+/** A synthetic tenant in one language, as its pack describes it. */
+interface Tenant {
+  name: string;
+  /** The language tag its documents carry. */
+  language: string;
+  spaces: Record<"policies" | "teams", string>;
+  /** Source names and the folders they read. */
+  sources: Places;
+  roots: Places;
+  /** Department names, in order, and their directory groups. */
+  departments: Record<string, string>;
+  surnames: string[];
+  given: string[];
+  projects: string[];
+  work: string[];
+  /** Templates of the documents' text. */
+  text: LanguagePack;
+  /** Articles every policy has in some form. */
+  boilerplate: string[];
+  fillers: string[];
+  facts: Fact[];
+  /** How the tenant's predicate catalogue names each fact, by fact key. */
+  slots: Record<string, Slot>;
+}
+
+const PACKS = loadLanguages(new URL("../languages/", import.meta.url));
+
+function places(pack: LanguagePack, key: string): Places {
+  const p = pack.section(key);
+  return { policies: p.text("policies"), teams: p.text("teams"), archive: p.text("archive"), shared: p.text("shared") };
+}
+
+function slotOfPack(pack: LanguagePack, fact: Fact): Slot {
+  const v = pack.section("value");
+  const kind = v.text("kind") as ClaimValueKind;
+  const value: PredicateEntry["value"] =
+    kind === "enum"
+      ? { kind, values: [fact.value, ...fact.alternatives] }
+      : {
+          kind,
+          ...(v.has("unit") && { unit: v.text("unit") }),
+          ...(v.has("currency") && { currency: v.text("currency") }),
+          ...(v.has("words") && { words: v.list("words") }),
+        };
+  const slot: Slot = {
+    predicate: pack.text("predicate"),
+    label: pack.text("label"),
+    aliases: pack.list("aliases"),
+    value,
+  };
+  if (pack.has("qualifier")) {
+    const q = pack.section("qualifier");
+    slot.qualifier = { name: q.text("name"), aliases: q.list("aliases") };
+  }
+  return slot;
+}
+
+/** The synthetic tenant written in a language. */
+export function tenantIn(language: string): Tenant {
+  const pack = PACKS.find((p) => p.tag === language);
+  if (!pack)
+    throw new RangeError(`no synthetic tenant in ${language}; there is one in ${PACKS.map((p) => p.tag).join(", ")}`);
+  const facts: Fact[] = [];
+  const slots: Record<string, Slot> = {};
+  for (const f of pack.sections("facts")) {
+    const fact: Fact = {
+      key: f.text("key"),
+      department: f.text("department"),
+      topic: f.text("topic"),
+      value: f.text("value"),
+      alternatives: f.list("alternatives"),
+      say: f.list("say"),
+    };
+    facts.push(fact);
+    slots[fact.key] = slotOfPack(f.section("slot"), fact);
+  }
+  const spaces = pack.section("spaces");
+  return {
+    name: pack.text("tenant"),
+    language: pack.text("language"),
+    spaces: { policies: spaces.text("policies"), teams: spaces.text("teams") },
+    sources: places(pack, "sources"),
+    roots: places(pack, "roots"),
+    departments: pack.map("departments"),
+    surnames: [...pack.text("surnames")],
+    given: [...pack.text("given")],
+    projects: pack.list("projects"),
+    work: pack.list("work"),
+    text: pack.section("text"),
+    boilerplate: pack.list("boilerplate"),
+    fillers: pack.list("fillers"),
+    facts,
+    slots,
+  };
+}
+
+/** The template with every {name} filled in. */
+function fill(template: string, values: Readonly<Record<string, string | number>>): string {
+  return template.replace(/\{(\w+)\}/g, (_, name: string) => {
+    const value = values[name];
+    if (value === undefined) throw new RangeError(`no value for {${name}} in ${JSON.stringify(template)}`);
+    return String(value);
+  });
+}
 
 /** The slot key of a fact, as extraction's slotOf writes it. */
-export function slotOfFact(key: string): string {
-  const slot = SLOTS[key];
+export function slotOfFact(tenant: Tenant, key: string): string {
+  const slot = tenant.slots[key];
   if (!slot) throw new RangeError(`no slot for fact ${key}`);
   return slot.qualifier ? `${slot.predicate}|${slot.qualifier.name}` : slot.predicate;
 }
 
 /** The catalogue the synthetic tenant gives extraction: one entry per predicate. */
-export function vocabulary(): Vocabulary {
+export function vocabulary(tenant: Tenant): Vocabulary {
   const entries = new Map<string, PredicateEntry>();
-  for (const slot of Object.values(SLOTS)) {
+  for (const slot of Object.values(tenant.slots)) {
     const entry = entries.get(slot.predicate) ?? {
       predicate: slot.predicate,
       label: slot.label,
@@ -518,59 +175,15 @@ export function vocabulary(): Vocabulary {
   return { predicates: [...entries.values()] };
 }
 
-const DEPARTMENTS: Record<string, string> = {
-  财务部: "finance",
-  人事部: "hr",
-  行政部: "admin",
-  采购部: "procurement",
-  信息安全组: "security",
-  法务部: "legal",
-  销售部: "sales",
-  客服中心: "support",
-  研发中心: "rnd",
-  市场部: "marketing",
-};
-
-const SURNAMES = "王李张刘陈杨黄赵吴周徐孙马朱胡郭何林罗高".split("");
-const GIVEN = "伟芳娜敏静丽强磊军洋勇艳杰涛明超秀霞平刚桂英华文".split("");
-
 /**
  * A department's knowledge staff: three people, the first its policy owner, who write its
  * guides. They are the directory's members, so topics can get owners.
  */
-export function staffOf(department: string): string[] {
-  const i = Object.keys(DEPARTMENTS).indexOf(department);
-  return [0, 1, 2].map((j) => `${SURNAMES[(3 * i + j) % SURNAMES.length]}${GIVEN[(7 * i + 5 * j + 1) % GIVEN.length]}`);
+export function staffOf(tenant: Tenant, department: string): string[] {
+  const i = Object.keys(tenant.departments).indexOf(department);
+  const { surnames, given } = tenant;
+  return [0, 1, 2].map((j) => `${surnames[(3 * i + j) % surnames.length]}${given[(7 * i + 5 * j + 1) % given.length]}`);
 }
-const PROJECTS = ["星火", "启明", "北斗", "青云", "远航", "磐石", "飞鸿", "长风", "晨曦", "知行", "鲲鹏", "云帆"];
-const WORK = [
-  "需求评审",
-  "接口联调",
-  "数据迁移",
-  "上线验收",
-  "供应商比价",
-  "合同谈判",
-  "客户回访",
-  "培训材料",
-  "预算复核",
-  "流程梳理",
-  "系统压测",
-  "安全扫描",
-];
-
-/** Articles every policy has in some form; {d} is the department, {t} the topic. */
-const BOILERPLATE = [
-  "{d}负责本办法的解释、修订和执行监督。",
-  "各部门负责人对本部门的{t}工作负直接管理责任。",
-  "{d}应每年组织一次{t}相关培训，确保员工了解最新要求。",
-  "{d}应建立{t}台账，完整记录相关审批和执行情况，保存期限不少于三年。",
-  "员工对{t}相关决定有异议的，可在 5 个工作日内向{d}提出复核申请。",
-  "{d}每半年对本办法的执行情况进行检查，并将检查结果报经营会。",
-  "涉及跨部门协作的{t}事项，由{d}牵头协调，相关部门应予配合。",
-  "特殊情况确需突破本办法规定的，须经分管领导和总经理书面批准。",
-  "违反本办法规定的，公司将视情节给予通报批评、扣减绩效直至解除劳动合同的处理。",
-  "本办法未尽事宜，按国家有关法律法规和公司其他制度执行。",
-];
 
 /** mulberry32: small, fast, and the same everywhere for a seed. */
 function prng(seed: number): () => number {
@@ -598,6 +211,8 @@ export interface SynthesisOptions {
   seed?: number;
   /** Share of non-policy fact statements that use another value. */
   errorRate?: number;
+  /** The language of the tenant's pack. */
+  language?: string;
 }
 
 export interface Synthesis {
@@ -606,7 +221,10 @@ export interface Synthesis {
   duplicates: { document: string; of: string; exact: boolean }[];
 }
 
+const FILLER = /\{(\w+)(?::(\d+)-(\d+))?\}/g;
+
 class Writer {
+  readonly tenant: Tenant;
   readonly rand: () => number;
   readonly truth: Stated[] = [];
   readonly duplicates: Synthesis["duplicates"] = [];
@@ -614,8 +232,14 @@ class Writer {
   /** When each file last changed in the source, YYYY-MM-DD: set as its mtime. */
   readonly modified = new Map<string, string>();
 
-  constructor(seed: number) {
+  constructor(tenant: Tenant, seed: number) {
+    this.tenant = tenant;
     this.rand = prng(seed);
+  }
+
+  /** The tenant's template under key, filled in. */
+  say(key: string, values: Readonly<Record<string, string | number>> = {}): string {
+    return fill(this.tenant.text.text(key), values);
   }
 
   pick<T>(xs: readonly T[]): T {
@@ -627,16 +251,28 @@ class Writer {
   }
 
   person(): string {
-    return this.pick(SURNAMES) + this.pick(GIVEN) + (this.rand() < 0.5 ? this.pick(GIVEN) : "");
+    const { surnames, given } = this.tenant;
+    return this.pick(surnames) + this.pick(given) + (this.rand() < 0.5 ? this.pick(given) : "");
   }
 
-  date(month = this.int(1, 9)): string {
-    return `2026 年 ${month} 月 ${this.int(1, 28)} 日`;
+  /** A day as the tenant writes it. */
+  written(year: string | number, month: number, day: number): string {
+    return this.say("date", { year, month, day });
+  }
+
+  /** A day of 2026 in the month, written and as YYYY-MM-DD. */
+  day(month = this.int(1, 9)): { written: string; iso: string } {
+    const day = this.int(1, 28);
+    return { written: this.written(2026, month, day), iso: `2026-${pad(month)}-${pad(day)}` };
+  }
+
+  date(month?: number): string {
+    return this.day(month).written;
   }
 
   state(document: string, fact: Fact, stance: Stated["stance"], value = fact.value): string {
     this.truth.push({ document, fact: fact.key, value, stance });
-    return this.pick(fact.say).replace("{v}", value);
+    return fill(this.pick(fact.say), { value });
   }
 
   /** A fact statement in a non-policy document: mostly current, sometimes stale or wrong. */
@@ -645,19 +281,18 @@ class Writer {
     return this.state(document, fact, this.rand() < 0.5 ? "stale" : "wrong", this.pick(fact.alternatives));
   }
 
+  /** A sentence of everyday work, its draws made in the order the template names them. */
   filler(): string {
-    const p = this.pick(PROJECTS);
-    const forms = [
-      () => `${p}项目完成${this.pick(WORK)}，整体进度 ${this.int(10, 95)}%。`,
-      () => `${this.person()}负责${this.pick(WORK)}，预计${this.date(this.int(1, 12))}完成。`,
-      () => `本周处理工单 ${this.int(20, 400)} 张，平均处理时长 ${this.int(1, 48)} 小时。`,
-      () => `${p}项目的主要风险是${this.pick(WORK)}延期，已与${this.person()}确认应对方案。`,
-      () => `会上讨论了${this.pick(WORK)}的分工，由${this.person()}牵头，${this.person()}配合。`,
-      () => `截至${this.date()}，${p}项目累计投入 ${this.int(3, 80)} 人天。`,
-      () => `请各位在${this.date()}前反馈意见，逾期视为无异议。`,
-      () => `${this.person()}提出${this.pick(WORK)}需要增加 ${this.int(1, 5)} 名人员支持。`,
-    ];
-    return this.pick(forms)();
+    const project = this.pick(this.tenant.projects);
+    const form = this.pick(this.tenant.fillers);
+    return form.replace(FILLER, (_, name: string, lo?: string, hi?: string) => {
+      if (name === "project") return project;
+      if (name === "work") return this.pick(this.tenant.work);
+      if (name === "person") return this.person();
+      if (name === "int" && lo && hi) return String(this.int(Number(lo), Number(hi)));
+      if (name === "date") return lo && hi ? this.date(this.int(Number(lo), Number(hi))) : this.date();
+      throw new RangeError(`no value for {${name}} in filler ${JSON.stringify(form)}`);
+    });
   }
 
   fillers(n: number): string[] {
@@ -670,6 +305,8 @@ class Writer {
   }
 }
 
+const pad = (n: number) => String(n).padStart(2, "0");
+
 /** FNV-1a: a day offset that depends on the path only, so file dates do not move the random draws. */
 function hashOf(text: string): number {
   let h = 0x811c9dc5;
@@ -681,30 +318,18 @@ function dayAfter(day: string, days: number): string {
   return new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 }
 
-/** "2026 年 3 月 5 日" as 2026-03-05. */
-function isoDay(written: string): string {
-  const [, y, m, d] = /(\d{4}) 年 (\d{1,2}) 月 (\d{1,2}) 日/.exec(written) as unknown as [
-    string,
-    string,
-    string,
-    string,
-  ];
-  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-}
-
 function frontMatter(fields: Record<string, unknown>): string {
   return `---\n${stringify(fields).trimEnd()}\n---\n`;
 }
 
-/** Facts of a department, and a few of others for documents that mention them in passing. */
-function factsOf(department: string): Fact[] {
-  return FACTS.filter((f) => f.department === department);
-}
-
 export async function synthesize(dir: string, options: SynthesisOptions): Promise<Synthesis> {
-  const w = new Writer(options.seed ?? 1);
+  const tenant = tenantIn(options.language ?? "zh");
+  const { roots } = tenant;
+  const w = new Writer(tenant, options.seed ?? 1);
+  const text = (key: string) => tenant.text.text(key);
+  const factsOf = (department: string) => tenant.facts.filter((f) => f.department === department);
   const errorRate = options.errorRate ?? 0.15;
-  const departments = Object.keys(DEPARTMENTS);
+  const departments = Object.keys(tenant.departments);
   const target = options.documents;
   let made = 0;
   const policies: { path: string; text: string; department: string }[] = [];
@@ -714,20 +339,21 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
     const topics = [...new Set(factsOf(department).map((f) => f.topic))];
     for (const topic of topics) {
       if (made >= target) break;
-      const path = `制度库/${department}/${topic}管理办法.md`;
+      const title = w.say("policy_title", { topic });
+      const path = `${roots.policies}/${department}/${title}.md`;
       const facts = factsOf(department).filter((f) => f.topic === topic);
-      const boilerplate = BOILERPLATE.map((t) => t.replaceAll("{d}", department).replaceAll("{t}", topic));
+      const boilerplate = tenant.boilerplate.map((t) => fill(t, { department, topic }));
       const articles = [
-        `为规范公司${topic}管理，根据国家有关规定并结合公司实际，制定本办法。`,
-        `本办法适用于公司全体员工，${department}负责解释。`,
+        ...tenant.text.list("policy_opening").map((t) => fill(t, { department, topic })),
         ...facts.map((f) => w.state(path, f, "current")),
         ...boilerplate.slice(0, w.int(5, boilerplate.length)),
-        `本办法自 2026 年 1 月 1 日起施行。`,
+        w.say("policy_closing", { date: w.written(2026, 1, 1) }),
       ];
-      const text = `${frontMatter({ title: `${topic}管理办法`, governance_level: "governed", approval_state: "approved", owner: staffOf(department)[0] })}# ${topic}管理办法\n\n${articles.map((a, i) => `第${i + 1}条 ${a}`).join("\n\n")}\n`;
+      const owner = staffOf(tenant, department)[0];
+      const body = `${frontMatter({ title, governance_level: "governed", approval_state: "approved", owner })}# ${title}\n\n${articles.map((a, i) => w.say("article", { n: i + 1, text: a })).join("\n\n")}\n`;
       // Policies were last edited in December, before they took effect.
-      w.write(path, text, dayAfter("2025-12-01", hashOf(path) % 28));
-      policies.push({ path, text, department });
+      w.write(path, body, dayAfter("2025-12-01", hashOf(path) % 28));
+      policies.push({ path, text: body, department });
       made++;
     }
   }
@@ -750,128 +376,130 @@ export async function synthesize(dir: string, options: SynthesisOptions): Promis
     counters.set(`${kind}:${department}`, n);
     const facts = factsOf(department);
     let path: string;
-    let text: string;
+    let body: string;
     let modified: string;
     if (kind === "guide" || kind === "faq") {
-      const title = kind === "guide" ? `${department}办事指南（第 ${n} 篇）` : `${department}常见问题（第 ${n} 期）`;
-      path = `部门空间/${department}/${kind === "guide" ? "指南" : "FAQ"}/${title}.md`;
+      const title = w.say(kind === "guide" ? "guide_title" : "faq_title", { department, n });
+      path = `${roots.teams}/${department}/${text(kind === "guide" ? "guide_folder" : "faq_folder")}/${title}.md`;
       const sections = Array.from({ length: w.int(4, 10) }, () => {
         const f = w.pick(facts);
-        const body = [w.hearsay(path, f, errorRate), ...w.fillers(w.int(1, 4))].join("");
-        return `## ${kind === "faq" ? `关于${f.topic}的问题` : f.topic}\n\n${body}`;
+        const said = [w.hearsay(path, f, errorRate), ...w.fillers(w.int(1, 4))].join("");
+        return `## ${kind === "faq" ? w.say("faq_heading", { topic: f.topic }) : f.topic}\n\n${said}`;
       });
-      const owner = kind === "guide" ? w.pick(staffOf(department)) : w.person();
-      text = `${frontMatter({ title, governance_level: kind === "guide" ? "governed" : "reference", owner })}# ${title}\n\n${sections.join("\n\n")}\n`;
+      const owner = kind === "guide" ? w.pick(staffOf(tenant, department)) : w.person();
+      body = `${frontMatter({ title, governance_level: kind === "guide" ? "governed" : "reference", owner })}# ${title}\n\n${sections.join("\n\n")}\n`;
       modified = dayAfter("2024-10-23", hashOf(path) % 730);
     } else if (kind === "minutes") {
       const month = w.int(1, 10);
-      const title = `${department} 2026 年 ${month} 月第 ${n} 次例会纪要`;
-      path = `部门空间/${department}/会议纪要/${title}.md`;
+      const title = w.say("minutes_title", { department, month, n });
+      path = `${roots.teams}/${department}/${text("minutes_folder")}/${title}.md`;
       const items = w.fillers(w.int(5, 12));
       // A decision changes a fact; later documents may or may not follow it.
       if (w.rand() < 0.15 && facts.length) {
         const f = w.pick(facts);
         const value = w.pick(f.alternatives);
         const from = Math.min(12, month + 1);
-        w.truth.push({
-          document: path,
-          fact: f.key,
-          value,
-          stance: "decision",
-          from: `2026-${String(from).padStart(2, "0")}-01`,
-        });
-        items.push(
-          `经讨论决定，自 2026 年 ${from} 月 1 日起，${f.topic}调整为：${w.pick(f.say).replace("{v}", value)}`,
-        );
+        w.truth.push({ document: path, fact: f.key, value, stance: "decision", from: `2026-${pad(from)}-01` });
+        const statement = fill(w.pick(f.say), { value });
+        items.push(w.say("decision", { date: w.written(2026, from, 1), topic: f.topic, statement }));
       } else if (w.rand() < 0.4 && facts.length) items.push(w.hearsay(path, w.pick(facts), errorRate));
       const owner = w.person();
-      const held = w.date(month);
-      modified = isoDay(held);
-      text = `${frontMatter({ title, governance_level: "reference", owner, date: modified })}# ${title}\n\n时间：${held}\n参会：${Array.from({ length: w.int(3, 8) }, () => w.person()).join("、")}\n\n## 议题与决议\n\n${items.map((t, i) => `${i + 1}. ${t}`).join("\n")}\n\n## 待办\n\n${Array.from({ length: w.int(1, 4) }, () => `- ${w.filler()}`).join("\n")}\n`;
+      const held = w.day(month);
+      modified = held.iso;
+      const people = Array.from({ length: w.int(3, 8) }, () => w.person()).join(text("list_mark"));
+      body = `${frontMatter({ title, governance_level: "reference", owner, date: modified })}# ${title}\n\n${w.say("minutes_held", { date: held.written })}\n${w.say("minutes_attendees", { people })}\n\n## ${text("minutes_items")}\n\n${items.map((t, i) => `${i + 1}. ${t}`).join("\n")}\n\n## ${text("minutes_todos")}\n\n${Array.from({ length: w.int(1, 4) }, () => `- ${w.filler()}`).join("\n")}\n`;
     } else if (kind === "weekly") {
-      const project = w.pick(PROJECTS);
-      const title = `${project}项目周报（${department}，第 ${n} 周）`;
-      path = `部门空间/${department}/周报/${title}.md`;
-      const rows = Array.from({ length: w.int(2, 6) }, () => `| ${w.pick(WORK)} | ${w.person()} | ${w.int(0, 100)}% |`);
+      const project = w.pick(tenant.projects);
+      const title = w.say("weekly_title", { project, department, n });
+      path = `${roots.teams}/${department}/${text("weekly_folder")}/${title}.md`;
+      const rows = Array.from(
+        { length: w.int(2, 6) },
+        () => `| ${w.pick(tenant.work)} | ${w.person()} | ${w.int(0, 100)}% |`,
+      );
+      const columns = tenant.text.list("weekly_columns");
+      const table = `| ${columns.join(" | ")} |\n| ${columns.map(() => "---").join(" | ")} |\n${rows.join("\n")}`;
       // Reports of one department and number fall in one of the year's first 42 weeks, on its Friday.
       modified = dayAfter("2026-01-09", 7 * ((n - 1) % 42));
-      text = `${frontMatter({ title, governance_level: "search_only", owner: w.person(), date: modified })}# ${title}\n\n## 本周进展\n\n${w
+      const owner = w.person();
+      const progress = w
         .fillers(w.int(6, 15))
         .map((t) => `- ${t}`)
-        .join(
-          "\n",
-        )}\n\n| 事项 | 负责人 | 进度 |\n| --- | --- | --- |\n${rows.join("\n")}\n\n## 风险与问题\n\n${w.filler()}${w.rand() < 0.2 && facts.length ? w.hearsay(path, w.pick(facts), errorRate) : ""}\n`;
+        .join("\n");
+      const risks = `${w.filler()}${w.rand() < 0.2 && facts.length ? w.hearsay(path, w.pick(facts), errorRate) : ""}`;
+      body = `${frontMatter({ title, governance_level: "search_only", owner, date: modified })}# ${title}\n\n## ${text("weekly_progress")}\n\n${progress}\n\n${table}\n\n## ${text("weekly_risks")}\n\n${risks}\n`;
     } else if (kind === "project") {
-      const project = w.pick(PROJECTS);
-      const title = `${project}项目方案（${department}，第 ${n} 版）`;
-      path = `部门空间/${department}/项目/${title}.md`;
+      const project = w.pick(tenant.projects);
+      const title = w.say("project_title", { project, department, n });
+      path = `${roots.teams}/${department}/${text("project_folder")}/${title}.md`;
       const parts = Array.from(
         { length: w.int(3, 6) },
-        (_, i) => `## ${i + 1}. ${w.pick(WORK)}\n\n${Array.from({ length: w.int(2, 6) }, () => w.filler()).join("")}`,
+        (_, i) =>
+          `## ${i + 1}. ${w.pick(tenant.work)}\n\n${Array.from({ length: w.int(2, 6) }, () => w.filler()).join("")}`,
       );
-      text = `${frontMatter({ title, governance_level: "reference", owner: w.person() })}# ${title}\n\n${parts.join("\n\n")}\n`;
+      body = `${frontMatter({ title, governance_level: "reference", owner: w.person() })}# ${title}\n\n${parts.join("\n\n")}\n`;
       modified = dayAfter("2024-10-23", hashOf(path) % 730);
     } else if (kind === "copy" && policies.length) {
       const source = w.pick(policies);
-      path = `共享/${department}/转发-${source.path.split("/").at(-1)}`;
+      path = `${roots.shared}/${department}/${w.say("copy", { name: source.path.split("/").at(-1) as string })}`;
       if (w.files.has(path)) continue;
-      text = source.text.replace("governance_level: governed", "governance_level: reference");
+      body = source.text.replace("governance_level: governed", "governance_level: reference");
       modified = dayAfter(w.modified.get(source.path) as string, 1 + (hashOf(path) % 20));
       for (const t of w.truth.filter((s) => s.document === source.path)) w.truth.push({ ...t, document: path });
       w.duplicates.push({ document: path, of: source.path, exact: true });
     } else if (kind === "edition" && policies.length) {
       const source = w.pick(policies);
       const year = w.pick(["2023", "2024", "2025"]);
-      path = `归档/${source.department}/${source.path.split("/").at(-1)?.replace(".md", "")}（${year} 版）.md`;
+      const name = (source.path.split("/").at(-1) as string).replace(".md", "");
+      path = `${roots.archive}/${source.department}/${w.say("edition", { title: name, year })}.md`;
       if (w.files.has(path)) continue;
       modified = dayAfter(`${Number(year) - 1}-12-01`, hashOf(path) % 28);
-      text = source.text
+      body = source.text
         .replace("approval_state: approved", "approval_state: archived")
-        .replace("2026 年 1 月 1 日", `${year} 年 1 月 1 日`);
+        .replace(w.written(2026, 1, 1), w.written(year, 1, 1));
       // An older edition: one stated value differs, the rest are as now.
       const stated = w.truth.filter((s) => s.document === source.path);
       const changed = stated.length ? w.pick(stated) : undefined;
       for (const t of stated) {
-        const fact = FACTS.find((f) => f.key === t.fact) as Fact;
+        const fact = tenant.facts.find((f) => f.key === t.fact) as Fact;
         if (t === changed) {
           const old = w.pick(fact.alternatives);
-          const sentence = fact.say.map((s) => s.replace("{v}", t.value)).find((s) => text.includes(s));
-          if (sentence) text = text.replace(sentence, sentence.replace(t.value, old));
+          const sentence = fact.say.map((s) => fill(s, { value: t.value })).find((s) => body.includes(s));
+          if (sentence) body = body.replace(sentence, sentence.replace(t.value, old));
           w.truth.push({ document: path, fact: t.fact, value: old, stance: "superseded" });
         } else w.truth.push({ ...t, document: path, stance: "superseded" });
       }
       w.duplicates.push({ document: path, of: source.path, exact: false });
     } else continue;
     if (w.files.has(path)) continue;
-    w.write(path, text, modified);
+    w.write(path, body, modified);
     made++;
   }
 
-  for (const [path, text] of w.files) {
+  for (const [path, body] of w.files) {
     await mkdir(dirname(join(dir, path)), { recursive: true });
-    await writeFile(join(dir, path), text);
+    await writeFile(join(dir, path), body);
     const at = new Date(`${w.modified.get(path)}T08:00:00Z`);
     await utimes(join(dir, path), at, at);
   }
   for (const department of departments) {
-    const group = DEPARTMENTS[department] as string;
+    const group = tenant.departments[department] as string;
     // Department spaces are for the department; policies, the archive and shared copies for everyone.
-    await mkdir(join(dir, "部门空间", department), { recursive: true });
+    await mkdir(join(dir, roots.teams, department), { recursive: true });
     await writeFile(
-      join(dir, "部门空间", department, ".acl.yaml"),
+      join(dir, roots.teams, department, ".acl.yaml"),
       `readers: [group:${group}]\neditors: [group:${group}]\n`,
     );
   }
-  for (const root of ["制度库", "归档", "共享"]) await mkdir(join(dir, root), { recursive: true });
-  await writeFile(join(dir, "制度库", ".acl.yaml"), "readers: [tenant]\n");
-  await writeFile(join(dir, "制度库", ".meta.yaml"), "authority: 0.9\nlanguage: zh-CN\n");
-  const facts = FACTS.map((f) => ({ ...f, slot: slotOfFact(f.key) }));
+  for (const root of [roots.policies, roots.archive, roots.shared]) await mkdir(join(dir, root), { recursive: true });
+  await writeFile(join(dir, roots.policies, ".acl.yaml"), "readers: [tenant]\n");
+  await writeFile(join(dir, roots.policies, ".meta.yaml"), `authority: 0.9\nlanguage: ${tenant.language}\n`);
+  const facts = tenant.facts.map((f) => ({ ...f, slot: slotOfFact(tenant, f.key) }));
   await writeFile(
     join(dir, "truth.json"),
     `${JSON.stringify({ facts, statements: w.truth, duplicates: w.duplicates }, null, 1)}\n`,
   );
-  await writeFile(join(dir, "vocabulary.yaml"), stringify(vocabulary()));
-  await writeFile(join(dir, "corpus.yaml"), stringify(manifest(departments)));
+  await writeFile(join(dir, "vocabulary.yaml"), stringify(vocabulary(tenant)));
+  await writeFile(join(dir, "corpus.yaml"), stringify(manifest(tenant)));
   return { documents: made, statements: w.truth.length, duplicates: w.duplicates };
 }
 
@@ -881,6 +509,8 @@ export interface EditOptions {
   seed?: number;
   /** The day of the edits, YYYY-MM-DD: the edited files' modification time. */
   day: string;
+  /** The language of the tenant's pack. */
+  language?: string;
 }
 
 export interface Edits {
@@ -890,14 +520,16 @@ export interface Edits {
 
 /**
  * Edit a share of a synthesized corpus in place, as a stretch of ordinary work would: a
- * policy revises one of its values, and its copies in 共享 keep the old text; any other
- * document gains a paragraph. The archive and the copies are not edited.
+ * policy revises one of its values, and its copies in the shared folder keep the old text;
+ * any other document gains a paragraph. The archive and the copies are not edited.
  */
 export async function edit(dir: string, options: EditOptions): Promise<Edits> {
-  const w = new Writer(options.seed ?? 2);
+  const tenant = tenantIn(options.language ?? "zh");
+  const { roots } = tenant;
+  const w = new Writer(tenant, options.seed ?? 2);
   const paths = (await readdir(dir, { recursive: true }))
     .map((p) => p.split("\\").join("/"))
-    .filter((p) => p.endsWith(".md") && !p.startsWith("归档/") && !p.startsWith("共享/"))
+    .filter((p) => p.endsWith(".md") && !p.startsWith(`${roots.archive}/`) && !p.startsWith(`${roots.shared}/`))
     .sort();
   const edits: Edits = { documents: 0, by_kind: {} };
   const at = new Date(`${options.day}T08:00:00Z`);
@@ -905,10 +537,10 @@ export async function edit(dir: string, options: EditOptions): Promise<Edits> {
     if (w.rand() >= options.share) continue;
     let text = await readFile(join(dir, path), "utf8");
     let kind = "paragraph added";
-    if (path.startsWith("制度库/")) {
-      const stated = FACTS.flatMap((f) => f.say.map((say) => [f, say.replace("{v}", f.value)] as const)).filter(
-        ([, sentence]) => text.includes(sentence),
-      );
+    if (path.startsWith(`${roots.policies}/`)) {
+      const stated = tenant.facts
+        .flatMap((f) => f.say.map((say) => [f, fill(say, { value: f.value })] as const))
+        .filter(([, sentence]) => text.includes(sentence));
       if (!stated.length) continue;
       const [fact, sentence] = w.pick(stated);
       text = text.replace(sentence, sentence.replace(fact.value, w.pick(fact.alternatives)));
@@ -922,14 +554,14 @@ export async function edit(dir: string, options: EditOptions): Promise<Edits> {
   return edits;
 }
 
-function manifest(departments: string[]): CorpusManifest {
-  const tenant = "ten_01SYNTH0000000000000000001";
+function manifest(tenant: Tenant): CorpusManifest {
+  const id = "ten_01SYNTH0000000000000000001";
   const policy = "spc_01SYNTH000000000000000POLICY";
   const teams = "spc_01SYNTH0000000000000000TEAMS";
   const folder: Record<string, string> = {};
-  departments.forEach((d, i) => {
-    folder[`group:${DEPARTMENTS[d]}`] = `grp_01SYNTH${String(i).padStart(18, "0")}`;
-    staffOf(d).forEach((name, j) => {
+  Object.entries(tenant.departments).forEach(([d, group], i) => {
+    folder[`group:${group}`] = `grp_01SYNTH${String(i).padStart(18, "0")}`;
+    staffOf(tenant, d).forEach((name, j) => {
       folder[`user:${name}`] = `mem_01SYNTH${String(3 * i + j).padStart(18, "0")}`;
     });
   });
@@ -950,18 +582,19 @@ function manifest(departments: string[]): CorpusManifest {
     default_authority: authority,
     governance_level: level,
   });
+  const { sources, roots } = tenant;
   return {
-    tenant: { id: tenant, name: "合成企业" },
+    tenant: { id, name: tenant.name },
     spaces: [
-      { id: policy, name: "公司制度" },
-      { id: teams, name: "部门空间" },
+      { id: policy, name: tenant.spaces.policies },
+      { id: teams, name: tenant.spaces.teams },
     ],
     directory: { folder },
     sources: [
-      source("src_01SYNTH00000000000000POLICIES", policy, "制度库", "制度库", 0.9, "governed"),
-      source("src_01SYNTH0000000000000000TEAMS", teams, "部门空间", "部门空间", 0.5, "reference"),
-      source("src_01SYNTH000000000000000ARCHIVE", policy, "历史归档", "归档", 0.3, "governed"),
-      source("src_01SYNTH0000000000000000SHARED", teams, "共享", "共享", 0.4, "reference"),
+      source("src_01SYNTH00000000000000POLICIES", policy, sources.policies, roots.policies, 0.9, "governed"),
+      source("src_01SYNTH0000000000000000TEAMS", teams, sources.teams, roots.teams, 0.5, "reference"),
+      source("src_01SYNTH000000000000000ARCHIVE", policy, sources.archive, roots.archive, 0.3, "governed"),
+      source("src_01SYNTH0000000000000000SHARED", teams, sources.shared, roots.shared, 0.4, "reference"),
     ],
   };
 }

@@ -4,8 +4,8 @@
  * values; pass overrides to change any of them.
  *
  *     const kb = new Sample();
- *     const [sv, spans] = kb.sourceVersion(["差旅住宿标准：一线城市每晚不超过600元。"]);
- *     const [claim, evidence] = kb.claim("一线城市住宿上限为每晚600元", spans[0], { quote: "每晚不超过600元" });
+ *     const [sv, spans] = kb.sourceVersion(["Hotels: at most 600 yuan a night in tier-1 cities."]);
+ *     const [claim, evidence] = kb.claim("The tier-1 hotel cap is 600 yuan a night", spans[0], { quote: "at most 600 yuan a night" });
  */
 
 import {
@@ -58,7 +58,7 @@ export class Sample {
       space_id: this.spaceId,
       external_id: "doc-1",
       version: { content_hash: contentHash(texts.join("\n")) },
-      title: "差旅管理制度",
+      title: "Travel policy",
       mime_type: "text/markdown",
       approval_state: "approved",
       authority: 0.9,
@@ -159,7 +159,7 @@ export class Sample {
       key,
       tenant_id: this.tenantId,
       space_id: this.spaceId,
-      title: "差旅住宿",
+      title: "Travel lodging",
       ordinal: 0,
       status: "proposed",
       ...overrides,
@@ -195,15 +195,15 @@ export class Sample {
         space_id: this.spaceId,
         version,
         inputs_hash: contentHash(`${pageId}@${version}`),
-        title: "差旅住宿标准",
+        title: "Hotel standards",
         kind: "policy",
-        locale: "zh-CN",
+        locale: "en",
         sensitivity: "internal",
         blocks: [
           {
             key: "b_intro",
             type: "paragraph",
-            sentences: [{ text: "一线城市每晚不超过600元。", claim_ids: [...claimIds] }],
+            sentences: [{ text: "At most 600 yuan a night in tier-1 cities.", claim_ids: [...claimIds] }],
           },
         ],
         renderer: { component: "page-compiler", name: "default", version: "0.1.0" },

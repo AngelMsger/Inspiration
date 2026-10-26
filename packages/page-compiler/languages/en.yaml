@@ -1,0 +1,21 @@
+# How page-compiler reads English headings, and how the page-compiler.name_topics stand-in
+# (src/mock.ts) names topics in English. See zh.yaml for the fields.
+
+numbering:
+  - '(?:chapter|section|part|article|appendix)\s+[\dIVXLC]+[.:]?'
+  - '\d+(?:\.\d+)*\.?'
+  - '\(?[a-z\d]\)'
+faq:
+  - '^(?:faq|questions)\s*(?:about|on|:)\s*(.+)$'
+brackets:
+  - '\([^)]*\)'
+
+# English separates words with spaces, so headings share a name word by word.
+spaced: true
+related: "{title} in general"
+untitled: Untitled
+summary: "Rules and guidance on {title}."
+summary_from: "Rules and guidance on {title}, from {documents} and other documents."
+list_mark: ", "
+title_length: 60
+shared_length: 1

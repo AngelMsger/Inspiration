@@ -48,7 +48,7 @@ $defs:
   ClaimValue:
     description: >
       A normalized value for single-valued predicates, so that tier-1 conflict detection
-      can compare values in SQL (600 yuan vs 0.06 万元, 5% vs 0.05).
+      can compare values in SQL (600 yuan vs 0.06 ten-thousand yuan, 5% vs 0.05).
     type: object
     required: [kind]
     properties:
@@ -136,7 +136,7 @@ $defs:
         description: >
           The fact slot the claim fills when it states a single-valued fact: its subject entity
           when resolved, its predicate and its qualifiers, normalized
-          ("hotel_cap_per_night|一线城市"). Claims with one slot key state the same fact; their
+          ("hotel_cap_per_night|tier-1 city"). Claims with one slot key state the same fact; their
           values are the slot's variants and versions (FactSlot).
         type: string
         minLength: 1
@@ -907,7 +907,7 @@ $defs:
     description: >
       Where a statement sits in the knowledge outline: its topic, and the page block that
       cites it when a page does. A claim has at most one. A current claim of a governed
-      document without one is unfiled (未归类) and shows under its source section.
+      document without one is unfiled and shows under its source section.
     type: object
     required: [tenant_id, claim_id, space_id, taxonomy_key, placed_by, confirmed, placed_at]
     properties:

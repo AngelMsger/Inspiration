@@ -4,7 +4,7 @@
  */
 
 export const NAME_TASK = "page-compiler.name_topics";
-export const NAME_PROMPT_VERSION = "name_topics@1";
+export const NAME_PROMPT_VERSION = "name_topics@2";
 
 /** Topics named per call. */
 export const NAMES_PER_CALL = 20;

@@ -1,7 +1,7 @@
 {
   "name": "@inspiration/testkit",
   "version": "0.1.0",
-  "description": "Test fixtures for the compose stack: a migrated database per test, Valkey key prefixes, SpiceDB settings",
+  "description": "Test fixtures: a migrated database per test, Valkey key prefixes, SpiceDB settings, test data files",
   "private": true,
   "type": "module",
   "exports": {
@@ -11,7 +11,8 @@
   "dependencies": {
     "@inspiration/kernel": "workspace:*",
     "ioredis": "^6.0.0",
-    "pg": "^8.23.1"
+    "pg": "^8.23.1",
+    "yaml": "^2.9.1"
   },
   "peerDependencies": {
     "vitest": "^5.0.3"
