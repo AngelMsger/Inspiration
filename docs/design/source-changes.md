@@ -50,7 +50,7 @@ The gap: nobody is told. Long-governed knowledge can vanish from pages without a
 ### The design
 
 1. **Check that it is a deletion.** When one sync finds more than 10% of a source's documents, or more than 50 documents, gone at once, the likely cause is lost access (the app was removed from a wiki space, a token expired), not deletion. Source sync then writes no deletion markers, pauses the source and gives the super admin one connection todo. Fixing the connection means nothing happened. Confirming the deletion turns it into one change set (see below). Where a source's API tells "deleted" apart from "no access", the reason is recorded on the version.
-2. **Recognize moves.** A document that disappears while a document with the same or nearly the same text appears in a connected source of the same workspace within 24 hours has moved. Its knowledge, people's work and decisions follow it, Trace records the move, and nobody is asked.
+2. **Recognize moves, but only inside one permission boundary.** A document that disappears while a document with the same or nearly the same text appears in a connected source of the same workspace within 24 hours is a move candidate. Matching text shows that the two are the same document; it never decides who may see the work attached to it. The move completes silently (knowledge, people's work and decisions follow it, Trace records the move, nobody is asked) only when the new place is in the same domain, every reader of the new space could already read the old one, and the new sensitivity label is not lower. Otherwise the new document starts as a new document, with none of the old comments, corrections or decisions, and the old one follows the steps below; its todo offers to carry people's work over, which is a publish request under the existing rules (see [Business layer and engine contract](business-engine-contract.md)): approved by the owner of the new space and by the owner of every space whose audience the move widens. Between My space and a shared space it is always a publish, never a move.
 3. **Keep everything until someone decides.** Statements stay current and their evidence still opens the last version. Citations and the Trace view show "Source deleted on 20 October". The page text keeps its only two marks, Outdated and Disputed. A workspace policy can hide such knowledge until a decision instead (`source_deleted: keep | hide`, default keep), for workspaces where a deletion often means the document was withdrawn.
 4. **Ask only about what lost all support.** Lineage tells which statements still have evidence elsewhere: those are decided again silently. Only statements whose only evidence was the deleted document, and the pages and procedures that cite them, go into the todo. If there are none, there is no todo.
 5. **One todo per deleted document or folder, per owner.** It goes to the owner of each affected topic and lists the topics, pages, procedures and statements involved. Deleting a folder of 30 documents gives each owner one todo, not 30. The owner chooses once for everything, or item by item:
@@ -58,11 +58,11 @@ The gap: nobody is told. Long-governed knowledge can vanish from pages without a
 | Choice | What happens |
 | --- | --- |
 | Keep as a snapshot (the default) | The last version becomes a snapshot source: frozen, with no connection, and a review date (by default the shortest review interval of its statements' classes). Statements stay current and cite the snapshot. Comments, corrections and decisions stay anchored to it. Citations show "Source deleted, kept as a snapshot" |
-| Point to a replacement | The owner picks a document; the engine suggests the most similar ones. It is handled as a move: statements the new document supports carry over with people's work, and the rest are listed for the owner |
+| Point to a replacement | The owner picks a document; the engine suggests the most similar ones. It is handled as a move: statements the new document supports carry over with people's work, and the rest are listed for the owner. The permission check of step 2 applies: a replacement with a wider audience, or in the other domain, carries people's work over only through a publish request |
 | Retire | Statements whose only evidence was the document are retracted: closed, and still in Trace. Pages and procedures that cite them are rebuilt, and governance decides their slots again |
 
 6. **Every choice is a record:** who decided, when, which choice, the version kept and an optional reason. It shows in the Trace view and in "Why this value?", so anyone can later see why the knowledge is still there or why it went.
-7. **Nothing stays open forever.** With no decision after 30 days, the document is kept as a snapshot and recorded as "kept by default", with a review date. If the document comes back in the source before a decision, the todo is withdrawn and nothing changed. After "keep", a restored document returns to normal sync and its history continues. After "retire", restored statements come back as new occurrences and are governed as usual.
+7. **Nothing stays open forever.** With no decision after 30 days, the document is kept as a snapshot and recorded as "kept by default", with a review date. Keeping by default decides storage, never visibility: a snapshot stays in its space, with that space's audience and its last sensitivity label, and knowledge hidden while the todo was open (`source_deleted: hide`, or `source_restricted: quarantine` from the contract) stays hidden, shown in Trace as "kept by default, hidden". Showing it again is a decision of its own, recorded like the others: by the topic owner for `hide`, by the space owner for `quarantine`. If the document comes back in the source before a decision, the todo is withdrawn and nothing changed. After "keep", a restored document returns to normal sync and its history continues. After "retire", restored statements come back as new occurrences and are governed as usual.
 
 By governance level:
 
@@ -95,14 +95,25 @@ Causes fall into three kinds, handled differently:
 
 The first-review campaign that a new workspace gets on its first day (built) is the first case of this rule: its cause is the first connection of a source.
 
+## Acceptance tests
+
+The engine work is done when these fixtures pass, against the in-memory doubles and the stack:
+
+| Case | Expected |
+| --- | --- |
+| A document is renamed or moved inside one space | Citations, comments, corrections and decisions follow it; Trace records the move; nobody is asked |
+| A document disappears from My space and the same text appears in a shared space | Not a move. The shared copy is a new document without the member's comments, corrections or decisions. The member gets the deletion todo for the My space document, with publishing their work as one choice |
+| A document moves from a restricted space to a space with a wider audience | Knowledge is built from the text again in the new space. People's work stays with the old space's snapshot, and the wider audience never sees it unless a publish request is approved |
+| `source_deleted: hide` or `source_restricted: quarantine` is in force and 30 days pass without a decision | The snapshot is kept and stays hidden, recorded as "kept by default, hidden". Only the topic owner (`hide`) or the space owner (`quarantine`) can show it |
+
 ## Contract changes
 
 All additive; see [docs/contracts.md](../contracts.md) for the process.
 
 - `TodoKind` adds `source_deleted` and `change_set`.
 - New `ChangeSet { id, tenant_id, cause { kind: sync | folder_deleted | folder_moved | connection_lost | new_version | level_changed | first_connection | rebuild, source_id?, correlation_id }, counts { by_kind, by_topic }, todo_ids, assignee_id, status: open | decided | split, decision_id? }`.
-- `SourceVersion` gains optional `deletion_reason: deleted | no_access | moved` and `moved_to?: DocumentId`.
-- Decision resolutions for `source_deleted`: `keep_snapshot`, `replace` (with a document ID) and `retire`.
+- `SourceVersion` gains optional `deletion_reason: deleted | no_access | moved` and `moved_to?: DocumentId`; `moved` is set only for a move that passed the permission check.
+- Decision resolutions for `source_deleted`: `keep_snapshot`, `replace` (with a document ID) and `retire`. A `replace` that fails the permission check opens a publish request instead of carrying people's work over.
 - `WorkspacePolicy` gains `sources { source_deleted: keep | hide }`.
 - `ConflictCase` gains `support[] { value_key, documents, by_authority }`.
 
@@ -110,11 +121,11 @@ All additive; see [docs/contracts.md](../contracts.md) for the process.
 
 | Component | Change | Person-weeks |
 | --- | --- | --- |
-| source-sync | The mass-disappearance check, move detection with normalization's duplicates, the deletion reason | 0.5 |
+| source-sync | The mass-disappearance check, move detection with normalization's duplicates and the permission check (reusing the publish audience-gap check), the deletion reason | 0.5 |
 | extraction | Hold retraction on deletion; retract on "retire"; carry statements over on a move or a replacement | 0.5 |
 | freshness, collaboration | The `source_deleted` todo per document or folder and owner, the 30-day default, restore | 0.5 |
 | governance | Support counts on conflict todos | 0.25 |
-| contracts and tests | The changes above, with tests against the in-memory doubles and the stack | 0.25 |
+| contracts and tests | The changes above and the acceptance fixtures, against the in-memory doubles and the stack | 0.25 |
 | collaboration | Change sets: grouping by cause above the threshold, bulk decisions with a record per item | 1 |
 | **Total** |  | **3** |
 

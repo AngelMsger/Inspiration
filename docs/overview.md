@@ -171,9 +171,11 @@ trees to browse it:
 - **Deleted sources keep their knowledge until someone decides.** Knowledge never disappears
   silently. Statements stay, with "Source deleted" on their citations, and each affected topic
   owner gets one todo per deleted document or folder: keep it as a snapshot (the default, also
-  after 30 days without a decision), point it to a replacement, or retire it. Moves are recognized
-  and followed silently, and many documents vanishing at once is treated as a lost connection, not
-  as deletions. See [Source changes](design/source-changes.md).
+  after 30 days without a decision), point it to a replacement, or retire it. Moves within one
+  permission boundary are followed silently; a move to a wider audience, or between My space and a
+  shared space, goes through publishing. A default keep never changes who can see the knowledge.
+  Many documents vanishing at once is treated as a lost connection, not as deletions. See
+  [Source changes](design/source-changes.md).
 - **Review dates come from the knowledge itself.** Each governed document gets a review clock from
   the classes of its statements (for example yearly for policy, every 180 days for process), a
   review on each date a plan names, and an immediate review for copies an edit left behind.
