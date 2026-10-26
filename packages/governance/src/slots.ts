@@ -17,7 +17,7 @@
  *   a reference document states moves nothing. The case names that change, so the owner
  *   learns of it.
  * - The leader is the in-force group whose best member is the most authoritative; between
- *   equally authoritative ones, the value more governed statements state.
+ *   equally authoritative ones, the value more governed statements in effect today state.
  * - A change beats the leader when it took effect after the leader's own date, the later of
  *   its document's effective date and any change it states, and no later than today: a
  *   notice that the cap is 650 from October outranks the policy that says 600 from January
@@ -69,6 +69,8 @@ export interface ValueGroup {
   live: number;
   /** Live members from governed documents. */
   governed: number;
+  /** The same members by the day they take effect; "" for those in effect from the start. */
+  governed_from?: Record<string, number>;
   archived: number;
   plans: number;
   /** Members from reference documents, live or not. */
@@ -132,28 +134,35 @@ function outranks(a: Member, b: Member): boolean {
 
 /**
  * True when group a leads b: its best member outranks b's, or the two tie and more governed
- * statements state a's value. Without the count a tie would fall to the claim IDs, and a
- * side remark in a policy ("objections within 5 working days") could outrank the article
- * the policy and its copies state.
+ * statements in effect today state a's value. Without the count a tie would fall to the
+ * claim IDs, and a side remark in a policy ("objections within 5 working days") could
+ * outrank the article the policy and its copies state. Reference documents and statements
+ * that take effect later are not counted: a FAQ, or next year's policy, would decide today's
+ * value.
  */
-function leads(a: ValueGroup, b: ValueGroup): boolean {
+function leads(a: ValueGroup, b: ValueGroup, today: string): boolean {
   const r = rank(a.best, b.best);
   if (r) return r > 0;
-  if (governedIn(a) !== governedIn(b)) return governedIn(a) > governedIn(b);
-  if (a.live !== b.live) return a.live > b.live;
+  const [x, y] = [governedAsOf(a, today), governedAsOf(b, today)];
+  if (x !== y) return x > y;
   return a.best.claim_id < b.best.claim_id;
 }
 
 /**
  * A group as it is counted now. Groups stored before governance levels have no governed
- * count or date; every member was governed then, so those are its live ones.
+ * count or date; every member was governed then, so those are its live ones. Groups stored
+ * before governed members were counted by day count them all from the earliest one's day.
  */
 export function upgraded(g: ValueGroup): ValueGroup {
-  if (g.governed !== undefined) return g;
+  if (g.governed_from !== undefined) return g;
+  const legacy = g.governed === undefined;
+  const governed = legacy ? g.live : g.governed;
+  const from = legacy ? g.earliest_live_from : g.earliest_governed_from;
   return {
     ...g,
-    governed: g.live,
-    ...(g.earliest_live_from !== undefined && { earliest_governed_from: g.earliest_live_from }),
+    governed,
+    ...(from !== undefined && { earliest_governed_from: from }),
+    governed_from: governed ? { [from ?? ""]: governed } : {},
   };
 }
 
@@ -168,6 +177,7 @@ export function withMember(group: ValueGroup | undefined, m: Member): ValueGroup
         count: 0,
         live: 0,
         governed: 0,
+        governed_from: {},
         archived: 0,
         plans: 0,
         versions: [],
@@ -186,6 +196,7 @@ export function withMember(group: ValueGroup | undefined, m: Member): ValueGroup
     if (g.earliest_live_from === undefined || from < g.earliest_live_from) g.earliest_live_from = from;
     if (isGoverned(m)) {
       g.governed++;
+      g.governed_from = { ...g.governed_from, [from]: (g.governed_from?.[from] ?? 0) + 1 };
       if (g.earliest_governed_from === undefined || from < g.earliest_governed_from) g.earliest_governed_from = from;
     }
     if (m.stated_from) {
@@ -207,11 +218,14 @@ export function changeAsOf(g: ValueGroup, today: string, governed = false): Memb
   return g.changes.filter((c) => (c.stated_from as string) <= today && (!governed || !c.reference)).at(-1);
 }
 
-/** The first day after today on which a group comes into force or a change it holds takes effect. */
+/**
+ * The first day after today on which a group comes into force, a change it holds takes
+ * effect, or one of its governed statements does and counts for it.
+ */
 export function nextChangeDay(groups: readonly ValueGroup[], today: string): string | undefined {
   let next: string | undefined;
   for (const g of groups) {
-    const starts = [g.earliest_live_from ?? "", g.earliest_governed_from ?? ""];
+    const starts = [g.earliest_live_from ?? "", g.earliest_governed_from ?? "", ...Object.keys(g.governed_from ?? {})];
     for (const day of [...starts, ...g.changes.map((c) => c.stated_from as string)]) {
       if (day > today && (next === undefined || day < next)) next = day;
     }
@@ -228,6 +242,13 @@ export function groupsOf(members: readonly Member[]): ValueGroup[] {
 
 /** Live members from governed documents. */
 export const governedIn = (g: ValueGroup) => g.governed;
+
+/** Live members from governed documents that are in effect by today. */
+export function governedAsOf(g: ValueGroup, today: string): number {
+  let n = 0;
+  for (const [day, count] of Object.entries(g.governed_from ?? {})) if (day <= today) n += count;
+  return n;
+}
 
 /** The first day the group's value holds; in a governed slot, by its governed members alone. */
 const startOf = (g: ValueGroup, governed: boolean) => (governed ? g.earliest_governed_from : g.earliest_live_from);
@@ -264,7 +285,7 @@ export function decide(groups: readonly ValueGroup[], today: string): SlotDecisi
   const governedSlot = groups.some((g) => governedIn(g) > 0);
   const current = groups.filter((g) => inForce(g, today, governedSlot));
   const pool = current.length ? current : groups;
-  const leader = pool.reduce((a, b) => (leads(b, a) ? b : a));
+  const leader = pool.reduce((a, b) => (leads(b, a, today) ? b : a));
   const baseline = since(leader, today, governedSlot);
   // The latest change in effect after the leader's own date; on a tie, the better source.
   let changed: { group: ValueGroup; change: Member } | undefined;

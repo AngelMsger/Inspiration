@@ -1,10 +1,22 @@
 import { type Claim, type ClaimsUpdated, newEvent } from "@inspiration/contracts";
 import { describe, expect } from "vitest";
-import { VALUE_GROUPS } from "../src/index.ts";
-import { BACKENDS, governanceTest, HOTEL, SPACE, TENANT } from "./fixtures.ts";
+import { RECHECKS, VALUE_GROUPS } from "../src/index.ts";
+import { BACKENDS, governanceTest, HOTEL, SPACE, TENANT, type World } from "./fixtures.ts";
 
 const POLICY = { title: "Travel policy", authority: 0.9, effective_from: "2026-01-01" };
 const GUIDE = { title: "Onboarding guide", authority: 0.5 };
+
+/** Two governed documents of equal authority state 600 and 650; the claim IDs, random here, pick the leader. */
+async function tied(world: World): Promise<{ leader: number; other: number }> {
+  await world.state({ title: "Travel policy", authority: 0.9 }, [
+    { text: "The hotel cap is 600 yuan a night.", value: 600 },
+  ]);
+  await world.state({ title: "Travel standard", authority: 0.9 }, [
+    { text: "The hotel cap is 650 yuan a night.", value: 650 },
+  ]);
+  const proposed = (await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value;
+  return proposed === "600 CNY/night" ? { leader: 600, other: 650 } : { leader: 650, other: 600 };
+}
 
 describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
   const test = governanceTest(backend);
@@ -268,6 +280,31 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       }
     });
 
+    test("a reference document does not break a tie between governed values", async ({ world }) => {
+      const { leader, other } = await tied(world);
+      await world.state({ title: "Travel FAQ", authority: 0.5, level: "reference" }, [
+        { text: `Hotels are capped at ${other} a night.`, value: other },
+      ]);
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${leader} CNY/night`);
+    });
+
+    test("a governed statement that takes effect later counts toward a tie from its day", async ({ world }) => {
+      const { leader, other } = await tied(world);
+      await world.state({ title: "Travel policy (2027 edition)", authority: 0.5, effective_from: "2027-01-01" }, [
+        { text: `The hotel cap is ${other} yuan a night.`, value: other },
+      ]);
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${leader} CNY/night`);
+      expect((await world.records.find(RECHECKS, { tenant_id: TENANT })).map((r) => [r.slot, r.day])).toEqual([
+        [HOTEL, "2027-01-01"],
+      ]);
+
+      world.setToday("2026-12-31");
+      expect((await world.governance.recheck(TENANT)).slots).toEqual([]);
+      world.setToday("2027-01-01");
+      expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${other} CNY/night`);
+    });
+
     test("plans and later dates do not override what is in force", async ({ world }) => {
       await world.state(POLICY, [{ text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 }]);
       await world.state({ title: "Budget proposal for 2027", authority: 0.5 }, [
@@ -331,7 +368,9 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       ]);
       // The groups as governance stored them before levels: no governed count or date.
       const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
-      const legacy = stored.map(({ governed: _governed, earliest_governed_from: _from, reference: _ref, ...g }) => g);
+      const legacy = stored.map(
+        ({ governed: _governed, governed_from: _days, earliest_governed_from: _from, reference: _ref, ...g }) => g,
+      );
       await world.records.transaction((tx) => tx.put(VALUE_GROUPS, legacy as typeof stored));
       expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("600 CNY/night");
 
