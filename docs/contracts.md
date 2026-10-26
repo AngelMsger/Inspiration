@@ -3,7 +3,8 @@
 Every type that crosses a component boundary is defined once, in JSON Schema (draft
 2020-12) written as YAML under `packages/contracts/schema/`. The TypeScript types, the
 runtime validators and the event catalogue are generated from it. Data on the wire and in
-the database is `snake_case`; TypeScript APIs are `camelCase`.
+the database is `snake_case`; TypeScript APIs are `camelCase`. A Chinese copy is in
+[zh/contracts.md](zh/contracts.md); if the two differ, this English version wins.
 
 | File | Contents |
 | --- | --- |
@@ -90,11 +91,13 @@ chain.
 | `claims.updated` | extraction, governance, collaboration | freshness, governance, page-compiler, retrieval |
 | `artifact.dirty` | freshness | extraction, page-compiler, retrieval |
 | `review.due` | freshness | collaboration, research |
-| `todo.requested` | governance | collaboration |
-| `todo.created` | collaboration, views | collaboration, web |
-| `page.rendered` | page-compiler | collaboration, retrieval, web, views |
+| `todo.requested` | governance, views | collaboration |
+| `todo.created` | collaboration | collaboration |
+| `page.rendered` | page-compiler | collaboration, retrieval, views |
 | `comment.created` | collaboration | extraction, collaboration |
 | `unit.published` | collaboration | retrieval, agent-api |
 
 `test/manifest.test.ts` keeps `components.yaml` and the catalogue in step; update this
-table when either changes.
+table when either changes. The table lists engine components only; the business layer, the
+web app with it, consumes engine events too (todos and rendered pages for its inbox and
+reader, for example).

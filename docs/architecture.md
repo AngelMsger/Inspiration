@@ -3,7 +3,8 @@
 Inspiration is a set of components around one knowledge store. Each component owns one
 job, talks to the others through a small number of well-defined paths, and can be built
 and tested on its own. [`components.yaml`](../components.yaml) is the authoritative list;
-this page explains how the pieces fit.
+this page explains how the pieces fit. A Chinese copy is in
+[zh/architecture.md](zh/architecture.md); if the two differ, this English version wins.
 
 ## Engine and business layer
 
@@ -27,8 +28,8 @@ the engine keeps outside a tenant's own rows keys principals by tenant: the perm
 (`<ten_…>|<mem_…>`, likewise for services, groups and departments), index principal
 tokens, and agent runs.
 
-Engine APIs are tenant- and membership-aware and free of UI concerns, so the web app, the
-business layer and agents all use the same surface.
+Engine APIs are tenant- and membership-aware and free of UI concerns, so the business layer,
+its web app and agents all use the same surface.
 
 ## Layers and components
 
@@ -37,8 +38,8 @@ business layer and agents all use the same surface.
 | Ingest | connectors, source-sync, parsing, normalization, research | Fetch sources with their ACLs, parse them, and store canonical blocks and spans with stable IDs |
 | Compile | extraction, freshness, governance, page-compiler | Claims with evidence, staleness and dirty propagation, conflicts, cited pages and diagrams |
 | Store | knowledge-store | The only owner of knowledge tables: lineage, bitemporal reads, page snapshots, search indexes |
-| Serve | retrieval, agent-api, web, views | Hybrid search and grounded answers, MCP and REST for agents, the reader UI, sandboxed interactive views |
-| Control | collaboration, access-control, model-gateway, agent-runtime | Comments and proposals, permissions, every model call, the loop built-in agents run on |
+| Serve | retrieval, agent-api, views | Hybrid search and grounded answers, MCP and REST for agents, sandboxed interactive views |
+| Control | collaboration, access-control, model-gateway, agent-runtime, credential-broker, sandbox | The inbox, comments and proposals, permissions, every model call, the loop built-in agents run on, source connections and their credentials, isolated jobs for vendor CLIs, agent tools and render checks |
 
 Shared libraries sit under all of them: **contracts** (types, validators, the event
 catalogue, component interfaces), **kernel** (settings, logging, plugins, migrations, blob
@@ -108,8 +109,7 @@ placement (`Placement`: claim, topic key, page block, placed_by, confirmed).
   one re-clustering to the next.
 - A statement with a fact slot sits where most of its slot's statements are. That is also
   the only way a reference document's statements are placed.
-- A governed statement without a topic is unfiled (未归类) and shows under its source
-  section.
+- A governed statement without a topic is unfiled and shows under its source section.
 - Clustering proposes topics, and an owner confirms them. Confirmed topics, and placements
   made or confirmed by a person or a page, never move. At most `budget` (5%) of the placed
   statements change topic in one re-clustering.
@@ -127,13 +127,14 @@ the people who own the topics, in amounts a person can keep up with.
   (`TaxonomyNode.owner_id`).
 - An owner's todos about one topic in one ISO week share a card (`Todo.batch_key`) of at
   most 20. An owner gets at most 10 cards a week; the rest wait for the first later week
-  with room, except high and urgent todos.
+  with room, except high and urgent todos. The budget is a soft limit: a conflict and its
+  copy reviews also stay together in their week, over the budget when they must.
 - Notes, where reference documents state another value than the governed one, go on a
   weekly notes card outside the budget, and one action acknowledges them.
 - A copy review rides on the card of the conflict its source update opened (on its next
-  part when the card is full), in whichever order the two arrive, until that conflict closes. Reviews already
-  due when a document is first seen go to a first-review campaign per topic. The todos of
-  topics nobody owns go to the space's steward.
+  part when the card is full), in whichever order the two arrive, until that conflict
+  closes. Reviews already due when a document is first seen go to a first-review campaign
+  per topic. The todos of topics nobody owns go to the space's steward.
 
 ## Storage
 
@@ -169,18 +170,24 @@ deployment can move to Milvus or OpenSearch without touching retrieval.
 
 ## Security model
 
-- **Source ACLs are kept, not reinvented.** Access control mirrors each document's ACL
-  from its source into SpiceDB. Unmapped and external principals get nothing. "Anyone with
-  the link" and public sharing are kept as separate relations so the oversharing scan can
-  find them.
+The first two points describe access control as built. The adopted permission model
+changes them, and that is the next change to access-control: visibility comes from the
+space a unit is in, never from source permissions. A member's own space is readable by
+that member alone; shared spaces get their visibility top down from admins and stewards,
+and source ACLs only warn of an audience gap when something is published. A claim is
+visible when its space is readable and one complete proof of it is (see
+`docs/design/business-engine-contract.md`, rule 6).
+
+- **Source ACLs are mirrored.** Access control mirrors each document's ACL from its source
+  into SpiceDB. Unmapped and external principals get nothing. "Anyone with the link" and
+  public sharing are kept as separate relations so the oversharing scan can find them.
 - **Derived knowledge follows its sources.** A claim, page or SOP is readable only through
   source documents the viewer can read now. Access control decides this at read time by
   walking lineage along support paths (supporting evidence, derivations, dependencies), so it
   can never drift from the source ACLs; evidence that contradicts or qualifies a claim never
-  makes it readable. Hidden support is never
-  counted or named. Document checks for one request go to SpiceDB in bulk and are memoised;
-  retrieval keeps each indexed derived unit's supporting documents so its pre-filter still
-  applies.
+  makes it readable. Hidden support is never counted or named. Document checks for one
+  request go to SpiceDB in bulk and are memoised; retrieval keeps each indexed derived
+  unit's supporting documents so its pre-filter still applies.
 - **Search pre-filters.** `scopeFilter` gives each index the viewer's spaces, principal
   tokens and clearance, so top-k is taken only over rows the viewer may see. Results are
   re-checked before they leave the server.
@@ -192,9 +199,8 @@ deployment can move to Milvus or OpenSearch without touching retrieval.
   ever reaches models inside the customer network.
 - **Agents act for a member.** An agent principal must carry `on_behalf_of`, a member of
   its tenant. Its rights are the member's rights cut down to its scopes (read-only by
-  default) and spaces. Built-in
-  agent tools only read or propose; nothing an agent does changes knowledge without a
-  person approving it.
+  default) and spaces. Built-in agent tools only read or propose; nothing an agent does
+  changes knowledge without a person approving it.
 
 ## Deployment shapes
 

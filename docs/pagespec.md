@@ -4,7 +4,8 @@ Pages are data, not HTML. The page compiler builds a `PageSpec`: an ordered list
 sentences cite claims. The knowledge store keeps every rendered version as an immutable `PageSnapshot`.
 The UI, exports, agents and diffing all read the same structure. This is how Inspiration
 gets close to what Claude Artifacts can show while keeping every statement traceable and
-every reader's permissions intact.
+every reader's permissions intact. A Chinese copy is in [zh/pagespec.md](zh/pagespec.md);
+if the two differ, this English version wins.
 
 ## Matching Claude Artifacts
 

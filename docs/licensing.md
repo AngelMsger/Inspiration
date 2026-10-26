@@ -1,7 +1,8 @@
 # Licensing of the stack
 
 This is an engineering summary to guide choices, not legal advice. Have counsel confirm it
-before the first customer delivery.
+before the first customer delivery. A Chinese copy is in [zh/licensing.md](zh/licensing.md);
+if the two differ, this English version wins.
 
 | Component | Licence | Used as |
 | --- | --- | --- |
