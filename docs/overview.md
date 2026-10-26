@@ -651,23 +651,33 @@ provisions.
   who can read either sees the statement. A margin computed from a price in Sales and a cost in
   Finance needs both: a reader who could see the margin and the price but not the cost could work
   the cost out, so the margin is shown only to readers who can read both.
-- **Crossing audiences takes an approval.** Knowledge often rests on another department's space:
-  a step in a Sales quoting procedure comes from Finance's discount policy, a travel guide for
-  everyone combines HR's grades with Finance's hotel caps, a margin is computed from a Sales price
-  and a Finance cost. Such a result is seen only by readers who can read every space it rests on.
-  To show it to the whole audience of its own space, the owners of the spaces that audience cannot
-  read approve a publish request for it, once, without opening the rest of their space. If one of
-  those spaces later narrows its audience, its owner gets a todo to keep or withdraw the approval.
-- **Citations across spaces.** A citation into another space is shown only if the reader can read
-  that space; otherwise it is left out, with no marker. A statement with no readable proof is
-  hidden, and so is everything built from it: a proposed value, a conflict variant, a page
-  sentence, an answer. A company with a single shared space never meets these rules; they start
-  to matter when a department such as Finance or HR narrows who can read its space. The
-  readable-space set is looked up once per request and memoized.
-- **No existence leaks.** Hidden citations, counts and graph edges are dropped, never shown as "3
-  hidden". Shared answer caches are keyed by readable spaces and clearance, an entry is dropped
-  when a unit it used changes label, proof or grant, and an answer that used a unit readable only
-  through the reader's own grant (as publisher or approver) is never shared.
+- **Compiled knowledge is written for its audience.** Knowledge often rests on another
+  department's space: a step in a Sales quoting procedure comes from Finance's discount policy, a
+  travel guide for everyone combines HR's grades with Finance's hotel caps, a margin is computed
+  from a Sales price and a Finance cost. A page, procedure or topic summary has the audience of
+  its space, and its inputs never narrow it, so no restricted item can hide knowledge it does not
+  own. The compiler writes only from inputs that whole audience can read; any other input is
+  released to that audience, one statement at a time, by the owner of its space, or not used.
+  A company with a single shared space never meets this; it starts to matter when a department
+  such as Finance or HR narrows who can read its space.
+- **An omission that changes the meaning needs a person.** The engine sees every input, so it
+  checks whether leaving one out would change what a unit says: a different value for a fact slot
+  the unit uses, a newer version, an added condition, or the other side of an argument. If so, the
+  unit's owner chooses: ask for a release, rewrite without taking a position on that point, or
+  publish with a note. Procedures are all or nothing.
+- **Readers are told, never misled.** Where something that matters was left out, the reader sees
+  a note saying so and whom to ask, never the content, and an answer that may be incomplete says
+  so. Per-reader checks act only on whole items (a document, a block, a row, a search result),
+  never on words inside prose; when one would cut a paragraph, the unit is compiled again for that
+  reader's readable spaces.
+- **Existence is hidden where it matters.** Unreadable spaces never appear in trees, search,
+  counts or graphs, and a citation into a space the reader cannot read is left out when the
+  statement stands on another proof. Material labelled `secret` is never an input outside its own
+  space and leaves no trace or note anywhere else. The design, its abuse cases and its trade-offs
+  are in [design/compiled-knowledge-permissions.md](design/compiled-knowledge-permissions.md).
+- **Shared answer caches** are keyed by readable spaces and clearance, an entry is dropped when a
+  unit it used changes label, proof or grant, and an answer that used a unit readable only through
+  the reader's own grant (as publisher or approver) is never shared.
 - **Search is filtered inside the index** by readable spaces and sensitivity, and every top result
   is checked again before it leaves the server.
 - **Source ACLs are advisory.** Source-sync keeps ACL snapshots and identity links only for the
@@ -740,19 +750,12 @@ planned.
   callout, quote, table, code, math, image, divider, diagram, chart, view, embed) whose sentences
   carry statement IDs. Every version is an immutable snapshot with its cause, and block keys stay
   stable so comments survive rebuilds and diffs can say what moved.
-- **A page is written for its audience, never cut down per reader.** Removing sentences from prose
-  written for someone else would leave pages that do not read. So the compiler writes a page's
-  prose only from statements that everyone in its space's audience can read, at their clearance.
-  When it would use a statement with a narrower audience, the publish check asks for one of three
-  things: an approval to show it to the whole audience, leaving it out, or a self-contained block
-  (a callout or a section such as "Finance details") that only its readers see. No sentence may
-  refer to a block with another audience, so dropping a whole block leaves the page coherent.
-  Procedures are all or nothing: one is published only when its audience can read every step.
-  When a space narrows later and the setting hides the affected statement, the page is recompiled
-  without it, as a new version. A last check per reader still drops anything unreadable, for
-  example after a change between compile and read; if it would drop text inside a paragraph or a
-  procedure, the page is compiled again for that reader's set of readable spaces and cached for
-  everyone who shares it.
+- **A page is written for its audience, never cut down per reader.** Its prose comes only from
+  statements its whole audience can read, at their clearance, or that were released to it. When
+  leaving a statement out would change the meaning, a person decides, and a section may carry a
+  note for readers who cannot see part of it, while readers who can see all of it get the full
+  section (see Permissions above). Procedures are published only when their audience can read every step. When a space
+  narrows later, the page is compiled again, as a new version.
 - **Charts** take their data from a `DataRef`: inline rows, statements (fixed or by query) or a
   registered query of a connected system, never free SQL. Rows built from statements keep their
   statement IDs, so rows a reader may not see are dropped before rendering.
@@ -951,7 +954,8 @@ document's estimate.
 | Internationalization (engine 3.5, UI 3, business 0.5) | 7 |
 | Source changes (deletions, moves, change reviews) | 3 |
 | Knowledge across languages (translations, cross-language merge, pages in another language) | 3.5 |
-| **Total** | **about 120** |
+| Permissions in compiled knowledge (writing for an audience, the omission check, releases) | 3 |
+| **Total** | **about 123** |
 
 After that, pilot and product-v1 work for Artifact-level editing (templates, Word and PDF export,
 block editor, real-time co-editing, the view host API, mobile, share links) is about 19 to 27, and
@@ -1004,6 +1008,9 @@ time depends more on review and integration than on these person-week figures.
   Drive, SharePoint), and which first design partner and industry the pilot targets.
 - The order of the remaining prototype stages proposed above, and whether a small, capped probe
   with a real model on real documents should run before every stage is mocked.
+- Confirm the trade-offs of [permissions in compiled knowledge](design/compiled-knowledge-permissions.md):
+  readers learn that relevant restricted material exists and whom to ask, never its content, and
+  `secret` material leaves no trace.
 
 ## Further reading
 
@@ -1019,6 +1026,8 @@ time depends more on review and integration than on these person-week figures.
   deleted or changes at scale, and when a person is asked.
 - [Knowledge and language](design/knowledge-and-language.md): knowledge is language-neutral;
   translations, cross-language merge and pages in another language.
+- [Permissions in compiled knowledge](design/compiled-knowledge-permissions.md): writing for an
+  audience, omissions that change the meaning, releases, abuse cases and trade-offs.
 - [Architecture](architecture.md): components, how they talk, storage and security as built.
 - [Contracts](contracts.md): changing schemas, IDs, events, versioning.
 - [PageSpec and views](pagespec.md): pages compared with Claude Artifacts, and the view sandbox.

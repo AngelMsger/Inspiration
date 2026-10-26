@@ -9,7 +9,7 @@ Inspiration 就是这样在接近 Claude Artifacts 展示能力的同时，让�
 
 | Artifact 能力 | Inspiration | 说明 |
 | --- | --- | --- |
-| Markdown 文档 | `heading`、`paragraph`、`list`、`quote`、`callout`、`table`、`code`、`math`、`divider` | 文本是一个 `Sentence` 列表，每个句子带 `claim_ids`。编译器只用页面全体受众都能读的陈述写行文；受众更窄的陈述放进自成一体的块里，所以去掉一个块不会打断文字（见总览的“页面与视图”）。 |
+| Markdown 文档 | `heading`、`paragraph`、`list`、`quote`、`callout`、`table`、`code`、`math`、`divider` | 文本是一个 `Sentence` 列表，每个句子带 `claim_ids`。编译器只用页面全体受众都能读、或已放行给它的陈述写行文；省略会改变意思时，块上带一条说明，而不是悄无声息的空缺（见[汇编知识的权限](design/compiled-knowledge-permissions.md)）。 |
 | 图片和 SVG | `image` | 带替代文本和说明的 Blob 引用。没有内联脚本。 |
 | Mermaid 和其他示意图 | `diagram` | `mermaid`、`echarts` 或 `graph` 格式的 `DiagramSpec`。`DiagramCompiler` 插件根据结构（一个 SOP、一个实体的邻域、一条时间线）构建它；模型可以选择展示什么，但从不自己画边。 |
 | 图表 | `chart` | 带 `DataRef` 的 `ChartSpec`。数据可以内联，可以来自陈述（固定的或按查询，在重建时、按计划或在查看时刷新），也可以来自已接入系统的注册查询。每行都保留它的陈述 ID，所以读者无权看到的行会在渲染前被去掉。 |
