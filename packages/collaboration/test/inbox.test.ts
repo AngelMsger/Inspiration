@@ -340,4 +340,28 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       ]);
     });
   });
+
+  describe.skipIf(skip)("a conflict group", () => {
+    const test = inboxTest(backend, { budget: 1, cardSize: 2, horizon: 2 });
+
+    test("stays in its week even when that takes a card over the budget", async ({ world }) => {
+      await world.topics({ key: "t-hotel", owner_id: LI }, { key: "t-leave", owner_id: WANG });
+      const hotel = await world.document(
+        ["The first-tier hotel cap is 600 a night.", "The second-tier cap is 450."],
+        "t-hotel",
+      );
+      const leave = await world.document(["Leave rule 1."], "t-leave");
+      const [c1, c2] = hotel.claims.map((c) => c.id) as [string, string];
+      await world.request({ unit_ids: [c1] }, "evt_01JC0000000000000000UPDATE1");
+      await world.request({ unit_ids: [c2] }, "evt_01JC0000000000000000UPDATE2");
+      await world.review(
+        { kind: "evidence_changed", unit_ids: [leave.version.id], cause_ids: [hotel.version.id] },
+        "evt_01JC0000000000000000UPDATE1",
+      );
+      expect((await world.inbox.cards(TENANT)).map((c) => [c.batch_key, c.week, c.todos.map((t) => t.kind)])).toEqual([
+        [`card:${LI}:t-hotel:2026-W43`, "2026-W43", ["conflict", "conflict"]],
+        [`card:${LI}:t-hotel:2026-W43:2`, "2026-W43", ["stale"]],
+      ]);
+    });
+  });
 });

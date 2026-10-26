@@ -6,7 +6,8 @@ Feishu approval definition (its four instances are read with it). `corpus.yaml` 
 the tenant, its two spaces, its five sources and the directory that maps source principals
 to engine principals. `vocabulary.yaml` is the tenant's predicate catalogue: the
 single-valued facts (hotel caps, deadlines, leave days ...) that extraction puts into slots
-so governance can compare values across documents.
+so governance can compare values across documents. A Chinese copy is in
+[README.zh.md](README.zh.md); if the two differ, this English version wins.
 
 Run it through the engine with `pnpm engine ingest examples/corpus` (see `apps/engine`).
 With the mocked extraction model it gives about 120 claims, 58 of them in 15 slots, and

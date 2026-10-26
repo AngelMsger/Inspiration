@@ -15,8 +15,8 @@
 #            (the kernel's blob store). A built component's package may depend on the
 #            libraries below and on the components it calls, nothing else.
 #
-# Engine only: people, tenants, sign-in and publishing policy belong to the business
-# layer, which calls the engine and consumes its events (docs/architecture.md).
+# Engine only: people, tenants, sign-in, publishing policy and the web app belong to the
+# business layer, which calls the engine and consumes its events (docs/architecture.md).
 
 components:
   connectors:
@@ -195,27 +195,38 @@ components:
     subscribes: [review.due]
     calls: [model-gateway, agent-runtime, blobs]
 
-  web:
-    title: Web app and console
-    layer: serve
-    status: planned
-    runtime: node
-    owns: Reader with citations, comments, todo inbox, SOP view, admin console, cost dashboard, page history and diff view, sandboxed view embedding (built with the UI work)
-    plugins: []
-    publishes: []
-    subscribes: [todo.created, page.rendered]
-    calls: [retrieval, knowledge-store, access-control]
-
   views:
     title: Interactive views
     layer: serve
     status: planned
     runtime: node
-    owns: ViewSpec and template registry (first 3 templates), the view generator agent, headless Chromium render check, sandbox hosting on a separate origin, view approval todos
+    owns: ViewSpec and template registry (first 3 templates), the view generator agent, the headless Chromium render check (in the sandbox), view hosting on a separate origin; asks collaboration for view approval todos
     plugins: [view_templates]
-    publishes: [todo.created]
+    publishes: [todo.requested]
     subscribes: [page.rendered]
-    calls: [knowledge-store, model-gateway, agent-runtime, blobs]
+    calls: [knowledge-store, model-gateway, agent-runtime, sandbox, blobs]
+
+  credential-broker:
+    title: Credential broker
+    layer: control
+    status: planned
+    runtime: node
+    owns: Connections owned by a tenant or a member, secrets under per-tenant envelope encryption, proactive refresh and a daily keep-alive, short leases that carry only an access token (a tenant connection is never leased to an agent run); connection.changed comes with its contract
+    plugins: [migrations]
+    publishes: []
+    subscribes: []
+    calls: []
+
+  sandbox:
+    title: Sandbox
+    layer: control
+    status: planned
+    runtime: node
+    owns: One container per job with a read-only root and an egress allow-list, never shared across tenants; profiles for vendor CLIs as connectors, agent tools and render checks
+    plugins: []
+    publishes: []
+    subscribes: []
+    calls: [credential-broker, blobs]
 
 # Shared libraries, not components: any package may depend on them.
 libraries:
