@@ -15,10 +15,12 @@ import type {
   EventPublisher,
   PageSnapshot,
   PageVersionInfo,
+  Placement,
   SourceBlock,
   SourceVersion,
   Span,
   StoreTx,
+  TaxonomyNode,
 } from "@inspiration/contracts";
 import { slotOf } from "@inspiration/contracts";
 import { BaseStore, type StoreOptions } from "./base.ts";
@@ -51,6 +53,10 @@ class State {
   pages = new Map<string, ReadonlyMap<number, PageSnapshot>>();
   /** By source, external ID and ACL hash. */
   acls = new Map<string, AclSnapshot>();
+  /** By tenant and key. */
+  topics = new Map<string, TaxonomyNode>();
+  /** By claim. */
+  placements = new Map<string, Placement>();
 
   copy(): State {
     // Values are replaced, never mutated, so copying the containers is enough.
@@ -186,6 +192,25 @@ export class MemoryTx implements StoreTx {
     const s = this.#state();
     const k = key(snapshot.source_id, snapshot.external_id, snapshot.acl_hash);
     if (!s.acls.has(k)) s.acls.set(k, structuredClone(snapshot));
+  }
+
+  async putTopics(nodes: readonly TaxonomyNode[]): Promise<void> {
+    const s = this.#state();
+    rules.checkTopics(nodes, (tenantId, k) => s.topics.get(key(tenantId, k)));
+    for (const n of nodes) s.topics.set(key(n.tenant_id, n.key), structuredClone(n));
+  }
+
+  async place(placements: readonly Placement[]): Promise<void> {
+    const s = this.#state();
+    for (const p of placements) {
+      rules.checkPlacement(p, s.claims.get(p.claim_id), s.topics.get(key(p.tenant_id, p.taxonomy_key)));
+    }
+    for (const p of placements) s.placements.set(p.claim_id, structuredClone(p));
+  }
+
+  async unplace(claimIds: readonly string[]): Promise<void> {
+    const s = this.#state();
+    for (const id of claimIds) s.placements.delete(id);
   }
 
   async publish(...events: EventEnvelope[]): Promise<void> {
@@ -324,6 +349,24 @@ export class MemoryStore extends BaseStore {
   async claimsInSlot(tenantId: string, slotKey: string): Promise<Claim[]> {
     const out = [...this.#state.claims.values()].filter((c) => c.tenant_id === tenantId && slotOf(c) === slotKey);
     out.sort((a, b) => latest(a.recorded_at, b.recorded_at) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    return structuredClone(out);
+  }
+
+  async topics(tenantId: string, spaceId?: string): Promise<TaxonomyNode[]> {
+    const out = byKey(this.#state.topics).flatMap(([, n]) =>
+      n.tenant_id === tenantId && (spaceId === undefined || n.space_id === spaceId) ? [n] : [],
+    );
+    return structuredClone(out);
+  }
+
+  async placementsOf(claimIds: readonly string[]): Promise<Placement[]> {
+    return pick(this.#state.placements, claimIds);
+  }
+
+  async placementsIn(tenantId: string, taxonomyKey: string): Promise<Placement[]> {
+    const out = byKey(this.#state.placements).flatMap(([, p]) =>
+      p.tenant_id === tenantId && p.taxonomy_key === taxonomyKey ? [p] : [],
+    );
     return structuredClone(out);
   }
 

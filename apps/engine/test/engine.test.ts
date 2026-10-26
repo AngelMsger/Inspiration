@@ -112,6 +112,36 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
     states: { fresh: 10, aging: 3 },
     reviews: {},
   });
+  // page-compiler clusters the 34 sections of current governed documents into topics: those
+  // that share a heading across documents (住宿, 报销, 审批权限), and what is left of a
+  // document when it holds five statements or more. The small documents stay unfiled, and
+  // reference statements of a slot join the slot's topic. Clustering again with nothing
+  // changed moves nothing.
+  expect(first.outline.run).toMatchObject({
+    sections: 34,
+    statements: 87,
+    placed: { governed: 70, reference: 12, search_only: 0 },
+    unfiled: 17,
+    topics: { live: 10, by_level: { "1": 1, "2": 9, "3": 0 }, created: 10, retired: 0 },
+    churn: { before: 0, moved: 0 },
+    // Topics are named in one call per sensitivity, the confidential budget guide's apart, and
+    // the area after them.
+    model_calls: 3,
+  });
+  expect(first.outline.again).toMatchObject({ churn: { before: 70, moved: 0, deferred: 0 }, topics: { created: 0 } });
+  const outline = await engine.store.topics(corpus.tenantId);
+  expect(outline.map((n) => [n.title, n.statement_count]).sort()).toEqual([
+    ["2027 年度预算编制说明", 6],
+    ["IT 设备申领说明", 7],
+    ["住宿", 21],
+    ["审批权限", 6],
+    ["差旅费管理办法", 13],
+    ["年休假", 5],
+    ["报销", 8],
+    ["报销相关", 14],
+    ["新人入职指南", 10],
+    ["费用报销管理规定", 6],
+  ]);
   const proposed = async (slot: string) =>
     (await engine.governance.slot(corpus.tenantId, slot)).decision?.proposed.value;
   expect(await proposed("hotel_cap_per_night|一线城市")).toBe("650 CNY/night");
@@ -160,6 +190,8 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
     states: { fresh: 10, aging: 3 },
   });
   expect(edited.asks).toEqual({ updates: 1, asking: 0, per_update: { median: 0, p90: 0, max: 0 } });
+  // The restated rows took their section's place in the outline at once.
+  expect(edited.outline.run).toMatchObject({ placed: { governed: 70 }, churn: { before: 70, moved: 0 } });
 
   // Over the next sixty days the three process documents come due.
   const later = await days(engine, corpus.tenantId, clock, 60);

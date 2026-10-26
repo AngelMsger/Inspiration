@@ -245,6 +245,8 @@
       "FactSlot",
       "SlotVariant",
       "SlotVersion",
+      "Placement",
+      "PlacedBy",
       "ConflictClass",
       "ConflictTier",
       "ConflictStatus",
@@ -314,6 +316,8 @@
       "BlockChange",
       "PageDiff",
       "TaxonomyNode",
+      "TopicKey",
+      "TopicStatus",
       "ViewInitMessage",
       "ViewDataMessage",
       "ViewThemeMessage",
@@ -4956,6 +4960,66 @@
         "admin"
       ]
     },
+    "PlacedBy": {
+      "description": "clustering: the taxonomy clustering of page-compiler. page: a page cites the statement. member: a person put it there.\n",
+      "type": "string",
+      "enum": [
+        "clustering",
+        "page",
+        "member"
+      ]
+    },
+    "Placement": {
+      "description": "Where a statement sits in the knowledge outline: its topic, and the page block that cites it when a page does. A claim has at most one. A current claim of a governed document without one is unfiled (未归类) and shows under its source section.\n",
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "claim_id",
+        "space_id",
+        "taxonomy_key",
+        "placed_by",
+        "confirmed",
+        "placed_at"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        },
+        "claim_id": {
+          "$ref": "#/$defs/ClaimId"
+        },
+        "space_id": {
+          "$ref": "#/$defs/SpaceId"
+        },
+        "taxonomy_key": {
+          "$ref": "#/$defs/TopicKey"
+        },
+        "page_id": {
+          "$ref": "#/$defs/PageId"
+        },
+        "block_key": {
+          "$ref": "#/$defs/BlockKey"
+        },
+        "placed_by": {
+          "$ref": "#/$defs/PlacedBy"
+        },
+        "member_id": {
+          "description": "The member who placed or confirmed it.",
+          "$ref": "#/$defs/PrincipalId"
+        },
+        "confirmed": {
+          "description": "Confirmed placements never move when topics are re-clustered.",
+          "type": "boolean"
+        },
+        "score": {
+          "description": "How close the statement's section is to the topic, when clustering placed it.",
+          "$ref": "#/$defs/Score01"
+        },
+        "placed_at": {
+          "$ref": "#/$defs/Instant"
+        }
+      }
+    },
     "PluginName": {
       "description": "Registry name of a plugin or source type, for example \"feishu.docx\".",
       "type": "string",
@@ -6978,7 +7042,7 @@
       }
     },
     "TaxonomyNode": {
-      "description": "A node in the document tree. Keys are stable across re-clustering.",
+      "description": "A topic in a space's knowledge outline (area, topic or subtopic, at most three levels). Statements are placed in topics (see Placement). Keys are stable across re-clustering and never reused.\n",
       "type": "object",
       "required": [
         "key",
@@ -6989,8 +7053,7 @@
       ],
       "properties": {
         "key": {
-          "type": "string",
-          "pattern": "^[a-z0-9][a-z0-9._/-]{0,199}$"
+          "$ref": "#/$defs/TopicKey"
         },
         "tenant_id": {
           "$ref": "#/$defs/TenantId"
@@ -7005,7 +7068,7 @@
           "type": "string"
         },
         "parent_key": {
-          "type": "string"
+          "$ref": "#/$defs/TopicKey"
         },
         "ordinal": {
           "type": "integer",
@@ -7013,6 +7076,19 @@
         },
         "page_id": {
           "$ref": "#/$defs/PageId"
+        },
+        "status": {
+          "description": "Absent on nodes written before topics had a status; they count as confirmed.",
+          "$ref": "#/$defs/TopicStatus"
+        },
+        "owner_id": {
+          "description": "The member who answers for the topic's statements and confirms its placements.",
+          "$ref": "#/$defs/PrincipalId"
+        },
+        "statement_count": {
+          "description": "Current statements placed in the topic, its subtopics included.",
+          "type": "integer",
+          "minimum": 0
         }
       }
     },
@@ -7329,6 +7405,19 @@
           "minimum": 0
         }
       }
+    },
+    "TopicKey": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._/-]{0,199}$"
+    },
+    "TopicStatus": {
+      "description": "proposed: made by clustering and not yet confirmed; readers never see it, owners do. confirmed: an owner confirmed it, so re-clustering keeps it and never moves its confirmed placements. retired: it has no statements left; its key is not reused.\n",
+      "type": "string",
+      "enum": [
+        "proposed",
+        "confirmed",
+        "retired"
+      ]
     },
     "Unchanged": {
       "description": "Connector.fetch result when the known version is still current.",

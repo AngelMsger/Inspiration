@@ -903,6 +903,47 @@ $defs:
       valid_from:
         $ref: "common.yaml#/$defs/Instant"
 
+  Placement:
+    description: >
+      Where a statement sits in the knowledge outline: its topic, and the page block that
+      cites it when a page does. A claim has at most one. A current claim of a governed
+      document without one is unfiled (未归类) and shows under its source section.
+    type: object
+    required: [tenant_id, claim_id, space_id, taxonomy_key, placed_by, confirmed, placed_at]
+    properties:
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      claim_id:
+        $ref: "common.yaml#/$defs/ClaimId"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      taxonomy_key:
+        $ref: "page.yaml#/$defs/TopicKey"
+      page_id:
+        $ref: "common.yaml#/$defs/PageId"
+      block_key:
+        $ref: "page.yaml#/$defs/BlockKey"
+      placed_by:
+        $ref: "#/$defs/PlacedBy"
+      member_id:
+        description: The member who placed or confirmed it.
+        $ref: "common.yaml#/$defs/PrincipalId"
+      confirmed:
+        description: Confirmed placements never move when topics are re-clustered.
+        type: boolean
+      score:
+        description: How close the statement's section is to the topic, when clustering placed it.
+        $ref: "common.yaml#/$defs/Score01"
+      placed_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  PlacedBy:
+    description: >
+      clustering: the taxonomy clustering of page-compiler. page: a page cites the statement.
+      member: a person put it there.
+    type: string
+    enum: [clustering, page, member]
+
   # ---------------------------------------------------------------- governance
   ConflictClass:
     type: string

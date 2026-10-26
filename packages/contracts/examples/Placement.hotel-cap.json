@@ -1,0 +1,10 @@
+{
+  "tenant_id": "ten_01JC0000000000000000000001",
+  "claim_id": "clm_01JC0000000000000000000001",
+  "space_id": "spc_01JC0000000000000000000001",
+  "taxonomy_key": "t-bbb3faba5779",
+  "placed_by": "clustering",
+  "confirmed": false,
+  "score": 0.873,
+  "placed_at": "2026-10-23T09:00:00Z"
+}

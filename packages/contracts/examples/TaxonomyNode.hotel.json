@@ -1,0 +1,11 @@
+{
+  "key": "t-bbb3faba5779",
+  "tenant_id": "ten_01JC0000000000000000000001",
+  "space_id": "spc_01JC0000000000000000000001",
+  "title": "住宿费",
+  "summary": "住宿费相关的规定与说明，见城市住宿标准、差旅费管理办法等文档。",
+  "parent_key": "a-e59936abe877",
+  "ordinal": 3,
+  "status": "proposed",
+  "statement_count": 21
+}

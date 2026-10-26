@@ -47,6 +47,19 @@ in `corpus.yaml`, says how far the engine governs a document:
 Authority is separate and comes from the source defaults: policies 0.9, the Feishu approval
 0.7, the Feishu wiki 0.6, the team wiki 0.5, the archive 0.3.
 
+## Topics
+
+Page-compiler clusters the 34 sections of current governed documents into 9 topics and one
+area, using the fake embeddings, which only see shared characters:
+- Similar headings across documents make topics: 住宿, 报销 and 审批权限.
+- What is left of a document makes a topic when it holds five statements or more:
+  差旅费管理办法, 新人入职指南, IT 设备申领说明 and so on.
+- 报销 and 费用报销管理规定 form the area 报销相关.
+- 17 of the 87 governed statements stay unfiled, those of the small documents
+  (会议室管理规定, 薪酬管理办法, 数据分级与保护规范).
+- The reference statements of a slot (the forwarded copy, the FAQ, the minutes) join the
+  slot's topic.
+
 ## Permissions
 
 - `制度库` is readable by the whole tenant; finance and HR folders add their editors.

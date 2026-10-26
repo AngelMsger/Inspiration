@@ -31,6 +31,7 @@
     "@inspiration/knowledge-store": "workspace:*",
     "@inspiration/model-gateway": "workspace:*",
     "@inspiration/normalization": "workspace:*",
+    "@inspiration/page-compiler": "workspace:*",
     "@inspiration/source-sync": "workspace:*",
     "@inspiration/testkit": "workspace:*"
   },

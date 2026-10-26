@@ -4,8 +4,9 @@
  * normalization could not parse, which duplicates it found, how many ACL entries the
  * directory could not map, what extraction made of it all (see claims.ts), which conflicts
  * governance found and what they would ask of people (see conflicts.ts), which reviews
- * freshness scheduled or asked for (see freshness.ts), and what each source update asked of
- * people at once, todo requests and reviews together.
+ * freshness scheduled or asked for (see freshness.ts), the knowledge outline page-compiler
+ * clustered (see outline.ts), and what each source update asked of people at once, todo
+ * requests and reviews together.
  */
 
 import type { AclChanged, BlocksChanged, ClaimsUpdated, EventEnvelope, GovernanceLevel } from "@inspiration/contracts";
@@ -17,6 +18,7 @@ import { type GovernanceReport, governanceReport } from "./conflicts.ts";
 import type { Corpus } from "./corpus.ts";
 import type { Engine } from "./engine.ts";
 import { type DaysReport, type FreshnessReport, freshnessReport } from "./freshness.ts";
+import { type OutlineReport, outlineLines, outlineReport } from "./outline.ts";
 
 export type { Spread } from "./claims.ts";
 
@@ -52,6 +54,7 @@ export interface IngestReport {
   claims: ClaimsReport;
   governance: GovernanceReport;
   freshness: FreshnessReport;
+  outline: OutlineReport;
   /**
    * New versions of documents already known, and the todo requests and reviews each asked for
    * at once. Every event a source update causes shares its correlation id.
@@ -189,6 +192,7 @@ export async function ingest(engine: Engine, corpus: Corpus, options: { truth?: 
       ...(options.truth && { truth: options.truth, levels: await levelsOf(engine, corpus, tally.changes) }),
     }),
     freshness: await freshnessReport(engine, corpus.tenantId, { reviews: tally.reviews, changes: tally.changeEvents }),
+    outline: await outlineReport(engine, corpus.tenantId),
     asks: asksOf(tally.fetched, [...tally.requests, ...tally.reviews]),
     dead_letters: await deadLetters(engine),
   };
@@ -394,6 +398,7 @@ export function summary(r: IngestReport): string {
     ...claimLines(r.claims, kv),
     ...governanceLines(r.governance, kv),
     ...freshnessLines(r.freshness, kv),
+    ...outlineLines(r.outline),
     ...(r.asks.updates
       ? [
           `source updates ${r.asks.updates}: ${r.asks.asking} asked people for anything at once, todo requests and reviews together (per update max ${r.asks.per_update.max})`,

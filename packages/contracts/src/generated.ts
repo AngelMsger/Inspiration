@@ -342,6 +342,12 @@ export type SnapshotCauseKind =
   | "model_upgrade"
   | "restore"
   | "manual";
+/**
+ * clustering: the taxonomy clustering of page-compiler. page: a page cites the statement. member: a person put it there.
+ *
+ */
+export type PlacedBy = "clustering" | "page" | "member";
+export type TopicKey = string;
 export type Priority = "low" | "normal" | "high" | "urgent";
 export type PublishRequestId = string;
 export type PublishState = "draft" | "in_review" | "published" | "retired";
@@ -370,6 +376,11 @@ export type SopId = string;
 export type StepBasis = "from_definition" | "mined" | "inferred" | "document" | "human";
 export type SourceStatus = "active" | "paused" | "error" | "archived";
 export type SpaceKind = "personal" | "team" | "org" | "source_mirror";
+/**
+ * proposed: made by clustering and not yet confirmed; readers never see it, owners do. confirmed: an owner confirmed it, so re-clustering keeps it and never moves its confirmed placements. retired: it has no statements left; its key is not reused.
+ *
+ */
+export type TopicStatus = "proposed" | "confirmed" | "retired";
 export type TodoKind =
   | "conflict"
   | "stale"
@@ -2084,6 +2095,26 @@ export interface ParseResult {
   confidence?: Score01;
   warnings?: string[];
 }
+/**
+ * Where a statement sits in the knowledge outline: its topic, and the page block that cites it when a page does. A claim has at most one. A current claim of a governed document without one is unfiled (未归类) and shows under its source section.
+ *
+ */
+export interface Placement {
+  tenant_id: TenantId;
+  claim_id: ClaimId;
+  space_id: SpaceId;
+  taxonomy_key: TopicKey;
+  page_id?: PageId;
+  block_key?: BlockKey;
+  placed_by: PlacedBy;
+  member_id?: PrincipalId;
+  /**
+   * Confirmed placements never move when topics are re-clustered.
+   */
+  confirmed: boolean;
+  score?: Score01;
+  placed_at: Instant;
+}
 export interface ProcessOrigin {
   source_version_id: SourceVersionId;
   definition_code?: string;
@@ -2504,17 +2535,24 @@ export interface SubscriptionInfo {
   expires_at?: Instant;
 }
 /**
- * A node in the document tree. Keys are stable across re-clustering.
+ * A topic in a space's knowledge outline (area, topic or subtopic, at most three levels). Statements are placed in topics (see Placement). Keys are stable across re-clustering and never reused.
+ *
  */
 export interface TaxonomyNode {
-  key: string;
+  key: TopicKey;
   tenant_id: TenantId;
   space_id: SpaceId;
   title: string;
   summary?: string;
-  parent_key?: string;
+  parent_key?: TopicKey;
   ordinal: number;
   page_id?: PageId;
+  status?: TopicStatus;
+  owner_id?: PrincipalId;
+  /**
+   * Current statements placed in the topic, its subtopics included.
+   */
+  statement_count?: number;
 }
 export interface Tenant {
   id: TenantId;
