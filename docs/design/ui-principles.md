@@ -154,7 +154,7 @@ The Chinese terms are adopted. The Japanese terms are proposed and wait for the 
 | Knowledge tree, Sources tree | 知识树, 来源树 | ナレッジツリー, ソースツリー | |
 | Original, Annotated, Knowledge views | 原文, 批注, 知识 | 原文, 注釈, ナレッジ | |
 | Trace view | 追溯 | 追跡 | Owners and stewards only |
-| Governed, Reference, Search only | 制度, 参考, 仅检索 | 規程, 参考, 検索のみ | Governance levels |
+| Governed, Reference, Search only | 严格, 宽松, 仅检索 | 規程, 参考, 検索のみ | Governance levels |
 | Fresh, Review due, Outdated, Disputed | 有效, 待复核, 已过时, 有争议 | 有効, 要確認, 旧版, 異論あり | Only Outdated and Disputed show inline |
 | Freshness owner, Steward, Arbiter | 保鲜负责人, 知识管理员, 仲裁人 | 鮮度担当者, ナレッジ管理者, 裁定者 | |
 | Rule | 裁决规则 | 裁定ルール | Made from a decision with "Make this a rule" |

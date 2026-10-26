@@ -317,7 +317,7 @@ Japanese column is proposed and waits for review.
 | Keep fresh with the workspace connection, Keep fresh with my connection, Publish a snapshot | 通过企业连接保持更新, 通过我的连接保持更新, 发布快照 | ワークスペースの接続で最新に保つ, 自分の接続で最新に保つ, スナップショットを公開 |
 | Some readers can't open the original | 部分读者无法打开原文 | 一部の閲覧者は原文を開けません |
 | Source permissions tightened | 来源权限收紧 | ソースの権限が縮小されました |
-| Governed, Reference, Search only | 制度, 参考, 仅检索 | 規程, 参考, 検索のみ |
+| Governed, Reference, Search only | 严格, 宽松, 仅检索 | 規程, 参考, 検索のみ |
 | Trace view | 追溯 | 追跡 |
 <!-- /glossary -->
 
