@@ -644,10 +644,13 @@ provisions.
   down the space tree. The
   publisher of a unit keeps a grant on it, and a publish request's approvers can read only its
   items.
-- **A statement also needs a proof the reader can read.** A proof is an evidence span in a
-  readable space, or a derivation whose inputs are all readable. Two documents that each state a
-  price are alternative proofs, and either one is enough; a margin computed from a price and a cost
-  needs both.
+- **A statement also needs a proof the reader can read.** A proof is what shows a statement is
+  true, and there are two kinds: an evidence quote from a document in a space the reader can read,
+  or a derivation, a statement computed from other statements, whose every input the reader can
+  read. If two documents both say the Shenzhen hotel cap is 600, either one proves it, so a reader
+  who can read either sees the statement. A margin computed from a price in Sales and a cost in
+  Finance needs both: a reader who could see the margin and the price but not the cost could work
+  the cost out, so the margin is shown only to readers who can read both.
 - **Crossing audiences takes an approval.** A derivation whose inputs sit in spaces with different
   audiences is seen only by readers who can read every input. To show it to the whole audience of
   its space, the owners of the input spaces that audience cannot read approve a publish request
