@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Admin · Connections</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&amp;family=Instrument+Sans:wght@400;500;600&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&amp;family=Noto+Sans+SC:wght@400;500;600&amp;family=Noto+Serif+SC:wght@400;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2E3F8F}a:hover{color:#1F2C6B}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #EFEEE9; color: #1C1E23; font-family: 'Instrument Sans', 'Noto Sans SC', system-ui, sans-serif; font-size: 14px; line-height: 1.5">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 14px 28px; border-bottom: 1px solid #DCDAD2">
+    <div style="font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 500">Inspiration</div>
+    <button type="button" style="font: inherit; display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 1px solid #DCDAD2; border-radius: 4px; padding: 6px 10px; min-height: 36px; color: #1C1E23">Hengyuan Machinery · Admin<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
+    <span style="flex: 1"></span>
+    <button type="button" aria-label="Account, Zhou Min" style="font: inherit; width: 36px; height: 36px; border-radius: 50%; border: 0; background: #DCDAD2; font-size: 12px; font-weight: 600; color: #1C1E23">ZM</button>
+  </header>
+
+  <div style="max-width: 1240px; margin: 0 auto; padding: 28px; display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start">
+    <nav aria-label="Admin" style="flex: 1 1 200px; display: flex; flex-direction: column; gap: 2px">
+      <div style="font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: #636874; font-weight: 600; padding: 0 10px 6px">Admin</div>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Members</a>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Spaces and roles</a>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Topic owners</a>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Company settings</a>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Verified domains</a>
+      <a href="#" aria-current="page" style="color: #1C1E23; text-decoration: none; font-weight: 600; padding: 8px 10px; border-radius: 4px; background: #FBFAF7">Connections</a>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Connected apps</a>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Audit log</a>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Usage</a>
+    </nav>
+
+    <main style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 26px">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 36px">Connections</h1>
+          <p style="margin: 0; color: #545964; max-width: 62ch">A connection decides what Inspiration can fetch and keep fresh. It never decides who reads: the space owner or the super admin sets that.</p>
+        </div>
+        <button type="button" style="font: inherit; font-weight: 500; background: #2E3F8F; color: #FFFFFF; border: 0; border-radius: 4px; padding: 10px 16px; min-height: 44px">Install a company app</button>
+      </div>
+
+      <section style="display: flex; flex-direction: column; gap: 10px">
+        <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 22px">Company connections</h2>
+        <div style="overflow-x: auto; background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px">
+          <table style="width: 100%; border-collapse: collapse; min-width: 640px">
+            <thead><tr style="text-align: left; font-size: 12.5px; color: #545964"><th style="font-weight: 500; padding: 10px 14px; border-bottom: 1px solid #DCDAD2">App</th><th style="font-weight: 500; padding: 10px 14px; border-bottom: 1px solid #DCDAD2">Reaches</th><th style="font-weight: 500; padding: 10px 14px; border-bottom: 1px solid #DCDAD2">State</th><th style="font-weight: 500; padding: 10px 14px; border-bottom: 1px solid #DCDAD2"><span style="position: absolute; left: -9999px">Action</span></th></tr></thead>
+            <tbody>
+              <tr><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2"><b style="font-weight: 600">Feishu</b><br><span style="color: #545964; font-size: 13px">Hengyuan Feishu app · installed by Zhou Min</span></td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2; font-variant-numeric: tabular-nums">1,812 documents<br><span style="color: #545964; font-size: 13px">14 sources in 6 spaces</span></td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2"><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: #2D6A4F; background: #E3EFE8; padding: 3px 9px; border-radius: 3px"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Active</span></td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2"><a href="#">Details</a></td></tr>
+              <tr><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2"><b style="font-weight: 600">DingTalk</b><br><span style="color: #545964; font-size: 13px">Hengyuan DingTalk app · installed by Zhou Min</span></td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2; font-variant-numeric: tabular-nums">236 documents<br><span style="color: #545964; font-size: 13px">2 sources in Approval workflows</span></td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2"><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: #8A5A00; background: #F5EBD6; padding: 3px 9px; border-radius: 3px">Needs sign-in by 10-26</span></td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2"><button type="button" style="font: inherit; font-weight: 500; background: transparent; color: #1C1E23; border: 1px solid #1C1E23; border-radius: 4px; padding: 6px 12px; min-height: 40px">Reconnect</button></td></tr>
+              <tr><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2"><b style="font-weight: 600">Notion</b><br><span style="color: #545964; font-size: 13px">Shenzhen office wiki · no company app exists</span></td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2; font-variant-numeric: tabular-nums">88 pages<br><span style="color: #545964; font-size: 13px">1 source in Shenzhen office</span></td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2"><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: #2E3F8F; background: #E7E9F4; padding: 3px 9px; border-radius: 3px">Kept fresh with Chen Jie's connection</span></td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2"><a href="#">Details</a></td></tr>
+              <tr><td style="padding: 12px 14px"><b style="font-weight: 600">Confluence</b><br><span style="color: #545964; font-size: 13px">Engineering wiki</span></td><td style="padding: 12px 14px; color: #545964">Not yet</td><td style="padding: 12px 14px"><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: #545964; background: #E7E5DF; padding: 3px 9px; border-radius: 3px">Waiting for site admin consent</span></td><td style="padding: 12px 14px"><a href="#">Resend</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 10px">
+        <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 22px">Members' personal connections</h2>
+        <p style="margin: 0; color: #545964">These belong to each member and are never shared. You see how many there are, not what they contain.</p>
+        <ul style="list-style: none; margin: 0; padding: 0; border-top: 1px solid #DCDAD2">
+          <li style="display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding: 12px 0; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 220px"><b style="font-weight: 600">Lin Xiao</b> <span style="color: #545964">· 1 to Hengyuan's Feishu</span></span><span style="color: #8A5A00">Must move to the company app by 11-22</span><a href="#">Remind</a></li>
+          <li style="display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding: 12px 0; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 220px"><b style="font-weight: 600">Chen Jie</b> <span style="color: #545964">· 1 to Notion, keeps Shenzhen office fresh</span></span><span style="color: #545964">Chen Jie consented 09-21 · stops if Chen Jie leaves</span><a href="#">Review</a></li>
+          <li style="display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding: 12px 0; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 220px"><b style="font-weight: 600">Gao Yan</b> <span style="color: #545964">· 1 to DingTalk</span></span><span style="color: #8A5A00">Pauses when Gao Yan leaves on 10-31</span><a href="#">Handover</a></li>
+        </ul>
+      </section>
+    </main>
+
+    <aside aria-label="Company claims and settings" style="flex: 1 1 280px; background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+      <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 20px">What Hengyuan claims</h2>
+      <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+        <li style="display: flex; justify-content: space-between; gap: 10px"><span>Feishu organization "恒远机械"</span><span style="color: #2D6A4F; font-size: 13px">Verified</span></li>
+        <li style="display: flex; justify-content: space-between; gap: 10px"><span>Email domain hengyuan.com</span><span style="color: #2D6A4F; font-size: 13px">Verified by DNS</span></li>
+      </ul>
+      <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+        <legend style="font-weight: 600; padding: 0 0 8px">When someone connects these from outside Hengyuan</legend>
+        <label style="display: flex; gap: 10px; align-items: flex-start; min-height: 32px"><input type="radio" name="claim" style="width: 18px; height: 18px; margin: 2px 0 0; accent-color: #2E3F8F">Allow it</label>
+        <label style="display: flex; gap: 10px; align-items: flex-start; min-height: 32px"><input type="radio" name="claim" checked style="width: 18px; height: 18px; margin: 2px 0 0; accent-color: #2E3F8F">Only inside Hengyuan</label>
+        <label style="display: flex; gap: 10px; align-items: flex-start; min-height: 32px"><input type="radio" name="claim" style="width: 18px; height: 18px; margin: 2px 0 0; accent-color: #2E3F8F">Ask the super admin first</label>
+      </fieldset>
+      <p style="margin: 0; font-size: 13px; color: #545964">Checked when the connection is made, before anything is fetched. Personal libraries that already connect to these get 30 days to move.</p>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

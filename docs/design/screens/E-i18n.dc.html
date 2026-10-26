@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>三语对照 · 同一页面的英文、中文、日文界面</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&amp;family=Instrument+Sans:wght@400;500;600&amp;family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&amp;family=Noto+Sans+SC:wght@400;500;600&amp;family=Noto+Serif+SC:wght@400;600&amp;family=Noto+Sans+JP:wght@400;500;600&amp;family=Noto+Serif+JP:wght@400;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2E3F8F}a:hover{color:#1F2C6B}
+.col{flex:1 1 360px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.colhead{display:flex;flex-direction:column;gap:2px;padding:0 2px}
+.bar{display:flex;align-items:center;gap:8px;background:#FBFAF7;border:1px solid #DCDAD2;border-radius:4px;padding:6px 10px;min-height:34px;font-size:13px;color:#636874}
+.crumb{font-size:13px;color:#545964;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
+.sheet{background:#FBFAF7;border:1px solid #DCDAD2;border-radius:4px;padding:22px 24px;display:flex;flex-direction:column;gap:12px}
+.meta{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:#545964}
+.zh{font-family:'Noto Serif SC',serif}
+.cite{font-family:'Instrument Sans',sans-serif;font-size:10.5px;font-weight:600;color:#FBFAF7;background:#2E3F8F;border-radius:3px;padding:0 4px;vertical-align:super;line-height:1.3}
+.pop{border:1px solid #C9C6BC;border-radius:4px;box-shadow:0 8px 22px rgba(28,30,35,.12);background:#FBFAF7;padding:12px 14px;display:flex;flex-direction:column;gap:8px;font-size:13px;line-height:1.6}
+.chip{font-size:12px;color:#A3341F;background:#F6E2DC;padding:0 8px;border-radius:3px;font-weight:600;white-space:nowrap}
+.quote{font-size:14px;line-height:1.7;border-left:2px solid #DCDAD2;padding-left:10px}
+.mt{font-size:12.5px;line-height:1.6;background:#EFEEE9;border-radius:3px;padding:8px 10px;color:#1C1E23}
+.mtl{font-size:11.5px;color:#636874;font-weight:600;letter-spacing:.02em}
+.acts{display:flex;flex-wrap:wrap;gap:4px 14px;border-top:1px solid #DCDAD2;padding-top:8px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{text-align:left;vertical-align:top;padding:7px 8px;border-bottom:1px solid #DCDAD2}
+th{font-size:12px;color:#636874;font-weight:600}
+.k{font-size:12px;color:#545964;white-space:nowrap}
+.btn{display:inline-block;border:1px solid #2E3F8F;color:#2E3F8F;border-radius:4px;padding:3px 9px;font-size:12.5px;line-height:1.5;background:#FBFAF7}
+.s{display:inline-block;font-size:12px;font-weight:600;border-radius:3px;padding:0 7px;margin:0 4px 4px 0;white-space:nowrap}
+.f{color:#2D6A4F;background:#E3EFE8}.d{color:#8A5A00;background:#F5EBD6}.o{color:#545964;background:#E4E2DB}.x{color:#A3341F;background:#F6E2DC}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #EFEEE9; color: #1C1E23; font-family: 'Instrument Sans', 'Noto Sans SC', system-ui, sans-serif; font-size: 14px; line-height: 1.6">
+  <div style="max-width: 1240px; margin: 0 auto; padding: 22px 28px 36px; display: flex; flex-direction: column; gap: 18px">
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div style="font-family: Newsreader, 'Noto Serif SC', serif; font-size: 26px; font-weight: 500">同一个知识页，三个人用三种界面语言打开</div>
+      <div style="color: #545964; max-width: 980px">财务部空间的内容语言是中文。界面语言属于每个人的账户：Daniel 用英文，陈杰用中文，佐藤用日文。菜单、按钮、状态和日期跟随各自的界面语言；空间名、页面和来源段落保持中文，也始终用中文字形显示。</div>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+      <!-- English interface -->
+      <section class="col" lang="en" aria-label="English interface">
+        <div class="colhead"><span style="font-weight: 600">English</span><span class="k">Daniel Wu · interface language English · content stays Chinese</span></div>
+        <div class="bar"><span style="flex: 1">Search, ask or run a command</span><span style="font-family: 'Geist Mono', monospace; font-size: 11.5px; border: 1px solid #DCDAD2; border-radius: 3px; padding: 0 5px; color: #545964">⌘K</span></div>
+        <div class="crumb"><span lang="zh-CN">财务部 › 差旅</span><span style="flex: 1"></span><span>Comments 3</span><span>⋯</span></div>
+        <article class="sheet">
+          <h1 lang="zh-CN" class="zh" style="margin: 0; font-size: 26px; font-weight: 600; line-height: 1.3">差旅报销标准</h1>
+          <div class="meta"><span>Page owner <span lang="zh-CN">李娜</span></span><span>Updated Oct 18, 2026</span><span>Who can read: Everyone · 312</span></div>
+          <p lang="zh-CN" class="zh" style="margin: 0; font-size: 16px; line-height: 1.8">一线城市出差，经理及以下员工每晚住宿上限为 <span style="text-decoration: underline wavy #A3341F; text-decoration-thickness: 1.5px; text-underline-offset: 5px">600 元</span><span class="cite">1</span>。其他城市每晚 450 元。</p>
+          <div class="pop" role="dialog" aria-label="Citation 1">
+            <span style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"><span class="chip">Disputed</span><span>This value is being checked</span></span>
+            <span class="k" lang="zh-CN" style="white-space: normal">差旅报销管理办法 v6 · 第 3.2 条</span>
+            <span lang="zh-CN" class="zh quote">“一线城市住宿费标准：经理及以下人员每晚不超过 600 元。”</span>
+            <span class="mt"><span class="mtl">MACHINE TRANSLATION</span><br>"Hotel standard in tier-one cities: managers and below, at most 600 yuan per night."</span>
+            <span style="color: #545964">The 2026 hotel price list gives 650 yuan for Shenzhen. <span lang="zh-CN">李娜</span> is checking, and this page updates when there is a result.</span>
+            <span class="acts"><a href="#">View original</a><a href="#">Hide translation</a><a href="#">Notify me</a></span>
+          </div>
+        </article>
+      </section>
+
+      <!-- Chinese interface -->
+      <section class="col" lang="zh-CN" aria-label="中文界面">
+        <div class="colhead"><span style="font-weight: 600">简体中文</span><span class="k">陈杰 · 界面语言中文 · 与内容语言相同</span></div>
+        <div class="bar"><span style="flex: 1">搜索、提问或执行命令</span><span style="font-family: 'Geist Mono', monospace; font-size: 11.5px; border: 1px solid #DCDAD2; border-radius: 3px; padding: 0 5px; color: #545964">⌘K</span></div>
+        <div class="crumb"><span>财务部 › 差旅</span><span style="flex: 1"></span><span>评论 3</span><span>⋯</span></div>
+        <article class="sheet">
+          <h1 class="zh" style="margin: 0; font-size: 26px; font-weight: 600; line-height: 1.3">差旅报销标准</h1>
+          <div class="meta"><span>页面负责人 李娜</span><span>2026年10月18日更新</span><span>可见范围 全员 · 312 人</span></div>
+          <p class="zh" style="margin: 0; font-size: 16px; line-height: 1.8">一线城市出差，经理及以下员工每晚住宿上限为 <span style="text-decoration: underline wavy #A3341F; text-decoration-thickness: 1.5px; text-underline-offset: 5px">600 元</span><span class="cite">1</span>。其他城市每晚 450 元。</p>
+          <div class="pop" role="dialog" aria-label="引用 1">
+            <span style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"><span class="chip">有争议</span><span>这个数字正在核实</span></span>
+            <span class="k" style="white-space: normal">差旅报销管理办法 v6 · 第 3.2 条</span>
+            <span class="zh quote">“一线城市住宿费标准：经理及以下人员每晚不超过 600 元。”</span>
+            <span style="color: #545964">2026 协议酒店价目表里深圳写的是 650 元。李娜正在核实，有结果后本页会自动更新。</span>
+            <span class="acts"><a href="#">查看原文</a><a href="#">有结果时通知我</a></span>
+          </div>
+        </article>
+      </section>
+
+      <!-- Japanese interface -->
+      <section class="col" lang="ja" aria-label="日本語インターフェース" style="font-family: 'Instrument Sans', 'Noto Sans JP', sans-serif">
+        <div class="colhead"><span style="font-weight: 600">日本語</span><span class="k">佐藤 美咲 · 表示言語 日本語 · 内容は中国語のまま</span></div>
+        <div class="bar"><span style="flex: 1">検索・質問・コマンド</span><span style="font-family: 'Geist Mono', monospace; font-size: 11.5px; border: 1px solid #DCDAD2; border-radius: 3px; padding: 0 5px; color: #545964">⌘K</span></div>
+        <div class="crumb"><span lang="zh-CN" style="font-family: 'Noto Sans SC', sans-serif">财务部 › 差旅</span><span style="flex: 1"></span><span>コメント 3</span><span>⋯</span></div>
+        <article class="sheet">
+          <h1 lang="zh-CN" class="zh" style="margin: 0; font-size: 26px; font-weight: 600; line-height: 1.3">差旅报销标准</h1>
+          <div class="meta"><span>ページ担当者 <span lang="zh-CN" style="font-family: 'Noto Sans SC', sans-serif">李娜</span></span><span>2026年10月18日 更新</span><span>公開範囲 全員 · 312人</span></div>
+          <p lang="zh-CN" class="zh" style="margin: 0; font-size: 16px; line-height: 1.8">一线城市出差，经理及以下员工每晚住宿上限为 <span style="text-decoration: underline wavy #A3341F; text-decoration-thickness: 1.5px; text-underline-offset: 5px">600 元</span><span class="cite">1</span>。其他城市每晚 450 元。</p>
+          <div class="pop" role="dialog" aria-label="引用 1">
+            <span style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"><span class="chip">異論あり</span><span>この数値は確認中です</span></span>
+            <span class="k" lang="zh-CN" style="white-space: normal; font-family: 'Noto Sans SC', sans-serif">差旅报销管理办法 v6 · 第 3.2 条</span>
+            <span lang="zh-CN" class="zh quote">“一线城市住宿费标准：经理及以下人员每晚不超过 600 元。”</span>
+            <span class="mt" style="font-family: 'Noto Sans JP', sans-serif"><span class="mtl">機械翻訳</span><br>「一線都市の宿泊費基準：マネージャー以下は1泊600元まで。」</span>
+            <span style="color: #545964">2026年の協定ホテル価格表では、深圳は650元です。<span lang="zh-CN" style="font-family: 'Noto Sans SC', sans-serif">李娜</span>さんが確認中で、結果が出るとこのページは自動で更新されます。</span>
+            <span class="acts"><a href="#">原文を見る</a><a href="#">翻訳を隠す</a><a href="#">結果を通知</a></span>
+          </div>
+        </article>
+      </section>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+      <section style="flex: 7 1 700px; min-width: 0; background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px">
+        <div style="font-weight: 600">同一个词，三种宽度</div>
+        <table>
+          <thead><tr><th style="width: 56px"></th><th lang="en">English</th><th>简体中文</th><th lang="ja">日本語</th></tr></thead>
+          <tbody>
+            <tr><td class="k">状态</td><td lang="en"><span class="s f">Fresh</span><span class="s d">Review due</span><span class="s o">Outdated</span><span class="s x">Disputed</span></td><td><span class="s f">有效</span><span class="s d">待复核</span><span class="s o">已过时</span><span class="s x">有争议</span></td><td lang="ja" style="font-family: 'Noto Sans JP', sans-serif"><span class="s f">有効</span><span class="s d">要確認</span><span class="s o">旧版</span><span class="s x">異論あり</span></td></tr>
+            <tr><td class="k">发布选项</td><td lang="en"><span class="btn">Keep fresh with the company connection</span></td><td><span class="btn">通过企业连接保持更新</span></td><td lang="ja" style="font-family: 'Noto Sans JP', sans-serif"><span class="btn">企業の接続で最新に保つ</span></td></tr>
+            <tr><td class="k">提示</td><td lang="en">Some readers can't open the original</td><td>部分读者无法打开原文</td><td lang="ja" style="font-family: 'Noto Sans JP', sans-serif">一部の閲覧者は原文を開けません</td></tr>
+            <tr><td class="k">日期</td><td lang="en">Oct 24, 2026</td><td>2026年10月24日</td><td lang="ja" style="font-family: 'Noto Sans JP', sans-serif">2026年10月24日</td></tr>
+            <tr><td class="k">数量</td><td lang="en">1,143 statements · 137.8k extracted</td><td>1,143 条陈述 · 抽取 13.78 万条</td><td lang="ja" style="font-family: 'Noto Sans JP', sans-serif">記述 1,143件 · 抽出 13.78万件</td></tr>
+          </tbody>
+        </table>
+        <div style="font-size: 12.5px; color: #545964">按钮和标签按内容定宽，放不下就换行，不截断。紧凑模式用英文检查。复数、日期和大数字由各语言的规则生成，句子不靠拼接。</div>
+      </section>
+
+      <section lang="ja" style="flex: 4 1 380px; min-width: 0; background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; font-family: 'Instrument Sans', 'Noto Sans JP', sans-serif">
+        <div lang="zh-CN" style="font-weight: 600; font-family: 'Instrument Sans', 'Noto Sans SC', sans-serif">回答跟随提问的人</div>
+        <div style="display: flex; align-items: center; gap: 8px; background: #EFEEE9; border: 1px solid #1C1E23; border-radius: 4px; padding: 8px 12px; font-family: 'Noto Serif JP', serif; font-size: 15px">深圳の宿泊上限は？<span style="flex: 1"></span><span style="font-family: 'Instrument Sans', sans-serif; font-size: 11.5px; color: #636874; border: 1px dashed #C9C6BC; border-radius: 3px; padding: 0 6px">変換中 · Enter は確定のみ</span></div>
+        <div style="font-family: 'Noto Serif JP', serif; font-size: 15px; line-height: 1.8">深圳では、マネージャー以下の宿泊上限は1泊600元とされています<span class="cite">1</span>。ただし価格表では650元となっており、現在確認中です<span class="cite">2</span>。</div>
+        <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: #545964">
+          <span><b style="color: #1C1E23">1</b> <span lang="zh-CN" style="font-family: 'Noto Sans SC', sans-serif">差旅报销管理办法 v6 · 第 3.2 条</span> · 中国語の原文</span>
+          <span><b style="color: #1C1E23">2</b> <span lang="zh-CN" style="font-family: 'Noto Sans SC', sans-serif">2026 协议酒店价目表 · 深圳</span> · 中国語の原文</span>
+        </div>
+        <p lang="zh-CN" style="margin: 0; font-size: 12.5px; color: #545964; border: 1px dashed #C9C6BC; border-radius: 4px; padding: 8px 10px; font-family: 'Instrument Sans', 'Noto Sans SC', sans-serif"><b style="color: #8A5A00; font-weight: 600">设计说明</b> 助手用提问者的界面语言回答，引用保持原文语言，译文只在请求时显示并标明机器翻译。输入法组字时按回车只确认文字，不提交提问。</p>
+      </section>
+    </div>
+
+    <p style="margin: 0; font-size: 12.5px; color: #545964; border: 1px dashed #C9C6BC; border-radius: 4px; padding: 10px 12px"><b style="color: #8A5A00; font-weight: 600">设计说明</b> 界面语言存在账户上，在每个企业都一样，在账户菜单里切换；初始值在注册时取自浏览器。空间的内容语言由空间负责人设定，助手用它撰写知识页。每个块都带语言标记：日文界面里的中文段落仍用简体中文字形（例如“经”“报”），日文正文用日文字形。中日文正文行高约 1.75，不加字间距；日文遵守行首禁则。</p>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1300}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
