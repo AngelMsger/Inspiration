@@ -112,8 +112,8 @@ All additive; see [docs/contracts.md](../contracts.md) for the process.
 
 - `TodoKind` adds `source_deleted` and `change_set`.
 - New `ChangeSet { id, tenant_id, cause { kind: sync | folder_deleted | folder_moved | connection_lost | new_version | level_changed | first_connection | rebuild, source_id?, correlation_id }, counts { by_kind, by_topic }, todo_ids, assignee_id, status: open | decided | split, decision_id? }`.
-- `SourceVersion` gains optional `deletion_reason: deleted | no_access | moved` and `moved_to?: DocumentId`; `moved` is set only for a move that passed the permission check.
-- Decision resolutions for `source_deleted`: `keep_snapshot`, `replace` (with a document ID) and `retire`. A `replace` that fails the permission check opens a publish request instead of carrying people's work over.
+- `SourceVersion` gains optional `deletion_reason: deleted | no_access | moved` and `moved_to?: SourceRef`; `moved` is set only for a move that passed the permission check.
+- Decision resolutions for `source_deleted`: `keep_snapshot`, `replace` (with a `SourceRef`) and `retire`. A `replace` that fails the permission check opens a publish request instead of carrying people's work over.
 - `WorkspacePolicy` gains `sources { source_deleted: keep | hide }`.
 - `ConflictCase` gains `support[] { value_key, documents, by_authority }`.
 

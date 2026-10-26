@@ -33,7 +33,8 @@ Lark, Confluence, approval systems, file shares, PDFs), starting with one person
 growing into team and enterprise workspaces. The strongest early uses are procedure and policy
 governance across tools, and a governed knowledge endpoint for a company's own agents. It is sold
 as SaaS first, with private deployment as a second profile of the same code. English, Chinese and
-Japanese are supported from the first release.
+Japanese are supported from the first release, as one knowledge base: knowledge is language-neutral,
+and language is only how it is expressed.
 
 **Where it stands.** The engine runs end to end on a mocked model through seven stages: ingest,
 extraction, governance, freshness, governance levels, topics and the inbox, all merged on `main`.
@@ -300,15 +301,23 @@ comes later.
 - **Interface language belongs to the account,** because a person's language does not change per
   workspace. Its first value comes from the browser at sign-up. Each workspace has a default
   language for messages sent to many people.
-- **Content keeps its language.** Sources are never translated silently. Each space has a content
-  language, set by its owner, in which the assistant writes that space's pages.
+- **Knowledge is language-neutral; language is how it is expressed.** A statement, fact slot,
+  entity, topic, procedure or page has one identity in every language. The same knowledge written
+  in two languages is one unit with two expressions, never a duplicate and never a conflict. A
+  translation counts with its original, and when it falls behind, it gets a "translation out of
+  date" review instead of a conflict. See [Knowledge and language](design/knowledge-and-language.md).
+- **Sources keep their language.** Sources and quotes are never translated silently. Each space has
+  a content language, set by its space owner, for the canonical rendering of its pages. A reader
+  can ask for a page in their own language: it is compiled from the same statements and labelled
+  machine-written.
 - **Answers follow the asker.** Answers come in the asker's interface language and cite passages
   in their original language. The citation popover can translate a passage on request, labelled as
   machine translation, with the original one click away. What people type is never machine
   translated.
-- **The same fact in different languages is one fact.** Fact slots key on normalized subjects and
-  predicates, not on wording, so a Japanese and a Chinese statement of the same limit land in one
-  slot.
+- **The same fact in different languages is one fact.** Fact slots key on entities, predicates and
+  qualifiers, not on wording, and values are typed, so a Japanese and a Chinese statement of the
+  same limit land in one slot. Plain statements merge across languages after a model confirms they
+  mean the same, and each keeps its quotes in their own language.
 - **Typography and input.** Every block carries its language tag so shared Han characters render
   with Chinese or Japanese glyphs as appropriate. Labels wrap instead of truncating (English runs
   about 1.5 to 2 times as wide as Chinese). Dates, numbers, currencies and plurals follow locale
@@ -686,9 +695,10 @@ Planned, with contracts in place:
 | Contracts | Events and todos carry codes and parameters, never sentences. The principal token carries the interface `locale` | Designed |
 | Normalization | Language detected per document and per block. Sentence and clause rules, full-width forms and number formats come from per-language resource files (en, zh, ja), not from code | Designed |
 | Extraction | Prompts state the source language. Evidence quotes stay verbatim in the original language. Dates, eras (such as Japanese era years), large-number units and currencies are normalized into typed values | Designed |
-| Fact slots | Predicate catalogue entries carry aliases per language, and entity names are resolved across scripts, so the same fact in different languages lands in one slot | Designed |
+| Fact slots | Predicate and qualifier keys are language-neutral, with labels and aliases per language, and entity names are resolved across scripts, so the same fact in different languages lands in one slot | Designed; predicate keys and typed values are built |
+| Statements | A translation is linked to its original and counts with it; statements merge across languages after a model check, keeping each quote in its language | Designed |
 | Retrieval | Multilingual embeddings (Qwen3-Embedding); BM25 with a tokenizer per language (jieba for Chinese, a Japanese morphological tokenizer, stemming for English); cross-language queries through the embedding side | Designed; the jieba index exists in the knowledge store today |
-| Page-compiler | Pages are written in the space's content language; answers in the asker's locale | Designed |
+| Page-compiler | A page's structure is built once; its canonical rendering is in the space's content language, and a rendering in another language is compiled from the same statements on request; answers in the asker's locale | Designed |
 | Business layer | Account language, workspace default for broadcasts, ICU MessageFormat catalogs (a missing string fails the build), localized sign-in pages, region per tenant | Designed |
 | UI | Catalogs for en, zh-Hans and ja; a language tag on every block; fonts per script; locale formatting and collation; input-method rules; pseudo-locale tests | Designed |
 | Repository | No Chinese or Japanese in code or comments; language data in resource files; documentation in English with a Chinese copy under `docs/zh/`. A repo test enforces it | Next |
@@ -780,7 +790,8 @@ by owner, topic and week already keeps every owner under it.
 **Designed and decided, not built:** the two-domain permission rule and the principal token,
 publishing, credential broker and sandbox, the Sources tree and mirror pages, pages and views,
 retrieval and the agent API, research with `fetch_now` and `web_search`, the parsing worker,
-source deletions and change reviews, internationalization, and the whole business layer and UI.
+source deletions and change reviews, knowledge across languages, internationalization, and the
+whole business layer and UI.
 
 ## Plan
 
@@ -829,7 +840,8 @@ document's estimate.
 | Engine work for the business boundary (net) | 4.5 |
 | Internationalization (engine 3.5, UI 3, business 0.5) | 7 |
 | Source changes (deletions, moves, change reviews) | 3 |
-| **Total** | **about 116** |
+| Knowledge across languages (translations, cross-language merge, pages in another language) | 3.5 |
+| **Total** | **about 120** |
 
 After that, pilot and product-v1 work for Artifact-level editing (templates, Word and PDF export,
 block editor, real-time co-editing, the view host API, mobile, share links) is about 19 to 27, and
@@ -845,7 +857,7 @@ time depends more on review and integration than on these person-week figures.
 | Review fatigue | Owners ignore their inbox | Governance levels, grouping per topic and week, weekly budget, notes outside the budget, queue precision as a product metric |
 | Topic churn and size | Topics too large or unstable to own | Stable keys, a change budget per run, owner confirmation; to be re-measured with real embeddings |
 | Human edits lost on rebuild | Loss of trust | Pinned overrides that a rebuild never overwrites; todos instead |
-| Cross-language matching | The same fact in two languages is missed or wrongly merged | Language-neutral slot keys, per-language aliases, a multilingual evaluation corpus |
+| Cross-language matching | The same fact in two languages is missed or wrongly merged | Language-neutral keys, per-language aliases, translations linked to their originals, a model check before any merge, a multilingual evaluation corpus |
 | Suites bundle similar features | Lost single-suite deals | Lead with cross-suite governance and the governed agent endpoint |
 | Model throughput on domestic accelerators | Slow first index | Benchmark on the customer's hardware early in a pilot |
 
@@ -868,6 +880,7 @@ time depends more on review and integration than on these person-week figures.
 | 2026-10-26 | Usage follows mainstream AI products: seats fill a workspace pool, members have default caps, the super admin sees usage but never content; details come with billing |
 | 2026-10-26 | Chinese terms: the workspace is 企业, the governance levels are 严格, 宽松 and 仅检索 |
 | 2026-10-26 | Source changes: knowledge never disappears silently; a deleted source is kept and marked until its owner decides; a large change is reviewed once, as a whole |
+| 2026-10-26 | Knowledge is language-neutral and language is only how it is expressed: one unit per piece of knowledge in every language, translations count with their originals, quotes stay verbatim, readers read in their own language |
 
 ## Open questions for the next discussion
 
@@ -877,8 +890,6 @@ time depends more on review and integration than on these person-week figures.
 - Which model providers serve each region, and at which sensitivity labels.
 - Which connectors come second and third outside China (for example Confluence, Notion, Google
   Drive, SharePoint), and which first design partner and industry the pilot targets.
-- Whether readers of another language should get whole pages translated on request, beyond
-  translated passages in citations.
 - The order of the remaining prototype stages proposed above, and whether a small, capped probe
   with a real model on real documents should run before every stage is mocked.
 
@@ -894,6 +905,8 @@ time depends more on review and integration than on these person-week figures.
   principal token and schema changes between the two layers.
 - [Source changes](design/source-changes.md): what happens when a source corrects itself, is
   deleted or changes at scale, and when a person is asked.
+- [Knowledge and language](design/knowledge-and-language.md): knowledge is language-neutral;
+  translations, cross-language merge and pages in another language.
 - [Architecture](architecture.md): components, how they talk, storage and security as built.
 - [Contracts](contracts.md): changing schemas, IDs, events, versioning.
 - [PageSpec and views](pagespec.md): pages compared with Claude Artifacts, and the view sandbox.

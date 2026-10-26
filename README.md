@@ -103,6 +103,8 @@ technical design in one document, with what is built and what is planned.
   workspaces, publishing and approvals above the engine, and the contract between the two.
 - [Source changes](docs/design/source-changes.md): what happens when a source corrects itself,
   is deleted or changes at scale, and when a person is asked.
+- [Knowledge and language](docs/design/knowledge-and-language.md): knowledge is language-neutral;
+  translations, cross-language merge and pages in another language.
 - [Architecture](docs/architecture.md): engine and business layer, components, how they
   talk, storage, security.
 - [Contracts](docs/contracts.md): changing schemas, code generation, IDs, events,
