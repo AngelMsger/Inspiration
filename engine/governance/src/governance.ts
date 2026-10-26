@@ -18,7 +18,7 @@ import {
   type TodoRequested,
   valueKeyOf,
 } from "@inspiration/contracts";
-import { defineTable, type Records, type RecordTx } from "@inspiration/eventbus";
+import { defineTable, type RecordReader, type Records, type RecordTx } from "@inspiration/eventbus";
 import { logger } from "@inspiration/kernel";
 import {
   type CaseDraft,
@@ -28,7 +28,6 @@ import {
   type Member,
   nextChangeDay,
   type SlotDecision,
-  upgraded,
   type ValueGroup,
   withMember,
 } from "./slots.ts";
@@ -90,6 +89,32 @@ export const RECHECKS = defineTable<Recheck>("governance.rechecks", {
   key: (r) => slotKey(r.tenant_id, r.slot),
   columns: { tenant_id: (r) => r.tenant_id, day: (r) => r.day },
 });
+
+/**
+ * A slot's value groups. A group stored before governed statements were counted by the day
+ * they take effect (governed_from), or before governance levels, is counted again from its
+ * members: its earliest day cannot say when each of them takes effect. Returns the groups
+ * counted again too, for the caller to store.
+ */
+async function storedGroups(
+  reader: RecordReader,
+  tenantId: string,
+  slot: string,
+): Promise<{ groups: ValueGroup[]; recounted: ValueGroup[] }> {
+  const recounted: ValueGroup[] = [];
+  const groups: ValueGroup[] = [];
+  for (const stored of await reader.find(VALUE_GROUPS, { tenant_id: tenantId, slot })) {
+    if (stored.governed_from) {
+      groups.push(stored);
+      continue;
+    }
+    const [group] = groupsOf(await reader.find(MEMBERS, { tenant_id: tenantId, slot, value: stored.value }));
+    if (!group) continue;
+    groups.push(group);
+    recounted.push(group);
+  }
+  return { groups, recounted };
+}
 
 function groupKey(tenantId: string, slot: string, value: string): string {
   return `${tenantId}\x1f${slot}\x1f${value}`;
@@ -279,7 +304,7 @@ export class Governance {
 
   /** The value groups of a slot and the decision over them. */
   async slot(tenantId: string, slot: string): Promise<{ groups: ValueGroup[]; decision?: SlotDecision }> {
-    const groups = (await this.records.find(VALUE_GROUPS, { tenant_id: tenantId, slot })).map(upgraded);
+    const { groups } = await storedGroups(this.records, tenantId, slot);
     const decision = decide(groups, this.#today());
     return decision ? { groups, decision } : { groups };
   }
@@ -318,17 +343,16 @@ export class Governance {
       const fresh = members.filter((m) => !known.has(m.claim_id));
       if (fresh.length) await tx.put(MEMBERS, fresh);
 
-      // A group that lost a member is counted again; one that only gained is extended.
+      // A group that lost a member is counted again, and so is one stored without its day
+      // counts; one that only gained is extended.
       const lost = new Set(removed.map(keyOf));
       const slots = new Set([...removed, ...fresh].map((m) => m.slot));
       for (const key of new Set([...lost, ...fresh.map(keyOf)])) {
         const [, slot, value] = key.split("\x1f") as [string, string, string];
-        let group: ValueGroup | undefined;
-        if (lost.has(key)) {
+        let group = lost.has(key) ? undefined : await tx.get(VALUE_GROUPS, key);
+        if (lost.has(key) || (group && !group.governed_from)) {
           [group] = groupsOf(await tx.find(MEMBERS, { tenant_id: event.tenant_id, slot, value }));
         } else {
-          const stored = await tx.get(VALUE_GROUPS, key);
-          group = stored && upgraded(stored);
           for (const m of fresh) if (m.slot === slot && m.value === value) group = withMember(group, m);
         }
         if (group) await tx.put(VALUE_GROUPS, [group]);
@@ -417,7 +441,8 @@ export class Governance {
     cause?: EventEnvelope,
   ): Promise<{ request?: TodoRequested; notes: TodoRequested[]; withdrawn: TodoRequested[] }> {
     const today = this.#today();
-    const groups = (await tx.find(VALUE_GROUPS, { tenant_id: tenantId, slot })).map(upgraded);
+    const { groups, recounted } = await storedGroups(tx, tenantId, slot);
+    if (recounted.length) await tx.put(VALUE_GROUPS, recounted);
     const decision = decide(groups, today);
     const recheck = await tx.get(RECHECKS, slotKey(tenantId, slot));
     const next = decision ? nextChangeDay(groups, today) : undefined;

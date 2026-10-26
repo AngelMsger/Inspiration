@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import {
   type ChatMessage,
   type Claim,
@@ -47,7 +48,7 @@ const EMBED_BATCH = 64;
 /** IDs per store read. */
 const READ_BATCH = 500;
 
-const PROMPTS_DIR = new URL("../prompts/", import.meta.url).pathname;
+const PROMPTS_DIR = fileURLToPath(new URL("../prompts/", import.meta.url));
 const RETIRED = new Set(["archived", "retired"]);
 const LIVE_STATUSES = new Set(["active", "verified", "disputed"]);
 

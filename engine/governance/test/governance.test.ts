@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { type Claim, type ClaimsUpdated, newEvent } from "@inspiration/contracts";
 import { describe, expect } from "vitest";
 import { RECHECKS, VALUE_GROUPS } from "../src/index.ts";
@@ -5,6 +6,23 @@ import { BACKENDS, governanceTest, HOTEL, SPACE, TENANT, type World } from "./fi
 
 const POLICY = { title: "Travel policy", authority: 0.9, effective_from: "2026-01-01" };
 const GUIDE = { title: "Onboarding guide", authority: 0.5 };
+
+/**
+ * The slot's state as governance stored it before governed statements were counted by day:
+ * no governed_from in its groups, and no recheck for the day a governed statement takes
+ * effect.
+ */
+async function storedBeforeDayCounts(world: World): Promise<void> {
+  const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
+  const legacy = stored.map(({ governed_from: _days, ...g }) => g);
+  await world.records.transaction(async (tx) => {
+    await tx.put(VALUE_GROUPS, legacy as typeof stored);
+    await tx.delete(
+      RECHECKS,
+      (await tx.find(RECHECKS, { tenant_id: TENANT })).map((r) => `${r.tenant_id}\x1f${r.slot}`),
+    );
+  });
+}
 
 /** Two governed documents of equal authority state 600 and 650; the claim IDs, random here, pick the leader. */
 async function tied(world: World): Promise<{ leader: number; other: number }> {
@@ -305,6 +323,28 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${other} CNY/night`);
     });
 
+    test("groups stored before the day counts are counted again from their members", async ({ world }) => {
+      const { leader, other } = await tied(world);
+      await world.state({ title: "Travel policy (2027 edition)", authority: 0.5, effective_from: "2027-01-01" }, [
+        { text: `The hotel cap is ${other} yuan a night.`, value: other },
+      ]);
+      await storedBeforeDayCounts(world);
+
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${leader} CNY/night`);
+      // A new statement in the slot stores the groups recounted and schedules the day again.
+      await world.state({ title: "Travel FAQ", authority: 0.5, level: "reference" }, [
+        { text: `Hotels are capped at ${other} a night.`, value: other },
+      ]);
+      expect((await world.records.find(RECHECKS, { tenant_id: TENANT })).map((r) => r.day)).toEqual(["2027-01-01"]);
+      const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
+      expect(stored.find((g) => g.value === `${other} CNY/night`)?.governed_from).toEqual({ "": 1, "2027-01-01": 1 });
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${leader} CNY/night`);
+
+      world.setToday("2027-01-01");
+      expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${other} CNY/night`);
+    });
+
     test("plans and later dates do not override what is in force", async ({ world }) => {
       await world.state(POLICY, [{ text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 }]);
       await world.state({ title: "Budget proposal for 2027", authority: 0.5 }, [
@@ -461,5 +501,25 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         ["conflict", false],
       ]);
     });
+  });
+});
+
+// Migrations run only on Postgres; the memory store holds nothing from before them.
+describe.skipIf(BACKENDS[1]?.skip)("postgres backend", () => {
+  const test = governanceTest("postgres");
+
+  test("the migration rechecks slots whose groups were stored before the day counts", async ({ world }) => {
+    const { leader, other } = await tied(world);
+    await world.state({ title: "Travel policy (2027 edition)", authority: 0.5, effective_from: "2027-01-01" }, [
+      { text: `The hotel cap is ${other} yuan a night.`, value: other },
+    ]);
+    await storedBeforeDayCounts(world);
+
+    await world.sql?.(readFileSync(new URL("../migrations/0003_recount_groups.sql", import.meta.url), "utf8"));
+    expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
+    expect((await world.records.find(RECHECKS, { tenant_id: TENANT })).map((r) => r.day)).toEqual(["2027-01-01"]);
+    const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
+    expect(stored.every((g) => g.governed_from)).toBe(true);
+    expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${leader} CNY/night`);
   });
 });

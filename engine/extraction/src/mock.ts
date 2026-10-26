@@ -30,7 +30,7 @@ import type { MockResponder } from "@inspiration/model-gateway";
 import { type ExtractedClaim, inputOf, type WindowBlock, type WindowInput } from "./protocol.ts";
 import { mentioned, type PredicateEntry } from "./vocabulary.ts";
 
-const PACKS = loadLanguages(new URL("../languages/", import.meta.url).pathname);
+const PACKS = loadLanguages(new URL("../languages/", import.meta.url));
 
 /** Any of the packs' words under key, in any case. */
 const cue = (key: string) => new RegExp(anyOf(PACKS.flatMap((p) => p.list(key))), "iu");

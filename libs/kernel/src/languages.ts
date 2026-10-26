@@ -13,6 +13,7 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parse } from "yaml";
 
 export class LanguagePackError extends Error {
@@ -96,12 +97,17 @@ export class LanguagePack {
   }
 }
 
-/** The packs in dir, one per <tag>.yaml file, in tag order. */
-export function loadLanguages(dir: string): LanguagePack[] {
-  return readdirSync(dir)
+/**
+ * The packs in dir, one per <tag>.yaml file, in tag order. Pass a file URL as it is
+ * (`new URL("../languages/", import.meta.url)`): its pathname keeps percent escapes, so a
+ * checkout under a path with spaces would not be found.
+ */
+export function loadLanguages(dir: string | URL): LanguagePack[] {
+  const path = typeof dir === "string" ? dir : fileURLToPath(dir);
+  return readdirSync(path)
     .filter((f) => f.endsWith(".yaml"))
     .sort()
-    .map((f) => new LanguagePack(f.slice(0, -".yaml".length), parse(readFileSync(join(dir, f), "utf8")), f));
+    .map((f) => new LanguagePack(f.slice(0, -".yaml".length), parse(readFileSync(join(path, f), "utf8")), f));
 }
 
 const KANA = /[\p{Script=Hiragana}\p{Script=Katakana}]/u;

@@ -1,11 +1,12 @@
 import { cp, mkdtemp, readdir, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { hasStack, stackTest, testData, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
 import { Corpus, days, Engine, inboxReport, ingest, SimulatedClock } from "../src/index.ts";
 
-const CORPUS = new URL("../../../examples/corpus/", import.meta.url).pathname;
+const CORPUS = fileURLToPath(new URL("../../../examples/corpus/", import.meta.url));
 const FINANCE = "grp_01QINGHE00000000000FINANCE";
 
 /** What the run finds, in the corpus's own words (test/data/corpus.yaml). */
