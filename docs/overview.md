@@ -754,8 +754,21 @@ planned.
   procedure, the page is compiled again for that reader's set of readable spaces and cached for
   everyone who shares it.
 - **Charts** take their data from a `DataRef`: inline rows, statements (fixed or by query) or a
-  registered query of a connected system, never free SQL. Rows keep their statement IDs, so rows a
-  reader may not see are dropped before rendering.
+  registered query of a connected system, never free SQL. Rows built from statements keep their
+  statement IDs, so rows a reader may not see are dropped before rendering.
+- **Statements carry knowledge; queries carry data at scale.** A statement is more than subject,
+  predicate and object: it has a typed value (a number with its unit, a range, a date, money),
+  qualifiers that work as dimensions (city, grade, period) and the time it holds. So the
+  statements of one predicate form a small fact table, such as hotel caps by city and grade, that
+  stays cited and governed, and a statement query turns it into chart rows. That suits rules and
+  facts, from hundreds to a few thousand per subject, because every statement can be reviewed.
+  Business data at scale (daily sales, stock, transactions) is not turned into statements: it
+  stays in its own system of record and reaches a chart through a registered, parameterized query
+  that a `data_providers` plugin runs with the system's permissions and caches as a snapshot,
+  which the chart cites. A large table inside a document, such as a price list of thousands of
+  items, stays a source whose rows can be cited: a row becomes a statement only when a page or an
+  answer uses it, and the table can also be registered as a data source for charts. A chart can
+  mix the two, for example a sales curve from a query with the target from a statement.
 - **Interactive views** separate code from data. A view version is a template or generated code
   that passes a headless render check (console errors, overflow at phone and desktop widths, both
   themes, empty and large data) and a person's approval. It runs in an iframe on a separate origin
