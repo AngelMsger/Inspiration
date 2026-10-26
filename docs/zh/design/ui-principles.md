@@ -144,10 +144,10 @@ Inspiration 是国际化产品。英文、简体中文和日文从第一个版�
 | English | 中文 | 日本語 | 说明 |
 | --- | --- | --- | --- |
 | Personal library | 我的知识库（切换器中为个人知识库） | マイライブラリ（切替メニューでは個人ライブラリ） | 一个人使用时拥有的东西 |
-| Workspace | 企业 | ワークスペース | 英文从不说 “tenant” 或 “organisation”；中文沿用飞书和钉钉的“企业”，从不说“租户” |
+| Company | 企业 | 企業 | 英文从不说 “tenant”、“workspace” 或 “organisation”；中文沿用飞书和钉钉的“企业”，从不说“租户” |
 | Space, My space | 空间, 我的空间 | スペース, マイスペース | 我的空间只属于成员本人 |
 | Member | 成员 | メンバー | 从不说“用户”或“账号” |
-| Workspace connection, Personal connection | 企业连接, 个人连接 | ワークスペースの接続, 個人の接続 | 从不说“凭据”或“令牌” |
+| Company connection, Personal connection | 企业连接, 个人连接 | 企業の接続, 個人の接続 | 从不说“凭据”或“令牌” |
 | Source, Passage, Statement | 来源, 段落, 陈述 | ソース, 段落, 記述 | |
 | Topic, Knowledge page, Procedure, Card | 主题, 知识页, 流程, 卡片 | トピック, ナレッジページ, 手順, カード | |
 | Knowledge tree, Sources tree | 知识树, 来源树 | ナレッジツリー, ソースツリー | |
@@ -160,7 +160,7 @@ Inspiration 是国际化产品。英文、简体中文和日文从第一个版�
 | Any one, Everyone (joint approval) | 或签, 会签 | いずれか承認, 全員承認 | 审批方式 |
 | Who can read this | 可见范围 | 公開範囲 | 总是带人数 |
 | Inbox, Assistant | 待办, 助手 | 受信トレイ, アシスタント | 助手没有自己的名字 |
-| Keep fresh with the workspace connection, Keep fresh with my connection, Publish a snapshot | 通过企业连接保持更新, 通过我的连接保持更新, 发布快照 | ワークスペースの接続で最新に保つ, 自分の接続で最新に保つ, スナップショットを公開 | 发布时对每个来源的问题 |
+| Keep fresh with the company connection, Keep fresh with my connection, Publish a snapshot | 通过企业连接保持更新, 通过我的连接保持更新, 发布快照 | 企業の接続で最新に保つ, 自分の接続で最新に保つ, スナップショットを公開 | 发布时对每个来源的问题 |
 | Some readers can't open the original | 部分读者无法打开原文 | 一部の閲覧者は原文を開けません | 提示，从不阻止 |
 | Source permissions tightened | 来源权限收紧 | ソースの権限が縮小されました | 空间负责人的待办 |
 
@@ -179,7 +179,7 @@ Inspiration 是国际化产品。英文、简体中文和日文从第一个版�
 于 2026-10-26 采纳：
 
 - 界面上只有三个角色：成员、负责人（按范围显示）和超级管理员。
-- 中文里企业叫“企业”，治理级别叫“严格”“宽松”“仅检索”。
+- 中文里企业叫“企业”，治理级别叫“严格”“宽松”“仅检索”。英文与之对应叫 Company，日文叫“企業”。
 
 ## 仍待解决
 

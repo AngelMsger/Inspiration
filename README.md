@@ -100,7 +100,7 @@ technical design in one document, with what is built and what is planned.
   [Statements at scale](docs/design/statements-at-scale.md): the adopted UI and review design.
 - [Business layer](docs/design/business-layer.md) and
   [Business layer and engine contract](docs/design/business-engine-contract.md): accounts,
-  workspaces, publishing and approvals above the engine, and the contract between the two.
+  companies, publishing and approvals above the engine, and the contract between the two.
 - [Source changes](docs/design/source-changes.md): what happens when a source corrects itself,
   is deleted or changes at scale, and when a person is asked.
 - [Knowledge and language](docs/design/knowledge-and-language.md): knowledge is language-neutral;

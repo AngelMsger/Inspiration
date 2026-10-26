@@ -22,7 +22,7 @@
    - **共享缓存遵循同一边界。** 回答缓存以可读空间集合和授权级别为键；缓存项用到的任何单元的标签、证明或授权发生变化时，该缓存项即被丢弃。用到了只能通过读者本人授权（作为发布者或审批人）才可读的单元的回答，只为该读者缓存。
    - **来源 ACL 只作参考。** 来源同步保留 `kb.acl_snapshots` 和身份关联，但它们只用于：(a) 发布时的可读差异检查；(b) 已发布文档的 ACL 收紧时（`acl_hash` 变化且移除了主体）生成 `source_restricted` 待办。企业策略在 `notify`（默认）和 `quarantine`（在空间负责人决定之前隐藏受影响的单元）之间选择。
    - **发布是移动，不是复制。** 选中的来源（或文件夹子树，它会成为一个独立来源）、页面和 SOP 从个人空间移到目标租户空间。人工产生的内容（上传、编辑、覆盖、评论）一并移动。被移动来源的派生知识在成员域里关闭，在租户域里重建并合并。
-   - **凭据只决定保鲜方式。** 每个已发布来源可选：`workspace_connection`（覆盖检查后切换到租户连接）、`member_connection`（保留发布者的连接；需要一条 `ConnectionConsent`，凭据代理只在该同意有效期间把成员连接提供给租户域的来源），或 `snapshot`（无连接，冻结，必须设定复核日期）。成员离开或连接被吊销时，使用该成员连接的来源暂停，该来源的负责人收到 `reauthorize` 待办（改换连接或冻结）。
+   - **凭据只决定保鲜方式。** 每个已发布来源可选：`tenant_connection`（覆盖检查后切换到租户连接）、`member_connection`（保留发布者的连接；需要一条 `ConnectionConsent`，凭据代理只在该同意有效期间把成员连接提供给租户域的来源），或 `snapshot`（无连接，冻结，必须设定复核日期）。成员离开或连接被吊销时，使用该成员连接的来源暂停，该来源的负责人收到 `reauthorize` 待办（改换连接或冻结）。
    - **已发布子树里的新文档**要经过敏感信息和个人信息扫描；被标记的文档成为给空间负责人的 `publish_review` 待办，其余的直接进入（策略 `new_documents: scan | approve_each`）。
    - **租户与成员之间是商业关系。** 租户设定用量池和每个成员的上限（模型预算、存储）；用量按租户、成员和空间计量，每次模型调用同时检查成员上限和用量池，以较低者为准。
 7. **引擎不替人写句子。** 主体令牌带 `locale`，引擎生成任何内容（例如编译出的摘要）时都能选对语言，却不接触账号。待办和事件载荷只带消息键和参数，不带展示文字；业务层用英文、中文和日文的消息目录渲染它们。
@@ -64,9 +64,9 @@ grant      string               # agent grant ID, for revocation
 - `MemberLimits { member_id, model_budget?, storage_bytes? }`（由业务层根据套餐设定）
 - `Group { id: grp_, tenant_id, name, member_ids, group_ids, version }`、`Department { id: dep_, parent_id?, name, member_ids, version }`
 - `ExternalIdentityLink { provider: PluginName, external_tenant?, external_id, principal_id }`（例如把飞书 union_id 映射到 `mem_`；只用于可读差异检查）
-- `AgentRegistration { id: agt_, tenant_id, owner_id: mem_, kind: client | workspace_agent, scopes, space_scope?, max_sensitivity?, status }`
+- `AgentRegistration { id: agt_, tenant_id, owner_id: mem_, kind: client | tenant_agent, scopes, space_scope?, max_sensitivity?, status }`
 - `DirectorySnapshot { tenant_id, version, members, groups, departments, links, agents }` 和 `DirectoryDrift`（按分区计数）
-- `WorkspacePolicy { version, publish: { member_connection_freshness: allowed | off, new_documents: scan | approve_each, source_restricted: notify | quarantine }, dispute: { serve: last_verified | both | withhold }, models: { max_external_sensitivity }, retention: { departed_personal_space: Duration } }`。`departed_personal_space`：个人空间被锁定、任何人都不能读，经过这段时间（默认 30 天）后删除。
+- `TenantPolicy { version, publish: { member_connection_freshness: allowed | off, new_documents: scan | approve_each, source_restricted: notify | quarantine }, dispute: { serve: last_verified | both | withhold }, models: { max_external_sensitivity }, retention: { departed_personal_space: Duration } }`。`departed_personal_space`：个人空间被锁定、任何人都不能读，经过这段时间（默认 30 天）后删除。
 - `ApprovalPolicy { mode: single | any | all | quorum, quorum?, deadline: Duration, fallback_ids? }`。没有 `fallback_ids` 时，投票分裂或超过截止时间交给空间的负责人；冲突跨空间时交给租户管理员。
 - `OwnershipScope` space | taxonomy_node | page | sop | knowledge_model | claim；
   `OwnershipAssignment { scope_kind, scope_id, owner_ids, backup_ids, approval_policy }`。引擎按最近一级被指定的范围、空间负责人、租户管理员的顺序确定待办的处理人。存放在 governance 组件自己的 Schema 里（不在知识存储的 `kb` Schema 里）；负责人和备份只能是 `mem_` 或 `grp_` ID。只用于租户域。
@@ -75,7 +75,7 @@ grant      string               # agent grant ID, for revocation
 
 - **`authz.yaml`、`packages/access-control/schema.zed`：** `Principal.auth_context` 和 `Principal.locale`（都可选）。`ResourceType` 新增 `connection` 和 `agent`。`tenant`：新增关系 `security_admin`、`auditor`。`space` 不新增 `arbiter` 关系：截止后的决定人是空间的 `owner`，跨空间时是租户的 `admin`。个人空间只有 `owner`，不继承租户上的任何关系。单元（页面、SOP、来源）：新增关系 `publisher`。`publish_request`：新增关系 `approver`，只授予请求内条目的读取权。陈述、页面和 SOP 的读取权 = 其所在空间的读取权；陈述还需要一个读者能读的证明，证据片段和派生输入按可读空间检查，而不是按来源 ACL 检查（规则 6）。
 - **`collab.yaml`：**
-  - 新增 `SourceFreshness` workspace_connection | member_connection | snapshot。
+  - 新增 `SourceFreshness` tenant_connection | member_connection | snapshot。
   - `PublishRequest`：单个 `unit_id` 改为 `items[]`（页面、SOP、来源、文件夹子树）；`to_space_id` 即目标空间；在已有的 `gates` 旁新增 `source_actions[] { source_id, subtree?, freshness, connection_id?, consent_id?, review_at? }` 和 `checks { coverage: CoverageDiff[], audience_gap: AudienceGap, sensitivity { suggested_label, findings[] }, conflicts: ConflictPreview[] }`。
   - 新增 `ConnectionConsent { id, connection_id, source_id, member_id, granted_at, revoked_at? }`。
   - 新增 `Decision { scope: ResourceRef, resolution_key | proposal_id, decided_by: PrincipalId[], approval_id?, rule?: PrecedenceRule }`，供“决定待办”和“决定发布请求”使用。引擎复核每位审批人在该范围上都有 `verify` 权限。发布决定可以修改 `to_space_id` 和敏感级别标签。

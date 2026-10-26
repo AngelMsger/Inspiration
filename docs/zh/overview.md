@@ -240,10 +240,10 @@
 | English | 中文 | 日本語 |
 | --- | --- | --- |
 | Personal library | 我的知识库（切换器中为个人知识库） | マイライブラリ（切替メニューでは個人ライブラリ） |
-| Workspace | 企业 | ワークスペース |
+| Company | 企业 | 企業 |
 | Space, My space | 空间, 我的空间 | スペース, マイスペース |
 | Member | 成员 | メンバー |
-| Workspace connection, Personal connection | 企业连接, 个人连接 | ワークスペースの接続, 個人の接続 |
+| Company connection, Personal connection | 企业连接, 个人连接 | 企業の接続, 個人の接続 |
 | Source, Passage, Statement | 来源, 段落, 陈述 | ソース, 段落, 記述 |
 | Topic, Knowledge page, Procedure, Card | 主题, 知识页, 流程, 卡片 | トピック, ナレッジページ, 手順, カード |
 | Knowledge tree, Sources tree | 知识树, 来源树 | ナレッジツリー, ソースツリー |
@@ -254,7 +254,7 @@
 | Any one, Everyone (approval modes) | 或签, 会签 | いずれか承認, 全員承認 |
 | Who can read this | 可见范围 | 公開範囲 |
 | Inbox, Assistant | 待办, 助手 | 受信トレイ, アシスタント |
-| Keep fresh with the workspace connection, Keep fresh with my connection, Publish a snapshot | 通过企业连接保持更新, 通过我的连接保持更新, 发布快照 | ワークスペースの接続で最新に保つ, 自分の接続で最新に保つ, スナップショットを公開 |
+| Keep fresh with the company connection, Keep fresh with my connection, Publish a snapshot | 通过企业连接保持更新, 通过我的连接保持更新, 发布快照 | 企業の接続で最新に保つ, 自分の接続で最新に保つ, スナップショットを公開 |
 | Some readers can't open the original | 部分读者无法打开原文 | 一部の閲覧者は原文を開けません |
 | Source permissions tightened | 来源权限收紧 | ソースの権限が縮小されました |
 | Governed, Reference, Search only | 严格, 宽松, 仅检索 | 規程, 参考, 検索のみ |
@@ -685,7 +685,7 @@ retrieval 和 Agent API、带 `fetch_now` 和 `web_search` 的研究、parsing �
 | 2026-10-24 | 从第一个版本起支持英文、中文和日文；代码和注释中不出现中文；文档以英文为主并提供中文副本 |
 | 2026-10-26 | 产品里只有三个角色：超级管理员、负责人（空间、主题、页面或流程的）和成员；更细的角色留在内部，产品角色是它们的组合 |
 | 2026-10-26 | 用量参照主流 AI 产品：席位汇成企业用量池，成员有默认上限，超级管理员看得到用量、看不到内容；细节随计费再定 |
-| 2026-10-26 | 中文用语：工作区改称“企业”，治理级别为“严格”“宽松”“仅检索” |
+| 2026-10-26 | 中文用语：工作区改称“企业”，治理级别为“严格”“宽松”“仅检索”。英文与之对应用 Company，日文用“企業”，不再用 workspace |
 | 2026-10-26 | 来源变化：知识从不被静默删除；被删除的来源保留并标记，直到它的负责人决定；大规模变化作为一个整体审阅一次 |
 | 2026-10-26 | 知识与语言无关，语言只是知识的表现形式：每份知识在所有语言里只有一个单元，译本和原文算作一份，引文逐字保留，读者用自己的语言阅读 |
 

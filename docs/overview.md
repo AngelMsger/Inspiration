@@ -21,7 +21,7 @@ Four things set it apart:
    changed, updates only the statements they support, and rebuilds only what cites them. Review
    dates come from what kind of knowledge it is.
 3. **Knowledge flows from personal to shared under one simple rule.** Each member's own space is
-   private. Publishing moves knowledge into the workspace, where the super admin and space owners decide who reads it.
+   private. Publishing moves knowledge into the company, where the super admin and space owners decide who reads it.
    Source permissions only raise warnings, so merged knowledge never needs per-source permission
    arithmetic.
 4. **People and agents govern together, in amounts a person can keep up with.** Agents detect,
@@ -30,7 +30,7 @@ Four things set it apart:
 
 **Who it is for.** Teams and companies whose knowledge lives across several tools (Feishu or
 Lark, Confluence, approval systems, file shares, PDFs), starting with one person's library and
-growing into team and enterprise workspaces. The strongest early uses are procedure and policy
+growing into teams and companies. The strongest early uses are procedure and policy
 governance across tools, and a governed knowledge endpoint for a company's own agents. It is sold
 as SaaS first, with private deployment as a second profile of the same code. English, Chinese and
 Japanese are supported from the first release, as one knowledge base: knowledge is language-neutral,
@@ -48,7 +48,7 @@ them; the [glossary](#languages) lists those in all three languages.
 
 | Concept | What it is | Shown to people as |
 | --- | --- | --- |
-| Tenant | The unit of isolation, policy and billing. Nothing crosses from one tenant to another except an explicit transfer | Workspace (never shown for one person working alone) |
+| Tenant | The unit of isolation, policy and billing. Nothing crosses from one tenant to another except an explicit transfer | Company (never shown for one person working alone) |
 | User | A person's account. It exists only in the business layer | Account |
 | Member | A user inside one tenant. All activity in a tenant is done by a member, and the member is the only person the engine knows | Member |
 | Space | A container of knowledge with an audience. Each member has a private personal space in every tenant; every other space is shared and has an audience set by the super admin or the space's owner | My space; Space |
@@ -62,7 +62,7 @@ them; the [glossary](#languages) lists those in all three languages.
 | Topic and placement | Topics form the knowledge outline (area, topic, subtopic). A placement puts a statement under a topic; a statement without one is unfiled | Topic |
 | Page, procedure, card | The readable forms built from statements: knowledge pages, procedures (SOPs) and cards about one thing (a city, a supplier, a role) | Knowledge page, Procedure, Card |
 | Todo and note | A todo asks a person to decide or review something. A note tells an owner something without asking for a decision | Inbox |
-| Owner, super admin | An owner is named for a space, topic, page or procedure: they approve what is published there, keep it current and decide its conflicts, and the nearest owner above takes anything that has none. The super admin runs the workspace and is the last fallback | Owner, Super admin |
+| Owner, super admin | An owner is named for a space, topic, page or procedure: they approve what is published there, keep it current and decide its conflicts, and the nearest owner above takes anything that has none. The super admin runs the company and is the last fallback | Owner, Super admin |
 
 ## Functional design
 
@@ -183,7 +183,7 @@ trees to browse it:
 - **Research is re-checked, not re-run.** When cited material changes or an assumption's date
   comes, only the affected conclusions are checked again. A new report version is written only if
   a conclusion changes.
-- **A new workspace starts with a backlog, not a flood.** Reviews already overdue on the first day
+- **A new company starts with a backlog, not a flood.** Reviews already overdue on the first day
   go to the space owner as a first-review campaign per topic, not into topic owners' inboxes.
 
 ### Governing: people decide, in amounts they can keep up with
@@ -218,27 +218,27 @@ trees to browse it:
   n), a deadline (5 working days across scopes by default) and a fallback decider when it passes:
   the space owner, or the super admin across spaces. While people decide,
   readers and agents get the last verified value marked Disputed (the default), both values, or
-  nothing, as the workspace chooses.
+  nothing, as the company chooses.
 - **Every decision is a record.** "Why this value?" shows who decided, when and on what. A decision
   can become a precedence rule ("for prices in Finance, the price list outranks wiki pages"), which
   governance then applies to new conflicts of the same kind and reports weekly.
 
 ### From personal to team: two domains and publishing
 
-- **Solo use shows no workspace.** Sign-up creates a personal library. Inviting someone, or turning
-  on collaboration, turns it into a team workspace; creating a team workspace starts a new one.
+- **Solo use shows no company.** Sign-up creates a personal library. Inviting someone, or turning
+  on collaboration, turns it into a company; creating a company starts a new one.
   Either way nothing is shared until it is published.
-- **My space is private.** In every workspace, each member has a My space for drafts, personal
+- **My space is private.** In every company, each member has a My space for drafts, personal
   connections and experiments. Nobody else can read it, the super admin included.
 - **Shared spaces are governed top down.** The super admin and space owners set who reads each shared space by
   space roles and sensitivity labels. The person who published something keeps access to it.
 - **Publishing moves knowledge; it does not copy it:**
   1. The member picks pages, procedures, sources or folders in My space and a target space.
-  2. For each source they choose how it stays fresh: with the workspace connection (the default),
+  2. For each source they choose how it stays fresh: with the company connection (the default),
      with their own connection (needs their consent; the super admin can turn it off), or as a
      snapshot with a review date.
   3. The engine checks the request: a sensitivity and personal-data scan, a preview of conflicts
-     with knowledge already published, what the workspace connection can and cannot reach, and
+     with knowledge already published, what the company connection can and cannot reach, and
      how many people in the audience cannot open the originals in the source system.
   4. The target topic's owner approves, or the space owner. Approvers can read the items in the
      request and nothing else in My space. The super admin sees the request but not the items.
@@ -248,16 +248,16 @@ trees to browse it:
   6. From then on the space's audience reads it. Source permissions play no part.
 - **Source permissions only warn.** At publishing they produce the "some readers can't open the
   original" warning, which never blocks. If a published document's permissions later tighten in
-  the source, the space owner gets a todo; workspace policy chooses notify (the default) or hide
+  the source, the space owner gets a todo; a company setting chooses notify (the default) or hide
   the affected knowledge until the space owner decides.
 - **Company data stays in the company.** A company verifies its email domain and its Feishu
-  organization. Policy then blocks personal connections to it outside the company workspace, or
+  organization. Policy then blocks personal connections to it outside the company, or
   requires approval.
-- **Leaving.** Published knowledge stays with the workspace and passes to the space owner. The
+- **Leaving.** Published knowledge stays with the company and passes to the space owner. The
   member's My space is locked so nobody can read it and is erased after 30 days. Their
   connections and agent grants are revoked, and sources kept fresh by their connection pause until
   their owner switches or freezes them.
-- **Moving between workspaces** is a separate, explicit transfer that re-creates sources in the
+- **Moving between companies** is a separate, explicit transfer that re-creates sources in the
   target and rebuilds derived knowledge there.
 
 ### Agents as consumers
@@ -269,7 +269,7 @@ trees to browse it:
   carries source, version, freshness, confidence, review status and a token estimate. A structured
   `get_sop` answer is meant to stay under about 2,500 tokens.
 - **Sign-in.** MCP clients use OAuth with PKCE, the CLI uses the device flow, and the super admin
-  registers workspace agents. Scopes are `knowledge.read`, `knowledge.propose` and `comments.write`. An agent
+  registers company agents. Scopes are `knowledge.read`, `knowledge.propose` and `comments.write`. An agent
   always acts for a member, and its rights are that member's rights cut down to its scopes and
   spaces.
 - **Built-in agents only read or propose.** The comment assistant, the Q&A assistant, the
@@ -279,19 +279,19 @@ trees to browse it:
 
 ### Administration
 
-- **Three roles.** The super admin runs the workspace: members, spaces, connections, policies,
+- **Three roles.** The super admin runs the company: members, spaces, connections, policies,
   sensitivity labels, audit, agents, plan and usage. Owners run the content of their scope, and
   everyone else is a member. In solo use the one person holds all three.
 - **Lifecycle flows** cover sign-up, invitation (links expire after 7 days), joining by verified
   email domain, SSO with directory sync, personal to team, member leaving, account deletion
-  (erases the personal library) and workspace deletion (30 days of grace with export, then the
+  (erases the personal library) and company deletion (30 days of grace with export, then the
   data key is destroyed).
-- **Limits and usage.** The workspace is the billing unit. As in mainstream AI products, seats
-  fill one usage pool for the workspace, each member has a default cap the super admin can raise,
-  and the engine meters model use per workspace, member and space. The super admin sees usage per
+- **Limits and usage.** The company is the billing unit. As in mainstream AI products, seats
+  fill one usage pool for the company, each member has a default cap the super admin can raise,
+  and the engine meters model use per company, member and space. The super admin sees usage per
   member and per kind of work, never what anyone asked, read or researched. Credits per seat and
   what happens when the pool runs out are settled with billing. Besides connection policy, limits
-  are the workspace's only say over a member's My space.
+  are the company's only say over a member's My space.
 
 ### Languages
 
@@ -299,7 +299,7 @@ English, Simplified Chinese and Japanese are equal from the first release. Tradi
 comes later.
 
 - **Interface language belongs to the account,** because a person's language does not change per
-  workspace. Its first value comes from the browser at sign-up. Each workspace has a default
+  company. Its first value comes from the browser at sign-up. Each company has a default
   language for messages sent to many people.
 - **Knowledge is language-neutral; language is how it is expressed.** A statement, fact slot,
   entity, topic, procedure or page has one identity in every language. The same knowledge written
@@ -324,7 +324,7 @@ comes later.
   rules. Pressing Enter while an input method is composing never submits.
 - **Notifications** go out in each recipient's language: Feishu and DingTalk cards in China, Lark
   elsewhere, email and the in-app inbox everywhere.
-- **Regions.** A workspace's region is set when it is created, and its data stays there. The plan
+- **Regions.** A company's region is set when it is created, and its data stays there. The plan
   is mainland China plus one global region.
 
 One glossary feeds every status, button and empty state. The Chinese column is adopted; the
@@ -334,10 +334,10 @@ Japanese column is proposed and waits for review.
 | English | Chinese | Japanese |
 | --- | --- | --- |
 | Personal library | 我的知识库 (个人知识库 in the switcher) | マイライブラリ (個人ライブラリ in the switcher) |
-| Workspace | 企业 | ワークスペース |
+| Company | 企业 | 企業 |
 | Space, My space | 空间, 我的空间 | スペース, マイスペース |
 | Member | 成员 | メンバー |
-| Workspace connection, Personal connection | 企业连接, 个人连接 | ワークスペースの接続, 個人の接続 |
+| Company connection, Personal connection | 企业连接, 个人连接 | 企業の接続, 個人の接続 |
 | Source, Passage, Statement | 来源, 段落, 陈述 | ソース, 段落, 記述 |
 | Topic, Knowledge page, Procedure, Card | 主题, 知识页, 流程, 卡片 | トピック, ナレッジページ, 手順, カード |
 | Knowledge tree, Sources tree | 知识树, 来源树 | ナレッジツリー, ソースツリー |
@@ -348,7 +348,7 @@ Japanese column is proposed and waits for review.
 | Any one, Everyone (approval modes) | 或签, 会签 | いずれか承認, 全員承認 |
 | Who can read this | 可见范围 | 公開範囲 |
 | Inbox, Assistant | 待办, 助手 | 受信トレイ, アシスタント |
-| Keep fresh with the workspace connection, Keep fresh with my connection, Publish a snapshot | 通过企业连接保持更新, 通过我的连接保持更新, 发布快照 | ワークスペースの接続で最新に保つ, 自分の接続で最新に保つ, スナップショットを公開 |
+| Keep fresh with the company connection, Keep fresh with my connection, Publish a snapshot | 通过企业连接保持更新, 通过我的连接保持更新, 发布快照 | 企業の接続で最新に保つ, 自分の接続で最新に保つ, スナップショットを公開 |
 | Some readers can't open the original | 部分读者无法打开原文 | 一部の閲覧者は原文を開けません |
 | Source permissions tightened | 来源权限收紧 | ソースの権限が縮小されました |
 | Governed, Reference, Search only | 严格, 宽松, 仅检索 | 規程, 参考, 検索のみ |
@@ -444,10 +444,10 @@ shares the contracts, eventbus and testkit libraries with the engine.
 | Component | Owns | Phase |
 | --- | --- | --- |
 | accounts | Users, login identities, sessions, the identity-provider adapter (Logto; Keycloak as fallback) | 1 |
-| tenancy | Tenants, members and member IDs, invitations, verified domains, workspace roles, sign-in policy, personal to team, transfers | 1 |
+| tenancy | Tenants, members and member IDs, invitations, verified domains, company roles, sign-in policy, personal to team, transfers | 1 |
 | directory | SSO connections, Feishu contacts (SCIM in phase 2), groups, departments, external identity links | 1 and 2 |
-| access-grants | OAuth authorization server, client registry, device flow, personal tokens, workspace agents, revocation | 1 |
-| connections | Connect flows for workspace and personal connections, consents, claims on external organizations | 1 (claims in 2) |
+| access-grants | OAuth authorization server, client registry, device flow, personal tokens, company agents, revocation | 1 |
+| connections | Connect flows for company and personal connections, consents, claims on external organizations | 1 (claims in 2) |
 | publishing | The publish wizard: target space, freshness choice, coverage, audience gap, approval routing | 1 |
 | approvals | Single and joint approvals, deadlines, fallback deciders, decision records | 1 (joint in 2) |
 | notifications | Inbox, email, Feishu, Lark and DingTalk cards, digests, preferences, message catalogs | 1 |
@@ -699,7 +699,7 @@ Planned, with contracts in place:
 | Statements | A translation is linked to its original and counts with it; statements merge across languages after a model check, keeping each quote in its language | Designed |
 | Retrieval | Multilingual embeddings (Qwen3-Embedding); BM25 with a tokenizer per language (jieba for Chinese, a Japanese morphological tokenizer, stemming for English); cross-language queries through the embedding side | Designed; the jieba index exists in the knowledge store today |
 | Page-compiler | A page's structure is built once; its canonical rendering is in the space's content language, and a rendering in another language is compiled from the same statements on request; answers in the asker's locale | Designed |
-| Business layer | Account language, workspace default for broadcasts, ICU MessageFormat catalogs (a missing string fails the build), localized sign-in pages, region per tenant | Designed |
+| Business layer | Account language, company default for broadcasts, ICU MessageFormat catalogs (a missing string fails the build), localized sign-in pages, region per tenant | Designed |
 | UI | Catalogs for en, zh-Hans and ja; a language tag on every block; fonts per script; locale formatting and collation; input-method rules; pseudo-locale tests | Designed |
 | Repository | No Chinese or Japanese in code or comments; language data in resource files; documentation in English with a Chinese copy under `docs/zh/`. A repo test enforces it | Next |
 
@@ -719,7 +719,7 @@ Planned, with contracts in place:
 | Sandbox | Docker with gVisor | Kata Containers or Firecracker with warm pools |
 | Deployment | Docker Compose on one node | Helm, air-gapped bundle, amd64 and arm64 |
 
-- **Two deployment profiles from one codebase.** SaaS comes first: a workspace's region is fixed at
+- **Two deployment profiles from one codebase.** SaaS comes first: a company's region is fixed at
   creation, starting with mainland China and one global region. Public SaaS in mainland China needs
   a generative AI filing, an ICP licence and classified protection. Private deployment is the
   second profile, with domestic infrastructure (Kylin, Kunpeng or Hygon, KingbaseES, Ascend) as
@@ -877,8 +877,8 @@ time depends more on review and integration than on these person-week figures.
 | 2026-10-24 | Pipeline boundaries: normalization before extraction and indexing, retrieval owns every index, freshness emits signals only, collaboration owns every todo |
 | 2026-10-24 | English, Chinese and Japanese from the first release; no Chinese in code or comments; docs in English with a Chinese copy |
 | 2026-10-26 | Three product roles: super admin, owner (of a space, topic, page or procedure) and member; finer roles stay internal and product roles are bundles of them |
-| 2026-10-26 | Usage follows mainstream AI products: seats fill a workspace pool, members have default caps, the super admin sees usage but never content; details come with billing |
-| 2026-10-26 | Chinese terms: the workspace is 企业, the governance levels are 严格, 宽松 and 仅检索 |
+| 2026-10-26 | Usage follows mainstream AI products: seats fill a company pool, members have default caps, the super admin sees usage but never content; details come with billing |
+| 2026-10-26 | Chinese terms: the company is 企业, the governance levels are 严格, 宽松 and 仅检索. English says Company and Japanese 企業 to match 企业; never "workspace" |
 | 2026-10-26 | Source changes: knowledge never disappears silently; a deleted source is kept and marked until its owner decides; a large change is reviewed once, as a whole |
 | 2026-10-26 | Knowledge is language-neutral and language is only how it is expressed: one unit per piece of knowledge in every language, translations count with their originals, quotes stay verbatim, readers read in their own language |
 
@@ -899,7 +899,7 @@ time depends more on review and integration than on these person-week figures.
   UI's internationalization rules.
 - [Statements at scale](design/statements-at-scale.md): two outlines, fact slots, governance levels,
   grouped review and the measured volumes.
-- [Business layer](design/business-layer.md): accounts, workspaces, publishing, governance roles,
+- [Business layer](design/business-layer.md): accounts, companies, publishing, governance roles,
   agent access and the business-layer plan.
 - [Business layer and engine contract](design/business-engine-contract.md): the commands, events,
   principal token and schema changes between the two layers.
