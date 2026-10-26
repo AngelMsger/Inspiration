@@ -15,7 +15,9 @@ permission itself, but it has no accounts, sign-in, invitations or billing.
 The **business layer** owns people and tenants: the external identity provider, accounts
 that are members of many tenants, personal tenants, publishing policy and admin governance. It provisions the engine (members, groups, spaces, policy) through engine
 commands and reacts to engine events. Calls go down, events come up: the engine never calls
-the business layer.
+the business layer. The design philosophy of the two layers, the test for where something
+goes, what neither may do, and how shared concerns are split are in the overview's
+[Two layers](overview.md#two-layers-the-engine-and-the-business-layer) section.
 
 There are three IDs: the tenant (`ten_`), the business layer's user, which is the account
 (`usr_`), and the member (`mem_`), which is one user inside one tenant. User IDs never reach

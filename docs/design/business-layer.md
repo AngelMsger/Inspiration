@@ -301,7 +301,7 @@ The browser reaches the engine only through the business layer, while the CLI an
 
 Each business component is a package in `business/<name>` of the same repository as the engine; the web app and the backend that wires these components are apps in `apps/`.
 
-What stays in the engine: everything about knowledge (connectors, sync, parsing, normalization, extraction, freshness, governance agents, page compiler, views, collaboration mechanics such as comments, overrides, todos and the publish state machine), the knowledge store, retrieval, the agent API, access control (SpiceDB, space audiences, the two domains, audit), the model gateway and agent runtime, research, the credential broker and the sandbox. Access control does not do SSO or directory sync, which belong to the business layer; it keeps identity mapping, and only for publish warnings.
+What stays in the engine: everything about knowledge (connectors, sync, parsing, normalization, extraction, freshness, governance agents, page compiler, views, collaboration mechanics such as comments, overrides, todos and the publish state machine), the knowledge store, retrieval, the agent API, access control (SpiceDB, space audiences, the two domains, audit), the model gateway and agent runtime, research, the credential broker and the sandbox. Access control does not do SSO or directory sync, which belong to the business layer; it keeps identity mapping, and only for publish warnings. The test for where something goes, what neither layer may do, and how shared concerns are split are in the overview's [Two layers](../overview.md#two-layers-the-engine-and-the-business-layer) section.
 
 ## Engine and business protocol
 

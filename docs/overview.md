@@ -359,13 +359,64 @@ Japanese column is proposed and waits for review.
 
 ### Two layers: the engine and the business layer
 
-**The engine** owns everything about knowledge: connectors, the pipeline,
-storage, permission checks, model access and the agent API. **The business layer** owns people,
-tenants, sign-in, policy values, approvals, notifications, billing and the web app. Calls go down
-and events come up: the business layer sends commands and queries, the engine answers and
-publishes events, and the engine never calls the business layer. That one rule keeps the engine
-usable on its own through MCP, REST and the CLI, and lets either side be tested against a fake of
-the other.
+**The design philosophy.** The engine is a system of record for knowledge, with no screens.
+Given a tenant and a principal, it answers four questions on its own: what is known, where it
+comes from, who may see it, and whether it is still true. It has no people, no interface and no
+commercial terms, so it behaves the same under our product, under a customer's own identity
+system in a private deployment, or with nothing but agents in front of it. The business layer is
+the product around it for people and companies: who someone is, which companies they belong to,
+what those companies bought, how a person is asked, reminded and told, and what the screens look
+like. It turns human and commercial decisions into engine commands and engine events into
+messages people read, and it can change from market to market without touching knowledge.
+
+Calls go down and events come up: the business layer sends commands and queries, the engine
+answers and publishes events, and the engine never calls the business layer. That one rule keeps
+the engine usable on its own through MCP, REST and the CLI, and lets either side be tested against
+a fake of the other.
+
+**Where something goes.** Ask in order; the first yes decides.
+
+1. Does it read, change, derive or enforce anything about knowledge, or decide whether a
+   principal may see something? The engine.
+2. Is it about a person as a person (sign-in, profile, language, sessions), a company as a
+   customer (plan, seats, billing, domains), or a channel that reaches a person (email, IM,
+   digests)? The business layer.
+3. Is it a setting? The business layer owns its value and the screen that sets it; the engine
+   owns what it means, its default and how it is enforced.
+4. Is it a decision people make about knowledge? The engine owns the item (a todo, a publish
+   request, a conflict), its state, who may decide and what follows the decision. The business
+   layer owns how people reach the decision: whom to ask, reminders, deadlines, escalation, votes
+   and cards. It sends the result back as a command, and the engine checks it again.
+
+**Never.** Each of these is held by a test or a review rule.
+
+- The engine never calls the business layer, and never stores a user ID, a login identity, a
+  session, a password, a plan or a payment detail.
+- The business layer never stores knowledge (sources, statements, pages, embeddings) or a source
+  credential, and never decides whether someone may see content: it asks the engine, which
+  checks. Content it shows or sends is fetched from the engine for that recipient, and the
+  business layer does not keep it.
+- The engine trusts only a signed token and its own copy of members, groups, roles and settings.
+  A token can narrow what the engine allows, never widen it.
+- The engine must run without the business layer: a stand-in that signs tokens and sends
+  provisioning commands is enough for tests, evaluations and agent-only use.
+
+**Shared concerns, split.** Where both layers take part, each owns one side:
+
+| Concern | Engine | Business layer |
+| --- | --- | --- |
+| People | Members, groups, roles and clearances as an enforced copy; every permission check | Accounts, sign-in, invitations, directory sync, and assigning roles |
+| Companies | Tenants as isolation boundaries and data regions; provisioning, export and deletion on command | The company as a customer: name, domains, plan, seats, and the transfer and deletion flows |
+| Settings | What `TenantPolicy` means, its defaults and its enforcement | The values a super admin picks, and the screens for them |
+| Spaces and audiences | Spaces, audiences and the checks | The admin screens that change them |
+| Todos and decisions | Todos, publish requests and conflicts: their state, routing to the owner of the scope, weekly budgets, who may decide, what a decision does and the record of what was decided | Getting people to decide: reminders, deadlines, escalation, joint approval votes and who voted how, cards in Feishu and other IM |
+| Messages | Events with codes and parameters | Wording in each recipient's language, channels, digests, preferences and the inbox screen |
+| Words | Knowledge in a language: pages, answers, summaries | Every word of the interface and of messages |
+| Source connections | Credentials (credential broker), fetching, sync and source ACL snapshots | Connect and consent screens, which connections the settings allow, claims on external tenants |
+| Agents | The agent API (MCP and REST), token verification, scope enforcement, agent audit | OAuth server, client registry, device flow, consent and revocation |
+| Usage | Metering model use per company, member and space, and stopping at the limits it is given | Plans, seats, the usage pool, per-member caps and invoices |
+| Audit | Reads of knowledge, permission changes, decisions and break-glass access | Sign-ins and account, admin and billing events; the admin console shows both |
+| Search and reading | Retrieval, answers, citations and pages | The reading and search screens |
 
 ```mermaid
 flowchart TB
