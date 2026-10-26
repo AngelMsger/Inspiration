@@ -1,6 +1,6 @@
 # Source changes: deletions and large changes
 
-Status: adopted design, 2026-10-26, from the owner's comments on the overview. Not built yet, except where a section says so. Thresholds and time limits are defaults that can change after the prototype measures them. A Chinese copy is in [docs/zh/design/source-changes.md](../zh/design/source-changes.md).
+Status: adopted design, 2026-10-26, from the product owner's comments on the overview. Not built yet, except where a section says so. Thresholds and time limits are defaults that can change after the prototype measures them. A Chinese copy is in [docs/zh/design/source-changes.md](../zh/design/source-changes.md).
 
 ## Summary
 

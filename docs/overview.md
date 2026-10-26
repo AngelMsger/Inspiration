@@ -730,7 +730,7 @@ Planned, with contracts in place:
 - **A demo tenant and a scale generator.** `examples/corpus` is a fictional company with planted
   duplicates and conflicts; `pnpm engine synthesize` writes synthetic tenants of any size, and
   `pnpm engine ingest` prints a volume report.
-- **Every change lands through a pull request.** The owner's local Codex reviews it; findings are
+- **Every change lands through a pull request.** The product owner's local Codex reviews it; findings are
   fixed and the PR is merged. Correctness comes first, then layering, clear component boundaries and
   explicit contracts.
 - **Names describe what things do.** No plan numbers in code, docs or events. [AGENTS.md](../AGENTS.md)
@@ -852,7 +852,7 @@ time depends more on review and integration than on these person-week figures.
 | Decided | Decision |
 | --- | --- |
 | 2026-10-22 | Product name Inspiration; Artifact-level page presentation is committed scope; underlying capabilities first, accepted through MCP, REST and the CLI |
-| 2026-10-23 | TypeScript everywhere except a Python parsing worker; descriptive component names; every change through a PR reviewed by the owner's local Codex |
+| 2026-10-23 | TypeScript everywhere except a Python parsing worker; descriptive component names; every change through a PR reviewed by the product owner's local Codex |
 | 2026-10-23 | A mocked end-to-end prototype of every stage first; real model access only after it runs; engine and UI iterate together on measured volumes |
 | 2026-10-24 | Three IDs: tenant, user (account) and member |
 | 2026-10-24 | Two knowledge domains: My space private, shared spaces top down; source permissions only warn; publishing moves knowledge; credentials decide freshness only |

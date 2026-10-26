@@ -1,6 +1,6 @@
 # Inspiration UI: interaction principles and visual design
 
-Status: adopted design, 2026-10-24. The screens are drawn on the owner's design canvas; there is no production UI code yet. Companion document: [Statements at scale](statements-at-scale.md), which explains how statements are organised and reviewed. A Chinese copy is in [docs/zh/design/ui-principles.md](../zh/design/ui-principles.md).
+Status: adopted design, 2026-10-24. The screens are drawn on the product owner's design canvas; there is no production UI code yet. Companion document: [Statements at scale](statements-at-scale.md), which explains how statements are organised and reviewed. A Chinese copy is in [docs/zh/design/ui-principles.md](../zh/design/ui-principles.md).
 
 ## Who the UI serves
 
@@ -139,7 +139,7 @@ The interface never shows "tenant", internal IDs or usernames. Approval modes ar
 
 ## Glossary
 
-The Chinese terms are adopted. The Japanese terms are proposed and wait for the owner's review.
+The Chinese terms are adopted. The Japanese terms are proposed and wait for the product owner's review.
 
 | English | Chinese | Japanese | Note |
 | --- | --- | --- | --- |
