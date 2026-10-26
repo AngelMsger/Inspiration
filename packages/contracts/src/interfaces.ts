@@ -39,6 +39,7 @@ import type {
   EmbedRequest,
   EmbedResult,
   EventEnvelope,
+  FactSlot,
   FileMeta,
   GroundedAnswer,
   IndexFilter,
@@ -53,6 +54,7 @@ import type {
   ParseHints,
   ParseResult,
   Permission,
+  Placement,
   Principal,
   RerankRequest,
   RerankResult,
@@ -66,6 +68,7 @@ import type {
   SourceVersion,
   Span,
   SubscriptionInfo,
+  TaxonomyNode,
   ToolSpec,
   Unchanged,
   Version,
@@ -283,6 +286,15 @@ export interface StoreTx {
    * acl.changed). Snapshots are kept per acl_hash, so an event can name the exact one it means.
    */
   putAclSnapshot(snapshot: AclSnapshot): Promise<void>;
+  /** Insert or replace topics by tenant and key. A parent must exist in the same space. */
+  putTopics(nodes: readonly TaxonomyNode[]): Promise<void>;
+  /**
+   * Insert or replace each claim's placement. The claim must exist and its topic must be one
+   * of the tenant's topics in the claim's space.
+   */
+  place(placements: readonly Placement[]): Promise<void>;
+  /** Remove the claims' placements: they are unfiled again. */
+  unplace(claimIds: readonly string[]): Promise<void>;
   publish(...events: EventEnvelope[]): Promise<void>;
 }
 
@@ -303,6 +315,13 @@ export interface KnowledgeStore {
   claimsCiting(spanIds: readonly string[]): Promise<string[]>;
   /** Bitemporal read. knownAt defaults to now (current beliefs); validAt to no filter. */
   asOf(query: ClaimQuery, options?: { validAt?: Date; knownAt?: Date }): Promise<Claim[]>;
+  /** A fact slot's variants and versions, from every claim with the slot key; undefined when none has it. */
+  slot(tenantId: string, slotKey: string): Promise<FactSlot | undefined>;
+  /** A tenant's topics, of one space when given, ordered by key. */
+  topics(tenantId: string, spaceId?: string): Promise<TaxonomyNode[]>;
+  placementsOf(claimIds: readonly string[]): Promise<Placement[]>;
+  /** The placements in one topic, its subtopics excluded, ordered by claim. */
+  placementsIn(tenantId: string, taxonomyKey: string): Promise<Placement[]>;
   lineage(unitId: string, depth?: number): Promise<LineageGraph>;
   /** Artifacts built directly from any of the given inputs. */
   dependents(artifactIds: readonly string[]): Promise<string[]>;

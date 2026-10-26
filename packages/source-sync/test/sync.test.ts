@@ -102,6 +102,24 @@ describe.each<{ backend: Backend; skip: boolean }>([
 ])("source sync on $backend", ({ backend, skip }) => {
   const it = syncTest(backend);
 
+  it.skipIf(skip)(
+    "each version gets its governance level: the item's, its folder's, else reference",
+    async ({ world }) => {
+      await world.write("制度/.meta.yaml", "governance_level: governed\n");
+      await world.write("制度/报销.md", "# 费用报销办法\n\n第一条 正文。");
+      await world.write("制度/草稿.md", "---\ngovernance_level: search_only\n---\n# 草稿\n\n未定稿。");
+      await world.write("通知.txt", "公司通知");
+      await world.sync.sync(SOURCE);
+      const levels: Record<string, string | undefined> = {};
+      for (const e of await world.events()) {
+        if (e.type !== "document.fetched") continue;
+        const fetched = payloadOf(e, "document.fetched");
+        levels[fetched.external_id] = (await world.store.getSourceVersion(fetched.source_version_id))?.governance_level;
+      }
+      expect(levels).toEqual({ "制度/报销.md": "governed", "制度/草稿.md": "search_only", "通知.txt": "reference" });
+    },
+  );
+
   it.skipIf(skip)("a first sync stores versions, ACL snapshots and events", async ({ world }) => {
     await world.write("finance/.acl.yaml", "readers: [group:finance, group:unknown]\n");
     await world.write("finance/报销.md", "---\napproval_state: approved\n---\n# 费用报销办法\n\n第一条 正文。");

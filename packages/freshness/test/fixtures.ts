@@ -7,6 +7,7 @@ import {
   contentHash,
   type DuplicateDocument,
   type EventEnvelope,
+  type GovernanceLevel,
   type KnowledgeStore,
   newEvent,
   newId,
@@ -41,6 +42,7 @@ export interface Doc {
   modified: string;
   /** Front matter date: a record of that day. */
   date?: string;
+  level?: GovernanceLevel;
 }
 
 export interface Said {
@@ -132,6 +134,7 @@ export const freshnessTest = (backend: Backend) =>
         approval_state: doc.approval_state ?? "approved",
         authority: doc.authority ?? 0.5,
         sensitivity: "internal",
+        ...(doc.level && { governance_level: doc.level }),
         fetched_at: now.toISOString(),
         metadata: { modified_at: `${doc.modified}T08:00:00Z`, ...(extra && { extra }) },
         ...(options.previous && { previous_version_id: options.previous.version.id }),

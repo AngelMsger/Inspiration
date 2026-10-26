@@ -308,7 +308,16 @@ export type FreshnessState = "fresh" | "aging" | "stale" | "at_risk";
 export type GatewayErrorCode =
   "budget_exceeded" | "no_route" | "provider_error" | "invalid_output" | "timeout" | "bad_request";
 export type GatewayOperation = "complete" | "embed" | "rerank" | "ocr";
+/**
+ * How much of a source the engine governs. governed: fully extracted, and its claims get owners, review clocks and conflict todos. reference: extracted only on use (a passage that touches a catalogue slot, or one a page or an answer cites), with no owners, reviews or todos; a value that differs from a governed one is a note, never a conflict todo. search_only: never extracted, only searched.
+ *
+ */
+export type GovernanceLevel = "governed" | "reference" | "search_only";
 export type HitKind = "claim" | "sop" | "section" | "page" | "entity" | "chunk" | "knowledge_model";
+/**
+ * An ISO 8601 week, "2026-W44".
+ */
+export type IsoWeek = string;
 export type KnowledgeModelId = string;
 export type KnowledgeModelKind = "formula" | "decision_table" | "kpi";
 export type SopStatus = "draft" | "in_review" | "verified" | "published" | "retired";
@@ -337,6 +346,12 @@ export type SnapshotCauseKind =
   | "model_upgrade"
   | "restore"
   | "manual";
+/**
+ * clustering: the taxonomy clustering of page-compiler. page: a page cites the statement. member: a person put it there.
+ *
+ */
+export type PlacedBy = "clustering" | "page" | "member";
+export type TopicKey = string;
 export type Priority = "low" | "normal" | "high" | "urgent";
 export type PublishRequestId = string;
 export type PublishState = "draft" | "in_review" | "published" | "retired";
@@ -365,6 +380,15 @@ export type SopId = string;
 export type StepBasis = "from_definition" | "mined" | "inferred" | "document" | "human";
 export type SourceStatus = "active" | "paused" | "error" | "archived";
 export type SpaceKind = "personal" | "team" | "org" | "source_mirror";
+/**
+ * proposed: made by clustering and not yet confirmed; readers never see it, owners do. confirmed: an owner confirmed it, so re-clustering keeps it and never moves its confirmed placements. retired: it has no statements left; its key is not reused.
+ *
+ */
+export type TopicStatus = "proposed" | "confirmed" | "retired";
+/**
+ * note: a value only reference documents state disagrees with the governed one. It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget.
+ *
+ */
 export type TodoKind =
   | "conflict"
   | "stale"
@@ -375,7 +399,8 @@ export type TodoKind =
   | "publish_review"
   | "coverage_gap"
   | "extraction_review"
-  | "feedback";
+  | "feedback"
+  | "note";
 export type TodoStatus = "open" | "in_progress" | "done" | "dismissed";
 /**
  * read = no side effects; propose = creates a proposal or a todo that a person accepts in collaboration.
@@ -1254,6 +1279,11 @@ export interface Claim {
    *
    */
   qualifiers?: string[];
+  /**
+   * The fact slot the claim fills when it states a single-valued fact: its subject entity when resolved, its predicate and its qualifiers, normalized ("hotel_cap_per_night|一线城市"). Claims with one slot key state the same fact; their values are the slot's variants and versions (FactSlot).
+   *
+   */
+  slot_key?: string;
   valid_time: Interval;
   recorded_at: Instant;
   superseded_at?: Instant;
@@ -1744,6 +1774,56 @@ export interface EventEnvelope {
   };
 }
 /**
+ * One single-valued fact across documents and time, read from the claims with its slot key. Variants are the values current claims state; versions are every value claims have stated, with when the system knew it. Counts and a few representatives, never every claim, so a slot with a thousand statements stays a short read.
+ *
+ */
+export interface FactSlot {
+  tenant_id: TenantId;
+  slot_key: string;
+  subject_entity_id?: EntityId;
+  predicate?: string;
+  qualifiers?: string[];
+  /**
+   * The values current claims state, the most stated first.
+   */
+  variants: SlotVariant[];
+  /**
+   * Every value claims have stated, the earliest known first.
+   */
+  versions: SlotVersion[];
+}
+/**
+ * A value current claims of a slot state, and how many claims and documents state it.
+ */
+export interface SlotVariant {
+  /**
+   * The value key (the normalized value, else its number or text).
+   */
+  value: string;
+  claim_count: number;
+  source_version_count: number;
+  /**
+   * Up to five representatives, the highest weight first.
+   */
+  claim_ids: ClaimId[];
+  /**
+   * Up to five of the versions that state it, those of the representatives first.
+   */
+  source_version_ids?: SourceVersionId[];
+  valid_from?: Instant;
+}
+/**
+ * A value claims of a slot have stated, and when the system knew it: from the first claim recorded with it to the last one superseded, open while a current claim states it.
+ *
+ */
+export interface SlotVersion {
+  value: string;
+  claim_count: number;
+  known_from: Instant;
+  known_to?: Instant;
+  valid_from?: Instant;
+}
+/**
  * report_feedback from an agent or a reader; becomes a review todo.
  */
 export interface Feedback {
@@ -1875,6 +1955,7 @@ export interface NormalizedDocument {
   approval_state?: ApprovalState;
   sensitivity?: SensitivityLabel;
   authority?: Score01;
+  governance_level?: GovernanceLevel;
   blocks?: DocBlock[];
   file?: BlobRef;
   process?: ProcessSnapshot;
@@ -2022,6 +2103,26 @@ export interface ParseResult {
   parser: ProducerInfo;
   confidence?: Score01;
   warnings?: string[];
+}
+/**
+ * Where a statement sits in the knowledge outline: its topic, and the page block that cites it when a page does. A claim has at most one. A current claim of a governed document without one is unfiled (未归类) and shows under its source section.
+ *
+ */
+export interface Placement {
+  tenant_id: TenantId;
+  claim_id: ClaimId;
+  space_id: SpaceId;
+  taxonomy_key: TopicKey;
+  page_id?: PageId;
+  block_key?: BlockKey;
+  placed_by: PlacedBy;
+  member_id?: PrincipalId;
+  /**
+   * Confirmed placements never move when topics are re-clustered.
+   */
+  confirmed: boolean;
+  score?: Score01;
+  placed_at: Instant;
 }
 export interface ProcessOrigin {
   source_version_id: SourceVersionId;
@@ -2311,6 +2412,7 @@ export interface Source {
   owner_id?: PrincipalId;
   default_sensitivity?: SensitivityLabel;
   default_authority?: Score01;
+  governance_level?: GovernanceLevel;
   /**
    * Name of a secret in the deployment's secret store. Never the secret itself.
    */
@@ -2380,6 +2482,7 @@ export interface SourceVersion {
   approval_state: ApprovalState;
   authority: Score01;
   sensitivity: SensitivityLabel;
+  governance_level?: GovernanceLevel;
   fetched_at: Instant;
   previous_version_id?: SourceVersionId;
   /**
@@ -2441,17 +2544,24 @@ export interface SubscriptionInfo {
   expires_at?: Instant;
 }
 /**
- * A node in the document tree. Keys are stable across re-clustering.
+ * A topic in a space's knowledge outline (area, topic or subtopic, at most three levels). Statements are placed in topics (see Placement). Keys are stable across re-clustering and never reused.
+ *
  */
 export interface TaxonomyNode {
-  key: string;
+  key: TopicKey;
   tenant_id: TenantId;
   space_id: SpaceId;
   title: string;
   summary?: string;
-  parent_key?: string;
+  parent_key?: TopicKey;
   ordinal: number;
   page_id?: PageId;
+  status?: TopicStatus;
+  owner_id?: PrincipalId;
+  /**
+   * Current statements placed in the topic, its subtopics included.
+   */
+  statement_count?: number;
 }
 export interface Tenant {
   id: TenantId;
@@ -2470,7 +2580,17 @@ export interface Todo {
   assignee_id?: PrincipalId;
   unit_ids: UnitId[];
   resolutions?: TodoResolution[];
+  /**
+   * The inbox card the todo is on. Collaboration groups an owner's todos about one topic in one week on a card, at most 20 to a card.
+   *
+   */
   batch_key?: string;
+  taxonomy_key?: TopicKey;
+  /**
+   * The fact slot a conflict or a note is about.
+   */
+  slot_key?: string;
+  week?: IsoWeek;
   created_by: ComponentName;
   created_at: Instant;
   due_at?: Instant;
@@ -2527,7 +2647,16 @@ export interface TodoRequested {
    * Groups similar todos in the inbox.
    */
   batch_key?: string;
+  /**
+   * The fact slot a conflict or a note is about.
+   */
+  slot_key?: string;
   suggested_assignee_id?: PrincipalId;
+  /**
+   * The reason went away: collaboration dismisses the open todo with this key, and creates none when there is no open one. A later request with the key opens a new todo.
+   *
+   */
+  withdrawn?: boolean;
 }
 export interface ToolSpec {
   name: ToolName;

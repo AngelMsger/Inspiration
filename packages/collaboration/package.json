@@ -1,0 +1,26 @@
+{
+  "name": "@inspiration/collaboration",
+  "version": "0.1.0",
+  "description": "Collaboration: the inbox, where todo requests and due reviews become todos on owners' weekly cards",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "inspiration": {
+    "plugins": {
+      "migrations": {
+        "collaboration": "./src/migrations.ts#MIGRATIONS"
+      }
+    }
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/eventbus": "workspace:*",
+    "@inspiration/kernel": "workspace:*"
+  },
+  "devDependencies": {
+    "@inspiration/knowledge-store": "workspace:*",
+    "@inspiration/testkit": "workspace:*"
+  }
+}

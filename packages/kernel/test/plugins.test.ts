@@ -58,12 +58,14 @@ describe("plugin registry", () => {
     expect(registry("migrations").names()).toEqual([
       "agents",
       "bus",
+      "collaboration",
       "extraction",
       "freshness",
       "gateway",
       "governance",
       "kb",
       "normalization",
+      "page-compiler",
       "sync",
     ]);
     expect(registry("event_transports").names()).toEqual(["memory", "valkey"]);

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
-import { Corpus, days, Engine, ingest, SimulatedClock } from "../src/index.ts";
+import { Corpus, days, Engine, inboxReport, ingest, SimulatedClock } from "../src/index.ts";
 
 const CORPUS = new URL("../../../examples/corpus/", import.meta.url).pathname;
 const FINANCE = "grp_01QINGHE00000000000FINANCE";
@@ -55,13 +55,15 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
   const first = await ingest(engine, corpus);
   expect(first.documents).toMatchObject({ total: 19, by_status: { parsed: 17, structured: 2 } });
   expect(first.documents.by_parser).toEqual({ markdown: 14, html: 1, csv: 1, text: 1 });
-  expect(first.documents.by_governance).toMatchObject({ policy: 10, guideline: 3, reference: 3, note: 2, process: 1 });
+  expect(first.documents.by_level).toEqual({ governed: 14, reference: 4, search_only: 1 });
+  // The weekly report is search only: nothing is extracted from it, so it updates no claims.
   expect(first.events).toEqual({
     "document.fetched": 19,
     "acl.changed": 19,
     "blocks.changed": 19,
-    "claims.updated": 19,
-    "todo.requested": 3,
+    "claims.updated": 18,
+    // Two conflicts, two notes, and the FAQ's note withdrawn once the notice stated its value.
+    "todo.requested": 5,
   });
   expect(first.dead_letters).toBe(0);
   expect(first.acl.unmapped).toEqual([]);
@@ -73,9 +75,15 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
   ]);
   expect(first.blocks.by_kind).toMatchObject({ table: 9, form_field: 4 });
 
-  // Every planted value conflict comes out as a slot with more than one value.
-  expect(first.events["claims.updated"]).toBe(19);
-  expect(first.claims).toMatchObject({ windows: 19, failed_windows: 0, rejected: 0, closed: 0 });
+  // Every planted value conflict comes out as a slot with more than one value, reference
+  // documents included: they are read where they name a catalogue fact, and their claims
+  // outside any slot are left unused.
+  expect(first.claims).toMatchObject({ windows: 18, failed_windows: 0, rejected: 0, unused: 8, closed: 0 });
+  expect(first.claims.by_level).toMatchObject({
+    governed: { documents: 14, windows: 14 },
+    reference: { documents: 4, windows: 4 },
+    search_only: { documents: 1, claims: 0, windows: 0 },
+  });
   expect(Object.fromEntries(first.claims.conflicts.top.map((t) => [t.slot, t.values]))).toEqual({
     "hotel_cap_per_night|一线城市": { "600 CNY/night": 7, "650 CNY/night": 3, "500 CNY/night": 1 },
     meal_allowance_per_day: { "100 CNY/day": 3, "80 CNY/day": 1 },
@@ -83,29 +91,85 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
     budget_draft_deadline: { "11 月 15 日": 1, "11 月 20 日": 1 },
   });
 
-  // Governance settles the archived values alone and asks about the other three slots: the
-  // notice and the meeting changed a value after the policy, and the guide contradicts one.
+  // Governance settles the archived values alone and asks about two slots: the notice changed
+  // a value after the policy, and the guide contradicts one. The meeting minutes are a
+  // reference document, so the deadline they moved is a note for the owner, not a todo; the
+  // FAQ's 650 was a note too until the notice made it the governed value.
   expect(first.governance).toMatchObject({
-    cases: { total: 5, by_class: { supersession: 4, contradiction: 1 }, by_status: { open: 3, auto_resolved: 2 } },
-    todos: 3,
-    todos_by_priority: { high: 2, normal: 1 },
-    proposed_by: { changed: 2, authority: 2 },
-    requests: 3,
+    cases: { total: 6, by_class: { supersession: 3, contradiction: 3 }, by_status: { open: 2, auto_resolved: 4 } },
+    todos: 2,
+    todos_by_priority: { high: 1, normal: 1 },
+    proposed_by: { changed: 1, authority: 3 },
+    requests: 2,
+    notes: 2,
+    withdrawn: 1,
   });
-  // Policies are reviewed yearly and processes every 180 days; minutes, the archive and
-  // general notes never by age. Nothing is due yet; the process documents are aging.
+  // Only the 14 governed documents keep review clocks. Policies are reviewed yearly and
+  // processes every 180 days; the archive and general notes never by age. Nothing is due
+  // yet; the process documents are aging.
   expect(first.freshness).toMatchObject({
-    documents: 19,
-    by_review_class: { policy: 12, process: 3 },
-    never_due: { dated: 1, archived: 1, no_interval: 2 },
+    documents: 14,
+    by_review_class: { policy: 8, process: 3 },
+    never_due: { dated: 0, archived: 1, no_interval: 2 },
     overdue: 0,
-    states: { fresh: 15, aging: 3 },
+    states: { fresh: 10, aging: 3 },
     reviews: {},
   });
+  // page-compiler clusters the 34 sections of current governed documents into topics: those
+  // that share a heading across documents (住宿, 报销, 审批权限), and what is left of a
+  // document when it holds five statements or more. The small documents stay unfiled, and
+  // reference statements of a slot join the slot's topic. Clustering again with nothing
+  // changed moves nothing.
+  expect(first.outline.run).toMatchObject({
+    sections: 34,
+    statements: 87,
+    placed: { governed: 70, reference: 12, search_only: 0 },
+    unfiled: 17,
+    topics: { live: 10, by_level: { "1": 1, "2": 9, "3": 0 }, created: 10, retired: 0 },
+    churn: { before: 0, moved: 0 },
+    // Topics are named in one call per sensitivity, the confidential budget guide's apart, and
+    // the area after them.
+    model_calls: 3,
+  });
+  expect(first.outline.again).toMatchObject({ churn: { before: 70, moved: 0, deferred: 0 }, topics: { created: 0 } });
+  const outline = await engine.store.topics(corpus.tenantId);
+  expect(outline.map((n) => [n.title, n.statement_count]).sort()).toEqual([
+    ["2027 年度预算编制说明", 6],
+    ["IT 设备申领说明", 7],
+    ["住宿", 21],
+    ["审批权限", 6],
+    ["差旅费管理办法", 13],
+    ["年休假", 5],
+    ["报销", 8],
+    ["报销相关", 14],
+    ["新人入职指南", 10],
+    ["费用报销管理规定", 6],
+  ]);
+  // Each topic's owner is the member who wrote most of its documents. The inbox puts the two
+  // conflicts on their owners' cards and the minutes' note on a notes card; nothing waits.
+  expect(first.owners).toMatchObject({ topics: 10, owned: 9, assigned: 9, owners: 2, rerouted: 3 });
+  expect(first.inbox).toMatchObject({
+    todos: 4,
+    open: 3,
+    withdrawn: 1,
+    by_kind: { conflict: 2, note: 2 },
+    owners: 2,
+    cards: { total: 2, over_budget: 0 },
+    deferred: { todos: 0 },
+    notes: { total: 1 },
+    campaign: { todos: 0 },
+    steward: { todos: 0 },
+  });
+  const cards = await engine.inbox.cards(corpus.tenantId);
+  expect(cards.map((c) => [c.kind, c.todos.map((t) => t.title)])).toEqual([
+    ["review", ["annual_leave_days (工龄 1 至 10 年): 5 day or 7 day"]],
+    ["review", ["hotel_cap_per_night (一线城市): 650 CNY/night or 600 CNY/night"]],
+    ["notes", ["budget_draft_deadline: 11 月 20 日 in 2026 年 9 月经营会纪要, 11 月 15 日 holds"]],
+  ]);
   const proposed = async (slot: string) =>
     (await engine.governance.slot(corpus.tenantId, slot)).decision?.proposed.value;
   expect(await proposed("hotel_cap_per_night|一线城市")).toBe("650 CNY/night");
-  expect(await proposed("budget_draft_deadline")).toBe("11 月 20 日");
+  expect(await proposed("budget_draft_deadline")).toBe("11 月 15 日");
   expect(await proposed("annual_leave_days|工龄 1 至 10 年")).toBe("5 day");
   expect(await proposed("meal_allowance_per_day")).toBe("100 CNY/day");
 
@@ -134,27 +198,32 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
   const edited = await ingest(engine, corpus);
   // The header of the hotel table changed, so its three rows are read again and restated. They
   // state the same values, so governance asks for nothing new. The forwarded copy no longer
-  // matches the policy, so freshness asks for a look at it; the archived edition is left alone.
+  // matches the policy, but it is a reference document: nobody owns its review, so freshness
+  // asks for nothing. The archived edition is left alone.
   expect(edited.events).toEqual({
     "document.fetched": 1,
     "blocks.changed": 1,
     "claims.updated": 1,
-    "review.due": 1,
   });
-  expect(edited.governance).toMatchObject({ requests: 0, todos: 3 });
+  expect(edited.governance).toMatchObject({ requests: 0, todos: 2 });
   expect(edited.claims).toMatchObject({ added: 3, closed: 3, windows: 1 });
   expect(edited.freshness).toMatchObject({
-    reviews: { evidence_changed: 1 },
+    reviews: {},
     edits: 1,
-    edits_with_reviews: 1,
-    states: { fresh: 14, aging: 3, at_risk: 1 },
+    edits_with_reviews: 0,
+    states: { fresh: 10, aging: 3 },
   });
-  // The review of the forwarded copy traces back to the one source update.
-  expect(edited.asks).toEqual({ updates: 1, asking: 1, per_update: { median: 1, p90: 1, max: 1 } });
+  expect(edited.asks).toEqual({ updates: 1, asking: 0, per_update: { median: 0, p90: 0, max: 0 } });
+  // The restated rows took their section's place in the outline at once.
+  expect(edited.outline.run).toMatchObject({ placed: { governed: 70 }, churn: { before: 70, moved: 0 } });
 
   // Over the next sixty days the three process documents come due.
   const later = await days(engine, corpus.tenantId, clock, 60);
   expect(later).toMatchObject({ backlog: {}, reviews: { ttl: 3 }, rechecked_slots: 0 });
+  expect(await inboxReport(engine, corpus.tenantId)).toMatchObject({
+    open: 6,
+    by_kind: { conflict: 2, note: 2, review_due: 3 },
+  });
 }
 
 describe("ingesting the demo corpus", () => {

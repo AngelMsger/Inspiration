@@ -14,6 +14,9 @@ importers:
       '@inspiration/agent-runtime':
         specifier: workspace:*
         version: link:packages/agent-runtime
+      '@inspiration/collaboration':
+        specifier: workspace:*
+        version: link:packages/collaboration
       '@inspiration/connectors':
         specifier: workspace:*
         version: link:packages/connectors
@@ -47,6 +50,9 @@ importers:
       '@inspiration/normalization':
         specifier: workspace:*
         version: link:packages/normalization
+      '@inspiration/page-compiler':
+        specifier: workspace:*
+        version: link:packages/page-compiler
       '@inspiration/source-sync':
         specifier: workspace:*
         version: link:packages/source-sync
@@ -72,6 +78,9 @@ importers:
 
   apps/engine:
     dependencies:
+      '@inspiration/collaboration':
+        specifier: workspace:*
+        version: link:../../packages/collaboration
       '@inspiration/connectors':
         specifier: workspace:*
         version: link:../../packages/connectors
@@ -102,6 +111,9 @@ importers:
       '@inspiration/normalization':
         specifier: workspace:*
         version: link:../../packages/normalization
+      '@inspiration/page-compiler':
+        specifier: workspace:*
+        version: link:../../packages/page-compiler
       '@inspiration/source-sync':
         specifier: workspace:*
         version: link:../../packages/source-sync
@@ -156,6 +168,25 @@ importers:
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
+
+  packages/collaboration:
+    dependencies:
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@inspiration/eventbus':
+        specifier: workspace:*
+        version: link:../eventbus
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+    devDependencies:
+      '@inspiration/knowledge-store':
+        specifier: workspace:*
+        version: link:../knowledge-store
+      '@inspiration/testkit':
+        specifier: workspace:*
+        version: link:../testkit
 
   packages/connectors:
     dependencies:
@@ -385,6 +416,28 @@ importers:
       '@types/mdast':
         specifier: ^4.0.4
         version: 4.0.4
+
+  packages/page-compiler:
+    dependencies:
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@inspiration/eventbus':
+        specifier: workspace:*
+        version: link:../eventbus
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+      '@inspiration/model-gateway':
+        specifier: workspace:*
+        version: link:../model-gateway
+    devDependencies:
+      '@inspiration/knowledge-store':
+        specifier: workspace:*
+        version: link:../knowledge-store
+      '@inspiration/testkit':
+        specifier: workspace:*
+        version: link:../testkit
 
   packages/source-sync:
     dependencies:

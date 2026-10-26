@@ -9,32 +9,70 @@ single-valued facts (hotel caps, deadlines, leave days ...) that extraction puts
 so governance can compare values across documents.
 
 Run it through the engine with `pnpm engine ingest examples/corpus` (see `apps/engine`).
-With the mocked extraction model it gives about 147 claims, 58 of them in 15 slots, and
+With the mocked extraction model it gives about 120 claims, 58 of them in 15 slots, and
 finds the four planted value conflicts below (hotel cap, meal allowance, first-year leave,
-budget deadline). The travel reimbursement deadline is not among them because its
-statements carry different qualifiers (差旅 and 日常费用), which is what governance has to
-reconcile.
+budget deadline). Reference documents are read only where they name a catalogue fact, so 8
+of their claims outside any slot are left unused, and the weekly report is not read at all.
+The travel reimbursement deadline is not among the conflicts because its statements carry
+different qualifiers (差旅 and 日常费用), which is what governance has to reconcile.
 
-Governance then proposes the values the table below expects: 650 for the hotel cap (the
-notice changed it on 2026-10-01, after the policy took effect) and 11-20 for the budget
-deadline (the meeting on 2026-09-26 moved it), each a supersession of the policy-library
-value; 5 days of first-year leave over the guide's 7, a contradiction; and it settles the
-archive's 500 and 80 alone. That is three todo requests, two of them high priority.
+Governance then proposes 650 for the hotel cap (the notice changed it on 2026-10-01, after
+the policy took effect), a supersession of the policy-library value, and 5 days of
+first-year leave over the guide's 7, a contradiction; it settles the archive's 500 and 80
+alone. The budget deadline stays at the budget note's 11-15: the meeting minutes that moved
+it to 11-20 are a reference document, so their decision is a note for the owner, not a
+todo. That is two todo requests, one of them high priority, and one note. The FAQ's 650 is a
+note too until the notice states it, and then governance withdraws that note.
 
-Freshness gives twelve documents a yearly review clock (their claims are policy) and three
-a 180-day one (process); the minutes are a record of their day, the archive is retired, and
-two documents hold only general knowledge, so none of those is ever due by age. When the
-travel policy changes, its forwarded copy in the HR folder no longer matches it, so
-freshness asks for a look at the copy (evidence_changed); the archived 2023 edition is left
+Freshness keeps review clocks only for the 14 governed documents: eight get a yearly one
+(their claims are policy) and three a 180-day one (process); the archive is retired and two
+documents hold only general knowledge, so none of those is ever due by age. When the travel
+policy changes, its forwarded copy in the HR folder no longer matches it; the copy is a
+reference document, so nobody is asked to review it, and the archived 2023 edition is left
 alone.
 
 ## Governance levels
 
-Front matter and `.meta.yaml` set `governance` (kept in `metadata.extra.governance`):
-`policy` (制度, approved and numbered), `guideline` (指引), `reference` (参考, FAQs),
-`note` (纪要、周报、通知) and `process` (approval definitions). Source defaults set
-authority: policies 0.9, the Feishu approval 0.7, the Feishu wiki 0.6, the team wiki 0.5,
-the archive 0.3.
+`governance_level` in front matter, `.meta.yaml` or the Feishu properties, else the source's
+in `corpus.yaml`, says how far the engine governs a document:
+
+- `governed`: the policy library, the notice folder (团队知识/通知), the onboarding guide,
+  the approval definition and the archive (governed, but archived). Extracted in full; their
+  values decide a slot and their owners get reviews and todos.
+- `reference`: the team wiki's minutes and FAQ, the Feishu wiki and the forwarded copy in
+  the policy library. Read where a block names a catalogue fact, and only claims that fill a
+  slot are kept; the rest of a passage is read when a page or an answer uses it. Their values
+  never outvote or hold up a governed one: a value only they state is a note for the owner.
+- `search_only`: the weekly report. Searchable, never extracted.
+
+Authority is separate and comes from the source defaults: policies 0.9, the Feishu approval
+0.7, the Feishu wiki 0.6, the team wiki 0.5, the archive 0.3.
+
+## Topics
+
+Page-compiler clusters the 34 sections of current governed documents into 9 topics and one
+area, using the fake embeddings, which only see shared characters:
+- Similar headings across documents make topics: 住宿, 报销 and 审批权限.
+- What is left of a document makes a topic when it holds five statements or more:
+  差旅费管理办法, 新人入职指南, IT 设备申领说明 and so on.
+- 报销 and 费用报销管理规定 form the area 报销相关.
+- 17 of the 87 governed statements stay unfiled, those of the small documents
+  (会议室管理规定, 薪酬管理办法, 数据分级与保护规范).
+- The reference statements of a slot (the forwarded copy, the FAQ, the minutes) join the
+  slot's topic.
+
+## Owners and the inbox
+
+The demo stands in for the business layer: each topic's owner is the member who wrote most
+of its documents (front matter `owner`), so 9 of the 10 topics get one of two members. The
+inbox then puts each todo in front of its topic's owner:
+- the two conflicts (hotel cap, first-year leave) on their owners' cards for the week;
+- the minutes' budget deadline on the owner's notes card, outside the weekly budget of 10
+  cards;
+- the withdrawn FAQ note nowhere: it was dismissed when the notice made 650 governed.
+
+Over the next sixty days the three process documents come due for review and join their
+owners' cards.
 
 ## Permissions
 
@@ -58,5 +96,5 @@ the archive 0.3.
 | Travel reimbursement deadline | Travel policy: 30 days after the trip. Expense policy: 60 days (general). FAQ: travel within 60 days. Onboarding guide: 60 days. | The travel policy is specific and wins for travel; the FAQ is wrong for travel. |
 | Annual leave in the first year | Attendance policy: 5 days after one year. Onboarding guide: 7 days in the first year. | The guide is wrong. |
 | Approval thresholds | Travel: 5000 元 department head, then CFO. Expenses: 2000 / 20000 tiers. Feishu approval: CFO from 5000 元. | Different scopes, not a conflict; the approval flow matches the travel policy. |
-| 2027 budget deadline | Budget note: 11-15. Meeting minutes: moved to 11-20. | The note is stale. |
+| 2027 budget deadline | Budget note: 11-15. Meeting minutes (reference): moved to 11-20. | The note is stale. The engine keeps 11-15 and leaves its owner a note, since only a reference document records the decision. |
 | Meal allowance | 2026 policy: 100 元 a day. Archive: 80 元. | Superseded by the newer version. |

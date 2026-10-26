@@ -18,6 +18,7 @@ import {
   type DataTable,
   type DependencyEdge,
   type EvidenceRole,
+  type FactSlot,
   type KnowledgeStore,
   kindOf,
   type LineageEdge,
@@ -26,12 +27,15 @@ import {
   type LineageRelation,
   type PageSnapshot,
   type PageVersionInfo,
+  type Placement,
   type SourceBlock,
   type SourceVersion,
   type Span,
   type StoreTx,
+  type TaxonomyNode,
 } from "@inspiration/contracts";
 import { IntegrityError } from "./rules.ts";
+import { factSlot } from "./slots.ts";
 
 export const LABEL_CHARS = 80;
 
@@ -111,6 +115,11 @@ export abstract class BaseStore implements KnowledgeStore {
   abstract evidenceOf(claimIds: readonly string[]): Promise<ClaimEvidence[]>;
   abstract claimsCiting(spanIds: readonly string[]): Promise<string[]>;
   abstract asOf(query: ClaimQuery, options?: { validAt?: Date; knownAt?: Date }): Promise<Claim[]>;
+  /** Every claim with the slot key, current or closed, the earliest recorded first. */
+  abstract claimsInSlot(tenantId: string, slotKey: string): Promise<Claim[]>;
+  abstract topics(tenantId: string, spaceId?: string): Promise<TaxonomyNode[]>;
+  abstract placementsOf(claimIds: readonly string[]): Promise<Placement[]>;
+  abstract placementsIn(tenantId: string, taxonomyKey: string): Promise<Placement[]>;
   abstract dependents(artifactIds: readonly string[]): Promise<string[]>;
   abstract getPage(pageId: string, version?: number): Promise<PageSnapshot | undefined>;
   abstract pageHistory(pageId: string): Promise<PageVersionInfo[]>;
@@ -118,6 +127,16 @@ export abstract class BaseStore implements KnowledgeStore {
   abstract derivationsOf(claimIds: readonly string[]): Promise<ClaimDerivation[]>;
   /** The recorded inputs of each artifact. */
   abstract inputsOf(artifactIds: readonly string[]): Promise<DependencyEdge[]>;
+
+  async slot(tenantId: string, slotKey: string): Promise<FactSlot | undefined> {
+    const claims = await this.claimsInSlot(tenantId, slotKey);
+    if (!claims.length) return undefined;
+    const evidence: ClaimEvidence[] = [];
+    for (let i = 0; i < claims.length; i += 500) {
+      evidence.push(...(await this.evidenceOf(claims.slice(i, i + 500).map((c) => c.id))));
+    }
+    return factSlot(tenantId, slotKey, claims, evidence);
+  }
 
   /**
    * Walk from a unit down to source versions. Edges point from a unit to what it was built

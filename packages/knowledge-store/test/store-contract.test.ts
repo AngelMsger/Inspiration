@@ -275,6 +275,133 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       await rejects(store, (tx) => tx.supersede("clm_01JC000000000000000NOSUCH", next.id, "x"), /unknown claim/);
     });
 
+    test("a fact slot reads its variants and versions", async ({ store, kb }) => {
+      const SLOT = "hotel_cap_per_night|一线城市";
+      const cap = (n: number, weight: number, start?: string) => ({
+        predicate: "hotel_cap_per_night",
+        qualifiers: ["一线城市"],
+        slot_key: SLOT,
+        value: { kind: "money" as const, number: n, unit: "CNY/night", normalized: `${n} CNY/night` },
+        weight,
+        ...(start && { valid_time: { start } }),
+      });
+      const [, archive] = await seed(store, kb, ["一线城市每晚不超过500元。"]);
+      const [, policy] = await seed(store, kb, ["一线城市每晚不超过600元。"]);
+      const [, guide] = await seed(store, kb, ["北京住宿每晚600元以内。"]);
+      const [, notice] = await seed(store, kb, ["自10月1日起一线城市每晚不超过650元。"]);
+      const [old, evOld] = kb.claim("一线城市住宿上限为每晚500元", archive[0], cap(500, 0.3));
+      await store.transaction((tx) => tx.upsertClaims([old], evOld));
+      const [p600, evP] = kb.claim("一线城市住宿上限为每晚600元", policy[0], cap(600, 0.9, "2026-01-01T00:00:00Z"));
+      // A claim without its own slot key is in the slot its predicate and qualifiers make.
+      const { slot_key: _key, ...unkeyed } = cap(600, 0.5);
+      const [g600, evG] = kb.claim("北京住宿上限为每晚600元", guide[0], unkeyed);
+      const [n650, evN] = kb.claim("一线城市住宿上限为每晚650元", notice[0], cap(650, 0.5, "2026-10-01T00:00:00Z"));
+      const [other, evO] = kb.claim("超标须审批", policy[0], {
+        predicate: "approval_needed",
+        slot_key: "approval_needed",
+      });
+      await store.transaction(async (tx) => {
+        await tx.upsertClaims([p600, g600, n650, other], [...evP, ...evG, ...evN, ...evO]);
+        kb.tick();
+        await tx.supersede(old.id, p600.id, "the 2026 policy");
+      });
+      const [closed] = await store.getClaims([old.id]);
+
+      const slot = await store.slot(kb.tenantId, SLOT);
+      expect(slot).toEqual({
+        tenant_id: kb.tenantId,
+        slot_key: SLOT,
+        predicate: "hotel_cap_per_night",
+        qualifiers: ["一线城市"],
+        variants: [
+          {
+            value: "600 CNY/night",
+            claim_count: 2,
+            source_version_count: 2,
+            claim_ids: [p600.id, g600.id],
+            source_version_ids: [policy[0]?.source_version_id, guide[0]?.source_version_id],
+            valid_from: "2026-01-01T00:00:00Z",
+          },
+          {
+            value: "650 CNY/night",
+            claim_count: 1,
+            source_version_count: 1,
+            claim_ids: [n650.id],
+            source_version_ids: [notice[0]?.source_version_id],
+            valid_from: "2026-10-01T00:00:00Z",
+          },
+        ],
+        versions: [
+          { value: "500 CNY/night", claim_count: 1, known_from: old.recorded_at, known_to: closed?.superseded_at },
+          {
+            value: "600 CNY/night",
+            claim_count: 2,
+            known_from: p600.recorded_at,
+            valid_from: "2026-01-01T00:00:00Z",
+          },
+          { value: "650 CNY/night", claim_count: 1, known_from: n650.recorded_at, valid_from: "2026-10-01T00:00:00Z" },
+        ],
+      });
+      expect(await store.slot(kb.tenantId, "annual_leave_days")).toBeUndefined();
+      expect(await store.slot("ten_01JC0000000000000000OTHER", SLOT)).toBeUndefined();
+    });
+
+    test("topics form a tree in one space, and placements put claims in them", async ({ store, kb }) => {
+      const [, spans] = await seed(store, kb);
+      const [cap, evCap] = kb.claim("一线城市每晚不超过600元", spans[0]);
+      const [approval, evApproval] = kb.claim("超标住宿须经部门负责人审批", spans[1]);
+      await store.transaction((tx) => tx.upsertClaims([cap, approval], [...evCap, ...evApproval]));
+      const area = kb.topic("t-travel", { title: "差旅" });
+      const lodging = kb.topic("t-lodging", { parent_key: "t-travel", title: "住宿标准", ordinal: 1 });
+      // A child may come before its parent in one write.
+      await store.transaction((tx) => tx.putTopics([lodging, area]));
+      await store.transaction((tx) =>
+        tx.place([kb.placement(cap, "t-lodging", { score: 0.82 }), kb.placement(approval, "t-lodging")]),
+      );
+      expect(await store.topics(kb.tenantId)).toEqual([lodging, area]);
+      // A third level, written on its own, is checked against the stored chain.
+      const firstTier = kb.topic("t-lodging-tier1", { parent_key: "t-lodging", title: "一线城市" });
+      await store.transaction((tx) => tx.putTopics([firstTier]));
+      await rejects(store, (tx) => tx.putTopics([{ ...area, parent_key: "t-lodging-tier1" }]), /own ancestor/);
+      expect(await store.topics(kb.tenantId, "spc_01JC0000000000000000OTHER")).toEqual([]);
+      expect((await store.placementsIn(kb.tenantId, "t-lodging")).map((p) => p.claim_id)).toEqual(
+        [cap.id, approval.id].sort(),
+      );
+      expect(await store.placementsIn(kb.tenantId, "t-travel")).toEqual([]);
+
+      // Moving a claim replaces its placement; unplacing makes it unfiled.
+      const confirmed = kb.placement(approval, "t-travel", {
+        placed_by: "member",
+        member_id: "mem_01JC0000000000000000000001",
+        confirmed: true,
+      });
+      await store.transaction(async (tx) => {
+        await tx.place([confirmed]);
+        await tx.unplace([cap.id]);
+        await tx.putTopics([{ ...lodging, status: "retired", statement_count: 0 }]);
+      });
+      expect(await store.placementsOf([cap.id, approval.id])).toEqual([confirmed]);
+      expect((await store.topics(kb.tenantId)).map((t) => [t.key, t.status])).toEqual([
+        ["t-lodging", "retired"],
+        ["t-lodging-tier1", "proposed"],
+        ["t-travel", "proposed"],
+      ]);
+
+      await rejects(store, (tx) => tx.putTopics([kb.topic("t-orphan", { parent_key: "t-none" })]), /no parent/);
+      await rejects(
+        store,
+        (tx) =>
+          tx.putTopics([kb.topic("t-elsewhere", { parent_key: "t-travel", space_id: "spc_01JC0000000000000OTHER" })]),
+        /its parent t-travel/,
+      );
+      await rejects(store, (tx) => tx.place([kb.placement(cap, "t-none")]), /unknown topic/);
+      await rejects(
+        store,
+        (tx) => tx.place([{ ...kb.placement(cap, "t-lodging"), claim_id: "clm_01JC000000000000000NOSUCH" }]),
+        /unknown claim/,
+      );
+    });
+
     test("claim queries filter", async ({ store, kb }) => {
       const [sv, spans] = await seed(store, kb);
       const [otherSv, otherSpans] = await seed(store, kb, ["第一条 本制度适用于全体员工。"]);

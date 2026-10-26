@@ -56,6 +56,7 @@ sources:
     root: feishu
     directory: feishu
     default_authority: 0.6
+    governance_level: reference
   - id: src_01QINGHE00000000FEISHUFLOW
     type: feishu.approval
     space: spc_01QINGHE000000000000POLICY
@@ -63,3 +64,4 @@ sources:
     root: feishu
     directory: feishu
     default_authority: 0.7
+    governance_level: governed

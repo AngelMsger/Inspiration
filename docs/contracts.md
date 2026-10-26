@@ -87,7 +87,7 @@ chain.
 | `document.fetched` | source-sync | normalization |
 | `acl.changed` | source-sync | retrieval, access-control |
 | `blocks.changed` | normalization | extraction, freshness, retrieval |
-| `claims.updated` | extraction, governance, collaboration | freshness, governance, retrieval |
+| `claims.updated` | extraction, governance, collaboration | freshness, governance, page-compiler, retrieval |
 | `artifact.dirty` | freshness | extraction, page-compiler, retrieval |
 | `review.due` | freshness | collaboration, research |
 | `todo.requested` | governance | collaboration |

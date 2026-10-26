@@ -82,6 +82,8 @@ export interface SourceSyncOptions {
 
 const DEFAULT_SENSITIVITY = "internal";
 const DEFAULT_AUTHORITY = 0.5;
+/** Uploads, web pages and anything nobody classified: searchable and citable, never owned. */
+const DEFAULT_LEVEL = "reference";
 /** Inline snapshots up to this many entries in acl.changed; larger ones are read from the store. */
 const INLINE_ACL_ENTRIES = 50;
 
@@ -304,6 +306,7 @@ export class SourceSync {
         approval_state: doc.approval_state ?? "unknown",
         authority: doc.authority ?? source.default_authority ?? DEFAULT_AUTHORITY,
         sensitivity: doc.sensitivity ?? source.default_sensitivity ?? DEFAULT_SENSITIVITY,
+        governance_level: doc.governance_level ?? source.governance_level ?? DEFAULT_LEVEL,
         fetched_at: now.toISOString(),
         blob,
       };

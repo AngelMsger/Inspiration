@@ -1,0 +1,30 @@
+{
+  "name": "@inspiration/page-compiler",
+  "version": "0.1.0",
+  "description": "Page compiler: the knowledge outline (topics clustered from governed sections, with stable keys) and where each statement sits in it",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "inspiration": {
+    "plugins": {
+      "migrations": {
+        "page-compiler": "./src/migrations.ts#MIGRATIONS"
+      },
+      "model_mocks": {
+        "page-compiler.name_topics": "./src/mock.ts#mockNameTopics"
+      }
+    }
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/eventbus": "workspace:*",
+    "@inspiration/kernel": "workspace:*",
+    "@inspiration/model-gateway": "workspace:*"
+  },
+  "devDependencies": {
+    "@inspiration/knowledge-store": "workspace:*",
+    "@inspiration/testkit": "workspace:*"
+  }
+}

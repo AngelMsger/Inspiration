@@ -10,9 +10,11 @@ import {
   type ClaimEvidence,
   contentHash,
   type PageSnapshot,
+  type Placement,
   type SourceBlock,
   type SourceVersion,
   type Span,
+  type TaxonomyNode,
 } from "@inspiration/contracts";
 
 /** A write that breaks a knowledge-store rule. The whole transaction is rolled back. */
@@ -177,5 +179,47 @@ export function checkPageSnapshot(snapshot: PageSnapshot, latest: number | undef
   }
   if (snapshot.spec.page_id !== snapshot.page_id || snapshot.spec.version !== snapshot.version) {
     throw new IntegrityError("the snapshot's spec must carry the same page_id and version");
+  }
+}
+
+/**
+ * Topics: a parent is a topic of the same tenant and space, written before or with its
+ * children, and a topic is not its own ancestor. stored finds a topic by tenant and key.
+ */
+export function checkTopics(
+  nodes: readonly TaxonomyNode[],
+  stored: (tenantId: string, key: string) => TaxonomyNode | undefined,
+): void {
+  const written = new Map(nodes.map((n) => [`${n.tenant_id}\x1f${n.key}`, n]));
+  const find = (tenantId: string, key: string) => written.get(`${tenantId}\x1f${key}`) ?? stored(tenantId, key);
+  for (const n of nodes) {
+    const seen = new Set([n.key]);
+    for (let parentKey = n.parent_key; parentKey !== undefined; ) {
+      const parent = find(n.tenant_id, parentKey);
+      if (!parent) throw new IntegrityError(`topic ${n.key}: no parent topic ${parentKey}`);
+      if (parent.space_id !== n.space_id) {
+        throw new IntegrityError(`topic ${n.key} is in ${n.space_id}, its parent ${parentKey} in ${parent.space_id}`);
+      }
+      if (seen.has(parent.key)) throw new IntegrityError(`topic ${n.key} is its own ancestor`);
+      seen.add(parent.key);
+      parentKey = parent.parent_key;
+    }
+  }
+}
+
+/** A placement names a stored claim of its tenant and space, and a topic in that space. */
+export function checkPlacement(
+  placement: Placement,
+  claim: Pick<Claim, "tenant_id" | "space_id"> | undefined,
+  topic: TaxonomyNode | undefined,
+): void {
+  const p = placement;
+  if (!claim || claim.tenant_id !== p.tenant_id) throw new IntegrityError(`placement of unknown claim ${p.claim_id}`);
+  if (claim.space_id !== p.space_id) {
+    throw new IntegrityError(`placement of ${p.claim_id} in ${p.space_id}; the claim is in ${claim.space_id}`);
+  }
+  if (!topic) throw new IntegrityError(`placement of ${p.claim_id} in unknown topic ${p.taxonomy_key}`);
+  if (topic.space_id !== p.space_id) {
+    throw new IntegrityError(`placement of ${p.claim_id}: topic ${p.taxonomy_key} is in ${topic.space_id}`);
   }
 }

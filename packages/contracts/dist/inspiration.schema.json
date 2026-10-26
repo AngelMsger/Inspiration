@@ -106,6 +106,7 @@
       "Priority",
       "TodoResolution",
       "Todo",
+      "IsoWeek",
       "PublishState",
       "QualityGate",
       "QualityGateResult",
@@ -242,6 +243,11 @@
       "LineageNode",
       "LineageEdge",
       "LineageGraph",
+      "FactSlot",
+      "SlotVariant",
+      "SlotVersion",
+      "Placement",
+      "PlacedBy",
       "ConflictClass",
       "ConflictTier",
       "ConflictStatus",
@@ -311,6 +317,8 @@
       "BlockChange",
       "PageDiff",
       "TaxonomyNode",
+      "TopicKey",
+      "TopicStatus",
       "ViewInitMessage",
       "ViewDataMessage",
       "ViewThemeMessage",
@@ -360,6 +368,7 @@
       "CellLocation",
       "DocBlock",
       "DocumentMetadata",
+      "GovernanceLevel",
       "ApprovalState",
       "FormFieldDef",
       "ApprovalNodeType",
@@ -1955,6 +1964,11 @@
           "items": {
             "type": "string"
           }
+        },
+        "slot_key": {
+          "description": "The fact slot the claim fills when it states a single-valued fact: its subject entity when resolved, its predicate and its qualifiers, normalized (\"hotel_cap_per_night|一线城市\"). Claims with one slot key state the same fact; their values are the slot's variants and versions (FactSlot).\n",
+          "type": "string",
+          "minLength": 1
         },
         "valid_time": {
           "description": "When the statement is true in the world (\"true when\").",
@@ -3556,6 +3570,50 @@
         "qualifies"
       ]
     },
+    "FactSlot": {
+      "description": "One single-valued fact across documents and time, read from the claims with its slot key. Variants are the values current claims state; versions are every value claims have stated, with when the system knew it. Counts and a few representatives, never every claim, so a slot with a thousand statements stays a short read.\n",
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "slot_key",
+        "variants",
+        "versions"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        },
+        "slot_key": {
+          "type": "string"
+        },
+        "subject_entity_id": {
+          "$ref": "#/$defs/EntityId"
+        },
+        "predicate": {
+          "type": "string"
+        },
+        "qualifiers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "variants": {
+          "description": "The values current claims state, the most stated first.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SlotVariant"
+          }
+        },
+        "versions": {
+          "description": "Every value claims have stated, the earliest known first.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SlotVersion"
+          }
+        }
+      }
+    },
     "Feedback": {
       "description": "report_feedback from an agent or a reader; becomes a review todo.",
       "type": "object",
@@ -3732,6 +3790,15 @@
         "embed",
         "rerank",
         "ocr"
+      ]
+    },
+    "GovernanceLevel": {
+      "description": "How much of a source the engine governs. governed: fully extracted, and its claims get owners, review clocks and conflict todos. reference: extracted only on use (a passage that touches a catalogue slot, or one a page or an answer cites), with no owners, reviews or todos; a value that differs from a governed one is a note, never a conflict todo. search_only: never extracted, only searched.\n",
+      "type": "string",
+      "enum": [
+        "governed",
+        "reference",
+        "search_only"
       ]
     },
     "GraphEdge": {
@@ -4010,6 +4077,11 @@
           "$ref": "#/$defs/Instant"
         }
       }
+    },
+    "IsoWeek": {
+      "description": "An ISO 8601 week, \"2026-W44\".",
+      "type": "string",
+      "pattern": "^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$"
     },
     "KnowledgeClass": {
       "description": "Selects the default TTL used by staleness scoring. Known values: policy, product, pricing, org, process, technical, market, general. Tenants may add their own.\n",
@@ -4408,6 +4480,10 @@
         "authority": {
           "description": "Trust in this item, when the connector knows better than the source's default.",
           "$ref": "#/$defs/Score01"
+        },
+        "governance_level": {
+          "description": "The item's level, when the item or a folder above it sets one (front matter, folder defaults, document properties); otherwise the source's applies.\n",
+          "$ref": "#/$defs/GovernanceLevel"
         },
         "blocks": {
           "type": "array",
@@ -4889,6 +4965,66 @@
         "publish",
         "admin"
       ]
+    },
+    "PlacedBy": {
+      "description": "clustering: the taxonomy clustering of page-compiler. page: a page cites the statement. member: a person put it there.\n",
+      "type": "string",
+      "enum": [
+        "clustering",
+        "page",
+        "member"
+      ]
+    },
+    "Placement": {
+      "description": "Where a statement sits in the knowledge outline: its topic, and the page block that cites it when a page does. A claim has at most one. A current claim of a governed document without one is unfiled (未归类) and shows under its source section.\n",
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "claim_id",
+        "space_id",
+        "taxonomy_key",
+        "placed_by",
+        "confirmed",
+        "placed_at"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        },
+        "claim_id": {
+          "$ref": "#/$defs/ClaimId"
+        },
+        "space_id": {
+          "$ref": "#/$defs/SpaceId"
+        },
+        "taxonomy_key": {
+          "$ref": "#/$defs/TopicKey"
+        },
+        "page_id": {
+          "$ref": "#/$defs/PageId"
+        },
+        "block_key": {
+          "$ref": "#/$defs/BlockKey"
+        },
+        "placed_by": {
+          "$ref": "#/$defs/PlacedBy"
+        },
+        "member_id": {
+          "description": "The member who placed or confirmed it.",
+          "$ref": "#/$defs/PrincipalId"
+        },
+        "confirmed": {
+          "description": "Confirmed placements never move when topics are re-clustered.",
+          "type": "boolean"
+        },
+        "score": {
+          "description": "How close the statement's section is to the topic, when clustering placed it.",
+          "$ref": "#/$defs/Score01"
+        },
+        "placed_at": {
+          "$ref": "#/$defs/Instant"
+        }
+      }
     },
     "PluginName": {
       "description": "Registry name of a plugin or source type, for example \"feishu.docx\".",
@@ -5931,6 +6067,76 @@
         "connective"
       ]
     },
+    "SlotVariant": {
+      "description": "A value current claims of a slot state, and how many claims and documents state it.",
+      "type": "object",
+      "required": [
+        "value",
+        "claim_count",
+        "source_version_count",
+        "claim_ids"
+      ],
+      "properties": {
+        "value": {
+          "description": "The value key (the normalized value, else its number or text).",
+          "type": "string"
+        },
+        "claim_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_version_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "claim_ids": {
+          "description": "Up to five representatives, the highest weight first.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ClaimId"
+          }
+        },
+        "source_version_ids": {
+          "description": "Up to five of the versions that state it, those of the representatives first.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceVersionId"
+          }
+        },
+        "valid_from": {
+          "description": "The earliest day a claim says the value holds from.",
+          "$ref": "#/$defs/Instant"
+        }
+      }
+    },
+    "SlotVersion": {
+      "description": "A value claims of a slot have stated, and when the system knew it: from the first claim recorded with it to the last one superseded, open while a current claim states it.\n",
+      "type": "object",
+      "required": [
+        "value",
+        "claim_count",
+        "known_from"
+      ],
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "claim_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "known_from": {
+          "$ref": "#/$defs/Instant"
+        },
+        "known_to": {
+          "description": "Absent while a current claim states the value.",
+          "$ref": "#/$defs/Instant"
+        },
+        "valid_from": {
+          "$ref": "#/$defs/Instant"
+        }
+      }
+    },
     "SnapshotCause": {
       "type": "object",
       "required": [
@@ -6259,6 +6465,10 @@
           "description": "Authority given to versions from this source unless the connector knows better.",
           "$ref": "#/$defs/Score01"
         },
+        "governance_level": {
+          "description": "The level of the source's items unless a folder or the item sets its own. Absent: reference, the level of uploads and web pages. The admin picks one when connecting a wiki space.\n",
+          "$ref": "#/$defs/GovernanceLevel"
+        },
         "credentials_ref": {
           "description": "Name of a secret in the deployment's secret store. Never the secret itself.",
           "type": "string"
@@ -6482,6 +6692,10 @@
         },
         "sensitivity": {
           "$ref": "#/$defs/SensitivityLabel"
+        },
+        "governance_level": {
+          "description": "The level this version is governed at, resolved by source sync: the item's, else the source's, else reference. Versions written before levels have none and count as governed.\n",
+          "$ref": "#/$defs/GovernanceLevel"
         },
         "fetched_at": {
           "$ref": "#/$defs/Instant"
@@ -6834,7 +7048,7 @@
       }
     },
     "TaxonomyNode": {
-      "description": "A node in the document tree. Keys are stable across re-clustering.",
+      "description": "A topic in a space's knowledge outline (area, topic or subtopic, at most three levels). Statements are placed in topics (see Placement). Keys are stable across re-clustering and never reused.\n",
       "type": "object",
       "required": [
         "key",
@@ -6845,8 +7059,7 @@
       ],
       "properties": {
         "key": {
-          "type": "string",
-          "pattern": "^[a-z0-9][a-z0-9._/-]{0,199}$"
+          "$ref": "#/$defs/TopicKey"
         },
         "tenant_id": {
           "$ref": "#/$defs/TenantId"
@@ -6861,7 +7074,7 @@
           "type": "string"
         },
         "parent_key": {
-          "type": "string"
+          "$ref": "#/$defs/TopicKey"
         },
         "ordinal": {
           "type": "integer",
@@ -6869,6 +7082,19 @@
         },
         "page_id": {
           "$ref": "#/$defs/PageId"
+        },
+        "status": {
+          "description": "Absent on nodes written before topics had a status; they count as confirmed.",
+          "$ref": "#/$defs/TopicStatus"
+        },
+        "owner_id": {
+          "description": "The member who answers for the topic's statements and confirms its placements.",
+          "$ref": "#/$defs/PrincipalId"
+        },
+        "statement_count": {
+          "description": "Current statements placed in the topic, its subtopics included.",
+          "type": "integer",
+          "minimum": 0
         }
       }
     },
@@ -6968,7 +7194,20 @@
           }
         },
         "batch_key": {
+          "description": "The inbox card the todo is on. Collaboration groups an owner's todos about one topic in one week on a card, at most 20 to a card.\n",
           "type": "string"
+        },
+        "taxonomy_key": {
+          "description": "The topic its units are placed in. The topic's owner, or its area's, is the assignee.",
+          "$ref": "#/$defs/TopicKey"
+        },
+        "slot_key": {
+          "description": "The fact slot a conflict or a note is about.",
+          "type": "string"
+        },
+        "week": {
+          "description": "The week it is scheduled in: the week it fell due, or a later one when the assignee's weekly budget of cards was full.\n",
+          "$ref": "#/$defs/IsoWeek"
         },
         "created_by": {
           "$ref": "#/$defs/ComponentName"
@@ -7025,6 +7264,7 @@
       "pattern": "^todo_[0-9A-Za-z]{8,64}$"
     },
     "TodoKind": {
+      "description": "note: a value only reference documents state disagrees with the governed one. It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget.\n",
       "type": "string",
       "enum": [
         "conflict",
@@ -7036,7 +7276,8 @@
         "publish_review",
         "coverage_gap",
         "extraction_review",
-        "feedback"
+        "feedback",
+        "note"
       ]
     },
     "TodoRequested": {
@@ -7084,8 +7325,16 @@
           "description": "Groups similar todos in the inbox.",
           "type": "string"
         },
+        "slot_key": {
+          "description": "The fact slot a conflict or a note is about.",
+          "type": "string"
+        },
         "suggested_assignee_id": {
           "$ref": "#/$defs/PrincipalId"
+        },
+        "withdrawn": {
+          "description": "The reason went away: collaboration dismisses the open todo with this key, and creates none when there is no open one. A later request with the key opens a new todo.\n",
+          "type": "boolean"
         }
       }
     },
@@ -7185,6 +7434,19 @@
           "minimum": 0
         }
       }
+    },
+    "TopicKey": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._/-]{0,199}$"
+    },
+    "TopicStatus": {
+      "description": "proposed: made by clustering and not yet confirmed; readers never see it, owners do. confirmed: an owner confirmed it, so re-clustering keeps it and never moves its confirmed placements. retired: it has no statements left; its key is not reused.\n",
+      "type": "string",
+      "enum": [
+        "proposed",
+        "confirmed",
+        "retired"
+      ]
     },
     "Unchanged": {
       "description": "Connector.fetch result when the known version is still current.",

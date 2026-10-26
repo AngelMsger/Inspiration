@@ -16,6 +16,7 @@
     "priority": "high",
     "unit_ids": ["clm_01JC0000000000000000000002", "clm_01JC0000000000000000000001"],
     "dedupe_key": "governance:conflict:hotel_cap_per_night|一线城市",
-    "batch_key": "governance:conflict:hotel_cap_per_night"
+    "batch_key": "governance:conflict:hotel_cap_per_night",
+    "slot_key": "hotel_cap_per_night|一线城市"
   }
 }

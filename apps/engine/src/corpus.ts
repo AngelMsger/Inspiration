@@ -23,6 +23,8 @@ interface SourceSpec {
   directory?: string;
   default_authority?: number;
   default_sensitivity?: Source["default_sensitivity"];
+  /** What the admin picked when connecting it; folders and items may set their own. */
+  governance_level?: Source["governance_level"];
 }
 
 export interface CorpusManifest {
@@ -66,6 +68,7 @@ export class Corpus {
       };
       if (s.default_authority !== undefined) source.default_authority = s.default_authority;
       if (s.default_sensitivity) source.default_sensitivity = s.default_sensitivity;
+      if (s.governance_level) source.governance_level = s.governance_level;
       if (s.directory) {
         const section = manifest.directory?.[s.directory];
         if (!section) throw new CorpusError(`source ${s.id}: no directory section ${s.directory}`);
@@ -93,6 +96,12 @@ export class Corpus {
   pathOf(sourceId: string, externalId: string): string {
     const spec = this.manifest.sources.find((s) => s.id === sourceId);
     return spec ? `${spec.root}/${externalId}` : externalId;
+  }
+
+  /** The member a source's user is, as its directory section maps them. */
+  memberOf(sourceId: string, user: string): string | undefined {
+    const id = this.#directoryOf.get(sourceId)?.[`user:${user}`];
+    return id?.startsWith("mem_") ? id : undefined;
   }
 
   /** The directory lookup source sync calls for every ACL entry without an engine principal. */

@@ -61,6 +61,7 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       expect(by.get("一线城市住宿限额为每晚 600 元。")).toMatchObject({
         predicate: "hotel_cap_per_night",
         qualifiers: ["一线城市"],
+        slot_key: "hotel_cap_per_night|一线城市",
         value: { kind: "money", number: 600, currency: "CNY", normalized: "600 CNY/night" },
         claim_type: "rule",
         knowledge_class: "policy",
@@ -107,6 +108,45 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       });
       expect(again.added).toEqual([]);
       expect(claimsUpdated(await world.events())).toHaveLength(1);
+    });
+
+    test("a reference document is read where it names a catalogue fact, and a passage in use in full", async ({
+      world,
+    }) => {
+      const guide: Para[] = [
+        { id: "g1", heading: ["新人入职指南", "出差"], text: "去北京出差，住宿每晚 700 元以内。酒店须提前一天预订。" },
+        { id: "g2", heading: ["新人入职指南", "办公"], text: "工位须保持整洁。下班前须关闭电脑。" },
+        { id: "g3", heading: ["新人入职指南", "出差"], text: "出差结束后 30 日内须提交差旅报销申请。记得带上发票。" },
+      ];
+      const { version, result } = await world.version("新人入职指南.md", guide, { level: "reference" });
+      const statements = async (ids: readonly string[]) =>
+        (await world.store.getClaims(ids)).map((c) => [c.statement, c.slot_key ?? null]).sort();
+      // Only the slot claims of the passages that name a catalogue fact; the booking rule waits.
+      expect(result).toMatchObject({ windows: 1, rejected: 0, unused: 1 });
+      expect(await statements(result.added)).toEqual([
+        ["出差结束后 30 日内须提交差旅报销申请。", "travel_claim_deadline_days"],
+        ["去北京出差，住宿每晚 700 元以内。", "hotel_cap_per_night|一线城市"],
+      ]);
+
+      const blocks = await world.store.blocksOf(version.id);
+      const office = blocks.find((b) => b.anchor === "g2")?.id as string;
+      const used = await world.extraction.extractOnUse(version.id, [office]);
+      expect(await statements(used.added)).toEqual([
+        ["下班前须关闭电脑。", null],
+        ["工位须保持整洁。", null],
+      ]);
+      expect((await world.extraction.extractOnUse(version.id, [office])).added).toEqual([]);
+    });
+
+    test("a search-only document is never extracted", async ({ world }) => {
+      const { version, result } = await world.version("群聊记录.md", POLICY, { level: "search_only" });
+      expect(result).toMatchObject({ windows: 0, added: [] });
+      const blocks = await world.store.blocksOf(version.id);
+      expect(await world.extraction.extractOnUse(version.id, [blocks[0]?.id as string])).toMatchObject({
+        windows: 0,
+        added: [],
+      });
+      expect(world.routed()).toEqual([]);
     });
 
     test("claims.updated carries on the correlation of the blocks.changed it answers", async ({ world }) => {

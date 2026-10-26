@@ -18,11 +18,14 @@ import {
   type EventEnvelope,
   type PageSnapshot,
   type PageVersionInfo,
+  type Placement,
   rank,
   type SourceBlock,
   type SourceVersion,
   type Span,
   type StoreTx,
+  slotOf,
+  type TaxonomyNode,
 } from "@inspiration/contracts";
 import { writeOutbox } from "@inspiration/eventbus";
 import { type Pool, type PoolClient, type Queryable, withTransaction } from "@inspiration/kernel";
@@ -261,6 +264,7 @@ export class PgTx implements StoreTx {
         knowledge_class: c.knowledge_class,
         subject_entity_id: c.subject_entity_id ?? null,
         predicate: c.predicate ?? null,
+        slot_key: slotOf(c) ?? null,
         valid_from: c.valid_time.start ?? null,
         valid_to: c.valid_time.end ?? null,
         recorded_at: c.recorded_at,
@@ -271,15 +275,16 @@ export class PgTx implements StoreTx {
       }));
       await db.query(
         `INSERT INTO kb.claims
-           (id, tenant_id, space_id, status, knowledge_class, subject_entity_id, predicate, valid_from, valid_to,
-            recorded_at, superseded_at, superseded_by, sensitivity, doc)
+           (id, tenant_id, space_id, status, knowledge_class, subject_entity_id, predicate, slot_key, valid_from,
+            valid_to, recorded_at, superseded_at, superseded_by, sensitivity, doc)
          SELECT * FROM jsonb_to_recordset($1::jsonb)
            AS r(id text, tenant_id text, space_id text, status text, knowledge_class text, subject_entity_id text,
-                predicate text, valid_from timestamptz, valid_to timestamptz, recorded_at timestamptz,
+                predicate text, slot_key text, valid_from timestamptz, valid_to timestamptz, recorded_at timestamptz,
                 superseded_at timestamptz, superseded_by text, sensitivity text, doc jsonb)
          ON CONFLICT (id) DO UPDATE SET space_id = excluded.space_id, status = excluded.status,
            knowledge_class = excluded.knowledge_class, subject_entity_id = excluded.subject_entity_id,
-           predicate = excluded.predicate, valid_from = excluded.valid_from, valid_to = excluded.valid_to,
+           predicate = excluded.predicate, slot_key = excluded.slot_key, valid_from = excluded.valid_from,
+           valid_to = excluded.valid_to,
            recorded_at = excluded.recorded_at, superseded_at = excluded.superseded_at,
            superseded_by = excluded.superseded_by, sensitivity = excluded.sensitivity, doc = excluded.doc`,
         [JSON.stringify(rows)],
@@ -374,6 +379,82 @@ export class PgTx implements StoreTx {
        VALUES ($1, $2, $3, $4, $5) ON CONFLICT DO NOTHING`,
       [snapshot.source_id, snapshot.external_id, snapshot.acl_hash, snapshot.captured_at, JSON.stringify(snapshot)],
     );
+  }
+
+  async putTopics(nodes: readonly TaxonomyNode[]): Promise<void> {
+    const db = this.#db();
+    if (!nodes.length) return;
+    const parents = [...new Set(nodes.flatMap((n) => (n.parent_key ? [`${n.tenant_id}\x1f${n.parent_key}`] : [])))];
+    // The stored ancestors of the parents, up to the roots.
+    const { rows } = await db.query<{ doc: TaxonomyNode }>(
+      `WITH RECURSIVE up AS (
+         SELECT tenant_id, parent_key, doc FROM kb.topics WHERE tenant_id || chr(31) || key = ANY($1)
+         UNION
+         SELECT t.tenant_id, t.parent_key, t.doc FROM kb.topics t
+           JOIN up ON t.tenant_id = up.tenant_id AND t.key = up.parent_key
+       ) SELECT doc FROM up`,
+      [parents],
+    );
+    const stored = new Map(rows.map((r) => [`${r.doc.tenant_id}\x1f${r.doc.key}`, r.doc]));
+    rules.checkTopics(nodes, (tenantId, key) => stored.get(`${tenantId}\x1f${key}`));
+    await db.query(
+      `INSERT INTO kb.topics (tenant_id, key, space_id, parent_key, doc)
+       SELECT r.tenant_id, r.key, r.space_id, r.parent_key, r.doc
+         FROM jsonb_to_recordset($1::jsonb) AS r(tenant_id text, key text, space_id text, parent_key text, doc jsonb)
+       ON CONFLICT (tenant_id, key) DO UPDATE
+         SET space_id = EXCLUDED.space_id, parent_key = EXCLUDED.parent_key, doc = EXCLUDED.doc`,
+      [
+        JSON.stringify(
+          nodes.map((n) => ({
+            tenant_id: n.tenant_id,
+            key: n.key,
+            space_id: n.space_id,
+            parent_key: n.parent_key ?? null,
+            doc: n,
+          })),
+        ),
+      ],
+    );
+  }
+
+  async place(placements: readonly Placement[]): Promise<void> {
+    const db = this.#db();
+    if (!placements.length) return;
+    const claims = await db.query<{ id: string; tenant_id: string; space_id: string }>(
+      "SELECT id, tenant_id, space_id FROM kb.claims WHERE id = ANY($1)",
+      [placements.map((p) => p.claim_id)],
+    );
+    const claimById = new Map(claims.rows.map((r) => [r.id, r]));
+    const keys = [...new Set(placements.map((p) => `${p.tenant_id}\x1f${p.taxonomy_key}`))];
+    const topics = await db.query<{ doc: TaxonomyNode }>(
+      `SELECT doc FROM kb.topics WHERE tenant_id || chr(31) || key = ANY($1)`,
+      [keys],
+    );
+    const topicByKey = new Map(topics.rows.map((r) => [`${r.doc.tenant_id}\x1f${r.doc.key}`, r.doc]));
+    for (const p of placements) {
+      rules.checkPlacement(p, claimById.get(p.claim_id), topicByKey.get(`${p.tenant_id}\x1f${p.taxonomy_key}`));
+    }
+    await db.query(
+      `INSERT INTO kb.placements (claim_id, tenant_id, taxonomy_key, doc)
+       SELECT r.claim_id, r.tenant_id, r.taxonomy_key, r.doc
+         FROM jsonb_to_recordset($1::jsonb) AS r(claim_id text, tenant_id text, taxonomy_key text, doc jsonb)
+       ON CONFLICT (claim_id) DO UPDATE SET taxonomy_key = EXCLUDED.taxonomy_key, doc = EXCLUDED.doc`,
+      [
+        JSON.stringify(
+          placements.map((p) => ({
+            claim_id: p.claim_id,
+            tenant_id: p.tenant_id,
+            taxonomy_key: p.taxonomy_key,
+            doc: p,
+          })),
+        ),
+      ],
+    );
+  }
+
+  async unplace(claimIds: readonly string[]): Promise<void> {
+    if (!claimIds.length) return;
+    await this.#db().query("DELETE FROM kb.placements WHERE claim_id = ANY($1)", [claimIds]);
   }
 
   async publish(...events: EventEnvelope[]): Promise<void> {
@@ -486,6 +567,33 @@ export class PostgresStore extends BaseStore {
       `SELECT c.doc FROM kb.claims c WHERE ${where}
        ORDER BY c.recorded_at, c.id COLLATE "C" LIMIT $${params.length + 1}`,
       [...params, query.limit || QUERY_LIMIT],
+    );
+  }
+
+  async claimsInSlot(tenantId: string, slotKey: string): Promise<Claim[]> {
+    return this.#docs(
+      `SELECT doc FROM kb.claims WHERE tenant_id = $1 AND slot_key = $2 ORDER BY recorded_at, id COLLATE "C"`,
+      [tenantId, slotKey],
+    );
+  }
+
+  async topics(tenantId: string, spaceId?: string): Promise<TaxonomyNode[]> {
+    return this.#docs(
+      `SELECT doc FROM kb.topics WHERE tenant_id = $1 AND ($2::text IS NULL OR space_id = $2)
+       ORDER BY key COLLATE "C"`,
+      [tenantId, spaceId ?? null],
+    );
+  }
+
+  async placementsOf(claimIds: readonly string[]): Promise<Placement[]> {
+    const found = await this.#docs<Placement>("SELECT doc FROM kb.placements WHERE claim_id = ANY($1)", [claimIds]);
+    return inOrder(found, (p) => p.claim_id, claimIds);
+  }
+
+  async placementsIn(tenantId: string, taxonomyKey: string): Promise<Placement[]> {
+    return this.#docs(
+      `SELECT doc FROM kb.placements WHERE tenant_id = $1 AND taxonomy_key = $2 ORDER BY claim_id COLLATE "C"`,
+      [tenantId, taxonomyKey],
     );
   }
 

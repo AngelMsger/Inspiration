@@ -16,7 +16,8 @@
  *   still ahead gets an assumption review on that day.
  * - A deleted document is forgotten, and the version that deleted it is kept: events about
  *   it or an older version change nothing, so a late claims.updated cannot bring it back.
- *   A later version restores it.
+ *   A later version restores it. Only governed documents have review clocks: a reference or
+ *   search-only version is forgotten the same way, and a later governed one starts again.
  * - tick(tenant) publishes every review that has fallen due, each once; the engine calls it
  *   once a day. A ttl review that was already due when freshness first saw the document is
  *   marked backlog: on a tenant's first sweep that is most of them, and they belong in a

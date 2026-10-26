@@ -80,7 +80,7 @@ describe("folder connector", () => {
   });
 
   test("fetch returns the file, metadata and ACL, and Unchanged for a known version", async () => {
-    await put("corpus/.meta.yaml", "governance: governed\nsensitivity: internal\n");
+    await put("corpus/.meta.yaml", "governance_level: governed\nsensitivity: internal\n");
     await put("corpus/finance/.meta.yaml", "sensitivity: confidential\n");
     await put("corpus/finance/.acl.yaml", "readers: [group:finance, tenant]\neditors: [user:li.na]\ninherit: true\n");
     await put("corpus/.acl.yaml", "owners: [user:admin]\n");
@@ -95,11 +95,12 @@ describe("folder connector", () => {
     expect(doc.mime_type).toBe("text/markdown");
     expect(doc.approval_state).toBe("approved");
     expect(doc.sensitivity).toBe("confidential");
+    expect(doc.governance_level).toBe("governed");
     expect(doc.metadata).toMatchObject({
       path: ["finance"],
       author_external_id: "li.na",
       tags: ["财务"],
-      extra: { governance: "governed", knowledge_class: "policy" },
+      extra: { knowledge_class: "policy" },
     });
     expect(
       new TextDecoder().decode(await blobs.get(doc.file ?? { uri: "", sha256: "", size_bytes: 0, mime_type: "" })),
@@ -198,7 +199,12 @@ const DOC: FeishuDocument = {
     { member_type: "openid", member_id: "ou_lina", perm: "edit" },
   ],
   link_share_entity: "tenant_readable",
-  properties: { approval_state: "approved", sensitivity: "internal", governance: "governed" },
+  properties: {
+    approval_state: "approved",
+    sensitivity: "internal",
+    governance_level: "governed",
+    owner_team: "行政部",
+  },
 };
 
 const APPROVAL: FeishuApproval = {
@@ -254,7 +260,8 @@ describe("feishu connectors on fixtures", () => {
       ["c4", "600"],
     ]);
     expect(doc.metadata?.path).toEqual(["行政", "制度"]);
-    expect(doc.metadata?.extra).toEqual({ governance: "governed" });
+    expect(doc.governance_level).toBe("governed");
+    expect(doc.metadata?.extra).toEqual({ owner_team: "行政部" });
     expect(doc.acl?.entries.map((e) => [e.principal_kind, e.external_id ?? "", e.role])).toEqual([
       ["anyone_in_tenant", "", "viewer"],
       ["group", "oc_finance", "viewer"],

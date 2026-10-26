@@ -80,6 +80,61 @@ source.changed -> source-sync fetch -> document.fetched (+ acl.changed -> access
   -> retrieval reindexes, collaboration notifies, views refresh
 ```
 
+## Governance levels and fact slots
+
+Not every document deserves an owner's attention. A source, or a folder or item within it,
+has a governance level that source sync resolves onto every version (`SourceVersion
+.governance_level`; uploads and web pages start as `reference`):
+
+| Level | Extraction | Governance | Freshness |
+| --- | --- | --- | --- |
+| `governed` | in full | its values decide a slot; owners get todos | review clocks and copy reviews |
+| `reference` | where a block names a catalogue fact, slot claims only; a passage in full once a page or an answer uses it | its values never outvote or hold up a governed one; a value only it states is a note | none |
+| `search_only` | never | none | none |
+
+Claims about one single-valued fact share a slot key (`Claim.slot_key`: subject entity when
+resolved, predicate and sorted qualifiers). `KnowledgeStore.slot()` reads a slot as a
+handful of rows however many statements it holds: the current values with their counts and
+representatives, and the values it held over time.
+
+## The knowledge outline
+
+Every statement has two outlines. The source outline (document, heading path, passage) comes
+from its evidence spans. The knowledge outline (space, area, topic, subtopic) comes from a
+placement (`Placement`: claim, topic key, page block, placed_by, confirmed).
+
+- Page-compiler clusters the sections of current governed documents into topics, per space.
+  Topics are `TaxonomyNode`s, at most three levels deep, with keys that stay the same from
+  one re-clustering to the next.
+- A statement with a fact slot sits where most of its slot's statements are. That is also
+  the only way a reference document's statements are placed.
+- A governed statement without a topic is unfiled (未归类) and shows under its source
+  section.
+- Clustering proposes topics, and an owner confirms them. Confirmed topics, and placements
+  made or confirmed by a person or a page, never move. At most `budget` (5%) of the placed
+  statements change topic in one re-clustering.
+- `KnowledgeStore.topics()`, `placementsOf()` and `placementsIn()` read the outline.
+
+## The inbox
+
+Collaboration turns `todo.requested` and `review.due` into todos and puts them in front of
+the people who own the topics, in amounts a person can keep up with.
+
+- There is one open todo per dedupe key. A later request updates it, and a request marked
+  withdrawn (its reason went away) dismisses it.
+- A todo's topic comes from its claims' placements. Its assignee is the topic's owner, or
+  the nearest owner above it. The business layer names owners, and the topic keeps them
+  (`TaxonomyNode.owner_id`).
+- An owner's todos about one topic in one ISO week share a card (`Todo.batch_key`) of at
+  most 20. An owner gets at most 10 cards a week; the rest wait for the first later week
+  with room, except high and urgent todos.
+- Notes, where reference documents state another value than the governed one, go on a
+  weekly notes card outside the budget, and one action acknowledges them.
+- A copy review rides on the card of the conflict its source update opened (on its next
+  part when the card is full), in whichever order the two arrive, until that conflict closes. Reviews already
+  due when a document is first seen go to a first-review campaign per topic. The todos of
+  topics nobody owns go to the space's steward.
+
 ## Storage
 
 One Postgres instance (ParadeDB image: Postgres 16 with pgvector and pg_search) holds:
@@ -92,6 +147,11 @@ One Postgres instance (ParadeDB image: Postgres 16 with pgvector and pg_search) 
 | `agents` | agent-runtime | agent run traces |
 | `sync` | source-sync | registered sources; per item, the connector's version hashes and the source version they became |
 | `normalization` | normalization | per document, the version last stored as blocks (the diff base), its parser and fingerprint; the SimHash band index for duplicates |
+| `extraction` | extraction | per document, the latest version extracted |
+| `freshness` | freshness | per document, its review clock, claim classes and plan days; copies; reviews due by day; deleted documents |
+| `governance` | governance | slot members and value groups, conflict cases, what each slot last asked and the notes it left, recheck days |
+| `page_compiler` | page-compiler | sections with their embeddings and topics, the last clustering's topics and centroids, the topic of each fact slot, store writes an update has yet to finish |
+| `collaboration` | collaboration | the inbox: every todo with its dedupe key, card, week and the week it fell due |
 | `public.inspiration_migrations` | kernel | migration ledger with checksums |
 
 SpiceDB keeps its own datastore in a separate `spicedb` database on the same instance.
