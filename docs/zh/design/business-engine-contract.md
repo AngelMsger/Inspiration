@@ -12,25 +12,25 @@
    - main 上的现状（拉取请求 #7）：`PrincipalKind` 是 `member`，SpiceDB 里是 `definition member`，凡是存放在租户行之外的主体都按租户编键。成员、群组、部门和服务都是 SpiceDB 对象 `<ten_…>|<id>`，主体令牌和 ACL 令牌使用同样的形式。引擎不假设任何通讯录 ID 跨租户唯一，所以 ID 用哪种规则生成与它无关。`AclPrincipalKind` 保留 `user`，指来源系统里的人（例如飞书 open_id），由通讯录映射到成员。访问控制的通讯录写入显式带租户，空间授权按空间所属租户为成员编键，上级空间必须在同一租户内，租户只能被授予自己的空间。智能体的 `on_behalf_of` 必须是 `mem_`。
 3. **按主题划分权威。** 业务层是人、租户和策略取值的权威来源；引擎保存它要执行的内容的副本，每一次权限判断都由引擎自己做。
 4. **命令幂等。** 每条命令带 `Idempotency-Key`，通讯录对象带 `version`，命令把 SpiceDB ZedToken 作为 `consistency_token` 返回。
-5. **仅业务层使用的 Schema**（用户、邀请、审批）放在引擎包从不引用的单独目录里。
+5. **仅业务层使用的 Schema**（用户、邀请、审批）放在契约中引擎包从不引用的单独目录里。两层在同一个仓库里构建，各占一个目录；任何引擎包依赖业务包，组件清单测试都会失败（见 [architecture.md](../architecture.md) 的“一个仓库，每层一个目录”一节）。
 6. **两个知识域，自上而下的可见性。**
    - **成员域** = 某个成员的个人空间（`Space.kind = personal`，每个成员在每个租户里一个；在个人租户里就是全部内容）。只有该成员能读。租户管理员、空间负责人或群组的授权都进不去，也没有紧急访问通道。唯一的例外由成员自己发起：提交发布请求后，请求的审批人可以读该请求里的条目，不能读其他任何内容，直到请求被决定或撤回。
    - **租户域** = 其他所有空间。可见性 = 空间角色（`viewer`、`commenter`、`editor`、`steward`、`owner`；沿空间树向下继承），由租户管理员和空间负责人自上而下授予成员、群组和部门，再按敏感级别过滤：只有当单元的标签 ≤ min(成员许可级别, 令牌 `max_sens`) 时才可读。发布者对自己发布的每个单元获得一项授权（`publisher`：按空间规则阅读和编辑），租户管理员可以移除。
    - **合并范围 = 域。** 实体消解、陈述去重、事实槽和冲突检测按域键运行：个人空间是 `member:<space id>`，租户域是 `tenant`（覆盖所有租户空间）。两个键之间从不合并或比较。个人页面可以链接到其所有者能读的租户域条目；租户域知识从不引用成员域条目。主题按空间划分，因为跨空间的主题会把可读和不可读的陈述混在一起。
-   - **可见性来自空间和证明，而不是来源 ACL。** 陈述、页面或 SOP 所在的空间可读，它就可见；陈述还需要至少一个读者能读的完整证明。证明是所在空间位于读者可读空间集合中的证据片段（每次请求做一次 LookupResources，并缓存结果），或是一个 `ClaimDerivation`：`merge` 的各个输入互为替代，任意一个可读的输入就构成证明；`aggregate`、`infer` 和 `translate` 则要求每个输入都可读，并按同样方式检查。没有可读证明的陈述会被隐藏，对该读者而言，由它构成的一切也一并隐藏：事实槽的提议值、冲突中的一个变体、页面中的一句话、一个回答。可读集合之外的其他引用和证据片段显示为受限。带 `spaces` 的智能体令牌会进一步缩小这个集合。
-   - **跨越受众需要审批。** 输入分布在受众不同的多个空间里的派生结果，只对能读全部输入的读者可见（不能读财务空间的销售读者，看不到用财务成本算出的毛利）。要让结果对它所在空间的受众可见，派生单元需要经过一次发布到该空间的发布申请，由该受众无法阅读的每个输入空间的负责人审批；记录下来的审批成为该单元的证明。审批针对这条派生，所以在输入不变时，重新计算出的值仍然保持发布状态；新增输入需要重新审批。如果某个输入空间之后收窄了受众，这些空间负责人会收到一条 `publish_review` 待办，决定保留还是撤回审批；在此期间读者看到什么，由 `source_restricted` 策略决定（`notify` 保留，`quarantine` 隐藏）。
-   - **共享缓存遵循同一边界。** 回答缓存以可读空间集合和授权级别为键；缓存项用到的任何单元的标签、证明或授权发生变化时，该缓存项即被丢弃。用到了只能通过读者本人授权（作为发布者或审批人）才可读的单元的回答，只为该读者缓存。
+   - **可见性来自空间和依据，而不是来源 ACL。** 陈述、页面或 SOP 所在的空间可读，它就可见；陈述还需要至少一个读者能读的完整依据。依据是所在空间位于读者可读空间集合中的证据片段（每次请求做一次 LookupResources，并缓存结果），或是一个 `ClaimDerivation`：`merge` 的各个输入互为替代，任意一个可读的输入就构成依据；`aggregate`、`infer` 和 `translate` 则要求每个输入都可读，并按同样方式检查。没有可读依据的陈述会被隐藏，对该读者而言，由它构成的一切也一并隐藏：事实槽的提议值、冲突中的一个变体、页面中的一整个块（从不去掉行文中间的文字，而是重新编译页面）、一个回答。可读集合之外的其他引用和证据片段直接略去，不留标记，不透露它们的存在。带 `spaces` 的智能体令牌会进一步缩小这个集合。
+   - **跨越受众需要审批**（在提议的[汇编知识的权限](compiled-knowledge-permissions.md)中改为按陈述放行）。 输入分布在受众不同的多个空间里的派生结果，只对能读全部输入的读者可见（不能读财务空间的销售读者，看不到用财务成本算出的毛利）。要让结果对它所在空间的受众可见，派生单元需要经过一次发布到该空间的发布申请，由该受众无法阅读的每个输入空间的负责人审批；记录下来的审批成为该单元的依据。审批针对这条派生，所以在输入不变时，重新计算出的值仍然保持发布状态；新增输入需要重新审批。如果某个输入空间之后收窄了受众，这些空间负责人会收到一条 `publish_review` 待办，决定保留还是撤回审批；在此期间读者看到什么，由 `source_restricted` 策略决定（`notify` 保留，`quarantine` 隐藏）。
+   - **共享缓存遵循同一边界。** 回答缓存以可读空间集合和授权级别为键；缓存项用到的任何单元的标签、依据或授权发生变化时，该缓存项即被丢弃。用到了只能通过读者本人授权（作为发布者或审批人）才可读的单元的回答，只为该读者缓存。
    - **来源 ACL 只作参考。** 来源同步保留 `kb.acl_snapshots` 和身份关联，但它们只用于：(a) 发布时的可读差异检查；(b) 已发布文档的 ACL 收紧时（`acl_hash` 变化且移除了主体）生成 `source_restricted` 待办。企业策略在 `notify`（默认）和 `quarantine`（在空间负责人决定之前隐藏受影响的单元）之间选择。
    - **发布是移动，不是复制。** 选中的来源（或文件夹子树，它会成为一个独立来源）、页面和 SOP 从个人空间移到目标租户空间。人工产生的内容（上传、编辑、覆盖、评论）一并移动。被移动来源的派生知识在成员域里关闭，在租户域里重建并合并。
-   - **凭据只决定保鲜方式。** 每个已发布来源可选：`workspace_connection`（覆盖检查后切换到租户连接）、`member_connection`（保留发布者的连接；需要一条 `ConnectionConsent`，凭据代理只在该同意有效期间把成员连接提供给租户域的来源），或 `snapshot`（无连接，冻结，必须设定复核日期）。成员离开或连接被吊销时，使用该成员连接的来源暂停，该来源的负责人收到 `reauthorize` 待办（改换连接或冻结）。
+   - **凭据只决定保鲜方式。** 每个已发布来源可选：`tenant_connection`（覆盖检查后切换到租户连接）、`member_connection`（保留发布者的连接；需要一条 `ConnectionConsent`，凭据代理只在该同意有效期间把成员连接提供给租户域的来源），或 `snapshot`（无连接，冻结，必须设定复核日期）。成员离开或连接被吊销时，使用该成员连接的来源暂停，该来源的负责人收到 `reauthorize` 待办（改换连接或冻结）。
    - **已发布子树里的新文档**要经过敏感信息和个人信息扫描；被标记的文档成为给空间负责人的 `publish_review` 待办，其余的直接进入（策略 `new_documents: scan | approve_each`）。
    - **租户与成员之间是商业关系。** 租户设定用量池和每个成员的上限（模型预算、存储）；用量按租户、成员和空间计量，每次模型调用同时检查成员上限和用量池，以较低者为准。
 7. **引擎不替人写句子。** 主体令牌带 `locale`，引擎生成任何内容（例如编译出的摘要）时都能选对语言，却不接触账号。待办和事件载荷只带消息键和参数，不带展示文字；业务层用英文、中文和日文的消息目录渲染它们。
 
 ### 引擎如何实现规则 6
 
-- **访问控制。** 个人空间有自己的 SpiceDB 定义（所有者，加上一条供引擎工作进程使用的直接服务关系），因为 `space.admin` 包含 `tenant->administer`，读者包含 `tenant#member`。单元新增 `publisher` 和 `approver` 关系。`canReadDerived` 保留对派生关系的遍历，但检查的是空间而不是来源文档，并采用上面的证明规则；目前只要任意一个支撑的来源版本可读，它就允许读取，这对 `merge` 是对的，对 `aggregate` 和 `infer` 则过于宽松（目前没有已构建的组件写入这两种派生）。`mirror` 保留 ACL 快照，但不再写入读取元组。检索尚未实现，所以它的过滤条件从一开始就按新规则编写。
-- **验收用例。** 权限测试覆盖四种情况，分别在内存图和 SpiceDB 上运行：互相独立的替代证明（任一可读即可）、共同必需的输入（除非全部可读，否则隐藏）、经审批的跨空间发布（对目标受众可读），以及之后某个输入空间收窄受众（产生待办，然后按 `notify` 或 `quarantine` 处理）。同样的用例也通过搜索、事实槽读取和回答缓存运行。
+- **访问控制。** 个人空间有自己的 SpiceDB 定义（所有者，加上一条供引擎工作进程使用的直接服务关系），因为 `space.admin` 包含 `tenant->administer`，读者包含 `tenant#member`。单元新增 `publisher` 和 `approver` 关系。`canReadDerived` 保留对派生关系的遍历，但检查的是空间而不是来源文档，并采用上面的依据规则；目前只要任意一个支撑的来源版本可读，它就允许读取，这对 `merge` 是对的，对 `aggregate` 和 `infer` 则过于宽松（目前没有已构建的组件写入这两种派生）。`mirror` 保留 ACL 快照，但不再写入读取元组。检索尚未实现，所以它的过滤条件从一开始就按新规则编写。
+- **验收用例。** 权限测试覆盖四种情况，分别在内存图和 SpiceDB 上运行：互相独立的替代依据（任一可读即可）、共同必需的输入（除非全部可读，否则隐藏）、经审批的跨空间发布（对目标受众可读），以及之后某个输入空间收窄受众（产生待办，然后按 `notify` 或 `quarantine` 处理）。同样的用例也通过搜索、事实槽读取和回答缓存运行。
 - **合并范围。** 事实槽和冲突按域编键：`slotOf` 和治理相关的表使用域键，而不是只用租户。
 - **移动 = 显式重建。** 规范化会跳过未变化的版本，所以移动时发出一个引擎内部的 `source.moved` 事件，目标空间里的每个块都会被重新读取。陈述从不删除；“丢弃”的意思是关闭。
 - **个人页面重新指向。** 引用基于片段，片段 ID 由块 ID 和文本得出。整个来源被移动时片段 ID 不变，所以个人页面仍能解析到原段落，现在通过发布者授权可读。完全匹配（相同片段、相同陈述）时，用重建后的陈述取代成员域里的陈述；否则旧陈述以“已移动”撤回并显示标记。成为独立来源的子树会得到新 ID，所以移动时写一份新旧文档对照表，片段按文档、锚点和文本哈希重新匹配。页面保持不可变：读取时解析，下一次编译写入新 ID。
@@ -64,18 +64,18 @@ grant      string               # agent grant ID, for revocation
 - `MemberLimits { member_id, model_budget?, storage_bytes? }`（由业务层根据套餐设定）
 - `Group { id: grp_, tenant_id, name, member_ids, group_ids, version }`、`Department { id: dep_, parent_id?, name, member_ids, version }`
 - `ExternalIdentityLink { provider: PluginName, external_tenant?, external_id, principal_id }`（例如把飞书 union_id 映射到 `mem_`；只用于可读差异检查）
-- `AgentRegistration { id: agt_, tenant_id, owner_id: mem_, kind: client | workspace_agent, scopes, space_scope?, max_sensitivity?, status }`
+- `AgentRegistration { id: agt_, tenant_id, owner_id: mem_, kind: client | tenant_agent, scopes, space_scope?, max_sensitivity?, status }`
 - `DirectorySnapshot { tenant_id, version, members, groups, departments, links, agents }` 和 `DirectoryDrift`（按分区计数）
-- `WorkspacePolicy { version, publish: { member_connection_freshness: allowed | off, new_documents: scan | approve_each, source_restricted: notify | quarantine }, dispute: { serve: last_verified | both | withhold }, models: { max_external_sensitivity }, retention: { departed_personal_space: Duration } }`。`departed_personal_space`：个人空间被锁定、任何人都不能读，经过这段时间（默认 30 天）后删除。
+- `TenantPolicy { version, publish: { member_connection_freshness: allowed | off, new_documents: scan | approve_each, source_restricted: notify | quarantine }, dispute: { serve: last_verified | both | withhold }, models: { max_external_sensitivity }, retention: { departed_personal_space: Duration } }`。`departed_personal_space`：个人空间被锁定、任何人都不能读，经过这段时间（默认 30 天）后删除。
 - `ApprovalPolicy { mode: single | any | all | quorum, quorum?, deadline: Duration, fallback_ids? }`。没有 `fallback_ids` 时，投票分裂或超过截止时间交给空间的负责人；冲突跨空间时交给租户管理员。
 - `OwnershipScope` space | taxonomy_node | page | sop | knowledge_model | claim；
   `OwnershipAssignment { scope_kind, scope_id, owner_ids, backup_ids, approval_policy }`。引擎按最近一级被指定的范围、空间负责人、租户管理员的顺序确定待办的处理人。存放在 governance 组件自己的 Schema 里（不在知识存储的 `kb` Schema 里）；负责人和备份只能是 `mem_` 或 `grp_` ID。只用于租户域。
 
 ## 对现有文件的改动
 
-- **`authz.yaml`、`packages/access-control/schema.zed`：** `Principal.auth_context` 和 `Principal.locale`（都可选）。`ResourceType` 新增 `connection` 和 `agent`。`tenant`：新增关系 `security_admin`、`auditor`。`space` 不新增 `arbiter` 关系：截止后的决定人是空间的 `owner`，跨空间时是租户的 `admin`。个人空间只有 `owner`，不继承租户上的任何关系。单元（页面、SOP、来源）：新增关系 `publisher`。`publish_request`：新增关系 `approver`，只授予请求内条目的读取权。陈述、页面和 SOP 的读取权 = 其所在空间的读取权；陈述还需要一个读者能读的证明，证据片段和派生输入按可读空间检查，而不是按来源 ACL 检查（规则 6）。
+- **`authz.yaml`、`packages/access-control/schema.zed`：** `Principal.auth_context` 和 `Principal.locale`（都可选）。`ResourceType` 新增 `connection` 和 `agent`。`tenant`：新增关系 `security_admin`、`auditor`。`space` 不新增 `arbiter` 关系：截止后的决定人是空间的 `owner`，跨空间时是租户的 `admin`。个人空间只有 `owner`，不继承租户上的任何关系。单元（页面、SOP、来源）：新增关系 `publisher`。`publish_request`：新增关系 `approver`，只授予请求内条目的读取权。陈述、页面和 SOP 的读取权 = 其所在空间的读取权；陈述还需要一个读者能读的依据，证据片段和派生输入按可读空间检查，而不是按来源 ACL 检查（规则 6）。
 - **`collab.yaml`：**
-  - 新增 `SourceFreshness` workspace_connection | member_connection | snapshot。
+  - 新增 `SourceFreshness` tenant_connection | member_connection | snapshot。
   - `PublishRequest`：单个 `unit_id` 改为 `items[]`（页面、SOP、来源、文件夹子树）；`to_space_id` 即目标空间；在已有的 `gates` 旁新增 `source_actions[] { source_id, subtree?, freshness, connection_id?, consent_id?, review_at? }` 和 `checks { coverage: CoverageDiff[], audience_gap: AudienceGap, sensitivity { suggested_label, findings[] }, conflicts: ConflictPreview[] }`。
   - 新增 `ConnectionConsent { id, connection_id, source_id, member_id, granted_at, revoked_at? }`。
   - 新增 `Decision { scope: ResourceRef, resolution_key | proposal_id, decided_by: PrincipalId[], approval_id?, rule?: PrecedenceRule }`，供“决定待办”和“决定发布请求”使用。引擎复核每位审批人在该范围上都有 `verify` 权限。发布决定可以修改 `to_space_id` 和敏感级别标签。
@@ -113,7 +113,7 @@ grant      string               # agent grant ID, for revocation
 
 净增约 4.5 人周。
 
-- **第 1 阶段（3.5）：** 令牌校验和服务主体 0.5；开通、对账和成员离开 1；策略与负责人 1；发布到租户域 1.5（借助 `source.moved` 的移动与重建约 0.5、保鲜方式选择、同意、覆盖、可读差异、新文档扫描）；两个知识域和按空间与证明判定可见性 0.5（域 +1，派生可读性的遍历改为检查空间而不是来源 ACL −0.5）；多人决定 0.5；SSO 和通讯录同步移出访问控制 −1.5。
+- **第 1 阶段（3.5）：** 令牌校验和服务主体 0.5；开通、对账和成员离开 1；策略与负责人 1；发布到租户域 1.5（借助 `source.moved` 的移动与重建约 0.5、保鲜方式选择、同意、覆盖、可读差异、新文档扫描）；两个知识域和按空间与依据判定可见性 0.5（域 +1，派生可读性的遍历改为检查空间而不是来源 ACL −0.5）；多人决定 0.5；SSO 和通讯录同步移出访问控制 −1.5。
 - **第 2 阶段（1）：** 成员离开的细节 0.5；裁决规则和争议标记 0.5。
 - **语言：** `locale` 声明和待办上的消息键包含在上面第 1 阶段的各项里。
 

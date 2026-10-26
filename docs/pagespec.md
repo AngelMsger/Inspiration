@@ -11,7 +11,7 @@ if the two differ, this English version wins.
 
 | Artifact capability | Inspiration | Notes |
 | --- | --- | --- |
-| Markdown document | `heading`, `paragraph`, `list`, `quote`, `callout`, `table`, `code`, `math`, `divider` | Text is a list of `Sentence`s, each with `claim_ids`. Readers who cannot see a claim do not see its sentence. |
+| Markdown document | `heading`, `paragraph`, `list`, `quote`, `callout`, `table`, `code`, `math`, `divider` | Text is a list of `Sentence`s, each with `claim_ids`. The compiler writes prose only from claims the page's whole audience can read or that were released to it; where leaving one out changes the meaning, a block carries a note instead of a silent gap (see [Permissions in compiled knowledge](design/compiled-knowledge-permissions.md)). |
 | Images and SVG | `image` | A blob reference with alt text and a caption. No inline scripts. |
 | Mermaid and other diagrams | `diagram` | `DiagramSpec` in `mermaid`, `echarts` or `graph` format. A `DiagramCompiler` plugin builds it from structure (an SOP, an entity neighbourhood, a timeline); the model may pick what to show but never draws edges itself. |
 | Charts | `chart` | `ChartSpec` with a `DataRef`. Data comes inline, from claims (fixed or by query, refreshed on rebuild, on a schedule or on view) or from a registered query of a connected system. Rows keep their claim IDs, so rows a reader may not see are dropped before rendering. |
