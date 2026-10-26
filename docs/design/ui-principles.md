@@ -7,8 +7,8 @@ Status: adopted design, 2026-10-24. The screens are drawn on the product owner's
 | Role | What they do |
 | --- | --- |
 | Member | A person in a company. Reads knowledge pages, asks, comments, and keeps their own material in My space. Most members are readers, most of the time |
-| Space, topic, page or procedure owner | Named for a space, topic, page or procedure. Approves what is published there, keeps its statements current, confirms where they belong and decides its conflicts. A space owner also takes over topics without an owner, works backlogs in bulk and decides a vote that splits or runs late |
-| Super admin | Runs the company: members, spaces and who can read them, connections to source apps, policies, audit and usage. Never sees into My space, or what anyone asked or read |
+| Space, topic, page or procedure owner | Named for a space, topic, page or procedure. Approves what is published there, keeps its statements current, confirms where they belong, decides its conflicts and releases statements to wider audiences. A space owner also decides who can read the space and its governance levels, takes over topics without an owner, works backlogs in bulk and decides a vote that splits or runs late |
+| Super admin | Runs the company: members, connections to source apps, company settings, audit and usage. Creates spaces and names their owners, but never decides what knowledge says. Never sees into My space, or what anyone asked or read |
 | Someone working alone | Has a personal library and never sees companies, spaces, members or publishing |
 
 These are the only roles the UI shows. Permissions are finer inside the product, so a role can be split later without changing these screens much.
@@ -16,7 +16,7 @@ These are the only roles the UI shows. Permissions are finer inside the product,
 The places these people work in:
 
 - A **company** is the shared area of a business or a team, for example Hengyuan Machinery.
-- A **space** is an area of a company, such as Procurement. Its owner and the super admin decide who can read it.
+- A **space** is an area of a company, such as Procurement. Its owner decides who can read it; the super admin can only narrow that in a security incident.
 - **My space** is a member's private area inside a company. Nobody else can see into it, the super admin included.
 - The **personal library** is what someone has before they work with anyone else. Inviting someone or creating a company turns on the company switcher and My space.
 
@@ -24,7 +24,7 @@ The places these people work in:
 
 1. **Reading first, governance on demand.** A page opens as a clean document. Owners, votes and rules appear only when someone asks or acts. The knowledge model itself (statements, counts, lineage) is never part of the reading surface; owners see it in the Trace view.
 2. **Every statement shows where it came from and how fresh it is.** A citation is one click from the source passage, and status is always written in words (Fresh, Review due, Outdated, Disputed), never shown by colour alone.
-3. **Always show which space you are in and who can read it.** The space switcher sits in the header, and every space states who can read it, as set by its owner or the super admin, with a count such as "All 18 Procurement members".
+3. **Always show which space you are in and who can read it.** The space switcher sits in the header, and every space states who can read it, as set by its owner, with a count such as "All 18 Procurement members".
 4. **The assistant proposes, people decide.** The assistant drafts options, raises conflicts and answers questions, but a named person votes, approves or publishes.
 5. **Never hand over credentials, and make widening visible.** A personal connection stays personal. Publishing shows who will be able to read, and warns without blocking when some readers cannot open the original.
 6. **A conflict always has an owner, a deadline, an approval mode, someone who decides when the deadline passes, and a record.** Meanwhile readers see the last verified value marked Disputed, unless the owners choose otherwise.
@@ -81,10 +81,10 @@ The look is "ink and paper": a warm paper ground, serif type for reading, one in
 | Trace view, page | The page's statements grouped by page section, with lineage from source to passage to statement to page | Owners |
 | Trace view, topic overview | Fact slots first, then the pages that use them, then everything else folded by source document with counts; an inspector with topic status, owner, this week's todos and CLI lines | Owners |
 | Sources | The Sources tree with each folder's governance level, which the space owner can change | Space owners |
-| Publish to a space | The items to publish, the target space and who can read it (set by its owner or the super admin), one freshness question per source, checks, the "Some readers can't open the original" warning, approver and request state | Members publishing from My space |
+| Publish to a space | The items to publish, the target space and who can read it (set by its owner), one freshness question per source, checks, the "Some readers can't open the original" warning, approver and request state | Members publishing from My space |
 | Admin: spaces and publishing | Spaces with who can read them, sensitivity label and owner; the publish queue; "Source permissions tightened" todos; usage per member | Super admin |
 | Admin: connections | Company connections to source apps; the consent screen for connecting a personal account | Super admin, members |
-| Space settings | Owner, who can read it, default governance level, content language | Super admin, space owner |
+| Space settings | Owner, who can read it, default governance level, content language | Space owner; the super admin creates spaces and names their owners |
 | Phone | Reading, joint approval and the inbox | Everyone |
 
 ## How knowledge appears
@@ -97,7 +97,7 @@ Behind the page, knowledge has layers:
 - **Passages** are the spans the engine cuts out of a source. Every later layer points back to them.
 - **Statements** are the smallest governed unit: one fact with its status, owner, effective date and the passages behind it. Reviews, disputes and rules act on statements. Statements about the same fact share a fact slot.
 - **Knowledge forms** are built only from statements: knowledge pages, procedures, and cards for things such as a city, a supplier or a role. One statement can appear in several forms, so it is governed once.
-- **The Knowledge tree** files everything under topics. Each topic has an owner, falling back to the space owner and then to the super admin. A new source is filed into a topic when its owner confirms the assistant's suggestion.
+- **The Knowledge tree** files everything under topics. Each topic has an owner, falling back to the space owner; every space always has one. A new source is filed into a topic when its owner confirms the assistant's suggestion.
 
 Each source also has a governance level: Governed sources are fully extracted and reviewed, Reference sources are extracted only when used, and Search-only sources are only searched. [Statements at scale](statements-at-scale.md) describes the levels and the measured volumes.
 
@@ -107,7 +107,7 @@ Statuses map from the engine's freshness states. Fresh and aging show nothing. S
 
 ## Permissions in the UI
 
-- **Who can read follows the space, never the source.** Screens show a space's audience as set by its owner or the super admin, and never a count derived from source permissions.
+- **Who can read follows the space, never the source.** Screens show a space's audience as set by its owner, and never a count derived from source permissions.
 - **My space is private.** A member's own material stays private until they publish it. The super admin cannot open it.
 - **Publishing moves knowledge into a space.** For each source, the publish screen asks one question: how it stays fresh. The choices are to keep it fresh with the company connection (the default), to keep it fresh with my connection (with the member's consent), or to publish a snapshot with a review date. A file without a live connection can only be a snapshot.
 - **Source permissions only warn.** "Some readers can't open the original" appears in the publish screen and never blocks. After publishing, the space owner gets a "Source permissions tightened" todo when a source's own permissions narrow, with the choices to keep the knowledge visible, hide it, or see which items are affected.
@@ -155,7 +155,7 @@ The Chinese terms are adopted. The Japanese terms are proposed and wait for the 
 | Trace view | 追溯 | 追跡 | Owners only |
 | Governed, Reference, Search only | 严格, 宽松, 仅检索 | 規程, 参考, 検索のみ | Governance levels |
 | Fresh, Review due, Outdated, Disputed | 有效, 待复核, 已过时, 有争议 | 有効, 要確認, 旧版, 異論あり | Only Outdated and Disputed show inline |
-| Space owner, Topic owner, Page owner, Procedure owner; Super admin | 空间负责人、主题负责人、页面负责人、流程负责人；超级管理员 | スペース担当者、トピック担当者、ページ担当者、手順担当者；特権管理者 | With Member, the only roles the UI shows. An owner is always named with its scope, never a bare "Owner" (负责人, 担当者) |
+| Space owner, Topic owner, Page owner, Procedure owner; Super admin | 空间维护人、主题维护人、页面维护人、流程维护人；超级管理员 | スペース担当者、トピック担当者、ページ担当者、手順担当者；特権管理者 | With Member, the only roles the UI shows. An owner is always named with its scope, never a bare "Owner" (维护人, 担当者). The Chinese 维护人 is proposed (2026-10-26) in place of 负责人 |
 | Rule | 裁决规则 | 裁定ルール | Made from a decision with "Make this a rule" |
 | Any one, Everyone (joint approval) | 或签, 会签 | いずれか承認, 全員承認 | Approval modes |
 | Who can read this | 可见范围 | 公開範囲 | Always with a count |
@@ -179,6 +179,7 @@ Adopted on 2026-10-23 and 2026-10-24:
 Adopted on 2026-10-26:
 
 - Three roles in the UI: member, owner and super admin. An owner is always named with its scope (space owner, topic owner, page owner, procedure owner), because a bare "owner" is ambiguous.
+- Proposed later the same day, waiting for the product owner: the super admin runs the company and owners run knowledge (the super admin creates spaces and names their owners but never decides what knowledge says or who reads a space), and the Chinese name for owners becomes 维护人 instead of 负责人. See section 4 of the [overview](../overview.md).
 - In Chinese, a company is 企业 and the governance levels are 严格, 宽松 and 仅检索. English says Company and Japanese 企業, to match.
 
 ## Still open
