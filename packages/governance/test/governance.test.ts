@@ -245,6 +245,29 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect(await world.requests()).toHaveLength(1);
     });
 
+    test("between equally authoritative statements, the value more governed statements state leads", async ({
+      world,
+    }) => {
+      // The policy states its article and, in passing, another number for the same slot; a
+      // governed copy repeats the article. Claim IDs are random here, so six slots would catch
+      // a tie left to them.
+      const slots = Array.from({ length: 6 }, (_, k) => `hotel_cap_per_night|city ${k + 1}`);
+      await world.state(
+        POLICY,
+        slots.flatMap((slot, k) => [
+          { slot, text: `Article ${k + 1} The hotel cap is 600 yuan a night.`, value: 600 },
+          { slot, text: `Objections to article ${k + 1} are heard within 650 hours.`, value: 650 },
+        ]),
+      );
+      await world.state(
+        { ...POLICY, title: "Travel policy (forwarded)" },
+        slots.map((slot, k) => ({ slot, text: `Article ${k + 1} The hotel cap is 600 yuan a night.`, value: 600 })),
+      );
+      for (const slot of slots) {
+        expect((await world.governance.slot(TENANT, slot)).decision?.proposed.value, slot).toBe("600 CNY/night");
+      }
+    });
+
     test("plans and later dates do not override what is in force", async ({ world }) => {
       await world.state(POLICY, [{ text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 }]);
       await world.state({ title: "Budget proposal for 2027", authority: 0.5 }, [

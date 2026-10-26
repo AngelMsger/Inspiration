@@ -16,7 +16,8 @@
  *   whether as a fact or a plan, is a note against it, settled without a person, and a change
  *   a reference document states moves nothing. The case names that change, so the owner
  *   learns of it.
- * - The leader is the in-force group whose best member is the most authoritative.
+ * - The leader is the in-force group whose best member is the most authoritative; between
+ *   equally authoritative ones, the value more governed statements state.
  * - A change beats the leader when it took effect after the leader's own date, the later of
  *   its document's effective date and any change it states, and no later than today: a
  *   notice that the cap is 650 from October outranks the policy that says 600 from January
@@ -114,13 +115,33 @@ export const MAX_CHANGES = 32;
 const isLive = (m: Member) => !m.archived && m.claim_type !== "plan";
 const isGoverned = (m: Member) => isLive(m) && !m.reference;
 
+/** How a ranks against b, by everything but their IDs: positive when a ranks above b, 0 on a tie. */
+function rank(a: Member, b: Member): number {
+  if (isLive(a) !== isLive(b)) return isLive(a) ? 1 : -1;
+  if (isGoverned(a) !== isGoverned(b)) return isGoverned(a) ? 1 : -1;
+  if (a.authority !== b.authority) return a.authority > b.authority ? 1 : -1;
+  if (a.weight !== b.weight) return a.weight > b.weight ? 1 : -1;
+  return 0;
+}
+
 /** True when a ranks above b as the representative of a group. */
 function outranks(a: Member, b: Member): boolean {
-  if (isLive(a) !== isLive(b)) return isLive(a);
-  if (isGoverned(a) !== isGoverned(b)) return isGoverned(a);
-  if (a.authority !== b.authority) return a.authority > b.authority;
-  if (a.weight !== b.weight) return a.weight > b.weight;
-  return a.claim_id < b.claim_id;
+  const r = rank(a, b);
+  return r ? r > 0 : a.claim_id < b.claim_id;
+}
+
+/**
+ * True when group a leads b: its best member outranks b's, or the two tie and more governed
+ * statements state a's value. Without the count a tie would fall to the claim IDs, and a
+ * side remark in a policy ("objections within 5 working days") could outrank the article
+ * the policy and its copies state.
+ */
+function leads(a: ValueGroup, b: ValueGroup): boolean {
+  const r = rank(a.best, b.best);
+  if (r) return r > 0;
+  if (governedIn(a) !== governedIn(b)) return governedIn(a) > governedIn(b);
+  if (a.live !== b.live) return a.live > b.live;
+  return a.best.claim_id < b.best.claim_id;
 }
 
 /**
@@ -243,7 +264,7 @@ export function decide(groups: readonly ValueGroup[], today: string): SlotDecisi
   const governedSlot = groups.some((g) => governedIn(g) > 0);
   const current = groups.filter((g) => inForce(g, today, governedSlot));
   const pool = current.length ? current : groups;
-  const leader = pool.reduce((a, b) => (outranks(b.best, a.best) ? b : a));
+  const leader = pool.reduce((a, b) => (leads(b, a) ? b : a));
   const baseline = since(leader, today, governedSlot);
   // The latest change in effect after the leader's own date; on a tie, the better source.
   let changed: { group: ValueGroup; change: Member } | undefined;
