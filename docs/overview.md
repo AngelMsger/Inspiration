@@ -495,7 +495,7 @@ entry moves to the business layer.
 | Control | model-gateway | Every model call: routing by sensitivity, budgets, prompts, cache, metering; library and HTTP service | Built |
 | Control | agent-runtime | The loop built-in agents run on: tools, limits, approval gates, traces | Built |
 | Control | credential-broker | Connections owned by the tenant or a member, encrypted secrets, refresh, short-lived leases | Designed |
-| Control | sandbox | One isolated container per job for vendor CLIs, agent tools and view render checks | Designed |
+| Control | sandbox | One isolated container per job for code we did not write: vendor CLIs and MCP servers, and view render checks | Designed |
 
 The business layer is one TypeScript service with its own database schema, plus the web app. It
 shares the contracts, eventbus and testkit libraries with the engine.
@@ -699,10 +699,25 @@ provisions.
 
 ### Connectors, credentials and sandboxes
 
-- **Sync uses each vendor's API in process,** through its SDK, because sync needs webhooks, ACL
-  reads, rate budgets and stable block IDs. Vendor CLIs (such as lark-cli) run only in the sandbox:
-  as agent tools from the pilot on, and as a connector transport only for a source with no usable
-  API.
+- **One integration per vendor serves both sync and agent tools.** Sync and agent tools face the
+  same problems: whose identity a call uses, keeping tenants and members apart, token refresh,
+  rate limits, consent, revocation and audit. So each vendor (Feishu first) has one integration in
+  the connectors component: a typed client over the vendor's API, through its SDK, with one scope
+  set and one rate budget per connection. Sync uses it to follow changes (webhooks, cursors, ACL
+  reads, stable block IDs); agent tools, registered as `agent_tools` plugins, use the same client to
+  search, read and propose. Both get credentials only as leases from the credential broker and
+  write one audit trail, and revoking a connection stops both at once. Interactive tool calls keep
+  a reserved share of the rate budget, so a large sync never starves them.
+- **The same identity rules for both.** Sync acts with the connection its publish chose (the
+  company's or a member's). An agent tool always acts as the member it works for, with that
+  member's own connection; a company connection is never leased to an agent run.
+- **Different trust, different execution.** Sync is our own deterministic code and runs in process.
+  A tool call is chosen by a model, from content that may be hostile, so it passes the agent
+  runtime's gate: operations allowed by the agent's spec, validated arguments, read or propose
+  only, and an audit record per call. Code we did not write runs only in the sandbox: a vendor CLI
+  (such as lark-cli) or a vendor MCP server, used only for a vendor without a usable API. It gets
+  a short-lived access token and never refreshes tokens itself, because Feishu refresh tokens are
+  single-use and a second refresher would break the connection.
 - **The credential broker owns every connection and its secrets.** A connection belongs to the
   tenant (the company's app, for team spaces) or to a member (their own sign-in). Secrets are
   envelope-encrypted with a per-tenant data key; the key-encryption key is a deployment key in the
@@ -714,7 +729,7 @@ provisions.
 - **The sandbox runs one container per job:** read-only root, no volumes, egress through an
   allow-list proxy, never shared across tenants, nothing kept between jobs. Docker with gVisor in
   the prototype, Kata Containers or Firecracker in the product. Its three profiles are connector
-  CLIs, agent tools and the view render check.
+  CLIs, vendor tools for agents (CLIs and MCP servers) and the view render check.
 
 ### Pages and views
 
@@ -952,6 +967,7 @@ time depends more on review and integration than on these person-week figures.
 | 2026-10-26 | Source changes: knowledge never disappears silently; a deleted source is kept and marked until its owner decides; a large change is reviewed once, as a whole |
 | 2026-10-26 | Knowledge is language-neutral and language is only how it is expressed: one unit per piece of knowledge in every language, translations count with their originals, quotes stay verbatim, readers read in their own language |
 | 2026-10-26 | Engine and business layer in one monorepo, a folder per layer (`libs/`, `engine/`, `business/`, `apps/`); boundaries between engine modules and business levels are enforced by the manifest test; the two layers still deploy separately |
+| 2026-10-26 | One integration per vendor serves both sync and agent tools: one client, credentials only as broker leases, one rate budget and one audit trail; tools act as the member; only code we did not write runs in the sandbox |
 
 ## Open questions for the next discussion
 

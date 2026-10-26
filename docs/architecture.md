@@ -80,7 +80,7 @@ One repository makes boundaries a matter of checks rather than of repository wal
 | Compile | extraction, freshness, governance, page-compiler | Claims with evidence, staleness and dirty propagation, conflicts, cited pages and diagrams |
 | Store | knowledge-store | The only owner of knowledge tables: lineage, bitemporal reads, page snapshots, search indexes |
 | Serve | retrieval, agent-api, views | Hybrid search and grounded answers, MCP and REST for agents, sandboxed interactive views |
-| Control | collaboration, access-control, model-gateway, agent-runtime, credential-broker, sandbox | The inbox, comments and proposals, permissions, every model call, the loop built-in agents run on, source connections and their credentials, isolated jobs for vendor CLIs, agent tools and render checks |
+| Control | collaboration, access-control, model-gateway, agent-runtime, credential-broker, sandbox | The inbox, comments and proposals, permissions, every model call, the loop built-in agents run on, source connections and their credentials, isolated jobs for code we did not write (vendor CLIs and MCP servers) and render checks |
 
 Shared libraries sit under all of them: **contracts** (types, validators, the event
 catalogue, component interfaces), **kernel** (settings, logging, plugins, migrations, blob

@@ -60,7 +60,7 @@ apps/<name>       组装根：现在是引擎进程和 CLI；以后加上业务�
 | 编译 | extraction、freshness、governance、page-compiler | 带证据的陈述、过期与脏标记传播、冲突、带引用的页面和图表 |
 | 存储 | knowledge-store | 知识表的唯一所有者：血缘、双时态读取、页面快照、搜索索引 |
 | 服务 | retrieval、agent-api、views | 混合检索与有依据的回答、面向 Agent 的 MCP 和 REST、沙箱中的交互视图 |
-| 控制 | collaboration、access-control、model-gateway、agent-runtime、credential-broker、sandbox | 待办箱、评论与提议、权限、每一次模型调用、内置 Agent 运行的循环、来源连接及其凭据、为厂商 CLI、Agent 工具和渲染检查提供的隔离作业 |
+| 控制 | collaboration、access-control、model-gateway、agent-runtime、credential-broker、sandbox | 待办箱、评论与提议、权限、每一次模型调用、内置 Agent 运行的循环、来源连接及其凭据、为不是我们写的代码（厂商 CLI 和 MCP 服务器）和渲染检查提供的隔离作业 |
 
 共享库位于所有组件之下：**contracts**（类型、校验器、事件目录、组件接口）、**kernel**（设置、日志、插件、
 迁移、Blob 存储、数据库连接池）、**eventbus**（发件箱、中继、消费者）和 **testkit**（面向 compose 栈的测试夹具）。
