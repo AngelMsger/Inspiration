@@ -394,15 +394,15 @@ The UI says "workspace" for a tenant, "member" for a member and "account" for a 
 
 | Concept | UI term | 中文 | 日本語 (draft) | Note |
 | --- | --- | --- | --- | --- |
-| Tenant | Workspace | 工作区 | ワークスペース | Never shown for a personal tenant: a solo user sees only their library until they invite someone or create a team workspace |
+| Tenant | Workspace | 企业 | ワークスペース | Never shown for a personal tenant: a solo user sees only their library until they invite someone or create a team workspace |
 | Personal tenant | Personal library | 我的知识库 (in the switcher: 个人知识库) | マイライブラリ (in the switcher: 個人ライブラリ) | A solo user sees no workspace words at all |
 | Member | Member | 成员 | メンバー |  |
 | Personal space in a workspace | My space | 我的空间 | マイスペース | Private to the member. Admins cannot see into it |
 | Team or org space | Space | 空间 | スペース |  |
 | Claim | Statement | 陈述 | 記述 | "Claim" stays an engine word |
-| Tenant connection | Workspace connection | 工作区连接 | ワークスペースの接続 |  |
+| Tenant connection | Workspace connection | 企业连接 | ワークスペースの接続 |  |
 | Member connection | Personal connection | 个人连接 | 個人の接続 |  |
-| Freshness by tenant connection | Keep fresh with the workspace connection | 通过工作区连接保持更新 | ワークスペースの接続で最新に保つ | Default when one exists |
+| Freshness by tenant connection | Keep fresh with the workspace connection | 通过企业连接保持更新 | ワークスペースの接続で最新に保つ | Default when one exists |
 | Freshness by member connection | Keep fresh with my connection | 通过我的连接保持更新 | 自分の接続で最新に保つ | Needs the publisher's consent |
 | Snapshot | Publish a snapshot | 发布快照 | スナップショットを公開 | Needs a review date |
 | Space audience | Who can read this | 可见范围 | 公開範囲 | Set by admins and stewards |

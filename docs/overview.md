@@ -300,10 +300,10 @@ Japanese column is proposed and waits for review.
 | English | Chinese | Japanese |
 | --- | --- | --- |
 | Personal library | 我的知识库 (个人知识库 in the switcher) | マイライブラリ (個人ライブラリ in the switcher) |
-| Workspace | 工作区 | ワークスペース |
+| Workspace | 企业 | ワークスペース |
 | Space, My space | 空间, 我的空间 | スペース, マイスペース |
 | Member | 成员 | メンバー |
-| Workspace connection, Personal connection | 工作区连接, 个人连接 | ワークスペースの接続, 個人の接続 |
+| Workspace connection, Personal connection | 企业连接, 个人连接 | ワークスペースの接続, 個人の接続 |
 | Source, Passage, Statement | 来源, 段落, 陈述 | ソース, 段落, 記述 |
 | Topic, Knowledge page, Procedure, Card | 主题, 知识页, 流程, 卡片 | トピック, ナレッジページ, 手順, カード |
 | Knowledge tree, Sources tree | 知识树, 来源树 | ナレッジツリー, ソースツリー |
@@ -314,7 +314,7 @@ Japanese column is proposed and waits for review.
 | Any one, Everyone (approval modes) | 或签, 会签 | いずれか承認, 全員承認 |
 | Who can read this | 可见范围 | 公開範囲 |
 | Inbox, Assistant | 待办, 助手 | 受信トレイ, アシスタント |
-| Keep fresh with the workspace connection, Keep fresh with my connection, Publish a snapshot | 通过工作区连接保持更新, 通过我的连接保持更新, 发布快照 | ワークスペースの接続で最新に保つ, 自分の接続で最新に保つ, スナップショットを公開 |
+| Keep fresh with the workspace connection, Keep fresh with my connection, Publish a snapshot | 通过企业连接保持更新, 通过我的连接保持更新, 发布快照 | ワークスペースの接続で最新に保つ, 自分の接続で最新に保つ, スナップショットを公開 |
 | Some readers can't open the original | 部分读者无法打开原文 | 一部の閲覧者は原文を開けません |
 | Source permissions tightened | 来源权限收紧 | ソースの権限が縮小されました |
 | Governed, Reference, Search only | 制度, 参考, 仅检索 | 規程, 参考, 検索のみ |
