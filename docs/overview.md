@@ -651,15 +651,19 @@ provisions.
   who can read either sees the statement. A margin computed from a price in Sales and a cost in
   Finance needs both: a reader who could see the margin and the price but not the cost could work
   the cost out, so the margin is shown only to readers who can read both.
-- **Crossing audiences takes an approval.** A derivation whose inputs sit in spaces with different
-  audiences is seen only by readers who can read every input. To show it to the whole audience of
-  its space, the owners of the input spaces that audience cannot read approve a publish request
-  for it. If one of those spaces later narrows its audience, its owner gets a todo to keep or
-  withdraw the approval.
+- **Crossing audiences takes an approval.** Knowledge often rests on another department's space:
+  a step in a Sales quoting procedure comes from Finance's discount policy, a travel guide for
+  everyone combines HR's grades with Finance's hotel caps, a margin is computed from a Sales price
+  and a Finance cost. Such a result is seen only by readers who can read every space it rests on.
+  To show it to the whole audience of its own space, the owners of the spaces that audience cannot
+  read approve a publish request for it, once, without opening the rest of their space. If one of
+  those spaces later narrows its audience, its owner gets a todo to keep or withdraw the approval.
 - **Citations across spaces.** A citation into another space is shown only if the reader can read
-  that space; otherwise it shows as restricted. A statement with no readable proof is hidden, and
-  so is everything built from it: a proposed value, a conflict variant, a page sentence, an answer.
-  The readable-space set is looked up once per request and memoized.
+  that space; otherwise it is left out, with no marker. A statement with no readable proof is
+  hidden, and so is everything built from it: a proposed value, a conflict variant, a page
+  sentence, an answer. A company with a single shared space never meets these rules; they start
+  to matter when a department such as Finance or HR narrows who can read its space. The
+  readable-space set is looked up once per request and memoized.
 - **No existence leaks.** Hidden citations, counts and graph edges are dropped, never shown as "3
   hidden". Shared answer caches are keyed by readable spaces and clearance, an entry is dropped
   when a unit it used changes label, proof or grant, and an answer that used a unit readable only
