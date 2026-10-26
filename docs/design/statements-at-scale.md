@@ -19,7 +19,7 @@ Together they make an owner's work grow with topics and source changes rather th
 | Term | Meaning | Contract |
 | --- | --- | --- |
 | Company | The shared area of a business or a team, for example Hengyuan Machinery | Tenant |
-| Space | An area of a company, such as Finance or Procurement. Its owner and the super admin set who can read it | Space |
+| Space | An area of a company, such as Finance or Procurement. Its owner sets who can read it | Space |
 | Member | A person in a company | Principal |
 | Source | A document as written in its own app: a Feishu wiki page, a spreadsheet, an upload. It is kept as is | Source, SourceRef |
 | Passage | A span of a source that the engine cuts out. Every later layer points back to passages | Span |
