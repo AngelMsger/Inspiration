@@ -112,9 +112,9 @@
 
 - `TodoKind` 新增 `source_deleted` 和 `change_set`。
 - 新增 `ChangeSet { id, tenant_id, cause { kind: sync | folder_deleted | folder_moved | connection_lost | new_version | level_changed | first_connection | rebuild, source_id?, correlation_id }, counts { by_kind, by_topic }, todo_ids, assignee_id, status: open | decided | split, decision_id? }`。
-- `SourceVersion` 新增可选的 `deletion_reason: deleted | no_access | moved` 和 `moved_to?: DocumentId`；只有通过权限检查的移动才记为 `moved`。
-- `source_deleted` 的决定方案：`keep_snapshot`、`replace`（带文档 ID）和 `retire`。没通过权限检查的 `replace` 会发起一次发布申请，而不是直接迁移人的工作。
-- `WorkspacePolicy` 新增 `sources { source_deleted: keep | hide }`。
+- `SourceVersion` 新增可选的 `deletion_reason: deleted | no_access | moved` 和 `moved_to?: SourceRef`；只有通过权限检查的移动才记为 `moved`。
+- `source_deleted` 的决定方案：`keep_snapshot`、`replace`（带一个 `SourceRef`）和 `retire`。没通过权限检查的 `replace` 会发起一次发布申请，而不是直接迁移人的工作。
+- `TenantPolicy` 新增 `sources { source_deleted: keep | hide }`。
 - `ConflictCase` 新增 `support[] { value_key, documents, by_authority }`。
 
 ## 引擎工作量

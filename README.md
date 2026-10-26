@@ -5,9 +5,11 @@ living knowledge base. It extracts claims with exact evidence, keeps them fresh 
 change, compiles them into cited pages, SOPs and interactive views, and serves them to
 people and to agents with the reader's own permissions.
 
-This repository holds the engine: ingestion, the knowledge pipeline, storage, permissions,
-model access and the agent API. The business layer (identity, tenants and accounts,
-publishing policy) and the UI are built separately and use the engine's APIs and events.
+This repository holds the whole product as one monorepo. The engine (ingestion, the knowledge
+pipeline, storage, permissions, model access and the agent API) is built; the business layer
+(identity, tenants and accounts, publishing policy) and the web app come next, in their own
+folder, and use the engine only through its APIs and events. Checks keep each layer and each
+component inside its boundaries (see [Architecture](docs/architecture.md)).
 
 ## Status
 
@@ -92,6 +94,9 @@ docs/zh/                  Chinese copies of the overview and design docs
 test/                     repo-wide checks (the component manifest)
 ```
 
+Business components will live in `business/`, next to `engine/` and `libs/` (see
+[Architecture](docs/architecture.md#one-repository-a-folder-per-layer)).
+
 ## Documentation
 
 Start with the [overview](docs/overview.md) ([中文](docs/zh/overview.md)): the product and
@@ -101,9 +106,13 @@ technical design in one document, with what is built and what is planned.
   [Statements at scale](docs/design/statements-at-scale.md): the adopted UI and review design.
 - [Business layer](docs/design/business-layer.md) and
   [Business layer and engine contract](docs/design/business-engine-contract.md): accounts,
-  workspaces, publishing and approvals above the engine, and the contract between the two.
+  companies, publishing and approvals above the engine, and the contract between the two.
 - [Source changes](docs/design/source-changes.md): what happens when a source corrects itself,
   is deleted or changes at scale, and when a person is asked.
+- [Knowledge and language](docs/design/knowledge-and-language.md): knowledge is language-neutral;
+  translations, cross-language merge and pages in another language.
+- [Permissions in compiled knowledge](docs/design/compiled-knowledge-permissions.md): how pages,
+  procedures and answers use material that part of their audience cannot read.
 - [Architecture](docs/architecture.md): engine and business layer, components, how they
   talk, storage, security.
 - [Contracts](docs/contracts.md): changing schemas, code generation, IDs, events,

@@ -4,7 +4,7 @@ Status: adopted design, 2026-10-24. The measurements come from the mocked protot
 
 ## The problem
 
-The engine turns sources into statements. A statement is one fact, with its status, its owner, the date it takes effect and the passages it was taken from. Extraction produces a great many of them: extracting every passage of every source in a synthetic workspace of 10,000 documents yields about 137,800 statements. As one flat list per space, that volume can be neither browsed nor maintained, and if every statement carried its own review, the people who keep knowledge current would drown in work.
+The engine turns sources into statements. A statement is one fact, with its status, its owner, the date it takes effect and the passages it was taken from. Extraction produces a great many of them: extracting every passage of every source in a synthetic company of 10,000 documents yields about 137,800 statements. As one flat list per space, that volume can be neither browsed nor maintained, and if every statement carried its own review, the people who keep knowledge current would drown in work.
 
 The design has three parts:
 
@@ -18,15 +18,15 @@ Together they make an owner's work grow with topics and source changes rather th
 
 | Term | Meaning | Contract |
 | --- | --- | --- |
-| Workspace | A company's shared area, for example Hengyuan Machinery | Tenant |
-| Space | An area of a workspace, such as Finance or Procurement. Its owner and the super admin set who can read it | Space |
-| Member | A person in a workspace | Principal |
+| Company | The shared area of a business or a team, for example Hengyuan Machinery | Tenant |
+| Space | An area of a company, such as Finance or Procurement. Its owner and the super admin set who can read it | Space |
+| Member | A person in a company | Principal |
 | Source | A document as written in its own app: a Feishu wiki page, a spreadsheet, an upload. It is kept as is | Source, SourceRef |
 | Passage | A span of a source that the engine cuts out. Every later layer points back to passages | Span |
 | Statement | The smallest governed unit: one fact with its status, owner, effective date and passages | Claim |
 | Topic | A node of a space's knowledge outline, at most three levels deep (area, topic, subtopic) | TaxonomyNode |
 | Knowledge page, procedure, card | The forms readers see. They are written from statements; a card describes one thing, such as a city, a supplier or a role | PageSpec, Sop |
-| Owner | The member who answers for a topic's statements: confirms where they belong, reviews them and decides conflicts. The UI shows it by scope, as topic owner | TaxonomyNode.owner_id |
+| Topic owner | The member who answers for a topic's statements: confirms where they belong, reviews them and decides conflicts. Never a bare "owner" in the UI | TaxonomyNode.owner_id |
 | Space owner | The owner of a whole space, who takes over topics without an owner | Space role `owner` |
 | Todo | A piece of work for a person, shown on a card in the inbox | Todo |
 
@@ -68,7 +68,7 @@ A person sees work in the units they think in: a document that changed, a topic 
 - **Copies ride with their conflict.** Documents that repeat a disputed value are reviewed inside that slot's conflict todo ("used in 5 places, all update together after the decision"), not as separate items.
 - **Notes stay out of the budget.** When only reference documents state a different value, the owner gets a note (`TodoKind` `note`) on a weekly notes card. A note asks for no decision and is acknowledged in one action; its title and detail name the reference document, its date, the slot and both values.
 - **Work withdraws itself.** A conflict or a note whose reason goes away, for example because the reference document was corrected, is withdrawn without anyone acting.
-- **Day one is a campaign.** Reviews that are already due when a workspace first connects its sources go to first-review campaign cards per space and topic, at most 20 todos each, for the space owner to work through in compact mode. Owners' inboxes start at the normal weekly pace.
+- **Day one is a campaign.** Reviews that are already due when a company first connects its sources go to first-review campaign cards per space and topic, at most 20 todos each, for the space owner to work through in compact mode. Owners' inboxes start at the normal weekly pace.
 
 What readers see of all this is deliberately little. Fresh and aging knowledge shows nothing. Stale and at-risk statements show Review due only in the citation popover and the Trace view. The only marks inline in text are Outdated and Disputed.
 
@@ -80,7 +80,7 @@ What readers see of all this is deliberately little. Fresh and aging knowledge s
 
 ## Measured on the prototype
 
-The setup is a synthetic workspace of 10,000 documents: 1,366 governed (14%), 5,530 reference and 3,104 search only. The model is a deterministic mock and the embeddings are fake, so the numbers measure volume, not quality.
+The setup is a synthetic company of 10,000 documents: 1,366 governed (14%), 5,530 reference and 3,104 search only. The model is a deterministic mock and the embeddings are fake, so the numbers measure volume, not quality.
 
 **Ingest.** Sync takes 71 s and normalization 240 s, producing 161,000 blocks and 205,000 passages. A typical document has 16 blocks (p90 22). Block IDs stay stable across versions, and every new version comes with a diff. Editions of one policy match at 0.83 to 0.93 similarity, enough to chain versions into one slot history.
 
@@ -123,7 +123,7 @@ All adopted on 2026-10-24:
 
 ## Still open
 
-- **Topic splits need real embeddings.** The synthetic workspace restates the same 30 subjects across many department guides, and fake embeddings cannot tell those sections apart, so topics grow with the corpus instead of splitting. Automatic splits can be judged only with real embeddings.
+- **Topic splits need real embeddings.** The synthetic company restates the same 30 subjects across many department guides, and fake embeddings cannot tell those sections apart, so topics grow with the corpus instead of splitting. Automatic splits can be judged only with real embeddings.
 - **Ranking by use and risk.** The design ranks todos by how much a statement is used (cited by pages, procedures or cards, or used in recent answers), by risk class (pricing, policy) and by extraction confidence. The prototype ranks by priority and age today.
-- **Load with real owners.** The synthetic owners are assigned at random, so per-owner load needs a real workspace to confirm.
+- **Load with real owners.** The synthetic owners are assigned at random, so per-owner load needs a real company to confirm.
 - **Fact slots across languages.** The same fact stated in a Chinese policy and a Japanese memo should share one slot. Today a slot key keeps its qualifiers in the words of the source, so the normalization has to become language-independent. See Internationalisation in the [UI principles](ui-principles.md).

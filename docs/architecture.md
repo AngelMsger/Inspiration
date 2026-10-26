@@ -8,16 +8,16 @@ this page explains how the pieces fit. A Chinese copy is in
 
 ## Engine and business layer
 
-This repository is the **engine**: connectors, the knowledge pipeline, storage,
-permissions, model access and the agent API. It knows tenants, spaces and principals by ID
-and enforces every permission itself, but it has no accounts, sign-in, invitations or
-billing.
+The **engine** owns connectors, the knowledge pipeline, storage, permissions, model access
+and the agent API. It knows tenants, spaces and principals by ID and enforces every
+permission itself, but it has no accounts, sign-in, invitations or billing.
 
-The **business layer** (a separate system) owns people and tenants: the external identity
-provider, accounts that are members of many tenants, personal tenants, publishing policy and
-admin governance. It provisions the engine (members, groups, spaces, policy) through engine
+The **business layer** owns people and tenants: the external identity provider, accounts
+that are members of many tenants, personal tenants, publishing policy and admin governance. It provisions the engine (members, groups, spaces, policy) through engine
 commands and reacts to engine events. Calls go down, events come up: the engine never calls
-the business layer.
+the business layer. The design philosophy of the two layers, the test for where something
+goes, what neither may do, and how shared concerns are split are in the overview's
+[Two layers](overview.md#two-layers-the-engine-and-the-business-layer) section.
 
 There are three IDs: the tenant (`ten_`), the business layer's user, which is the account
 (`usr_`), and the member (`mem_`), which is one user inside one tenant. User IDs never reach
@@ -31,6 +31,47 @@ tokens, and agent runs.
 Engine APIs are tenant- and membership-aware and free of UI concerns, so the business layer,
 its web app and agents all use the same surface.
 
+## One repository, a folder per layer
+
+Both layers are built in this repository, as one pnpm workspace, and each has its own folder:
+
+```
+libs/<name>       shared libraries both layers use: contracts, kernel, eventbus, testkit
+engine/<name>     engine components, one package each
+business/<name>   business-layer components, one package each
+apps/<name>       composition roots: the engine process and CLI today; the business backend
+                  and the web app later
+```
+
+Package names stay `@inspiration/<name>`.
+
+One repository makes boundaries a matter of checks rather than of repository walls:
+
+- **Dependencies point one way.** Nothing in `engine/` or `libs/` depends on `business/`.
+  A business component reaches the engine only through the contracts (types, interfaces and
+  the engine's API client), never by importing an engine component, so the engine still runs
+  on its own and either side can be tested against a fake of the other.
+- **Within a layer, only what is declared.** A package depends on the libraries and on the
+  components in its `calls`, as today. The business layer has its own levels: business
+  components, the backend that wires them and serves the web app, and the web app, which talks
+  only to that backend.
+- **Apps wire, packages don't.** An app may wire components of both layers, for example a
+  single-process development server, and no package depends on an app.
+- **One manifest and one check.** Each section of [`components.yaml`](../components.yaml)
+  maps to one folder: `components` to `engine/`, `libraries` to `libs/`, `apps` to `apps/`,
+  and a `business` section to `business/` once the first business component exists. An
+  engine component's `layer` field keeps naming its stage (ingest, compile, store, serve,
+  control). `test/manifest.test.ts` fails a package that sits outside its section's folder,
+  and anything in `engine/` or `libs/` that depends on `business/`.
+- **One schema tree.** Business-only types live in their own folder of the contracts, which
+  engine packages never import.
+- **One toolchain, separate deployments.** One lockfile, one Biome, `tsc` and Vitest setup,
+  and one `make check`, so a contract change lands with both sides in one pull request. The
+  engine's APIs stay versioned all the same, because outside agents use them too. The engine and
+  the business backend still deploy as separate processes: the monorepo is about source, not
+  runtime. When separate teams own the layers, `CODEOWNERS` follows the folders and CI can run
+  only the packages a change affects.
+
 ## Layers and components
 
 | Layer | Components | Job |
@@ -39,7 +80,7 @@ its web app and agents all use the same surface.
 | Compile | extraction, freshness, governance, page-compiler | Claims with evidence, staleness and dirty propagation, conflicts, cited pages and diagrams |
 | Store | knowledge-store | The only owner of knowledge tables: lineage, bitemporal reads, page snapshots, search indexes |
 | Serve | retrieval, agent-api, views | Hybrid search and grounded answers, MCP and REST for agents, sandboxed interactive views |
-| Control | collaboration, access-control, model-gateway, agent-runtime, credential-broker, sandbox | The inbox, comments and proposals, permissions, every model call, the loop built-in agents run on, source connections and their credentials, isolated jobs for vendor CLIs, agent tools and render checks |
+| Control | collaboration, access-control, model-gateway, agent-runtime, credential-broker, sandbox | The inbox, comments and proposals, permissions, every model call, the loop built-in agents run on, source connections and their credentials, isolated jobs for code we did not write (vendor CLIs and MCP servers) and render checks |
 
 Shared libraries sit under all of them: **contracts** (types, validators, the event
 catalogue, component interfaces), **kernel** (settings, logging, plugins, migrations, blob

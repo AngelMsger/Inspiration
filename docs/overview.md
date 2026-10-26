@@ -21,7 +21,7 @@ Four things set it apart:
    changed, updates only the statements they support, and rebuilds only what cites them. Review
    dates come from what kind of knowledge it is.
 3. **Knowledge flows from personal to shared under one simple rule.** Each member's own space is
-   private. Publishing moves knowledge into the workspace, where the super admin and space owners decide who reads it.
+   private. Publishing moves knowledge into the company, where the super admin and space owners decide who reads it.
    Source permissions only raise warnings, so merged knowledge never needs per-source permission
    arithmetic.
 4. **People and agents govern together, in amounts a person can keep up with.** Agents detect,
@@ -30,10 +30,11 @@ Four things set it apart:
 
 **Who it is for.** Teams and companies whose knowledge lives across several tools (Feishu or
 Lark, Confluence, approval systems, file shares, PDFs), starting with one person's library and
-growing into team and enterprise workspaces. The strongest early uses are procedure and policy
+growing into teams and companies. The strongest early uses are procedure and policy
 governance across tools, and a governed knowledge endpoint for a company's own agents. It is sold
 as SaaS first, with private deployment as a second profile of the same code. English, Chinese and
-Japanese are supported from the first release.
+Japanese are supported from the first release, as one knowledge base: knowledge is language-neutral,
+and language is only how it is expressed.
 
 **Where it stands.** The engine runs end to end on a mocked model through seven stages: ingest,
 extraction, governance, freshness, governance levels, topics and the inbox, all merged on `main`.
@@ -47,7 +48,7 @@ them; the [glossary](#languages) lists those in all three languages.
 
 | Concept | What it is | Shown to people as |
 | --- | --- | --- |
-| Tenant | The unit of isolation, policy and billing. Nothing crosses from one tenant to another except an explicit transfer | Workspace (never shown for one person working alone) |
+| Tenant | The unit of isolation, policy and billing. Nothing crosses from one tenant to another except an explicit transfer | Company (never shown for one person working alone) |
 | User | A person's account. It exists only in the business layer | Account |
 | Member | A user inside one tenant. All activity in a tenant is done by a member, and the member is the only person the engine knows | Member |
 | Space | A container of knowledge with an audience. Each member has a private personal space in every tenant; every other space is shared and has an audience set by the super admin or the space's owner | My space; Space |
@@ -61,7 +62,7 @@ them; the [glossary](#languages) lists those in all three languages.
 | Topic and placement | Topics form the knowledge outline (area, topic, subtopic). A placement puts a statement under a topic; a statement without one is unfiled | Topic |
 | Page, procedure, card | The readable forms built from statements: knowledge pages, procedures (SOPs) and cards about one thing (a city, a supplier, a role) | Knowledge page, Procedure, Card |
 | Todo and note | A todo asks a person to decide or review something. A note tells an owner something without asking for a decision | Inbox |
-| Owner, super admin | An owner is named for a space, topic, page or procedure: they approve what is published there, keep it current and decide its conflicts, and the nearest owner above takes anything that has none. The super admin runs the workspace and is the last fallback | Owner, Super admin |
+| Owner, super admin | An owner is named for a space, topic, page or procedure: they approve what is published there, keep it current and decide its conflicts, and the nearest owner above takes anything that has none. The super admin runs the company and is the last fallback | Space owner, Topic owner, Page owner, Procedure owner (never a bare Owner); Super admin |
 
 ## Functional design
 
@@ -73,7 +74,7 @@ the knowledge machinery behind it.
 | Person | Main jobs | What they see |
 | --- | --- | --- |
 | Member | Read, ask, comment, publish from My space | Pages with small citation numbers. Only two marks appear in the text: Outdated and Disputed |
-| Owner | For a space, topic, page or procedure: approve publishing into it, keep it current, decide its conflicts | Their inbox, and the Trace view of statements, sources and lineage. A space owner also sees the space's backlog and first-review campaigns |
+| Space, topic, page or procedure owner | Approve publishing into their scope, keep it current, decide its conflicts | Their inbox, and the Trace view of statements, sources and lineage. A space owner also sees the space's backlog and first-review campaigns |
 | Super admin | Members, spaces and audiences, connections, policies, sensitivity labels, audit, agents, plan and usage | The admin console, with usage per member. Never anyone's My space, and never what anyone asked, read or researched |
 | Agent developer (a member) | Connect agents through MCP or REST | Connected apps, scopes and audit |
 
@@ -182,7 +183,7 @@ trees to browse it:
 - **Research is re-checked, not re-run.** When cited material changes or an assumption's date
   comes, only the affected conclusions are checked again. A new report version is written only if
   a conclusion changes.
-- **A new workspace starts with a backlog, not a flood.** Reviews already overdue on the first day
+- **A new company starts with a backlog, not a flood.** Reviews already overdue on the first day
   go to the space owner as a first-review campaign per topic, not into topic owners' inboxes.
 
 ### Governing: people decide, in amounts they can keep up with
@@ -217,27 +218,27 @@ trees to browse it:
   n), a deadline (5 working days across scopes by default) and a fallback decider when it passes:
   the space owner, or the super admin across spaces. While people decide,
   readers and agents get the last verified value marked Disputed (the default), both values, or
-  nothing, as the workspace chooses.
+  nothing, as the company chooses.
 - **Every decision is a record.** "Why this value?" shows who decided, when and on what. A decision
   can become a precedence rule ("for prices in Finance, the price list outranks wiki pages"), which
   governance then applies to new conflicts of the same kind and reports weekly.
 
 ### From personal to team: two domains and publishing
 
-- **Solo use shows no workspace.** Sign-up creates a personal library. Inviting someone, or turning
-  on collaboration, turns it into a team workspace; creating a team workspace starts a new one.
+- **Solo use shows no company.** Sign-up creates a personal library. Inviting someone, or turning
+  on collaboration, turns it into a company; creating a company starts a new one.
   Either way nothing is shared until it is published.
-- **My space is private.** In every workspace, each member has a My space for drafts, personal
+- **My space is private.** In every company, each member has a My space for drafts, personal
   connections and experiments. Nobody else can read it, the super admin included.
 - **Shared spaces are governed top down.** The super admin and space owners set who reads each shared space by
   space roles and sensitivity labels. The person who published something keeps access to it.
 - **Publishing moves knowledge; it does not copy it:**
   1. The member picks pages, procedures, sources or folders in My space and a target space.
-  2. For each source they choose how it stays fresh: with the workspace connection (the default),
+  2. For each source they choose how it stays fresh: with the company connection (the default),
      with their own connection (needs their consent; the super admin can turn it off), or as a
      snapshot with a review date.
   3. The engine checks the request: a sensitivity and personal-data scan, a preview of conflicts
-     with knowledge already published, what the workspace connection can and cannot reach, and
+     with knowledge already published, what the company connection can and cannot reach, and
      how many people in the audience cannot open the originals in the source system.
   4. The target topic's owner approves, or the space owner. Approvers can read the items in the
      request and nothing else in My space. The super admin sees the request but not the items.
@@ -247,16 +248,16 @@ trees to browse it:
   6. From then on the space's audience reads it. Source permissions play no part.
 - **Source permissions only warn.** At publishing they produce the "some readers can't open the
   original" warning, which never blocks. If a published document's permissions later tighten in
-  the source, the space owner gets a todo; workspace policy chooses notify (the default) or hide
+  the source, the space owner gets a todo; a company setting chooses notify (the default) or hide
   the affected knowledge until the space owner decides.
 - **Company data stays in the company.** A company verifies its email domain and its Feishu
-  organization. Policy then blocks personal connections to it outside the company workspace, or
+  organization. Policy then blocks personal connections to it outside the company, or
   requires approval.
-- **Leaving.** Published knowledge stays with the workspace and passes to the space owner. The
+- **Leaving.** Published knowledge stays with the company and passes to the space owner. The
   member's My space is locked so nobody can read it and is erased after 30 days. Their
   connections and agent grants are revoked, and sources kept fresh by their connection pause until
   their owner switches or freezes them.
-- **Moving between workspaces** is a separate, explicit transfer that re-creates sources in the
+- **Moving between companies** is a separate, explicit transfer that re-creates sources in the
   target and rebuilds derived knowledge there.
 
 ### Agents as consumers
@@ -268,7 +269,7 @@ trees to browse it:
   carries source, version, freshness, confidence, review status and a token estimate. A structured
   `get_sop` answer is meant to stay under about 2,500 tokens.
 - **Sign-in.** MCP clients use OAuth with PKCE, the CLI uses the device flow, and the super admin
-  registers workspace agents. Scopes are `knowledge.read`, `knowledge.propose` and `comments.write`. An agent
+  registers company agents. Scopes are `knowledge.read`, `knowledge.propose` and `comments.write`. An agent
   always acts for a member, and its rights are that member's rights cut down to its scopes and
   spaces.
 - **Built-in agents only read or propose.** The comment assistant, the Q&A assistant, the
@@ -278,19 +279,19 @@ trees to browse it:
 
 ### Administration
 
-- **Three roles.** The super admin runs the workspace: members, spaces, connections, policies,
+- **Three roles.** The super admin runs the company: members, spaces, connections, policies,
   sensitivity labels, audit, agents, plan and usage. Owners run the content of their scope, and
   everyone else is a member. In solo use the one person holds all three.
 - **Lifecycle flows** cover sign-up, invitation (links expire after 7 days), joining by verified
   email domain, SSO with directory sync, personal to team, member leaving, account deletion
-  (erases the personal library) and workspace deletion (30 days of grace with export, then the
+  (erases the personal library) and company deletion (30 days of grace with export, then the
   data key is destroyed).
-- **Limits and usage.** The workspace is the billing unit. As in mainstream AI products, seats
-  fill one usage pool for the workspace, each member has a default cap the super admin can raise,
-  and the engine meters model use per workspace, member and space. The super admin sees usage per
+- **Limits and usage.** The company is the billing unit. As in mainstream AI products, seats
+  fill one usage pool for the company, each member has a default cap the super admin can raise,
+  and the engine meters model use per company, member and space. The super admin sees usage per
   member and per kind of work, never what anyone asked, read or researched. Credits per seat and
   what happens when the pool runs out are settled with billing. Besides connection policy, limits
-  are the workspace's only say over a member's My space.
+  are the company's only say over a member's My space.
 
 ### Languages
 
@@ -298,24 +299,32 @@ English, Simplified Chinese and Japanese are equal from the first release. Tradi
 comes later.
 
 - **Interface language belongs to the account,** because a person's language does not change per
-  workspace. Its first value comes from the browser at sign-up. Each workspace has a default
+  company. Its first value comes from the browser at sign-up. Each company has a default
   language for messages sent to many people.
-- **Content keeps its language.** Sources are never translated silently. Each space has a content
-  language, set by its owner, in which the assistant writes that space's pages.
+- **Knowledge is language-neutral; language is how it is expressed.** A statement, fact slot,
+  entity, topic, procedure or page has one identity in every language. The same knowledge written
+  in two languages is one unit with two expressions, never a duplicate and never a conflict. A
+  translation counts with its original, and when it falls behind, it gets a "translation out of
+  date" review instead of a conflict. See [Knowledge and language](design/knowledge-and-language.md).
+- **Sources keep their language.** Sources and quotes are never translated silently. Each space has
+  a content language, set by its space owner, for the canonical rendering of its pages. A reader
+  can ask for a page in their own language: it is compiled from the same statements and labelled
+  machine-written.
 - **Answers follow the asker.** Answers come in the asker's interface language and cite passages
   in their original language. The citation popover can translate a passage on request, labelled as
   machine translation, with the original one click away. What people type is never machine
   translated.
-- **The same fact in different languages is one fact.** Fact slots key on normalized subjects and
-  predicates, not on wording, so a Japanese and a Chinese statement of the same limit land in one
-  slot.
+- **The same fact in different languages is one fact.** Fact slots key on entities, predicates and
+  qualifiers, not on wording, and values are typed, so a Japanese and a Chinese statement of the
+  same limit land in one slot. Plain statements merge across languages after a model confirms they
+  mean the same, and each keeps its quotes in their own language.
 - **Typography and input.** Every block carries its language tag so shared Han characters render
   with Chinese or Japanese glyphs as appropriate. Labels wrap instead of truncating (English runs
   about 1.5 to 2 times as wide as Chinese). Dates, numbers, currencies and plurals follow locale
   rules. Pressing Enter while an input method is composing never submits.
 - **Notifications** go out in each recipient's language: Feishu and DingTalk cards in China, Lark
   elsewhere, email and the in-app inbox everywhere.
-- **Regions.** A workspace's region is set when it is created, and its data stays there. The plan
+- **Regions.** A company's region is set when it is created, and its data stays there. The plan
   is mainland China plus one global region.
 
 One glossary feeds every status, button and empty state. The Chinese column is adopted; the
@@ -325,21 +334,21 @@ Japanese column is proposed and waits for review.
 | English | Chinese | Japanese |
 | --- | --- | --- |
 | Personal library | 我的知识库 (个人知识库 in the switcher) | マイライブラリ (個人ライブラリ in the switcher) |
-| Workspace | 企业 | ワークスペース |
+| Company | 企业 | 企業 |
 | Space, My space | 空间, 我的空间 | スペース, マイスペース |
 | Member | 成员 | メンバー |
-| Workspace connection, Personal connection | 企业连接, 个人连接 | ワークスペースの接続, 個人の接続 |
+| Company connection, Personal connection | 企业连接, 个人连接 | 企業の接続, 個人の接続 |
 | Source, Passage, Statement | 来源, 段落, 陈述 | ソース, 段落, 記述 |
 | Topic, Knowledge page, Procedure, Card | 主题, 知识页, 流程, 卡片 | トピック, ナレッジページ, 手順, カード |
 | Knowledge tree, Sources tree | 知识树, 来源树 | ナレッジツリー, ソースツリー |
 | Original, Annotated, Knowledge views | 原文, 批注, 知识 | 原文, 注釈, ナレッジ |
 | Fresh, Review due, Outdated, Disputed | 有效, 待复核, 已过时, 有争议 | 有効, 要確認, 旧版, 異論あり |
-| Owner, Super admin | 负责人, 超级管理员 | 担当者, 特権管理者 |
+| Space owner, Topic owner, Page owner, Procedure owner; Super admin | 空间负责人、主题负责人、页面负责人、流程负责人；超级管理员 | スペース担当者、トピック担当者、ページ担当者、手順担当者；特権管理者 |
 | Rule | 裁决规则 | 裁定ルール |
 | Any one, Everyone (approval modes) | 或签, 会签 | いずれか承認, 全員承認 |
 | Who can read this | 可见范围 | 公開範囲 |
 | Inbox, Assistant | 待办, 助手 | 受信トレイ, アシスタント |
-| Keep fresh with the workspace connection, Keep fresh with my connection, Publish a snapshot | 通过企业连接保持更新, 通过我的连接保持更新, 发布快照 | ワークスペースの接続で最新に保つ, 自分の接続で最新に保つ, スナップショットを公開 |
+| Keep fresh with the company connection, Keep fresh with my connection, Publish a snapshot | 通过企业连接保持更新, 通过我的连接保持更新, 发布快照 | 企業の接続で最新に保つ, 自分の接続で最新に保つ, スナップショットを公開 |
 | Some readers can't open the original | 部分读者无法打开原文 | 一部の閲覧者は原文を開けません |
 | Source permissions tightened | 来源权限收紧 | ソースの権限が縮小されました |
 | Governed, Reference, Search only | 严格, 宽松, 仅检索 | 規程, 参考, 検索のみ |
@@ -350,13 +359,64 @@ Japanese column is proposed and waits for review.
 
 ### Two layers: the engine and the business layer
 
-**The engine** (this repository) owns everything about knowledge: connectors, the pipeline,
-storage, permission checks, model access and the agent API. **The business layer** owns people,
-tenants, sign-in, policy values, approvals, notifications, billing and the web app. Calls go down
-and events come up: the business layer sends commands and queries, the engine answers and
-publishes events, and the engine never calls the business layer. That one rule keeps the engine
-usable on its own through MCP, REST and the CLI, and lets either side be tested against a fake of
-the other.
+**The design philosophy.** The engine is a system of record for knowledge, with no screens.
+Given a tenant and a principal, it answers four questions on its own: what is known, where it
+comes from, who may see it, and whether it is still true. It has no people, no interface and no
+commercial terms, so it behaves the same under our product, under a customer's own identity
+system in a private deployment, or with nothing but agents in front of it. The business layer is
+the product around it for people and companies: who someone is, which companies they belong to,
+what those companies bought, how a person is asked, reminded and told, and what the screens look
+like. It turns human and commercial decisions into engine commands and engine events into
+messages people read, and it can change from market to market without touching knowledge.
+
+Calls go down and events come up: the business layer sends commands and queries, the engine
+answers and publishes events, and the engine never calls the business layer. That one rule keeps
+the engine usable on its own through MCP, REST and the CLI, and lets either side be tested against
+a fake of the other.
+
+**Where something goes.** Ask in order; the first yes decides.
+
+1. Does it read, change, derive or enforce anything about knowledge, or decide whether a
+   principal may see something? The engine.
+2. Is it about a person as a person (sign-in, profile, language, sessions), a company as a
+   customer (plan, seats, billing, domains), or a channel that reaches a person (email, IM,
+   digests)? The business layer.
+3. Is it a setting? The business layer owns its value and the screen that sets it; the engine
+   owns what it means, its default and how it is enforced.
+4. Is it a decision people make about knowledge? The engine owns the item (a todo, a publish
+   request, a conflict), its state, who may decide and what follows the decision. The business
+   layer owns how people reach the decision: whom to ask, reminders, deadlines, escalation, votes
+   and cards. It sends the result back as a command, and the engine checks it again.
+
+**Never.** Each of these is held by a test or a review rule.
+
+- The engine never calls the business layer, and never stores a user ID, a login identity, a
+  session, a password, a plan or a payment detail.
+- The business layer never stores knowledge (sources, statements, pages, embeddings) or a source
+  credential, and never decides whether someone may see content: it asks the engine, which
+  checks. Content it shows or sends is fetched from the engine for that recipient, and the
+  business layer does not keep it.
+- The engine trusts only a signed token and its own copy of members, groups, roles and settings.
+  A token can narrow what the engine allows, never widen it.
+- The engine must run without the business layer: a stand-in that signs tokens and sends
+  provisioning commands is enough for tests, evaluations and agent-only use.
+
+**Shared concerns, split.** Where both layers take part, each owns one side:
+
+| Concern | Engine | Business layer |
+| --- | --- | --- |
+| People | Members, groups, roles and clearances as an enforced copy; every permission check | Accounts, sign-in, invitations, directory sync, and assigning roles |
+| Companies | Tenants as isolation boundaries and data regions; provisioning, export and deletion on command | The company as a customer: name, domains, plan, seats, and the transfer and deletion flows |
+| Settings | What `TenantPolicy` means, its defaults and its enforcement | The values a super admin picks, and the screens for them |
+| Spaces and audiences | Spaces, audiences and the checks | The admin screens that change them |
+| Todos and decisions | Todos, publish requests and conflicts: their state, routing to the owner of the scope, weekly budgets, who may decide, what a decision does and the record of what was decided | Getting people to decide: reminders, deadlines, escalation, joint approval votes and who voted how, cards in Feishu and other IM |
+| Messages | Events with codes and parameters | Wording in each recipient's language, channels, digests, preferences and the inbox screen |
+| Words | Knowledge in a language: pages, answers, summaries | Every word of the interface and of messages |
+| Source connections | Credentials (credential broker), fetching, sync and source ACL snapshots | Connect and consent screens, which connections the settings allow, claims on external tenants |
+| Agents | The agent API (MCP and REST), token verification, scope enforcement, agent audit | OAuth server, client registry, device flow, consent and revocation |
+| Usage | Metering model use per company, member and space, and stopping at the limits it is given | Plans, seats, the usage pool, per-member caps and invoices |
+| Audit | Reads of knowledge, permission changes, decisions and break-glass access | Sign-ins and account, admin and billing events; the admin console shows both |
+| Search and reading | Retrieval, answers, citations and pages | The reading and search screens |
 
 ```mermaid
 flowchart TB
@@ -397,6 +457,14 @@ flowchart TB
   snapshot repairs drift, and an hourly digest check catches it in between.
 - **Contracts live in one place.** JSON Schema in this repository is the source of truth for both
   layers. Business-only types go in their own folder that engine packages never import.
+- **One repository, a folder per layer.** Both layers are built in this monorepo: shared libraries
+  in `libs/`, engine components in `engine/`, business components in `business/`, and
+  composition roots in `apps/`. Each section of `components.yaml` maps to one folder, and the manifest test
+  fails anything in `engine/` or `libs/` that depends on `business/`. A business component reaches
+  the engine only through the contracts and the engine's API client. One toolchain and one
+  `make check` cover both layers, so a contract change lands with both sides in one pull request,
+  while the engine and the business backend still deploy as separate processes. See
+  [architecture.md](architecture.md#one-repository-a-folder-per-layer).
 
 ### Components
 
@@ -427,7 +495,7 @@ entry moves to the business layer.
 | Control | model-gateway | Every model call: routing by sensitivity, budgets, prompts, cache, metering; library and HTTP service | Built |
 | Control | agent-runtime | The loop built-in agents run on: tools, limits, approval gates, traces | Built |
 | Control | credential-broker | Connections owned by the tenant or a member, encrypted secrets, refresh, short-lived leases | Designed |
-| Control | sandbox | One isolated container per job for vendor CLIs, agent tools and view render checks | Designed |
+| Control | sandbox | One isolated container per job for code we did not write: vendor CLIs and MCP servers, and view render checks | Designed |
 
 The business layer is one TypeScript service with its own database schema, plus the web app. It
 shares the contracts, eventbus and testkit libraries with the engine.
@@ -435,10 +503,10 @@ shares the contracts, eventbus and testkit libraries with the engine.
 | Component | Owns | Phase |
 | --- | --- | --- |
 | accounts | Users, login identities, sessions, the identity-provider adapter (Logto; Keycloak as fallback) | 1 |
-| tenancy | Tenants, members and member IDs, invitations, verified domains, workspace roles, sign-in policy, personal to team, transfers | 1 |
+| tenancy | Tenants, members and member IDs, invitations, verified domains, company roles, sign-in policy, personal to team, transfers | 1 |
 | directory | SSO connections, Feishu contacts (SCIM in phase 2), groups, departments, external identity links | 1 and 2 |
-| access-grants | OAuth authorization server, client registry, device flow, personal tokens, workspace agents, revocation | 1 |
-| connections | Connect flows for workspace and personal connections, consents, claims on external organizations | 1 (claims in 2) |
+| access-grants | OAuth authorization server, client registry, device flow, personal tokens, company agents, revocation | 1 |
+| connections | Connect flows for company and personal connections, consents, claims on external organizations | 1 (claims in 2) |
 | publishing | The publish wizard: target space, freshness choice, coverage, audience gap, approval routing | 1 |
 | approvals | Single and joint approvals, deadlines, fallback deciders, decision records | 1 (joint in 2) |
 | notifications | Inbox, email, Feishu, Lark and DingTalk cards, digests, preferences, message catalogs | 1 |
@@ -576,23 +644,40 @@ provisions.
   down the space tree. The
   publisher of a unit keeps a grant on it, and a publish request's approvers can read only its
   items.
-- **A statement also needs a proof the reader can read.** A proof is an evidence span in a
-  readable space, or a derivation whose inputs are all readable. Two documents that each state a
-  price are alternative proofs, and either one is enough; a margin computed from a price and a cost
-  needs both.
-- **Crossing audiences takes an approval.** A derivation whose inputs sit in spaces with different
-  audiences is seen only by readers who can read every input. To show it to the whole audience of
-  its space, the owners of the input spaces that audience cannot read approve a publish request
-  for it. If one of those spaces later narrows its audience, its owner gets a todo to keep or
-  withdraw the approval.
-- **Citations across spaces.** A citation into another space is shown only if the reader can read
-  that space; otherwise it shows as restricted. A statement with no readable proof is hidden, and
-  so is everything built from it: a proposed value, a conflict variant, a page sentence, an answer.
-  The readable-space set is looked up once per request and memoized.
-- **No existence leaks.** Hidden citations, counts and graph edges are dropped, never shown as "3
-  hidden". Shared answer caches are keyed by readable spaces and clearance, an entry is dropped
-  when a unit it used changes label, proof or grant, and an answer that used a unit readable only
-  through the reader's own grant (as publisher or approver) is never shared.
+- **A statement also needs a proof the reader can read.** A proof is what shows a statement is
+  true, and there are two kinds: an evidence quote from a document in a space the reader can read,
+  or a derivation, a statement computed from other statements, whose every input the reader can
+  read. If two documents both say the Shenzhen hotel cap is 600, either one proves it, so a reader
+  who can read either sees the statement. A margin computed from a price in Sales and a cost in
+  Finance needs both: a reader who could see the margin and the price but not the cost could work
+  the cost out, so the margin is shown only to readers who can read both.
+- **Compiled knowledge is written for its audience.** Knowledge often rests on another
+  department's space: a step in a Sales quoting procedure comes from Finance's discount policy, a
+  travel guide for everyone combines HR's grades with Finance's hotel caps, a margin is computed
+  from a Sales price and a Finance cost. A page, procedure or topic summary has the audience of
+  its space, and its inputs never narrow it, so no restricted item can hide knowledge it does not
+  own. The compiler writes only from inputs that whole audience can read; any other input is
+  released to that audience, one statement at a time, by the owner of its space, or not used.
+  A company with a single shared space never meets this; it starts to matter when a department
+  such as Finance or HR narrows who can read its space.
+- **An omission that changes the meaning needs a person.** The engine sees every input, so it
+  checks whether leaving one out would change what a unit says: a different value for a fact slot
+  the unit uses, a newer version, an added condition, or the other side of an argument. If so, the
+  unit's owner chooses: ask for a release, rewrite without taking a position on that point, or
+  publish with a note. Procedures are all or nothing.
+- **Readers are told, never misled.** Where something that matters was left out, the reader sees
+  a note saying so and whom to ask, never the content, and an answer that may be incomplete says
+  so. Per-reader checks act only on whole items (a document, a block, a row, a search result),
+  never on words inside prose; when one would cut a paragraph, the unit is compiled again for that
+  reader's readable spaces.
+- **Existence is hidden where it matters.** Unreadable spaces never appear in trees, search,
+  counts or graphs, and a citation into a space the reader cannot read is left out when the
+  statement stands on another proof. Material labelled `secret` is never an input outside its own
+  space and leaves no trace or note anywhere else. The design, its abuse cases and its trade-offs
+  are in [design/compiled-knowledge-permissions.md](design/compiled-knowledge-permissions.md).
+- **Shared answer caches** are keyed by readable spaces and clearance, an entry is dropped when a
+  unit it used changes label, proof or grant, and an answer that used a unit readable only through
+  the reader's own grant (as publisher or approver) is never shared.
 - **Search is filtered inside the index** by readable spaces and sensitivity, and every top result
   is checked again before it leaves the server.
 - **Source ACLs are advisory.** Source-sync keeps ACL snapshots and identity links only for the
@@ -624,10 +709,25 @@ provisions.
 
 ### Connectors, credentials and sandboxes
 
-- **Sync uses each vendor's API in process,** through its SDK, because sync needs webhooks, ACL
-  reads, rate budgets and stable block IDs. Vendor CLIs (such as lark-cli) run only in the sandbox:
-  as agent tools from the pilot on, and as a connector transport only for a source with no usable
-  API.
+- **One integration per vendor serves both sync and agent tools.** Sync and agent tools face the
+  same problems: whose identity a call uses, keeping tenants and members apart, token refresh,
+  rate limits, consent, revocation and audit. So each vendor (Feishu first) has one integration in
+  the connectors component: a typed client over the vendor's API, through its SDK, with one scope
+  set and one rate budget per connection. Sync uses it to follow changes (webhooks, cursors, ACL
+  reads, stable block IDs); agent tools, registered as `agent_tools` plugins, use the same client to
+  search, read and propose. Both get credentials only as leases from the credential broker and
+  write one audit trail, and revoking a connection stops both at once. Interactive tool calls keep
+  a reserved share of the rate budget, so a large sync never starves them.
+- **The same identity rules for both.** Sync acts with the connection its publish chose (the
+  company's or a member's). An agent tool always acts as the member it works for, with that
+  member's own connection; a company connection is never leased to an agent run.
+- **Different trust, different execution.** Sync is our own deterministic code and runs in process.
+  A tool call is chosen by a model, from content that may be hostile, so it passes the agent
+  runtime's gate: operations allowed by the agent's spec, validated arguments, read or propose
+  only, and an audit record per call. Code we did not write runs only in the sandbox: a vendor CLI
+  (such as lark-cli) or a vendor MCP server, used only for a vendor without a usable API. It gets
+  a short-lived access token and never refreshes tokens itself, because Feishu refresh tokens are
+  single-use and a second refresher would break the connection.
 - **The credential broker owns every connection and its secrets.** A connection belongs to the
   tenant (the company's app, for team spaces) or to a member (their own sign-in). Secrets are
   envelope-encrypted with a per-tenant data key; the key-encryption key is a deployment key in the
@@ -639,7 +739,7 @@ provisions.
 - **The sandbox runs one container per job:** read-only root, no volumes, egress through an
   allow-list proxy, never shared across tenants, nothing kept between jobs. Docker with gVisor in
   the prototype, Kata Containers or Firecracker in the product. Its three profiles are connector
-  CLIs, agent tools and the view render check.
+  CLIs, vendor tools for agents (CLIs and MCP servers) and the view render check.
 
 ### Pages and views
 
@@ -648,12 +748,30 @@ planned.
 
 - **A page is a `PageSpec`:** an ordered list of 14 typed blocks (heading, paragraph, list,
   callout, quote, table, code, math, image, divider, diagram, chart, view, embed) whose sentences
-  carry statement IDs. Readers who cannot see a statement do not see its sentence. Every version is
-  an immutable snapshot with its cause, and block keys stay stable so comments survive rebuilds and
-  diffs can say what moved.
+  carry statement IDs. Every version is an immutable snapshot with its cause, and block keys stay
+  stable so comments survive rebuilds and diffs can say what moved.
+- **A page is written for its audience, never cut down per reader.** Its prose comes only from
+  statements its whole audience can read, at their clearance, or that were released to it. When
+  leaving a statement out would change the meaning, a person decides, and a section may carry a
+  note for readers who cannot see part of it, while readers who can see all of it get the full
+  section (see Permissions above). Procedures are published only when their audience can read every step. When a space
+  narrows later, the page is compiled again, as a new version.
 - **Charts** take their data from a `DataRef`: inline rows, statements (fixed or by query) or a
-  registered query of a connected system, never free SQL. Rows keep their statement IDs, so rows a
-  reader may not see are dropped before rendering.
+  registered query of a connected system, never free SQL. Rows built from statements keep their
+  statement IDs, so rows a reader may not see are dropped before rendering.
+- **Statements carry knowledge; queries carry data at scale.** A statement is more than subject,
+  predicate and object: it has a typed value (a number with its unit, a range, a date, money),
+  qualifiers that work as dimensions (city, grade, period) and the time it holds. So the
+  statements of one predicate form a small fact table, such as hotel caps by city and grade, that
+  stays cited and governed, and a statement query turns it into chart rows. That suits rules and
+  facts, from hundreds to a few thousand per subject, because every statement can be reviewed.
+  Business data at scale (daily sales, stock, transactions) is not turned into statements: it
+  stays in its own system of record and reaches a chart through a registered, parameterized query
+  that a `data_providers` plugin runs with the system's permissions and caches as a snapshot,
+  which the chart cites. A large table inside a document, such as a price list of thousands of
+  items, stays a source whose rows can be cited: a row becomes a statement only when a page or an
+  answer uses it, and the table can also be registered as a data source for charts. A chart can
+  mix the two, for example a sales curve from a query with the target from a statement.
 - **Interactive views** separate code from data. A view version is a template or generated code
   that passes a headless render check (console errors, overflow at phone and desktop widths, both
   themes, empty and large data) and a person's approval. It runs in an iframe on a separate origin
@@ -686,10 +804,11 @@ Planned, with contracts in place:
 | Contracts | Events and todos carry codes and parameters, never sentences. The principal token carries the interface `locale` | Designed |
 | Normalization | Language detected per document and per block. Sentence and clause rules, full-width forms and number formats come from per-language resource files (en, zh, ja), not from code | Designed |
 | Extraction | Prompts state the source language. Evidence quotes stay verbatim in the original language. Dates, eras (such as Japanese era years), large-number units and currencies are normalized into typed values | Designed |
-| Fact slots | Predicate catalogue entries carry aliases per language, and entity names are resolved across scripts, so the same fact in different languages lands in one slot | Designed |
+| Fact slots | Predicate and qualifier keys are language-neutral, with labels and aliases per language, and entity names are resolved across scripts, so the same fact in different languages lands in one slot | Designed; predicate keys and typed values are built |
+| Statements | A translation is linked to its original and counts with it; statements merge across languages after a model check, keeping each quote in its language | Designed |
 | Retrieval | Multilingual embeddings (Qwen3-Embedding); BM25 with a tokenizer per language (jieba for Chinese, a Japanese morphological tokenizer, stemming for English); cross-language queries through the embedding side | Designed; the jieba index exists in the knowledge store today |
-| Page-compiler | Pages are written in the space's content language; answers in the asker's locale | Designed |
-| Business layer | Account language, workspace default for broadcasts, ICU MessageFormat catalogs (a missing string fails the build), localized sign-in pages, region per tenant | Designed |
+| Page-compiler | A page's structure is built once; its canonical rendering is in the space's content language, and a rendering in another language is compiled from the same statements on request; answers in the asker's locale | Designed |
+| Business layer | Account language, company default for broadcasts, ICU MessageFormat catalogs (a missing string fails the build), localized sign-in pages, region per tenant | Designed |
 | UI | Catalogs for en, zh-Hans and ja; a language tag on every block; fonts per script; locale formatting and collation; input-method rules; pseudo-locale tests | Designed |
 | Repository | No Chinese or Japanese in code or comments; language data in resource files; documentation in English with a Chinese copy under `docs/zh/`. A repo test enforces it | Next |
 
@@ -709,7 +828,7 @@ Planned, with contracts in place:
 | Sandbox | Docker with gVisor | Kata Containers or Firecracker with warm pools |
 | Deployment | Docker Compose on one node | Helm, air-gapped bundle, amd64 and arm64 |
 
-- **Two deployment profiles from one codebase.** SaaS comes first: a workspace's region is fixed at
+- **Two deployment profiles from one codebase.** SaaS comes first: a company's region is fixed at
   creation, starting with mainland China and one global region. Public SaaS in mainland China needs
   a generative AI filing, an ICP licence and classified protection. Private deployment is the
   second profile, with domestic infrastructure (Kylin, Kunpeng or Hygon, KingbaseES, Ascend) as
@@ -723,6 +842,10 @@ Planned, with contracts in place:
 - **Contracts first.** `libs/contracts/schema/*.yaml` is the source of truth; types and
   validators are generated. Additive changes are fine in a branch; anything that removes, renames
   or tightens a field needs agreement first. See [contracts.md](contracts.md).
+- **Boundaries are checked, not trusted.** Engine modules and business levels share one
+  repository, so their boundaries are tests: a package sits in its layer's folder and depends only
+  on the libraries and the components in its `calls`, and dependencies between the layers point
+  one way.
 - **Plugins by registry.** Connectors, parsers, diagram compilers, index backends, model providers,
   model mocks, view templates and migrations register by name in fixed plugin groups. A new source
   or model is a new plugin, not a core change.
@@ -780,7 +903,8 @@ by owner, topic and week already keeps every owner under it.
 **Designed and decided, not built:** the two-domain permission rule and the principal token,
 publishing, credential broker and sandbox, the Sources tree and mirror pages, pages and views,
 retrieval and the agent API, research with `fetch_now` and `web_search`, the parsing worker,
-source deletions and change reviews, internationalization, and the whole business layer and UI.
+source deletions and change reviews, knowledge across languages, internationalization, and the
+whole business layer and UI.
 
 ## Plan
 
@@ -829,7 +953,9 @@ document's estimate.
 | Engine work for the business boundary (net) | 4.5 |
 | Internationalization (engine 3.5, UI 3, business 0.5) | 7 |
 | Source changes (deletions, moves, change reviews) | 3 |
-| **Total** | **about 116** |
+| Knowledge across languages (translations, cross-language merge, pages in another language) | 3.5 |
+| Permissions in compiled knowledge (writing for an audience, the omission check, releases) | 3 |
+| **Total** | **about 123** |
 
 After that, pilot and product-v1 work for Artifact-level editing (templates, Word and PDF export,
 block editor, real-time co-editing, the view host API, mobile, share links) is about 19 to 27, and
@@ -845,7 +971,7 @@ time depends more on review and integration than on these person-week figures.
 | Review fatigue | Owners ignore their inbox | Governance levels, grouping per topic and week, weekly budget, notes outside the budget, queue precision as a product metric |
 | Topic churn and size | Topics too large or unstable to own | Stable keys, a change budget per run, owner confirmation; to be re-measured with real embeddings |
 | Human edits lost on rebuild | Loss of trust | Pinned overrides that a rebuild never overwrites; todos instead |
-| Cross-language matching | The same fact in two languages is missed or wrongly merged | Language-neutral slot keys, per-language aliases, a multilingual evaluation corpus |
+| Cross-language matching | The same fact in two languages is missed or wrongly merged | Language-neutral keys, per-language aliases, translations linked to their originals, a model check before any merge, a multilingual evaluation corpus |
 | Suites bundle similar features | Lost single-suite deals | Lead with cross-suite governance and the governed agent endpoint |
 | Model throughput on domestic accelerators | Slow first index | Benchmark on the customer's hardware early in a pilot |
 
@@ -864,10 +990,13 @@ time depends more on review and integration than on these person-week figures.
 | 2026-10-24 | Three views and two trees for reading |
 | 2026-10-24 | Pipeline boundaries: normalization before extraction and indexing, retrieval owns every index, freshness emits signals only, collaboration owns every todo |
 | 2026-10-24 | English, Chinese and Japanese from the first release; no Chinese in code or comments; docs in English with a Chinese copy |
-| 2026-10-26 | Three product roles: super admin, owner (of a space, topic, page or procedure) and member; finer roles stay internal and product roles are bundles of them |
-| 2026-10-26 | Usage follows mainstream AI products: seats fill a workspace pool, members have default caps, the super admin sees usage but never content; details come with billing |
-| 2026-10-26 | Chinese terms: the workspace is 企业, the governance levels are 严格, 宽松 and 仅检索 |
+| 2026-10-26 | Three product roles: super admin, owner (of a space, topic, page or procedure) and member; finer roles stay internal and product roles are bundles of them. An owner is always named with its scope, such as topic owner, never a bare Owner |
+| 2026-10-26 | Usage follows mainstream AI products: seats fill a company pool, members have default caps, the super admin sees usage but never content; details come with billing |
+| 2026-10-26 | Chinese terms: the company is 企业, the governance levels are 严格, 宽松 and 仅检索. English says Company and Japanese 企業 to match 企业; never "workspace" |
 | 2026-10-26 | Source changes: knowledge never disappears silently; a deleted source is kept and marked until its owner decides; a large change is reviewed once, as a whole |
+| 2026-10-26 | Knowledge is language-neutral and language is only how it is expressed: one unit per piece of knowledge in every language, translations count with their originals, quotes stay verbatim, readers read in their own language |
+| 2026-10-26 | Engine and business layer in one monorepo, a folder per layer (`libs/`, `engine/`, `business/`, `apps/`); boundaries between engine modules and business levels are enforced by the manifest test; the two layers still deploy separately |
+| 2026-10-26 | One integration per vendor serves both sync and agent tools: one client, credentials only as broker leases, one rate budget and one audit trail; tools act as the member; only code we did not write runs in the sandbox |
 
 ## Open questions for the next discussion
 
@@ -877,10 +1006,11 @@ time depends more on review and integration than on these person-week figures.
 - Which model providers serve each region, and at which sensitivity labels.
 - Which connectors come second and third outside China (for example Confluence, Notion, Google
   Drive, SharePoint), and which first design partner and industry the pilot targets.
-- Whether readers of another language should get whole pages translated on request, beyond
-  translated passages in citations.
 - The order of the remaining prototype stages proposed above, and whether a small, capped probe
   with a real model on real documents should run before every stage is mocked.
+- Confirm the trade-offs of [permissions in compiled knowledge](design/compiled-knowledge-permissions.md):
+  readers learn that relevant restricted material exists and whom to ask, never its content, and
+  `secret` material leaves no trace.
 
 ## Further reading
 
@@ -888,12 +1018,16 @@ time depends more on review and integration than on these person-week figures.
   UI's internationalization rules.
 - [Statements at scale](design/statements-at-scale.md): two outlines, fact slots, governance levels,
   grouped review and the measured volumes.
-- [Business layer](design/business-layer.md): accounts, workspaces, publishing, governance roles,
+- [Business layer](design/business-layer.md): accounts, companies, publishing, governance roles,
   agent access and the business-layer plan.
 - [Business layer and engine contract](design/business-engine-contract.md): the commands, events,
   principal token and schema changes between the two layers.
 - [Source changes](design/source-changes.md): what happens when a source corrects itself, is
   deleted or changes at scale, and when a person is asked.
+- [Knowledge and language](design/knowledge-and-language.md): knowledge is language-neutral;
+  translations, cross-language merge and pages in another language.
+- [Permissions in compiled knowledge](design/compiled-knowledge-permissions.md): writing for an
+  audience, omissions that change the meaning, releases, abuse cases and trade-offs.
 - [Architecture](architecture.md): components, how they talk, storage and security as built.
 - [Contracts](contracts.md): changing schemas, IDs, events, versioning.
 - [PageSpec and views](pagespec.md): pages compared with Claude Artifacts, and the view sandbox.
