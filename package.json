@@ -8,8 +8,8 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "contracts": "node packages/contracts/codegen/generate.ts",
-    "contracts:check": "node packages/contracts/codegen/generate.ts --check",
+    "contracts": "node libs/contracts/codegen/generate.ts",
+    "contracts:check": "node libs/contracts/codegen/generate.ts --check",
     "lint": "biome check .",
     "format": "biome check --write .",
     "typecheck": "tsc -p tsconfig.json",

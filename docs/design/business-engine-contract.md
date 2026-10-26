@@ -1,6 +1,6 @@
 # Business layer and engine contract
 
-Status: adopted design, 2026-10-24. This document lists the contract the engine offers the business layer and the schema changes that contract needs. It implements the protocol in [Business layer: functional design](business-layer.md). The JSON Schema in `packages/contracts/schema` stays the source of truth: when a change here lands, the schema is what reviewers check. Already on main: the member IDs (pull request #7). Chinese copy: [docs/zh/design/business-engine-contract.md](../zh/design/business-engine-contract.md).
+Status: adopted design, 2026-10-24. This document lists the contract the engine offers the business layer and the schema changes that contract needs. It implements the protocol in [Business layer: functional design](business-layer.md). The JSON Schema in `libs/contracts/schema` stays the source of truth: when a change here lands, the schema is what reviewers check. Already on main: the member IDs (pull request #7). Chinese copy: [docs/zh/design/business-engine-contract.md](../zh/design/business-engine-contract.md).
 
 ## Rules
 
@@ -73,7 +73,7 @@ The token maps onto the existing `Principal` (`authz.yaml`), which gains an opti
 
 ## Changes to existing files
 
-- **`authz.yaml`, `packages/access-control/schema.zed`:** `Principal.auth_context` and `Principal.locale` (both optional). `ResourceType` adds `connection` and `agent`. `tenant`: relations `security_admin`, `auditor`. `space` gets no `arbiter` relation: the fallback decider is the space's `owner`, or a tenant `admin` across spaces. A personal space has only `owner` and no relation inherited from the tenant. Units (page, SOP, source): relation `publisher`. `publish_request`: relation `approver`, which grants read on the request's items only. Claim, page and SOP read = read on their space; a claim also needs one proof the reader can read, with evidence spans and derivation inputs checked against readable spaces, not source ACLs (rule 6).
+- **`authz.yaml`, `engine/access-control/schema.zed`:** `Principal.auth_context` and `Principal.locale` (both optional). `ResourceType` adds `connection` and `agent`. `tenant`: relations `security_admin`, `auditor`. `space` gets no `arbiter` relation: the fallback decider is the space's `owner`, or a tenant `admin` across spaces. A personal space has only `owner` and no relation inherited from the tenant. Units (page, SOP, source): relation `publisher`. `publish_request`: relation `approver`, which grants read on the request's items only. Claim, page and SOP read = read on their space; a claim also needs one proof the reader can read, with evidence spans and derivation inputs checked against readable spaces, not source ACLs (rule 6).
 - **`collab.yaml`:**
   - New `SourceFreshness` tenant_connection | member_connection | snapshot.
   - `PublishRequest`: one `unit_id` becomes `items[]` (pages, SOPs, sources, folder subtrees); `to_space_id` is the target; new `source_actions[] { source_id, subtree?, freshness, connection_id?, consent_id?, review_at? }` and `checks { coverage: CoverageDiff[], audience_gap: AudienceGap, sensitivity { suggested_label, findings[] }, conflicts: ConflictPreview[] }` beside the existing `gates`.

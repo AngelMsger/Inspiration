@@ -1,6 +1,6 @@
 # 契约
 
-每个跨越组件边界的类型只定义一次，用 JSON Schema（draft 2020-12）写成 YAML，放在 `packages/contracts/schema/`
+每个跨越组件边界的类型只定义一次，用 JSON Schema（draft 2020-12）写成 YAML，放在 `libs/contracts/schema/`
 下。TypeScript 类型、运行时校验器和事件目录都由它生成。线上传输和数据库中的数据是 `snake_case`；TypeScript API
 是 `camelCase`。本文是英文版 [contracts.md](../contracts.md) 的中文副本，两者不一致时以英文版为准。
 
@@ -18,27 +18,27 @@
 | `agents.yaml` | 工具规格、Agent 规格、运行上下文、步骤和结果 |
 
 组件之间的接口（`KnowledgeStore`、`AuthZ`、`ModelGateway`、`Retriever`、`AgentRuntime`、插件接口）是在生成的类型
-之上手写的 TypeScript，位于 `packages/contracts/src/interfaces.ts`。
+之上手写的 TypeScript，位于 `libs/contracts/src/interfaces.ts`。
 
 ## 修改契约
 
 ```bash
-$EDITOR packages/contracts/schema/page.yaml
+$EDITOR libs/contracts/schema/page.yaml
 pnpm contracts           # 打包，然后生成 src/generated.ts 和 src/events.ts
 pnpm contracts:check     # CI 运行的检查：任何生成文件过期都会失败
-pnpm vitest run packages/contracts   # 示例按 schema 校验
+pnpm vitest run libs/contracts   # 示例按 schema 校验
 ```
 
 永远不要手工编辑 `dist/inspiration.schema.json`、`src/generated.ts` 或 `src/events.ts`。
 
 规则：
 
-- 类型名在所有文件中唯一；打包器把它们展平到一个命名空间中（`packages/contracts/dist/inspiration.schema.json`，
+- 类型名在所有文件中唯一；打包器把它们展平到一个命名空间中（`libs/contracts/dist/inspiration.schema.json`，
   其他语言读取的就是这个文件）。
 - 每个枚举，以及每个在多处使用的对象，都有自己的命名定义，这样生成的代码名字可读。
 - 跨线传输的联合类型带有标签（块和视图消息用 `type`，数据引用用 `kind`）；打包器会为代码生成器加上
   `discriminator`。
-- 为每个新的跨组件类型在 `packages/contracts/examples/<Type>.<name>.json` 中放一个示例；测试会校验它。
+- 为每个新的跨组件类型在 `libs/contracts/examples/<Type>.<name>.json` 中放一个示例；测试会校验它。
 - 用 `parseAs(typeName, value)` 或 `contractErrors(typeName, value)` 校验来自进程外部的数据。`newEvent` 会校验它
   构建的每个事件。
 - 文本中的偏移量（`quote_start`、`char_start`）是 UTF-16 码元，也就是 JavaScript 字符串使用的下标。parsing 工作

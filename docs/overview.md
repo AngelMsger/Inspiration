@@ -586,7 +586,7 @@ flowchart LR
 
 *Figure 10. Dependencies point one way. Nothing in `engine/` or `libs/` depends on `business/`, and the manifest test fails any change that tries.*
 
-Each section of [`components.yaml`](../components.yaml) maps to one folder. A package depends only on the libraries and on the components listed in its `calls`. One toolchain and one `make check` cover both layers, so a contract change lands with both sides in one pull request, while the engine and the business backend deploy as separate processes. The move from `packages/` to these folders is a separate, rename-only pull request.
+Each section of [`components.yaml`](../components.yaml) maps to one folder. A package depends only on the libraries and on the components listed in its `calls`. One toolchain and one `make check` cover both layers, so a contract change lands with both sides in one pull request, while the engine and the business backend deploy as separate processes. The packages moved from `packages/` into these folders in a rename-only pull request (#15).
 
 **Engine components.** Each has one job. Its name is also its event producer name, its consumer group and the prefix of its model task names.
 
@@ -942,7 +942,7 @@ The prototype runs on mocked models on purpose: it proves the pipeline, the volu
 
 ## 22. How we build
 
-- **Contracts first.** `packages/contracts/schema/*.yaml` is the source of truth; types and validators are generated. Additive changes are fine in a branch; anything that removes, renames or tightens a field needs agreement first. See [contracts.md](contracts.md).
+- **Contracts first.** `libs/contracts/schema/*.yaml` is the source of truth; types and validators are generated. Additive changes are fine in a branch; anything that removes, renames or tightens a field needs agreement first. See [contracts.md](contracts.md).
 - **Boundaries are checked, not trusted.** A package sits in its layer's folder and depends only on the libraries and the components in its `calls`; dependencies between the layers point one way.
 - **Plugins by registry.** Connectors, agent tools, parsers, diagram compilers, index backends, data providers, model providers, model mocks, view templates and migrations register by name in fixed plugin groups. A new source or model is a new plugin, not a core change.
 - **Tests on both backends.** Unit tests use in-memory doubles; code with a Postgres, Valkey or SpiceDB implementation runs the same tests against the real stack. `make check` runs Biome, strict `tsc`, contract freshness and every test with the stack up.
@@ -991,7 +991,7 @@ flowchart TB
 
 ## 23. Where we are
 
-**Built and merged on `main`:** contracts, kernel, event bus, test kit, knowledge store, access control, model gateway, agent runtime, connectors, source sync, normalization, extraction, governance, freshness, tenant-scoped member IDs, and the engine process with its CLI, demo corpus and synthesizer (PRs #2 to #7); governance levels, fact-slot keys and extract on use, topics and placements, and the inbox (PRs #8 to #10); language rules in resource files for en, zh and ja with a repo test against Chinese and Japanese in code (PRs #12 and #13); and the design documents (PRs #11 and #14).
+**Built and merged on `main`:** contracts, kernel, event bus, test kit, knowledge store, access control, model gateway, agent runtime, connectors, source sync, normalization, extraction, governance, freshness, tenant-scoped member IDs, and the engine process with its CLI, demo corpus and synthesizer (PRs #2 to #7); governance levels, fact-slot keys and extract on use, topics and placements, and the inbox (PRs #8 to #10); language rules in resource files for en, zh and ja with a repo test against Chinese and Japanese in code (PRs #12 and #13); the move into a folder per layer (PR #15); and the design documents (PRs #11 and #14).
 
 **Measured** on a synthetic tenant of 10,000 documents with the mocked model and fake embeddings (Postgres and Valkey). These numbers describe volumes and the pipeline, not model quality:
 

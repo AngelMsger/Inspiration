@@ -1,6 +1,6 @@
 # 业务层与引擎契约
 
-状态：已采纳的设计，2026-10-24。本文列出引擎向业务层提供的契约，以及这份契约需要的 Schema 改动。它实现的是[业务层：功能设计](business-layer.md)里的协议。`packages/contracts/schema` 里的 JSON Schema 仍是唯一事实来源：这里的改动落地后，评审以 Schema 为准。main 上已经完成的：成员 ID（拉取请求 #7）。本文是 [docs/design/business-engine-contract.md](../../design/business-engine-contract.md) 的中文副本，两者不一致时以英文版为准。
+状态：已采纳的设计，2026-10-24。本文列出引擎向业务层提供的契约，以及这份契约需要的 Schema 改动。它实现的是[业务层：功能设计](business-layer.md)里的协议。`libs/contracts/schema` 里的 JSON Schema 仍是唯一事实来源：这里的改动落地后，评审以 Schema 为准。main 上已经完成的：成员 ID（拉取请求 #7）。本文是 [docs/design/business-engine-contract.md](../../design/business-engine-contract.md) 的中文副本，两者不一致时以英文版为准。
 
 ## 规则
 
@@ -73,7 +73,7 @@ grant      string               # agent grant ID, for revocation
 
 ## 对现有文件的改动
 
-- **`authz.yaml`、`packages/access-control/schema.zed`：** `Principal.auth_context` 和 `Principal.locale`（都可选）。`ResourceType` 新增 `connection` 和 `agent`。`tenant`：新增关系 `security_admin`、`auditor`。`space` 不新增 `arbiter` 关系：截止后的决定人是空间的 `owner`，跨空间时是租户的 `admin`。个人空间只有 `owner`，不继承租户上的任何关系。单元（页面、SOP、来源）：新增关系 `publisher`。`publish_request`：新增关系 `approver`，只授予请求内条目的读取权。陈述、页面和 SOP 的读取权 = 其所在空间的读取权；陈述还需要一个读者能读的依据，证据片段和派生输入按可读空间检查，而不是按来源 ACL 检查（规则 6）。
+- **`authz.yaml`、`engine/access-control/schema.zed`：** `Principal.auth_context` 和 `Principal.locale`（都可选）。`ResourceType` 新增 `connection` 和 `agent`。`tenant`：新增关系 `security_admin`、`auditor`。`space` 不新增 `arbiter` 关系：截止后的决定人是空间的 `owner`，跨空间时是租户的 `admin`。个人空间只有 `owner`，不继承租户上的任何关系。单元（页面、SOP、来源）：新增关系 `publisher`。`publish_request`：新增关系 `approver`，只授予请求内条目的读取权。陈述、页面和 SOP 的读取权 = 其所在空间的读取权；陈述还需要一个读者能读的依据，证据片段和派生输入按可读空间检查，而不是按来源 ACL 检查（规则 6）。
 - **`collab.yaml`：**
   - 新增 `SourceFreshness` tenant_connection | member_connection | snapshot。
   - `PublishRequest`：单个 `unit_id` 改为 `items[]`（页面、SOP、来源、文件夹子树）；`to_space_id` 即目标空间；在已有的 `gates` 旁新增 `source_actions[] { source_id, subtree?, freshness, connection_id?, consent_id?, review_at? }` 和 `checks { coverage: CoverageDiff[], audience_gap: AudienceGap, sensitivity { suggested_label, findings[] }, conflicts: ConflictPreview[] }`。
