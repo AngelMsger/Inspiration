@@ -113,6 +113,8 @@ technical design in one document, with what is built and what is planned.
   translations, cross-language merge and pages in another language.
 - [Permissions in compiled knowledge](docs/design/compiled-knowledge-permissions.md): how pages,
   procedures and answers use material that part of their audience cannot read.
+- [Code repositories as a knowledge source](docs/design/code-repositories.md) (proposed): code as
+  the witness of what the product does and why, for people who do not read code.
 - [Architecture](docs/architecture.md): engine and business layer, components, how they
   talk, storage, security.
 - [Contracts](docs/contracts.md): changing schemas, code generation, IDs, events,
