@@ -9,13 +9,11 @@ this page explains how the pieces fit. A Chinese copy is in
 ## Engine and business layer
 
 The **engine** owns connectors, the knowledge pipeline, storage, permissions, model access
-and the agent API. It knows tenants, spaces and principals by ID
-and enforces every permission itself, but it has no accounts, sign-in, invitations or
-billing.
+and the agent API. It knows tenants, spaces and principals by ID and enforces every
+permission itself, but it has no accounts, sign-in, invitations or billing.
 
-The **business layer** owns people and tenants: the external identity
-provider, accounts that are members of many tenants, personal tenants, publishing policy and
-admin governance. It provisions the engine (members, groups, spaces, policy) through engine
+The **business layer** owns people and tenants: the external identity provider, accounts
+that are members of many tenants, personal tenants, publishing policy and admin governance. It provisions the engine (members, groups, spaces, policy) through engine
 commands and reacts to engine events. Calls go down, events come up: the engine never calls
 the business layer.
 

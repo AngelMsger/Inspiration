@@ -307,7 +307,7 @@ flowchart TB
   `business/`，组装根在 `apps/`（在一次只做重命名的迁移之前，共享库和引擎组件仍在 `packages/`）。`components.yaml`
   的每一节对应一个目录，组件清单测试会拒绝 `engine/` 或 `libs/` 中任何依赖 `business/` 的包。业务组件只通过契约和引擎的
   API 客户端使用引擎。两层共用一套工具链和一个 `make check`，所以契约变更和两侧的改动在同一个拉取请求里合入；引擎和
-  业务后端仍作为独立的进程部署。见 [architecture.md](../architecture.md#one-repository-a-folder-per-layer)（英文）。
+  业务后端仍作为独立的进程部署。见 [architecture.md](architecture.md) 的“一个仓库，每层一个目录”一节。
 
 ### 组件
 
@@ -558,12 +558,12 @@ flowchart LR
   SaaS 需要生成式人工智能备案、ICP 许可证和等级保护。私有化部署是第二种形态，以国产基础设施（麒麟、鲲鹏或海光、人大
   金仓、昇腾）为认证目标。
 - **许可证。** pg_search 是 AGPL-3.0；BM25 放在插件接口之后，客户需要时可以用 OpenSearch 索引替换。使用 Valkey（BSD）
-  而不是 Redis。见 [licensing.md](../licensing.md)（英文）。
+  而不是 Redis。见 [licensing.md](licensing.md)。
 
 ### 我们如何构建
 
 - **契约优先。** `packages/contracts/schema/*.yaml` 是事实来源；类型和校验器由它生成。增量式的变更可以直接在分支里做；
-  任何删除、重命名或收紧字段的变更都需要先取得一致。见 [contracts.md](../contracts.md)（英文）。
+  任何删除、重命名或收紧字段的变更都需要先取得一致。见 [contracts.md](contracts.md)。
 - **边界靠检查，而不是靠自觉。** 引擎的各个模块和业务的各个层级在同一个仓库里，所以它们的边界由测试保证：每个包
   放在所属层的目录里，只依赖共享库和 `calls` 中列出的组件，两层之间的依赖只能单向。
 - **通过注册表使用插件。** 连接器、解析器、图编译器、索引后端、模型提供方、模型模拟、视图模板和迁移都按名称注册在固定的
@@ -715,10 +715,10 @@ retrieval 和 Agent API、带 `fetch_now` 和 `web_search` 的研究、parsing �
 - [业务层与引擎契约](design/business-engine-contract.md)：两层之间的命令、事件、主体令牌和 schema 改动。
 - [来源变化](design/source-changes.md)：来源自己更正、被删除或大规模变化时会发生什么，以及什么时候问人。
 - [知识与语言](design/knowledge-and-language.md)：知识与语言无关；译本、跨语言合并和其他语言的页面。
-- [架构](../architecture.md)（英文）：已构建的组件、通信方式、存储和安全。
-- [契约](../contracts.md)（英文）：修改 schema、ID、事件、版本管理。
-- [PageSpec 与视图](../pagespec.md)（英文）：页面与 Claude Artifacts 的对比，以及视图沙箱。
-- [许可证](../licensing.md)（英文）：技术栈的许可证及其对交付的影响。
+- [架构](architecture.md)：已构建的组件、通信方式、存储和安全。
+- [契约](contracts.md)：修改 schema、ID、事件、版本管理。
+- [PageSpec 与视图](pagespec.md)：页面与 Claude Artifacts 的对比，以及视图沙箱。
+- [许可证](licensing.md)：技术栈的许可证及其对交付的影响。
 - [`components.yaml`](../../components.yaml)：组件清单。
 - [AGENTS.md](../../AGENTS.md)（英文）：构建组件的规则。
 - [`examples/corpus`](../../examples/corpus/README.md)：演示租户及其预期产出。
