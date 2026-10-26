@@ -1,0 +1,57 @@
+# 对照语料
+
+一个小租户，每个样例都只有一个正确答案，用来逐个样例衡量流水线，而不是只看一个 truth 总数。它有 14 份文档，分属三个来源：制度库和团队手册，都是受治理文档，权威度 0.9；团队 wiki 是参考文档，权威度 0.5。除一份中文译本外，文档都是英文。`expected.yaml` 是答案，`vocabulary.yaml` 是抽取放入槽位的事实目录。英文版见 [README.md](README.md)；两者不一致时以英文版为准。
+
+用 `pnpm engine ingest examples/control` 运行。在常规报告之后，对照检查把每个样例标为 **right**（正确）、**known gap**（已知差距：与 `expected.yaml` 记录的方式一致地不同）或 **differs**（不同）。槽位中的每个值显示四项：
+
+- 哪些文档把这个值放进了这个槽位，所以放错槽位的陈述会显示出来；
+- 它的独立来源：normalization 认定互为副本的文档只算一次；
+- governance 实际计的数：陈述数、其中已生效的受治理陈述数、文档数；
+- 它是否被提议；如果没有，它的结果是什么。
+
+`apps/engine/test/control.test.ts` 在内存和 Postgres 上运行它。使用替身模型时，抽取结果衡量的是流水线和替身模型，不是真实模型。配置好真实模型后，应当再用同一份语料运行一次。
+
+## 样例
+
+| 样例 | 问题 | 预期 | 现状 |
+| --- | --- | --- | --- |
+| copied-faq | 一份过时 FAQ（180）的三份副本，能否压过差旅制度（200）？ | 200 成立；180 是一条备注；三份副本是一个来源 | 正确 |
+| pasted-paragraph | 三本 2025 年的手册粘贴了同一段（50），2026 年的差旅制度写 60。50 会赢吗？ | 60 成立；50 已被取代；一个来源 | 已知差距：提议 50，三条陈述对一条 |
+| two-named-deadlines | "Refunds are paid within 14 days of approval; customers may object to a decision within 30 days." 两个事实都在目录中。 | 14 和 30 各在自己的槽位 | 正确 |
+| unnamed-deadline | "Returns are accepted within 30 days of delivery, and damaged items must be reported within 7 days." 目录中只有退货期限。 | 30 在退货期限槽位，7 不进任何槽位 | 已知差距：替身模型把 7 放进退货期限，claim ID 选中了它 |
+| qualified-deadlines | "Travel expenses must be claimed within 30 days of the trip, other expenses within 60 days." | 差旅 30，其他费用 60 | 正确 |
+| elliptical-deadline | "Standard orders ship within 3 days; express orders within 1 day." | 3 和 1，各带自己的限定词 | 已知差距：加急订单的期限没有读出 |
+| reposted-notice | 一份通知（40）被复制进两个手册目录；两本手册用各自的话写 45。 | 45 成立，两个来源对一个 | 已知差距：提议 40，三条陈述对两条 |
+| translated-policy | 休假制度（20 天）、它的中文译本和一份入职说明 | 20，两个来源：译本是副本 | 已知差距：三个来源 |
+
+`expected.yaml` 中每个样例的条目都说明了引擎目前为什么得出不同结果。
+
+## 运行结果
+
+8 个样例：3 个正确，5 个已知差距。
+
+- **陈述：** 23 条中有 22 条以正确的值落在正确的槽位。加急期限没有读出，报告损坏的 7 天落进了退货期限。
+- **来源：** 14 个值中有 11 个的独立来源符合预期。
+- **提议：** 11 个槽位中有 7 个的提议值符合预期，8 个的其他值结果符合预期。
+
+这些差距指向：
+
+1. **governance 计的是陈述，不是来源。** 同等权威的受治理陈述之间，平票时数的是今天已生效的陈述。完全相同的副本有几份就算几次，即使 normalization 已经把它们报告为重复（reposted-notice）；粘贴进多份文档的同一段也一样（pasted-paragraph）。参考文档永远压不过受治理文档，所以无论 FAQ 被复制多少次，copied-faq 都正确。
+2. **同等权威时，较晚的生效日期不起作用。** 较新的制度只有在写明带日期的变更（"from 1 January 2026"）时才会胜出，文档本身的生效日期不算（pasted-paragraph）。
+3. **normalization 看不到的副本：** 粘贴的段落和译本（translated-policy）。知识不依赖于语言，译本应当算作副本。
+4. **抽取替身模型的问题，不是引擎的问题：** 它逐段单独阅读，并把没有目录词的分句归到该段的事实（unnamed-deadline、elliptical-deadline）。真实模型运行时，要重点看这两个样例。
+
+## 文档
+
+| 文档 | 级别 | 生效日 | 内容 |
+| --- | --- | --- | --- |
+| policies/travel-policy.md | 受治理 | 2026-01-01 | 住宿 200，餐补 60，报销期限 30 天（差旅）和 60 天（其他） |
+| policies/customer-policy.md | 受治理 | 2026-01-01 | 退款 14，异议 30，退货 30（损坏 7，不在目录中），发货 3 和 1 |
+| policies/leave-policy.md | 受治理 | 2026-01-01 | 年假 20 天 |
+| policies/leave-policy.zh.md | 受治理 | 2026-01-01 | 同上，中文 |
+| policies/taxi-notice.md | 受治理 | 2025-01-01 | 打车每天 40 |
+| handbooks/sales/taxi-notice.md、handbooks/support/taxi-notice.md | 受治理 | 2025-01-01 | 通知的完全相同的副本 |
+| handbooks/sales.md、handbooks/engineering.md | 受治理 | 2025-01-01 | 打车每天 45，各用自己的话；餐补 50（粘贴） |
+| handbooks/support.md | 受治理 | 2025-01-01 | 餐补 50（粘贴） |
+| wiki/travel-faq.md 及其在 wiki/sales、wiki/support 中的副本 | 参考 | | 住宿 180 |
+| wiki/onboarding.md | 参考 | | 年假 20 天 |

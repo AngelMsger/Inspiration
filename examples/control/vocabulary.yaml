@@ -1,0 +1,67 @@
+# The control tenant's predicate catalogue. It names the return window but not the time to
+# report damage, so the unnamed-deadline case can see where a deadline the catalogue does not
+# name ends up.
+predicates:
+  - predicate: hotel_cap_per_night
+    label: Hotel cap per night
+    knowledge_class: policy
+    aliases: [hotel]
+    value: {kind: money, unit: USD/night, currency: USD, words: [USD]}
+
+  - predicate: meal_allowance_per_day
+    label: Meal allowance per day
+    knowledge_class: policy
+    aliases: [meal allowance, meals]
+    value: {kind: money, unit: USD/day, currency: USD, words: [USD]}
+
+  - predicate: taxi_cap_per_day
+    label: Taxi cap per day
+    knowledge_class: policy
+    aliases: [taxi]
+    value: {kind: money, unit: USD/day, currency: USD, words: [USD]}
+
+  - predicate: claim_deadline_days
+    label: Expense claim deadline
+    knowledge_class: policy
+    aliases: [claimed within]
+    qualifiers:
+      - name: travel
+        aliases: [travel, trip]
+      - name: other
+        aliases: [other expenses]
+    value: {kind: duration, unit: day, words: [days, day]}
+
+  - predicate: refund_payment_days
+    label: Refund payment time
+    knowledge_class: process
+    aliases: [refund]
+    value: {kind: duration, unit: day, words: [days, day]}
+
+  - predicate: objection_days
+    label: Objection period
+    knowledge_class: process
+    aliases: [object]
+    value: {kind: duration, unit: day, words: [days, day]}
+
+  - predicate: return_window_days
+    label: Return window
+    knowledge_class: process
+    aliases: [return]
+    value: {kind: duration, unit: day, words: [days, day]}
+
+  - predicate: shipping_days
+    label: Shipping time
+    knowledge_class: process
+    aliases: [ship within]
+    qualifiers:
+      - name: standard
+        aliases: [standard orders]
+      - name: express
+        aliases: [express orders]
+    value: {kind: duration, unit: day, words: [days, day]}
+
+  - predicate: annual_leave_days
+    label: Annual leave
+    knowledge_class: policy
+    aliases: [annual leave, 年休假]
+    value: {kind: duration, unit: day, words: [days, day, 天]}
