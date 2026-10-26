@@ -43,8 +43,7 @@ apps/<name>       composition roots: the engine process and CLI today; the busin
                   and the web app later
 ```
 
-Package names stay `@inspiration/<name>`. Until the move, which is one rename-only pull
-request, the libraries and engine components are in `packages/`.
+Package names stay `@inspiration/<name>`.
 
 One repository makes boundaries a matter of checks rather than of repository walls:
 

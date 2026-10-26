@@ -343,7 +343,7 @@ flowchart TB
 - **契约集中在一处。** 本仓库中的 JSON Schema 是两层共同的事实来源。只属于业务层的类型放在单独的目录里，引擎的包从不
   引用它们。
 - **一个仓库，每层一个目录。** 两层都在这个 monorepo 里构建：共享库在 `libs/`，引擎组件在 `engine/`，业务组件在
-  `business/`，组装根在 `apps/`（在一次只做重命名的迁移之前，共享库和引擎组件仍在 `packages/`）。`components.yaml`
+  `business/`，组装根在 `apps/`。`components.yaml`
   的每一节对应一个目录，组件清单测试会拒绝 `engine/` 或 `libs/` 中任何依赖 `business/` 的包。业务组件只通过契约和引擎的
   API 客户端使用引擎。两层共用一套工具链和一个 `make check`，所以契约变更和两侧的改动在同一个拉取请求里合入；引擎和
   业务后端仍作为独立的进程部署。见 [architecture.md](architecture.md) 的“一个仓库，每层一个目录”一节。

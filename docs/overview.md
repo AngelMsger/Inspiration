@@ -459,8 +459,7 @@ flowchart TB
   layers. Business-only types go in their own folder that engine packages never import.
 - **One repository, a folder per layer.** Both layers are built in this monorepo: shared libraries
   in `libs/`, engine components in `engine/`, business components in `business/`, and
-  composition roots in `apps/` (the libraries and engine components are in `packages/` until a
-  rename-only move). Each section of `components.yaml` maps to one folder, and the manifest test
+  composition roots in `apps/`. Each section of `components.yaml` maps to one folder, and the manifest test
   fails anything in `engine/` or `libs/` that depends on `business/`. A business component reaches
   the engine only through the contracts and the engine's API client. One toolchain and one
   `make check` cover both layers, so a contract change lands with both sides in one pull request,

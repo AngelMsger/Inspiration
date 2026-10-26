@@ -33,7 +33,7 @@ business/<name>   业务层组件，每个组件一个包
 apps/<name>       组装根：现在是引擎进程和 CLI；以后加上业务后端和 Web 应用
 ```
 
-包名仍是 `@inspiration/<name>`。在一次只做重命名的拉取请求完成迁移之前，共享库和引擎组件仍在 `packages/`。
+包名仍是 `@inspiration/<name>`。
 
 同一个仓库意味着边界靠检查保证，而不是靠仓库之间的隔离：
 

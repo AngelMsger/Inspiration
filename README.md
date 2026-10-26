@@ -93,8 +93,8 @@ docs/zh/                  Chinese copies of the overview and design docs
 test/                     repo-wide checks (the component manifest)
 ```
 
-The libraries and engine components move from `packages/` to `libs/` and `engine/` in one
-rename-only pull request; business components will live in `business/`.
+Business components will live in `business/`, next to `engine/` and `libs/` (see
+[Architecture](docs/architecture.md#one-repository-a-folder-per-layer)).
 
 ## Documentation
 
