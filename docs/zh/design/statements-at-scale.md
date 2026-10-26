@@ -1,6 +1,6 @@
 # 规模化的陈述：结构与复核负担
 
-状态：已采纳的设计，2026-10-24。文中的实测数字来自模拟原型，对应拉取请求 #8、#9 和 #10 的分支，这三个 PR 正在审阅中。配套文档：[界面原则](ui-principles.md)。本文是英文版 [docs/design/statements-at-scale.md](../../design/statements-at-scale.md) 的中文副本，两者不一致时以英文版为准。
+状态：已采纳的设计，2026-10-24。文中的实测数字来自模拟原型，对应拉取请求 #8、#9 和 #10，这三个 PR 已于 2026-10-26 合入。配套文档：[界面原则](ui-principles.md)。本文是英文版 [docs/design/statements-at-scale.md](../../design/statements-at-scale.md) 的中文副本，两者不一致时以英文版为准。
 
 ## 问题
 

@@ -1,8 +1,8 @@
 # Inspiration: product and technical overview
 
-As of 2026-10-24. This is the one document to read first. It describes the product as decided
-and the engineering as built, and it says plainly which parts are built, which are in review
-and which are designed but not built yet. A Chinese copy is in [zh/overview.md](zh/overview.md);
+As of 2026-10-26. This is the one document to read first. It describes the product as decided
+and the engineering as built, and it says plainly which parts are built and which
+are designed but not built yet. A Chinese copy is in [zh/overview.md](zh/overview.md);
 if the two differ, this English version wins.
 
 ## In one page
@@ -36,8 +36,8 @@ as SaaS first, with private deployment as a second profile of the same code. Eng
 Japanese are supported from the first release.
 
 **Where it stands.** The engine runs end to end on a mocked model through seven stages: ingest,
-extraction, governance, freshness, governance levels, topics and the inbox. The last three are in
-review. Pages, search, the agent API, the business layer and the UI are designed but not built.
+extraction, governance, freshness, governance levels, topics and the inbox, all merged on `main`.
+Pages, search, the agent API, the business layer and the UI are designed but not built.
 Real models are switched on after the mocked pipeline covers every stage.
 
 ## Core concepts
@@ -181,7 +181,7 @@ trees to browse it:
   most 20 items. Each owner gets at most 10 cards a week; the rest wait for the next week with
   room, except urgent ones. Notes sit on their own weekly card outside the budget and are
   acknowledged with one action. Reviews of copies ride on the card of the conflict that caused
-  them.
+  them, even past the budget.
 - **Only some conflicts need more than one person:**
 
 | Kind | Example | Decided by |
@@ -389,15 +389,15 @@ entry moves to the business layer.
 | Ingest | parsing | Python worker for Office, PDF and scans (Docling, PaddleOCR-VL) behind an HTTP contract | Planned |
 | Ingest | normalization | Canonical blocks and spans with stable IDs, block diff, duplicate documents; later mirror pages for the Original view | Built |
 | Ingest | research | Research agent over the agent API and approved web search; reports become sources | Planned |
-| Compile | extraction | Statements with verbatim evidence, fact-slot keys, governance levels and extract on use. Later entities, procedures, approval mining | Built; levels in review |
+| Compile | extraction | Statements with verbatim evidence, fact-slot keys, governance levels and extract on use. Later entities, procedures, approval mining | Built |
 | Compile | freshness | Review clocks, plan days, copies, staleness scores, `review.due`. Later the dependency graph and `artifact.dirty` | Built |
-| Compile | governance | Slot values, conflict cases with a proposed value, todo requests, notes. Later semantic and model-judge tiers, precedence rules | Built; notes in review |
-| Compile | page-compiler | Topics and placements; later cited pages, diagrams, page snapshots | Topics in review |
-| Store | knowledge-store | The only owner of knowledge tables: lineage, bitemporal reads, slots, topics, page snapshots | Built; slots and topics in review |
+| Compile | governance | Slot values, conflict cases with a proposed value, todo requests, notes. Later semantic and model-judge tiers, precedence rules | Built |
+| Compile | page-compiler | Topics and placements; later cited pages, diagrams, page snapshots | Topics built |
+| Store | knowledge-store | The only owner of knowledge tables: lineage, bitemporal reads, slots, topics, page snapshots | Built |
 | Serve | retrieval | Owns chunks, embeddings and every search index; hybrid search, rerank, permission filters, grounded answers | Planned |
 | Serve | agent-api | MCP server, REST and OpenAPI, Skills export, per-call audit | Planned |
 | Serve | views | Interactive view templates, view generation, render check, sandbox hosting | Planned |
-| Control | collaboration | The inbox (in review); later comments, agent replies, overrides, publishing, decisions | Inbox in review |
+| Control | collaboration | The inbox; later comments, agent replies, overrides, publishing, decisions | Inbox built |
 | Control | access-control | Permissions on SpiceDB, search pre-filters, audit | Built; two-domain rule designed |
 | Control | model-gateway | Every model call: routing by sensitivity, budgets, prompts, cache, metering; library and HTTP service | Built |
 | Control | agent-runtime | The loop built-in agents run on: tools, limits, approval gates, traces | Built |
@@ -447,7 +447,7 @@ else.
 | `artifact.dirty` | freshness | extraction, page-compiler, retrieval | Planned |
 | `review.due` | freshness | collaboration, research | Built |
 | `todo.requested` | governance; views (designed) | collaboration | Built |
-| `todo.created` | collaboration | business layer (notifications, approvals, web) | In review |
+| `todo.created` | collaboration | business layer (notifications, approvals, web) | Built |
 | `page.rendered` | page-compiler | collaboration, retrieval, views | Planned |
 | `comment.created` | collaboration | extraction, collaboration | Planned |
 | `unit.published` | collaboration | retrieval, agent-api, business layer | Planned |
@@ -515,8 +515,8 @@ flowchart LR
 | Source version | One fetched revision, its hashes, sensitivity and governance level | Built |
 | Block, span | Stable IDs, heading path, parent; spans are content-addressed by block and text | Built |
 | Claim and evidence | Statement, subject, predicate, value, qualifiers, class, slot key, two time intervals, verbatim quotes | Built |
-| Fact slot | Current variants with counts and representatives, and every value held over time | In review |
-| Topic and placement | Taxonomy nodes with stable keys, status, owner and counts; one placement per statement | In review |
+| Fact slot | Current variants with counts and representatives, and every value held over time | Built |
+| Topic and placement | Taxonomy nodes with stable keys, status, owner and counts; one placement per statement | Built |
 | Entity, relation | Resolved people, departments, products, suppliers; every edge backed by a statement | Planned |
 | Procedure, model | Steps, roles, conditions; formulas and decision tables whose assumptions are statements | Planned |
 | Page | PageSpec versions with sentences bound to statements; mirror pages for the Original view | Contract only |
@@ -718,7 +718,7 @@ bus, test kit, knowledge store, access control, model gateway, agent runtime, co
 sync, normalization, extraction, governance, freshness, tenant-scoped member IDs, and the engine
 process with its CLI, demo corpus and synthesizer.
 
-**In review**, stacked in this order and waiting for the Codex round:
+**Statements at scale**, merged on 2026-10-26 after two Codex rounds:
 
 | PR | Adds |
 | --- | --- |
@@ -762,8 +762,8 @@ internationalization, and the whole business layer and UI.
 The rule is to mock every model call until each stage of the product runs end to end, and only
 then switch on real models. A proposed order for the remaining stages, for discussion:
 
-1. **Merge option C** (#8, #9, #10), then the language cleanup: language rules into resource files,
-   the repo test against Chinese and Japanese in code, and Chinese copies of the other docs.
+1. **The language cleanup:** language rules into resource files, the repo test against Chinese and
+   Japanese in code, and Chinese copies of the other docs.
 2. **Engine side of the business contract:** the principal token, provisioning and the seed
    command, the two-domain space and proof rules in access-control, and domain keys on slots and
    conflicts. A permission fixture covers four cases: alternative proofs, jointly required inputs,

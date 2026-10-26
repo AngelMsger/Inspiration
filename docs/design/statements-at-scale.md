@@ -1,6 +1,6 @@
 # Statements at scale: structure and review load
 
-Status: adopted design, 2026-10-24. The measurements come from the mocked prototype on the branches of pull requests #8, #9 and #10, which are in review. Companion document: [UI principles](ui-principles.md). A Chinese copy is in [docs/zh/design/statements-at-scale.md](../zh/design/statements-at-scale.md).
+Status: adopted design, 2026-10-24. The measurements come from the mocked prototype of pull requests #8, #9 and #10, merged on 2026-10-26. Companion document: [UI principles](ui-principles.md). A Chinese copy is in [docs/zh/design/statements-at-scale.md](../zh/design/statements-at-scale.md).
 
 ## The problem
 

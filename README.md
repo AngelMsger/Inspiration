@@ -92,7 +92,7 @@ test/                     repo-wide checks (the component manifest)
 ## Documentation
 
 Start with the [overview](docs/overview.md) ([中文](docs/zh/overview.md)): the product and
-technical design in one document, with what is built, in review and planned.
+technical design in one document, with what is built and what is planned.
 
 - [UI principles](docs/design/ui-principles.md) and
   [Statements at scale](docs/design/statements-at-scale.md): the adopted UI and review design.
