@@ -738,9 +738,21 @@ planned.
 
 - **A page is a `PageSpec`:** an ordered list of 14 typed blocks (heading, paragraph, list,
   callout, quote, table, code, math, image, divider, diagram, chart, view, embed) whose sentences
-  carry statement IDs. Readers who cannot see a statement do not see its sentence. Every version is
-  an immutable snapshot with its cause, and block keys stay stable so comments survive rebuilds and
-  diffs can say what moved.
+  carry statement IDs. Every version is an immutable snapshot with its cause, and block keys stay
+  stable so comments survive rebuilds and diffs can say what moved.
+- **A page is written for its audience, never cut down per reader.** Removing sentences from prose
+  written for someone else would leave pages that do not read. So the compiler writes a page's
+  prose only from statements that everyone in its space's audience can read, at their clearance.
+  When it would use a statement with a narrower audience, the publish check asks for one of three
+  things: an approval to show it to the whole audience, leaving it out, or a self-contained block
+  (a callout or a section such as "Finance details") that only its readers see. No sentence may
+  refer to a block with another audience, so dropping a whole block leaves the page coherent.
+  Procedures are all or nothing: one is published only when its audience can read every step.
+  When a space narrows later and the setting hides the affected statement, the page is recompiled
+  without it, as a new version. A last check per reader still drops anything unreadable, for
+  example after a change between compile and read; if it would drop text inside a paragraph or a
+  procedure, the page is compiled again for that reader's set of readable spaces and cached for
+  everyone who shares it.
 - **Charts** take their data from a `DataRef`: inline rows, statements (fixed or by query) or a
   registered query of a connected system, never free SQL. Rows keep their statement IDs, so rows a
   reader may not see are dropped before rendering.
