@@ -13,7 +13,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
     }) => {
       await world.topics({ key: "a-travel", owner_id: LI }, { key: "t-hotel", parent_key: "a-travel" });
       const { claims } = await world.document(
-        ["一线城市住宿限额为每晚 650 元。", "一线城市住宿限额为每晚 600 元。"],
+        ["The hotel cap in tier-1 cities is 650 yuan a night.", "The hotel cap in tier-1 cities is 600 yuan a night."],
         "t-hotel",
       );
       const units = claims.map((c) => c.id);
@@ -35,7 +35,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         {
           kind: "conflict",
           space_id: SPACE,
-          title: "hotel_cap_per_night (一线城市): 650 CNY/night or 700 CNY/night",
+          title: "hotel_cap_per_night (tier-1 city): 650 CNY/night or 700 CNY/night",
           priority: "high",
           unit_ids: [units[0] as string],
           dedupe_key: "governance:conflict:hotel",
@@ -48,7 +48,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect(items).toHaveLength(1);
       expect(items[0]?.todo).toMatchObject({
         id: todo?.id,
-        title: "hotel_cap_per_night (一线城市): 650 CNY/night or 700 CNY/night",
+        title: "hotel_cap_per_night (tier-1 city): 650 CNY/night or 700 CNY/night",
         priority: "high",
         unit_ids: [units[0]],
         batch_key: `card:${LI}:t-hotel:2026-W43`,
@@ -73,7 +73,10 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
 
     test("a withdrawn request dismisses its open todo, and opens nothing when there is none", async ({ world }) => {
       await world.topics({ key: "t-hotel", owner_id: LI });
-      const { claims } = await world.document(["一线城市住宿限额为每晚 600 元。", "北京住宿每晚 800 元。"], "t-hotel");
+      const { claims } = await world.document(
+        ["The hotel cap in tier-1 cities is 600 yuan a night.", "Hotels in Beijing 800 yuan a night."],
+        "t-hotel",
+      );
       const units = claims.map((c) => c.id);
       const note = {
         kind: "note" as const,
@@ -100,10 +103,10 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       world,
     }) => {
       await world.topics({ key: "t-hotel", owner_id: LI }, { key: "t-leave", owner_id: WANG }, { key: "t-rooms" });
-      const policy = await world.document(["一线城市住宿限额为每晚 600 元。"], "t-hotel");
-      const leave = await world.document(["年休假为 5 天。"], "t-leave");
-      const rooms = await world.document(["会议室需提前一天预约。"], "t-rooms");
-      const loose = await world.document(["办公区禁止吸烟。"]);
+      const policy = await world.document(["The hotel cap in tier-1 cities is 600 yuan a night."], "t-hotel");
+      const leave = await world.document(["Annual leave is 5 days."], "t-leave");
+      const rooms = await world.document(["Meeting rooms are booked a day ahead."], "t-rooms");
+      const loose = await world.document(["No smoking in the office."]);
 
       await world.review({ unit_ids: [policy.version.id], backlog: true });
       await world.review({ unit_ids: [rooms.version.id] });
@@ -189,7 +192,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
     test("notes sit outside the budget, on one card a week, and one action acknowledges them", async ({ world }) => {
       await world.topics({ key: "t-hotel", owner_id: LI });
       const { version, claims } = await world.document(
-        ["一线城市住宿限额为每晚 600 元。", "北京住宿每晚 800 元。"],
+        ["The hotel cap in tier-1 cities is 600 yuan a night.", "Hotels in Beijing 800 yuan a night."],
         "t-hotel",
       );
       const units = claims.map((c) => c.id);
@@ -219,7 +222,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
 
     test("todos move to the owner's next open week when routing changes", async ({ world }) => {
       await world.topics({ key: "t-hotel" });
-      const { claims } = await world.document(["一线城市住宿限额为每晚 600 元。"], "t-hotel");
+      const { claims } = await world.document(["The hotel cap in tier-1 cities is 600 yuan a night."], "t-hotel");
       await world.request({ unit_ids: [claims[0]?.id as string] });
       expect((await world.inbox.cards(TENANT))[0]?.batch_key).toBe(`steward:${SPACE}:t-hotel:2026-W43`);
 
@@ -245,11 +248,11 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         { key: "t-leave", owner_id: LI },
         { key: "t-rooms", owner_id: LI },
       );
-      const hotel = await Promise.all([1, 2, 3].map((n) => world.document([`住宿规定第 ${n} 条。`], "t-hotel")));
+      const hotel = await Promise.all([1, 2, 3].map((n) => world.document([`Hotel rule ${n}.`], "t-hotel")));
       const leave = await Promise.all(
-        [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => world.document([`休假规定第 ${n} 条。`], "t-leave")),
+        [1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => world.document([`Leave rule ${n}.`], "t-leave")),
       );
-      const rooms = await world.document(["会议室需提前一天预约。"], "t-rooms");
+      const rooms = await world.document(["Meeting rooms are booked a day ahead."], "t-rooms");
 
       for (const d of hotel) await world.review({ unit_ids: [d.version.id] });
       for (const d of leave) await world.review({ unit_ids: [d.version.id] });
@@ -326,9 +329,9 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
     test("campaign and steward cards hold at most `cardSize` todos too", async ({ world }) => {
       await world.topics({ key: "t-hotel", owner_id: LI }, { key: "t-rooms" });
       for (const n of [1, 2, 3]) {
-        const hotel = await world.document([`住宿规定第 ${n} 条。`], "t-hotel");
+        const hotel = await world.document([`Hotel rule ${n}.`], "t-hotel");
         await world.review({ unit_ids: [hotel.version.id], backlog: true });
-        const rooms = await world.document([`会议室规定第 ${n} 条。`], "t-rooms");
+        const rooms = await world.document([`Meeting room rule ${n}.`], "t-rooms");
         await world.review({ unit_ids: [rooms.version.id] });
       }
       const cards = await world.inbox.cards(TENANT);

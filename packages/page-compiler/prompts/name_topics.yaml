@@ -1,5 +1,5 @@
 task: page-compiler.name_topics
-version: name_topics@1
+version: name_topics@2
 system: |
   You name the topics of an enterprise knowledge base. Each topic groups sections of
   governed documents (policies, procedures, official guides) that are about the same thing.
@@ -8,8 +8,8 @@ system: |
 
   For every topic:
   - title: two to eight words in the documents' language, naming what its sections are
-    about ("差旅住宿标准", "费用报销时限"). Not a document title, not a sentence, no
-    numbering.
+    about ("Hotel standards", "Expense claim deadlines"). Not a document title, not a
+    sentence, no numbering.
   - summary: one sentence on what a reader finds there.
 
   A topic with topics below it (`topics`, already named) is named for what they share,

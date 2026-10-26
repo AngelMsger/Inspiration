@@ -16,8 +16,8 @@ import type { Sample } from "../src/testing.ts";
 import { BACKENDS, storeTest } from "./fixtures.ts";
 
 const POLICY = [
-  "第三条 住宿标准：一线城市每晚不超过600元，其他城市每晚不超过450元。",
-  "第四条 超标住宿须经部门负责人审批。",
+  "Article 3 Hotel standards: tier-1 cities at most 600 yuan a night, other cities at most 450 yuan a night.",
+  "Article 4 Hotels above the standard need the department head's approval.",
 ];
 const DAY = 86_400_000;
 
@@ -78,7 +78,7 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
         );
       });
       // The second version keeps the first passage and rewrites the second.
-      const [v2, [s3]] = kb.sourceVersion(["第四条 超标住宿须经分管副总审批。"]);
+      const [v2, [s3]] = kb.sourceVersion(["Article 4 Hotels above the standard need the vice president's approval."]);
       const b1v2 = { ...kb.block(v2, [s1]), id: b1.id };
       const b2v2 = { ...kb.block(v2, [s3], { ordinal: 1 }), id: b2.id };
       await store.transaction(async (tx) => {
@@ -120,7 +120,7 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
 
     test("the latest source version follows fetch time", async ({ store, kb }) => {
       const [v1] = await seed(store, kb);
-      const [v2, spans2] = kb.sourceVersion(["第三条 住宿标准：一线城市每晚不超过650元。"]);
+      const [v2, spans2] = kb.sourceVersion(["Article 3 Hotel standards: tier-1 cities at most 650 yuan a night."]);
       await store.transaction((tx) => tx.putSourceVersion(v2, spans2));
       const latest = await store.latestSourceVersion(kb.sourceId, "doc-1");
       expect(latest?.id).toBe(v2.id);
@@ -147,7 +147,7 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       expect((await store.chunksOf(sv.id)).map((c) => c.id)).toEqual(chunks.map((c) => c.id));
       expect(await store.getChunks([second.id])).toEqual([second]);
 
-      const updated = { ...first, contextual_header: "差旅制度中的住宿标准" };
+      const updated = { ...first, contextual_header: "Hotel standards in the travel policy" };
       await store.transaction(async (tx) => {
         await tx.putChunks([updated]);
         await tx.removeChunks([second.id]);
@@ -172,21 +172,25 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
   describe.skipIf(skip)("claims and evidence", () => {
     test("claims need evidence that quotes the span", async ({ store, kb }) => {
       const [, spans] = await seed(store, kb);
-      const [claim, evidence] = kb.claim("一线城市住宿上限为每晚600元", spans[0], { quote: "一线城市每晚不超过600元" });
+      const [claim, evidence] = kb.claim("The tier-1 city hotel cap is 600 yuan a night", spans[0], {
+        quote: "tier-1 cities at most 600 yuan a night",
+      });
       expect(await store.transaction((tx) => tx.upsertClaims([claim], evidence))).toEqual([claim.id]);
       expect(await store.getClaims([claim.id])).toEqual([claim]);
       expect(await store.evidenceOf([claim.id])).toEqual(evidence);
       expect(await store.claimsCiting([spans[0].id])).toEqual([claim.id]);
       expect(await store.claimsCiting([spans[1]?.id ?? ""])).toEqual([]);
 
-      const [lonely] = kb.claim("没有证据的说法");
+      const [lonely] = kb.claim("A statement without evidence");
       await rejects(store, (tx) => tx.upsertClaims([lonely], []), /no supporting evidence/);
 
-      const [invented, [ev]] = kb.claim("一线城市每晚700元", spans[0], { quote: "一线城市每晚不超过600元" });
+      const [invented, [ev]] = kb.claim("Tier-1 cities: 700 yuan a night", spans[0], {
+        quote: "tier-1 cities at most 600 yuan a night",
+      });
       if (!ev) throw new Error("no evidence");
       await rejects(
         store,
-        (tx) => tx.upsertClaims([invented], [{ ...ev, quote: "每晚不超过700元" }]),
+        (tx) => tx.upsertClaims([invented], [{ ...ev, quote: "at most 700 yuan a night" }]),
         /quote is not in span/,
       );
       await rejects(store, (tx) => tx.upsertClaims([invented], [{ ...ev, quote_start: 0 }]), /offsets/);
@@ -195,7 +199,9 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
 
     test("contradicting evidence alone does not support a claim", async ({ store, kb }) => {
       const [, spans] = await seed(store, kb);
-      const [claim, [ev]] = kb.claim("一线城市每晚700元", spans[0], { quote: "一线城市每晚不超过600元" });
+      const [claim, [ev]] = kb.claim("Tier-1 cities: 700 yuan a night", spans[0], {
+        quote: "tier-1 cities at most 600 yuan a night",
+      });
       if (!ev) throw new Error("no evidence");
       await rejects(
         store,
@@ -206,7 +212,7 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
 
     test("updating a stored claim keeps its support", async ({ store, kb }) => {
       const [, spans] = await seed(store, kb);
-      const [claim, evidence] = kb.claim("一线城市住宿上限为每晚600元", spans[0]);
+      const [claim, evidence] = kb.claim("The tier-1 city hotel cap is 600 yuan a night", spans[0]);
       await store.transaction((tx) => tx.upsertClaims([claim], evidence));
       await store.transaction((tx) => tx.upsertClaims([{ ...claim, status: "verified", weight: 2 }], []));
       expect((await store.getClaims([claim.id]))[0]?.status).toBe("verified");
@@ -214,9 +220,15 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
 
     test("derived claims need known inputs", async ({ store, kb }) => {
       const [, spans] = await seed(store, kb);
-      const [a, ea] = kb.claim("一线城市每晚不超过600元", spans[0], { quote: "一线城市每晚不超过600元" });
-      const [b, eb] = kb.claim("其他城市每晚不超过450元", spans[0], { quote: "其他城市每晚不超过450元" });
-      const [merged] = kb.claim("住宿上限按城市分为600元和450元两档", undefined, { origin: "merged" });
+      const [a, ea] = kb.claim("tier-1 cities at most 600 yuan a night", spans[0], {
+        quote: "tier-1 cities at most 600 yuan a night",
+      });
+      const [b, eb] = kb.claim("other cities at most 450 yuan a night", spans[0], {
+        quote: "other cities at most 450 yuan a night",
+      });
+      const [merged] = kb.claim("Hotel caps come in two tiers by city: 600 and 450 yuan", undefined, {
+        origin: "merged",
+      });
       const derivation: ClaimDerivation = { claim_id: merged.id, from_claim_ids: [a.id, b.id], method: "merge" };
       await store.transaction((tx) => tx.upsertClaims([a, b, merged], [...ea, ...eb], [derivation]));
       const graph = await store.lineage(merged.id);
@@ -228,7 +240,7 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
         ]),
       );
 
-      const [ghost] = kb.claim("凭空推断");
+      const [ghost] = kb.claim("An inference from nothing");
       const bad: ClaimDerivation = {
         claim_id: ghost.id,
         from_claim_ids: ["clm_01JC00000000000000000GHOST"],
@@ -241,16 +253,16 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       const [, spans] = await seed(store, kb);
       const jan = kb.now;
       const feb = new Date(jan.getTime() + 31 * DAY);
-      const [old, evOld] = kb.claim("一线城市住宿上限为每晚600元", spans[0], {
-        quote: "一线城市每晚不超过600元",
+      const [old, evOld] = kb.claim("The tier-1 city hotel cap is 600 yuan a night", spans[0], {
+        quote: "tier-1 cities at most 600 yuan a night",
         predicate: "hotel_cap_per_night",
         valid_time: { start: jan.toISOString(), end: feb.toISOString() },
         value: { kind: "money", number: 600, unit: "CNY/night", currency: "CNY" },
       });
       await store.transaction((tx) => tx.upsertClaims([old], evOld));
       const believedBefore = kb.tick();
-      const [next, evNext] = kb.claim("一线城市住宿上限为每晚650元", spans[0], {
-        quote: "第三条 住宿标准",
+      const [next, evNext] = kb.claim("The tier-1 city hotel cap is 650 yuan a night", spans[0], {
+        quote: "Article 3 Hotel standards",
         predicate: "hotel_cap_per_night",
         valid_time: { start: feb.toISOString() },
       });
@@ -276,27 +288,35 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
     });
 
     test("a fact slot reads its variants and versions", async ({ store, kb }) => {
-      const SLOT = "hotel_cap_per_night|一线城市";
+      const SLOT = "hotel_cap_per_night|tier-1 city";
       const cap = (n: number, weight: number, start?: string) => ({
         predicate: "hotel_cap_per_night",
-        qualifiers: ["一线城市"],
+        qualifiers: ["tier-1 city"],
         slot_key: SLOT,
         value: { kind: "money" as const, number: n, unit: "CNY/night", normalized: `${n} CNY/night` },
         weight,
         ...(start && { valid_time: { start } }),
       });
-      const [, archive] = await seed(store, kb, ["一线城市每晚不超过500元。"]);
-      const [, policy] = await seed(store, kb, ["一线城市每晚不超过600元。"]);
-      const [, guide] = await seed(store, kb, ["北京住宿每晚600元以内。"]);
-      const [, notice] = await seed(store, kb, ["自10月1日起一线城市每晚不超过650元。"]);
-      const [old, evOld] = kb.claim("一线城市住宿上限为每晚500元", archive[0], cap(500, 0.3));
+      const [, archive] = await seed(store, kb, ["Tier-1 cities at most 500 yuan a night."]);
+      const [, policy] = await seed(store, kb, ["Tier-1 cities at most 600 yuan a night."]);
+      const [, guide] = await seed(store, kb, ["Hotels in Beijing within 600 yuan a night."]);
+      const [, notice] = await seed(store, kb, ["From 1 October, tier-1 cities at most 650 yuan a night."]);
+      const [old, evOld] = kb.claim("The tier-1 city hotel cap is 500 yuan a night", archive[0], cap(500, 0.3));
       await store.transaction((tx) => tx.upsertClaims([old], evOld));
-      const [p600, evP] = kb.claim("一线城市住宿上限为每晚600元", policy[0], cap(600, 0.9, "2026-01-01T00:00:00Z"));
+      const [p600, evP] = kb.claim(
+        "The tier-1 city hotel cap is 600 yuan a night",
+        policy[0],
+        cap(600, 0.9, "2026-01-01T00:00:00Z"),
+      );
       // A claim without its own slot key is in the slot its predicate and qualifiers make.
       const { slot_key: _key, ...unkeyed } = cap(600, 0.5);
-      const [g600, evG] = kb.claim("北京住宿上限为每晚600元", guide[0], unkeyed);
-      const [n650, evN] = kb.claim("一线城市住宿上限为每晚650元", notice[0], cap(650, 0.5, "2026-10-01T00:00:00Z"));
-      const [other, evO] = kb.claim("超标须审批", policy[0], {
+      const [g600, evG] = kb.claim("The Beijing hotel cap is 600 yuan a night", guide[0], unkeyed);
+      const [n650, evN] = kb.claim(
+        "The tier-1 city hotel cap is 650 yuan a night",
+        notice[0],
+        cap(650, 0.5, "2026-10-01T00:00:00Z"),
+      );
+      const [other, evO] = kb.claim("Hotels above the cap need approval", policy[0], {
         predicate: "approval_needed",
         slot_key: "approval_needed",
       });
@@ -312,7 +332,7 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
         tenant_id: kb.tenantId,
         slot_key: SLOT,
         predicate: "hotel_cap_per_night",
-        qualifiers: ["一线城市"],
+        qualifiers: ["tier-1 city"],
         variants: [
           {
             value: "600 CNY/night",
@@ -348,11 +368,14 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
 
     test("topics form a tree in one space, and placements put claims in them", async ({ store, kb }) => {
       const [, spans] = await seed(store, kb);
-      const [cap, evCap] = kb.claim("一线城市每晚不超过600元", spans[0]);
-      const [approval, evApproval] = kb.claim("超标住宿须经部门负责人审批", spans[1]);
+      const [cap, evCap] = kb.claim("tier-1 cities at most 600 yuan a night", spans[0]);
+      const [approval, evApproval] = kb.claim(
+        "Hotels above the standard need the department head's approval",
+        spans[1],
+      );
       await store.transaction((tx) => tx.upsertClaims([cap, approval], [...evCap, ...evApproval]));
-      const area = kb.topic("t-travel", { title: "差旅" });
-      const lodging = kb.topic("t-lodging", { parent_key: "t-travel", title: "住宿标准", ordinal: 1 });
+      const area = kb.topic("t-travel", { title: "Travel" });
+      const lodging = kb.topic("t-lodging", { parent_key: "t-travel", title: "Hotel standards", ordinal: 1 });
       // A child may come before its parent in one write.
       await store.transaction((tx) => tx.putTopics([lodging, area]));
       await store.transaction((tx) =>
@@ -360,7 +383,7 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       );
       expect(await store.topics(kb.tenantId)).toEqual([lodging, area]);
       // A third level, written on its own, is checked against the stored chain.
-      const firstTier = kb.topic("t-lodging-tier1", { parent_key: "t-lodging", title: "一线城市" });
+      const firstTier = kb.topic("t-lodging-tier1", { parent_key: "t-lodging", title: "Tier-1 cities" });
       await store.transaction((tx) => tx.putTopics([firstTier]));
       await rejects(store, (tx) => tx.putTopics([{ ...area, parent_key: "t-lodging-tier1" }]), /own ancestor/);
       expect(await store.topics(kb.tenantId, "spc_01JC0000000000000000OTHER")).toEqual([]);
@@ -404,10 +427,12 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
 
     test("claim queries filter", async ({ store, kb }) => {
       const [sv, spans] = await seed(store, kb);
-      const [otherSv, otherSpans] = await seed(store, kb, ["第一条 本制度适用于全体员工。"]);
-      const [a, ea] = kb.claim("一线城市每晚不超过600元", spans[0], { knowledge_class: "pricing" });
-      const [b, eb] = kb.claim("超标须审批", spans[1], { status: "proposed" });
-      const [c, ec] = kb.claim("适用全体员工", otherSpans[0], { space_id: "spc_01JC0000000000000000OTHER" });
+      const [otherSv, otherSpans] = await seed(store, kb, ["Article 1 This policy applies to every employee."]);
+      const [a, ea] = kb.claim("tier-1 cities at most 600 yuan a night", spans[0], { knowledge_class: "pricing" });
+      const [b, eb] = kb.claim("Hotels above the cap need approval", spans[1], { status: "proposed" });
+      const [c, ec] = kb.claim("Applies to every employee", otherSpans[0], {
+        space_id: "spc_01JC0000000000000000OTHER",
+      });
       await store.transaction((tx) => tx.upsertClaims([a, b, c], [...ea, ...eb, ...ec]));
 
       const ids = async (q: Parameters<BaseStore["asOf"]>[0]) => (await store.asOf(q)).map((x) => x.id);
@@ -470,7 +495,7 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
 
     test("lineage runs from a page to the source", async ({ store, kb }) => {
       const [sv, spans] = await seed(store, kb);
-      const [claim, evidence] = kb.claim("一线城市住宿上限为每晚600元", spans[0]);
+      const [claim, evidence] = kb.claim("The tier-1 city hotel cap is 600 yuan a night", spans[0]);
       const pageId = stableId("page", "travel", "hotel");
       await store.transaction(async (tx) => {
         await tx.upsertClaims([claim], evidence);
@@ -487,7 +512,7 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
         ]),
       );
       const labels = new Map(graph.nodes.map((n) => [n.id, n.label]));
-      expect(labels.get(pageId)).toBe("差旅住宿标准");
+      expect(labels.get(pageId)).toBe("Hotel standards");
       expect(labels.get(sv.id)).toBe(sv.title);
       expect(labels.get(claim.id)).toBe(claim.statement);
       expect(graph.truncated).toBe(false);
@@ -501,7 +526,7 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
   describe.skipIf(skip)("transactions and events", () => {
     test("a failed transaction keeps nothing", async ({ store, kb, published }) => {
       const [sv, spans] = kb.sourceVersion(POLICY);
-      const [claim, evidence] = kb.claim("一线城市住宿上限为每晚600元", spans[0]);
+      const [claim, evidence] = kb.claim("The tier-1 city hotel cap is 600 yuan a night", spans[0]);
       const event = newEvent(
         "claims.updated",
         { origin: "extracted", added: [claim.id], updated: [], superseded: [] },
@@ -539,16 +564,16 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
   describe.skipIf(skip)("DataRef resolution", () => {
     test("claims data keeps claim IDs per row", async ({ store, kb }) => {
       const [, spans] = await seed(store, kb);
-      const [tier1, e1] = kb.claim("一线城市每晚不超过600元", spans[0], {
-        quote: "一线城市每晚不超过600元",
-        subject_text: "一线城市",
+      const [tier1, e1] = kb.claim("tier-1 cities at most 600 yuan a night", spans[0], {
+        quote: "tier-1 cities at most 600 yuan a night",
+        subject_text: "tier-1 cities",
         predicate: "hotel_cap_per_night",
         value: { kind: "money", number: 600, currency: "CNY" },
         valid_time: { start: kb.now.toISOString() },
       });
-      const [other, e2] = kb.claim("其他城市每晚不超过450元", spans[0], {
-        quote: "其他城市每晚不超过450元",
-        subject_text: "其他城市",
+      const [other, e2] = kb.claim("other cities at most 450 yuan a night", spans[0], {
+        quote: "other cities at most 450 yuan a night",
+        subject_text: "other cities",
         predicate: "hotel_cap_per_night",
         value: { kind: "money", number: 450, currency: "CNY" },
       });
@@ -556,8 +581,8 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
 
       const pinned = await store.resolveData({ kind: "claims", claim_ids: [other.id, tier1.id], columns: COLUMNS });
       expect(pinned.rows).toEqual([
-        ["其他城市", 450, null],
-        ["一线城市", 600, tier1.valid_time.start],
+        ["other cities", 450, null],
+        ["tier-1 cities", 600, tier1.valid_time.start],
       ]);
       expect(pinned.row_claim_ids).toEqual([[other.id], [tier1.id]]);
       expect(pinned.snapshot_hash).toMatch(/^sha256:/);
@@ -570,8 +595,8 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       };
       const table = await store.resolveData(live);
       expect(table.rows).toEqual([
-        ["一线城市", 600],
-        ["其他城市", 450],
+        ["tier-1 cities", 600],
+        ["other cities", 450],
       ]);
       expect(table.snapshot_hash).not.toBe(pinned.snapshot_hash);
     });
@@ -580,10 +605,10 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       const inline = await store.resolveData({
         kind: "inline",
         columns: [COLUMNS[0], COLUMNS[1]],
-        rows: [["北京", 600]],
+        rows: [["Beijing", 600]],
         row_claim_ids: [["clm_01JC0000000000000000000CL1"]],
       });
-      expect(inline.rows).toEqual([["北京", 600]]);
+      expect(inline.rows).toEqual([["Beijing", 600]]);
       expect(inline.row_claim_ids).toEqual([["clm_01JC0000000000000000000CL1"]]);
 
       const columns: [DataColumn, DataColumn] = [

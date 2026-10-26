@@ -27,7 +27,7 @@ function folderSource(root: string): Source {
     tenant_id: TENANT,
     space_id: "spc_01JC00000000000000000SPACE",
     type: "folder",
-    name: "制度库",
+    name: "Policies",
     scope: { kind: "folder", options: { root } },
     status: "active",
     default_sensitivity: "internal",
@@ -105,10 +105,10 @@ describe.each<{ backend: Backend; skip: boolean }>([
   it.skipIf(skip)(
     "each version gets its governance level: the item's, its folder's, else reference",
     async ({ world }) => {
-      await world.write("制度/.meta.yaml", "governance_level: governed\n");
-      await world.write("制度/报销.md", "# 费用报销办法\n\n第一条 正文。");
-      await world.write("制度/草稿.md", "---\ngovernance_level: search_only\n---\n# 草稿\n\n未定稿。");
-      await world.write("通知.txt", "公司通知");
+      await world.write("policies/.meta.yaml", "governance_level: governed\n");
+      await world.write("policies/expenses.md", "# Expense policy\n\nArticle 1 The text.");
+      await world.write("policies/draft.md", "---\ngovernance_level: search_only\n---\n# Draft\n\nNot final.");
+      await world.write("notice.txt", "A company notice");
       await world.sync.sync(SOURCE);
       const levels: Record<string, string | undefined> = {};
       for (const e of await world.events()) {
@@ -116,26 +116,33 @@ describe.each<{ backend: Backend; skip: boolean }>([
         const fetched = payloadOf(e, "document.fetched");
         levels[fetched.external_id] = (await world.store.getSourceVersion(fetched.source_version_id))?.governance_level;
       }
-      expect(levels).toEqual({ "制度/报销.md": "governed", "制度/草稿.md": "search_only", "通知.txt": "reference" });
+      expect(levels).toEqual({
+        "policies/expenses.md": "governed",
+        "policies/draft.md": "search_only",
+        "notice.txt": "reference",
+      });
     },
   );
 
   it.skipIf(skip)("a first sync stores versions, ACL snapshots and events", async ({ world }) => {
     await world.write("finance/.acl.yaml", "readers: [group:finance, group:unknown]\n");
-    await world.write("finance/报销.md", "---\napproval_state: approved\n---\n# 费用报销办法\n\n第一条 正文。");
-    await world.write("通知.txt", "公司通知");
+    await world.write(
+      "finance/expenses.md",
+      "---\napproval_state: approved\n---\n# Expense policy\n\nArticle 1 The text.",
+    );
+    await world.write("notice.txt", "A company notice");
     const report = await world.sync.sync(SOURCE);
     expect(report.outcomes).toMatchObject({ created: 2, unchanged: 0, failed: 0 });
 
     const events = await world.events();
     expect(events.map((e) => e.type)).toEqual(["document.fetched", "acl.changed", "document.fetched", "acl.changed"]);
     const fetched = payloadOf(events[0] as EventEnvelope, "document.fetched");
-    expect(fetched).toMatchObject({ external_id: "finance/报销.md", deleted: false, needs_parsing: true });
+    expect(fetched).toMatchObject({ external_id: "finance/expenses.md", deleted: false, needs_parsing: true });
     expect(fetched.changed).toEqual({ content: true, metadata: true, acl: true });
 
     const version = await world.store.getSourceVersion(fetched.source_version_id);
     expect(version).toMatchObject({
-      title: "费用报销办法",
+      title: "Expense policy",
       approval_state: "approved",
       authority: 0.8,
       sensitivity: "internal",
@@ -149,7 +156,7 @@ describe.each<{ backend: Backend; skip: boolean }>([
       { principal_kind: "group", external_id: "finance", principal_id: FINANCE, role: "viewer" },
       { principal_kind: "group", external_id: "unknown", role: "viewer" },
     ]);
-    expect(await world.store.getAclSnapshot(SOURCE, "finance/报销.md", acl.acl_hash)).toEqual(acl.snapshot);
+    expect(await world.store.getAclSnapshot(SOURCE, "finance/expenses.md", acl.acl_hash)).toEqual(acl.snapshot);
 
     // Nothing changed: nothing is fetched or published.
     const again = await world.sync.sync(SOURCE);
@@ -158,11 +165,11 @@ describe.each<{ backend: Backend; skip: boolean }>([
   });
 
   it.skipIf(skip)("edits make new versions; ACL changes alone do not", async ({ world }) => {
-    await world.write("a.md", "# A\n\n第一版。");
+    await world.write("a.md", "# A\n\nThe first version.");
     await world.sync.sync(SOURCE);
     const [first] = await world.sync.items(SOURCE);
 
-    await world.write("a.md", "# A\n\n第二版。");
+    await world.write("a.md", "# A\n\nThe second version.");
     expect((await world.sync.sync(SOURCE)).outcomes.updated).toBe(1);
     const [second] = await world.sync.items(SOURCE);
     expect(second?.source_version_id).not.toBe(first?.source_version_id);

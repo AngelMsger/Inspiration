@@ -129,12 +129,14 @@ test("embed orders rows and prefixes queries", async () => {
       usage: { prompt_tokens: 7 },
     }),
   );
-  const out = await p.embed(EMBED, ["酒店上限", "hotel cap"], "query");
+  const out = await p.embed(EMBED, ["hotel cap per night", "hotel cap"], "query");
   expect(out.vectors).toEqual([
     [1, 0, 0],
     [0, 1, 0],
   ]);
-  expect((seen[0]?.body.input as string[] | undefined)?.[0]).toBe("Instruct: Find policy passages\nQuery:酒店上限");
+  expect((seen[0]?.body.input as string[] | undefined)?.[0]).toBe(
+    "Instruct: Find policy passages\nQuery:hotel cap per night",
+  );
   await p.embed(EMBED, ["a", "b"], "document");
   expect(seen[1]?.body.input).toEqual(["a", "b"]);
   expect(seen[1]?.body).not.toHaveProperty("dimensions");

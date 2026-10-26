@@ -10,8 +10,9 @@
  * - Blocks: flat in reading order, with the heading path above each block and a parent
  *   link; a table keeps one block per row, its cells being the row's spans. Headings have
  *   no spans of their own.
- * - Spans: sentences, and in Chinese text also clauses ended by "；", cut at a comma when
- *   longer than 400 characters; whole code blocks; one per table cell or form field. A
+ * - Spans: sentences, and in Chinese text also clauses ended by a full-width semicolon,
+ *   cut at a comma when longer than 400 characters (the punctuation of each language
+ *   comes from languages/); whole code blocks; one per table cell or form field. A
  *   span's ID depends on its block's ID and its text only.
  * - Stable IDs: a source's native block ID when it has one. Otherwise the block's place
  *   in the outline and its text, then aligned with the previous version so that an edited

@@ -3,7 +3,7 @@
 
 import type { Chunk, IndexFilter, KeywordIndex, VectorIndex } from "@inspiration/contracts";
 import { openPool, registry, withTransaction } from "@inspiration/kernel";
-import { createTestDatabase, hasStack, stackTest } from "@inspiration/testkit";
+import { createTestDatabase, hasStack, stackTest, testData } from "@inspiration/testkit";
 import { describe, expect, test as unitTest } from "vitest";
 import {
   type BaseStore,
@@ -19,12 +19,13 @@ import {
 import { Sample } from "../src/testing.ts";
 import { BACKENDS, type Backend } from "./fixtures.ts";
 
-const DOCS = {
-  cap: "第三条 住宿标准：一线城市每晚不超过600元，其他城市每晚不超过450元。",
-  trad: "第五條 出差住宿標準按城市等級執行。", // traditional characters
-  approval: "第四条 超标住宿须经部门负责人审批。",
-  revenue: "Quarterly revenue report for the sales team.",
-};
+const ZH = testData<{
+  documents: Record<"cap" | "trad" | "approval", string>;
+  queries: Record<"standards" | "hotel", string>;
+}>(import.meta.url, "zh.yaml");
+
+/** Three Chinese passages, one in traditional characters, and an English one. */
+const DOCS = { ...ZH.documents, revenue: "Quarterly revenue report for the sales team." };
 type Doc = keyof typeof DOCS;
 const SALES = "spc_01JC00000000000000000SALES";
 
@@ -106,9 +107,10 @@ describe.each(BACKENDS)("$backend indexes", ({ backend, skip }) => {
 
   describe.skipIf(skip)("keyword", () => {
     test("BM25 matches Chinese, including traditional characters", async ({ indexes, chunks, kb }) => {
-      const hits = await indexes.keyword.search("住宿标准", 10, everyone(kb));
+      const hits = await indexes.keyword.search(ZH.queries.standards, 10, everyone(kb));
       const ids = hits.map((h) => h.chunk_id);
-      expect(ids).toEqual(expect.arrayContaining([chunks.cap.id, chunks.trad.id])); // 標準 folds to 标准
+      // The traditional characters of trad fold to the simplified ones of the query.
+      expect(ids).toEqual(expect.arrayContaining([chunks.cap.id, chunks.trad.id]));
       expect(ids).not.toContain(chunks.revenue.id);
       expect(hits.map((h) => h.rank)).toEqual(hits.map((_, i) => i + 1));
       expect(hits.every((h, i) => i === 0 || (hits[i - 1]?.score ?? 0) >= h.score)).toBe(true);
@@ -117,16 +119,20 @@ describe.each(BACKENDS)("$backend indexes", ({ backend, skip }) => {
     });
 
     test("BM25 applies the filter before the top-k cut", async ({ indexes: { keyword }, chunks, kb }) => {
-      const internal = await keyword.search("住宿", 10, everyone(kb, { max_sensitivity: "internal" }));
+      const internal = await keyword.search(ZH.queries.hotel, 10, everyone(kb, { max_sensitivity: "internal" }));
       expect(internal.map((h) => h.chunk_id)).not.toContain(chunks.approval.id);
-      const oneSpace = await keyword.search("revenue 住宿", 10, everyone(kb, { space_ids: [kb.spaceId] }));
+      const oneSpace = await keyword.search(
+        `revenue ${ZH.queries.hotel}`,
+        10,
+        everyone(kb, { space_ids: [kb.spaceId] }),
+      );
       expect(oneSpace.map((h) => h.chunk_id)).not.toContain(chunks.revenue.id);
       expect(
         await keyword.search("revenue", 10, everyone(kb, { principal_tokens: [`tenant:${kb.tenantId}`] })),
       ).toEqual([]);
-      expect(await keyword.search("住宿", 10, everyone(kb, { principal_tokens: [] }))).toEqual([]);
+      expect(await keyword.search(ZH.queries.hotel, 10, everyone(kb, { principal_tokens: [] }))).toEqual([]);
       expect(await keyword.search("  ", 10, everyone(kb))).toEqual([]);
-      const top1 = await keyword.search("住宿", 1, everyone(kb, { max_sensitivity: "internal" }));
+      const top1 = await keyword.search(ZH.queries.hotel, 1, everyone(kb, { max_sensitivity: "internal" }));
       expect(top1).toHaveLength(1);
       expect(top1[0]?.chunk_id).not.toBe(chunks.approval.id);
     });
@@ -158,7 +164,7 @@ describe.each(BACKENDS)("$backend indexes", ({ backend, skip }) => {
   describe.skipIf(skip)("both", () => {
     test("removing a chunk removes it from both indexes", async ({ indexes, chunks, kb }) => {
       await indexes.store.transaction((tx) => tx.removeChunks([chunks.cap.id]));
-      const keyword = await indexes.keyword.search("住宿标准", 10, everyone(kb));
+      const keyword = await indexes.keyword.search(ZH.queries.standards, 10, everyone(kb));
       expect(keyword.map((h) => h.chunk_id)).not.toContain(chunks.cap.id);
       const vector = await indexes.vector.search(unit(1, 0.1, 0), 10, everyone(kb));
       expect(vector.map((h) => h.chunk_id)).not.toContain(chunks.cap.id);

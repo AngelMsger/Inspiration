@@ -1,0 +1,24 @@
+# What the extraction.extract_claims stand-in (src/mock.ts) looks for in English text, and how
+# it writes the statements it builds. See zh.yaml for the fields. Words match whole and in
+# any case.
+
+normative: [must, shall, "may not", "must not", "is required", "are required", "at most", "at least", "no more than", "not exceed", "up to", limit, cap, capped, responsible, approve, approved, approval, prohibited, forbidden]
+definition: ["is defined as", means, "refers to"]
+plan: [plan, plans, planned, "is expected to", "are expected to", "will be", "next step"]
+decision: [decided, agreed, resolved]
+change: ["changed to", "raised to", "lowered to", "moved to", "postponed to", "brought forward to", "extended to", "shortened to"]
+question_marks: ["?"]
+sentence_ends: [".", ";", "!"]
+clause_marks: [",", ";"]
+months: [january, february, march, april, may, june, july, august, september, october, november, december]
+effective:
+  - '(?:from|effective|as of|starting)\s+(?<day>\d{1,2})\s+(?<month>january|february|march|april|may|june|july|august|september|october|november|december)\s+(?<year>\d{4})'
+  - '(?:from|effective|as of|starting)\s+(?<month>january|february|march|april|may|june|july|august|september|october|november|december)\s+(?<day>\d{1,2}),?\s+(?<year>\d{4})'
+  - '(?:from|effective|as of|starting)\s+(?<year>\d{4})-(?<month>\d{2})-(?<day>\d{2})'
+days:
+  - '(?<day>\d{1,2})\s+(?<month>january|february|march|april|may|june|july|august|september|october|november|december)(?:\s+(?<year>\d{4}))?'
+  - '(?<month>january|february|march|april|may|june|july|august|september|october|november|december)\s+(?<day>\d{1,2})(?:,?\s+(?<year>\d{4}))?'
+
+label_mark: ": "
+list_mark: ", "
+full_stop: "."

@@ -69,7 +69,7 @@ export interface World {
   setToday: (day: string) => void;
 }
 
-export const HOTEL = "hotel_cap_per_night|一线城市";
+export const HOTEL = "hotel_cap_per_night|tier-1 city";
 
 export const governanceTest = (backend: Backend) =>
   // biome-ignore lint/correctness/noEmptyPattern: Vitest reads fixture dependencies from this pattern

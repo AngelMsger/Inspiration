@@ -1,8 +1,13 @@
 /**
  * Splitting a block's text into citable passages. A passage is a sentence or, in Chinese
- * regulations, a clause ended by "；", since those enumerate the separate rules of one
- * article. Offsets are JavaScript string indices into the block text.
+ * regulations, a clause ended by a full-width semicolon, since those enumerate the separate
+ * rules of one article. Offsets are JavaScript string indices into the block text.
+ *
+ * What ends a sentence, what closes one and where a long one may be cut come from the
+ * language packs in languages/, all of them at once (see the kernel's languages.ts).
  */
+
+import { loadLanguages } from "@inspiration/kernel";
 
 export interface Passage {
   start: number;
@@ -12,25 +17,33 @@ export interface Passage {
 
 /** Longest passage, in UTF-16 units, before it is cut at a comma. */
 export const MAX_PASSAGE = 400;
-/** Pieces shorter than this ("一、", "注：") join the next passage. */
+/** Pieces shorter than this, such as a list number standing alone, join the next passage. */
 const MIN_PASSAGE = 4;
 
-const TERMINATORS = new Set(["。", "！", "？", "；", "!", "?", ";", "…"]);
-const CLOSERS = new Set(["”", "’", "」", "』", "）", ")", "]", "】", '"', "'"]);
-const COMMAS = new Set(["，", "、", ",", "："]);
+const PACKS = loadLanguages(new URL("../languages/", import.meta.url).pathname);
+const all = (key: string) => new Set(PACKS.flatMap((p) => p.list(key)));
+
+const TERMINATORS = all("terminators");
+const CLOSERS = all("closers");
+const COMMAS = all("commas");
+/** Full stops, which end a sentence only where endsSentence says so. */
+const FULL_STOPS = all("full_stops");
+const ABBREVIATIONS = all("abbreviations");
 
 function isSpace(c: string | undefined): boolean {
   return c !== undefined && /\s/.test(c);
 }
 
-const ABBREVIATIONS = new Set(["e.g", "i.e", "etc", "vs", "cf", "fig", "no", "mr", "mrs", "ms", "dr", "approx"]);
-
-/** A full stop ends an English sentence unless it ends a common abbreviation or a lowercase word follows. */
+/**
+ * A full stop ends a sentence where a space follows it and its closing quotes, unless it ends
+ * a common abbreviation or a lowercase word follows ("2.1", "e.g. in", "said." Then").
+ */
 function endsSentence(text: string, i: number): boolean {
-  if (i + 1 < text.length && !isSpace(text[i + 1])) return false;
+  let j = i + 1;
+  while (j < text.length && CLOSERS.has(text[j] as string)) j++;
+  if (j < text.length && !isSpace(text[j])) return false;
   const word = /[A-Za-z.]+$/.exec(text.slice(Math.max(0, i - 8), i))?.[0].toLowerCase() ?? "";
   if (ABBREVIATIONS.has(word)) return false;
-  let j = i + 1;
   while (j < text.length && isSpace(text[j])) j++;
   return j === text.length || !/[a-z]/.test(text[j] as string);
 }
@@ -40,7 +53,7 @@ function boundaries(text: string): number[] {
   const out: number[] = [];
   for (let i = 0; i < text.length; i++) {
     const c = text[i] as string;
-    const terminal = TERMINATORS.has(c) || (c === "." && endsSentence(text, i));
+    const terminal = TERMINATORS.has(c) || (FULL_STOPS.has(c) && endsSentence(text, i));
     if (terminal) {
       let end = i + 1;
       while (end < text.length && (TERMINATORS.has(text[end] as string) || CLOSERS.has(text[end] as string))) end++;

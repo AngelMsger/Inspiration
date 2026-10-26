@@ -6,7 +6,7 @@
  * that slot's value group, counted incrementally, and decides the slot again (the rules are
  * in slots.ts):
  * - The proposed value is the most authoritative one in force, unless a statement dated
- *   later than it changed the value ("自 2026 年 10 月 1 日起……调整为 650 元").
+ *   later than it changed the value ("from 1 October 2026 ... raised to 650 yuan").
  * - Every other value gets a ConflictCase from the deterministic tier: a supersession
  *   (auto-resolved when only archived documents state it), plan versus fact, or a
  *   contradiction, with the proposed value's best claim as proposed_winner_id.

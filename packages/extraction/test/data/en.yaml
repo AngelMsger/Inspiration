@@ -1,0 +1,111 @@
+# English cases for the extraction mock (mock.test.ts). Each language file has the same fields.
+# The integration tests (extraction.test.ts) use this vocabulary too.
+
+# The tenant's predicate catalogue, in this language.
+vocabulary:
+  predicates:
+    - predicate: hotel_cap_per_night
+      label: Hotel cap per night
+      knowledge_class: policy
+      aliases: [hotel, lodging]
+      qualifiers:
+        - { name: tier-1 city, aliases: [tier-1 city, tier-1 cities, Beijing] }
+        - { name: new tier-1 city, aliases: [new tier-1 city, new tier-1 cities, Chengdu] }
+      value: { kind: money, unit: CNY/night, currency: CNY, words: [yuan] }
+    - predicate: travel_claim_deadline_days
+      label: Travel claim deadline
+      knowledge_class: policy
+      aliases: [expense claim, claimed within]
+      value: { kind: duration, unit: day, words: [days, day] }
+    - predicate: payment_day
+      label: Reimbursement payment day
+      aliases: [reimbursements are paid]
+      value: { kind: enum, values: [every Wednesday, every Friday] }
+
+# A value is the last number before one of the entry's unit words, or a known enum value; a
+# calendar day is when, not how much.
+values:
+  - text: After 1 year of service, expenses are claimed within 30 days of the trip.
+    predicate: travel_claim_deadline_days
+    value: { number: 30 }
+  - text: 600 yuan a night.
+    predicate: hotel_cap_per_night
+    value: { kind: money, number: 600, unit: CNY/night, currency: CNY, normalized: 600 CNY/night }
+  - text: Hotel costs are reimbursed against invoices.
+    predicate: hotel_cap_per_night
+    value: null
+  - text: From 1 July 2026, expenses are claimed within 60 days.
+    predicate: travel_claim_deadline_days
+    value: { number: 60 }
+  - text: From 1 July 2026,
+    predicate: travel_claim_deadline_days
+    value: null
+  - text: Hotels in Beijing cost up to 1,200 Yuan a night.
+    predicate: hotel_cap_per_night
+    value: { number: 1200 }
+  - text: Approved reimbursements are paid every Wednesday.
+    predicate: payment_day
+    value: { kind: enum, text: every Wednesday, normalized: every Wednesday }
+
+# The day a passage says it takes effect, in each written form.
+effective:
+  - { text: "From 1 October 2026, hotels in tier-1 cities are capped at 650 yuan a night.", day: "2026-10-01" }
+  - { text: "Effective October 15, 2027, the new rates apply.", day: "2027-10-15" }
+  - { text: "From 2027-01-15 the rule applies.", day: "2027-01-15" }
+  - { text: 28 September 2026, day: null }
+
+# A change decided without a day: it takes the document's date.
+change:
+  title: Management meeting minutes
+  date: "2026-09-26"
+  heading: [Decisions]
+  text: The hotel cap in tier-1 cities is raised to 650 yuan a night.
+
+# The day a plan is planned for, in the document's year when it names none.
+plans:
+  - { text: "Wang Wei owns the interface tests, planned for 20 November 2026.", day: "2026-11-20" }
+  - { text: The launch is planned for March 5., document_date: "2027-01-10", day: "2027-03-05" }
+  - { text: The launch is planned for March 5., day: null }
+
+# A plan in a window takes effect on that day.
+plan:
+  title: Spark project weekly report
+  date: "2026-10-19"
+  text: The gray release is expected to finish on 1 December.
+  day: "2026-12-01"
+
+# Passages that state nothing checkable are skipped (s2, s3); the longest alias picks the
+# qualifier; a claim outside the catalogue is general knowledge about the document's title.
+window:
+  title: Travel
+  spans:
+    - Hotels in new tier-1 cities are capped at 450 yuan a night.
+    - Do hotels have to be booked ahead?
+    - Thank you all.
+    - R&D plans to hire 40 people in 2027.
+  claims:
+    - [s1, rule, "hotel_cap_per_night|new tier-1 city"]
+    - [s4, plan, null]
+
+# A passage that gives a catalogue value in two clauses: one claim per clause, the second
+# labelled since it does not name the fact.
+clauses:
+  text: Hotels in tier-1 cities are capped at 650 yuan a night, in new tier-1 cities 450 yuan.
+  statements: [Hotels in tier-1 cities are capped at 650 yuan a night., "Hotel cap per night: in new tier-1 cities 450 yuan."]
+  qualifiers: [tier-1 city, new tier-1 city]
+
+# Table rows: a statement from the header and cells; the value is the cell under the header
+# that names the unit; a row that does not name the fact borrows it from the title.
+rows:
+  - title: hotel-rates.csv
+    header: [City, Tier, Hotel cap (yuan/night)]
+    cells: [Beijing, tier-1 city, "600"]
+    statement: "City: Beijing, Tier: tier-1 city, Hotel cap (yuan/night): 600."
+    slot: "hotel_cap_per_night|tier-1 city"
+    number: 600
+  - title: Hotel rates by city.csv
+    header: [City, Cap per night (yuan)]
+    cells: [Chengdu, "450"]
+    statement: "City: Chengdu, Cap per night (yuan): 450."
+    slot: "hotel_cap_per_night|new tier-1 city"
+    number: 450

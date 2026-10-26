@@ -1,0 +1,24 @@
+# English cases for the normalization unit tests (units.test.ts).
+
+# A full stop ends a sentence, with its closing quotes, unless it ends an abbreviation, a
+# lowercase word follows or no space does; a list number standing alone joins what follows.
+passages:
+  - text: "Hotels cost 600 RMB, e.g. in Beijing. Meals are extra. Is that clear?"
+    passages:
+      - "Hotels cost 600 RMB, e.g. in Beijing."
+      - "Meals are extra."
+      - "Is that clear?"
+  - text: "He said \"Agreed.\" Then he left."
+    passages: ["He said \"Agreed.\"", "Then he left."]
+  - text: "1.\nReceipts are required."
+    passages: ["1.\nReceipts are required."]
+  - text: "Version 2.1 is out. See the site."
+    passages: ["Version 2.1 is out.", "See the site."]
+
+cut: { first: "a", comma: ",", second: "b", stop: "." }
+
+fingerprint:
+  article: "Article {n} Staff claim hotel, transport and meal costs at the rates the company sets and pay anything above them."
+  reformat: [",", " ,"]
+  edit: ["Article 3", "Article three"]
+  other: "Meeting rooms are booked a day ahead in the office system, with the number of people and the equipment needed."

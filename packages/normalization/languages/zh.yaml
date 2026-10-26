@@ -1,0 +1,9 @@
+# How Chinese text breaks into passages (see src/sentences.ts).
+
+# End a sentence. The full-width semicolon too: Chinese regulations list the separate rules
+# of one article as clauses ended by it.
+terminators: ["。", "！", "？", "；", "…"]
+# Closing quotes and brackets that stay with the sentence they end.
+closers: ["”", "’", "」", "』", "）", "】"]
+# Where an over-long passage may be cut.
+commas: ["，", "、", "："]

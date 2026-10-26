@@ -27,11 +27,11 @@ describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
 
   /** Three guides, each with a section on hotels, leave and payments. */
   const guides = async (w: World) => {
-    for (const [i, name] of ["指南一", "指南二", "指南三"].entries()) {
+    for (const [i, name] of ["Guide 1", "Guide 2", "Guide 3"].entries()) {
       await w.doc(name, [
-        { heading: "差旅住宿", sentences: about("差旅住宿", 3, 3 * i) },
-        { heading: "年休假", sentences: about("年休假", 3, 3 * i) },
-        { heading: "报销付款", sentences: about("报销付款", 3, 3 * i) },
+        { heading: "Hotel lodging", sentences: about("Hotel lodging", 3, 3 * i) },
+        { heading: "Annual leave", sentences: about("Annual leave", 3, 3 * i) },
+        { heading: "Expense payment", sentences: about("Expense payment", 3, 3 * i) },
       ]);
     }
   };
@@ -41,7 +41,7 @@ describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
     async ({ world: w }) => {
       await guides(w);
       // Until the first clustering there are no topics, so every statement is unfiled.
-      expect(await w.placement(about("差旅住宿", 1)[0] as string)).toBeUndefined();
+      expect(await w.placement(about("Hotel lodging", 1)[0] as string)).toBeUndefined();
       expect(await w.records.count(SECTIONS, { tenant_id: TENANT })).toBe(9);
 
       const report = await w.topics.recluster(TENANT);
@@ -50,15 +50,15 @@ describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
       expect(report.topics).toMatchObject({ live: 3, by_level: { "1": 0, "2": 3, "3": 0 }, created: 3, retired: 0 });
       const nodes = await w.store.topics(TENANT, SPACE);
       expect(nodes.map((n) => [n.title, n.status, n.statement_count]).sort()).toEqual([
-        ["差旅住宿", "proposed", 9],
-        ["年休假", "proposed", 9],
-        ["报销付款", "proposed", 9],
+        ["Annual leave", "proposed", 9],
+        ["Expense payment", "proposed", 9],
+        ["Hotel lodging", "proposed", 9],
       ]);
-      const hotel = nodes.find((n) => n.title === "差旅住宿");
-      for (const s of about("差旅住宿", 9)) {
+      const hotel = nodes.find((n) => n.title === "Hotel lodging");
+      for (const s of about("Hotel lodging", 9)) {
         expect((await w.placement(s))?.taxonomy_key).toBe(hotel?.key);
       }
-      const p = await w.placement(about("差旅住宿", 1)[0] as string);
+      const p = await w.placement(about("Hotel lodging", 1)[0] as string);
       expect(p).toMatchObject({ placed_by: "clustering", confirmed: false });
       expect(p?.score).toBeGreaterThan(0.5);
       expect(w.calls().filter((c) => c.task === "page-compiler.name_topics")).toHaveLength(1);
@@ -76,18 +76,18 @@ describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
     const OWNER = "mem_01JC000000000000000000LINA";
     await guides(w);
     await w.topics.recluster(TENANT);
-    const hotel = (await w.store.topics(TENANT, SPACE)).find((n) => n.title === "差旅住宿") as TaxonomyNode;
+    const hotel = (await w.store.topics(TENANT, SPACE)).find((n) => n.title === "Hotel lodging") as TaxonomyNode;
     expect(await w.topics.setOwner(TENANT, hotel.key, OWNER)).toMatchObject({ key: hotel.key, owner_id: OWNER });
-    await w.doc("指南四", [{ heading: "差旅住宿", sentences: about("差旅住宿", 3, 20) }]);
+    await w.doc("Guide 4", [{ heading: "Hotel lodging", sentences: about("Hotel lodging", 3, 20) }]);
     await w.topics.recluster(TENANT);
     expect((await w.store.topics(TENANT, SPACE)).find((n) => n.key === hotel.key)?.owner_id).toBe(OWNER);
 
     const documents = (await w.topics.documentsIn(TENANT)).get(hotel.key) ?? [];
     expect(documents.map((d) => [d.title, d.sections, d.statements]).sort()).toEqual([
-      ["指南一", 1, 3],
-      ["指南三", 1, 3],
-      ["指南二", 1, 3],
-      ["指南四", 1, 3],
+      ["Guide 1", 1, 3],
+      ["Guide 2", 1, 3],
+      ["Guide 3", 1, 3],
+      ["Guide 4", 1, 3],
     ]);
     expect(await w.topics.setOwner(TENANT, hotel.key, undefined)).not.toHaveProperty("owner_id");
     await expect(w.topics.setOwner(TENANT, "t-missing", OWNER)).rejects.toThrow(RangeError);
@@ -98,20 +98,20 @@ describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
     async ({ world: w }) => {
       await guides(w);
       await w.topics.recluster(TENANT);
-      const leave = (await w.store.topics(TENANT, SPACE)).find((n) => n.title === "年休假");
-      const added = about("年休假", 3, 20);
-      const v1 = await w.doc("指南四", [{ heading: "年休假", sentences: added }]);
+      const leave = (await w.store.topics(TENANT, SPACE)).find((n) => n.title === "Annual leave");
+      const added = about("Annual leave", 3, 20);
+      const v1 = await w.doc("Guide 4", [{ heading: "Annual leave", sentences: added }]);
       for (const s of added) expect((await w.placement(s))?.taxonomy_key).toBe(leave?.key);
       const counted = async () =>
         (await w.store.topics(TENANT, SPACE)).find((n) => n.key === leave?.key)?.statement_count;
       expect(await counted()).toBe(12);
 
       // An edit removes one sentence: its statement leaves the topic.
-      await w.doc("指南四", [{ heading: "年休假", sentences: added.slice(0, 2) }]);
+      await w.doc("Guide 4", [{ heading: "Annual leave", sentences: added.slice(0, 2) }]);
       expect(await w.placement(added[2] as string)).toBeUndefined();
       expect(await counted()).toBe(11);
 
-      await w.doc("指南四", [], { deleted: true });
+      await w.doc("Guide 4", [], { deleted: true });
       for (const s of added) expect(await w.placement(s)).toBeUndefined();
       expect(await counted()).toBe(9);
       // A late delivery of the first version reads the document as it is now: deleted.
@@ -126,10 +126,10 @@ describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
     async ({ world: w }) => {
       await guides(w);
       await w.topics.recluster(TENANT);
-      const leave = (await w.store.topics(TENANT, SPACE)).find((n) => n.title === "年休假") as TaxonomyNode;
+      const leave = (await w.store.topics(TENANT, SPACE)).find((n) => n.title === "Annual leave") as TaxonomyNode;
       const counted = async () =>
         (await w.store.topics(TENANT, SPACE)).find((n) => n.key === leave.key)?.statement_count;
-      const added = about("年休假", 5, 20);
+      const added = about("Annual leave", 5, 20);
       // Each edit loses one of its three commits: the sections with the store writes they call
       // for, the store writes, and forgetting them. Then claims.updated comes again, twice.
       for (const [lost, sentences, before, after] of [
@@ -137,7 +137,9 @@ describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
         [2, added.slice(0, 2), 12, 11],
         [3, [...added.slice(0, 2), ...added.slice(3)], 13, 13],
       ] as const) {
-        const v = await w.doc("leave-guide", [{ heading: "年休假", sentences: [...sentences] }], { update: false });
+        const v = await w.doc("leave-guide", [{ heading: "Annual leave", sentences: [...sentences] }], {
+          update: false,
+        });
         const failing = losing(w, lost);
         await expect(
           new Topics({ store: failing.store, records: failing.records, models: w.gateway }).update(v),
@@ -158,37 +160,66 @@ describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
   test.skipIf(skip)(
     "reference statements join their slot's topic; archived and search-only ones are never placed",
     async ({ world: w }) => {
-      await w.doc("差旅指南", [
-        { heading: "差旅住宿", sentences: [["一线城市住宿每晚不超过 600 元。", "hotel_cap"], ...about("差旅住宿", 5)] },
+      await w.doc("Travel guide", [
+        {
+          heading: "Hotel lodging",
+          sentences: [
+            ["Hotels in tier-1 cities cost no more than 600 yuan a night.", "hotel_cap"],
+            ...about("Hotel lodging", 5),
+          ],
+        },
       ]);
-      await w.doc("差旅问答", [
-        { heading: "差旅住宿", sentences: [["住宿标准为每晚 600 元。", "hotel_cap"], ...about("差旅住宿", 5, 5)] },
+      await w.doc("Travel FAQ", [
+        {
+          heading: "Hotel lodging",
+          sentences: [["The hotel rate is 600 yuan a night.", "hotel_cap"], ...about("Hotel lodging", 5, 5)],
+        },
       ]);
       await w.doc(
-        "九月例会纪要",
-        [{ heading: "议题", sentences: [["会议决定住宿每晚 650 元。", "hotel_cap"], "下次例会在十月召开。"] }],
+        "September meeting minutes",
+        [
+          {
+            heading: "Agenda",
+            sentences: [
+              ["The meeting set hotels at 650 yuan a night.", "hotel_cap"],
+              "The next meeting is in October.",
+            ],
+          },
+        ],
         { level: "reference" },
       );
-      await w.doc("旧差旅制度", [{ heading: "差旅住宿", sentences: [["住宿每晚 500 元。", "hotel_cap"]] }], {
-        approval: "archived",
-      });
-      await w.doc("周报", [{ heading: "本周进展", sentences: ["完成住宿系统上线。"] }], { level: "search_only" });
+      await w.doc(
+        "Old travel policy",
+        [{ heading: "Hotel lodging", sentences: [["Hotels cost 500 yuan a night.", "hotel_cap"]] }],
+        {
+          approval: "archived",
+        },
+      );
+      await w.doc(
+        "Weekly report",
+        [{ heading: "Progress this week", sentences: ["The hotel booking system went live."] }],
+        { level: "search_only" },
+      );
 
       const report = await w.topics.recluster(TENANT);
       expect(report.placed).toEqual({ governed: 12, reference: 1, search_only: 0 });
       expect(report.unfiled).toBe(0);
-      const hotel = (await w.placement("一线城市住宿每晚不超过 600 元。"))?.taxonomy_key;
+      const hotel = (await w.placement("Hotels in tier-1 cities cost no more than 600 yuan a night."))?.taxonomy_key;
       expect(hotel).toBeDefined();
-      expect((await w.placement("会议决定住宿每晚 650 元。"))?.taxonomy_key).toBe(hotel);
-      expect(await w.placement("下次例会在十月召开。")).toBeUndefined();
-      expect(await w.placement("住宿每晚 500 元。")).toBeUndefined();
+      expect((await w.placement("The meeting set hotels at 650 yuan a night."))?.taxonomy_key).toBe(hotel);
+      expect(await w.placement("The next meeting is in October.")).toBeUndefined();
+      expect(await w.placement("Hotels cost 500 yuan a night.")).toBeUndefined();
       expect(await w.records.count(SECTIONS, { tenant_id: TENANT })).toBe(4);
 
       // A later reference statement of the slot is placed at once.
-      await w.doc("十月例会纪要", [{ heading: "议题", sentences: [["住宿每晚调整为 700 元。", "hotel_cap"]] }], {
-        level: "reference",
-      });
-      expect((await w.placement("住宿每晚调整为 700 元。"))?.taxonomy_key).toBe(hotel);
+      await w.doc(
+        "October meeting minutes",
+        [{ heading: "Agenda", sentences: [["Hotels are raised to 700 yuan a night.", "hotel_cap"]] }],
+        {
+          level: "reference",
+        },
+      );
+      expect((await w.placement("Hotels are raised to 700 yuan a night."))?.taxonomy_key).toBe(hotel);
     },
   );
 
@@ -198,30 +229,28 @@ describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
       await guides(w);
       await w.topics.recluster(TENANT);
       const nodes = await w.store.topics(TENANT, SPACE);
-      const [hotel, leave, pay] = ["差旅住宿", "年休假", "报销付款"].map((t) => nodes.find((n) => n.title === t)) as [
-        TaxonomyNode,
-        TaxonomyNode,
-        TaxonomyNode,
-      ];
+      const [hotel, leave, pay] = ["Hotel lodging", "Annual leave", "Expense payment"].map((t) =>
+        nodes.find((n) => n.title === t),
+      ) as [TaxonomyNode, TaxonomyNode, TaxonomyNode];
       // An owner renames and confirms the leave topic, and files one payment statement under hotels.
-      const moved = about("报销付款", 1)[0] as string;
+      const moved = about("Expense payment", 1)[0] as string;
       const filed = new Sample().placement(await w.claim(moved), hotel.key, {
         placed_by: "member",
         member_id: "mem_01JC000000000000000000OWNER",
         confirmed: true,
       });
       await w.store.transaction(async (tx) => {
-        await tx.putTopics([{ ...leave, status: "confirmed", title: "休假" }]);
+        await tx.putTopics([{ ...leave, status: "confirmed", title: "Leave" }]);
         await tx.place([filed]);
       });
 
       // Every leave and payment section goes away.
-      for (const [i, name] of ["指南一", "指南二", "指南三"].entries()) {
-        await w.doc(name, [{ heading: "差旅住宿", sentences: about("差旅住宿", 3, 3 * i) }]);
+      for (const [i, name] of ["Guide 1", "Guide 2", "Guide 3"].entries()) {
+        await w.doc(name, [{ heading: "Hotel lodging", sentences: about("Hotel lodging", 3, 3 * i) }]);
       }
       const report = await w.topics.recluster(TENANT);
       const after = new Map((await w.store.topics(TENANT, SPACE)).map((n) => [n.key, n]));
-      expect(after.get(leave.key)).toMatchObject({ status: "confirmed", title: "休假", statement_count: 0 });
+      expect(after.get(leave.key)).toMatchObject({ status: "confirmed", title: "Leave", statement_count: 0 });
       expect(after.get(pay.key)).toMatchObject({ status: "retired", statement_count: 0 });
       expect(after.get(hotel.key)?.statement_count).toBe(9);
       expect(report.topics).toMatchObject({ retired: 1, confirmed: 1 });
@@ -234,10 +263,10 @@ describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
   test.skipIf(skip)(
     "names go to the model with the highest sensitivity of the topic's sections",
     async ({ world: w }) => {
-      await w.doc("薪酬指南", [{ heading: "薪酬发放", sentences: about("薪酬发放", 3) }], {
+      await w.doc("Payroll guide", [{ heading: "Payroll", sentences: about("Payroll", 3) }], {
         sensitivity: "confidential",
       });
-      await w.doc("薪酬问答", [{ heading: "薪酬发放", sentences: about("薪酬发放", 3, 3) }]);
+      await w.doc("Payroll FAQ", [{ heading: "Payroll", sentences: about("Payroll", 3, 3) }]);
       await w.topics.recluster(TENANT);
       const naming = w.calls().filter((c) => c.task === "page-compiler.name_topics");
       expect(naming.map((c) => c.sensitivity)).toEqual(["confidential"]);

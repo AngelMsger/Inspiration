@@ -7,7 +7,7 @@ import type { ClaimType, ClaimValue } from "@inspiration/contracts";
 import type { PredicateEntry } from "./vocabulary.ts";
 
 export const TASK = "extraction.extract_claims";
-export const PROMPT_VERSION = "extract_claims@3";
+export const PROMPT_VERSION = "extract_claims@4";
 
 export interface WindowSpan {
   /** A reference local to the window ("s1"), so the model never sees or invents span IDs. */
@@ -39,7 +39,7 @@ export interface ExtractedClaim {
   predicate?: string;
   qualifiers?: string[];
   value?: ClaimValue;
-  /** The day the statement takes effect, when the passage says ("自 2026 年 10 月 1 日起"). */
+  /** The day the statement takes effect, when the passage says ("from 1 October 2026"). */
   valid_from?: string;
   confidence?: number;
   evidence: { span: string; quote: string }[];

@@ -32,10 +32,15 @@ Inspiration 是围绕一个知识存储的一组组件。每个组件只负责�
 | 控制 | collaboration、access-control、model-gateway、agent-runtime、credential-broker、sandbox | 待办箱、评论与提议、权限、每一次模型调用、内置 Agent 运行的循环、来源连接及其凭据、为厂商 CLI、Agent 工具和渲染检查提供的隔离作业 |
 
 共享库位于所有组件之下：**contracts**（类型、校验器、事件目录、组件接口）、**kernel**（设置、日志、插件、
-迁移、Blob 存储、数据库连接池）、**eventbus**（发件箱、中继、消费者）和 **testkit**（面向 compose 栈的测试夹具）。
+迁移、Blob 存储、数据库连接池、语言包）、**eventbus**（发件箱、中继、消费者）和 **testkit**（面向 compose 栈的测试夹具
+和测试数据）。
 
 除了 **parsing** 之外全部是运行在 Node 22 上的 TypeScript。parsing 是一个 Python 工作进程，负责繁重的文档解析
 （Office、PDF、扫描件），normalization 通过 HTTP 契约调用它。
+
+引擎读写英文、中文和日文。组件需要了解的语言知识（线索词、标点、日期和编号的写法、模型替身写出的措辞）都是数据：
+每种语言在组件的 `languages/` 目录下有一个语言包，所以支持新语言只需新增语言包，不用改代码。在文档带上语言标签之前，
+组件用全部语言包读取每段文本，并按文本看起来所属的语言书写。
 
 ## 组件之间如何通信
 

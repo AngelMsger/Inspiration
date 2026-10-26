@@ -1,0 +1,17 @@
+# English cases for the naming mock (mock.test.ts). See zh.yaml for the fields. English
+# headings share names word by word.
+
+headings:
+  topics:
+    - { level: 2, headings: [[Chapter 3 Hotel costs, 3], [Transport costs, 1]], documents: [Travel policy] }
+    - { level: 2, headings: [[Hotel costs, 1], [Hotel standards in tier-1 cities, 1]], documents: [Policy, Notice] }
+    - { level: 2, headings: [[Appendix, 1], [Other, 1]], documents: [Onboarding guide (2026 edition)] }
+  titles: [Hotel costs, Hotel, Onboarding guide]
+
+areas:
+  topics:
+    - { level: 1, headings: [], documents: [Travel policy], topics: [Travel lodging, Travel allowances] }
+    - { level: 1, headings: [], documents: [Expense rules], topics: [Expenses, Expenses deadlines] }
+    - { level: 2, headings: [[General provisions, 4]], documents: [Procurement policy], topics: [Policy, Procurement approval policy] }
+    - { level: 1, headings: [], documents: [HR service guide], topics: [Price comparison, Attendance] }
+  titles: [Travel, Expenses in general, Policy in general, HR service guide]

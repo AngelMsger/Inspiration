@@ -7,9 +7,9 @@ import type { Claim } from "./generated.ts";
 
 /**
  * A claim's slot key: the one it carries, else its subject entity when resolved, its
- * predicate and its qualifiers, sorted ("hotel_cap_per_night|一线城市",
- * "ent_…/hotel_cap_per_night|一线城市"). Undefined without a predicate. Subjects as written are
- * not part of it: the catalogue turns them into qualifiers (北京 is 一线城市).
+ * predicate and its qualifiers, sorted ("hotel_cap_per_night|tier-1 city",
+ * "ent_…/hotel_cap_per_night|tier-1 city"). Undefined without a predicate. Subjects as written
+ * are not part of it: the catalogue turns them into qualifiers (Beijing is a tier-1 city).
  */
 export function slotOf(
   claim: Pick<Claim, "slot_key" | "subject_entity_id" | "predicate" | "qualifiers">,

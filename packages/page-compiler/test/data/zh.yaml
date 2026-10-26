@@ -1,0 +1,20 @@
+# Chinese cases for the naming mock (mock.test.ts). A heading is [text, sections that have it].
+
+# A topic takes the heading its sections share, else what its headings have in common, else
+# its one document's title.
+headings:
+  topics:
+    - { level: 2, headings: [[第三章 住宿费, 3], [交通费, 1]], documents: [差旅费管理办法] }
+    - { level: 2, headings: [[住宿费, 1], [一线城市住宿标准, 1]], documents: [办法, 通知] }
+    - { level: 2, headings: [[附件, 1], [其他, 1]], documents: [新人入职指南（2026 版）] }
+  titles: [住宿费, 住宿, 新人入职指南]
+
+# An area or a split topic is named after what the titles below it share, never like one of
+# them; an area whose topics share nothing takes its document's title.
+areas:
+  topics:
+    - { level: 1, headings: [], documents: [差旅费管理办法], topics: [差旅住宿, 差旅补助] }
+    - { level: 1, headings: [], documents: [费用报销管理规定], topics: [报销, 报销时限] }
+    - { level: 2, headings: [[总则, 4]], documents: [采购管理办法], topics: [管理办法, 采购审批管理办法] }
+    - { level: 1, headings: [], documents: [人事部办事指南], topics: [比价, 考勤] }
+  titles: [差旅, 报销相关, 管理办法相关, 人事部办事指南]

@@ -233,11 +233,11 @@ libraries:
   contracts:
     owns: Generated types and validators, the event catalogue, IDs, sensitivity labels, component interfaces
   kernel:
-    owns: Settings, logging, plugin registry, SQL migrations runner, blob store, database pools
+    owns: Settings, logging, plugin registry, SQL migrations runner, blob store, database pools, language packs
   eventbus:
     owns: Postgres outbox, relay to Valkey Streams, consumer groups with retries and dead letters, in-memory bus for tests
   testkit:
-    owns: Test fixtures for the compose stack (a migrated database per test, Valkey prefixes, SpiceDB settings); test code only
+    owns: Test fixtures for the compose stack (a migrated database per test, Valkey prefixes, SpiceDB settings) and test data files; test code only
 
 # Composition roots: deployable processes that wire components to the store, the bus and
 # the blob store (apps/<name>, published as @inspiration/<name>). An app may depend on any

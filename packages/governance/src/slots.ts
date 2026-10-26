@@ -2,7 +2,7 @@
  * Fact slots and their values, and the deterministic tier of conflict detection: the pure
  * part of governance.
  *
- * A slot is a predicate with its qualifiers ("hotel_cap_per_night|一线城市"); every current
+ * A slot is a predicate with its qualifiers ("hotel_cap_per_night|tier-1 city"); every current
  * claim with a slot and a value is a member of the slot's group for that value. A group
  * keeps counts and representatives, so a slot with a thousand statements is still a
  * handful of rows: its most authoritative member, and the best member for each day on which

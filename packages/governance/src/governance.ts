@@ -153,7 +153,7 @@ function memberOf(claim: Claim, version: SourceVersion | undefined): Member | un
   return member;
 }
 
-/** "hotel_cap_per_night (一线城市)" */
+/** "hotel_cap_per_night (tier-1 city)" */
 function slotLabel(slot: string): string {
   const [predicate, ...qualifiers] = slot.split("|");
   return qualifiers.length ? `${predicate} (${qualifiers.join(", ")})` : (predicate as string);

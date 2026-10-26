@@ -12,6 +12,7 @@ import { Redis } from "ioredis";
 import { inject, test } from "vitest";
 import { createTestDatabase, VALKEY_URL } from "./stack.ts";
 
+export * from "./data.ts";
 export * from "./stack.ts";
 
 /** Whether the global setup found the compose stack. */

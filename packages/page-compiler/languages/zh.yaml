@@ -1,0 +1,26 @@
+# How page-compiler reads Chinese headings, and how the page-compiler.name_topics stand-in
+# (src/mock.ts) names topics in Chinese. Patterns are JavaScript regular expressions,
+# compiled with the i and u flags.
+
+# Numbering at the start of a heading, which says where a section is, not what it is about.
+numbering:
+  - '第[一二三四五六七八九十百零\d]+[章节条部分篇]'
+  - '[一二三四五六七八九十]+[、.]'
+  - '[（(][一二三四五六七八九十\d]+[）)]'
+  - '\d+(?:\.\d+)*[.、]?'
+# A FAQ frame around a heading; the first group is what the heading is about.
+faq:
+  - '^关于(.+)的问题$'
+# Bracketed parts of a document title, left out of names ("新人入职指南（2026 版）").
+brackets:
+  - '[（(][^）)]*[）)]'
+
+# Naming. {title} is the topic's name, {documents} the first documents it comes from.
+# A name is shared by headings when they have at least shared_length characters in common.
+related: "{title}相关"
+untitled: 未命名
+summary: "{title}相关的规定与说明。"
+summary_from: "{title}相关的规定与说明，见{documents}等文档。"
+list_mark: "、"
+title_length: 16
+shared_length: 2

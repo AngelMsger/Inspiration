@@ -1,0 +1,510 @@
+# The synthetic tenant (src/synthesize.ts), written in Chinese: its names, its departments
+# and their staff, the facts its documents state and the text around them. Templates fill
+# {name} placeholders, and {value} in a fact's sentences is its value. In fillers, {work}
+# and {person} draw a work item and a person, {int:a-b} a number from a to b, {date} a day
+# this year before October and {date:a-b} a day in a month from a to b, in the order they
+# appear. A fact's slot is how the tenant's predicate catalogue names it; an enum slot's
+# values are the fact's values.
+
+tenant: "合成企业"
+language: "zh-CN"
+spaces:
+  policies: "公司制度"
+  teams: "部门空间"
+sources:
+  policies: "制度库"
+  teams: "部门空间"
+  archive: "历史归档"
+  shared: "共享"
+roots:
+  policies: "制度库"
+  teams: "部门空间"
+  archive: "归档"
+  shared: "共享"
+departments:
+  财务部: "finance"
+  人事部: "hr"
+  行政部: "admin"
+  采购部: "procurement"
+  信息安全组: "security"
+  法务部: "legal"
+  销售部: "sales"
+  客服中心: "support"
+  研发中心: "rnd"
+  市场部: "marketing"
+surnames: "王李张刘陈杨黄赵吴周徐孙马朱胡郭何林罗高"
+given: "伟芳娜敏静丽强磊军洋勇艳杰涛明超秀霞平刚桂英华文"
+projects: ["星火", "启明", "北斗", "青云", "远航", "磐石", "飞鸿", "长风", "晨曦", "知行", "鲲鹏", "云帆"]
+work: ["需求评审", "接口联调", "数据迁移", "上线验收", "供应商比价", "合同谈判", "客户回访", "培训材料", "预算复核", "流程梳理", "系统压测", "安全扫描"]
+text:
+  date: "{year} 年 {month} 月 {day} 日"
+  list_mark: "、"
+  policy_title: "{topic}管理办法"
+  policy_opening: ["为规范公司{topic}管理，根据国家有关规定并结合公司实际，制定本办法。", "本办法适用于公司全体员工，{department}负责解释。"]
+  policy_closing: "本办法自 {date}起施行。"
+  article: "第{n}条 {text}"
+  guide_title: "{department}办事指南（第 {n} 篇）"
+  guide_folder: "指南"
+  faq_title: "{department}常见问题（第 {n} 期）"
+  faq_folder: "FAQ"
+  faq_heading: "关于{topic}的问题"
+  minutes_title: "{department} 2026 年 {month} 月第 {n} 次例会纪要"
+  minutes_folder: "会议纪要"
+  minutes_held: "时间：{date}"
+  minutes_attendees: "参会：{people}"
+  minutes_items: "议题与决议"
+  minutes_todos: "待办"
+  decision: "经讨论决定，自 {date}起，{topic}调整为：{statement}"
+  weekly_title: "{project}项目周报（{department}，第 {n} 周）"
+  weekly_folder: "周报"
+  weekly_progress: "本周进展"
+  weekly_columns: ["事项", "负责人", "进度"]
+  weekly_risks: "风险与问题"
+  project_title: "{project}项目方案（{department}，第 {n} 版）"
+  project_folder: "项目"
+  copy: "转发-{name}"
+  edition: "{title}（{year} 版）"
+boilerplate:
+  - "{department}负责本办法的解释、修订和执行监督。"
+  - "各部门负责人对本部门的{topic}工作负直接管理责任。"
+  - "{department}应每年组织一次{topic}相关培训，确保员工了解最新要求。"
+  - "{department}应建立{topic}台账，完整记录相关审批和执行情况，保存期限不少于三年。"
+  - "员工对{topic}相关决定有异议的，可在 5 个工作日内向{department}提出复核申请。"
+  - "{department}每半年对本办法的执行情况进行检查，并将检查结果报经营会。"
+  - "涉及跨部门协作的{topic}事项，由{department}牵头协调，相关部门应予配合。"
+  - "特殊情况确需突破本办法规定的，须经分管领导和总经理书面批准。"
+  - "违反本办法规定的，公司将视情节给予通报批评、扣减绩效直至解除劳动合同的处理。"
+  - "本办法未尽事宜，按国家有关法律法规和公司其他制度执行。"
+fillers:
+  - "{project}项目完成{work}，整体进度 {int:10-95}%。"
+  - "{person}负责{work}，预计{date:1-12}完成。"
+  - "本周处理工单 {int:20-400} 张，平均处理时长 {int:1-48} 小时。"
+  - "{project}项目的主要风险是{work}延期，已与{person}确认应对方案。"
+  - "会上讨论了{work}的分工，由{person}牵头，{person}配合。"
+  - "截至{date}，{project}项目累计投入 {int:3-80} 人天。"
+  - "请各位在{date}前反馈意见，逾期视为无异议。"
+  - "{person}提出{work}需要增加 {int:1-5} 名人员支持。"
+facts:
+  - key: "hotel_tier1"
+    department: "财务部"
+    topic: "差旅住宿"
+    value: "600"
+    alternatives: ["500", "650"]
+    say: ["一线城市住宿限额为每晚 {value} 元。", "出差到北京、上海、广州、深圳的，住宿费每晚不超过 {value} 元。"]
+    slot:
+      predicate: "hotel_cap_per_night"
+      label: "住宿限额（每晚）"
+      aliases: ["住宿"]
+      qualifier:
+        name: "一线城市"
+        aliases: ["一线城市", "北京"]
+      value:
+        kind: "money"
+        unit: "CNY/night"
+        currency: "CNY"
+        words: ["元"]
+  - key: "hotel_tier2"
+    department: "财务部"
+    topic: "差旅住宿"
+    value: "450"
+    alternatives: ["400", "500"]
+    say: ["新一线城市住宿限额为每晚 {value} 元。", "成都、杭州、武汉、南京的住宿标准是每晚 {value} 元。"]
+    slot:
+      predicate: "hotel_cap_per_night"
+      label: "住宿限额（每晚）"
+      aliases: ["住宿"]
+      qualifier:
+        name: "新一线城市"
+        aliases: ["新一线城市", "成都"]
+      value:
+        kind: "money"
+        unit: "CNY/night"
+        currency: "CNY"
+        words: ["元"]
+  - key: "meal_allowance"
+    department: "财务部"
+    topic: "差旅补助"
+    value: "100"
+    alternatives: ["80", "120"]
+    say: ["伙食补助每人每天 {value} 元，包干使用。", "出差期间每天的伙食补助为 {value} 元。"]
+    slot:
+      predicate: "meal_allowance_per_day"
+      label: "伙食补助（每天）"
+      aliases: ["伙食补助"]
+      value:
+        kind: "money"
+        unit: "CNY/day"
+        currency: "CNY"
+        words: ["元"]
+  - key: "travel_claim_days"
+    department: "财务部"
+    topic: "报销时限"
+    value: "30"
+    alternatives: ["60", "45"]
+    say: ["出差结束后 {value} 日内须提交差旅报销申请。", "差旅费应在返回后 {value} 天内报销，逾期不予受理。"]
+    slot:
+      predicate: "travel_claim_deadline_days"
+      label: "差旅报销时限"
+      aliases: ["报销申请", "天内报销"]
+      value:
+        kind: "duration"
+        unit: "day"
+        words: ["日", "天"]
+  - key: "taxi_cap"
+    department: "财务部"
+    topic: "差旅交通"
+    value: "150"
+    alternatives: ["100", "200"]
+    say: ["市内打车费用每日上限 {value} 元。", "确需乘坐出租车的，每天最多报销 {value} 元。"]
+    slot:
+      predicate: "taxi_cap_per_day"
+      label: "市内打车上限（每天）"
+      aliases: ["打车", "出租车"]
+      value:
+        kind: "money"
+        unit: "CNY/day"
+        currency: "CNY"
+        words: ["元"]
+  - key: "payment_day"
+    department: "财务部"
+    topic: "报销付款"
+    value: "每周三"
+    alternatives: ["每周五", "每月 10 日"]
+    say: ["审批通过的报销款于{value}统一支付。", "报销款{value}打到工资卡。"]
+    slot:
+      predicate: "reimbursement_payment_day"
+      label: "报销付款日"
+      aliases: ["报销款"]
+      value:
+        kind: "enum"
+  - key: "annual_leave"
+    department: "人事部"
+    topic: "年休假"
+    value: "5"
+    alternatives: ["7", "10"]
+    say: ["工作满 1 年不满 10 年的员工，年休假 {value} 天。", "入职满一年后可享受 {value} 天年假。"]
+    slot:
+      predicate: "annual_leave_days"
+      label: "年休假天数"
+      aliases: ["年休假", "年假"]
+      value:
+        kind: "duration"
+        unit: "day"
+        words: ["天"]
+  - key: "core_hours"
+    department: "人事部"
+    topic: "工作时间"
+    value: "10:00 至 16:00"
+    alternatives: ["9:30 至 16:30", "9:00 至 17:00"]
+    say: ["公司核心工作时间为 {value}。", "弹性工作制下，{value} 必须在岗。"]
+    slot:
+      predicate: "core_working_hours"
+      label: "核心工作时间"
+      aliases: ["核心工作时间", "必须在岗"]
+      value:
+        kind: "enum"
+  - key: "missed_punch"
+    department: "人事部"
+    topic: "考勤"
+    value: "3"
+    alternatives: ["2", "5"]
+    say: ["漏打卡每月可补卡 {value} 次。", "每个月最多补卡 {value} 次，超出按缺勤处理。"]
+    slot:
+      predicate: "missed_punch_per_month"
+      label: "每月补卡次数"
+      aliases: ["补卡"]
+      value:
+        kind: "number"
+        unit: "times"
+        words: ["次"]
+  - key: "probation"
+    department: "人事部"
+    topic: "试用期"
+    value: "3"
+    alternatives: ["6", "2"]
+    say: ["新员工试用期为 {value} 个月。", "试用期一般 {value} 个月，表现优秀可申请提前转正。"]
+    slot:
+      predicate: "probation_months"
+      label: "试用期"
+      aliases: ["试用期"]
+      value:
+        kind: "duration"
+        unit: "month"
+        words: ["个月"]
+  - key: "salary_day"
+    department: "人事部"
+    topic: "薪酬发放"
+    value: "10"
+    alternatives: ["15", "5"]
+    say: ["工资于每月 {value} 日发放。", "每月 {value} 号发工资，遇节假日提前。"]
+    slot:
+      predicate: "salary_pay_day"
+      label: "工资发放日"
+      aliases: ["工资"]
+      value:
+        kind: "number"
+        unit: "day_of_month"
+        words: ["日", "号"]
+  - key: "room_hours"
+    department: "行政部"
+    topic: "会议室"
+    value: "4"
+    alternatives: ["2", "3"]
+    say: ["会议室单次预订不超过 {value} 小时。", "每次最多可以订 {value} 个小时的会议室。"]
+    slot:
+      predicate: "meeting_room_max_hours"
+      label: "会议室单次预订时长"
+      aliases: ["会议室单次预订", "小时的会议室"]
+      value:
+        kind: "duration"
+        unit: "hour"
+        words: ["小时", "个小时"]
+  - key: "room_release"
+    department: "行政部"
+    topic: "会议室"
+    value: "15"
+    alternatives: ["10", "30"]
+    say: ["预订后 {value} 分钟未签到的会议室自动释放。", "超过 {value} 分钟没人使用，会议室会被释放。"]
+    slot:
+      predicate: "meeting_room_release_minutes"
+      label: "会议室未签到释放时间"
+      aliases: ["自动释放", "会被释放"]
+      value:
+        kind: "duration"
+        unit: "minute"
+        words: ["分钟"]
+  - key: "laptop_cycle"
+    department: "行政部"
+    topic: "IT 设备"
+    value: "4"
+    alternatives: ["3", "5"]
+    say: ["笔记本电脑的更换周期为 {value} 年。", "电脑满 {value} 年可以申请更换。"]
+    slot:
+      predicate: "laptop_replacement_years"
+      label: "笔记本更换周期"
+      aliases: ["更换周期", "申请更换"]
+      value:
+        kind: "duration"
+        unit: "year"
+        words: ["年"]
+  - key: "direct_purchase"
+    department: "采购部"
+    topic: "采购审批"
+    value: "5"
+    alternatives: ["3", "10"]
+    say: ["单笔 {value} 万元以下的采购可由需求部门直接询价采购。", "{value} 万元以内的采购不需要走比价流程。"]
+    slot:
+      predicate: "direct_purchase_limit"
+      label: "直接采购限额"
+      aliases: ["直接询价采购", "比价流程"]
+      value:
+        kind: "money"
+        unit: "10k CNY"
+        currency: "CNY"
+        words: ["万元"]
+  - key: "tender_threshold"
+    department: "采购部"
+    topic: "招标"
+    value: "50"
+    alternatives: ["100", "30"]
+    say: ["单笔金额 {value} 万元以上的采购须公开招标。", "超过 {value} 万元的项目必须招标。"]
+    slot:
+      predicate: "tender_threshold"
+      label: "公开招标起点"
+      aliases: ["公开招标", "必须招标"]
+      value:
+        kind: "money"
+        unit: "10k CNY"
+        currency: "CNY"
+        words: ["万元"]
+  - key: "quote_suppliers"
+    department: "采购部"
+    topic: "比价"
+    value: "3"
+    alternatives: ["2", "5"]
+    say: ["比价采购须邀请不少于 {value} 家供应商。", "比价时至少要找 {value} 家供应商报价。"]
+    slot:
+      predicate: "min_quote_suppliers"
+      label: "比价供应商数"
+      aliases: ["供应商"]
+      value:
+        kind: "number"
+        unit: "suppliers"
+        words: ["家"]
+  - key: "password_days"
+    department: "信息安全组"
+    topic: "账号安全"
+    value: "90"
+    alternatives: ["180", "60"]
+    say: ["办公系统密码每 {value} 天须更换一次。", "密码有效期为 {value} 天，到期须修改。"]
+    slot:
+      predicate: "password_rotation_days"
+      label: "密码更换周期"
+      aliases: ["密码"]
+      value:
+        kind: "duration"
+        unit: "day"
+        words: ["天"]
+  - key: "lost_device_hours"
+    department: "信息安全组"
+    topic: "设备丢失"
+    value: "24"
+    alternatives: ["48", "12"]
+    say: ["设备丢失须在 {value} 小时内报告信息安全组。", "电脑或手机丢了，要在 {value} 小时内上报。"]
+    slot:
+      predicate: "lost_device_report_hours"
+      label: "设备丢失上报时限"
+      aliases: ["设备丢失", "丢了"]
+      value:
+        kind: "duration"
+        unit: "hour"
+        words: ["小时"]
+  - key: "ai_tool_rule"
+    department: "信息安全组"
+    topic: "外部 AI 工具"
+    value: "内部及以上级别"
+    alternatives: ["机密及以上级别", "所有"]
+    say: ["{value}的数据不得输入未经评估的外部 AI 工具。", "禁止把{value}的资料贴到外部 AI 工具里。"]
+    slot:
+      predicate: "external_ai_tool_restriction"
+      label: "外部 AI 工具禁用范围"
+      aliases: ["外部 AI 工具"]
+      value:
+        kind: "enum"
+  - key: "contract_review_days"
+    department: "法务部"
+    topic: "合同审核"
+    value: "3"
+    alternatives: ["5", "2"]
+    say: ["法务部在收到合同后 {value} 个工作日内完成审核。", "合同审核一般需要 {value} 个工作日。"]
+    slot:
+      predicate: "contract_review_days"
+      label: "合同审核时限"
+      aliases: ["合同审核", "收到合同"]
+      value:
+        kind: "duration"
+        unit: "working_day"
+        words: ["个工作日"]
+  - key: "nda_required"
+    department: "法务部"
+    topic: "保密协议"
+    value: "所有外部合作方"
+    alternatives: ["金额 10 万元以上的合作方", "核心供应商"]
+    say: ["与{value}合作前须签署保密协议。", "{value}都要先签 NDA。"]
+    slot:
+      predicate: "nda_required_for"
+      label: "须签保密协议的对象"
+      aliases: ["保密协议", "NDA"]
+      value:
+        kind: "enum"
+  - key: "discount_approval"
+    department: "销售部"
+    topic: "折扣审批"
+    value: "15%"
+    alternatives: ["20%", "10%"]
+    say: ["折扣超过 {value} 的报价须经销售总监审批。", "给客户打折超过 {value} 要找销售总监批。"]
+    slot:
+      predicate: "discount_approval_threshold"
+      label: "折扣审批起点"
+      aliases: ["折扣", "打折"]
+      value:
+        kind: "percent"
+        unit: "percent"
+        words: ["%"]
+  - key: "payment_term"
+    department: "销售部"
+    topic: "回款"
+    value: "30"
+    alternatives: ["45", "60"]
+    say: ["标准合同的付款期限为验收后 {value} 天。", "客户回款周期按 {value} 天约定。"]
+    slot:
+      predicate: "payment_term_days"
+      label: "回款期限"
+      aliases: ["付款期限", "回款周期"]
+      value:
+        kind: "duration"
+        unit: "day"
+        words: ["天"]
+  - key: "first_response"
+    department: "客服中心"
+    topic: "响应时效"
+    value: "30"
+    alternatives: ["15", "60"]
+    say: ["客户工单须在 {value} 分钟内首次响应。", "工单首次响应时间不超过 {value} 分钟。"]
+    slot:
+      predicate: "ticket_first_response_minutes"
+      label: "工单首次响应时限"
+      aliases: ["首次响应"]
+      value:
+        kind: "duration"
+        unit: "minute"
+        words: ["分钟"]
+  - key: "refund_days"
+    department: "客服中心"
+    topic: "退款"
+    value: "7"
+    alternatives: ["15", "3"]
+    say: ["退款申请在 {value} 个工作日内处理完毕。", "客户退款一般 {value} 个工作日到账。"]
+    slot:
+      predicate: "refund_processing_days"
+      label: "退款处理时限"
+      aliases: ["退款"]
+      value:
+        kind: "duration"
+        unit: "working_day"
+        words: ["个工作日"]
+  - key: "review_approvers"
+    department: "研发中心"
+    topic: "代码评审"
+    value: "2"
+    alternatives: ["1", "3"]
+    say: ["合并到主干的代码须经至少 {value} 名评审人批准。", "每个合并请求要 {value} 个人审过。"]
+    slot:
+      predicate: "code_review_approvers"
+      label: "代码评审人数"
+      aliases: ["评审人", "审过"]
+      value:
+        kind: "number"
+        unit: "people"
+        words: ["名", "个人"]
+  - key: "release_window"
+    department: "研发中心"
+    topic: "发布"
+    value: "每周二、周四"
+    alternatives: ["每周三", "每周一至周四"]
+    say: ["生产环境发布窗口为{value}。", "线上发布只在{value}进行。"]
+    slot:
+      predicate: "release_window"
+      label: "发布窗口"
+      aliases: ["发布窗口", "线上发布"]
+      value:
+        kind: "enum"
+  - key: "oncall_minutes"
+    department: "研发中心"
+    topic: "值班"
+    value: "15"
+    alternatives: ["30", "10"]
+    say: ["值班工程师须在告警后 {value} 分钟内响应。", "收到告警 {value} 分钟内要有人接手。"]
+    slot:
+      predicate: "oncall_response_minutes"
+      label: "值班响应时限"
+      aliases: ["告警"]
+      value:
+        kind: "duration"
+        unit: "minute"
+        words: ["分钟"]
+  - key: "campaign_approval"
+    department: "市场部"
+    topic: "市场活动"
+    value: "10"
+    alternatives: ["20", "5"]
+    say: ["预算 {value} 万元以上的市场活动须经总经理审批。", "活动预算超过 {value} 万要总经理批。"]
+    slot:
+      predicate: "campaign_approval_threshold"
+      label: "市场活动审批起点"
+      aliases: ["市场活动", "活动预算"]
+      value:
+        kind: "money"
+        unit: "10k CNY"
+        currency: "CNY"
+        words: ["万元", "万"]

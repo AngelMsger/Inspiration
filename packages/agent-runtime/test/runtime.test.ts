@@ -349,13 +349,13 @@ describe("agent runtime", () => {
   test("a tool labels text by returning a LabeledResult", async () => {
     const READ: ToolSpec = { ...SEARCH, name: "read_document" };
     const tools = new ToolRegistry([
-      new FunctionTool(READ, async () => new LabeledResult("预算表：研发部 1,200 万元", "confidential")),
+      new FunctionTool(READ, async () => new LabeledResult("Budget: R&D 12 million yuan", "confidential")),
     ]);
     const gw = gateway();
     fake(gw, "cloud").script(TASK, call("read_document", { query: "budget" }));
     fake(gw, "local").script(TASK, final({ reply: "done" }));
     const result = await new Runtime(gw, tools, prompts()).run(spec({ tools: ["read_document"] }), "q", context());
-    expect(result.steps[0]?.result).toBe("预算表：研发部 1,200 万元");
+    expect(result.steps[0]?.result).toBe("Budget: R&D 12 million yuan");
     expect(usageOf(gw).map((r) => r.sensitivity)).toEqual(["internal", "confidential"]);
   });
 

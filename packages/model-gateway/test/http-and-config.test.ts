@@ -136,11 +136,11 @@ test("prompts load from files, render, and refuse silent edits", () => {
   const prompts = new PromptRegistry();
   prompts.loadDir(dir);
   const messages = prompts.render("extraction.extract_claims", "claims@1", {
-    title: "差旅制度",
-    chunk: { text: "住宿 600 元" },
+    title: "Travel policy",
+    chunk: { text: "hotels 600 yuan" },
   });
   expect(messages[0]?.content).toBe("Extract claims.");
-  expect(messages[1]?.content).toBe('Title: 差旅制度\n{"text":"住宿 600 元"}\n');
+  expect(messages[1]?.content).toBe('Title: Travel policy\n{"text":"hotels 600 yuan"}\n');
   expect(() => prompts.render("extraction.extract_claims", "claims@1", { title: "x" })).toThrow(
     /missing variable chunk/,
   );

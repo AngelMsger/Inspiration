@@ -46,8 +46,8 @@ describe("ids", () => {
   });
 
   test("content hashes", () => {
-    expect(contentHash("住宿")).toMatch(/^sha256:[0-9a-f]{64}$/);
-    expect(contentHash("住宿")).toBe(contentHash(new TextEncoder().encode("住宿")));
+    expect(contentHash("Größe")).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(contentHash("Größe")).toBe(contentHash(new TextEncoder().encode("Größe")));
     expect(combineHashes("a", "b")).not.toBe(combineHashes("b", "a"));
   });
 });

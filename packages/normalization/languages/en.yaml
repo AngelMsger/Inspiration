@@ -1,0 +1,9 @@
+# How English text breaks into passages (see src/sentences.ts).
+
+terminators: ["!", "?", ";"]
+closers: [")", "]", '"', "'"]
+commas: [","]
+# A full stop ends a sentence when a space follows, unless it ends one of the abbreviations
+# or a lowercase word comes next.
+full_stops: ["."]
+abbreviations: [e.g, i.e, etc, vs, cf, fig, "no", mr, mrs, ms, dr, approx]

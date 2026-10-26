@@ -1,12 +1,23 @@
 import { cp, mkdtemp, readdir, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
+import { hasStack, stackTest, testData, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
 import { Corpus, days, Engine, inboxReport, ingest, SimulatedClock } from "../src/index.ts";
 
 const CORPUS = new URL("../../../examples/corpus/", import.meta.url).pathname;
 const FINANCE = "grp_01QINGHE00000000000FINANCE";
+
+/** What the run finds, in the corpus's own words (test/data/corpus.yaml). */
+const FOUND = testData<{
+  duplicates: [string, string, boolean][];
+  conflicts: Record<string, Record<string, number>>;
+  proposed: Record<string, string>;
+  topics: [string, number][];
+  cards: [string, string[]][];
+  confidential: string;
+  edit: { path: string[]; from: string; to: string };
+}>(import.meta.url, "corpus.yaml");
 
 interface Run {
   engine: Engine;
@@ -62,17 +73,15 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
     "acl.changed": 19,
     "blocks.changed": 19,
     "claims.updated": 18,
-    // Two conflicts, two notes, and the FAQ's note withdrawn once the notice stated its value.
-    "todo.requested": 5,
+    // Two conflicts and two notes. The note on the 650 is published again when the FAQ
+    // becomes the statement it cites in place of the minutes, then withdrawn once the notice
+    // makes 650 the governed value.
+    "todo.requested": 6,
   });
   expect(first.dead_letters).toBe(0);
   expect(first.acl.unmapped).toEqual([]);
   // The forwarded copy is exact; the 2023 edition is near both the policy and its copy.
-  expect(first.duplicates.map((d) => [d.document, d.duplicate_of, d.exact]).sort()).toEqual([
-    ["制度库/财务/差旅费管理办法.md", "制度库/人事/转发-差旅费管理办法.md", true],
-    ["归档/差旅费管理办法（2023 版）.md", "制度库/人事/转发-差旅费管理办法.md", false],
-    ["归档/差旅费管理办法（2023 版）.md", "制度库/财务/差旅费管理办法.md", false],
-  ]);
+  expect(first.duplicates.map((d) => [d.document, d.duplicate_of, d.exact]).sort()).toEqual(FOUND.duplicates);
   expect(first.blocks.by_kind).toMatchObject({ table: 9, form_field: 4 });
 
   // Every planted value conflict comes out as a slot with more than one value, reference
@@ -84,24 +93,20 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
     reference: { documents: 4, windows: 4 },
     search_only: { documents: 1, claims: 0, windows: 0 },
   });
-  expect(Object.fromEntries(first.claims.conflicts.top.map((t) => [t.slot, t.values]))).toEqual({
-    "hotel_cap_per_night|一线城市": { "600 CNY/night": 7, "650 CNY/night": 3, "500 CNY/night": 1 },
-    meal_allowance_per_day: { "100 CNY/day": 3, "80 CNY/day": 1 },
-    "annual_leave_days|工龄 1 至 10 年": { "5 day": 1, "7 day": 1 },
-    budget_draft_deadline: { "11 月 15 日": 1, "11 月 20 日": 1 },
-  });
+  expect(Object.fromEntries(first.claims.conflicts.top.map((t) => [t.slot, t.values]))).toEqual(FOUND.conflicts);
 
   // Governance settles the archived values alone and asks about two slots: the notice changed
   // a value after the policy, and the guide contradicts one. The meeting minutes are a
   // reference document, so the deadline they moved is a note for the owner, not a todo; the
-  // FAQ's 650 was a note too until the notice made it the governed value.
+  // 650 of the minutes and the FAQ was a note too (published twice, once citing each) until
+  // the notice made it the governed value.
   expect(first.governance).toMatchObject({
     cases: { total: 6, by_class: { supersession: 3, contradiction: 3 }, by_status: { open: 2, auto_resolved: 4 } },
     todos: 2,
     todos_by_priority: { high: 1, normal: 1 },
     proposed_by: { changed: 1, authority: 3 },
     requests: 2,
-    notes: 2,
+    notes: 3,
     withdrawn: 1,
   });
   // Only the 14 governed documents keep review clocks. Policies are reviewed yearly and
@@ -116,7 +121,7 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
     reviews: {},
   });
   // page-compiler clusters the 34 sections of current governed documents into topics: those
-  // that share a heading across documents (住宿, 报销, 审批权限), and what is left of a
+  // that share a heading across documents (lodging, expenses, approval authority), and what is left of a
   // document when it holds five statements or more. The small documents stay unfiled, and
   // reference statements of a slot join the slot's topic. Clustering again with nothing
   // changed moves nothing.
@@ -133,18 +138,7 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
   });
   expect(first.outline.again).toMatchObject({ churn: { before: 70, moved: 0, deferred: 0 }, topics: { created: 0 } });
   const outline = await engine.store.topics(corpus.tenantId);
-  expect(outline.map((n) => [n.title, n.statement_count]).sort()).toEqual([
-    ["2027 年度预算编制说明", 6],
-    ["IT 设备申领说明", 7],
-    ["住宿", 21],
-    ["审批权限", 6],
-    ["差旅费管理办法", 13],
-    ["年休假", 5],
-    ["报销", 8],
-    ["报销相关", 14],
-    ["新人入职指南", 10],
-    ["费用报销管理规定", 6],
-  ]);
+  expect(outline.map((n) => [n.title, n.statement_count]).sort()).toEqual(FOUND.topics);
   // Each topic's owner is the member who wrote most of its documents. The inbox puts the two
   // conflicts on their owners' cards and the minutes' note on a notes card; nothing waits.
   expect(first.owners).toMatchObject({ topics: 10, owned: 9, assigned: 9, owners: 2, rerouted: 3 });
@@ -161,21 +155,14 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
     steward: { todos: 0 },
   });
   const cards = await engine.inbox.cards(corpus.tenantId);
-  expect(cards.map((c) => [c.kind, c.todos.map((t) => t.title)])).toEqual([
-    ["review", ["annual_leave_days (工龄 1 至 10 年): 5 day or 7 day"]],
-    ["review", ["hotel_cap_per_night (一线城市): 650 CNY/night or 600 CNY/night"]],
-    ["notes", ["budget_draft_deadline: 11 月 20 日 in 2026 年 9 月经营会纪要, 11 月 15 日 holds"]],
-  ]);
-  const proposed = async (slot: string) =>
-    (await engine.governance.slot(corpus.tenantId, slot)).decision?.proposed.value;
-  expect(await proposed("hotel_cap_per_night|一线城市")).toBe("650 CNY/night");
-  expect(await proposed("budget_draft_deadline")).toBe("11 月 15 日");
-  expect(await proposed("annual_leave_days|工龄 1 至 10 年")).toBe("5 day");
-  expect(await proposed("meal_allowance_per_day")).toBe("100 CNY/day");
+  expect(cards.map((c) => [c.kind, c.todos.map((t) => t.title)])).toEqual(FOUND.cards);
+  for (const [slot, value] of Object.entries(FOUND.proposed)) {
+    expect((await engine.governance.slot(corpus.tenantId, slot)).decision?.proposed.value, slot).toBe(value);
+  }
 
   // The finance-only folder keeps its group, mapped through the directory.
   const [budget] = (await engine.sync.items(corpus.sources[0]?.id as string)).filter((i) =>
-    i.external_id.startsWith("财务/内部/"),
+    i.external_id.startsWith(FOUND.confidential),
   );
   const version = await engine.store.getSourceVersion(budget?.source_version_id as string);
   expect(version?.sensitivity).toBe("confidential");
@@ -192,8 +179,8 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
   expect(again.sources.every((s) => s.outcomes.unchanged === s.items)).toBe(true);
 
   // An edit to one article is one changed block downstream.
-  const path = join(dir, "制度库", "财务", "差旅费管理办法.md");
-  await writeFile(path, (await readFile(path, "utf8")).replace("每晚限额（元） |", "每晚限额（元，含税） |"));
+  const path = join(dir, ...FOUND.edit.path);
+  await writeFile(path, (await readFile(path, "utf8")).replace(FOUND.edit.from, FOUND.edit.to));
   await touch(path, "2026-10-23");
   const edited = await ingest(engine, corpus);
   // The header of the hotel table changed, so its three rows are read again and restated. They
