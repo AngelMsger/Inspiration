@@ -1,9 +1,12 @@
 # Component manifest: who owns what, which events each component publishes and consumes,
 # which synchronous APIs it may call, and which plugin groups it provides. test/manifest.test.ts
 # checks it against the event catalogue, the plugin groups and the workspace packages.
+# Each section has its own top-level directory: components in engine/, libraries in libs/,
+# apps in apps/; business-layer packages go in business/, and engine/ and libs/ never
+# depend on them.
 #
 # Every component is named for what it does. The name is also its package
-# (packages/<name>, published as @inspiration/<name>), its event producer name, its
+# (engine/<name>, published as @inspiration/<name>), its event producer name, its
 # consumer group and the first part of its model task names (<name>.<verb_object>).
 #
 # layer:     ingest | compile | store | serve | control (see docs/architecture.md)
@@ -228,7 +231,8 @@ components:
     subscribes: []
     calls: [credential-broker, blobs]
 
-# Shared libraries, not components: any package may depend on them.
+# Shared libraries, not components (libs/<name>, published as @inspiration/<name>): any
+# package may depend on them.
 libraries:
   contracts:
     owns: Generated types and validators, the event catalogue, IDs, sensitivity labels, component interfaces

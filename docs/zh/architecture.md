@@ -82,7 +82,7 @@ apps/<name>       组装根：现在是引擎进程和 CLI；以后加上业务�
    一次（失败时至少一次）。无法解析的事件、版本比消费者所知更新的事件，以及一再失败的事件，会进入每个消费者组的
    死信流。
 2. **知识存储的仓储 API。** 对知识的读写都经过 `KnowledgeStore`。任何组件都不读取其他组件的表。
-3. **同步调用** `packages/contracts/src/interfaces.ts` 中的接口：`AuthZ`（access-control）、`ModelGateway`
+3. **同步调用** `libs/contracts/src/interfaces.ts` 中的接口：`AuthZ`（access-control）、`ModelGateway`
    （model-gateway）、`Retriever`（retrieval）、`AgentRuntime`（agent-runtime）和 Blob 存储。每个接口都有进程内
    实现，在有用的地方还有接口相同的 HTTP 实现（model gateway 目前两者都有）。`components.yaml` 列出每个组件可以
    发起哪些调用，清单测试检查一个包不依赖其他任何东西。

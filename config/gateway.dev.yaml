@@ -1,6 +1,6 @@
 # Model gateway config for local development and CI: two fake providers, no model server.
 # Copy to gateway.yaml and replace the fake providers with openai_compatible ones to use real
-# models (see packages/model-gateway/src/config.ts for every field).
+# models (see engine/model-gateway/src/config.ts for every field).
 currency: CNY
 
 providers:

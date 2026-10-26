@@ -36,10 +36,16 @@ const names = new Set(Object.keys(manifest.components));
 const libraries = new Set(Object.keys(manifest.libraries));
 const apps = new Set(Object.keys(manifest.apps));
 
-function packageJson(name: string, dir = "packages"): PackageJson | undefined {
+// Each kind of package has its own top-level directory: engine components in engine/,
+// shared libraries in libs/, composition roots in apps/, business-layer packages in business/.
+function packageJson(name: string, dir: string): PackageJson | undefined {
   const path = new URL(`${dir}/${name}/package.json`, ROOT);
   return existsSync(path) ? (JSON.parse(readFileSync(path, "utf8")) as PackageJson) : undefined;
 }
+
+/** The packages in a top-level directory. */
+const packagesIn = (dir: string): string[] =>
+  existsSync(new URL(`${dir}/`, ROOT)) ? readdirSync(new URL(`${dir}/`, ROOT)).filter((d) => packageJson(d, dir)) : [];
 
 const internalDependencies = (p: PackageJson) =>
   Object.keys(p.dependencies ?? {})
@@ -60,7 +66,7 @@ describe("components", () => {
   });
 
   test.each(components.filter(([, c]) => c.status === "built"))("%s matches its package", (name, c) => {
-    const pkg = packageJson(name);
+    const pkg = packageJson(name, "engine");
     expect(pkg?.name).toBe(`@inspiration/${name}`);
     expect(Object.keys(pkg?.inspiration?.plugins ?? {}).sort()).toEqual([...c.plugins].sort());
     // The package may depend on libraries and on the components it calls, nothing else.
@@ -94,17 +100,28 @@ test("every event has a producer and a consumer", () => {
 
 test("libraries depend only on libraries", () => {
   for (const name of libraries) {
-    const pkg = packageJson(name);
+    const pkg = packageJson(name, "libs");
     expect(pkg?.name).toBe(`@inspiration/${name}`);
     expect(internalDependencies(pkg as PackageJson).filter((d) => !libraries.has(d))).toEqual([]);
   }
 });
 
-test("every workspace package is a component or a library", () => {
-  const packages = readdirSync(new URL("packages/", ROOT)).filter((d) => packageJson(d));
-  expect(packages.filter((p) => !names.has(p) && !libraries.has(p))).toEqual([]);
+test("every built component is in engine/ and every library in libs/", () => {
   const built = components.filter(([, c]) => c.status === "built").map(([n]) => n);
-  expect(packages.filter((p) => names.has(p)).sort()).toEqual(built.sort());
+  expect(packagesIn("engine").sort()).toEqual(built.sort());
+  expect(packagesIn("libs").sort()).toEqual([...libraries].sort());
+});
+
+test("the engine and the libraries never depend on the business layer", () => {
+  const business = new Set(packagesIn("business"));
+  for (const dir of ["engine", "libs"]) {
+    for (const name of packagesIn(dir)) {
+      expect(
+        internalDependencies(packageJson(name, dir) as PackageJson).filter((d) => business.has(d)),
+        name,
+      ).toEqual([]);
+    }
+  }
 });
 
 test("every app is listed, and no package depends on an app", () => {
@@ -114,9 +131,10 @@ test("every app is listed, and no package depends on an app", () => {
     expect(packageJson(name, "apps")?.name).toBe(`@inspiration/${name}`);
     expect(names.has(name) || libraries.has(name)).toBe(false);
   }
-  const packages = readdirSync(new URL("packages/", ROOT)).filter((d) => packageJson(d));
-  for (const name of packages) {
-    expect(internalDependencies(packageJson(name) as PackageJson).filter((d) => apps.has(d))).toEqual([]);
+  for (const dir of ["engine", "libs", "business"]) {
+    for (const name of packagesIn(dir)) {
+      expect(internalDependencies(packageJson(name, dir) as PackageJson).filter((d) => apps.has(d))).toEqual([]);
+    }
   }
 });
 

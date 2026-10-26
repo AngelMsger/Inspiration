@@ -1,7 +1,7 @@
 # Contracts
 
 Every type that crosses a component boundary is defined once, in JSON Schema (draft
-2020-12) written as YAML under `packages/contracts/schema/`. The TypeScript types, the
+2020-12) written as YAML under `libs/contracts/schema/`. The TypeScript types, the
 runtime validators and the event catalogue are generated from it. Data on the wire and in
 the database is `snake_case`; TypeScript APIs are `camelCase`. A Chinese copy is in
 [zh/contracts.md](zh/contracts.md); if the two differ, this English version wins.
@@ -21,15 +21,15 @@ the database is `snake_case`; TypeScript APIs are `camelCase`. A Chinese copy is
 
 Interfaces between components (`KnowledgeStore`, `AuthZ`, `ModelGateway`, `Retriever`,
 `AgentRuntime`, the plugin interfaces) are hand-written TypeScript in
-`packages/contracts/src/interfaces.ts`, over the generated types.
+`libs/contracts/src/interfaces.ts`, over the generated types.
 
 ## Changing a contract
 
 ```bash
-$EDITOR packages/contracts/schema/page.yaml
+$EDITOR libs/contracts/schema/page.yaml
 pnpm contracts           # bundle, then generate src/generated.ts and src/events.ts
 pnpm contracts:check     # what CI runs: fails if anything generated is stale
-pnpm vitest run packages/contracts   # examples validate against the schema
+pnpm vitest run libs/contracts   # examples validate against the schema
 ```
 
 Never edit `dist/inspiration.schema.json`, `src/generated.ts` or `src/events.ts` by hand.
@@ -37,13 +37,13 @@ Never edit `dist/inspiration.schema.json`, `src/generated.ts` or `src/events.ts`
 Rules:
 
 - Type names are unique across all files; the bundler flattens them into one namespace
-  (`packages/contracts/dist/inspiration.schema.json`, the file other languages read).
+  (`libs/contracts/dist/inspiration.schema.json`, the file other languages read).
 - Every enum and every object used in more than one place gets its own named definition,
   so generated code has readable names.
 - Unions that cross the wire carry a tag (`type` for blocks and view messages, `kind` for
   data references); the bundler adds a `discriminator` for code generators.
 - Put an example of every new cross-component type in
-  `packages/contracts/examples/<Type>.<name>.json`; the tests validate it.
+  `libs/contracts/examples/<Type>.<name>.json`; the tests validate it.
 - Validate data from outside the process with `parseAs(typeName, value)` or
   `contractErrors(typeName, value)`. `newEvent` validates every event it builds.
 - Offsets into text (`quote_start`, `char_start`) are UTF-16 code units, the indices

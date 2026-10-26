@@ -350,7 +350,7 @@ flowchart TB
 
 ### 组件
 
-引擎有 19 个组件，每个都是一个只做一件事的包 `packages/<name>`，另有四个共享库（contracts、kernel、eventbus、testkit）
+引擎有 19 个组件，每个都是一个只做一件事的包 `engine/<name>`，另有四个共享库（contracts、kernel、eventbus、testkit）
 和一个组装根（`apps/engine`）。组件名同时也是它的事件生产者名、消费组名和模型任务名的前缀。
 [`components.yaml`](../../components.yaml) 是已构建和计划内容的权威清单；credential-broker 和 sandbox 在构建时加入其中，
 其中的 `web` 条目移到业务层。
@@ -630,7 +630,7 @@ flowchart LR
 
 ### 我们如何构建
 
-- **契约优先。** `packages/contracts/schema/*.yaml` 是事实来源；类型和校验器由它生成。增量式的变更可以直接在分支里做；
+- **契约优先。** `libs/contracts/schema/*.yaml` 是事实来源；类型和校验器由它生成。增量式的变更可以直接在分支里做；
   任何删除、重命名或收紧字段的变更都需要先取得一致。见 [contracts.md](contracts.md)。
 - **边界靠检查，而不是靠自觉。** 引擎的各个模块和业务的各个层级在同一个仓库里，所以它们的边界由测试保证：每个包
   放在所属层的目录里，只依赖共享库和 `calls` 中列出的组件，两层之间的依赖只能单向。

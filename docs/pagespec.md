@@ -54,5 +54,5 @@ across versions, so `PageDiff` can say which blocks were added, removed, modifie
 and comments anchored to a block survive a rebuild. Restoring an old version writes a new
 version whose blocks are pinned as overrides, so the next rebuild does not undo it.
 
-The complete example in `packages/contracts/examples/PageSpec.travel-policy.json` uses every
+The complete example in `libs/contracts/examples/PageSpec.travel-policy.json` uses every
 block type and is validated by the contract tests.

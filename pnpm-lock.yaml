@@ -10,55 +10,55 @@ importers:
     dependencies:
       '@inspiration/access-control':
         specifier: workspace:*
-        version: link:packages/access-control
+        version: link:engine/access-control
       '@inspiration/agent-runtime':
         specifier: workspace:*
-        version: link:packages/agent-runtime
+        version: link:engine/agent-runtime
       '@inspiration/collaboration':
         specifier: workspace:*
-        version: link:packages/collaboration
+        version: link:engine/collaboration
       '@inspiration/connectors':
         specifier: workspace:*
-        version: link:packages/connectors
+        version: link:engine/connectors
       '@inspiration/contracts':
         specifier: workspace:*
-        version: link:packages/contracts
+        version: link:libs/contracts
       '@inspiration/engine':
         specifier: workspace:*
         version: link:apps/engine
       '@inspiration/eventbus':
         specifier: workspace:*
-        version: link:packages/eventbus
+        version: link:libs/eventbus
       '@inspiration/extraction':
         specifier: workspace:*
-        version: link:packages/extraction
+        version: link:engine/extraction
       '@inspiration/freshness':
         specifier: workspace:*
-        version: link:packages/freshness
+        version: link:engine/freshness
       '@inspiration/governance':
         specifier: workspace:*
-        version: link:packages/governance
+        version: link:engine/governance
       '@inspiration/kernel':
         specifier: workspace:*
-        version: link:packages/kernel
+        version: link:libs/kernel
       '@inspiration/knowledge-store':
         specifier: workspace:*
-        version: link:packages/knowledge-store
+        version: link:engine/knowledge-store
       '@inspiration/model-gateway':
         specifier: workspace:*
-        version: link:packages/model-gateway
+        version: link:engine/model-gateway
       '@inspiration/normalization':
         specifier: workspace:*
-        version: link:packages/normalization
+        version: link:engine/normalization
       '@inspiration/page-compiler':
         specifier: workspace:*
-        version: link:packages/page-compiler
+        version: link:engine/page-compiler
       '@inspiration/source-sync':
         specifier: workspace:*
-        version: link:packages/source-sync
+        version: link:engine/source-sync
       '@inspiration/testkit':
         specifier: workspace:*
-        version: link:packages/testkit
+        version: link:libs/testkit
     devDependencies:
       '@biomejs/biome':
         specifier: 2.5.15
@@ -80,81 +80,81 @@ importers:
     dependencies:
       '@inspiration/collaboration':
         specifier: workspace:*
-        version: link:../../packages/collaboration
+        version: link:../../engine/collaboration
       '@inspiration/connectors':
         specifier: workspace:*
-        version: link:../../packages/connectors
+        version: link:../../engine/connectors
       '@inspiration/contracts':
         specifier: workspace:*
-        version: link:../../packages/contracts
+        version: link:../../libs/contracts
       '@inspiration/eventbus':
         specifier: workspace:*
-        version: link:../../packages/eventbus
+        version: link:../../libs/eventbus
       '@inspiration/extraction':
         specifier: workspace:*
-        version: link:../../packages/extraction
+        version: link:../../engine/extraction
       '@inspiration/freshness':
         specifier: workspace:*
-        version: link:../../packages/freshness
+        version: link:../../engine/freshness
       '@inspiration/governance':
         specifier: workspace:*
-        version: link:../../packages/governance
+        version: link:../../engine/governance
       '@inspiration/kernel':
         specifier: workspace:*
-        version: link:../../packages/kernel
+        version: link:../../libs/kernel
       '@inspiration/knowledge-store':
         specifier: workspace:*
-        version: link:../../packages/knowledge-store
+        version: link:../../engine/knowledge-store
       '@inspiration/model-gateway':
         specifier: workspace:*
-        version: link:../../packages/model-gateway
+        version: link:../../engine/model-gateway
       '@inspiration/normalization':
         specifier: workspace:*
-        version: link:../../packages/normalization
+        version: link:../../engine/normalization
       '@inspiration/page-compiler':
         specifier: workspace:*
-        version: link:../../packages/page-compiler
+        version: link:../../engine/page-compiler
       '@inspiration/source-sync':
         specifier: workspace:*
-        version: link:../../packages/source-sync
+        version: link:../../engine/source-sync
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
     devDependencies:
       '@inspiration/testkit':
         specifier: workspace:*
-        version: link:../../packages/testkit
+        version: link:../../libs/testkit
 
-  packages/access-control:
+  engine/access-control:
     dependencies:
       '@authzed/authzed-node':
         specifier: ^1.6.1
         version: 1.6.1
       '@inspiration/contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../../libs/contracts
       '@inspiration/kernel':
         specifier: workspace:*
-        version: link:../kernel
+        version: link:../../libs/kernel
     devDependencies:
       '@inspiration/eventbus':
         specifier: workspace:*
-        version: link:../eventbus
+        version: link:../../libs/eventbus
       '@inspiration/knowledge-store':
         specifier: workspace:*
         version: link:../knowledge-store
       '@inspiration/testkit':
         specifier: workspace:*
-        version: link:../testkit
+        version: link:../../libs/testkit
 
-  packages/agent-runtime:
+  engine/agent-runtime:
     dependencies:
       '@inspiration/contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../../libs/contracts
       '@inspiration/kernel':
         specifier: workspace:*
-        version: link:../kernel
+        version: link:../../libs/kernel
       '@inspiration/model-gateway':
         specifier: workspace:*
         version: link:../model-gateway
@@ -164,92 +164,54 @@ importers:
     devDependencies:
       '@inspiration/testkit':
         specifier: workspace:*
-        version: link:../testkit
+        version: link:../../libs/testkit
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
 
-  packages/collaboration:
+  engine/collaboration:
     dependencies:
       '@inspiration/contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../../libs/contracts
       '@inspiration/eventbus':
         specifier: workspace:*
-        version: link:../eventbus
+        version: link:../../libs/eventbus
       '@inspiration/kernel':
         specifier: workspace:*
-        version: link:../kernel
+        version: link:../../libs/kernel
     devDependencies:
       '@inspiration/knowledge-store':
         specifier: workspace:*
         version: link:../knowledge-store
       '@inspiration/testkit':
         specifier: workspace:*
-        version: link:../testkit
+        version: link:../../libs/testkit
 
-  packages/connectors:
+  engine/connectors:
     dependencies:
       '@inspiration/contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../../libs/contracts
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
     devDependencies:
       '@inspiration/kernel':
         specifier: workspace:*
-        version: link:../kernel
+        version: link:../../libs/kernel
 
-  packages/contracts:
-    dependencies:
-      ajv:
-        specifier: ^8.20.0
-        version: 8.20.0
-      ajv-formats:
-        specifier: ^3.0.1
-        version: 3.0.1(ajv@8.20.0)
-    devDependencies:
-      json-schema-to-typescript:
-        specifier: ^16.0.0
-        version: 16.0.0
-      yaml:
-        specifier: ^2.9.1
-        version: 2.9.1
-
-  packages/eventbus:
+  engine/extraction:
     dependencies:
       '@inspiration/contracts':
         specifier: workspace:*
-        version: link:../contracts
-      '@inspiration/kernel':
-        specifier: workspace:*
-        version: link:../kernel
-      ioredis:
-        specifier: ^6.0.0
-        version: 6.0.0
-      pg:
-        specifier: ^8.23.1
-        version: 8.23.1
-    devDependencies:
-      '@inspiration/testkit':
-        specifier: workspace:*
-        version: link:../testkit
-      '@types/pg':
-        specifier: ^8.23.1
-        version: 8.23.1
-
-  packages/extraction:
-    dependencies:
-      '@inspiration/contracts':
-        specifier: workspace:*
-        version: link:../contracts
+        version: link:../../libs/contracts
       '@inspiration/eventbus':
         specifier: workspace:*
-        version: link:../eventbus
+        version: link:../../libs/eventbus
       '@inspiration/kernel':
         specifier: workspace:*
-        version: link:../kernel
+        version: link:../../libs/kernel
       '@inspiration/model-gateway':
         specifier: workspace:*
         version: link:../model-gateway
@@ -262,95 +224,79 @@ importers:
         version: link:../knowledge-store
       '@inspiration/testkit':
         specifier: workspace:*
-        version: link:../testkit
+        version: link:../../libs/testkit
 
-  packages/freshness:
+  engine/freshness:
     dependencies:
       '@inspiration/contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../../libs/contracts
       '@inspiration/eventbus':
         specifier: workspace:*
-        version: link:../eventbus
+        version: link:../../libs/eventbus
       '@inspiration/kernel':
         specifier: workspace:*
-        version: link:../kernel
+        version: link:../../libs/kernel
     devDependencies:
       '@inspiration/knowledge-store':
         specifier: workspace:*
         version: link:../knowledge-store
       '@inspiration/testkit':
         specifier: workspace:*
-        version: link:../testkit
+        version: link:../../libs/testkit
 
-  packages/governance:
+  engine/governance:
     dependencies:
       '@inspiration/contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../../libs/contracts
       '@inspiration/eventbus':
         specifier: workspace:*
-        version: link:../eventbus
+        version: link:../../libs/eventbus
       '@inspiration/kernel':
         specifier: workspace:*
-        version: link:../kernel
+        version: link:../../libs/kernel
     devDependencies:
       '@inspiration/knowledge-store':
         specifier: workspace:*
         version: link:../knowledge-store
       '@inspiration/testkit':
         specifier: workspace:*
-        version: link:../testkit
+        version: link:../../libs/testkit
 
-  packages/kernel:
+  engine/knowledge-store:
     dependencies:
       '@inspiration/contracts':
         specifier: workspace:*
-        version: link:../contracts
-      pg:
-        specifier: ^8.23.1
-        version: 8.23.1
-      yaml:
-        specifier: ^2.9.1
-        version: 2.9.1
-    devDependencies:
-      '@types/pg':
-        specifier: ^8.23.1
-        version: 8.23.1
-
-  packages/knowledge-store:
-    dependencies:
-      '@inspiration/contracts':
-        specifier: workspace:*
-        version: link:../contracts
+        version: link:../../libs/contracts
       '@inspiration/eventbus':
         specifier: workspace:*
-        version: link:../eventbus
+        version: link:../../libs/eventbus
       '@inspiration/kernel':
         specifier: workspace:*
-        version: link:../kernel
+        version: link:../../libs/kernel
       pg:
         specifier: ^8.23.1
         version: 8.23.1
     devDependencies:
       '@inspiration/testkit':
         specifier: workspace:*
-        version: link:../testkit
+        version: link:../../libs/testkit
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
 
-  packages/model-gateway:
+  engine/model-gateway:
     dependencies:
       '@hono/node-server':
         specifier: ^2.1.5
         version: 2.1.5(hono@4.13.13)
       '@inspiration/contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../../libs/contracts
       '@inspiration/kernel':
         specifier: workspace:*
-        version: link:../kernel
+        version: link:../../libs/kernel
       hono:
         specifier: ^4.13.10
         version: 4.13.13
@@ -366,22 +312,22 @@ importers:
     devDependencies:
       '@inspiration/testkit':
         specifier: workspace:*
-        version: link:../testkit
+        version: link:../../libs/testkit
       '@types/pg':
         specifier: ^8.23.1
         version: 8.23.1
 
-  packages/normalization:
+  engine/normalization:
     dependencies:
       '@inspiration/contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../../libs/contracts
       '@inspiration/eventbus':
         specifier: workspace:*
-        version: link:../eventbus
+        version: link:../../libs/eventbus
       '@inspiration/kernel':
         specifier: workspace:*
-        version: link:../kernel
+        version: link:../../libs/kernel
       csv-parse:
         specifier: ^7.0.3
         version: 7.0.3
@@ -415,22 +361,22 @@ importers:
         version: link:../knowledge-store
       '@inspiration/testkit':
         specifier: workspace:*
-        version: link:../testkit
+        version: link:../../libs/testkit
       '@types/mdast':
         specifier: ^4.0.4
         version: 4.0.4
 
-  packages/page-compiler:
+  engine/page-compiler:
     dependencies:
       '@inspiration/contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../../libs/contracts
       '@inspiration/eventbus':
         specifier: workspace:*
-        version: link:../eventbus
+        version: link:../../libs/eventbus
       '@inspiration/kernel':
         specifier: workspace:*
-        version: link:../kernel
+        version: link:../../libs/kernel
       '@inspiration/model-gateway':
         specifier: workspace:*
         version: link:../model-gateway
@@ -440,19 +386,19 @@ importers:
         version: link:../knowledge-store
       '@inspiration/testkit':
         specifier: workspace:*
-        version: link:../testkit
+        version: link:../../libs/testkit
 
-  packages/source-sync:
+  engine/source-sync:
     dependencies:
       '@inspiration/contracts':
         specifier: workspace:*
-        version: link:../contracts
+        version: link:../../libs/contracts
       '@inspiration/eventbus':
         specifier: workspace:*
-        version: link:../eventbus
+        version: link:../../libs/eventbus
       '@inspiration/kernel':
         specifier: workspace:*
-        version: link:../kernel
+        version: link:../../libs/kernel
     devDependencies:
       '@inspiration/connectors':
         specifier: workspace:*
@@ -462,9 +408,63 @@ importers:
         version: link:../knowledge-store
       '@inspiration/testkit':
         specifier: workspace:*
-        version: link:../testkit
+        version: link:../../libs/testkit
 
-  packages/testkit:
+  libs/contracts:
+    dependencies:
+      ajv:
+        specifier: ^8.20.0
+        version: 8.20.0
+      ajv-formats:
+        specifier: ^3.0.1
+        version: 3.0.1(ajv@8.20.0)
+    devDependencies:
+      json-schema-to-typescript:
+        specifier: ^16.0.0
+        version: 16.0.0
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+
+  libs/eventbus:
+    dependencies:
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../kernel
+      ioredis:
+        specifier: ^6.0.0
+        version: 6.0.0
+      pg:
+        specifier: ^8.23.1
+        version: 8.23.1
+    devDependencies:
+      '@inspiration/testkit':
+        specifier: workspace:*
+        version: link:../testkit
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+
+  libs/kernel:
+    dependencies:
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      pg:
+        specifier: ^8.23.1
+        version: 8.23.1
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
+
+  libs/testkit:
     dependencies:
       '@inspiration/kernel':
         specifier: workspace:*

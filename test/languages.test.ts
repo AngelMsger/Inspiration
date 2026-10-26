@@ -19,7 +19,7 @@ const DATA = [
   /(^|\/)languages\/[^/]+\.yaml$/,
   /(^|\/)test\/data\//,
   /^examples\//,
-  /^packages\/contracts\/examples\//,
+  /^libs\/contracts\/examples\//,
   /^docs\/zh\//,
   /\.zh\.md$/,
 ];
@@ -55,14 +55,17 @@ describe("languages", () => {
   });
 
   test("every component's language packs cover the languages the product serves", () => {
-    const packages = join(ROOT, "packages");
-    const withPacks = readdirSync(packages).filter((name) => existsSync(join(packages, name, "languages")));
+    const withPacks = ["libs", "engine", "business"]
+      .flatMap((dir) =>
+        existsSync(join(ROOT, dir)) ? readdirSync(join(ROOT, dir)).map((name) => `${dir}/${name}`) : [],
+      )
+      .filter((pkg) => existsSync(join(ROOT, pkg, "languages")));
     expect(withPacks.length).toBeGreaterThan(0);
-    for (const name of withPacks) {
-      const tags = readdirSync(join(packages, name, "languages"))
+    for (const pkg of withPacks) {
+      const tags = readdirSync(join(ROOT, pkg, "languages"))
         .filter((f) => f.endsWith(".yaml"))
         .map((f) => f.slice(0, -".yaml".length));
-      expect(tags.sort(), name).toEqual(LANGUAGES);
+      expect(tags.sort(), pkg).toEqual(LANGUAGES);
     }
   });
 });
