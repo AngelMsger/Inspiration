@@ -19,15 +19,15 @@ Together they make an owner's work grow with topics and source changes rather th
 | Term | Meaning | Contract |
 | --- | --- | --- |
 | Workspace | A company's shared area, for example Hengyuan Machinery | Tenant |
-| Space | An area of a workspace, such as Finance or Procurement. Its admins set who can read it | Space |
+| Space | An area of a workspace, such as Finance or Procurement. Its owner and the super admin set who can read it | Space |
 | Member | A person in a workspace | Principal |
 | Source | A document as written in its own app: a Feishu wiki page, a spreadsheet, an upload. It is kept as is | Source, SourceRef |
 | Passage | A span of a source that the engine cuts out. Every later layer points back to passages | Span |
 | Statement | The smallest governed unit: one fact with its status, owner, effective date and passages | Claim |
 | Topic | A node of a space's knowledge outline, at most three levels deep (area, topic, subtopic) | TaxonomyNode |
 | Knowledge page, procedure, card | The forms readers see. They are written from statements; a card describes one thing, such as a city, a supplier or a role | PageSpec, Sop |
-| Owner | The member who answers for a topic's statements: confirms where they belong, reviews them and decides conflicts. The UI calls this role freshness owner | TaxonomyNode.owner_id |
-| Steward | The member who looks after a space's knowledge as a whole and takes over topics without an owner | |
+| Owner | The member who answers for a topic's statements: confirms where they belong, reviews them and decides conflicts. The UI shows it by scope, as topic owner | TaxonomyNode.owner_id |
+| Space owner | The owner of a whole space, who takes over topics without an owner | Space role `owner` |
 | Todo | A piece of work for a person, shown on a card in the inbox | Todo |
 
 ## Part 1: two outlines and the fact slot
@@ -52,7 +52,7 @@ Most of what a company imports is reference material. Governing it statement by 
 | Reference (`reference`) | Papers, articles, research reports, meeting minutes, vendor documents | Only on use: when a page cites a passage, an answer uses it, or it touches a known fact slot | No owner and no review. A value that differs from a governed one becomes a note to that owner, never a conflict todo | Original and Annotated views; citations in answers are marked Reference |
 | Search only (`search_only`) | Chats, drafts, personal notes, large archives | Nothing. Passages are indexed for search and answers | None | Sources tree and search |
 
-- **Defaults.** Uploads and web pages start as Reference. The admin picks the level of each connected source, such as a Feishu wiki space, when connecting it. A steward can change the level of any folder in the Sources tree.
+- **Defaults.** Uploads and web pages start as Reference. The super admin picks the level of each connected source, such as a Feishu wiki space, when connecting it. The space owner can change the level of any folder in the Sources tree.
 - **Promotion is one action.** When an owner adopts a reference statement into a page, the statement becomes governed and gets a fact slot and an owner.
 - **Statement type matters too.** Opinions, conclusions, assumptions and plans never get review todos of their own, even in a governed source. They follow the page that uses them.
 - **A reference document still reads well.** Its Original view, its outline and cited answers all work without a single governed statement.
@@ -61,20 +61,20 @@ Most of what a company imports is reference material. Governing it statement by 
 
 A person sees work in the units they think in: a document that changed, a topic that is due, a value in dispute. Never one row per statement.
 
-- **Who gets it.** A todo goes to the owner of the topic its statements are placed in, or to the nearest owner up the topic tree. Topics with no owner go to the space's steward.
+- **Who gets it.** A todo goes to the owner of the topic its statements are placed in, or to the nearest owner up the topic tree. Topics with no owner go to the space owner.
 - **One card per owner, topic and week.** Todos for one owner about one topic in one ISO week share an inbox card (`Todo.batch_key`, with `taxonomy_key`, `slot_key` and `week`). A card holds at most 20 todos, ordered by priority and then by age, with a conflict before the reviews that depend on it.
 - **A weekly budget.** An owner gets at most 10 cards a week. When a week is full, further cards move to later weeks; high and urgent work never moves.
 - **Changes that keep the value ask nothing.** New wording or renumbered clauses need no todo. A changed value or a new statement does.
 - **Copies ride with their conflict.** Documents that repeat a disputed value are reviewed inside that slot's conflict todo ("used in 5 places, all update together after the decision"), not as separate items.
 - **Notes stay out of the budget.** When only reference documents state a different value, the owner gets a note (`TodoKind` `note`) on a weekly notes card. A note asks for no decision and is acknowledged in one action; its title and detail name the reference document, its date, the slot and both values.
 - **Work withdraws itself.** A conflict or a note whose reason goes away, for example because the reference document was corrected, is withdrawn without anyone acting.
-- **Day one is a campaign.** Reviews that are already due when a workspace first connects its sources go to first-review campaign cards per space and topic, at most 20 todos each, for the steward to work through in compact mode. Owners' inboxes start at the normal weekly pace.
+- **Day one is a campaign.** Reviews that are already due when a workspace first connects its sources go to first-review campaign cards per space and topic, at most 20 todos each, for the space owner to work through in compact mode. Owners' inboxes start at the normal weekly pace.
 
 What readers see of all this is deliberately little. Fresh and aging knowledge shows nothing. Stale and at-risk statements show Review due only in the citation popover and the Trace view. The only marks inline in text are Outdated and Disputed.
 
-## What owners and stewards see
+## What owners see
 
-- **The inbox** holds a handful of cards a week: a review card per topic that is due, a conflict card with its copy reviews, the notes card and, for stewards, campaign cards.
+- **The inbox** holds a handful of cards a week: a review card per topic that is due, a conflict card with its copy reviews, the notes card and, for space owners, campaign cards.
 - **The topic overview** in the Trace view is designed for a topic of about 1,000 statements and never lists them one by one. It shows the fact slots first, one row each with their variants and status; then the pages, procedures and cards that use them; then everything else folded by source document, with counts only; then unfiled statements with their suggested topic. The engine serves it as one read.
 - **The page-level Trace view** groups a page's statements by page section, because a page cites 5 to 30 statements.
 
@@ -116,7 +116,7 @@ The weekly budget never had to move a card. The maximum of 26 todos falls in the
 All adopted on 2026-10-24:
 
 - The three parts above: two outlines with fact slots, governance levels, grouped review.
-- Uploads and web pages start as Reference; the admin picks the level of each connected source.
+- Uploads and web pages start as Reference; the super admin picks the level of each connected source.
 - The weekly budget is 10 cards per owner, each holding up to 20 todos, to be tuned on later volume reports.
 - A reference source never blocks a governed statement. It raises a note, outside the budget.
 - The design builds on the knowledge views: Original, Annotated and Knowledge views of a source, and the Sources and Knowledge trees.
