@@ -1,504 +1,618 @@
-# Inspiration: product and technical overview
+# Inspiration: product requirements and technical architecture
 
-As of 2026-10-26. This is the one document to read first. It describes the product as decided
-and the engineering as built, and it says plainly which parts are built and which
-are designed but not built yet. A Chinese copy is in [zh/overview.md](zh/overview.md);
-if the two differ, this English version wins.
+Version 2, as of 2026-10-26. This document replaces the first product and technical overview and folds in every discussion on it. Part I is the product requirements: who Inspiration is for, the scenarios it must handle and what it must do. Part II is the technical architecture: how it is built, and how we know the hard parts can work. Part III is the plan: where we are, what comes next, the risks and the decisions. Every requirement and component says whether it is built, designed, proposed or still open. The design documents listed at the end hold the details. A Chinese copy is in [zh/overview.md](zh/overview.md); if the two differ, this English version wins.
 
-## In one page
+| If you want to know | Read |
+| --- | --- |
+| What the product is and why it should exist | 1 Summary, 2 The problem |
+| Who uses it and what they do with it | 3 Key concepts, 4 Users and roles, 5 Scenarios |
+| What exactly must be built | 6 Functional requirements, 7 Quality requirements, 8 Releases |
+| How it works | 9 to 20 |
+| Whether the hard parts can work | 21 Feasibility |
+| What happens next, and what needs a decision | 23 to 27 |
 
-**Inspiration turns a company's scattered documents, approval flows and research into governed
-knowledge.** Every statement keeps its exact evidence, stays fresh as its sources change, has a
-person who owns it, and is served to people as readable pages and to agents through MCP, each
-within their own permissions.
+## 1. Summary
 
-Four things set it apart:
+**Inspiration turns a company's scattered documents, approval flows and research into governed knowledge.** Every statement keeps its exact evidence, stays current as its sources change, has a person who maintains it, and reaches people as readable pages and agents through MCP, each within their own permissions.
 
-1. **Knowledge at the level of single statements.** Each fact is stored once, with a verbatim
-   quote from its source, the time it is true and the time the system learned it. Pages, procedures
-   and answers are built from these statements, so every sentence can be traced.
-2. **Freshness works like a build system.** A change in a source re-reads only the passages that
-   changed, updates only the statements they support, and rebuilds only what cites them. Review
-   dates come from what kind of knowledge it is.
-3. **Knowledge flows from personal to shared under one simple rule.** Each member's own space is
-   private. Publishing moves knowledge into the company, where the super admin and space owners decide who reads it.
-   Source permissions only raise warnings, so merged knowledge never needs per-source permission
-   arithmetic.
-4. **People and agents govern together, in amounts a person can keep up with.** Agents detect,
-   propose and answer; people decide. Most sources are not governed statement by statement, and
-   reviews arrive grouped per topic and week, within a weekly budget.
+```mermaid
+flowchart LR
+  subgraph S[Sources]
+    direction LR
+    s1[Feishu or Lark docs and wiki]
+    s2[Approval flows]
+    s3[Files and web pages]
+    s4[Research reports]
+  end
+  S --> P["Passages<br/>exact text, stable IDs"]
+  P --> T["Statements<br/>one fact each, verbatim evidence,<br/>when it holds"]
+  T --> G{"Owners decide<br/>conflicts and reviews"}
+  G --> K["Pages, procedures,<br/>cards and answers"]
+  K --> H["People<br/>in their own language"]
+  K --> A["Agents<br/>through MCP and REST"]
+  S -. "a change re-reads<br/>only what changed" .-> P
+```
 
-**Who it is for.** Teams and companies whose knowledge lives across several tools (Feishu or
-Lark, Confluence, approval systems, file shares, PDFs), starting with one person's library and
-growing into teams and companies. The strongest early uses are procedure and policy
-governance across tools, and a governed knowledge endpoint for a company's own agents. It is sold
-as SaaS first, with private deployment as a second profile of the same code. English, Chinese and
-Japanese are supported from the first release, as one knowledge base: knowledge is language-neutral,
-and language is only how it is expressed.
+*Figure 1. The knowledge lifecycle. Sources are read into passages, passages into statements, people settle what the statements disagree on, and everything people and agents read is built from statements. A change in a source flows through only as far as it matters.*
 
-**Where it stands.** The engine runs end to end on a mocked model through seven stages: ingest,
-extraction, governance, freshness, governance levels, topics and the inbox, all merged on `main`.
-Pages, search, the agent API, the business layer and the UI are designed but not built.
-Real models are switched on after the mocked pipeline covers every stage.
+Four bets set Inspiration apart, each answering a failure of today's tools:
 
-## Core concepts
+1. **Knowledge is stored as single statements, not as documents or chunks.** Each fact is stored once, with a verbatim quote from its source, the time it holds and the time the system learned it. Pages, procedures and answers are built from statements, so every sentence can be traced. A question such as "may I book a 650-yuan hotel in Shenzhen?" needs the one value in force and its source, not five passages from five versions.
+2. **Freshness works like a build system.** A change re-reads only the passages that changed, updates only the statements they support, and rebuilds only what cites them. Policies change all the time; reading everything again is too slow and too costly, and asking a person about every change floods them.
+3. **People decide, in amounts they can keep up with.** Agents detect, propose and answer; people decide. Most sources are never governed statement by statement, and reviews arrive grouped per topic and week, within a weekly budget. A governance product that floods its owners is abandoned within weeks.
+4. **Knowledge moves from personal to shared under one rule.** Each member's My space is private. Publishing moves knowledge into a shared space, whose owner decides who reads it. Source permissions only warn. Permission arithmetic across merged sources cannot be done reliably, and the company, not each source app, should decide who reads company knowledge.
 
-These are the words the rest of this document uses. The UI uses friendlier words for some of
-them; the [glossary](#languages) lists those in all three languages.
+**Who it is for.** Teams and companies whose knowledge lives across several tools (Feishu or Lark, Confluence, approval systems, file shares, PDFs). It starts with one person's library and grows into teams and companies. The strongest early uses are governing procedures and policies across tools, and a governed knowledge endpoint for a company's own agents. It is sold as SaaS first, with private deployment as a second profile of the same code. English, Chinese and Japanese are supported from the first release, as one knowledge base: knowledge is language-neutral, and language is only how it is expressed.
 
-| Concept | What it is | Shown to people as |
+**Where it stands.** The engine runs end to end on a mocked model through seven stages: ingest, extraction, governance, freshness, governance levels, topics and the inbox, all merged on `main`, and its language rules live in resource files. Pages, search, the agent API, the business layer and the UI are designed but not built. Real models are switched on once the mocked pipeline covers every stage.
+
+**What is new in this version.** It is written as a PRD plus an architecture, with scenarios that say why each design exists and a feasibility section that says what is proven and what is not. It also takes in the decisions and proposals from the discussions since the first version:
+
+- The super admin runs the company and owners run knowledge, with a sharper line between them; the Chinese name for owners becomes 维护人 (proposed, section 4).
+- Compiled knowledge is written for its audience and never cut per reader; an omission that changes the meaning goes to a person (proposed, section 15).
+- Anyone who holds a credential to a source may import from it; personal connections are no longer blocked by email domain or Feishu organization (decided, section 17).
+- Agents running on their own only read or propose; a member's explicit request is the approval for an edit under that member's own rights (decided, section 18).
+- A first draft of the ten agent tools, with granularity, inputs, outputs and permissions (proposed, section 18).
+
+## Part I. Product requirements
+
+## 2. The problem
+
+Take Qinghe Technology (青禾科技), the fictional company in our demo corpus. Its rules for business travel live in six places:
+
+| Where | What it says about a hotel in a tier-1 city such as Shenzhen |
+| --- | --- |
+| Travel expense policy, Finance policy library | 600 yuan a night |
+| Forwarded copy of the policy, HR folder | 600 yuan a night |
+| Onboarding guide, team wiki | 600 yuan a night |
+| Minutes of the September business meeting | 650 yuan a night from 2026-10-01, and Finance is to revise the policy |
+| Notice on tier-1 hotel rates | 650 yuan a night from 2026-10-01 |
+| Archived 2023 edition of the policy | 500 yuan a night |
+
+The same company has three more planted disagreements: the meal allowance, the first-year leave (the onboarding guide says 7 days, the HR policy 5) and a budget deadline that only the meeting minutes moved. This is ordinary. What goes wrong today:
+
+1. **Nobody can tell which value holds.** Search returns all six documents. The reader has to work out that the notice changed the policy on 2026-10-01.
+2. **Assistants answer with confidence from whatever ranks first.** A chat assistant over chunks may quote the 2023 edition, or the copy in HR's folder.
+3. **Nobody maintains a fact.** Documents have authors, but a fact restated in six documents has no one responsible for it.
+4. **Changes do not propagate.** When Finance revises the policy, nobody updates the HR copy, the onboarding guide or the FAQ.
+5. **Agents need the same answers, within the same permissions, in a token budget.** A procurement bot in Feishu or a coding agent needs the current procedure, with its sources, for the person it acts for.
+
+How existing approaches handle this:
+
+| Approach | Good at | Falls short when |
 | --- | --- | --- |
-| Tenant | The unit of isolation, policy and billing. Nothing crosses from one tenant to another except an explicit transfer | Company (never shown for one person working alone) |
-| User | A person's account. It exists only in the business layer | Account |
-| Member | A user inside one tenant. All activity in a tenant is done by a member, and the member is the only person the engine knows | Member |
-| Space | A container of knowledge with an audience. Each member has a private personal space in every tenant; every other space is shared and has an audience set by the super admin or the space's owner | My space; Space |
-| Domain | The member domain is one member's personal space. The tenant domain is all shared spaces. Knowledge is never merged or compared across domains | (not shown) |
-| Source | A connected system or folder, such as one Feishu wiki space, an upload folder or a research report | Source |
-| Source version | One fetched revision of one document in a source | (version history) |
-| Block and span | A block is one paragraph, heading, table row or form section of a version, with a stable ID. A span is an exact passage inside a block: a sentence, a table cell, a form field | Passage |
-| Claim | One atomic statement with verbatim evidence from spans, a time it is true, a time it was known, a knowledge class (policy, pricing, process, ...) and a status | Statement |
-| Fact slot | The key subject + predicate + qualifiers ("Shenzhen, hotel cap, managers and below"). All claims about one single-valued fact share a slot, which keeps every version and every variant | (owners only) |
-| Governance level | Set per source or folder: governed (fully extracted and owned), reference (read only where it touches a known fact or when it is cited) or search only (never extracted) | Governed, Reference, Search only |
-| Topic and placement | Topics form the knowledge outline (area, topic, subtopic). A placement puts a statement under a topic; a statement without one is unfiled | Topic |
-| Page, procedure, card | The readable forms built from statements: knowledge pages, procedures (SOPs) and cards about one thing (a city, a supplier, a role) | Knowledge page, Procedure, Card |
-| Todo and note | A todo asks a person to decide or review something. A note tells an owner something without asking for a decision | Inbox |
-| Owner, super admin | An owner is named for a space, topic, page or procedure: they approve what is published there, keep it current and decide its conflicts, and the nearest owner above takes anything that has none. The super admin runs the company and is the last fallback | Space owner, Topic owner, Page owner, Procedure owner (never a bare Owner); Super admin |
+| Knowledge bases inside one suite (Feishu wiki, Confluence) and their assistants | Writing and organizing pages inside that suite | Knowledge spans several tools; answers come from pages, not from facts that someone maintains |
+| Enterprise search and retrieval over chunks (RAG) | Finding passages across tools quickly | Passages disagree: nothing decides which value holds or notices a stale copy |
+| Verified knowledge cards | An owner vouches for a card on a schedule | Cards are written by hand, apart from their sources, and age silently between reviews |
+| Inspiration | Statements tied to their sources across tools, a maintainer per scope, change propagation, one governed endpoint for people and agents | Extraction quality is still to be proven with real models (section 21) |
 
-## Functional design
+## 3. Key concepts
 
-### Who uses it, and what each person sees
+These words are used throughout. The engine uses a few more precise ones, which section 12 lists.
 
-Most people only read. The product is designed so that readers see a normal document and never
-the knowledge machinery behind it.
-
-| Person | Main jobs | What they see |
-| --- | --- | --- |
-| Member | Read, ask, comment, publish from My space | Pages with small citation numbers. Only two marks appear in the text: Outdated and Disputed |
-| Space, topic, page or procedure owner | Approve publishing into their scope, keep it current, decide its conflicts | Their inbox, and the Trace view of statements, sources and lineage. A space owner also sees the space's backlog and first-review campaigns |
-| Super admin | Members, spaces and audiences, connections, policies, sensitivity labels, audit, agents, plan and usage | The admin console, with usage per member. Never anyone's My space, and never what anyone asked, read or researched |
-| Agent developer (a member) | Connect agents through MCP or REST | Connected apps, scopes and audit |
-
-These are the product's only roles. Inside, permissions are finer: a space has the internal roles `viewer`,
-`commenter`, `editor`, `steward` and `owner`, and topics and pages have owners. A product role is a
-bundle of them, so a later preset, such as the separate system, security and audit admins some
-Chinese buyers require, is a new bundle rather than new code.
-
-The Trace view is opened on purpose (from a page's menu, the command palette or the CLI). It
-shows a topic or page as fact slots first, then the pages that use them, then everything else
-folded by source document with counts, so it stays usable when a topic holds a thousand
-statements.
-
-### Bringing knowledge in
-
-- **Connected sources, watched continuously.** Feishu documents, wiki and approvals plus file
-  uploads come first. Lark, Feishu's international edition, has almost the same API, so the same
-  connectors serve it. Confluence
-  and DingTalk follow in the pilot, Notion and Jiandaoyun later. Push events are treated as hints;
-  a 15-minute poll and a nightly full listing catch everything they miss, including deletions.
-- **Approval flows become procedures.** A procedure is built from the flow definition, from
-  process mining over 90 to 180 days of approval logs, and from a model's write-up. Every step is
-  tagged as "from the definition", "mined" or "inferred", and a person approves it.
-- **Research reports are sources too.** A member asks a question, a research agent produces a
-  report of conclusions, assumptions and evidence, and the report is stored as a source. Each
-  assumption gets a re-check query and a date.
-- **Not everything is governed.** Each source or folder has a governance level, inherited down the
-  Sources tree:
-
-| Level | Typical sources | What is extracted | Owners, reviews, conflicts |
-| --- | --- | --- | --- |
-| Governed | Policies, price lists, SOPs, approval flows, official specs | Everything | Owned by a topic owner, reviewed on a cycle, conflicts become todos |
-| Reference | Papers, minutes, articles, FAQs, vendor documents | Only blocks that state a known fact, and a whole passage the first time a page or an answer cites it | No owner, no review cycle. A value that disagrees with a governed one becomes a note, never a blocking todo |
-| Search only | Chats, drafts, weekly reports, large archives | Nothing | None; searchable only |
-
-Uploads and web pages start as reference. The super admin picks the level for each wiki space
-when connecting it, and the space owner can change any folder later.
-
-### From sources to statements
-
-- **A statement always has evidence.** Extraction keeps a statement only if its quote is a
-  verbatim substring of the cited passage. Statements are never deleted: a newer one supersedes
-  an older one and closes the interval in which the older one was known.
-- **Facts about the same thing collapse into one fact slot.** Ten statements from three
-  documents and four versions are one row to maintain, and a conflict lives inside one slot.
-  Numbers, dates, limits and owners slot well; free-text rules stay grouped by page section.
-- **Every statement has two outlines.** The source outline (document, heading path, passage)
-  comes from its evidence. The knowledge outline (space, area, topic, subtopic) comes from its
-  placement. Topics are clustered automatically, at most three levels deep, and keep stable keys.
-  At most 5% of statements may change topic in one re-clustering, and nothing a person placed or
-  confirmed ever moves. Topics an owner has not confirmed are never shown to readers.
-- **Merging stays inside one domain.** Two members' private knowledge never mixes; it meets only
-  after both publish it.
-
-### Reading
-
-One body of knowledge has three views that share the same passage and statement IDs, and two
-trees to browse it:
-
-| View | Shows | Built with a model? |
-| --- | --- | --- |
-| Original | Each source as written, in its own structure. PDFs and scans as page images with a text layer | No |
-| Annotated | Original plus marks on passages: cited, outdated, superseded, in conflict, corrected by a person | No |
-| Knowledge | Topic pages whose every sentence cites statements, procedure views, cards, and a small Related panel (one or two hops) | Yes |
-
-- **Sources tree and Knowledge tree.** The Sources tree is one file system over every connected
-  source, in each source's own order. The Knowledge tree holds topics, each with its freshness
-  owner. A folder or space a reader cannot open is not shown, not even as a count.
-- **Pages read like Claude Artifacts.** A page is structured data with 14 block types, including
-  diagrams compiled from structure (the model chooses what to show but never draws edges), charts
-  bound to statements or to registered queries, and interactive views built from templates and run
-  in a sandbox. Every rebuild is a version with a diff.
-- **Citations open the source beside the page,** at the exact passage, with its version, and say
-  so if the passage changed after the statement was extracted.
-- **Readers see four statuses in words, never colour alone:** Fresh, Review due, Outdated and
-  Disputed. Only Outdated and Disputed appear in the text; Review due appears in the citation
-  popover and the Trace view.
-- **Comments go to the assistant.** It answers a question with citations, checks a correction
-  against the sources and proposes an edit, which the owner accepts. A person's edit is kept as a
-  pinned override that a rebuild never overwrites; if sources later disagree with it, its author
-  gets a todo.
-- **Ask.** Answers are grounded in statements, cite their passages and come in the asker's
-  language.
-
-### Keeping knowledge fresh
-
-- **Changes propagate only as far as they matter.** A new source version is diffed block by block.
-  Only changed blocks are read again, only statements whose evidence changed are superseded, and
-  only pages that cite them are rebuilt. If a re-read yields the same statements, nothing further
-  happens.
-- **A source that corrects itself syncs silently.** When one document changes its own value, the
-  new statement supersedes the old one and nobody is asked; the Trace view keeps both. Only sources
-  that disagree with each other need a person, and the conflict shows how many distinct documents
-  support each value, with their authority.
-- **Deleted sources keep their knowledge until someone decides.** Knowledge never disappears
-  silently. Statements stay, with "Source deleted" on their citations, and each affected topic
-  owner gets one todo per deleted document or folder: keep it as a snapshot (the default, also
-  after 30 days without a decision), point it to a replacement, or retire it. Moves within one
-  permission boundary are followed silently; a move to a wider audience, or between My space and a
-  shared space, goes through publishing. A default keep never changes who can see the knowledge.
-  Many documents vanishing at once is treated as a lost connection, not as deletions. See
-  [Source changes](design/source-changes.md).
-- **Review dates come from the knowledge itself.** Each governed document gets a review clock from
-  the classes of its statements (for example yearly for policy, every 180 days for process), a
-  review on each date a plan names, and an immediate review for copies an edit left behind.
-- **Research is re-checked, not re-run.** When cited material changes or an assumption's date
-  comes, only the affected conclusions are checked again. A new report version is written only if
-  a conclusion changes.
-- **A new company starts with a backlog, not a flood.** Reviews already overdue on the first day
-  go to the space owner as a first-review campaign per topic, not into topic owners' inboxes.
-
-### Governing: people decide, in amounts they can keep up with
-
-- **The engine proposes a value and says why.** For each fact slot, governance proposes the most
-  authoritative value in force, unless a later dated statement changed it ("from 2026-10-01 the cap
-  is 650"). Clear supersessions by archived documents settle without a person.
-- **One trigger, one todo.** Requests for the same slot or document merge into one todo, which is
-  routed to the owner of its topic, else the nearest owner above it, else the space owner, else
-  the super admin. Nothing is ever unowned.
-- **One cause, one review.** A cause that would produce more than 20 todos or touch more than 3
-  topics, such as a policy's new version or a reorganized folder, becomes one change review for the
-  owner of the smallest scope that covers it. It is decided in bulk, with a record per item. Engine
-  causes such as a model upgrade stay silent while values stay the same, and go to evaluation, not
-  to inboxes, when they do not.
-- **Weekly inbox cards.** An owner's todos about one topic in one week share one inbox card of at
-  most 20 items. Each owner gets at most 10 cards a week; the rest wait for the next week with
-  room, except urgent ones. Notes sit on their own weekly card outside the budget and are
-  acknowledged with one action. Reviews of copies ride on the card of the conflict that caused
-  them, even past the budget.
-- **Only some conflicts need more than one person:**
-
-| Kind | Example | Decided by |
-| --- | --- | --- |
-| Edit collision | Two people edit the same paragraph | Merged live in drafts |
-| Override conflict | A person's edit says 500, the source now says 600 | The override's author |
-| Knowledge conflict in one scope | Two sources disagree on a price | That scope's owner (single by default) |
-| Knowledge conflict across scopes | Finance says X, the Sales procedure says Y | Every affected owner (all by default); after the deadline the space owner, or the super admin across spaces |
-| Assertion conflict | A comment states a fact that contradicts a verified statement | The scope's owner |
-
-- **Joint approval always finishes.** Each policy has a mode (single, any one, everyone, at least
-  n), a deadline (5 working days across scopes by default) and a fallback decider when it passes:
-  the space owner, or the super admin across spaces. While people decide,
-  readers and agents get the last verified value marked Disputed (the default), both values, or
-  nothing, as the company chooses.
-- **Every decision is a record.** "Why this value?" shows who decided, when and on what. A decision
-  can become a precedence rule ("for prices in Finance, the price list outranks wiki pages"), which
-  governance then applies to new conflicts of the same kind and reports weekly.
-
-### From personal to team: two domains and publishing
-
-- **Solo use shows no company.** Sign-up creates a personal library. Inviting someone, or turning
-  on collaboration, turns it into a company; creating a company starts a new one.
-  Either way nothing is shared until it is published.
-- **My space is private.** In every company, each member has a My space for drafts, personal
-  connections and experiments. Nobody else can read it, the super admin included.
-- **Shared spaces are governed top down.** The super admin and space owners set who reads each shared space by
-  space roles and sensitivity labels. The person who published something keeps access to it.
-- **Publishing moves knowledge; it does not copy it:**
-  1. The member picks pages, procedures, sources or folders in My space and a target space.
-  2. For each source they choose how it stays fresh: with the company connection (the default),
-     with their own connection (needs their consent; the super admin can turn it off), or as a
-     snapshot with a review date.
-  3. The engine checks the request: a sensitivity and personal-data scan, a preview of conflicts
-     with knowledge already published, what the company connection can and cannot reach, and
-     how many people in the audience cannot open the originals in the source system.
-  4. The target topic's owner approves, or the space owner. Approvers can read the items in the
-     request and nothing else in My space. The super admin sees the request but not the items.
-  5. The items move into the tenant domain with their human work (uploads, edits, overrides,
-     comments). Derived knowledge is rebuilt there and merged with what is already published; new
-     conflicts become todos.
-  6. From then on the space's audience reads it. Source permissions play no part.
-- **Source permissions only warn.** At publishing they produce the "some readers can't open the
-  original" warning, which never blocks. If a published document's permissions later tighten in
-  the source, the space owner gets a todo; a company setting chooses notify (the default) or hide
-  the affected knowledge until the space owner decides.
-- **Company data stays in the company.** A company verifies its email domain and its Feishu
-  organization. Policy then blocks personal connections to it outside the company, or
-  requires approval.
-- **Leaving.** Published knowledge stays with the company and passes to the space owner. The
-  member's My space is locked so nobody can read it and is erased after 30 days. Their
-  connections and agent grants are revoked, and sources kept fresh by their connection pause until
-  their owner switches or freezes them.
-- **Moving between companies** is a separate, explicit transfer that re-creates sources in the
-  target and rebuilds derived knowledge there.
-
-### Agents as consumers
-
-- **One governed endpoint.** A remote MCP server and a REST API generated from the same schema.
-  Verified procedures can also be exported as Agent Skills.
-- **Tools designed for agent budgets:** `search`, `get_outline`, `read`, `get_sop`, `get_entity`,
-  `graph_neighbors`, `answer`, `get_changes`, `verify_claim` and `report_feedback`. Each response
-  carries source, version, freshness, confidence, review status and a token estimate. A structured
-  `get_sop` answer is meant to stay under about 2,500 tokens.
-- **Sign-in.** MCP clients use OAuth with PKCE, the CLI uses the device flow, and the super admin
-  registers company agents. Scopes are `knowledge.read`, `knowledge.propose` and `comments.write`. An agent
-  always acts for a member, and its rights are that member's rights cut down to its scopes and
-  spaces.
-- **Built-in agents only read or propose.** The comment assistant, the Q&A assistant, the
-  governance agents, the procedure writer, the publish check, the view generator and the research
-  agent all run on one runtime. Nothing an agent does changes knowledge without a person
-  approving it.
-
-### Administration
-
-- **Three roles.** The super admin runs the company: members, spaces, connections, policies,
-  sensitivity labels, audit, agents, plan and usage. Owners run the content of their scope, and
-  everyone else is a member. In solo use the one person holds all three.
-- **Lifecycle flows** cover sign-up, invitation (links expire after 7 days), joining by verified
-  email domain, SSO with directory sync, personal to team, member leaving, account deletion
-  (erases the personal library) and company deletion (30 days of grace with export, then the
-  data key is destroyed).
-- **Limits and usage.** The company is the billing unit. As in mainstream AI products, seats
-  fill one usage pool for the company, each member has a default cap the super admin can raise,
-  and the engine meters model use per company, member and space. The super admin sees usage per
-  member and per kind of work, never what anyone asked, read or researched. Credits per seat and
-  what happens when the pool runs out are settled with billing. Besides connection policy, limits
-  are the company's only say over a member's My space.
-
-### Languages
-
-English, Simplified Chinese and Japanese are equal from the first release. Traditional Chinese
-comes later.
-
-- **Interface language belongs to the account,** because a person's language does not change per
-  company. Its first value comes from the browser at sign-up. Each company has a default
-  language for messages sent to many people.
-- **Knowledge is language-neutral; language is how it is expressed.** A statement, fact slot,
-  entity, topic, procedure or page has one identity in every language. The same knowledge written
-  in two languages is one unit with two expressions, never a duplicate and never a conflict. A
-  translation counts with its original, and when it falls behind, it gets a "translation out of
-  date" review instead of a conflict. See [Knowledge and language](design/knowledge-and-language.md).
-- **Sources keep their language.** Sources and quotes are never translated silently. Each space has
-  a content language, set by its space owner, for the canonical rendering of its pages. A reader
-  can ask for a page in their own language: it is compiled from the same statements and labelled
-  machine-written.
-- **Answers follow the asker.** Answers come in the asker's interface language and cite passages
-  in their original language. The citation popover can translate a passage on request, labelled as
-  machine translation, with the original one click away. What people type is never machine
-  translated.
-- **The same fact in different languages is one fact.** Fact slots key on entities, predicates and
-  qualifiers, not on wording, and values are typed, so a Japanese and a Chinese statement of the
-  same limit land in one slot. Plain statements merge across languages after a model confirms they
-  mean the same, and each keeps its quotes in their own language.
-- **Typography and input.** Every block carries its language tag so shared Han characters render
-  with Chinese or Japanese glyphs as appropriate. Labels wrap instead of truncating (English runs
-  about 1.5 to 2 times as wide as Chinese). Dates, numbers, currencies and plurals follow locale
-  rules. Pressing Enter while an input method is composing never submits.
-- **Notifications** go out in each recipient's language: Feishu and DingTalk cards in China, Lark
-  elsewhere, email and the in-app inbox everywhere.
-- **Regions.** A company's region is set when it is created, and its data stays there. The plan
-  is mainland China plus one global region.
-
-One glossary feeds every status, button and empty state. The Chinese column is adopted; the
-Japanese column is proposed and waits for review.
-
-<!-- glossary -->
-| English | Chinese | Japanese |
-| --- | --- | --- |
-| Personal library | 我的知识库 (个人知识库 in the switcher) | マイライブラリ (個人ライブラリ in the switcher) |
-| Company | 企业 | 企業 |
-| Space, My space | 空间, 我的空间 | スペース, マイスペース |
-| Member | 成员 | メンバー |
-| Company connection, Personal connection | 企业连接, 个人连接 | 企業の接続, 個人の接続 |
-| Source, Passage, Statement | 来源, 段落, 陈述 | ソース, 段落, 記述 |
-| Topic, Knowledge page, Procedure, Card | 主题, 知识页, 流程, 卡片 | トピック, ナレッジページ, 手順, カード |
-| Knowledge tree, Sources tree | 知识树, 来源树 | ナレッジツリー, ソースツリー |
-| Original, Annotated, Knowledge views | 原文, 批注, 知识 | 原文, 注釈, ナレッジ |
-| Fresh, Review due, Outdated, Disputed | 有效, 待复核, 已过时, 有争议 | 有効, 要確認, 旧版, 異論あり |
-| Space owner, Topic owner, Page owner, Procedure owner; Super admin | 空间负责人、主题负责人、页面负责人、流程负责人；超级管理员 | スペース担当者、トピック担当者、ページ担当者、手順担当者；特権管理者 |
-| Rule | 裁决规则 | 裁定ルール |
-| Any one, Everyone (approval modes) | 或签, 会签 | いずれか承認, 全員承認 |
-| Who can read this | 可见范围 | 公開範囲 |
-| Inbox, Assistant | 待办, 助手 | 受信トレイ, アシスタント |
-| Keep fresh with the company connection, Keep fresh with my connection, Publish a snapshot | 通过企业连接保持更新, 通过我的连接保持更新, 发布快照 | 企業の接続で最新に保つ, 自分の接続で最新に保つ, スナップショットを公開 |
-| Some readers can't open the original | 部分读者无法打开原文 | 一部の閲覧者は原文を開けません |
-| Source permissions tightened | 来源权限收紧 | ソースの権限が縮小されました |
-| Governed, Reference, Search only | 严格, 宽松, 仅检索 | 規程, 参考, 検索のみ |
-| Trace view | 追溯 | 追跡 |
-<!-- /glossary -->
-
-## Technical design
-
-### Two layers: the engine and the business layer
-
-**The design philosophy.** The engine is a system of record for knowledge, with no screens.
-Given a tenant and a principal, it answers four questions on its own: what is known, where it
-comes from, who may see it, and whether it is still true. It has no people, no interface and no
-commercial terms, so it behaves the same under our product, under a customer's own identity
-system in a private deployment, or with nothing but agents in front of it. The business layer is
-the product around it for people and companies: who someone is, which companies they belong to,
-what those companies bought, how a person is asked, reminded and told, and what the screens look
-like. It turns human and commercial decisions into engine commands and engine events into
-messages people read, and it can change from market to market without touching knowledge.
-
-Calls go down and events come up: the business layer sends commands and queries, the engine
-answers and publishes events, and the engine never calls the business layer. That one rule keeps
-the engine usable on its own through MCP, REST and the CLI, and lets either side be tested against
-a fake of the other.
-
-**Where something goes.** Ask in order; the first yes decides.
-
-1. Does it read, change, derive or enforce anything about knowledge, or decide whether a
-   principal may see something? The engine.
-2. Is it about a person as a person (sign-in, profile, language, sessions), a company as a
-   customer (plan, seats, billing, domains), or a channel that reaches a person (email, IM,
-   digests)? The business layer.
-3. Is it a setting? The business layer owns its value and the screen that sets it; the engine
-   owns what it means, its default and how it is enforced.
-4. Is it a decision people make about knowledge? The engine owns the item (a todo, a publish
-   request, a conflict), its state, who may decide and what follows the decision. The business
-   layer owns how people reach the decision: whom to ask, reminders, deadlines, escalation, votes
-   and cards. It sends the result back as a command, and the engine checks it again.
-
-**Never.** Each of these is held by a test or a review rule.
-
-- The engine never calls the business layer, and never stores a user ID, a login identity, a
-  session, a password, a plan or a payment detail.
-- The business layer never stores knowledge (sources, statements, pages, embeddings) or a source
-  credential, and never decides whether someone may see content: it asks the engine, which
-  checks. Content it shows or sends is fetched from the engine for that recipient, and the
-  business layer does not keep it.
-- The engine trusts only a signed token and its own copy of members, groups, roles and settings.
-  A token can narrow what the engine allows, never widen it.
-- The engine must run without the business layer: a stand-in that signs tokens and sends
-  provisioning commands is enough for tests, evaluations and agent-only use.
-
-**Shared concerns, split.** Where both layers take part, each owns one side:
-
-| Concern | Engine | Business layer |
-| --- | --- | --- |
-| People | Members, groups, roles and clearances as an enforced copy; every permission check | Accounts, sign-in, invitations, directory sync, and assigning roles |
-| Companies | Tenants as isolation boundaries and data regions; provisioning, export and deletion on command | The company as a customer: name, domains, plan, seats, and the transfer and deletion flows |
-| Settings | What `TenantPolicy` means, its defaults and its enforcement | The values a super admin picks, and the screens for them |
-| Spaces and audiences | Spaces, audiences and the checks | The admin screens that change them |
-| Todos and decisions | Todos, publish requests and conflicts: their state, routing to the owner of the scope, weekly budgets, who may decide, what a decision does and the record of what was decided | Getting people to decide: reminders, deadlines, escalation, joint approval votes and who voted how, cards in Feishu and other IM |
-| Messages | Events with codes and parameters | Wording in each recipient's language, channels, digests, preferences and the inbox screen |
-| Words | Knowledge in a language: pages, answers, summaries | Every word of the interface and of messages |
-| Source connections | Credentials (credential broker), fetching, sync and source ACL snapshots | Connect and consent screens, which connections the settings allow, claims on external tenants |
-| Agents | The agent API (MCP and REST), token verification, scope enforcement, agent audit | OAuth server, client registry, device flow, consent and revocation |
-| Usage | Metering model use per company, member and space, and stopping at the limits it is given | Plans, seats, the usage pool, per-member caps and invoices |
-| Audit | Reads of knowledge, permission changes, decisions and break-glass access | Sign-ins and account, admin and billing events; the admin console shows both |
-| Search and reading | Retrieval, answers, citations and pages | The reading and search screens |
+| Concept | What it is |
+| --- | --- |
+| Company | One business or team using Inspiration. It is the unit of isolation and billing. Someone working alone has a personal library instead and never sees a company |
+| Space, My space | A space is an area of a company with an audience, such as Finance or Procurement. Each member also has a private My space in every company |
+| Source | A connected app or folder, such as one Feishu wiki space, an upload folder or a research report |
+| Passage | An exact piece of a source: a sentence, a table cell, a form field. Every citation points at one |
+| Statement | One fact with its verbatim evidence, the time it holds, a status and a knowledge class (policy, pricing, process and so on) |
+| Fact slot | All statements about one single-valued fact ("hotel cap, tier-1 city, managers and below"). Conflicts live inside one slot |
+| Governance level | Per source or folder: Governed (fully read and maintained), Reference (read only where it touches a known fact or is cited) or Search only |
+| Topic | A place in the knowledge outline (area, topic, subtopic). Every governed statement is filed under one |
+| Page, procedure, card | What readers read, built only from statements: knowledge pages, procedures (SOPs) and cards about one thing, such as a city or a supplier |
+| Todo, inbox | A todo asks a person to decide or review something. Todos arrive in one inbox, grouped into weekly cards |
+| Owner | The person who maintains a scope: a space, topic, page or procedure. Always named with the scope, such as topic owner |
+| Super admin | The person who runs the company: people, connections, settings, usage and audit |
 
 ```mermaid
 flowchart TB
-  subgraph clients[Clients]
-    browser[Browser]
-    cli[CLI and MCP clients]
-  end
-  subgraph business[Business layer]
-    web[web app and its backend]
-    biz[accounts, tenancy, directory, access-grants, connections, publishing, approvals, notifications, admin, billing]
-  end
-  subgraph engine[Engine]
-    api[agent API: MCP and REST]
-    core[knowledge pipeline, store, permissions, models]
-  end
-  browser --> web
-  web --> biz
-  biz -->|commands and queries with a signed principal| core
-  cli -->|sign in| biz
-  cli -->|OAuth token| api
-  api --> core
-  core -.->|events| biz
+  C[Company] --> SP["Shared spaces<br/>such as Finance, HR, Sales"]
+  C --> MY["My space<br/>one per member, private"]
+  SP --> SRC["Sources<br/>connected apps, folders, uploads"]
+  SRC --> ST["Statements<br/>with evidence"]
+  ST --> SL["Fact slots<br/>one row per fact"]
+  ST --> TP["Topics<br/>the knowledge outline"]
+  ST --> PG["Pages, procedures, cards"]
+  SO([Space owner]) -. maintains .-> SP
+  TO([Topic owner]) -. maintains .-> TP
 ```
 
-- **Three IDs.** Tenant `ten_`, user `usr_` (the account, business layer only) and member `mem_`
-  (a user inside one tenant, the engine's only person ID). A member ID is unique only within its
-  tenant, so everything that stores one outside a tenant's own rows stores the tenant with it
-  (`<ten_...>|<mem_...>` in SpiceDB, caches, audit, exports). One function in the tenancy
-  component assigns member IDs; nothing derives one ID from another or reads meaning into an ID.
-- **One verification path.** Every call carries a JWT signed by the business layer: member,
-  tenant, principal kind, the member an agent acts for, scopes, optional spaces and sensitivity
-  limit, how the session signed in, and the interface `locale`. Web tokens live at most 5 minutes,
-  OAuth access tokens 10 to 15. The engine verifies them against published keys and never sees a
-  user ID or an identity-provider token. A token can only narrow the clearance the engine already
-  holds.
-- **Commands are idempotent** (an idempotency key, a version on directory objects) and return the
-  permission system's consistency token, so the next read sees the change. A nightly directory
-  snapshot repairs drift, and an hourly digest check catches it in between.
-- **Contracts live in one place.** JSON Schema in this repository is the source of truth for both
-  layers. Business-only types go in their own folder that engine packages never import.
-- **One repository, a folder per layer.** Both layers are built in this monorepo: shared libraries
-  in `libs/`, engine components in `engine/`, business components in `business/`, and
-  composition roots in `apps/`. Each section of `components.yaml` maps to one folder, and the manifest test
-  fails anything in `engine/` or `libs/` that depends on `business/`. A business component reaches
-  the engine only through the contracts and the engine's API client. One toolchain and one
-  `make check` cover both layers, so a contract change lands with both sides in one pull request,
-  while the engine and the business backend still deploy as separate processes. See
-  [architecture.md](architecture.md#one-repository-a-folder-per-layer).
+*Figure 2. How the concepts fit. Sources belong to spaces; statements come from sources; slots, topics and pages organize statements; owners maintain spaces and topics.*
 
-### Components
+## 4. Users and roles
 
-The engine has 19 components, each a package `packages/<name>` with one job, plus four shared
-libraries (contracts, kernel, eventbus, testkit) and one composition root (`apps/engine`). The
-name of a component is also its event producer name, its consumer group and the prefix of its
-model task names. [`components.yaml`](../components.yaml) is the authoritative manifest of what
-is built and planned; credential-broker and sandbox join it when they are built, and its `web`
-entry moves to the business layer.
+Most people only read. The product is built so that readers see a normal document and never the knowledge machinery behind it.
 
-| Layer | Component | Job | State |
+| Who | Main jobs | What they see |
+| --- | --- | --- |
+| Member | Read, ask, comment, keep material in My space, publish from it | Pages with small citation numbers. Only two marks appear in the text: Outdated and Disputed |
+| Owner of a space, topic, page or procedure | Approve what is published into the scope, keep it current, decide its conflicts, release statements to wider audiences. A space owner also sets who reads the space and its governance levels | Their inbox, and the Trace view of statements, sources and lineage. A space owner also sees the space's backlog and first-review campaigns |
+| Super admin | Members and seats, connections, company settings, sensitivity labels and clearances, audit, agents, plan and usage. Creates spaces and names their owners | The admin console, with usage per member. Never anyone's My space, and never what anyone asked, read or researched |
+| Agent developer (a member) | Connect agents through MCP or REST | Connected apps, scopes and audit |
+| Someone working alone | Everything above for their own library | No company, spaces, members or publishing |
+| An agent | Acts for one member, with that member's rights cut down to its scopes | The same knowledge the member could read, through tools |
+
+```mermaid
+flowchart LR
+  subgraph company["The company: run by the super admin"]
+    a1[Members and seats]
+    a2[Connections to source apps]
+    a3["Company settings,<br/>sensitivity labels, clearances"]
+    a4[Usage, plan, audit]
+    a5["Creates spaces,<br/>names their owners"]
+  end
+  subgraph knowledge["Knowledge: maintained by owners, scope by scope"]
+    o1["Space owner<br/>who reads the space,<br/>governance levels, backlog"]
+    o2["Topic, page and procedure owners<br/>approve, keep current,<br/>decide conflicts, release"]
+  end
+  m["Members<br/>read, ask, comment,<br/>publish from My space"]
+  ag["Agents<br/>act for one member"]
+  a5 --> o1
+  o1 --> o2
+  m -- publish requests --> o2
+  ag -. "the member's rights,<br/>cut to the agent's scopes" .-> m
+```
+
+*Figure 3. The super admin runs the company; owners maintain knowledge. The only link between the two sides is that the super admin names each space's owner.*
+
+**The boundary between the super admin and owners** (proposed 2026-10-26, waiting for the product owner's confirmation):
+
+- **The super admin decides who and how, never what.** Who is in the company, which apps are connected, what the company settings and sensitivity labels are, what it uses and pays. The super admin never decides what a statement says or which value holds.
+- **Owners decide what knowledge says and who reads it.** They approve publishing, keep their scope current, decide conflicts and release statements to wider audiences. A space owner sets the space's audience and governance levels.
+- **Every shared space always has an owner.** The super admin names one when creating the space, and names a new one before the last one leaves. Topics, pages and procedures without an owner fall to the nearest owner above, ending at the space owner, so nothing is ever unowned.
+- **Where nobody would decide, the super admin names someone; they do not decide themselves.** A conflict across spaces that passes its deadline goes to an owner the super admin names for cross-space decisions. Until one is named, the value stays marked Disputed.
+- **One safety lever stays with the super admin.** In a security incident the super admin can narrow any space's audience at once, which is audited. Widening an audience is always the space owner's call.
+- **One person can hold both roles.** In a small team the super admin is often also a space owner; the two roles still act separately and are audited separately. Someone working alone holds all three.
+
+**Names.** In English the role is Owner, always with its scope: Space owner, Topic owner, Page owner, Procedure owner. In Chinese it becomes 维护人 (空间维护人, 主题维护人, 页面维护人, 流程维护人) instead of 负责人, because 负责人 reads as "the person in charge" and blurs into 管理员; 维护 belongs to knowledge as 管理 belongs to the company, and 文档维护人 is a familiar phrase. The Japanese drafts are スペース担当者 and so on.
+
+**Product roles are bundles of internal roles.** Inside, permissions are finer: a space has the internal roles `viewer`, `commenter`, `editor`, `steward` and `owner`, and topics and pages have owners. The super admin holds the company-level internal roles `owner`, `admin`, `security_admin` and `auditor` together. A later preset, such as the separate system, security and audit admins some Chinese buyers require, is a new bundle, not new code.
+
+## 5. Scenarios
+
+Each scenario says what happens, why the product works that way, and how far it is built. Together they cover every major feature.
+
+### 5.1 A member asks a question
+
+A sales manager asks: "May I book a 700-yuan hotel in Shenzhen next week?" The answer comes in the asker's language: "No. The cap for tier-1 cities is 650 yuan a night from 2026-10-01 [1], raised from 600 [2]." Citation 1 opens the notice beside the answer at the exact passage; citation 2 opens the policy. The HR copy, the onboarding guide and the 2023 edition are not cited, because their statements are superseded or are copies.
+
+- **Why.** The hotel cap is one fact slot holding every value over time, so the answer takes the value in force on the travel date, with its evidence. Retrieval over chunks would return all six documents and leave the reader to sort them out.
+- **What the reader sees.** A plain answer and a page with small citation numbers. Only Outdated and Disputed appear in the text; Review due appears in the citation popover. If relevant material sits in a space the asker cannot read, the answer says it may be incomplete and whom to ask (section 15).
+- **State.** Statements, slots and the proposal of 650 are built and run on the demo corpus. Retrieval, answers and the reading UI are designed.
+
+### 5.2 A policy changes
+
+Finance publishes the revised travel policy (version 4) with the new cap and 40 other changes.
+
+```mermaid
+sequenceDiagram
+  participant F as Feishu
+  participant SY as source-sync
+  participant N as normalization
+  participant X as extraction
+  participant G as governance
+  participant FR as freshness
+  participant PC as page-compiler
+  participant CO as collaboration
+  F->>SY: webhook, or the 15-minute poll
+  SY->>N: document.fetched (new version)
+  N->>N: diff blocks against the last version
+  N->>X: blocks.changed (changed blocks only)
+  X->>G: claims.updated (new statements supersede old ones)
+  G->>G: same source changed its own value: settle silently
+  G->>CO: todo.requested, only where another source disagrees
+  X->>FR: claims.updated (review clocks restart)
+  FR->>PC: artifact.dirty (pages citing changed statements)
+  PC->>PC: rebuild those pages as new versions
+  CO->>CO: group todos per owner, topic and week
+```
+
+*Figure 4. A change flows through only as far as it matters. Each arrow is an event; nothing re-reads an unchanged block.*
+
+- **What happens.** Only the changed blocks are read again. A value the policy changed itself is a correction, so it syncs silently and the Trace view keeps the history. Copies that now disagree (the HR copy, the onboarding guide) produce reviews that ride on one card. Because 41 changes from one cause would flood the topic owner, they become one change review: what happened, grouped by topic, with bulk actions such as "follow the source everywhere".
+- **Why.** A source correcting itself is not a conflict; only sources that disagree need a person. A cause that would produce more than 20 todos or touch more than 3 topics is reviewed once, as a whole, with a record per item.
+- **State.** Block diff, incremental extraction, silent self-correction and review clocks are built. In the measured edit round, 1 of 175 source updates asked a person anything. Change reviews and page rebuilds are designed.
+
+### 5.3 Two departments disagree
+
+Finance's policy says the tier-1 cap is 650. The Sales travel procedure still says 700 for client visits.
+
+- **What happens.** Governance finds two values in one slot, proposes the more authoritative one in force and opens one conflict case. The card shows both sides with their evidence and how many distinct documents support each, with their authority ("4 documents say 650, 1 says 700"). The topic owners of both scopes decide together under a joint approval policy, by default everyone within 5 working days. Meanwhile readers and agents see the last verified value marked Disputed.
+- **Why.** A conflict between scopes needs both owners, but a vote must never stall forever. One resolution is often "both, with their scopes made explicit": 650 in general, 700 for client visits approved by Sales. A decision can become a rule ("for prices in Finance, the price list outranks wiki pages") that settles later conflicts of the same kind.
+
+```mermaid
+stateDiagram-v2
+  direction LR
+  state "Open" as Open
+  state "Owners vote" as Voting
+  state "Fallback decider" as Fallback
+  state "Decided" as Decided
+  [*] --> Open: conflict found
+  Open --> Voting: each affected owner asked
+  Voting --> Decided: agreement under the mode
+  Voting --> Fallback: split vote or deadline passed
+  Fallback --> Decided: decides alone
+  Decided --> [*]: engine applies it, record kept
+```
+
+*Figure 5. A joint approval always finishes. Modes are Single, Any one, Everyone and At least n. The fallback decider is the space owner, or across spaces an owner the super admin names.*
+
+- **State.** Conflict cases, proposals and owner routing are built. Joint approval, votes and rules are designed.
+
+### 5.4 A source is deleted upstream
+
+Someone deletes the onboarding guide in Feishu.
+
+- **What happens.** Nothing disappears. Statements stay, their citations say "Source deleted in Feishu on Oct 20", and the evidence still opens the last version. Statements that other sources also support are recalculated quietly. For the rest, the topic owner gets one todo per deleted document or folder with three choices: keep it as a snapshot, point it to a replacement, or retire it. Without a decision it is kept after 30 days, with a review date. If more than 10% of a source's documents, or more than 50, vanish in one sync, the cause is almost always lost access, so the source is paused and the super admin gets a connection todo instead.
+- **Why.** Knowledge that silently vanishes breaks trust, and a governed fact may matter more than the document it was found in. Keeping is the safe default because it never changes who can see anything.
+- **State.** Designed ([Source changes](design/source-changes.md)); about 3 person-weeks.
+
+### 5.5 From one person to a team
+
+A procurement specialist signs up alone, connects their own Feishu account and builds a library of supplier notes and research. Later the team adopts Inspiration.
+
+```mermaid
+flowchart LR
+  A["Pick items<br/>in My space"] --> B["Choose how each<br/>source stays fresh"]
+  B --> C["Engine checks: sensitivity scan,<br/>conflicts, coverage,<br/>audience gap"]
+  C --> D{"Topic or space<br/>owner approves?"}
+  D -- yes --> E["Items move into<br/>the shared space"]
+  D -- no --> A
+  E --> F["Knowledge rebuilt and merged;<br/>new conflicts become todos"]
+```
+
+*Figure 6. Publishing moves knowledge from My space into a shared space. Approvers read only the items in the request.*
+
+- **What happens.** Inviting a colleague turns the library into a company; the specialist's material becomes their My space, private to them. To share the supplier onboarding notes, they publish them to the Procurement space. For each source they choose how it stays fresh: with the company's connection (the default), with their own (with consent), or as a snapshot with a review date. The engine checks the request, the topic owner approves, and the items move. From then on the Procurement space's audience reads them, and the source's own permissions only produce a warning if they tighten.
+- **Why.** Personal knowledge should stay fully personal, and shared knowledge should be governable and mergeable. Merging inside one domain only means two members' drafts never collide, and they meet only after both publish.
+- **State.** Designed in the [business layer](design/business-layer.md); the engine side of the two domains is the next engine change.
+
+### 5.6 Knowledge that crosses departments
+
+The all-staff travel guide uses HR's grades and Finance's hotel caps. Finance also holds a memo, readable only by Finance, that argues for cutting the cap, while a public document argues against.
+
+- **What happens.** The guide is written for its whole audience from what that audience can read. HR and Finance make their grades and caps readable to all staff, so the guide uses them. The memo is not readable by all staff, and leaving it out would leave only one side of an argument, so the omission check fires. The guide's owner gets one todo: ask Finance to release the relevant statement, rewrite the section without taking a position, or publish with a note. A reader who cannot open the memo sees "Some material on this point is in a space you cannot open. Ask the Finance space owner." A Finance reader sees the full section.
+- **Why.** Cutting text per reader distorts meaning, and hiding a whole page because one input is restricted is unusable and invites abuse: anyone could hide a page by linking a trivial restricted note to it. So people set audiences, inputs never do; units are written for their audience; and an omission that changes the meaning goes to a person (section 15).
+- **When it applies.** A company with a single shared space never meets this. It starts to matter when a department such as Finance or HR narrows who can read its space.
+- **State.** Proposed ([Permissions in compiled knowledge](design/compiled-knowledge-permissions.md)), waiting for the product owner to confirm the trade-off in section 27; about 3 person-weeks.
+
+### 5.7 A company agent uses the knowledge
+
+A member asks the company's procurement bot in Feishu how to onboard a new supplier.
+
+```mermaid
+sequenceDiagram
+  participant M as Member in Feishu
+  participant B as Procurement bot
+  participant API as Agent API (MCP)
+  participant AZ as access-control
+  participant R as retrieval
+  M->>B: How do I onboard a new supplier?
+  B->>API: get_sop(task), token acting for the member
+  API->>AZ: the member's readable spaces and clearance, cut to the bot's scopes
+  API->>R: find the verified procedure
+  R-->>API: steps with citations, freshness, review status
+  API-->>B: the procedure in about 2,500 tokens or fewer
+  B-->>M: steps, each with its source link
+  M->>B: Step 3 is outdated
+  B->>API: report_feedback
+  API-->>B: a todo for the procedure owner
+```
+
+*Figure 7. An agent reads with the rights of the member it acts for, and its feedback reaches the owner as a todo.*
+
+- **Why.** Agents fail on stale or conflicting context, and they pay for every token. A governed endpoint gives them the current procedure with sources, freshness and a token estimate, and never more than the member may read. A coding agent uses the same tools through MCP.
+- **State.** The agent API and the ten tools are a proposed draft (section 18); the agent runtime for built-in agents is built.
+
+### 5.8 A member corrects knowledge with the assistant
+
+A member comments on a page: "This is outdated; the cap has been 650 since October."
+
+- **What happens.** The assistant checks the claim against the sources, finds the notice, and proposes an edit. If the member asked it to make the change and may edit the page, the assistant makes it at once, recorded under the member's name, marked as done by the assistant, and undoable. Where the member may only propose, it files a proposal for the owner. A person's edit is a pinned override that a rebuild never overwrites; if the sources later disagree with it, its author gets a todo.
+- **Why.** Making people retype what they just asked an assistant to change is painful, and the request itself is the approval. Agents running on their own (in the background, on a schedule or on an event) still only read or propose, because nobody asked them.
+- **State.** Decided; comments, overrides and the edit path are designed.
+
+### 5.9 The same policy in Chinese and Japanese
+
+Qinghe's Japanese subsidiary keeps a Japanese travel regulation that repeats the hotel caps.
+
+- **What happens.** The Japanese and Chinese statements of the same cap land in one fact slot, because slots key on language-neutral predicates, qualifiers and typed values, not on words. If the Japanese text is a translation, it counts with its original rather than as a second source. When the original changes and the translation does not, the translation gets a "translation out of date" review instead of a conflict. A Japanese reader reads pages in Japanese, compiled from the same statements, with quotes in their original language.
+- **Why.** Knowledge is language-neutral; language is only how it is expressed. The same knowledge in two languages must never become a duplicate or a false conflict.
+- **State.** Designed ([Knowledge and language](design/knowledge-and-language.md)); language packs for en, zh and ja are built.
+
+### 5.10 An approval flow becomes a procedure
+
+Qinghe's travel request approval runs in Feishu.
+
+- **What happens.** A procedure is built from the flow definition, from process mining over 90 to 180 days of approval logs, and from a model's write-up. Each step is tagged "from the definition", "mined" or "inferred", and the procedure owner approves it before anyone reads it. Agents get it through `get_sop`, and it can be exported as an Agent Skill.
+- **Why.** The formal definition says who approves; the logs say what really happens (for example that amounts over 5,000 yuan always go to Finance). Tagging keeps inferred steps from passing as facts.
+- **State.** The Feishu approval connector is built with recorded fixtures; procedure building is designed.
+
+### 5.11 Research becomes a source
+
+A buyer asks the research agent which suppliers in East China hold a given certification.
+
+- **What happens.** The research agent works through the agent API and approved web search, and writes a report of conclusions, assumptions and evidence. The report is stored as a source like any other. Each assumption gets a re-check query and a date. When cited material changes or a date comes, only the affected conclusions are checked again, and a new version is written only if a conclusion changes.
+- **State.** Designed.
+
+## 6. Functional requirements
+
+States: **Built** (on `main`, with tests), **Designed** (decided, not built), **Proposed** (waiting for a decision), **Planned** (agreed to build, not yet designed in detail), **Open** (not decided).
+
+### 6.1 Bringing knowledge in
+
+| ID | Requirement | State |
+| --- | --- | --- |
+| IN-1 | Connect Feishu documents, wiki and approvals and file uploads; serve Lark, Feishu's international edition, with the same connectors | Built (recorded fixtures) |
+| IN-2 | Watch sources continuously: push events as hints, a 15-minute poll and a nightly full listing that also finds deletions | Built |
+| IN-3 | Parse Office files, PDFs and scans into blocks with stable IDs | Planned (parsing worker) |
+| IN-4 | Give every source or folder a governance level, inherited down the Sources tree; uploads and web pages start as Reference | Built |
+| IN-5 | Build procedures from approval flows: definition, mined logs and a write-up, each step tagged by origin and approved by its owner | Designed |
+| IN-6 | Store research reports as sources, with a re-check query and date per assumption | Designed |
+| IN-7 | Add Confluence and DingTalk in the pilot; Notion and Jiandaoyun later; connectors outside China to be chosen | Planned / Open |
+
+### 6.2 Statements and structure
+
+| ID | Requirement | State |
+| --- | --- | --- |
+| ST-1 | Keep a statement only if its evidence quote is a verbatim substring of the cited passage | Built |
+| ST-2 | Never delete statements: a newer one supersedes an older one and closes the interval in which it was known | Built |
+| ST-3 | Key single-valued facts into fact slots with typed values (number with unit, range, date, money) | Built |
+| ST-4 | Read reference documents only where they touch a known fact, and in full the first time a page or answer cites them | Built |
+| ST-5 | File statements into topics at most three levels deep, with stable keys; at most 5% move in one re-clustering, and nothing a person placed ever moves | Built |
+| ST-6 | Resolve entities (people, departments, products, suppliers) and relations, each backed by a statement | Planned |
+| ST-7 | Treat translations as copies of their originals, and merge the same statement across languages after a model check | Designed |
+| ST-8 | Never merge or compare knowledge across domains: a member's My space and the company's shared spaces | Designed |
+
+### 6.3 Reading and asking
+
+| ID | Requirement | State |
+| --- | --- | --- |
+| RD-1 | Three views with shared IDs: Original (as written), Annotated (with marks) and Knowledge (topic pages) | Designed |
+| RD-2 | Two trees: the Sources tree and the Knowledge tree; a folder or space the reader cannot open is never shown, not even as a count | Designed |
+| RD-3 | Pages as `PageSpec` with 14 block types, every sentence citing statements, every rebuild a version with a diff | Contract built, compiler planned |
+| RD-4 | A citation opens the source beside the page at the exact passage and version, and says so when the passage changed since | Designed |
+| RD-5 | Four statuses in words, never colour alone: Fresh, Review due, Outdated, Disputed; only Outdated and Disputed in the text | Designed |
+| RD-6 | Answers grounded in statements, citing passages, in the asker's language; an answer that may be incomplete says so | Designed |
+| RD-7 | Comments go to the assistant, which answers with citations or proposes an edit; a person's edit is a pinned override | Designed |
+| RD-8 | Charts from statements or registered queries, never free SQL; interactive views from templates, run in a sandbox | Designed |
+
+### 6.4 Freshness and source changes
+
+| ID | Requirement | State |
+| --- | --- | --- |
+| FR-1 | Re-read only changed blocks, supersede only statements whose evidence changed, rebuild only what cites them | Built to extraction; rebuilds planned |
+| FR-2 | A source that changes its own value syncs silently, with history kept | Built |
+| FR-3 | Review clocks from knowledge classes (for example yearly for policy, 180 days for process), plan dates and copies left behind | Built |
+| FR-4 | A deleted source keeps its knowledge, marked; one todo per document or folder: keep as snapshot, point to a replacement, or retire; kept by default after 30 days | Designed |
+| FR-5 | When more than 10% of a source's documents, or more than 50, vanish in one sync, pause the source and ask the super admin about the connection | Designed |
+| FR-6 | Re-check research when cited material changes or an assumption's date comes; write a new version only if a conclusion changes | Designed |
+| FR-7 | Start a new company with first-review campaigns per topic for the space owner, not a flood of overdue reviews | Built |
+
+### 6.5 Governance and the inbox
+
+| ID | Requirement | State |
+| --- | --- | --- |
+| GV-1 | For each fact slot, propose the most authoritative value in force and say why | Built |
+| GV-2 | One trigger, one todo, routed to the nearest owner; nothing is ever unowned | Built |
+| GV-3 | One cause, one review: a cause that would give more than 20 todos or touch more than 3 topics becomes one change review | Designed |
+| GV-4 | Weekly cards: at most 20 todos per card and 10 cards per owner per week; notes on their own card outside the budget | Built |
+| GV-5 | Conflict cards show how many distinct documents support each value, and their authority | Designed |
+| GV-6 | Joint approval with a mode, a deadline and a fallback decider; the company chooses what readers see meanwhile | Designed |
+| GV-7 | Every decision is a record, and can become a precedence rule that governance applies to later conflicts | Designed |
+
+### 6.6 Domains, publishing and permissions
+
+| ID | Requirement | State |
+| --- | --- | --- |
+| PB-1 | Someone working alone sees no company; inviting someone or turning on collaboration creates one | Designed |
+| PB-2 | My space is private to its member, the super admin included | Designed |
+| PB-3 | Publishing moves items from My space into a shared space after checks and an owner's approval; approvers read only the request's items | Designed |
+| PB-4 | Each published source chooses how it stays fresh: company connection (default), the member's own connection (with consent), or a snapshot | Designed |
+| PB-5 | Source permissions only warn: the audience gap at publishing, and a todo when they later tighten | Designed |
+| PB-6 | A unit is readable when its space is readable at the reader's clearance; a statement also needs one proof the reader can read | Designed; an older rule is built |
+| PB-7 | Compiled knowledge is written for its audience; an omission that changes the meaning goes to a person; readers are told, never misled; releases are per statement | Proposed |
+| PB-8 | Anyone who holds a credential to a source may import from it; no blocking by email domain or Feishu organization | Decided |
+| PB-9 | A member who leaves: published knowledge stays with the company; My space is locked and erased after 30 days | Designed |
+
+### 6.7 Agents
+
+| ID | Requirement | State |
+| --- | --- | --- |
+| AG-1 | One governed endpoint: a remote MCP server and a REST API from one schema; verified procedures exportable as Agent Skills | Planned |
+| AG-2 | Ten tools sized for agent budgets, every result carrying source, version, freshness, confidence, review status and a token estimate | Proposed draft |
+| AG-3 | An agent always acts for a member, with that member's rights cut down to its scopes and spaces | Designed |
+| AG-4 | Agents running on their own only read or propose; a member's explicit request is the approval for an edit within that member's rights | Decided |
+| AG-5 | OAuth with PKCE for MCP clients, the device flow for the CLI; company agents registered by the super admin | Designed |
+
+### 6.8 Administration and usage
+
+| ID | Requirement | State |
+| --- | --- | --- |
+| AD-1 | Three product roles (member, owner by scope, super admin), each a bundle of internal roles | Decided; boundary proposed |
+| AD-2 | Lifecycle: sign-up, invitations (links expire after 7 days), joining by verified email domain, SSO with directory sync, personal to team, leaving, account deletion, company deletion (30 days of grace with export) | Designed |
+| AD-3 | Seats fill one usage pool; each member has a default cap the super admin can raise; the super admin sees usage per member and kind of work, never content | Direction decided; details with billing |
+| AD-4 | Audit of reads of knowledge, permission changes, decisions and break-glass access | Designed |
+| AD-5 | Before a label rises or an audience narrows, show how many units and readers it affects | Proposed |
+
+### 6.9 Languages
+
+| ID | Requirement | State |
+| --- | --- | --- |
+| LN-1 | English, Simplified Chinese and Japanese are equal from the first release; Traditional Chinese later | Designed; language packs built |
+| LN-2 | One unit of knowledge per piece of knowledge, with an expression per language | Designed |
+| LN-3 | Interface language per account; a company default for messages to many people; a content language per space | Designed |
+| LN-4 | Answers in the asker's language; quotes verbatim; translation on request, labelled as machine translation | Designed |
+| LN-5 | Type per script, input-method-safe shortcuts, locale formats and collation | Designed |
+
+## 7. Quality requirements
+
+| Quality | Requirement | How it is checked | State |
 | --- | --- | --- | --- |
-| Ingest | connectors | Source plugins: list, fetch, read ACLs, webhooks. Built: local folders, Feishu documents and approvals (recorded fixtures) | Built |
-| Ingest | source-sync | Versions, tombstones, ACL snapshots, polls and reconcile; later `fetch_now` for research and the source tree | Built |
-| Ingest | parsing | Python worker for Office, PDF and scans (Docling, PaddleOCR-VL) behind an HTTP contract | Planned |
-| Ingest | normalization | Canonical blocks and spans with stable IDs, block diff, duplicate documents; later mirror pages for the Original view | Built |
-| Ingest | research | Research agent over the agent API and approved web search; reports become sources | Planned |
-| Compile | extraction | Statements with verbatim evidence, fact-slot keys, governance levels and extract on use. Later entities, procedures, approval mining | Built |
-| Compile | freshness | Review clocks, plan days, copies, staleness scores, `review.due`. Later the dependency graph and `artifact.dirty` | Built |
-| Compile | governance | Slot values, conflict cases with a proposed value, todo requests, notes. Later semantic and model-judge tiers, precedence rules | Built |
-| Compile | page-compiler | Topics and placements; later cited pages, diagrams, page snapshots | Topics built |
-| Store | knowledge-store | The only owner of knowledge tables: lineage, bitemporal reads, slots, topics, page snapshots | Built |
-| Serve | retrieval | Owns chunks, embeddings and every search index; hybrid search, rerank, permission filters, grounded answers | Planned |
-| Serve | agent-api | MCP server, REST and OpenAPI, Skills export, per-call audit | Planned |
-| Serve | views | Interactive view templates, view generation, render check, sandbox hosting | Planned |
-| Control | collaboration | The inbox; later comments, agent replies, overrides, publishing, decisions | Inbox built |
-| Control | access-control | Permissions on SpiceDB, search pre-filters, audit | Built; two-domain rule designed |
-| Control | model-gateway | Every model call: routing by sensitivity, budgets, prompts, cache, metering; library and HTTP service | Built |
-| Control | agent-runtime | The loop built-in agents run on: tools, limits, approval gates, traces | Built |
-| Control | credential-broker | Connections owned by the tenant or a member, encrypted secrets, refresh, short-lived leases | Designed |
-| Control | sandbox | One isolated container per job for code we did not write: vendor CLIs and MCP servers, and view render checks | Designed |
+| Evidence | Every statement carries a verbatim quote; the store rejects anything else | Store rules and tests | Built |
+| Faithfulness | Citation entailment at or above 95% | G1 evaluation set | Target |
+| Permission safety | Zero leaks on the red-team set: personal-space isolation, cross-space citations and derivations, shared answers, graph paths, omissions | G1 red team and acceptance tests | Target |
+| Revocation | A revoked permission reaches every reader within 15 minutes at p95 | G2 | Target |
+| Change detection | A change is seen within 15 minutes by the poll, sooner by push; deletions by the nightly listing | Source-sync tests | Built |
+| Review load | At most 10 inbox cards per owner per week | Synthetic year: median 1, max 4 | Measured |
+| Conflict precision | At least half of conflict todos are real conflicts | G1, then a pilot metric | Target |
+| Scale | 10,000 documents sync in about 72 s and settle in about 9 minutes on one node, on mocks | Volume report | Measured |
+| Topic stability | Statements do not change topic without cause | 0 of 25,660 moved on a re-clustering | Measured |
+| Agent efficiency | A structured procedure stays under about 2,500 tokens; tokens per task beat a chunk-only baseline | G1 | Target |
+| Retrieval | Recall@10 beats a chunk-only baseline on the partner's own questions | G2 | Target |
+| Privacy | The super admin never reads My space, questions, answers or research | Permission tests | Designed |
+| Model routing | Content reaches only providers cleared for its sensitivity label | Gateway tests | Built |
+| Residency | A company's data stays in the region chosen at creation | Deployment checks | Designed |
+| Languages | Every screen in three languages; a missing string fails the build; pseudo-locale tests | Build checks | Designed |
+| Delivery | Air-gapped install in under one day; domestic infrastructure certificates | G3 | Target |
 
-The business layer is one TypeScript service with its own database schema, plus the web app. It
-shares the contracts, eventbus and testkit libraries with the engine.
+## 8. Releases, scope and success measures
+
+```mermaid
+flowchart LR
+  P1["Mocked prototype<br/>every stage runs end to end<br/>on mocked models"] --> P2["Real-model validation<br/>measurements repeated<br/>on real content"]
+  P2 --> G1{{G1}}
+  G1 --> P3["Pilot with a<br/>design partner"]
+  P3 --> G2{{"G2, about month 6"}}
+  G2 --> P4["Product v1<br/>compliance, delivery,<br/>editing, billing"]
+  P4 --> G3{{"G3, about month 12"}}
+```
+
+*Figure 8. Releases and gates. Real models are switched on only after every stage runs on mocks.*
+
+| Release | It proves | Includes |
+| --- | --- | --- |
+| Mocked prototype | Every stage of the product runs end to end, at realistic volumes | The engine pipeline, pages, search and answers, the agent API, the business layer phase 1 and the web app, all on mocked models |
+| Real-model validation (G1) | Quality with real models on real content | Real models, evaluation corpora in three languages, the permission red team, measured token use |
+| Pilot (G2) | A design partner uses it every week | A real Feishu or Lark tenant, joint approval, Confluence and DingTalk, business layer phase 2 |
+| Product v1 (G3) | It can be sold and delivered | Compliance packs, domestic infrastructure, air-gapped install, Artifact-level editing, billing |
+
+**Not in scope for now:** Traditional Chinese, a dark theme, guests, the three-admin preset, and personal billing. The engine never handles accounts, sign-in or screens; those belong to the business layer.
+
+| Gate | Criteria |
+| --- | --- |
+| G1, prototype | Citation entailment at or above 95%; zero leaks on the permission red-team set; conflict-queue precision at or above 50%; one procedure domain verified by its owners; agent tokens per task measured against a chunk-only baseline; an evaluation corpus in Chinese, Japanese and English |
+| G2, pilot, about month 6 | A design partner with at least five owners active weekly; permission revocation reaches every reader within 15 minutes at p95; retrieval Recall@10 beats the chunk baseline on the partner's own set; signed commercial intent |
+| G3, product v1, about month 12 | Classified protection level 3 control pack, domestic-infrastructure compatibility certificates (Kylin, Kunpeng or Hygon, KingbaseES, Ascend), air-gapped install in under one day, two paying customers |
+
+G3 was written for private deployment in China; how the gates change for SaaS first is an open question.
+
+## Part II. Technical architecture
+
+## 9. Architecture at a glance
+
+```mermaid
+flowchart TB
+  subgraph people[People and agents]
+    br[Browser and phone]
+    im["Feishu, Lark and<br/>DingTalk cards"]
+    ag["MCP clients, CLI,<br/>company agents"]
+  end
+  subgraph biz[Business layer]
+    web[Web app and its backend]
+    bsvc["Accounts, tenancy, directory,<br/>access grants, connections,<br/>publishing, approvals,<br/>notifications, admin, billing"]
+  end
+  subgraph eng[Engine]
+    api[Agent API: MCP and REST]
+    core["Ingest, compile, store,<br/>serve, control"]
+  end
+  subgraph ext[External systems]
+    src["Source apps: Feishu or Lark,<br/>later Confluence, DingTalk"]
+    llm["Model providers<br/>by region and label"]
+    idp[Identity provider: Logto]
+  end
+  br --> web
+  web --> bsvc
+  im <--> bsvc
+  ag -- "OAuth token from<br/>the business layer" --> api
+  bsvc -- "commands and queries<br/>with a signed principal" --> core
+  core -. events .-> bsvc
+  api --> core
+  core --> src
+  core --> llm
+  bsvc --> idp
+```
+
+*Figure 9. Two layers. Calls go down from the business layer to the engine and events come up; the engine never calls the business layer.*
+
+**The engine is a system of record for knowledge, with no screens.** Given a tenant and a principal, it answers four questions on its own: what is known, where it comes from, who may see it, and whether it is still true. It has no people, no interface and no commercial terms, so it behaves the same under our product, under a customer's own identity system in a private deployment, or with nothing but agents in front of it.
+
+**The business layer is the product around it for people and companies:** who someone is, which companies they belong to, what those companies bought, how a person is asked, reminded and told, and what the screens look like. It turns human and commercial decisions into engine commands and engine events into messages people read, and it can change from market to market without touching knowledge.
+
+**Where something goes.** Ask in order; the first yes decides.
+
+1. Does it read, change, derive or enforce anything about knowledge, or decide whether a principal may see something? The engine.
+2. Is it about a person as a person (sign-in, profile, language, sessions), a company as a customer (plan, seats, billing, domains), or a channel that reaches a person (email, IM, digests)? The business layer.
+3. Is it a setting? The business layer owns its value and the screen that sets it; the engine owns what it means, its default and how it is enforced.
+4. Is it a decision people make about knowledge? The engine owns the item (a todo, a publish request, a conflict), its state, who may decide and what follows. The business layer owns how people reach the decision: whom to ask, reminders, deadlines, escalation, votes and cards. It sends the result back as a command, and the engine checks it again.
+
+**Never.** Each of these is held by a test or a review rule.
+
+- The engine never calls the business layer, and never stores a user ID, a login identity, a session, a password, a plan or a payment detail.
+- The business layer never stores knowledge (sources, statements, pages, embeddings) or a source credential, and never decides whether someone may see content: it asks the engine. Content it shows or sends is fetched from the engine for that recipient and not kept.
+- The engine trusts only a signed token and its own copy of members, groups, roles and settings. A token can narrow what the engine allows, never widen it.
+- The engine runs without the business layer: a stand-in that signs tokens and sends provisioning commands is enough for tests, evaluations and agent-only use.
+
+**Shared concerns, split.**
+
+| Concern | Engine | Business layer |
+| --- | --- | --- |
+| People | Members, groups, roles and clearances as an enforced copy; every permission check | Accounts, sign-in, invitations, directory sync, assigning roles |
+| Companies | Tenants as isolation boundaries and data regions; provisioning, export and deletion on command | The company as a customer: name, domains, plan, seats, transfer and deletion flows |
+| Settings | What `TenantPolicy` means, its defaults and its enforcement | The values a super admin picks, and the screens for them |
+| Spaces and audiences | Spaces, audiences and the checks | The screens that change them |
+| Todos and decisions | Todos, publish requests and conflicts: state, routing, weekly budgets, who may decide, the effect, the record | Getting people to decide: reminders, deadlines, escalation, votes, IM cards |
+| Messages | Events with codes and parameters | Wording in each recipient's language, channels, digests, preferences, the inbox screen |
+| Words | Knowledge in a language: pages, answers, summaries | Every word of the interface and of messages |
+| Source connections | Credentials (credential broker), fetching, sync, source ACL snapshots | Connect and consent screens, which connections the settings allow |
+| Agents | The agent API, token verification, scope enforcement, agent audit | OAuth server, client registry, device flow, consent, revocation |
+| Usage | Metering model use per company, member and space; stopping at the limits it is given | Plans, seats, the usage pool, per-member caps, invoices |
+| Audit | Reads of knowledge, permission changes, decisions, break-glass access | Sign-ins and account, admin and billing events; the console shows both |
+| Search and reading | Retrieval, answers, citations, pages | The reading and search screens |
+
+## 10. Repository and components
+
+**One repository, a folder per layer.** Both layers are built in this monorepo.
+
+```mermaid
+flowchart LR
+  apps["apps/<br/>composition roots"] --> engine["engine/<br/>engine components"]
+  apps --> business["business/<br/>business components"]
+  business -- "contracts and the<br/>engine API client only" --> engine
+  engine --> libs["libs/<br/>contracts, kernel,<br/>eventbus, testkit"]
+  business --> libs
+```
+
+*Figure 10. Dependencies point one way. Nothing in `engine/` or `libs/` depends on `business/`, and the manifest test fails any change that tries.*
+
+Each section of [`components.yaml`](../components.yaml) maps to one folder. A package depends only on the libraries and on the components listed in its `calls`. One toolchain and one `make check` cover both layers, so a contract change lands with both sides in one pull request, while the engine and the business backend deploy as separate processes. The move from `packages/` to these folders is a separate, rename-only pull request.
+
+**Engine components.** Each has one job. Its name is also its event producer name, its consumer group and the prefix of its model task names.
+
+| Stage | Component | Job | State |
+| --- | --- | --- | --- |
+| Ingest | connectors | One integration per vendor: list, fetch, read ACLs, webhooks, agent tools. Built: local folders, Feishu documents and approvals (recorded fixtures) | Built |
+| Ingest | source-sync | Versions, tombstones, ACL snapshots, polls and reconcile; later `fetch_now` and the Sources tree | Built |
+| Ingest | parsing | Python worker for Office, PDF and scans (Docling, PaddleOCR-VL) behind an HTTP contract | Planned |
+| Ingest | normalization | Canonical blocks and spans with stable IDs, block diff, duplicate documents; later mirror pages | Built |
+| Ingest | research | Research agent over the agent API and approved web search; reports become sources | Planned |
+| Compile | extraction | Statements with verbatim evidence, fact-slot keys, governance levels, extract on use; later entities and procedures | Built |
+| Compile | freshness | Review clocks, plan dates, copies, staleness, `review.due`; later the dependency graph and `artifact.dirty` | Built |
+| Compile | governance | Slot values, conflict cases with a proposed value, todo requests, notes; later model-judge tiers and rules | Built |
+| Compile | page-compiler | Topics and placements; later cited pages, the omission check, diagrams, snapshots | Topics built |
+| Store | knowledge-store | The only owner of knowledge tables: lineage, bitemporal reads, slots, topics, page snapshots | Built |
+| Serve | retrieval | Every search index; hybrid search, rerank, permission filters, grounded answers | Planned |
+| Serve | agent-api | MCP server, REST and OpenAPI, Skills export, per-call audit | Planned |
+| Serve | views | Interactive view templates, generation, render check, sandbox hosting | Planned |
+| Control | collaboration | The inbox; later comments, overrides, publishing, decisions, releases | Inbox built |
+| Control | access-control | Permissions on SpiceDB, search pre-filters, audit | Built; space and proof rules designed |
+| Control | model-gateway | Every model call: routing by sensitivity, budgets, prompts, cache, metering | Built |
+| Control | agent-runtime | The loop built-in agents run on: tools, limits, approval gates, traces | Built |
+| Control | credential-broker | Tenant and member connections, encrypted secrets, refresh, short-lived leases | Designed |
+| Control | sandbox | One isolated container per job for code we did not write | Designed |
+
+**Business components.** One TypeScript service with its own database schema, plus the web app.
 
 | Component | Owns | Phase |
 | --- | --- | --- |
@@ -506,53 +620,21 @@ shares the contracts, eventbus and testkit libraries with the engine.
 | tenancy | Tenants, members and member IDs, invitations, verified domains, company roles, sign-in policy, personal to team, transfers | 1 |
 | directory | SSO connections, Feishu contacts (SCIM in phase 2), groups, departments, external identity links | 1 and 2 |
 | access-grants | OAuth authorization server, client registry, device flow, personal tokens, company agents, revocation | 1 |
-| connections | Connect flows for company and personal connections, consents, claims on external organizations | 1 (claims in 2) |
+| connections | Connect flows for company and personal connections, consents | 1 |
 | publishing | The publish wizard: target space, freshness choice, coverage, audience gap, approval routing | 1 |
 | approvals | Single and joint approvals, deadlines, fallback deciders, decision records | 1 (joint in 2) |
 | notifications | Inbox, email, Feishu, Lark and DingTalk cards, digests, preferences, message catalogs | 1 |
-| admin | Space audiences, policies, roles, ownership assignments, audit and usage views | 1 |
+| admin | Space ownership, company settings, roles, audit and usage views | 1 |
 | billing | Plans, seats, quotas, per-member limits, model budgets | 3 |
 | web | The product web app and its backend for the frontend | 1 |
 
-### How components talk
+## 11. How components talk
 
-There are exactly three paths, and the manifest test enforces that a package depends on nothing
-else.
+There are exactly three paths, and the manifest test enforces that a package uses nothing else.
 
-1. **Events.** A component writes its data and its events in one Postgres transaction (a
-   transactional outbox). A relay moves them to Valkey Streams, one stream per event type, and
-   each consuming component reads with its own consumer group. Delivery is at least once, so
-   handlers are idempotent. Events that cannot be parsed, are newer than the consumer knows, or
-   keep failing go to a dead-letter stream. Payloads carry IDs and codes, never sentences.
+1. **Events.** A component writes its data and its events in one Postgres transaction (a transactional outbox). A relay moves them to Valkey Streams, one stream per event type, and each consuming component reads with its own consumer group. Delivery is at least once, so handlers are idempotent. Events that cannot be parsed, are newer than the consumer knows, or keep failing go to a dead-letter stream. Payloads carry IDs and codes, never sentences.
 2. **The knowledge store's repository API.** No component reads another component's tables.
-3. **Synchronous interfaces** from the contracts package: `AuthZ`, `ModelGateway`, `Retriever`,
-   `AgentRuntime`, the blob store, and later `SourceSync.fetch_now`, `CredentialBroker` and
-   `Sandbox`. Each has an in-process implementation and, where useful, an HTTP one with the same
-   interface.
-
-| Event | Published by | Consumed by | State of the publisher |
-| --- | --- | --- | --- |
-| `source.changed` | connectors, source-sync, research | source-sync | Built |
-| `document.fetched` | source-sync | normalization | Built |
-| `acl.changed` | source-sync | access-control; collaboration for the source-restricted todo (designed) | Built |
-| `blocks.changed` | normalization | extraction, freshness, retrieval | Built |
-| `claims.updated` | extraction, governance, collaboration | freshness, governance, page-compiler, retrieval | Built |
-| `artifact.dirty` | freshness | extraction, page-compiler, retrieval | Planned |
-| `review.due` | freshness | collaboration, research | Built |
-| `todo.requested` | governance; views (designed) | collaboration | Built |
-| `todo.created` | collaboration | business layer (notifications, approvals, web) | Built |
-| `page.rendered` | page-compiler | collaboration, retrieval, views | Planned |
-| `comment.created` | collaboration | extraction, collaboration | Planned |
-| `unit.published` | collaboration | retrieval, agent-api, business layer | Planned |
-| `connection.changed` | credential-broker | source-sync, collaboration, business layer | Designed |
-| `source.tree_changed` | source-sync | access-control, retrieval, business layer | Designed |
-| `source.moved` | the publish step | normalization, which rebuilds the moved sources in the target space | Designed |
-| `todo.updated`, `publish_request.updated`, `decision.applied`, `member.offboarded`, `usage.recorded` | engine | business layer | Designed |
-
-Only the engine publishes events. Business components read them as consumer groups; a product
-deployment adds a feed endpoint so the business layer is not tied to the transport.
-
-### The pipeline, end to end
+3. **Synchronous interfaces** from the contracts package: `AuthZ`, `ModelGateway`, `Retriever`, `AgentRuntime`, the blob store, and later `SourceSync.fetch_now`, `CredentialBroker` and `Sandbox`. Each has an in-process implementation and, where useful, an HTTP one with the same interface.
 
 ```mermaid
 flowchart LR
@@ -576,243 +658,299 @@ flowchart LR
   RS -->|new report version| S
 ```
 
-1. **Sync.** Source-sync lists a source, compares each item's content, metadata and ACL hashes
-   with the last ones, fetches what changed, and writes the source version and ACL snapshot in one
-   transaction. A permission change alone writes no new version, so nothing is re-parsed.
-2. **Normalize.** Normalization parses the version (built-in parsers for text formats, the parsing
-   worker for Office, PDF and scans), builds blocks and spans with stable IDs, diffs them against
-   the previous version and detects duplicate documents. Every later stage works from this diff.
-3. **Extract.** Extraction reads only added and changed blocks of governed documents, and of
-   reference documents only those that name a known fact. Each window is one model call. A
-   statement is kept only if its quote is verbatim; statements whose evidence disappeared are
-   superseded or retracted. Under the source-changes design, a deleted document's statements are
-   held until their owner decides.
-4. **Govern.** Governance keeps each slot's values counted incrementally, proposes the value that
-   holds, opens conflict cases for the others, and sends one todo request per slot. It is
-   deterministic today; semantic, NLI and model-judge tiers come later for statements without a
-   slot.
-5. **Keep fresh.** Freshness keeps review clocks and publishes `review.due` once a day for what has
-   fallen due. It asks no model and changes no knowledge, so a model outage or an exhausted budget
-   never stops it.
-6. **Organize and compile.** Page-compiler embeds the sections of governed documents, places
-   statements in topics and re-clusters within the change budget. Next it writes cited pages and
-   diagrams and snapshots every version.
-7. **Ask people.** Collaboration is the only component that creates todos: it merges requests,
-   routes them to owners and groups them on weekly cards.
-8. **Serve.** Retrieval indexes blocks, statements and pages, and serves search and answers to the
-   web app and the agent API.
+*Figure 11. The engine pipeline as events. Each component reacts only to the events it subscribes to.*
 
-### Knowledge model and storage
+| Event | Published by | Consumed by | State |
+| --- | --- | --- | --- |
+| `source.changed` | connectors, source-sync, research | source-sync | Built |
+| `document.fetched` | source-sync | normalization | Built |
+| `acl.changed` | source-sync | access-control; collaboration for the source-restricted todo | Built |
+| `blocks.changed` | normalization | extraction, freshness, retrieval | Built |
+| `claims.updated` | extraction, governance, collaboration | freshness, governance, page-compiler, retrieval | Built |
+| `artifact.dirty` | freshness | extraction, page-compiler, retrieval | Planned |
+| `review.due` | freshness | collaboration, research | Built |
+| `todo.requested` | governance; views and page-compiler (designed) | collaboration | Built |
+| `todo.created` | collaboration | business layer | Built |
+| `page.rendered` | page-compiler | collaboration, retrieval, views | Planned |
+| `comment.created` | collaboration | extraction, collaboration | Planned |
+| `unit.published` | collaboration | retrieval, agent-api, business layer | Planned |
+| `connection.changed` | credential-broker | source-sync, collaboration, business layer | Designed |
+| `source.tree_changed`, `source.moved` | source-sync, the publish step | access-control, retrieval, normalization, business layer | Designed |
+| `todo.updated`, `publish_request.updated`, `decision.applied`, `member.offboarded`, `usage.recorded` | engine | business layer | Designed |
+
+Only the engine publishes events. Business components read them as consumer groups; a product deployment adds a feed endpoint so the business layer is not tied to the transport.
+
+## 12. Knowledge model and storage
+
+Knowledge lives in three layers that never write into each other.
+
+```mermaid
+flowchart TB
+  subgraph src["Source layer: append-only, never edited"]
+    sv[Source version] --> bl["Blocks and spans<br/>with stable IDs"]
+  end
+  subgraph kn["Knowledge layer: derived, rebuilt on change"]
+    cl["Statement<br/>typed value, qualifiers,<br/>valid time, known time"] --> sl[Fact slot]
+    cl --> pl[Placement in a topic]
+    cl --> pg["Pages, procedures, cards"]
+  end
+  subgraph hu["Human layer: kept apart, anchored"]
+    ov[Overrides and corrections]
+    dc[Decisions and rules]
+    cm[Comments and annotations]
+  end
+  bl -- verbatim evidence --> cl
+  ov -.-> cl
+  dc -.-> sl
+  cm -.-> bl
+```
+
+*Figure 12. Three layers. The source layer always matches the source; everything people add lives in its own layer, anchored to stable IDs.*
+
+- **The source layer matches the source, always.** Each sync stores an immutable source version; a change adds a version and a deletion adds a "deleted" version. Nothing inside Inspiration edits it.
+- **The knowledge layer is derived.** Statements, slots, topics and pages are computed from source versions and rebuilt when they change.
+- **The human layer is kept apart.** Annotations, corrections, decisions, rules and statements a person added are stored separately, with author and time, anchored to stable IDs (Feishu block IDs, statement IDs). When a new version arrives, an annotation whose anchor is unchanged moves with it; a correction the source now agrees with retires itself; a correction the source contradicts gives its author a todo; an annotation whose anchor is gone is kept in the margin as orphaned. So the system can never drift away from the source in a way nobody can explain.
+
+**Anatomy of a statement.** The Shenzhen hotel cap from the notice:
+
+| Field | Value |
+| --- | --- |
+| Subject, predicate | Business travel, hotel cap per night |
+| Value | 650 CNY per night (typed money) |
+| Qualifiers | City tier: tier 1; grade: managers and below |
+| Valid time | From 2026-10-01 |
+| Known time | From the sync that read the notice |
+| Class | Policy |
+| Evidence | Verbatim quote from the notice, with its version and span |
+| Slot key | Predicate + qualifiers, language-neutral |
+
+**Statements carry knowledge; queries carry data at scale.** A statement is more than subject, predicate and object: its typed value, qualifiers that work as dimensions (city, grade, period) and valid time mean the statements of one predicate form a small fact table, such as hotel caps by city and grade, that stays cited and governed. That suits rules and facts, from hundreds to a few thousand per subject, because each can be reviewed. Business data at scale (daily sales, stock, transactions) is never turned into statements: it stays in its system of record and reaches a chart through a registered, parameterized query that a `data_providers` plugin runs with that system's permissions and caches as a snapshot the chart cites. A large table inside a document, such as a price list of thousands of items, stays a source whose rows can be cited; a row becomes a statement only when a page or an answer uses it.
 
 | Layer | Holds | State |
 | --- | --- | --- |
 | Source version | One fetched revision, its hashes, sensitivity and governance level | Built |
-| Block, span | Stable IDs, heading path, parent; spans are content-addressed by block and text | Built |
-| Claim and evidence | Statement, subject, predicate, value, qualifiers, class, slot key, two time intervals, verbatim quotes | Built |
+| Block, span | Stable IDs, heading path, parent; spans content-addressed by block and text | Built |
+| Statement and evidence | Subject, predicate, value, qualifiers, class, slot key, two time intervals, verbatim quotes | Built |
 | Fact slot | Current variants with counts and representatives, and every value held over time | Built |
 | Topic and placement | Taxonomy nodes with stable keys, status, owner and counts; one placement per statement | Built |
-| Entity, relation | Resolved people, departments, products, suppliers; every edge backed by a statement | Planned |
+| Entity, relation | People, departments, products, suppliers; every edge backed by a statement | Planned |
 | Procedure, model | Steps, roles, conditions; formulas and decision tables whose assumptions are statements | Planned |
-| Page | PageSpec versions with sentences bound to statements; mirror pages for the Original view | Contract only |
-| Source node | The Sources tree: the position of each document in its source's hierarchy | Designed |
+| Page | `PageSpec` versions with sentences bound to statements; mirror pages for the Original view | Contract only |
+| Source node | The Sources tree: each document's position in its source's hierarchy | Designed |
 
-Rules the knowledge store enforces: a claim without supporting evidence or a derivation is
-rejected; an evidence quote must be a verbatim substring of its span; claims are never deleted;
-page versions are immutable and increase by one. Reads are bitemporal: what was true at a time, as
-the system knew it at a time.
+The knowledge store enforces four rules: a statement without evidence or a derivation is rejected; an evidence quote must be a verbatim substring of its span; statements are never deleted; page versions are immutable and increase by one. Reads are bitemporal: what was true at a time, as the system knew it at a time.
 
-Everything lives in one Postgres 16 instance (the ParadeDB image, with pgvector and pg_search).
-Each component that owns tables has its own schema: `kb` (knowledge store), `bus` (event bus),
-`gateway`, `agents`, `sync`, `normalization`, `extraction`, `freshness`, `governance`,
-`page_compiler` and `collaboration`. Retrieval will get its own schema when it takes over chunks,
-embeddings and indexes from `kb`. SpiceDB keeps its own database on the same instance, Valkey
-carries the streams and the model response cache, and files go to a blob store. Each `kb` table
-keeps the full contract object in a `doc` column and copies only filterable fields into typed
-columns, so most contract changes need no migration.
+**Storage.** Everything lives in one PostgreSQL 16 instance (the ParadeDB image, with pgvector and pg_search). Each component that owns tables has its own schema: `kb` (knowledge store), `bus`, `gateway`, `agents`, `sync`, `normalization`, `extraction`, `freshness`, `governance`, `page_compiler` and `collaboration`; retrieval gets its own when it takes over indexes from `kb`. SpiceDB keeps its database on the same instance, Valkey carries the streams and the model response cache, and files go to a blob store. Each `kb` table keeps the full contract object in a `doc` column and copies only filterable fields into typed columns, so most contract changes need no migration.
 
-### Permissions
+## 13. The pipeline and incremental freshness
 
-The engine makes every permission decision itself, from a copy of what the business layer
-provisions.
+1. **Sync.** Source-sync lists a source, compares each item's content, metadata and ACL hashes with the last ones, fetches what changed, and writes the source version and ACL snapshot in one transaction. A permission change alone writes no new version, so nothing is re-parsed.
+2. **Normalize.** Normalization parses the version (built-in parsers for text formats, the parsing worker for Office, PDF and scans), builds blocks and spans with stable IDs, diffs them against the previous version and detects duplicate documents. Every later stage works from this diff.
+3. **Extract.** Extraction reads only added and changed blocks of governed documents, and of reference documents only those that name a known fact. Each window is one model call. A statement is kept only if its quote is verbatim; statements whose evidence disappeared are superseded, or held for their owner when the document was deleted.
+4. **Govern.** Governance keeps each slot's values counted incrementally, proposes the value that holds, opens conflict cases for the others, and sends one todo request per slot. It is deterministic today; semantic and model-judge tiers come later for statements without a slot.
+5. **Keep fresh.** Freshness keeps review clocks and publishes `review.due` once a day for what has fallen due. It asks no model and changes no knowledge, so a model outage or an exhausted budget never stops it.
+6. **Organize and compile.** Page-compiler embeds the sections of governed documents, places statements in topics and re-clusters within the change budget. Next it writes cited pages and diagrams for their audience and snapshots every version.
+7. **Ask people.** Collaboration is the only component that creates todos: it merges requests, routes them to owners and groups them on weekly cards.
+8. **Serve.** Retrieval indexes blocks, statements and pages, and serves search and answers to the web app and the agent API.
 
-- **SpiceDB holds tenants, members, groups, departments and spaces,** keyed by tenant. Statements,
-  pages and procedures are not written to it.
-- **A unit is readable if its own space is readable and its sensitivity label is at or below the
-  reader's clearance.** A personal space has only its owner (plus a service relation for engine
-  workers); no tenant or admin relation reaches into it. A shared space's roles (`viewer`,
-  `commenter`, `editor`, `steward`, `owner`; a space owner holds `owner` and `steward`) are granted top down and inherited
-  down the space tree. The
-  publisher of a unit keeps a grant on it, and a publish request's approvers can read only its
-  items.
-- **A statement also needs a proof the reader can read.** A proof is what shows a statement is
-  true, and there are two kinds: an evidence quote from a document in a space the reader can read,
-  or a derivation, a statement computed from other statements, whose every input the reader can
-  read. If two documents both say the Shenzhen hotel cap is 600, either one proves it, so a reader
-  who can read either sees the statement. A margin computed from a price in Sales and a cost in
-  Finance needs both: a reader who could see the margin and the price but not the cost could work
-  the cost out, so the margin is shown only to readers who can read both.
-- **Compiled knowledge is written for its audience.** Knowledge often rests on another
-  department's space: a step in a Sales quoting procedure comes from Finance's discount policy, a
-  travel guide for everyone combines HR's grades with Finance's hotel caps, a margin is computed
-  from a Sales price and a Finance cost. A page, procedure or topic summary has the audience of
-  its space, and its inputs never narrow it, so no restricted item can hide knowledge it does not
-  own. The compiler writes only from inputs that whole audience can read; any other input is
-  released to that audience, one statement at a time, by the owner of its space, or not used.
-  A company with a single shared space never meets this; it starts to matter when a department
-  such as Finance or HR narrows who can read its space.
-- **An omission that changes the meaning needs a person.** The engine sees every input, so it
-  checks whether leaving one out would change what a unit says: a different value for a fact slot
-  the unit uses, a newer version, an added condition, or the other side of an argument. If so, the
-  unit's owner chooses: ask for a release, rewrite without taking a position on that point, or
-  publish with a note. Procedures are all or nothing.
-- **Readers are told, never misled.** Where something that matters was left out, the reader sees
-  a note saying so and whom to ask, never the content, and an answer that may be incomplete says
-  so. Per-reader checks act only on whole items (a document, a block, a row, a search result),
-  never on words inside prose; when one would cut a paragraph, the unit is compiled again for that
-  reader's readable spaces.
-- **Existence is hidden where it matters.** Unreadable spaces never appear in trees, search,
-  counts or graphs, and a citation into a space the reader cannot read is left out when the
-  statement stands on another proof. Material labelled `secret` is never an input outside its own
-  space and leaves no trace or note anywhere else. The design, its abuse cases and its trade-offs
-  are in [design/compiled-knowledge-permissions.md](design/compiled-knowledge-permissions.md).
-- **Shared answer caches** are keyed by readable spaces and clearance, an entry is dropped when a
-  unit it used changes label, proof or grant, and an answer that used a unit readable only through
-  the reader's own grant (as publisher or approver) is never shared.
-- **Search is filtered inside the index** by readable spaces and sensitivity, and every top result
-  is checked again before it leaves the server.
-- **Source ACLs are advisory.** Source-sync keeps ACL snapshots and identity links only for the
-  audience-gap warning and the source-restricted todo.
-- **Built today:** access-control on SpiceDB with tenant-keyed principals, source ACL mirroring,
-  search scope filters and consistency tokens, and a lineage walk that decides derived units from
-  their source documents. That walk accepts any one readable source, which is right for alternative
-  evidence and too loose for jointly required inputs; nothing built writes such derivations yet.
-  Replacing it with the space and proof rules above is the next change to access-control;
-  retrieval is not built yet, so nothing else depends on the old rule.
+**Why incremental works.** Blocks have stable IDs and every stage consumes the block diff, so a typical edit touches a handful of blocks. Re-extraction that yields the same statements changes nothing further. Engine-caused changes, such as a new prompt or model, stay silent while values stay the same and go to evaluation, not to inboxes, when they do not.
 
-### Models and agents
+## 14. The governance engine
 
-- **Every model call goes through the model gateway,** for completion, embedding, rerank and OCR,
-  with `web_search` planned for research. A call names its task (`<component>.<verb_object>`,
-  such as `extraction.extract_claims`), its budget key (`tenant:<id>/<component>`) and the highest
-  sensitivity label of its content. The gateway refuses to send content to a provider that is not
-  cleared for that label, so confidential content reaches only models inside the customer's
-  network.
-- **Prompts are versioned files.** The version is part of every artifact's inputs hash, so a prompt
-  or model change shows exactly what to rebuild and what it would cost.
-- **Until real models are configured, each model task ships a deterministic stand-in** (a
-  `model_mocks` plugin), and the fake providers answer with it. Numbers measured on mocks describe
-  the pipeline, not model quality.
-- **The agent runtime** runs every built-in agent: an `AgentSpec` named `<component>.<agent>`,
-  tools whose effect is only read or propose, step and token limits, approval gates and run traces.
-  Tool selection uses schema-constrained output over an OpenAI-compatible API, so swapping models
-  does not change the agents.
+| Kind | Example | Decided by |
+| --- | --- | --- |
+| Edit collision | Two people edit the same paragraph | Merged live in drafts |
+| Override conflict | A person's edit says 500, the source now says 600 | The override's author |
+| Knowledge conflict in one scope | Two sources disagree on a price | That scope's owner (single by default) |
+| Knowledge conflict across scopes | Finance says X, the Sales procedure says Y | Every affected owner (all by default); after the deadline the space owner, or across spaces an owner the super admin names |
+| Assertion conflict | A comment states a fact that contradicts a verified statement | The scope's owner |
 
-### Connectors, credentials and sandboxes
+- **The engine proposes a value and says why.** For each slot, governance proposes the most authoritative value in force, unless a later dated statement changed it ("from 2026-10-01 the cap is 650"). Clear supersessions by archived documents settle without a person.
+- **One trigger, one todo; one cause, one review.** Requests for the same slot or document merge into one todo, routed to the owner of its topic, else the nearest owner above, else the space owner. A cause that would produce more than 20 todos or touch more than 3 topics becomes one change review for the owner of the smallest scope that covers it, decided in bulk with a record per item. Connection problems go to the super admin, because they are not knowledge changes.
+- **Weekly inbox cards.** An owner's todos about one topic in one week share one card of at most 20 items. Each owner gets at most 10 cards a week; the rest wait for the next week with room, except urgent ones. Notes sit on their own weekly card outside the budget. Reviews of copies ride on the card of the conflict that caused them.
+- **Joint approval always finishes** (Figure 5). Each policy has a mode, a deadline (5 working days across scopes by default) and a fallback decider. While people decide, readers and agents get the last verified value marked Disputed (the default), both values, or nothing, as the company chooses.
+- **Every decision is a record.** "Why this value?" shows who decided, when and on what. A decision can become a precedence rule, which governance applies to new conflicts of the same kind and reports weekly.
+- **Owners must be able to read their whole scope,** or they would judge half a conflict. The console warns when they cannot, and such a conflict goes to the backup owner or the fallback decider.
 
-- **One integration per vendor serves both sync and agent tools.** Sync and agent tools face the
-  same problems: whose identity a call uses, keeping tenants and members apart, token refresh,
-  rate limits, consent, revocation and audit. So each vendor (Feishu first) has one integration in
-  the connectors component: a typed client over the vendor's API, through its SDK, with one scope
-  set and one rate budget per connection. Sync uses it to follow changes (webhooks, cursors, ACL
-  reads, stable block IDs); agent tools, registered as `agent_tools` plugins, use the same client to
-  search, read and propose. Both get credentials only as leases from the credential broker and
-  write one audit trail, and revoking a connection stops both at once. Interactive tool calls keep
-  a reserved share of the rate budget, so a large sync never starves them.
-- **The same identity rules for both.** Sync acts with the connection its publish chose (the
-  company's or a member's). An agent tool always acts as the member it works for, with that
-  member's own connection; a company connection is never leased to an agent run.
-- **Different trust, different execution.** Sync is our own deterministic code and runs in process.
-  A tool call is chosen by a model, from content that may be hostile, so it passes the agent
-  runtime's gate: operations allowed by the agent's spec, validated arguments, read or propose
-  only, and an audit record per call. Code we did not write runs only in the sandbox: a vendor CLI
-  (such as lark-cli) or a vendor MCP server, used only for a vendor without a usable API. It gets
-  a short-lived access token and never refreshes tokens itself, because Feishu refresh tokens are
-  single-use and a second refresher would break the connection.
-- **The credential broker owns every connection and its secrets.** A connection belongs to the
-  tenant (the company's app, for team spaces) or to a member (their own sign-in). Secrets are
-  envelope-encrypted with a per-tenant data key; the key-encryption key is a deployment key in the
-  prototype and OpenBao Transit or the customer's KMS in the product (SM4 where required). Refresh
-  is proactive with a daily keep-alive and single-flight per connection. Other components get only
-  short-lived leases holding an access token, and a tenant connection is never leased to an agent
-  run. A failed refresh marks the connection for re-authorization, pauses its sources and gives the
-  owner a todo.
-- **The sandbox runs one container per job:** read-only root, no volumes, egress through an
-  allow-list proxy, never shared across tenants, nothing kept between jobs. Docker with gVisor in
-  the prototype, Kata Containers or Firecracker in the product. Its three profiles are connector
-  CLIs, vendor tools for agents (CLIs and MCP servers) and the view render check.
+## 15. Permissions
 
-### Pages and views
+The engine makes every permission decision itself, from a copy of what the business layer provisions.
 
-The contracts for pages and views are in place; the compilers, the view host and the sandbox are
-planned.
+- **Two domains.** The member domain is each member's My space: only that member reads it, the super admin included, and no tenant or admin relation reaches into it. The tenant domain is every shared space. Knowledge enters the tenant domain only by publishing, and nothing is merged or compared across the boundary.
+- **SpiceDB holds tenants, members, groups, departments and spaces,** keyed by tenant. Statements, pages and procedures are not written to it. A shared space's roles (`viewer`, `commenter`, `editor`, `steward`, `owner`) are granted top down and inherited down the space tree.
+- **A unit is readable if its space is readable and its sensitivity label is at or below the reader's clearance.** Labels are `public`, `internal`, `confidential` and `secret`.
+- **A statement also needs a proof the reader can read.** A proof shows why a statement is true. It is either an evidence quote from a document in a space the reader can read, or a derivation (a statement computed from other statements) whose every input the reader can read. Two documents that both state the Shenzhen cap are alternative proofs: either one is enough. A margin computed from a Sales price and a Finance cost needs both: someone who saw the margin and the price could work out the cost.
 
-- **A page is a `PageSpec`:** an ordered list of 14 typed blocks (heading, paragraph, list,
-  callout, quote, table, code, math, image, divider, diagram, chart, view, embed) whose sentences
-  carry statement IDs. Every version is an immutable snapshot with its cause, and block keys stay
-  stable so comments survive rebuilds and diffs can say what moved.
-- **A page is written for its audience, never cut down per reader.** Its prose comes only from
-  statements its whole audience can read, at their clearance, or that were released to it. When
-  leaving a statement out would change the meaning, a person decides, and a section may carry a
-  note for readers who cannot see part of it, while readers who can see all of it get the full
-  section (see Permissions above). Procedures are published only when their audience can read every step. When a space
-  narrows later, the page is compiled again, as a new version.
-- **Charts** take their data from a `DataRef`: inline rows, statements (fixed or by query) or a
-  registered query of a connected system, never free SQL. Rows built from statements keep their
-  statement IDs, so rows a reader may not see are dropped before rendering.
-- **Statements carry knowledge; queries carry data at scale.** A statement is more than subject,
-  predicate and object: it has a typed value (a number with its unit, a range, a date, money),
-  qualifiers that work as dimensions (city, grade, period) and the time it holds. So the
-  statements of one predicate form a small fact table, such as hotel caps by city and grade, that
-  stays cited and governed, and a statement query turns it into chart rows. That suits rules and
-  facts, from hundreds to a few thousand per subject, because every statement can be reviewed.
-  Business data at scale (daily sales, stock, transactions) is not turned into statements: it
-  stays in its own system of record and reaches a chart through a registered, parameterized query
-  that a `data_providers` plugin runs with the system's permissions and caches as a snapshot,
-  which the chart cites. A large table inside a document, such as a price list of thousands of
-  items, stays a source whose rows can be cited: a row becomes a statement only when a page or an
-  answer uses it, and the table can also be registered as a data source for charts. A chart can
-  mix the two, for example a sales curve from a query with the target from a statement.
-- **Interactive views** separate code from data. A view version is a template or generated code
-  that passes a headless render check (console errors, overflow at phone and desktop widths, both
-  themes, empty and large data) and a person's approval. It runs in an iframe on a separate origin
-  with a Content Security Policy that blocks all network access, and talks to the host only through
-  a typed message protocol. Until approved, readers see the block's static fallback.
-- **Mirror pages** render the Original view from blocks without a model, with per-block fidelity
-  (exact, approximate, or a placeholder that says "open in source").
+**Compiled knowledge is written for its audience** (proposed). Pages, procedures, topic summaries and answers combine statements from several spaces. Cutting them per reader distorts meaning, and blocking them because one input is restricted is unusable and abusable. The design keeps both promises with six principles: people set audiences and inputs never do; write for the audience, never cut per reader; an omission that changes the meaning needs a person; readers are told, never misled; `secret` material stays in its own space; alternative proofs only add visibility.
 
-### Search and the agent API
+```mermaid
+flowchart TD
+  I[A candidate statement for a unit] --> Q1{"Can the unit's whole<br/>audience read it?"}
+  Q1 -- yes --> USE[Use it]
+  Q1 -- no --> Q2{"Released to this audience<br/>by its space owner?"}
+  Q2 -- yes --> USE
+  Q2 -- no --> Q3{"Redundant: another readable<br/>proof, or adds nothing?"}
+  Q3 -- yes --> DROP[Leave it out, no trace]
+  Q3 -- no --> Q4{"Would leaving it out<br/>change the meaning?"}
+  Q4 -- no --> DROP
+  Q4 -- yes --> TODO["One todo for the unit's owner:<br/>ask for a release, rewrite<br/>neutrally, or publish with a note"]
+```
 
-Planned, with contracts in place:
+*Figure 13. How the compiler treats each input. A `secret` input never enters this flow outside its own space; if it contradicts a unit, the todo goes to the secret space's owner.*
 
-- **Retrieval owns every search index:** structure-aware chunks with contextual headers,
-  embeddings, BM25 and vector indexes for blocks, statements, procedures and pages. Search is
-  hybrid with reciprocal rank fusion and a reranker, pre-filtered by readable spaces and
-  sensitivity. Each citation carries one reader status (fresh, aging, stale, at risk, superseded,
-  disputed) that the UI maps to the four words readers see.
-- **Citations never wait for extraction.** A citation is span-based. When a reference passage is
-  cited for the first time, retrieval asks extraction to read it in full in the background.
-- **The agent API** is a stateless MCP server on the current specification behind a plain load
-  balancer, with REST and OpenAPI generated from the same operation schema. The business layer is
-  the OAuth authorization server; the engine is the resource server, checks the token audience and
-  never passes a client's token on.
+- **The omission check.** Leaving an input out changes the meaning when it states a different value for a slot the unit uses, supersedes what the unit says, adds a condition or exception, or argues the other side of a point. The first three come from the knowledge model without a model call; the last needs the model task `page_compiler.check_omission`, with a deterministic mock in the prototype.
+- **Releases are per statement.** A release opens one statement to one audience, records who approved it and when, and becomes a proof that audience can read. The evidence quote stays behind unless the release includes it. A later change gives the approver a todo to keep or withdraw it.
+- **Answers** are written for one asker from what the asker can read. If material outside the asker's reach would change the answer, it says it may be incomplete and whom to ask, at `internal` and `confidential`; for `secret` material it says nothing.
+- **The per-reader safety net** acts only on whole items (a document, a block, a row, a search result), never on words inside prose. When it would cut a paragraph, the unit is compiled again for that reader's set of readable spaces and cached for everyone who shares the set. Procedures are all or nothing.
+- **Existence is hidden where it matters.** Unreadable spaces never appear in trees, search, counts or graphs, and a citation into a space the reader cannot read is left out with no marker when the statement stands on another proof.
+- **Shared answer caches** are keyed by readable spaces and clearance; an entry is dropped when a unit it used changes label, proof or grant; an answer that used a unit readable only through the reader's own grant is never shared.
+- **Search is filtered inside the index** by readable spaces and sensitivity, and every top result is checked again before it leaves the server.
+- **Source ACLs are advisory.** Source-sync keeps ACL snapshots only for the audience-gap warning and the source-restricted todo.
+- **Built today:** access-control on SpiceDB with tenant-keyed principals, source ACL mirroring, search scope filters and consistency tokens, and a lineage walk that accepts any one readable source. That is right for alternative evidence and too loose for jointly required inputs; nothing built writes such derivations yet. Replacing it with the space and proof rules is the next change to access-control.
 
-### Internationalization
+The design, its abuse cases and eight acceptance tests are in [Permissions in compiled knowledge](design/compiled-knowledge-permissions.md).
+
+## 16. Identity, tenancy and the request path
+
+- **Three IDs.** Tenant `ten_`, user `usr_` (the account, business layer only) and member `mem_` (a user inside one tenant, the engine's only person ID). A member ID is unique only within its tenant, so anything that stores one outside a tenant's own rows stores the tenant with it. One function in the tenancy component assigns member IDs; nothing derives one ID from another.
+- **One verification path.** Every call carries a JWT signed by the business layer: member, tenant, principal kind, the member an agent acts for, scopes, optional spaces and sensitivity limit, how the session signed in, and the interface `locale`. Web tokens live at most 5 minutes, OAuth access tokens 10 to 15. The engine verifies them against published keys and never sees a user ID or an identity-provider token.
+
+```mermaid
+sequenceDiagram
+  participant U as Person
+  participant W as Web backend (business layer)
+  participant E as Engine
+  participant Z as SpiceDB
+  U->>W: request with a session cookie
+  W->>W: find the member in the current company
+  W->>E: call with a principal JWT (member, tenant, scopes, locale), 5 minutes at most
+  E->>E: verify the signature against published keys
+  E->>Z: readable spaces for this member, once per request
+  E-->>W: results filtered for this member
+  W-->>U: the page in the person's language
+```
+
+*Figure 14. A request carries only a short-lived signed principal. The engine checks permissions itself.*
+
+- **Provisioning commands are idempotent** (an idempotency key, a version on directory objects) and return SpiceDB's consistency token, so the next read sees the change. A nightly directory snapshot repairs drift, and an hourly digest check catches it in between.
+- **Contracts live in one place.** JSON Schema in this repository is the source of truth for both layers; business-only types sit in their own folder that engine packages never import.
+
+## 17. Connectors, credentials and the sandbox
+
+```mermaid
+flowchart LR
+  sync["Source sync<br/>our code, in process"] --> client
+  tools["Agent tools<br/>chosen by a model, through<br/>the agent runtime's gate"] --> client
+  subgraph conn[connectors: one integration per vendor]
+    client["Typed vendor client<br/>one scope set,<br/>one rate budget"]
+  end
+  broker["Credential broker<br/>tenant and member connections,<br/>refresh, leases"] -- short-lived leases --> client
+  client --> vendor[Vendor API]
+  broker -- "access token only,<br/>never a refresh token" --> sandbox
+  sandbox["Sandbox<br/>vendor CLIs and MCP servers"] -. "only for vendors<br/>without a usable API" .-> vendor
+```
+
+*Figure 15. Sync and agent tools share one vendor integration and one credential broker; only code we did not write runs in the sandbox.*
+
+- **One integration per vendor serves both sync and agent tools.** Both face the same problems: whose identity a call uses, keeping tenants and members apart, token refresh, rate limits, consent, revocation and audit. So each vendor (Feishu first) has one typed client, with one scope set and one rate budget per connection. Sync uses it to follow changes; agent tools, registered as `agent_tools` plugins, use it to search, read and propose. Revoking a connection stops both. Interactive tool calls keep a reserved share of the rate budget, so a large sync never starves them.
+- **The same identity rules for both.** Sync acts with the connection its publish chose. An agent tool always acts as the member it works for, with that member's own connection; a company connection is never leased to an agent run.
+- **Different trust, different execution.** Sync is our own deterministic code and runs in process. A tool call is chosen by a model from content that may be hostile, so it passes the agent runtime's gate: allowed operations, validated arguments, read or propose only unless a member asked for an edit, and an audit record per call. Code we did not write (a vendor CLI such as lark-cli, or a vendor MCP server) runs only in the sandbox, gets a short-lived access token and never refreshes tokens itself, because Feishu refresh tokens are single-use and a second refresher would break the connection.
+- **Anyone who holds a credential may import** (decided 2026-10-26). If a person can sign in to Feishu, DingTalk, WeCom or an OA system, that system's administrator has already let them read the content. Blocking the connection here would not be a security boundary: the same content can be exported through any third party and imported, and its origin can no longer be recognized. Members are governed upstream, through the source system's permissions and credentials. Verified email domains remain, only for joining a company automatically.
+- **The credential broker owns every connection and its secrets.** A connection belongs to the tenant (the company's app, for shared spaces) or to a member (their own sign-in). Secrets are envelope-encrypted with a per-tenant data key; the key-encryption key is a deployment key in the prototype and OpenBao Transit or the customer's KMS in the product (SM4 where required). Refresh is proactive, single-flight per connection, with a daily keep-alive. A failed refresh marks the connection for re-authorization, pauses its sources and gives the owner a todo.
+- **The sandbox runs one container per job:** read-only root, no volumes, egress through an allow-list proxy, never shared across tenants, nothing kept between jobs. Docker with gVisor in the prototype, Kata Containers or Firecracker in the product. Its profiles are vendor CLIs and MCP servers, and the view render check.
+
+## 18. Models and agents
+
+- **Every model call goes through the model gateway,** for completion, embedding, rerank and OCR, with `web_search` planned for research. A call names its task (`<component>.<verb_object>`, such as `extraction.extract_claims`), its budget key (`tenant:<id>/<component>`) and the highest sensitivity label of its content. The gateway refuses to send content to a provider that is not cleared for that label.
+- **Prompts are versioned files.** The version is part of every artifact's inputs hash, so a prompt or model change shows exactly what to rebuild and what it would cost.
+- **Until real models are configured, each model task ships a deterministic stand-in** (a `model_mocks` plugin), and the fake providers answer with it. Numbers measured on mocks describe the pipeline, not model quality.
+- **The agent runtime** runs every built-in agent: an `AgentSpec` named `<component>.<agent>`, tools whose effect is read, propose or (on a member's request) edit, step and token limits, approval gates and run traces. Tool selection uses schema-constrained output over an OpenAI-compatible API, so swapping models does not change the agents.
+- **Built-in agents:** the comment assistant, the Q&A assistant, the governance agents, the procedure writer, the publish check, the view generator and the research agent.
+- **When an agent may change knowledge** (decided 2026-10-26). Running on its own (in the background, on a schedule or on an event), an agent only reads or proposes. When a member explicitly asks for a change in a conversation or a comment, that request is the approval: the agent edits where the member may edit, the change is recorded under the member's name, marked as made by the agent, and can be undone. Where the member may only propose, the agent proposes.
+
+**The agent API.** A stateless MCP server on the current specification behind a plain load balancer, with REST and OpenAPI generated from the same operation schema. The business layer is the OAuth authorization server; the engine is the resource server, checks the token audience and never passes a client's token on. MCP clients sign in with OAuth and PKCE, the CLI with the device flow, and the super admin registers company agents.
+
+**Scopes follow what a call does to knowledge,** in the usual `resource.action` form: `knowledge.read` has no side effects; `knowledge.propose` creates a proposal that goes through approval; `knowledge.write` edits directly with the member's own rights, as above; `comments.write` writes to the discussion, which is not knowledge itself. An agent's rights are always the member's rights cut down to its scopes and spaces.
+
+**The ten tools** (a proposed draft, to be checked against the contracts):
+
+| Tool | Granularity | Main inputs | Main outputs | Scope |
+| --- | --- | --- | --- | --- |
+| `search` | Hits on blocks, statements, procedures and pages | `query`, `types`, `spaces`, `exclude_states` (such as stale, superseded), `limit` (10 by default, at most 50), `cursor` | Hits: handle, type, contextual heading, snippet of about 80 tokens, reader status, space, token estimate of the whole item; never full text | `knowledge.read` |
+| `get_outline` | The heading tree of a page or space | `id`, `depth` | Node handles, titles, token estimate per section | `knowledge.read` |
+| `read` | A block, a section or a whole page | `id`, `max_tokens`, `cursor` | Text with a citation per sentence; cut at the budget with a `cursor` to continue | `knowledge.read` |
+| `get_sop` | One verified procedure | `id` or `task` | Preconditions, steps, owners and exceptions in about 2,500 tokens or fewer | `knowledge.read` |
+| `get_entity` | One entity | `id` or `name` | Its statements with sources, and its aliases | `knowledge.read` |
+| `graph_neighbors` | One hop around an entity | `id`, `relations`, `limit` | Edges; unreadable edges are left out | `knowledge.read` |
+| `answer` | One question | `question`, `spaces`, `max_tokens` | An answer with a citation per sentence, and a note on conflicts, thin evidence or possible incompleteness | `knowledge.read` |
+| `get_changes` | Changes over a period | `since` (the last `cursor`), `spaces`, `types` | Items added, changed and superseded, and a new `cursor` | `knowledge.read` |
+| `verify_claim` | One assertion | `text`, `context` | Supported, contradicted or unsupported, with evidence | `knowledge.read` |
+| `report_feedback` | Feedback on one result | `target`, `kind` (wrong, outdated, missing), `note` | A todo for the owner of the scope | `comments.write` |
+
+- **The same permission rules as the screens.** What an agent can read is the member's readable spaces and clearance, cut to the agent's scopes and registered spaces. "No permission" and "does not exist" return the same `not_found`.
+- **One response envelope.** Every result carries source, version, reader status, confidence, review status and a token estimate; each response carries a consistency token the agent passes back to read the same version.
+- **Built for agents.** Search first, then read: `search` returns handles and estimates, and the agent decides what to read within its budget. Handles are stable and work in every tool. A refusal or a cut says what to do next (which `cursor`, which parameter to narrow). Every tool is stateless and the read tools are idempotent.
+- **Still open:** whether `search` ranks blocks and statements together by default, and whose budget pays for the model call inside `answer`.
+
+## 19. Pages, views and search
+
+The contracts for pages and views are in place; the compilers, the view host and retrieval are planned.
+
+- **A page is a `PageSpec`:** an ordered list of 14 typed blocks (heading, paragraph, list, callout, quote, table, code, math, image, divider, diagram, chart, view, embed) whose sentences carry statement IDs. Every version is an immutable snapshot with its cause, and block keys stay stable so comments survive rebuilds and diffs can say what moved.
+- **A page is written for its audience,** from statements its whole audience can read or that were released to it (section 15). Procedures are published only when their audience can read every step. When a space narrows later, the page is compiled again as a new version.
+- **Diagrams are compiled from structure:** the model chooses what to show but never draws edges.
+- **Charts** take their data from a `DataRef`: inline rows, statements (fixed or by query) or a registered query of a connected system, never free SQL. Rows built from statements keep their statement IDs.
+- **Interactive views** separate code from data. A view version is a template or generated code that passes a headless render check (console errors, overflow at phone and desktop widths, both themes, empty and large data) and a person's approval. It runs in an iframe on a separate origin with a Content Security Policy that blocks all network access, and talks to the host only through a typed message protocol.
+- **Mirror pages** render the Original view from blocks without a model, with per-block fidelity (exact, approximate, or a placeholder that says "open in source").
+- **Retrieval owns every search index:** structure-aware chunks with contextual headers, embeddings, BM25 and vector indexes for blocks, statements, procedures and pages. Search is hybrid with reciprocal rank fusion and a reranker, pre-filtered by readable spaces and sensitivity. Each citation carries one reader status (fresh, aging, stale, at risk, superseded, disputed), which the UI maps to the four words readers see.
+- **Citations never wait for extraction.** A citation is span-based. When a reference passage is cited for the first time, retrieval asks extraction to read it in full in the background (13 ms median on mocks).
+
+## 20. Internationalization
 
 | Where | Design | State |
 | --- | --- | --- |
-| Contracts | `Locale` (BCP 47) on documents, parse hints, claims, pages and view messages | Built |
-| Contracts | Events and todos carry codes and parameters, never sentences. The principal token carries the interface `locale` | Designed |
-| Normalization | Language detected per document and per block. Sentence and clause rules, full-width forms and number formats come from per-language resource files (en, zh, ja), not from code | Designed |
-| Extraction | Prompts state the source language. Evidence quotes stay verbatim in the original language. Dates, eras (such as Japanese era years), large-number units and currencies are normalized into typed values | Designed |
-| Fact slots | Predicate and qualifier keys are language-neutral, with labels and aliases per language, and entity names are resolved across scripts, so the same fact in different languages lands in one slot | Designed; predicate keys and typed values are built |
-| Statements | A translation is linked to its original and counts with it; statements merge across languages after a model check, keeping each quote in its language | Designed |
-| Retrieval | Multilingual embeddings (Qwen3-Embedding); BM25 with a tokenizer per language (jieba for Chinese, a Japanese morphological tokenizer, stemming for English); cross-language queries through the embedding side | Designed; the jieba index exists in the knowledge store today |
-| Page-compiler | A page's structure is built once; its canonical rendering is in the space's content language, and a rendering in another language is compiled from the same statements on request; answers in the asker's locale | Designed |
-| Business layer | Account language, company default for broadcasts, ICU MessageFormat catalogs (a missing string fails the build), localized sign-in pages, region per tenant | Designed |
-| UI | Catalogs for en, zh-Hans and ja; a language tag on every block; fonts per script; locale formatting and collation; input-method rules; pseudo-locale tests | Designed |
-| Repository | No Chinese or Japanese in code or comments; language data in resource files; documentation in English with a Chinese copy under `docs/zh/`. A repo test enforces it | Next |
+| Contracts | `Locale` (BCP 47) on documents, parse hints, statements, pages and view messages; events and todos carry codes and parameters, never sentences; the principal token carries the interface `locale` | Locale built; the rest designed |
+| Language packs | Sentence and clause rules, full-width forms, number formats and heading patterns in per-language resource files (en, zh, ja), checked by a repo test | Built |
+| Normalization | Language detected per document and per block | Designed |
+| Extraction | Prompts state the source language; quotes stay verbatim; dates, eras, large-number units and currencies become typed values | Designed |
+| Fact slots | Language-neutral predicate and qualifier keys with labels and aliases per language; entity names resolved across scripts | Keys and typed values built; the rest designed |
+| Statements | A translation is linked to its original and counts with it; statements merge across languages after a model check | Designed |
+| Retrieval | Multilingual embeddings (Qwen3-Embedding); BM25 with a tokenizer per language (jieba, a Japanese morphological tokenizer, English stemming) | Designed; a jieba index exists in the knowledge store |
+| Page-compiler | A page's structure is built once; its canonical rendering is in the space's content language, and other languages are compiled from the same statements on request | Designed |
+| Business layer | Account language, a company default for broadcasts, ICU MessageFormat catalogs (a missing string fails the build), localized sign-in, region per tenant | Designed |
+| UI | Catalogs for en, zh-Hans and ja; a language tag on every block; fonts per script; locale formats and collation; input-method rules; pseudo-locale tests | Designed |
+| Repository | No Chinese or Japanese in code or comments; docs in English with a Chinese copy under `docs/zh/` | Built (repo test) |
 
-### Technology stack and deployment
+## 21. Feasibility: what is proven, what is not, and how we will find out
+
+The prototype runs on mocked models on purpose: it proves the pipeline, the volumes and the boundaries, not model quality. Each hard part below says what the evidence is today and what will settle it.
+
+| Hard part | Evidence today | Not yet proven | How we find out | If it falls short |
+| --- | --- | --- | --- | --- |
+| Extracting statements with verbatim evidence | The quote check is enforced by the store; extraction runs end to end on mocks | Quality and recall with real models on real documents | A capped probe, then the G1 evaluation (entailment at or above 95%) | Governance levels keep extraction to governed documents; low-confidence statements stay Reference |
+| Fact slots across documents | 59% of statements land in a slot on the synthetic tenant; typed values built | How varied real predicates and qualifiers are | Run the probe on a real policy library; owners confirm the predicate catalogue | Statements without a slot are grouped by page section and still cited |
+| Topics people can own | No statement moved without cause; first-review campaigns work | Topic size with real embeddings (fake embeddings made topics about ten times too big) | Re-measure with Qwen3-Embedding | The Trace view is designed for about 1,000 statements per topic; owners can split topics |
+| Review load | Median 1, max 4 cards per owner per week over a simulated year | Real conflict rates and owner behaviour | Conflict precision at G1; weekly active owners at G2 | Levels, the weekly budget, precedence rules and change reviews |
+| Incremental freshness at scale | 10,000 documents: 72 s to sync, 535 s to settle; 1 of 175 edits asked a person | Real change patterns, webhooks and rate limits in a live Feishu tenant | The pilot tenant | The nightly full listing catches whatever push and polls miss |
+| Permissions without leaks or blank pages | SpiceDB checks, scope filters and consistency tokens built; the compiled-knowledge design has eight acceptance tests | Precision of the omission check, which needs a model for "the other side" | An evaluation set of balanced arguments and abuse cases; the red team | Three of the four triggers need no model; "publish with a note" is always available |
+| Answers and agent efficiency | Contracts in place | Retrieval quality and tokens per task | Recall@10 and tokens per task against a chunk-only baseline (G1, G2) | Hybrid search with rerank; tools return handles before text |
+| Knowledge across languages | Language packs and language-neutral keys built | Missed and wrong merges across languages | A three-language evaluation corpus | Unmerged statements stay duplicates, never false conflicts |
+| Parsing Office, PDF and scans | Built-in text parsers | Throughput and layout quality, especially on domestic accelerators | Benchmark Docling and PaddleOCR-VL on the customer's hardware early in a pilot | A router with confidence escalation; placeholders that say "open in source" |
+| Feishu and Lark in production | Connectors built against recorded fixtures; single-flight refresh designed | Rate limits and token refresh on a real tenant | The pilot tenant | Reserved rate share for interactive calls; re-authorization todos |
+| Model cost | 5.6k model calls for 10,000 documents with governance levels, against 10k without | Tokens and money per document on real models | Measure in the probe | Levels, extract on use, the response cache and a flash-class model |
+| Compliance in China | Known requirements: generative AI filing, ICP licence, classified protection | Time to certify | Start filings before G3 | Private deployment first for regulated buyers |
+
+## 22. How we build
+
+- **Contracts first.** `packages/contracts/schema/*.yaml` is the source of truth; types and validators are generated. Additive changes are fine in a branch; anything that removes, renames or tightens a field needs agreement first. See [contracts.md](contracts.md).
+- **Boundaries are checked, not trusted.** A package sits in its layer's folder and depends only on the libraries and the components in its `calls`; dependencies between the layers point one way.
+- **Plugins by registry.** Connectors, agent tools, parsers, diagram compilers, index backends, data providers, model providers, model mocks, view templates and migrations register by name in fixed plugin groups. A new source or model is a new plugin, not a core change.
+- **Tests on both backends.** Unit tests use in-memory doubles; code with a Postgres, Valkey or SpiceDB implementation runs the same tests against the real stack. `make check` runs Biome, strict `tsc`, contract freshness and every test with the stack up.
+- **A demo tenant and a scale generator.** `examples/corpus` is Qinghe Technology, with planted duplicates and conflicts; `pnpm engine synthesize` writes synthetic tenants of any size, and `pnpm engine ingest` prints a volume report.
+- **Every change lands through a pull request.** The product owner's local Codex reviews it; findings are fixed and the PR is merged. Correctness comes first, then layering, clear component boundaries and explicit contracts.
+- **Names describe what things do.** No plan numbers in code, docs or events. [AGENTS.md](../AGENTS.md) has the full rules for anyone, human or agent, building a component.
+
+**Technology stack.**
 
 | Concern | Prototype | Product |
 | --- | --- | --- |
@@ -828,56 +966,34 @@ Planned, with contracts in place:
 | Sandbox | Docker with gVisor | Kata Containers or Firecracker with warm pools |
 | Deployment | Docker Compose on one node | Helm, air-gapped bundle, amd64 and arm64 |
 
-- **Two deployment profiles from one codebase.** SaaS comes first: a company's region is fixed at
-  creation, starting with mainland China and one global region. Public SaaS in mainland China needs
-  a generative AI filing, an ICP licence and classified protection. Private deployment is the
-  second profile, with domestic infrastructure (Kylin, Kunpeng or Hygon, KingbaseES, Ascend) as
-  the target for certification.
-- **Licences.** pg_search is AGPL-3.0; BM25 sits behind a plugin interface so an OpenSearch index
-  can replace it where a customer needs that. Valkey (BSD) is used instead of Redis. See
-  [licensing.md](licensing.md).
+```mermaid
+flowchart TB
+  lb[Load balancer] --> webb["Web backend and<br/>business services"]
+  lb --> api["Agent API<br/>stateless"]
+  webb --> eng["Engine services<br/>and workers"]
+  api --> eng
+  eng --> pg[("PostgreSQL 16<br/>knowledge, outbox,<br/>business schema")]
+  eng --> sp[(SpiceDB)]
+  eng --> vk[("Valkey<br/>streams, cache")]
+  eng --> blob[(Blob store)]
+  eng --> gw[Model gateway]
+  gw --> prov["Model providers<br/>cleared per label"]
+  eng --> parse["Parsing worker<br/>GPU"]
+  eng --> sbx[Sandbox pool]
+```
 
-### How we build
+*Figure 16. One SaaS region. Each company's data stays in the region chosen when the company was created.*
 
-- **Contracts first.** `packages/contracts/schema/*.yaml` is the source of truth; types and
-  validators are generated. Additive changes are fine in a branch; anything that removes, renames
-  or tightens a field needs agreement first. See [contracts.md](contracts.md).
-- **Boundaries are checked, not trusted.** Engine modules and business levels share one
-  repository, so their boundaries are tests: a package sits in its layer's folder and depends only
-  on the libraries and the components in its `calls`, and dependencies between the layers point
-  one way.
-- **Plugins by registry.** Connectors, parsers, diagram compilers, index backends, model providers,
-  model mocks, view templates and migrations register by name in fixed plugin groups. A new source
-  or model is a new plugin, not a core change.
-- **Tests on both backends.** Unit tests use in-memory doubles; code with a Postgres, Valkey or
-  SpiceDB implementation runs the same tests against the real stack. `make check` runs Biome,
-  strict `tsc`, contract freshness and every test with the stack up.
-- **A demo tenant and a scale generator.** `examples/corpus` is a fictional company with planted
-  duplicates and conflicts; `pnpm engine synthesize` writes synthetic tenants of any size, and
-  `pnpm engine ingest` prints a volume report.
-- **Every change lands through a pull request.** The product owner's local Codex reviews it; findings are
-  fixed and the PR is merged. Correctness comes first, then layering, clear component boundaries and
-  explicit contracts.
-- **Names describe what things do.** No plan numbers in code, docs or events. [AGENTS.md](../AGENTS.md)
-  has the full rules for anyone, human or agent, building a component.
+- **Two deployment profiles from one codebase.** SaaS comes first: a company's region is fixed at creation, starting with mainland China and one global region. Public SaaS in mainland China needs a generative AI filing, an ICP licence and classified protection. Private deployment is the second profile, with domestic infrastructure (Kylin, Kunpeng or Hygon, KingbaseES, Ascend) as the target for certification.
+- **Licences.** pg_search is AGPL-3.0; BM25 sits behind a plugin interface so an OpenSearch index can replace it where a customer needs that. Valkey (BSD) is used instead of Redis. See [licensing.md](licensing.md).
 
-## Where we are
+## Part III. Plan
 
-**Built and merged on `main`** (PRs #2 to #7, 2026-10-23 and 2026-10-24): contracts, kernel, event
-bus, test kit, knowledge store, access control, model gateway, agent runtime, connectors, source
-sync, normalization, extraction, governance, freshness, tenant-scoped member IDs, and the engine
-process with its CLI, demo corpus and synthesizer.
+## 23. Where we are
 
-**Statements at scale**, merged on 2026-10-26 after two Codex rounds:
+**Built and merged on `main`:** contracts, kernel, event bus, test kit, knowledge store, access control, model gateway, agent runtime, connectors, source sync, normalization, extraction, governance, freshness, tenant-scoped member IDs, and the engine process with its CLI, demo corpus and synthesizer (PRs #2 to #7); governance levels, fact-slot keys and extract on use, topics and placements, and the inbox (PRs #8 to #10); language rules in resource files for en, zh and ja with a repo test against Chinese and Japanese in code (PRs #12 and #13); and the design documents (PRs #11 and #14).
 
-| PR | Adds |
-| --- | --- |
-| [#8](https://github.com/AngelMsger/Inspiration/pull/8) | Governance levels, fact-slot keys and the slot read, extract on use |
-| [#9](https://github.com/AngelMsger/Inspiration/pull/9) | Topics and placements in page-compiler: the knowledge outline |
-| [#10](https://github.com/AngelMsger/Inspiration/pull/10) | The inbox in collaboration: owner routing, weekly cards, budget, notes, campaigns; topic owners |
-
-**Measured** on a synthetic tenant of 10,000 documents with the mocked model and fake embeddings
-(Postgres and Valkey). These numbers describe volumes and the pipeline, not model quality:
+**Measured** on a synthetic tenant of 10,000 documents with the mocked model and fake embeddings (Postgres and Valkey). These numbers describe volumes and the pipeline, not model quality:
 
 | Measure | Value |
 | --- | --- |
@@ -886,7 +1002,7 @@ process with its CLI, demo corpus and synthesizer.
 | Statements in a fact slot | 59% |
 | Model calls (before governance levels) | 5.6k (10k) |
 | Conflict todos | 30 (28 normal, 2 high) |
-| Source updates that asked a person for anything | 1 of 175 in an edit round |
+| Source updates that asked a person anything | 1 of 175 in an edit round |
 | Topics; statements per topic, median / max | 41; 1,143 / 6,206 |
 | Statements that changed topic on a second re-clustering / after a round of edits | 0 of 25,660 / 0 of 25,683 |
 | Inbox cards per owner per week, median / max (15 owners, one simulated year) | 1 / 4, with or without the budget of 10 |
@@ -894,54 +1010,20 @@ process with its CLI, demo corpus and synthesizer.
 | First citation of a reference passage (mocked) | 13 ms median |
 | Ingest time, with topics | 72 s to sync, 535 s to settle |
 
-Topics come out about ten times larger than the design target of about 100 statements, because the
-synthetic tenant restates 30 subjects across many documents and fake embeddings cannot tell those
-sections apart. Splitting can only be judged with real embeddings, so the Trace view is designed
-for about 1,000 statements per topic. The budget never had to hold a todo back, because grouping
-by owner, topic and week already keeps every owner under it.
+Topics come out about ten times larger than the design target of about 100 statements, because the synthetic tenant restates 30 subjects across many documents and fake embeddings cannot tell those sections apart. The budget never had to hold a todo back, because grouping by owner, topic and week already keeps every owner under it.
 
-**Designed and decided, not built:** the two-domain permission rule and the principal token,
-publishing, credential broker and sandbox, the Sources tree and mirror pages, pages and views,
-retrieval and the agent API, research with `fetch_now` and `web_search`, the parsing worker,
-source deletions and change reviews, knowledge across languages, internationalization, and the
-whole business layer and UI.
+**Designed, not built:** the two-domain permission rule and the principal token, publishing, compiled-knowledge permissions, the credential broker and sandbox, the Sources tree and mirror pages, pages and views, retrieval and the agent API, research, the parsing worker, source deletions and change reviews, knowledge across languages, and the whole business layer and UI.
 
-## Plan
+## 24. Next steps and effort
 
-### Next: finish the mocked end-to-end prototype
+The rule is to mock every model call until each stage runs end to end, and only then switch on real models. The proposed order of the remaining stages, for discussion:
 
-The rule is to mock every model call until each stage of the product runs end to end, and only
-then switch on real models. A proposed order for the remaining stages, for discussion:
-
-1. **The language cleanup:** language rules into resource files, the repo test against Chinese and
-   Japanese in code, and Chinese copies of the other docs.
-2. **Engine side of the business contract:** the principal token, provisioning and the seed
-   command, the two-domain space and proof rules in access-control, and domain keys on slots and
-   conflicts. A permission fixture covers four cases: alternative proofs, jointly required inputs,
-   an approved cross-space publication, and a later narrowing of an input space.
-3. **Pages and views of sources:** cited page synthesis, PageSpec snapshots and diffs, the
-   dependency graph with `artifact.dirty`, mirror pages and the Sources tree.
-4. **Search and agents:** retrieval with its own indexes, grounded answers, the topic overview read,
-   and the MCP server.
-5. **Connections and parsing:** the credential broker, member connections, the parsing worker.
-6. **Research, views and the sandbox.**
-7. **Business layer phase 1 and the web app,** in parallel once the contract (week 1) is in place.
-
-### Then: real models, and the gates
-
-When the mocked pipeline covers every stage, real model access is requested and the measurements
-are repeated on real content. The gates are targets to calibrate on pilot data:
-
-| Gate | When | Criteria |
-| --- | --- | --- |
-| G1, prototype | End of real-model validation | Citation entailment at or above 95%; zero leaks on the permission red-team set (personal-space isolation, cross-space citations and derivations, shared answers, graph paths); conflict-queue precision at or above 50%; one procedure domain verified by its owners; agent tokens per task measured against a chunk-only baseline; and, added for internationalization, an evaluation corpus in Chinese, Japanese and English |
-| G2, pilot | About month 6 | A design partner runs it with at least five owners active weekly; permission revocation reaches every reader within 15 minutes at p95; retrieval Recall@10 beats the chunk baseline on the partner's own set; signed commercial intent |
-| G3, product v1 | About month 12 | Classified protection level 3 control pack, domestic-infrastructure compatibility certificates (Kylin, Kunpeng or Hygon, KingbaseES, Ascend), air-gapped install in under one day, two paying customers |
-
-### Effort
-
-Estimates in person-weeks, from the design documents; the internationalization figure is this
-document's estimate.
+1. **Engine side of the business contract:** the principal token, provisioning and the seed command, the space and proof rules in access-control, and domain keys on slots and conflicts.
+2. **Pages and views of sources:** cited page synthesis for an audience, `PageSpec` snapshots and diffs, the dependency graph with `artifact.dirty`, mirror pages and the Sources tree.
+3. **Search and agents:** retrieval with its own indexes, grounded answers, the topic overview read, and the MCP server with the ten tools.
+4. **Connections and parsing:** the credential broker, member connections, the parsing worker.
+5. **Research, views and the sandbox.**
+6. **Business layer phase 1 and the web app,** in parallel once the contract is in place.
 
 | Scope | Person-weeks |
 | --- | --- |
@@ -957,77 +1039,98 @@ document's estimate.
 | Permissions in compiled knowledge (writing for an audience, the omission check, releases) | 3 |
 | **Total** | **about 123** |
 
-After that, pilot and product-v1 work for Artifact-level editing (templates, Word and PDF export,
-block editor, real-time co-editing, the view host API, mobile, share links) is about 19 to 27, and
-billing about 3. The first seven prototype stages were built by agents in two days, so calendar
-time depends more on review and integration than on these person-week figures.
+After that, pilot and product-v1 work for Artifact-level editing (templates, Word and PDF export, block editor, real-time co-editing, the view host API, mobile, share links) is about 19 to 27, and billing about 3. The first seven prototype stages were built by agents in two days, so calendar time depends more on review and integration than on these figures.
 
-## Risks
+## 25. Risks
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
 | Extraction errors gain false authority | Wrong answers to people and agents | Verbatim quotes, entailment checks, confidence thresholds, governance levels |
 | Oversharing at publishing | A restricted document becomes readable by a whole space | Audience-gap warning, sensitivity and personal-data scan, owner approval, source-restricted todo, audit |
-| Review fatigue | Owners ignore their inbox | Governance levels, grouping per topic and week, weekly budget, notes outside the budget, queue precision as a product metric |
-| Topic churn and size | Topics too large or unstable to own | Stable keys, a change budget per run, owner confirmation; to be re-measured with real embeddings |
-| Human edits lost on rebuild | Loss of trust | Pinned overrides that a rebuild never overwrites; todos instead |
-| Cross-language matching | The same fact in two languages is missed or wrongly merged | Language-neutral keys, per-language aliases, translations linked to their originals, a model check before any merge, a multilingual evaluation corpus |
-| Suites bundle similar features | Lost single-suite deals | Lead with cross-suite governance and the governed agent endpoint |
+| Omissions mislead readers | A page shows one side of an argument | The omission check, notes for readers, releases per statement |
+| Review fatigue | Owners ignore their inbox | Governance levels, grouping per topic and week, weekly budget, change reviews, notes outside the budget, queue precision as a product metric |
+| Topic churn and size | Topics too large or unstable to own | Stable keys, a change budget per run, owner confirmation; re-measured with real embeddings |
+| Human edits lost on rebuild | Loss of trust | A separate human layer; pinned overrides a rebuild never overwrites; todos instead |
+| Cross-language matching | The same fact in two languages is missed or wrongly merged | Language-neutral keys, aliases per language, translations linked to originals, a model check before any merge, a three-language evaluation corpus |
+| Suites bundle similar features | Lost single-suite deals | Lead with cross-tool governance and the governed agent endpoint |
 | Model throughput on domestic accelerators | Slow first index | Benchmark on the customer's hardware early in a pilot |
 
-## Decisions in force
+## 26. Decisions in force
 
 | Decided | Decision |
 | --- | --- |
-| 2026-10-22 | Product name Inspiration; Artifact-level page presentation is committed scope; underlying capabilities first, accepted through MCP, REST and the CLI |
+| 2026-10-22 | Product name Inspiration; Artifact-level page presentation is committed scope; capabilities first, accepted through MCP, REST and the CLI |
 | 2026-10-23 | TypeScript everywhere except a Python parsing worker; descriptive component names; every change through a PR reviewed by the product owner's local Codex |
 | 2026-10-23 | A mocked end-to-end prototype of every stage first; real model access only after it runs; engine and UI iterate together on measured volumes |
 | 2026-10-24 | Three IDs: tenant, user (account) and member |
-| 2026-10-24 | Two knowledge domains: My space private, shared spaces top down; source permissions only warn; publishing moves knowledge; credentials decide freshness only |
-| 2026-10-24 | Statements at scale: two outlines, governance levels, grouped review; uploads start as reference, a weekly budget of 10, reference never blocks a governed statement |
-| 2026-10-24 | Engine and business layer split, with the protocol above; Logto as identity provider; SaaS first with private deployment as a second profile; My space locked on leaving and erased after 30 days; approvers see only a request's items; every publish gets a sensitivity scan and owner approval |
-| 2026-10-24 | Connectors on vendor APIs, CLIs only in the sandbox, a credential broker |
+| 2026-10-24 | Two knowledge domains: My space private, shared spaces governed top down; source permissions only warn; publishing moves knowledge; credentials decide freshness only |
+| 2026-10-24 | Statements at scale: two outlines, governance levels, grouped review; uploads start as Reference; a weekly budget of 10; reference never blocks a governed statement |
+| 2026-10-24 | Engine and business layer split; Logto as identity provider; SaaS first with private deployment as a second profile; My space locked on leaving and erased after 30 days; approvers see only a request's items |
+| 2026-10-24 | Connectors on vendor APIs, vendor CLIs only in the sandbox, a credential broker |
 | 2026-10-24 | Three views and two trees for reading |
 | 2026-10-24 | Pipeline boundaries: normalization before extraction and indexing, retrieval owns every index, freshness emits signals only, collaboration owns every todo |
 | 2026-10-24 | English, Chinese and Japanese from the first release; no Chinese in code or comments; docs in English with a Chinese copy |
-| 2026-10-26 | Three product roles: super admin, owner (of a space, topic, page or procedure) and member; finer roles stay internal and product roles are bundles of them. An owner is always named with its scope, such as topic owner, never a bare Owner |
+| 2026-10-26 | Three product roles: super admin, owner (always named with its scope) and member; finer roles stay internal and product roles are bundles of them |
 | 2026-10-26 | Usage follows mainstream AI products: seats fill a company pool, members have default caps, the super admin sees usage but never content; details come with billing |
-| 2026-10-26 | Chinese terms: the company is 企业, the governance levels are 严格, 宽松 and 仅检索. English says Company and Japanese 企業 to match 企业; never "workspace" |
+| 2026-10-26 | Words: Company in English, 企业 in Chinese, 企業 in Japanese, never "workspace"; governance levels 严格, 宽松 and 仅检索 in Chinese |
 | 2026-10-26 | Source changes: knowledge never disappears silently; a deleted source is kept and marked until its owner decides; a large change is reviewed once, as a whole |
-| 2026-10-26 | Knowledge is language-neutral and language is only how it is expressed: one unit per piece of knowledge in every language, translations count with their originals, quotes stay verbatim, readers read in their own language |
-| 2026-10-26 | Engine and business layer in one monorepo, a folder per layer (`libs/`, `engine/`, `business/`, `apps/`); boundaries between engine modules and business levels are enforced by the manifest test; the two layers still deploy separately |
-| 2026-10-26 | One integration per vendor serves both sync and agent tools: one client, credentials only as broker leases, one rate budget and one audit trail; tools act as the member; only code we did not write runs in the sandbox |
+| 2026-10-26 | Knowledge is language-neutral and language is only how it is expressed |
+| 2026-10-26 | Anyone who holds a credential to a source may import from it; no blocking by email domain or Feishu organization; verified domains only for joining |
+| 2026-10-26 | Agents running on their own only read or propose; a member's explicit request is the approval for an edit within that member's rights (`knowledge.write`) |
+| 2026-10-26 | Engine and business layer in one monorepo, a folder per layer (`libs/`, `engine/`, `business/`, `apps/`), with one-way dependencies checked by the manifest test |
+| 2026-10-26 | One integration per vendor serves both sync and agent tools; tools act as the member; only code we did not write runs in the sandbox |
 
-## Open questions for the next discussion
+## 27. Open questions
 
-- Review the proposed Japanese terms in the glossary.
-- Which SaaS region opens first, and how gates G2 and G3 change for SaaS first (G3 was written for
-  private deployment in China).
-- Which model providers serve each region, and at which sensitivity labels.
-- Which connectors come second and third outside China (for example Confluence, Notion, Google
-  Drive, SharePoint), and which first design partner and industry the pilot targets.
-- The order of the remaining prototype stages proposed above, and whether a small, capped probe
-  with a real model on real documents should run before every stage is mocked.
-- Confirm the trade-offs of [permissions in compiled knowledge](design/compiled-knowledge-permissions.md):
-  readers learn that relevant restricted material exists and whom to ask, never its content, and
-  `secret` material leaves no trace.
+1. **Confirm the boundary between the super admin and owners, and the Chinese name 维护人** (section 4).
+2. **Confirm the trade-off in compiled-knowledge permissions:** at `internal` and `confidential`, readers learn that relevant restricted material exists and whom to ask, never its content; `secret` material leaves no trace (section 15).
+3. **Review the proposed Japanese terms** in the glossary.
+4. **Which SaaS region opens first,** and how gates G2 and G3 change for SaaS first.
+5. **Which model providers serve each region,** and at which sensitivity labels.
+6. **Which connectors come second and third outside China** (for example Confluence, Notion, Google Drive, SharePoint), and which first design partner and industry the pilot targets.
+7. **The order of the remaining prototype stages,** and whether a small, capped probe with a real model on real documents should run before every stage is mocked.
+8. **Two details of the agent tools:** whether `search` ranks blocks and statements together by default, and whose budget pays for the model call inside `answer`.
 
-## Further reading
+## Appendix A. Glossary in three languages
 
-- [UI principles](design/ui-principles.md): interaction principles, visual system, key screens and the
-  UI's internationalization rules.
-- [Statements at scale](design/statements-at-scale.md): two outlines, fact slots, governance levels,
-  grouped review and the measured volumes.
-- [Business layer](design/business-layer.md): accounts, companies, publishing, governance roles,
-  agent access and the business-layer plan.
-- [Business layer and engine contract](design/business-engine-contract.md): the commands, events,
-  principal token and schema changes between the two layers.
-- [Source changes](design/source-changes.md): what happens when a source corrects itself, is
-  deleted or changes at scale, and when a person is asked.
-- [Knowledge and language](design/knowledge-and-language.md): knowledge is language-neutral;
-  translations, cross-language merge and pages in another language.
-- [Permissions in compiled knowledge](design/compiled-knowledge-permissions.md): writing for an
-  audience, omissions that change the meaning, releases, abuse cases and trade-offs.
+One glossary feeds every status, button and empty state. The Chinese column is adopted except where marked; the Japanese column is proposed and waits for review.
+
+<!-- glossary -->
+| English | Chinese | Japanese |
+| --- | --- | --- |
+| Personal library | 我的知识库 (个人知识库 in the switcher) | マイライブラリ (個人ライブラリ in the switcher) |
+| Company | 企业 | 企業 |
+| Space, My space | 空间, 我的空间 | スペース, マイスペース |
+| Member | 成员 | メンバー |
+| Company connection, Personal connection | 企业连接, 个人连接 | 企業の接続, 個人の接続 |
+| Source, Passage, Statement | 来源, 段落, 陈述 | ソース, 段落, 記述 |
+| Topic, Knowledge page, Procedure, Card | 主题, 知识页, 流程, 卡片 | トピック, ナレッジページ, 手順, カード |
+| Knowledge tree, Sources tree | 知识树, 来源树 | ナレッジツリー, ソースツリー |
+| Original, Annotated, Knowledge views | 原文, 批注, 知识 | 原文, 注釈, ナレッジ |
+| Fresh, Review due, Outdated, Disputed | 有效, 待复核, 已过时, 有争议 | 有効, 要確認, 旧版, 異論あり |
+| Space owner, Topic owner, Page owner, Procedure owner (proposed in Chinese); Super admin | 空间维护人、主题维护人、页面维护人、流程维护人；超级管理员 | スペース担当者、トピック担当者、ページ担当者、手順担当者；特権管理者 |
+| Rule | 裁决规则 | 裁定ルール |
+| Any one, Everyone (approval modes) | 或签, 会签 | いずれか承認, 全員承認 |
+| Who can read this | 可见范围 | 公開範囲 |
+| Inbox, Assistant | 待办, 助手 | 受信トレイ, アシスタント |
+| Keep fresh with the company connection, Keep fresh with my connection, Publish a snapshot | 通过企业连接保持更新, 通过我的连接保持更新, 发布快照 | 企業の接続で最新に保つ, 自分の接続で最新に保つ, スナップショットを公開 |
+| Some readers can't open the original | 部分读者无法打开原文 | 一部の閲覧者は原文を開けません |
+| Source permissions tightened | 来源权限收紧 | ソースの権限が縮小されました |
+| Governed, Reference, Search only | 严格, 宽松, 仅检索 | 規程, 参考, 検索のみ |
+| Trace view | 追溯 | 追跡 |
+| Release to | 放行到 | 公開を許可 |
+| May be incomplete | 可能不完整 | 不完全な可能性があります |
+<!-- /glossary -->
+
+## Appendix B. Further reading
+
+- [UI principles](design/ui-principles.md): interaction principles, visual system, key screens and the UI's internationalization rules.
+- [Statements at scale](design/statements-at-scale.md): two outlines, fact slots, governance levels, grouped review and the measured volumes.
+- [Business layer](design/business-layer.md): accounts, companies, publishing, governance roles, agent access and the business-layer plan.
+- [Business layer and engine contract](design/business-engine-contract.md): the commands, events, principal token and schema changes between the two layers.
+- [Source changes](design/source-changes.md): what happens when a source corrects itself, is deleted or changes at scale.
+- [Knowledge and language](design/knowledge-and-language.md): translations, cross-language merge and pages in another language.
+- [Permissions in compiled knowledge](design/compiled-knowledge-permissions.md): writing for an audience, omissions that change the meaning, releases, abuse cases and trade-offs.
 - [Architecture](architecture.md): components, how they talk, storage and security as built.
 - [Contracts](contracts.md): changing schemas, IDs, events, versioning.
 - [PageSpec and views](pagespec.md): pages compared with Claude Artifacts, and the view sandbox.

@@ -45,7 +45,7 @@ sub        PrincipalId (mem_ | agt_ | svc_)   # never a usr_ user ID
 tid        TenantId
 kind       PrincipalKind
 obo        PrincipalId          # agents: the member they act for
-scope      "knowledge.read knowledge.propose comments.write" | "provision.directory" ...
+scope      "knowledge.read knowledge.propose knowledge.write comments.write" | "provision.directory" ...
 spaces     SpaceId[]            # optional agent space scope
 max_sens   SensitivityLabel     # optional
 locale     Locale               # the account's UI language: en, zh-CN or ja
