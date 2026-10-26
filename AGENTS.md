@@ -56,6 +56,11 @@ producer name, its consumer group and the first part of its model task names.
 - The engine has no accounts, sign-in or UI concerns. Every API takes the tenant and the
   principal it acts for; people, tenants and policy are provisioned by the business layer
   (see `docs/architecture.md`).
+- The engine and the business layer share this repository, each in its own folder
+  (`engine/`, `business/`, with `libs/` and `apps/`; see "One repository, a folder per layer"
+  in `docs/architecture.md`). Nothing in the engine or the libraries depends on a business
+  package. A business package reaches the engine only through the contracts and the engine's
+  API client, never by importing an engine component.
 
 ## Contracts
 

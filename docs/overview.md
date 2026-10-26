@@ -359,7 +359,7 @@ Japanese column is proposed and waits for review.
 
 ### Two layers: the engine and the business layer
 
-**The engine** (this repository) owns everything about knowledge: connectors, the pipeline,
+**The engine** owns everything about knowledge: connectors, the pipeline,
 storage, permission checks, model access and the agent API. **The business layer** owns people,
 tenants, sign-in, policy values, approvals, notifications, billing and the web app. Calls go down
 and events come up: the business layer sends commands and queries, the engine answers and
@@ -406,6 +406,15 @@ flowchart TB
   snapshot repairs drift, and an hourly digest check catches it in between.
 - **Contracts live in one place.** JSON Schema in this repository is the source of truth for both
   layers. Business-only types go in their own folder that engine packages never import.
+- **One repository, a folder per layer.** Both layers are built in this monorepo: shared libraries
+  in `libs/`, engine components in `engine/`, business components in `business/`, and
+  composition roots in `apps/` (the libraries and engine components are in `packages/` until a
+  rename-only move). Each section of `components.yaml` maps to one folder, and the manifest test
+  fails anything in `engine/` or `libs/` that depends on `business/`. A business component reaches
+  the engine only through the contracts and the engine's API client. One toolchain and one
+  `make check` cover both layers, so a contract change lands with both sides in one pull request,
+  while the engine and the business backend still deploy as separate processes. See
+  [architecture.md](architecture.md#one-repository-a-folder-per-layer).
 
 ### Components
 
@@ -733,6 +742,10 @@ Planned, with contracts in place:
 - **Contracts first.** `packages/contracts/schema/*.yaml` is the source of truth; types and
   validators are generated. Additive changes are fine in a branch; anything that removes, renames
   or tightens a field needs agreement first. See [contracts.md](contracts.md).
+- **Boundaries are checked, not trusted.** Engine modules and business levels share one
+  repository, so their boundaries are tests: a package sits in its layer's folder and depends only
+  on the libraries and the components in its `calls`, and dependencies between the layers point
+  one way.
 - **Plugins by registry.** Connectors, parsers, diagram compilers, index backends, model providers,
   model mocks, view templates and migrations register by name in fixed plugin groups. A new source
   or model is a new plugin, not a core change.
@@ -881,6 +894,7 @@ time depends more on review and integration than on these person-week figures.
 | 2026-10-26 | Chinese terms: the company is 企业, the governance levels are 严格, 宽松 and 仅检索. English says Company and Japanese 企業 to match 企业; never "workspace" |
 | 2026-10-26 | Source changes: knowledge never disappears silently; a deleted source is kept and marked until its owner decides; a large change is reviewed once, as a whole |
 | 2026-10-26 | Knowledge is language-neutral and language is only how it is expressed: one unit per piece of knowledge in every language, translations count with their originals, quotes stay verbatim, readers read in their own language |
+| 2026-10-26 | Engine and business layer in one monorepo, a folder per layer (`libs/`, `engine/`, `business/`, `apps/`); boundaries between engine modules and business levels are enforced by the manifest test; the two layers still deploy separately |
 
 ## Open questions for the next discussion
 

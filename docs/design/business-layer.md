@@ -299,6 +299,8 @@ The browser reaches the engine only through the business layer, while the CLI an
 | billing | Plans, seats, the company usage pool and per-member caps | Budget limits, usage records | 3 |
 | web | Product web app and its backend-for-frontend (UI design: [UI principles](ui-principles.md)) | All of the above, as the signed-in member | 1 |
 
+Each business component is a package in `business/<name>` of the same repository as the engine; the web app and the backend that wires these components are apps in `apps/`.
+
 What stays in the engine: everything about knowledge (connectors, sync, parsing, normalization, extraction, freshness, governance agents, page compiler, views, collaboration mechanics such as comments, overrides, todos and the publish state machine), the knowledge store, retrieval, the agent API, access control (SpiceDB, space audiences, the two domains, audit), the model gateway and agent runtime, research, the credential broker and the sandbox. Access control does not do SSO or directory sync, which belong to the business layer; it keeps identity mapping, and only for publish warnings.
 
 ## Engine and business protocol
@@ -310,7 +312,7 @@ Calls go down, events come up: the business layer sends commands and queries to 
 1. **Authority is split by subject.** The business layer is the authority on people, tenants and policy values. The engine is the authority on knowledge and on every permission check. The engine keeps a copy of whatever it must enforce (members, groups, roles, policies) and never takes the business layer's word on content access.
 2. **Every call carries a principal.** User actions carry the member. Provisioning carries a service principal (for example `svc_tenancy`) with a narrow scope such as `provision.directory`.
 3. **Commands are idempotent.** Each carries an idempotency key and, for directory objects, a version. Each returns a consistency token (the SpiceDB ZedToken), which the web backend passes on the next read so a newly granted space shows at once.
-4. **Contracts live in one place.** JSON Schema in `packages/contracts/schema` stays the source of truth. Business-only types (users, invitations, approvals) go in their own folder that engine packages never import. REST shapes are generated from the schema.
+4. **Contracts live in one place.** Both layers are built in one repository, each in its own folder (`engine/`, `business/`, with shared `libs/` and `apps/`). JSON Schema in the contracts library stays the source of truth. Business-only types (users, invitations, approvals) go in their own folder that engine packages never import. REST shapes are generated from the schema.
 
 ### Identity on each request
 

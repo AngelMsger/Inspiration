@@ -5,9 +5,11 @@ living knowledge base. It extracts claims with exact evidence, keeps them fresh 
 change, compiles them into cited pages, SOPs and interactive views, and serves them to
 people and to agents with the reader's own permissions.
 
-This repository holds the engine: ingestion, the knowledge pipeline, storage, permissions,
-model access and the agent API. The business layer (identity, tenants and accounts,
-publishing policy) and the UI are built separately and use the engine's APIs and events.
+This repository holds the whole product as one monorepo. The engine (ingestion, the knowledge
+pipeline, storage, permissions, model access and the agent API) is built; the business layer
+(identity, tenants and accounts, publishing policy) and the web app come next, in their own
+folder, and use the engine only through its APIs and events. Checks keep each layer and each
+component inside its boundaries (see [Architecture](docs/architecture.md)).
 
 ## Status
 
@@ -90,6 +92,9 @@ docs/                     overview, design, architecture, contracts, PageSpec an
 docs/zh/                  Chinese copies of the overview and design docs
 test/                     repo-wide checks (the component manifest)
 ```
+
+The libraries and engine components move from `packages/` to `libs/` and `engine/` in one
+rename-only pull request; business components will live in `business/`.
 
 ## Documentation
 
