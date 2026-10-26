@@ -308,6 +308,11 @@ export type FreshnessState = "fresh" | "aging" | "stale" | "at_risk";
 export type GatewayErrorCode =
   "budget_exceeded" | "no_route" | "provider_error" | "invalid_output" | "timeout" | "bad_request";
 export type GatewayOperation = "complete" | "embed" | "rerank" | "ocr";
+/**
+ * How much of a source the engine governs. governed: fully extracted, and its claims get owners, review clocks and conflict todos. reference: extracted only on use (a passage that touches a catalogue slot, or one a page or an answer cites), with no owners, reviews or todos; a value that differs from a governed one is a note, never a conflict todo. search_only: never extracted, only searched.
+ *
+ */
+export type GovernanceLevel = "governed" | "reference" | "search_only";
 export type HitKind = "claim" | "sop" | "section" | "page" | "entity" | "chunk" | "knowledge_model";
 export type KnowledgeModelId = string;
 export type KnowledgeModelKind = "formula" | "decision_table" | "kpi";
@@ -1254,6 +1259,11 @@ export interface Claim {
    *
    */
   qualifiers?: string[];
+  /**
+   * The fact slot the claim fills when it states a single-valued fact: its subject entity when resolved, its predicate and its qualifiers, normalized ("hotel_cap_per_night|一线城市"). Claims with one slot key state the same fact; their values are the slot's variants and versions (FactSlot).
+   *
+   */
+  slot_key?: string;
   valid_time: Interval;
   recorded_at: Instant;
   superseded_at?: Instant;
@@ -1744,6 +1754,56 @@ export interface EventEnvelope {
   };
 }
 /**
+ * One single-valued fact across documents and time, read from the claims with its slot key. Variants are the values current claims state; versions are every value claims have stated, with when the system knew it. Counts and a few representatives, never every claim, so a slot with a thousand statements stays a short read.
+ *
+ */
+export interface FactSlot {
+  tenant_id: TenantId;
+  slot_key: string;
+  subject_entity_id?: EntityId;
+  predicate?: string;
+  qualifiers?: string[];
+  /**
+   * The values current claims state, the most stated first.
+   */
+  variants: SlotVariant[];
+  /**
+   * Every value claims have stated, the earliest known first.
+   */
+  versions: SlotVersion[];
+}
+/**
+ * A value current claims of a slot state, and how many claims and documents state it.
+ */
+export interface SlotVariant {
+  /**
+   * The value key (the normalized value, else its number or text).
+   */
+  value: string;
+  claim_count: number;
+  source_version_count: number;
+  /**
+   * Up to five representatives, the highest weight first.
+   */
+  claim_ids: ClaimId[];
+  /**
+   * Up to five of the versions that state it, those of the representatives first.
+   */
+  source_version_ids?: SourceVersionId[];
+  valid_from?: Instant;
+}
+/**
+ * A value claims of a slot have stated, and when the system knew it: from the first claim recorded with it to the last one superseded, open while a current claim states it.
+ *
+ */
+export interface SlotVersion {
+  value: string;
+  claim_count: number;
+  known_from: Instant;
+  known_to?: Instant;
+  valid_from?: Instant;
+}
+/**
  * report_feedback from an agent or a reader; becomes a review todo.
  */
 export interface Feedback {
@@ -1875,6 +1935,7 @@ export interface NormalizedDocument {
   approval_state?: ApprovalState;
   sensitivity?: SensitivityLabel;
   authority?: Score01;
+  governance_level?: GovernanceLevel;
   blocks?: DocBlock[];
   file?: BlobRef;
   process?: ProcessSnapshot;
@@ -2311,6 +2372,7 @@ export interface Source {
   owner_id?: PrincipalId;
   default_sensitivity?: SensitivityLabel;
   default_authority?: Score01;
+  governance_level?: GovernanceLevel;
   /**
    * Name of a secret in the deployment's secret store. Never the secret itself.
    */
@@ -2380,6 +2442,7 @@ export interface SourceVersion {
   approval_state: ApprovalState;
   authority: Score01;
   sensitivity: SensitivityLabel;
+  governance_level?: GovernanceLevel;
   fetched_at: Instant;
   previous_version_id?: SourceVersionId;
   /**

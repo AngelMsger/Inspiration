@@ -23,6 +23,7 @@ import {
   type SourceVersion,
   type Span,
   type StoreTx,
+  slotOf,
 } from "@inspiration/contracts";
 import { writeOutbox } from "@inspiration/eventbus";
 import { type Pool, type PoolClient, type Queryable, withTransaction } from "@inspiration/kernel";
@@ -261,6 +262,7 @@ export class PgTx implements StoreTx {
         knowledge_class: c.knowledge_class,
         subject_entity_id: c.subject_entity_id ?? null,
         predicate: c.predicate ?? null,
+        slot_key: slotOf(c) ?? null,
         valid_from: c.valid_time.start ?? null,
         valid_to: c.valid_time.end ?? null,
         recorded_at: c.recorded_at,
@@ -271,15 +273,16 @@ export class PgTx implements StoreTx {
       }));
       await db.query(
         `INSERT INTO kb.claims
-           (id, tenant_id, space_id, status, knowledge_class, subject_entity_id, predicate, valid_from, valid_to,
-            recorded_at, superseded_at, superseded_by, sensitivity, doc)
+           (id, tenant_id, space_id, status, knowledge_class, subject_entity_id, predicate, slot_key, valid_from,
+            valid_to, recorded_at, superseded_at, superseded_by, sensitivity, doc)
          SELECT * FROM jsonb_to_recordset($1::jsonb)
            AS r(id text, tenant_id text, space_id text, status text, knowledge_class text, subject_entity_id text,
-                predicate text, valid_from timestamptz, valid_to timestamptz, recorded_at timestamptz,
+                predicate text, slot_key text, valid_from timestamptz, valid_to timestamptz, recorded_at timestamptz,
                 superseded_at timestamptz, superseded_by text, sensitivity text, doc jsonb)
          ON CONFLICT (id) DO UPDATE SET space_id = excluded.space_id, status = excluded.status,
            knowledge_class = excluded.knowledge_class, subject_entity_id = excluded.subject_entity_id,
-           predicate = excluded.predicate, valid_from = excluded.valid_from, valid_to = excluded.valid_to,
+           predicate = excluded.predicate, slot_key = excluded.slot_key, valid_from = excluded.valid_from,
+           valid_to = excluded.valid_to,
            recorded_at = excluded.recorded_at, superseded_at = excluded.superseded_at,
            superseded_by = excluded.superseded_by, sensitivity = excluded.sensitivity, doc = excluded.doc`,
         [JSON.stringify(rows)],
@@ -486,6 +489,13 @@ export class PostgresStore extends BaseStore {
       `SELECT c.doc FROM kb.claims c WHERE ${where}
        ORDER BY c.recorded_at, c.id COLLATE "C" LIMIT $${params.length + 1}`,
       [...params, query.limit || QUERY_LIMIT],
+    );
+  }
+
+  async claimsInSlot(tenantId: string, slotKey: string): Promise<Claim[]> {
+    return this.#docs(
+      `SELECT doc FROM kb.claims WHERE tenant_id = $1 AND slot_key = $2 ORDER BY recorded_at, id COLLATE "C"`,
+      [tenantId, slotKey],
     );
   }
 

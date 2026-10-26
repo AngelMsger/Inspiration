@@ -12,5 +12,6 @@ export * from "./ids.ts";
 export type * from "./interfaces.ts";
 export * from "./json.ts";
 export * from "./labels.ts";
+export * from "./levels.ts";
 export * from "./slots.ts";
 export * from "./validate.ts";

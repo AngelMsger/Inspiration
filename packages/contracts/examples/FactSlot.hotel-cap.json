@@ -1,0 +1,64 @@
+{
+  "tenant_id": "ten_01JC0000000000000000000001",
+  "slot_key": "hotel_cap_per_night|一线城市",
+  "predicate": "hotel_cap_per_night",
+  "qualifiers": ["一线城市"],
+  "variants": [
+    {
+      "value": "600 CNY/night",
+      "claim_count": 7,
+      "source_version_count": 4,
+      "claim_ids": [
+        "clm_01JC0000000000000000000001",
+        "clm_01JC0000000000000000000002",
+        "clm_01JC0000000000000000000003",
+        "clm_01JC0000000000000000000004",
+        "clm_01JC0000000000000000000005"
+      ],
+      "source_version_ids": [
+        "sv_01JC0000000000000000000001",
+        "sv_01JC0000000000000000000002",
+        "sv_01JC0000000000000000000003",
+        "sv_01JC0000000000000000000004"
+      ],
+      "valid_from": "2026-01-01T00:00:00Z"
+    },
+    {
+      "value": "650 CNY/night",
+      "claim_count": 3,
+      "source_version_count": 3,
+      "claim_ids": [
+        "clm_01JC0000000000000000000006",
+        "clm_01JC0000000000000000000007",
+        "clm_01JC0000000000000000000008"
+      ],
+      "source_version_ids": [
+        "sv_01JC0000000000000000000005",
+        "sv_01JC0000000000000000000006",
+        "sv_01JC0000000000000000000007"
+      ],
+      "valid_from": "2026-10-01T00:00:00Z"
+    }
+  ],
+  "versions": [
+    {
+      "value": "500 CNY/night",
+      "claim_count": 1,
+      "known_from": "2026-10-20T08:00:00Z",
+      "known_to": "2026-10-20T08:05:00Z",
+      "valid_from": "2023-01-01T00:00:00Z"
+    },
+    {
+      "value": "600 CNY/night",
+      "claim_count": 7,
+      "known_from": "2026-10-20T08:01:00Z",
+      "valid_from": "2026-01-01T00:00:00Z"
+    },
+    {
+      "value": "650 CNY/night",
+      "claim_count": 3,
+      "known_from": "2026-10-20T08:03:00Z",
+      "valid_from": "2026-10-01T00:00:00Z"
+    }
+  ]
+}

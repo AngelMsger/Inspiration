@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 /**
  * inspiration-engine ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
- *                    [--today <YYYY-MM-DD>] [--edit <share>] [--days <n>]
+ *                    [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>]
  * inspiration-engine synthesize <dir> --documents <n> [--seed <n>]
  *
  * ingest syncs and normalizes a corpus (see examples/corpus) and prints the report. Without
  * --stack or --database everything stays in memory, which suits the demo corpus; scale runs
  * need Postgres. --stack takes the database, Valkey and blob settings from INSPIRATION_*.
- * --today sets the day governance and freshness take as now. --edit edits that share of a
- * synthesized corpus in place (see edit in synthesize.ts) and ingests it again, reporting
- * the second round on its own. --days then runs the daily tick for n days from today.
+ * --today sets the day governance and freshness take as now. --on-use reads n passages of
+ * reference documents as their first citation would, and times it (see onuse.ts). --edit
+ * edits that share of a synthesized corpus in place (see edit in synthesize.ts) and ingests
+ * it again, reporting the second round on its own. --days then runs the daily tick for n
+ * days from today.
  *
  * synthesize writes a synthetic corpus of about n documents, with truth.json listing every
  * fact it states, for scale runs.
@@ -25,11 +27,12 @@ import { Corpus } from "./corpus.ts";
 import { Engine, type EngineOptions } from "./engine.ts";
 import { days, SimulatedClock } from "./freshness.ts";
 import { daysSummary, ingest, plantedDuplicates, summary } from "./ingest.ts";
+import { onUse, onUseSummary } from "./onuse.ts";
 import { edit, synthesize } from "./synthesize.ts";
 
 const USAGE = [
   "usage: inspiration-engine ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
-  "                          [--today <YYYY-MM-DD>] [--edit <share>] [--days <n>]",
+  "                          [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>]",
   "       inspiration-engine synthesize <dir> --documents <n> [--seed <n>]",
 ].join("\n");
 
@@ -46,6 +49,7 @@ async function main(argv: string[]): Promise<number> {
       documents: { type: "string" },
       seed: { type: "string" },
       today: { type: "string" },
+      "on-use": { type: "string" },
       edit: { type: "string" },
       days: { type: "string" },
     },
@@ -85,6 +89,11 @@ async function main(argv: string[]): Promise<number> {
     console.log(summary(report));
     const out: Record<string, unknown> = { ...report };
     let deadLetters = report.dead_letters;
+    if (values["on-use"]) {
+      const used = await onUse(engine, corpus, Number(values["on-use"]));
+      console.log(`\n${onUseSummary(used)}`);
+      out.on_use = used;
+    }
     if (values.edit) {
       const edits = await edit(dir, { share: Number(values.edit), day: clock.now().toISOString().slice(0, 10) });
       const round = await ingest(engine, corpus);

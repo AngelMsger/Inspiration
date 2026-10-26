@@ -17,6 +17,7 @@ import {
   type Cursor,
   canonicalJson,
   contentHash,
+  isGovernanceLevel,
   type ListPage,
   type NormalizedDocument,
   type ProcessSnapshot,
@@ -155,7 +156,7 @@ export class FeishuApprovalConnector implements Connector {
     const version = this.#version(a);
     if (sameVersion(known, version)) return { unchanged: true };
     const realActorIds = this.source.scope.options?.real_actor_ids === true;
-    const { approval_state, ...extra } = a.properties ?? {};
+    const { approval_state, governance_level, ...extra } = a.properties ?? {};
     const doc: NormalizedDocument = {
       ref: this.#ref(a),
       version,
@@ -170,6 +171,7 @@ export class FeishuApprovalConnector implements Connector {
       }),
     };
     if (typeof approval_state === "string") doc.approval_state = approval_state as ApprovalState;
+    if (isGovernanceLevel(governance_level)) doc.governance_level = governance_level;
     return doc;
   }
 }

@@ -242,6 +242,9 @@
       "LineageNode",
       "LineageEdge",
       "LineageGraph",
+      "FactSlot",
+      "SlotVariant",
+      "SlotVersion",
       "ConflictClass",
       "ConflictTier",
       "ConflictStatus",
@@ -360,6 +363,7 @@
       "CellLocation",
       "DocBlock",
       "DocumentMetadata",
+      "GovernanceLevel",
       "ApprovalState",
       "FormFieldDef",
       "ApprovalNodeType",
@@ -1955,6 +1959,11 @@
           "items": {
             "type": "string"
           }
+        },
+        "slot_key": {
+          "description": "The fact slot the claim fills when it states a single-valued fact: its subject entity when resolved, its predicate and its qualifiers, normalized (\"hotel_cap_per_night|一线城市\"). Claims with one slot key state the same fact; their values are the slot's variants and versions (FactSlot).\n",
+          "type": "string",
+          "minLength": 1
         },
         "valid_time": {
           "description": "When the statement is true in the world (\"true when\").",
@@ -3556,6 +3565,50 @@
         "qualifies"
       ]
     },
+    "FactSlot": {
+      "description": "One single-valued fact across documents and time, read from the claims with its slot key. Variants are the values current claims state; versions are every value claims have stated, with when the system knew it. Counts and a few representatives, never every claim, so a slot with a thousand statements stays a short read.\n",
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "slot_key",
+        "variants",
+        "versions"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        },
+        "slot_key": {
+          "type": "string"
+        },
+        "subject_entity_id": {
+          "$ref": "#/$defs/EntityId"
+        },
+        "predicate": {
+          "type": "string"
+        },
+        "qualifiers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "variants": {
+          "description": "The values current claims state, the most stated first.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SlotVariant"
+          }
+        },
+        "versions": {
+          "description": "Every value claims have stated, the earliest known first.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SlotVersion"
+          }
+        }
+      }
+    },
     "Feedback": {
       "description": "report_feedback from an agent or a reader; becomes a review todo.",
       "type": "object",
@@ -3732,6 +3785,15 @@
         "embed",
         "rerank",
         "ocr"
+      ]
+    },
+    "GovernanceLevel": {
+      "description": "How much of a source the engine governs. governed: fully extracted, and its claims get owners, review clocks and conflict todos. reference: extracted only on use (a passage that touches a catalogue slot, or one a page or an answer cites), with no owners, reviews or todos; a value that differs from a governed one is a note, never a conflict todo. search_only: never extracted, only searched.\n",
+      "type": "string",
+      "enum": [
+        "governed",
+        "reference",
+        "search_only"
       ]
     },
     "GraphEdge": {
@@ -4408,6 +4470,10 @@
         "authority": {
           "description": "Trust in this item, when the connector knows better than the source's default.",
           "$ref": "#/$defs/Score01"
+        },
+        "governance_level": {
+          "description": "The item's level, when the item or a folder above it sets one (front matter, folder defaults, document properties); otherwise the source's applies.\n",
+          "$ref": "#/$defs/GovernanceLevel"
         },
         "blocks": {
           "type": "array",
@@ -5931,6 +5997,76 @@
         "connective"
       ]
     },
+    "SlotVariant": {
+      "description": "A value current claims of a slot state, and how many claims and documents state it.",
+      "type": "object",
+      "required": [
+        "value",
+        "claim_count",
+        "source_version_count",
+        "claim_ids"
+      ],
+      "properties": {
+        "value": {
+          "description": "The value key (the normalized value, else its number or text).",
+          "type": "string"
+        },
+        "claim_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "source_version_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "claim_ids": {
+          "description": "Up to five representatives, the highest weight first.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ClaimId"
+          }
+        },
+        "source_version_ids": {
+          "description": "Up to five of the versions that state it, those of the representatives first.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceVersionId"
+          }
+        },
+        "valid_from": {
+          "description": "The earliest day a claim says the value holds from.",
+          "$ref": "#/$defs/Instant"
+        }
+      }
+    },
+    "SlotVersion": {
+      "description": "A value claims of a slot have stated, and when the system knew it: from the first claim recorded with it to the last one superseded, open while a current claim states it.\n",
+      "type": "object",
+      "required": [
+        "value",
+        "claim_count",
+        "known_from"
+      ],
+      "properties": {
+        "value": {
+          "type": "string"
+        },
+        "claim_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "known_from": {
+          "$ref": "#/$defs/Instant"
+        },
+        "known_to": {
+          "description": "Absent while a current claim states the value.",
+          "$ref": "#/$defs/Instant"
+        },
+        "valid_from": {
+          "$ref": "#/$defs/Instant"
+        }
+      }
+    },
     "SnapshotCause": {
       "type": "object",
       "required": [
@@ -6259,6 +6395,10 @@
           "description": "Authority given to versions from this source unless the connector knows better.",
           "$ref": "#/$defs/Score01"
         },
+        "governance_level": {
+          "description": "The level of the source's items unless a folder or the item sets its own. Absent: reference, the level of uploads and web pages. The admin picks one when connecting a wiki space.\n",
+          "$ref": "#/$defs/GovernanceLevel"
+        },
         "credentials_ref": {
           "description": "Name of a secret in the deployment's secret store. Never the secret itself.",
           "type": "string"
@@ -6482,6 +6622,10 @@
         },
         "sensitivity": {
           "$ref": "#/$defs/SensitivityLabel"
+        },
+        "governance_level": {
+          "description": "The level this version is governed at, resolved by source sync: the item's, else the source's, else reference. Versions written before levels have none and count as governed.\n",
+          "$ref": "#/$defs/GovernanceLevel"
         },
         "fetched_at": {
           "$ref": "#/$defs/Instant"

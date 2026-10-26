@@ -80,6 +80,23 @@ source.changed -> source-sync fetch -> document.fetched (+ acl.changed -> access
   -> retrieval reindexes, collaboration notifies, views refresh
 ```
 
+## Governance levels and fact slots
+
+Not every document deserves an owner's attention. A source, or a folder or item within it,
+has a governance level that source sync resolves onto every version (`SourceVersion
+.governance_level`; uploads and web pages start as `reference`):
+
+| Level | Extraction | Governance | Freshness |
+| --- | --- | --- | --- |
+| `governed` | in full | its values decide a slot; owners get todos | review clocks and copy reviews |
+| `reference` | where a block names a catalogue fact, slot claims only; a passage in full once a page or an answer uses it | its values never outvote or hold up a governed one; a value only it states is a note | none |
+| `search_only` | never | none | none |
+
+Claims about one single-valued fact share a slot key (`Claim.slot_key`: subject entity when
+resolved, predicate and sorted qualifiers). `KnowledgeStore.slot()` reads a slot as a
+handful of rows however many statements it holds: the current values with their counts and
+representatives, and the values it held over time.
+
 ## Storage
 
 One Postgres instance (ParadeDB image: Postgres 16 with pgvector and pg_search) holds:

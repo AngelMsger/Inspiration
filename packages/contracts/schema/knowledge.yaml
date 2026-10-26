@@ -132,6 +132,14 @@ $defs:
         type: array
         items:
           type: string
+      slot_key:
+        description: >
+          The fact slot the claim fills when it states a single-valued fact: its subject entity
+          when resolved, its predicate and its qualifiers, normalized
+          ("hotel_cap_per_night|一线城市"). Claims with one slot key state the same fact; their
+          values are the slot's variants and versions (FactSlot).
+        type: string
+        minLength: 1
       valid_time:
         description: When the statement is true in the world ("true when").
         $ref: "common.yaml#/$defs/Interval"
@@ -814,6 +822,86 @@ $defs:
           $ref: "#/$defs/LineageEdge"
       truncated:
         type: boolean
+
+  FactSlot:
+    description: >
+      One single-valued fact across documents and time, read from the claims with its slot
+      key. Variants are the values current claims state; versions are every value claims have
+      stated, with when the system knew it. Counts and a few representatives, never every
+      claim, so a slot with a thousand statements stays a short read.
+    type: object
+    required: [tenant_id, slot_key, variants, versions]
+    properties:
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      slot_key:
+        type: string
+      subject_entity_id:
+        $ref: "common.yaml#/$defs/EntityId"
+      predicate:
+        type: string
+      qualifiers:
+        type: array
+        items:
+          type: string
+      variants:
+        description: The values current claims state, the most stated first.
+        type: array
+        items:
+          $ref: "#/$defs/SlotVariant"
+      versions:
+        description: Every value claims have stated, the earliest known first.
+        type: array
+        items:
+          $ref: "#/$defs/SlotVersion"
+
+  SlotVariant:
+    description: A value current claims of a slot state, and how many claims and documents state it.
+    type: object
+    required: [value, claim_count, source_version_count, claim_ids]
+    properties:
+      value:
+        description: The value key (the normalized value, else its number or text).
+        type: string
+      claim_count:
+        type: integer
+        minimum: 1
+      source_version_count:
+        type: integer
+        minimum: 0
+      claim_ids:
+        description: Up to five representatives, the highest weight first.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      source_version_ids:
+        description: Up to five of the versions that state it, those of the representatives first.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/SourceVersionId"
+      valid_from:
+        description: The earliest day a claim says the value holds from.
+        $ref: "common.yaml#/$defs/Instant"
+
+  SlotVersion:
+    description: >
+      A value claims of a slot have stated, and when the system knew it: from the first claim
+      recorded with it to the last one superseded, open while a current claim states it.
+    type: object
+    required: [value, claim_count, known_from]
+    properties:
+      value:
+        type: string
+      claim_count:
+        type: integer
+        minimum: 1
+      known_from:
+        $ref: "common.yaml#/$defs/Instant"
+      known_to:
+        description: Absent while a current claim states the value.
+        $ref: "common.yaml#/$defs/Instant"
+      valid_from:
+        $ref: "common.yaml#/$defs/Instant"
 
   # ---------------------------------------------------------------- governance
   ConflictClass:

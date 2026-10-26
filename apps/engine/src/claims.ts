@@ -1,6 +1,6 @@
 /**
  * The claims part of a run report: how many claims extraction produced per document and
- * governance kind, how many landed in a slot, which slots disagree on a value, what a claim
+ * governance level, and the model calls each level took, how many landed in a slot, which slots disagree on a value, what a claim
  * merge would leave, what the model calls cost, and, for a synthesized corpus, how many of
  * the facts in truth.json came out with the right value.
  */
@@ -9,6 +9,8 @@ import {
   type BlocksChanged,
   type Claim,
   type ClaimsUpdated,
+  type GovernanceLevel,
+  levelOf,
   type SourceVersion,
   slotOf,
   type UsageRecord,
@@ -40,8 +42,13 @@ export interface ClaimsReport {
   failed_windows: number;
   /** Claims the model returned without a verbatim quote. */
   rejected: number;
+  /** Claims of reference documents outside any slot, left unwritten until a passage is used. */
+  unused: number;
   per_document: Spread;
-  by_governance: Record<string, { documents: number; claims: number; per_document: Spread }>;
+  /** Documents, claims and model calls by the documents' governance level. */
+  by_level: Partial<
+    Record<GovernanceLevel, { documents: number; claims: number; windows: number; per_document: Spread }>
+  >;
   by_type: Record<string, number>;
   by_class: Record<string, number>;
   /** Claims with a predicate, those with a value too, and the distinct slots. */
@@ -74,6 +81,8 @@ export interface TruthCheck {
   wrong_value: number;
   missed: number;
   by_stance: Record<string, { statements: number; found: number }>;
+  /** By the level of the statement's document. */
+  by_level: Partial<Record<GovernanceLevel, { statements: number; found: number }>>;
 }
 
 export interface Truth {
@@ -112,7 +121,13 @@ export async function claimsReport(
   run: {
     changes: readonly BlocksChanged[];
     updates: readonly ClaimsUpdated[];
-    totals: { windows: number; failed_windows: number; rejected: number };
+    totals: {
+      windows: number;
+      failed_windows: number;
+      rejected: number;
+      unused: number;
+      windows_by_level: Record<GovernanceLevel, number>;
+    };
     usageFrom: number;
     truth?: Truth;
   },
@@ -137,18 +152,20 @@ export async function claimsReport(
     perVersion.set(v, [...(perVersion.get(v) ?? []), c]);
   }
   const counts: number[] = [];
-  const byGovernance: Record<string, number[]> = {};
+  const byLevel: Partial<Record<GovernanceLevel, number[]>> = {};
   const pathOf = new Map<string, string>();
+  const levelOfPath = new Map<string, GovernanceLevel>();
   for (const change of run.changes) {
     if (change.deleted) continue;
     const version = await versionOf(change.source_version_id);
     if (!version) continue;
-    pathOf.set(version.id, corpus.pathOf(version.source_id, version.external_id));
+    const path = corpus.pathOf(version.source_id, version.external_id);
+    pathOf.set(version.id, path);
     const n = perVersion.get(version.id)?.length ?? 0;
     counts.push(n);
-    const governance = version.metadata?.extra?.governance;
-    const key = typeof governance === "string" ? governance : "unset";
-    byGovernance[key] = [...(byGovernance[key] ?? []), n];
+    const level = levelOf(version);
+    levelOfPath.set(path, level);
+    byLevel[level] = [...(byLevel[level] ?? []), n];
   }
 
   const byType: Record<string, number> = {};
@@ -179,15 +196,21 @@ export async function claimsReport(
   const byRoute: Record<string, number> = {};
   for (const r of calls) bump(byRoute, `${r.provider ?? "?"}/${r.model ?? "?"}`);
 
+  const { windows_by_level, ...totals } = run.totals;
   const report: ClaimsReport = {
     added: claims.length,
     closed: closed.size,
-    ...run.totals,
+    ...totals,
     per_document: spread(counts),
-    by_governance: Object.fromEntries(
-      Object.entries(byGovernance).map(([k, ns]) => [
+    by_level: Object.fromEntries(
+      Object.entries(byLevel).map(([k, ns]) => [
         k,
-        { documents: ns.length, claims: ns.reduce((a, b) => a + b, 0), per_document: spread(ns) },
+        {
+          documents: ns.length,
+          claims: ns.reduce((a, b) => a + b, 0),
+          windows: windows_by_level[k as GovernanceLevel],
+          per_document: spread(ns),
+        },
       ]),
     ),
     by_type: byType,
@@ -213,27 +236,37 @@ export async function claimsReport(
       by_route: byRoute,
     },
   };
-  if (run.truth) report.truth = checkTruth(run.truth, perVersion, pathOf);
+  if (run.truth) report.truth = checkTruth(run.truth, perVersion, pathOf, levelOfPath);
   return report;
 }
 
-function checkTruth(truth: Truth, perVersion: Map<string, Claim[]>, pathOf: Map<string, string>): TruthCheck {
+function checkTruth(
+  truth: Truth,
+  perVersion: Map<string, Claim[]>,
+  pathOf: Map<string, string>,
+  levelOfPath: Map<string, GovernanceLevel>,
+): TruthCheck {
   const byPath = new Map<string, Claim[]>();
   for (const [version, claims] of perVersion) {
     const path = pathOf.get(version);
     if (path) byPath.set(path, [...(byPath.get(path) ?? []), ...claims]);
   }
   const slotOfFact = new Map(truth.facts.map((f) => [f.key, f.slot]));
-  const check: TruthCheck = { statements: 0, found: 0, wrong_value: 0, missed: 0, by_stance: {} };
+  const check: TruthCheck = { statements: 0, found: 0, wrong_value: 0, missed: 0, by_stance: {}, by_level: {} };
   for (const s of truth.statements) {
     const stance = check.by_stance[s.stance] ?? { statements: 0, found: 0 };
     check.by_stance[s.stance] = stance;
+    const level = levelOfPath.get(s.document) ?? "governed";
+    const atLevel = check.by_level[level] ?? { statements: 0, found: 0 };
+    check.by_level[level] = atLevel;
     check.statements++;
     stance.statements++;
+    atLevel.statements++;
     const candidates = (byPath.get(s.document) ?? []).filter((c) => slotOf(c) === slotOfFact.get(s.fact));
     if (candidates.some((c) => sameValue(c, s.value))) {
       check.found++;
       stance.found++;
+      atLevel.found++;
     } else if (candidates.length) check.wrong_value++;
     else check.missed++;
   }

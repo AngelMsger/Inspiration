@@ -208,6 +208,6 @@
     }
   ],
   "properties": {
-    "governance": "process"
+    "governance_level": "governed"
   }
 }
