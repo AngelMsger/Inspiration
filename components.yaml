@@ -27,7 +27,7 @@ components:
     layer: ingest
     status: built
     runtime: node
-    owns: Source auth, enumeration, fetch, ACL read, webhooks; Feishu docs, wiki, approval and upload connectors; registered queries for QueryData
+    owns: One integration per vendor (Feishu first) for sync and agent tools alike, a typed client over the vendor's API with one scope set and one rate budget per connection and a share kept for interactive tool calls; enumeration, fetch, ACL read, webhooks; Feishu docs, wiki, approval and upload connectors; registered queries for QueryData. Planned on the same client are agent tools (agent_tools plugins), each acting as the member with the member's own connection, and credentials only as leases from the credential broker
     plugins: [connectors]
     publishes: [source.changed]
     subscribes: []
@@ -181,7 +181,7 @@ components:
     layer: control
     status: built
     runtime: node
-    owns: The loop built-in agents run on (AgentSpec, tool registry, step and token limits, structured output) and their run traces
+    owns: The loop built-in agents run on (AgentSpec, tool registry, step and token limits, structured output) and their run traces; the gate every tool call passes, since a model chose it from content that may be hostile (operations the spec allows, validated arguments, read or propose only, a trace entry per call)
     plugins: [migrations]
     publishes: []
     subscribes: []
@@ -214,7 +214,7 @@ components:
     layer: control
     status: planned
     runtime: node
-    owns: Connections owned by a tenant or a member, secrets under per-tenant envelope encryption, proactive refresh and a daily keep-alive, short leases that carry only an access token (a tenant connection is never leased to an agent run); connection.changed comes with its contract
+    owns: Connections owned by a tenant or a member, secrets under per-tenant envelope encryption; the only refresher (proactive, single-flight per connection, a daily keep-alive; a failed refresh marks the connection for re-authorization and pauses its sources); short leases that carry only an access token (a tenant connection is never leased to an agent run); connection.changed comes with its contract
     plugins: [migrations]
     publishes: []
     subscribes: []
@@ -225,7 +225,7 @@ components:
     layer: control
     status: planned
     runtime: node
-    owns: One container per job with a read-only root and an egress allow-list, never shared across tenants; profiles for vendor CLIs as connectors, agent tools and render checks
+    owns: Code we did not write, one container per job (read-only root, no volumes, an egress allow-list, never shared across tenants, nothing kept between jobs); profiles for vendor CLIs and MCP servers, used only for a vendor without a usable API and given a short-lived access token they never refresh, and for view render checks
     plugins: []
     publishes: []
     subscribes: []

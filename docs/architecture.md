@@ -17,7 +17,7 @@ that are members of many tenants, personal tenants, publishing policy and admin 
 commands and reacts to engine events. Calls go down, events come up: the engine never calls
 the business layer. The design philosophy of the two layers, the test for where something
 goes, what neither may do, and how shared concerns are split are in the overview's
-[Two layers](overview.md#two-layers-the-engine-and-the-business-layer) section.
+[Architecture at a glance](overview.md#9-architecture-at-a-glance) section.
 
 There are three IDs: the tenant (`ten_`), the business layer's user, which is the account
 (`usr_`), and the member (`mem_`), which is one user inside one tenant. User IDs never reach

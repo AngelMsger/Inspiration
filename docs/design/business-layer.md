@@ -1,6 +1,6 @@
 # Business layer: functional design
 
-Status: adopted design, 2026-10-24. The engine contract changes it needs are listed in [Business layer and engine contract](business-engine-contract.md). Chinese copy: [docs/zh/design/business-layer.md](../zh/design/business-layer.md).
+Status: adopted design, 2026-10-24; updated 2026-10-26 with two decisions (importing with any credential one holds, and agent edits on a member's request) and one proposal (the boundary between the super admin and owners). The engine contract changes it needs are listed in [Business layer and engine contract](business-engine-contract.md). Chinese copy: [docs/zh/design/business-layer.md](../zh/design/business-layer.md).
 
 ## Summary
 
@@ -11,8 +11,8 @@ One person has one **user** (the account) and a **member** in each **tenant** th
 Five points shape the design:
 
 1. **Publishing never crosses a tenant.** Solo use runs in a personal tenant that the product never shows as one. Every member also has a private My space in each tenant they join. Publishing moves work from My space into the tenant's shared spaces. Bringing work from a personal tenant into a company is a separate, explicit transfer.
-2. **Two domains, and published knowledge follows the tenant, not the source.** My space belongs to its member alone: nobody else can see into it, the super admin included. Publishing moves knowledge into the tenant domain, where the super admin and space owners decide top down who reads it, and the publisher keeps access. Source permissions are not inherited; they only raise warnings. The price is a risk of oversharing at publish time, so every publish gets checks and an approval.
-3. **Companies can keep their data in company control.** An employee could connect company Feishu to a personal tenant. A company claims its Feishu tenant and email domain, then blocks or redirects such connections.
+2. **Two domains, and published knowledge follows the tenant, not the source.** My space belongs to its member alone: nobody else can see into it, the super admin included. Publishing moves knowledge into the tenant domain, where each space's owner decides top down who reads it, and the publisher keeps access. Source permissions are not inherited; they only raise warnings. The price is a risk of oversharing at publish time, so every publish gets checks and an approval.
+3. **Anyone who holds a credential may import.** If a person can sign in to Feishu, DingTalk, WeCom or an OA system, that system has already let them read the content, and any export could carry it out just the same. So personal connections are never blocked by email domain or Feishu organization: members are governed upstream, through the source system's permissions and credentials. Verified email domains remain, only for joining a company automatically.
 4. **Joint approval always finishes.** Edit conflicts are kept apart from knowledge conflicts, and consensus applies only to knowledge conflicts on governed knowledge. Every approval has a deadline and a fallback decider, and a company setting decides what agents see during a dispute. Decisions can become reusable precedence rules, so the same conflict does not come back.
 5. **Agent access is managed in the business layer.** It issues OAuth tokens to MCP clients, device-flow tokens to the CLI, and identities to company agents. The engine only verifies them.
 
@@ -26,12 +26,12 @@ The structure is simple: tenant as the unit of isolation and billing, user above
 | --- | --- | --- | --- |
 | 1 | "Publish to the tenant" is ambiguous when the work sits in a personal tenant | A tenant is the isolation boundary. Live links across it break permission checks, deletion and billing | Publishing is always inside one tenant. Every member gets a personal space in each tenant. Cross-tenant moves are an explicit transfer that re-creates sources |
 | 2 | Published knowledge can reach people the source would not let in | Under the two-domain model, a page built from A's connection is readable by the whole space audience, including people who cannot open the document in Feishu. That is intended, but it makes oversharing easy | Every publish is checked: an audience-gap warning from the source permissions, a sensitivity and personal-data scan, approval by the topic owner or space owner, and an audit record. Documents whose source permissions tighten later are flagged |
-| 3 | Personal tenants can pull company data out of company control | An employee connects company Feishu to a personal tenant, outside the company's audit and offboarding | Companies verify their email domain and claim their Feishu tenant. Policy can block such connections, or redirect them into the company tenant |
+| 3 | Personal tenants can pull company data out of company control | An employee connects company Feishu to a personal tenant, outside the company's audit and offboarding | Not blocked here (decided 2026-10-26). The source system already lets that person read the content, and any third-party export would get it out just the same, so a block would not be a security boundary. Companies govern this upstream, through the source system's permissions and credentials. Verified email domains remain, only for joining a company |
 | 4 | Each company has its own sign-in rules | A company needs its own SSO, MFA and session rules when someone enters its tenant, and must cut access when HR offboards a person | Sign-in policy is per tenant. Entering a tenant may require a fresh sign-in through its SSO. Deprovisioning through SCIM or directory sync suspends the member, not the user |
 | 5 | Conflict types are easily mixed together | Two people editing the same block is not the same as two sources disagreeing. Consensus on every edit would stall work | Edits merge live or become override todos. Consensus applies only to knowledge conflicts on published or verified knowledge |
-| 6 | A joint approval could stall forever | One absent approver would block the knowledge, while agents keep reading it | Each policy has a mode (single, any, all, quorum), a deadline and a fallback decider: the space owner, or the super admin across spaces. A tenant setting decides what agents see during a dispute |
+| 6 | A joint approval could stall forever | One absent approver would block the knowledge, while agents keep reading it | Each policy has a mode (single, any, all, quorum), a deadline and a fallback decider: the space owner, or across spaces an owner the super admin names. A tenant setting decides what agents see during a dispute |
 | 7 | Open access for agents needs an owner | MCP clients, the CLI and company agents need tokens, scopes and revocation | The business layer runs the OAuth server and the agent registry. The engine verifies tokens as a resource server |
-| 8 | Ownership per statement is too fine to manage | Statements number in the thousands. Nobody will assign them one by one | Owners are named for a space, topic, page or SOP. Statements inherit from the nearest scope, ending at the space owner and then the super admin, so nothing is ever unowned |
+| 8 | Ownership per statement is too fine to manage | Statements number in the thousands. Nobody will assign them one by one | Owners are named for a space, topic, page or SOP. Statements inherit from the nearest scope, ending at the space owner, and every shared space always has an owner, so nothing is ever unowned |
 | 9 | Owners may not be able to read the evidence | A conflict across spaces can involve a space the owner cannot read, so they would judge half of it | The console warns when an owner cannot read every space in their scope, and such a conflict goes to someone who can, or to the fallback decider |
 | 10 | Too many roles, or admin rights that include reading content | A long role list confuses a small team, while some enterprise and government buyers expect separate system, security and audit admins | Three product roles: super admin, owner and member. The super admin sees usage, never content: shared content only through an audited break-glass step, and never a My space. Permissions are finer inside, so a three-admin split can come later as a new bundle of them |
 | 11 | Data ownership when someone leaves | Who keeps a departed member's personal-space work, connections and published pages | Published knowledge belongs to the tenant and passes to the space owner. My space stays private: it is locked when the member leaves and erased after the retention period. Their connections are revoked |
@@ -63,10 +63,10 @@ While phase 1 reuses the body, anyone holding member IDs can link one person acr
 | Member | Business; the engine knows only its ID | `mem_` ID, tenant, user, role, status, name and work email in this tenant | Status: invited, active, suspended, left. Every action in a tenant is done by a member |
 | Group, department | Business, from the directory, pushed to the engine | `grp_`, `dep_` IDs, members, parent | Used in space audiences and roles |
 | External identity link | Business, pushed to the engine | Provider, external ID (for example a Feishu union\_id), member | Maps a source's permission entries to members. Used only for warnings at publish time, never to decide who reads |
-| Space | Engine | `spc_` ID, kind (personal, team, org), parent, audience (roles) | A personal space is the member's My space, readable by that member only. The super admin or the space owner sets the audience of every other space |
+| Space | Engine | `spc_` ID, kind (personal, team, org), parent, audience (roles) | A personal space is the member's My space, readable by that member only. The space owner sets the audience of every other space; the super admin can only narrow it, in an incident |
 | Agent identity | Business, pushed to the engine | `agt_` ID, owner member, scopes, spaces, sensitivity limit | See Agent access |
 
-**Two domains in every tenant.** The member domain is each member's My space: only that member can read it, and nobody else, the super admin included, can see into it. The tenant domain is every shared space: the super admin and space owners decide who reads what, top down, by space roles and sensitivity labels. Knowledge enters the tenant domain only by publishing. The engine never merges entities, deduplicates statements or detects conflicts across the boundary, so two members' private knowledge never mixes and nothing private leaks into shared knowledge. A member's own pages may still link to shared knowledge they can read.
+**Two domains in every tenant.** The member domain is each member's My space: only that member can read it, and nobody else, the super admin included, can see into it. The tenant domain is every shared space: each space's owner decides who reads what, top down, by space roles and sensitivity labels. Knowledge enters the tenant domain only by publishing. The engine never merges entities, deduplicates statements or detects conflicts across the boundary, so two members' private knowledge never mixes and nothing private leaks into shared knowledge. A member's own pages may still link to shared knowledge they can read.
 
 **A tenant's say over a member is commercial.** In the tenant domain the tenant gives the member roles. In the member domain it only sets limits: plan, seats, storage and model usage per member, and which connections the company's settings allow. It never decides what a member's My space contains or who sees it.
 
@@ -104,7 +104,7 @@ The rule: knowledge does not inherit source permissions. A member controls their
 | Domain | Where it lives | Who can read | Who decides |
 | --- | --- | --- | --- |
 | Member domain | My space, and all of a personal tenant | The member only | The member |
-| Tenant domain | Team and org spaces | The space's audience, within each reader's sensitivity clearance. The publisher keeps read and edit access to what they published | The super admin and space owners, top down |
+| Tenant domain | Team and org spaces | The space's audience, within each reader's sensitivity clearance. The publisher keeps read and edit access to what they published | The space owner, top down; the super admin can narrow an audience in an incident |
 
 Source permissions still count at two moments, as warnings only. When publishing, the engine compares a source's permissions, where it can read them, with the target space's audience: "9 of 40 Sales members cannot open 3 of these documents in Feishu." After publishing, if a document's permissions tighten in the source, the space owner gets a todo, and a company setting chooses between notify (the default) and quarantine, which hides the affected knowledge until the space owner decides.
 
@@ -127,7 +127,7 @@ The source always travels with its knowledge, so readers can trace every stateme
 3. The engine checks the request: a sensitivity and personal-data scan that suggests a label, a preview of conflicts with knowledge already published, the coverage difference, and the audience-gap warning.
 4. The owner of the target topic approves, or the space owner when no topic is owned. They can change the target space or the label. Submitting the request is the one way into My space: it lets the approvers read the items in the request, and nothing else, until it is decided. The super admin sees the request and its checks in the publish queue but cannot open the items. The super admin can reassign the approver, and on taking over as approver gets the same item-only access, logged.
 5. The engine moves the items into the tenant domain. Human work comes along (uploads, edits, overrides, comments). Derived knowledge is rebuilt there and merged with what is already published, and new conflicts become todos. A keeps access to what they published, so nothing disappears for them.
-6. From then on the space's audience can read it. The super admin and the space owner change that audience top down, and the source's own permissions play no part.
+6. From then on the space's audience can read it. The space owner changes that audience, the super admin can only narrow it in an incident (audited), and the source's own permissions play no part.
 
 A source published with a live connection keeps bringing in new documents from the same folder. Each one passes the same sensitivity scan: flagged documents wait for the space owner, and the rest arrive with a weekly digest to the space owner. A company setting can require approval for every new document.
 
@@ -135,19 +135,18 @@ A source published with a live connection keeps bringing in new documents from t
 
 All published knowledge sits under one permission model, so the tenant domain can merge entities, deduplicate statements and find conflicts across every space without splitting a merged page by who can read which source. A reader sees a statement and its citations only from spaces they can read, which is a set lookup over its evidence and derivation inputs, not a walk through source permissions. A's and B's private knowledge is never merged at all until each of them publishes.
 
-### Guard against shadow IT
+### Importing with a personal credential
 
-A personal library lets an employee move company documents outside company control, into a My space that the company's super admin cannot see. Three controls close this:
+Decided 2026-10-26, replacing the earlier claims on external tenants: anyone who holds a credential to a source may import from it, and Inspiration never blocks a personal connection by email domain or Feishu organization.
 
-- **Claims.** When a company installs its Feishu app, the business layer records that this Feishu tenant belongs to that company. Verified email domains work the same way.
-- **Policy per claim.** Allow connections from anywhere, allow them only inside the company (the default), or require the super admin's approval.
-- **Check at connect time.** The business layer runs the OAuth flow. The credential broker exchanges the code and reports the provider's tenant or site ID before the connection becomes active. The business layer checks the claim, then activates or discards it. The engine never needs to know about other tenants.
-
-When a claim is added, existing personal connections to that Feishu tenant are reported to the company's super admin as a count per member, never their content. The members get 30 days to move them.
+- **The source system has already decided.** If a person can sign in to Feishu, DingTalk, WeCom or an OA system, that system's administrator has let them read the content.
+- **A block here would not be a boundary.** The same content can be exported through any third party and imported as files, and its origin can no longer be recognized. Blocking only the direct connection would cost honest users and stop nobody.
+- **Members are governed upstream.** A company that wants to keep content in its own control does it in the source system, through permissions and credentials, and through offboarding there.
+- **What stays.** Verified email domains, only for joining a company automatically. A company's own Feishu or Lark organization stays linked to it for SSO, contacts and the company connection; that link never blocks a personal connection.
 
 ## Governance
 
-Governance moves from bottom-up to top-down at the moment of publishing: before it, the author decides everything; after it, the super admin and space owners decide who reads it, and owners decide what it says. Machines detect and propose in the engine; people decide in the business layer; the engine applies the decision and keeps its trace.
+Governance moves from bottom-up to top-down at the moment of publishing: before it, the author decides everything; after it, space owners decide who reads it and owners decide what it says, while the super admin runs the company around them. Machines detect and propose in the engine; people decide in the business layer; the engine applies the decision and keeps its trace.
 
 ### Roles
 
@@ -155,9 +154,11 @@ The product has three roles, kept few on purpose while the product is young. Per
 
 | Role | Scope | Can do | In solo use | In a company |
 | --- | --- | --- | --- | --- |
-| Super admin | Company | Members, spaces and their audiences, connections, policies, sensitivity labels and model routing limits, claims on external tenants, audit, agents, plan, billing and usage, deleting the company. The last fallback owner, and the fallback decider for conflicts across spaces. Sees usage per member, never content: shared content only through an audited break-glass step, and never a My space | The person | The creator, and anyone they add |
-| Owner, always named with its scope (space owner, topic owner) | A space, topic, page, SOP or model | Approves publishing into the scope, verifies, keeps it current (stale, review-due and conflict todos) and decides its conflicts. A space owner takes anything in the space that has no nearer owner, and decides joint approvals in the space that stall | The person | Named by the super admin, or by the owner of the scope above |
+| Super admin | Company | Members and seats, connections, company settings, sensitivity labels, clearances and model routing limits, audit, agents, plan, billing and usage, deleting the company. Creates spaces and names their owners, and names an owner for decisions across spaces. Can narrow any space's audience in an incident, audited. Never decides what knowledge says or which value holds. Sees usage per member, never content: shared content only through an audited break-glass step, and never a My space | The person | The creator, and anyone they add |
+| Owner, always named with its scope (space owner, topic owner) | A space, topic, page, SOP or model | Approves publishing into the scope, verifies, keeps it current (stale, review-due and conflict todos), decides its conflicts and releases statements to wider audiences. A space owner also sets the space's audience and governance levels, takes anything in the space that has no nearer owner, and decides joint approvals in the space that stall | The person | Named by the super admin, or by the owner of the scope above |
 | Member | Company | Reads, asks, comments and edits within each space's audience; owns their My space and publishes from it. Guests (later) are members limited to named spaces, with an expiry | The person | Everyone else |
+
+**The boundary between the super admin and owners** (proposed 2026-10-26, waiting for the product owner's confirmation). The super admin decides who and how, never what: who is in the company, which apps are connected, what the company settings and labels are, what it uses and pays. Owners decide what knowledge says and who reads it. Every shared space always has an owner: the super admin names one when creating the space and a new one before the last one leaves. Where nobody would decide, the super admin names someone rather than deciding: a conflict across spaces that passes its deadline goes to an owner the super admin names for cross-space decisions, and until one is named the value stays Disputed. One safety lever stays with the super admin: narrowing any audience at once in an incident, audited; widening is always the space owner's call. One person can hold both roles, and the two still act and are audited separately. In Chinese the owner role is proposed to become 维护人 (空间维护人 and so on) instead of 负责人, which reads as "the person in charge" and blurs into 管理员.
 
 Inside, the engine keeps finer roles: a space grants `viewer`, `commenter`, `editor`, `steward` and `owner`, and topics, pages and SOPs carry an owner. A product role is a bundle of them: a space owner holds the space's `owner` and `steward` roles, and a member gets `viewer`, `commenter` or `editor` from the space's audience. A later preset, such as the separate system, security and audit admins that government and state-owned buyers in China expect, is a new bundle of the same permissions rather than new code.
 
@@ -167,7 +168,7 @@ Usage follows mainstream AI products and stays simple until billing is designed.
 
 ### Ownership
 
-Owners are named for scopes, not for single statements: a space, a topic in the taxonomy, a page, an SOP or a model. A statement belongs to the scopes of the pages and SOPs that cite it and of its topic. The owner of anything is the nearest owned scope above it, then the space owner, then the super admin, so nothing is ever unowned. An assignment names one or more owners, a backup, and the approval policy for conflicts in that scope.
+Owners are named for scopes, not for single statements: a space, a topic in the taxonomy, a page, an SOP or a model. A statement belongs to the scopes of the pages and SOPs that cite it and of its topic. The owner of anything is the nearest owned scope above it, then the space owner. Every shared space always has an owner, so nothing is ever unowned. An assignment names one or more owners, a backup, and the approval policy for conflicts in that scope.
 
 An owner must be able to read every space in their scope, or they would judge half a conflict. The console warns when that is not true, and such a conflict goes to the backup or the fallback decider.
 
@@ -180,12 +181,12 @@ Only knowledge conflicts on published knowledge need more than one person. Every
 | Edit collision | A and D edit the same paragraph at once | Live co-editing | Merged live in drafts | No |
 | Override conflict | A's edit says 500 yuan, the source now says 600 | Freshness engine | The override's author | No |
 | Knowledge conflict in one scope | Two sources disagree on a price | Governance agents | That scope's owners | Per policy, default single owner |
-| Knowledge conflict across scopes | Finance says X, the Sales SOP says Y | Governance agents | Owners of every affected scope | Yes, default all; after the deadline the space owner decides, or the super admin across spaces |
+| Knowledge conflict across scopes | Finance says X, the Sales SOP says Y | Governance agents | Owners of every affected scope | Yes, default all; after the deadline the space owner decides, or across spaces an owner the super admin names |
 | Assertion conflict | A comment states a fact that contradicts a verified statement | Comment agent | The scope's owner | Per policy |
 
 ### Joint approval
 
-Each approval runs on a policy: a mode (single owner, any one participant, all, or a quorum of n), a deadline, and a fallback decider: the space owner, or the super admin when the conflict crosses spaces. The defaults are single owner within a scope, and all owners across scopes with a 5 working day deadline. Participants vote for one of the resolutions the engine offers (keep A, keep B, both with their scopes made explicit, newest wins) or propose an edit, which becomes a new option and restarts the vote. Agreement sends the decision to the engine. A split vote or a missed deadline goes to the fallback decider. When a participant leaves, their vote is withdrawn and the policy is re-checked.
+Each approval runs on a policy: a mode (single owner, any one participant, all, or a quorum of n), a deadline, and a fallback decider: the space owner, or, when the conflict crosses spaces, an owner the super admin names for cross-space decisions. Until one is named, the value stays Disputed. The defaults are single owner within a scope, and all owners across scopes with a 5 working day deadline. Participants vote for one of the resolutions the engine offers (keep A, keep B, both with their scopes made explicit, newest wins) or propose an edit, which becomes a new option and restarts the vote. Agreement sends the decision to the engine. A split vote or a missed deadline goes to the fallback decider. When a participant leaves, their vote is withdrawn and the policy is re-checked.
 
 The engine re-checks that every approver may verify in the scope before it applies the decision. It never trusts the vote count alone.
 
@@ -235,7 +236,7 @@ The business layer is the OAuth authorization server, and the engine's MCP and R
 | Company agent (for example a procurement bot) | The super admin registers it with a space list and scopes | Acts for the calling member where possible. Acting as itself needs explicit grants and is audited as a service |
 | Web app | The business layer's own backend, from the session | A short-lived signed principal (see the protocol section) |
 
-Scopes follow the engine's tool effects: `knowledge.read`, `knowledge.propose`, `comments.write`. Effective rights are always the member's rights intersected with the agent's scopes, never the rights of whoever registered the agent. Access tokens live 10 to 15 minutes, and refresh tokens rotate, as the specification requires for public clients. When a member leaves or the super admin revokes a grant, the business layer sends a revocation and the engine refuses that grant for the rest of its token lifetime. The super admin sees every grant per member and can revoke any of them.
+Scopes follow what a call does to knowledge: `knowledge.read` has no side effects; `knowledge.propose` creates a proposal that goes through approval; `knowledge.write` edits directly with the member's own rights; `comments.write` writes to the discussion, which is not knowledge itself. Agents running on their own (in the background, on a schedule or on an event) only read or propose. A member's explicit request in a conversation or a comment is the approval for an edit: the agent edits where the member may edit, the change is recorded under the member's name, marked as made by the agent, and can be undone; where the member may only propose, the agent proposes (decided 2026-10-26). Effective rights are always the member's rights intersected with the agent's scopes, never the rights of whoever registered the agent. Access tokens live 10 to 15 minutes, and refresh tokens rotate, as the specification requires for public clients. When a member leaves or the super admin revokes a grant, the business layer sends a revocation and the engine refuses that grant for the rest of its token lifetime. The super admin sees every grant per member and can revoke any of them.
 
 ## Languages and regions
 
@@ -291,7 +292,7 @@ The browser reaches the engine only through the business layer, while the CLI an
 | tenancy | Tenants, members and member ID assignment, invitations, join requests, verified domains, company roles, sign-in policy, personal-to-team change, transfers | Tenant and member provisioning | 1 |
 | directory | SSO connections, SCIM endpoint, Feishu and Lark contacts sync (DingTalk and WeCom later), groups, departments, external identity links | Directory provisioning. A lease from the credential broker for the Feishu tenant connection | 1 (Feishu), 2 (SCIM) |
 | access-grants | OAuth authorization server, client registry, device flow, personal tokens, company agents, revocation, signing keys | Agent provisioning, revocations | 1 |
-| connections | Connect flows for tenant and member connections, consent to keep published sources fresh with a member connection, claims on external tenants | Credential broker: begin, complete, activate, discard, revoke | 1 (claims in 2) |
+| connections | Connect flows for tenant and member connections, consent to keep published sources fresh with a member connection | Credential broker: begin, complete, activate, discard, revoke | 1 |
 | publishing | The publish wizard: target space, how each source stays fresh, coverage check, audience-gap warning, approval routing | Publish requests and their checks (coverage, audience gap, sensitivity, conflicts) | 1 |
 | approvals | Multi-party approvals for publishing, conflicts, snapshots and join requests: policy, votes, deadlines, escalation, decision record | Decision commands on todos and publish requests | 1 (single), 2 (joint) |
 | notifications | Inbox, email, Feishu, Lark and DingTalk bot cards with approve buttons, digests, preferences, message catalogs | None. Consumes engine events | 1 |
@@ -301,7 +302,7 @@ The browser reaches the engine only through the business layer, while the CLI an
 
 Each business component is a package in `business/<name>` of the same repository as the engine; the web app and the backend that wires these components are apps in `apps/`.
 
-What stays in the engine: everything about knowledge (connectors, sync, parsing, normalization, extraction, freshness, governance agents, page compiler, views, collaboration mechanics such as comments, overrides, todos and the publish state machine), the knowledge store, retrieval, the agent API, access control (SpiceDB, space audiences, the two domains, audit), the model gateway and agent runtime, research, the credential broker and the sandbox. Access control does not do SSO or directory sync, which belong to the business layer; it keeps identity mapping, and only for publish warnings. The test for where something goes, what neither layer may do, and how shared concerns are split are in the overview's [Two layers](../overview.md#two-layers-the-engine-and-the-business-layer) section.
+What stays in the engine: everything about knowledge (connectors, sync, parsing, normalization, extraction, freshness, governance agents, page compiler, views, collaboration mechanics such as comments, overrides, todos and the publish state machine), the knowledge store, retrieval, the agent API, access control (SpiceDB, space audiences, the two domains, audit), the model gateway and agent runtime, research, the credential broker and the sandbox. Access control does not do SSO or directory sync, which belong to the business layer; it keeps identity mapping, and only for publish warnings. The test for where something goes, what neither layer may do, and how shared concerns are split are in the overview's [Architecture at a glance](../overview.md#9-architecture-at-a-glance) section.
 
 ## Engine and business protocol
 
@@ -327,7 +328,7 @@ The web backend keeps the browser session and, per tenant context, mints a princ
 | Agents | Register or update an agent identity (owner, scopes, spaces); revoke a grant | Service |
 | Policy | Put the company's settings, the `TenantPolicy` document (publish rules, dispute serving, model limits, retention) | Super admin |
 | Ownership | Put an ownership assignment for a scope (owners, backup, approval policy) | Super admin, or the owner of the scope above |
-| Spaces | Create, move, set the audience (grant and revoke roles) | Super admin or space owner |
+| Spaces | Create and move; set the audience (grant and revoke roles) | Create and move: the super admin. The audience: the space owner; the super admin may only narrow it |
 | Publishing | Publish checks (coverage, audience gap, sensitivity, conflicts); create a publish request (target space, how each source stays fresh, consent) | The member |
 | Decisions | Decide a todo or publish request (resolution, approvers, approval ID, optional precedence rule) | Service, with the approvers listed; the engine re-checks each |
 | Connections | Credential broker: begin, complete, activate, discard, revoke | The member or the super admin |
@@ -363,8 +364,8 @@ The two layers are built in parallel, after about one week of contract work. The
 3. **Contract tests in CI.** Both sides record request, response and event fixtures and validate them against the JSON Schema on every change, so drift fails a build instead of an integration day.
 4. **Integration gates.** Each gate is a script that runs end to end against the real engine:
    - **Week 3:** sign up, land in the personal library, upload a file, read the compiled page; an MCP client signs in with OAuth and searches.
-   - **Week 6:** company, invite, member connection, publish kept fresh by the company connection and by my connection, the super admin sets the audience, a single-owner conflict decision.
-   - **Week 9:** Feishu SSO and contacts sync, a claim on a Feishu tenant, joint approval with a deadline and a fallback decider, a member offboarded with handovers.
+   - **Week 6:** company, invite, member connection, publish kept fresh by the company connection and by my connection, the space owner sets the audience, a single-owner conflict decision.
+   - **Week 9:** Feishu SSO and contacts sync, joining by verified domain, joint approval with a deadline and a fallback decider, a member offboarded with handovers.
 
 ### Effort (person-weeks)
 
@@ -374,7 +375,7 @@ The two layers are built in parallel, after about one week of contract work. The
 | tenancy | 1.5 | 0.5 (domain join, transfer) |
 | directory | 1 (Feishu contacts) | 1 (SCIM) |
 | access-grants | 1.5 | 0 |
-| connections | 1 | 0.5 (claims) |
+| connections | 1 | 0.5 (linking the company's Feishu or Lark organization; claims were dropped) |
 | publishing | 1.5 | 0 |
 | approvals | 1 (single decider) | 1 (joint, deadlines, fallback deciders) |
 | notifications | 1 | 0.5 (chat app cards) |
@@ -408,16 +409,16 @@ The UI says "company" for a tenant, "member" for a member and "account" for a us
 | Freshness by tenant connection | Keep fresh with the company connection | 通过企业连接保持更新 | 企業の接続で最新に保つ | Default when one exists |
 | Freshness by member connection | Keep fresh with my connection | 通过我的连接保持更新 | 自分の接続で最新に保つ | Needs the publisher's consent |
 | Snapshot | Publish a snapshot | 发布快照 | スナップショットを公開 | Needs a review date |
-| Space audience | Who can read this | 可见范围 | 公開範囲 | Set by the super admin or the space owner |
+| Space audience | Who can read this | 可见范围 | 公開範囲 | Set by the space owner |
 | Audience gap | Some readers can't open the original | 部分读者无法打开原文 | 一部の閲覧者は原文を開けません | A warning, never a block |
 | Source permissions tightened; quarantine | Source permissions tightened; Hide the affected knowledge first | 来源权限收紧；先隐藏受影响的知识 | ソースの権限が縮小されました；影響するナレッジを先に非表示にする | Quarantine is a policy option; notify is the default |
-| Owner | Space owner, Topic owner, Page owner, Procedure owner; never a bare Owner | 空间负责人、主题负责人、页面负责人、流程负责人 | スペース担当者、トピック担当者、ページ担当者、手順担当者 | Replaces steward, freshness owner and arbiter. A bare "Owner" is ambiguous, so the UI always names the scope |
+| Owner | Space owner, Topic owner, Page owner, Procedure owner; never a bare Owner | 空间维护人、主题维护人、页面维护人、流程维护人 | スペース担当者、トピック担当者、ページ担当者、手順担当者 | Replaces steward, freshness owner and arbiter. A bare "Owner" is ambiguous, so the UI always names the scope. The Chinese 维护人 is proposed (2026-10-26) in place of 负责人 |
 | Super admin | Super admin | 超级管理员 | 特権管理者 | Also covers security and audit for now |
-| Fallback decider | Decides after the deadline | 截止后决定 | 期限後に決定 | The space owner, or the super admin across spaces |
+| Fallback decider | Decides after the deadline | 截止后决定 | 期限後に決定 | The space owner, or across spaces an owner the super admin names |
 | Approval modes | Single, Any one, Everyone, At least n | 单人、或签、会签、至少 n 人 | 単独承認、いずれか承認、全員承認、n名以上 |  |
 | Disputed value | Disputed | 有争议 | 異論あり |  |
 | Precedence rule | Rule | 裁决规则 | 裁定ルール |  |
-| Claim on an external tenant | Verified Feishu organization | 已认证飞书企业 | 認証済みの Lark 組織 | Avoid "claim". Shows Lark instead of Feishu for Lark tenants |
+| The company's own Feishu or Lark organization | Verified Feishu organization | 已认证飞书企业 | 認証済みの Lark 組織 | Used for SSO, contacts and the company connection; never blocks a personal connection. Shows Lark instead of Feishu for Lark tenants |
 | Agent grant | Connected apps | 已授权应用 | 連携済みアプリ |  |
 
 | Screen | Main objects | States and actions |
@@ -438,7 +439,7 @@ The UI says "company" for a tenant, "member" for a member and "account" for a us
 
 ## Decisions
 
-Decisions 1 to 10 were made on 2026-10-24, and 11 and 12 on 2026-10-26.
+Decisions 1 to 10 were made on 2026-10-24, and 11 to 14 on 2026-10-26. Decision 13 replaced decision 6.
 
 | # | Question | Decision |
 | --- | --- | --- |
@@ -447,13 +448,15 @@ Decisions 1 to 10 were made on 2026-10-24, and 11 and 12 on 2026-10-26.
 | 3 | How published sources stay fresh | The company connection by default. "My connection" is allowed by default for small teams and off by default for enterprises |
 | 4 | When a source's permissions tighten after publishing | Notify the space owner. Quarantine is a company setting |
 | 5 | Go-to-market | SaaS first, with private deployment as a second profile of the same code. Public SaaS in mainland China needs a generative AI filing, an ICP licence and classified protection |
-| 6 | Default policy for a verified Feishu organization | Personal connections allowed only inside the company |
+| 6 | Default policy for a verified Feishu organization | Replaced by decision 13 |
 | 7 | What agents see during a dispute | The last verified value, marked disputed |
 | 8 | Identity provider for the prototype | Logto, with Keycloak as the fallback |
 | 9 | Budget | About 20 more person-weeks (the plan goes from about 70 to about 90), with two builders on a parallel business track |
 | 10 | A member's My space when they leave | Locked so nobody can read it, then erased after the retention period (default 30 days). The member can publish before leaving |
 | 11 | Product roles | Three: super admin (who also covers security and audit for now), owner of a space, topic, page or procedure, and member. Finer roles stay inside, and product roles are bundles of them |
 | 12 | How usage reaches members | As in mainstream AI products: seats fill a company pool, members have a default cap the super admin can raise, and the super admin sees usage but never content. Credits per seat and what happens when the pool runs out come with billing |
+| 13 | Personal connections to a company's sources | Anyone who holds a credential to a source may import from it; no blocking by email domain or Feishu organization. Verified domains only for joining |
+| 14 | When an agent may change knowledge | On its own it only reads or proposes. A member's explicit request is the approval for an edit within that member's rights (`knowledge.write`), recorded under the member's name, marked as made by the agent and undoable |
 
 The product supports English, Chinese and Japanese; Languages and regions lists what that adds and the two questions still open there.
 

@@ -106,8 +106,9 @@ Business components will live in `business/`, next to `engine/` and `libs/` (see
 
 ## Documentation
 
-Start with the [overview](docs/overview.md) ([中文](docs/zh/overview.md)): the product and
-technical design in one document, with what is built and what is planned.
+Start with the [overview](docs/overview.md) ([中文](docs/zh/overview.md)): the product
+requirements and technical architecture in one document, with scenarios, diagrams, a
+feasibility check, and what is built and what is planned.
 
 - [UI principles](docs/design/ui-principles.md) and
   [Statements at scale](docs/design/statements-at-scale.md): the adopted UI and review design.
