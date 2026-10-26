@@ -16,8 +16,10 @@
  *   whether as a fact or a plan, is a note against it, settled without a person, and a change
  *   a reference document states moves nothing. The case names that change, so the owner
  *   learns of it.
- * - The leader is the in-force group whose best member is the most authoritative; between
- *   equally authoritative ones, the value more governed statements in effect today state.
+ * - The leader is the in-force group whose best member in effect today is the most
+ *   authoritative; between equally authoritative ones, the value more governed statements in
+ *   effect today state. A statement that only takes effect later lends its group nothing
+ *   before its day.
  * - A change beats the leader when it took effect after the leader's own date, the later of
  *   its document's effective date and any change it states, and no later than today: a
  *   notice that the cap is 650 from October outranks the policy that says 600 from January
@@ -82,6 +84,12 @@ export interface ValueGroup {
   versions: string[];
   /** Live members first, then the highest authority and weight. */
   best: Member;
+  /**
+   * The best live member from each day on which a better one takes effect, oldest first, each
+   * outranking the one before: the last one in effect by a day is the group's best that day.
+   * Groups stored before it was kept are counted again from their members (storedGroups).
+   */
+  best_from?: Member[];
   /** The best live member for each day a change takes effect, oldest first; at most MAX_CHANGES. */
   changes: Member[];
   /** The earliest day a live member takes effect; "" when one is in effect from the start. */
@@ -167,6 +175,7 @@ export function withMember(group: ValueGroup | undefined, m: Member): ValueGroup
         plans: 0,
         versions: [],
         best: m,
+        best_from: [],
         changes: [],
       };
   g.count++;
@@ -178,6 +187,7 @@ export function withMember(group: ValueGroup | undefined, m: Member): ValueGroup
   if (isLive(m)) {
     g.live++;
     const from = m.live_from ?? "";
+    g.best_from = withBest(g.best_from ?? [], m);
     if (g.earliest_live_from === undefined || from < g.earliest_live_from) g.earliest_live_from = from;
     if (isGoverned(m)) {
       g.governed++;
@@ -198,6 +208,34 @@ export function withMember(group: ValueGroup | undefined, m: Member): ValueGroup
   return g;
 }
 
+const dayOf = (m: Member) => m.live_from ?? "";
+
+/** The best-from list with one more live member: it holds from its day until a better one does. */
+function withBest(list: readonly Member[], m: Member): Member[] {
+  const day = dayOf(m);
+  const before = list.filter((b) => dayOf(b) <= day);
+  const previous = before.at(-1);
+  if (previous && !outranks(m, previous)) return [...list];
+  return [...before.filter((b) => dayOf(b) < day), m, ...list.filter((b) => dayOf(b) > day && outranks(b, m))];
+}
+
+/** The group's best live member in effect by today. */
+export function bestAsOf(g: ValueGroup, today: string): Member | undefined {
+  return g.best_from?.filter((b) => dayOf(b) <= today).at(-1);
+}
+
+/**
+ * The groups as they stand today: each one's best is its best live member in effect by today,
+ * or its best overall while none is. decide() compares groups this way, and what it proposes
+ * and says about each value names these members.
+ */
+export function asOf(groups: readonly ValueGroup[], today: string): ValueGroup[] {
+  return groups.map((g) => {
+    const best = bestAsOf(g, today);
+    return best && best.claim_id !== g.best.claim_id ? { ...g, best } : g;
+  });
+}
+
 /** The group's latest change in effect by today; given governed, only one a governed document states. */
 export function changeAsOf(g: ValueGroup, today: string, governed = false): Member | undefined {
   return g.changes.filter((c) => (c.stated_from as string) <= today && (!governed || !c.reference)).at(-1);
@@ -205,12 +243,18 @@ export function changeAsOf(g: ValueGroup, today: string, governed = false): Memb
 
 /**
  * The first day after today on which a group comes into force, a change it holds takes
- * effect, or one of its governed statements does and counts for it.
+ * effect, one of its governed statements does and counts for it, or a better statement
+ * becomes its best.
  */
 export function nextChangeDay(groups: readonly ValueGroup[], today: string): string | undefined {
   let next: string | undefined;
   for (const g of groups) {
-    const starts = [g.earliest_live_from ?? "", g.earliest_governed_from ?? "", ...Object.keys(g.governed_from ?? {})];
+    const starts = [
+      g.earliest_live_from ?? "",
+      g.earliest_governed_from ?? "",
+      ...Object.keys(g.governed_from ?? {}),
+      ...(g.best_from ?? []).map(dayOf),
+    ];
     for (const day of [...starts, ...g.changes.map((c) => c.stated_from as string)]) {
       if (day > today && (next === undefined || day < next)) next = day;
     }
@@ -264,9 +308,13 @@ function documents(g: ValueGroup): string {
   return g.versions.length === 1 ? "1 document" : `${g.versions.length} documents`;
 }
 
-/** The value a slot should hold and the case against every other value; undefined below two values. */
-export function decide(groups: readonly ValueGroup[], today: string): SlotDecision | undefined {
-  if (groups.length < 2) return undefined;
+/**
+ * The value a slot should hold and the case against every other value, comparing the groups
+ * as they stand today (asOf); undefined below two values.
+ */
+export function decide(stored: readonly ValueGroup[], today: string): SlotDecision | undefined {
+  if (stored.length < 2) return undefined;
+  const groups = asOf(stored, today);
   const governedSlot = groups.some((g) => governedIn(g) > 0);
   const current = groups.filter((g) => inForce(g, today, governedSlot));
   const pool = current.length ? current : groups;

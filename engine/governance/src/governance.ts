@@ -21,6 +21,7 @@ import {
 import { defineTable, type RecordReader, type Records, type RecordTx } from "@inspiration/eventbus";
 import { logger } from "@inspiration/kernel";
 import {
+  asOf,
   type CaseDraft,
   decide,
   governedIn,
@@ -90,11 +91,14 @@ export const RECHECKS = defineTable<Recheck>("governance.rechecks", {
   columns: { tenant_id: (r) => r.tenant_id, day: (r) => r.day },
 });
 
+/** The group keeps what it needs to stand as of any day: its day counts and its best by day. */
+const countedByDay = (g: ValueGroup) => g.governed_from !== undefined && g.best_from !== undefined;
+
 /**
  * A slot's value groups. A group stored before governed statements were counted by the day
- * they take effect (governed_from), or before governance levels, is counted again from its
- * members: its earliest day cannot say when each of them takes effect. Returns the groups
- * counted again too, for the caller to store.
+ * they take effect (governed_from) or before its best was kept by day (best_from), or before
+ * governance levels, is counted again from its members: its earliest day cannot say when each
+ * of them takes effect. Returns the groups counted again too, for the caller to store.
  */
 async function storedGroups(
   reader: RecordReader,
@@ -104,7 +108,7 @@ async function storedGroups(
   const recounted: ValueGroup[] = [];
   const groups: ValueGroup[] = [];
   for (const stored of await reader.find(VALUE_GROUPS, { tenant_id: tenantId, slot })) {
-    if (stored.governed_from) {
+    if (countedByDay(stored)) {
       groups.push(stored);
       continue;
     }
@@ -350,7 +354,7 @@ export class Governance {
       for (const key of new Set([...lost, ...fresh.map(keyOf)])) {
         const [, slot, value] = key.split("\x1f") as [string, string, string];
         let group = lost.has(key) ? undefined : await tx.get(VALUE_GROUPS, key);
-        if (lost.has(key) || (group && !group.governed_from)) {
+        if (lost.has(key) || (group && !countedByDay(group))) {
           [group] = groupsOf(await tx.find(MEMBERS, { tenant_id: event.tenant_id, slot, value }));
         } else {
           for (const m of fresh) if (m.slot === slot && m.value === value) group = withMember(group, m);
@@ -441,11 +445,13 @@ export class Governance {
     cause?: EventEnvelope,
   ): Promise<{ request?: TodoRequested; notes: TodoRequested[]; withdrawn: TodoRequested[] }> {
     const today = this.#today();
-    const { groups, recounted } = await storedGroups(tx, tenantId, slot);
+    const { groups: stored, recounted } = await storedGroups(tx, tenantId, slot);
     if (recounted.length) await tx.put(VALUE_GROUPS, recounted);
-    const decision = decide(groups, today);
+    const decision = decide(stored, today);
     const recheck = await tx.get(RECHECKS, slotKey(tenantId, slot));
-    const next = decision ? nextChangeDay(groups, today) : undefined;
+    const next = decision ? nextChangeDay(stored, today) : undefined;
+    // Cases, notes and todos name what each value rests on today.
+    const groups = asOf(stored, today);
     if (next && next !== recheck?.day) await tx.put(RECHECKS, [{ tenant_id: tenantId, slot, day: next }]);
     else if (!next && recheck) await tx.delete(RECHECKS, [slotKey(tenantId, slot)]);
     const existing = new Map((await tx.find(CONFLICTS, { tenant_id: tenantId, slot })).map((c) => [c.id, c]));
