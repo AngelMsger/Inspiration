@@ -8,14 +8,17 @@ stepping on each other. Read them before you change anything.
 1. Find your component in `components.yaml`. It says what the component owns, which events
    it publishes and consumes, which synchronous APIs it may call, and which plugin groups it
    provides. Set its `status` to `in_progress` and its `owner` to your branch.
-2. Read the contracts your component touches in `packages/contracts/schema/` and the
-   interfaces in `packages/contracts/src/interfaces.ts`.
+2. Read the contracts your component touches in `libs/contracts/schema/` and the
+   interfaces in `libs/contracts/src/interfaces.ts`.
 3. Run `make install`, `make up` and `make check` once, so you start from green.
 
 ## Shape of a component
 
+Engine components live in `engine/<name>`, the shared libraries in `libs/<name>`, composition
+roots in `apps/<name>` and business-layer packages in `business/<name>`.
+
 ```
-packages/<name>/
+engine/<name>/
   package.json          "@inspiration/<name>"; plugin declarations under "inspiration.plugins"
   src/index.ts          the public API; its doc comment describes the component's behaviour
   src/migrations.ts     only if the component owns tables, with migrations/NNNN_<what>.sql
@@ -43,12 +46,12 @@ producer name, its consumer group and the first part of its model task names.
   another component as its interface from contracts where there is one, so tests can pass a
   double.
 - If a component owns tables, they live in their own Postgres schema, created by SQL files
-  in `packages/<name>/migrations/` and registered as a `migrations` plugin (a
+  in `engine/<name>/migrations/` and registered as a `migrations` plugin (a
   `MigrationSet`). The `kb` schema belongs to the knowledge store, `bus` to the event bus,
   `gateway` to the model gateway and `agents` to the agent runtime.
 - Plugins are declared in `package.json` as
   `"inspiration": {"plugins": {"<group>": {"<name>": "./src/<file>.ts#<Export>"}}}`, in a
-  group from `GROUPS` in `packages/kernel/src/plugins.ts`. Never import another component's
+  group from `GROUPS` in `libs/kernel/src/plugins.ts`. Never import another component's
   plugin directly; ask `registry(group).get(name)`.
 - Delivery is at least once. Handlers must be idempotent; use `firstDelivery` (bus.inbox)
   when a side effect cannot be repeated.
@@ -57,17 +60,18 @@ producer name, its consumer group and the first part of its model task names.
   them; no package depends on an app.
 - The engine has no accounts, sign-in or UI concerns. Every API takes the tenant and the
   principal it acts for; people, tenants and policy are provisioned by the business layer
-  (see `docs/architecture.md`).
+  (see `docs/architecture.md`). The business layer lives in this repository under
+  `business/`; nothing in `engine/` or `libs/` depends on it (`test/manifest.test.ts`).
 
 ## Contracts
 
-- `packages/contracts/schema/*.yaml` is the source of truth. Never edit
+- `libs/contracts/schema/*.yaml` is the source of truth. Never edit
   `dist/inspiration.schema.json`, `src/generated.ts` or `src/events.ts`; run
   `pnpm contracts` after changing a schema.
 - Additive changes (a new optional field, a new type) are fine in your branch; say so in the
   PR. Anything that removes, renames or tightens a field, or changes an event payload, needs
   agreement first: raise it before you build on it. See `docs/contracts.md`.
-- Every new type used across components gets an example in `packages/contracts/examples/`;
+- Every new type used across components gets an example in `libs/contracts/examples/`;
   the tests validate it against the JSON Schema.
 - Validate anything that comes from outside the process (HTTP bodies, plugin output, model
   output) with `parseAs` or `contractErrors`.
@@ -98,7 +102,7 @@ producer name, its consumer group and the first part of its model task names.
 
 ## Tests
 
-- Tests use Vitest and live in `packages/<name>/test/` (repo-wide checks in `test/`).
+- Tests use Vitest and live in `engine/<name>/test/` (repo-wide checks in `test/`).
 - Unit tests use the in-memory doubles: `MemoryStore` and `Sample` (from
   `@inspiration/knowledge-store/testing`) for data, `MemoryGraph` with `AuthzService` for
   permissions, `InMemoryBus` for events, and the `fake` model provider
@@ -106,7 +110,7 @@ producer name, its consumer group and the first part of its model task names.
 - Code that has a Postgres, Valkey or SpiceDB implementation gets the same tests against
   both the double and the real service: `describe.each` over the backends, with the real
   one skipped by `describe.skipIf(!hasStack())` (see
-  `packages/knowledge-store/test/fixtures.ts`). `stackTest` from `@inspiration/testkit`
+  `engine/knowledge-store/test/fixtures.ts`). `stackTest` from `@inspiration/testkit`
   gives a test its own migrated database (`databaseUrl`) and Valkey key prefix
   (`streamPrefix`, `valkey`).
 - `INSPIRATION_REQUIRE_STACK=1` (set by `make check` and CI) turns a missing stack into a

@@ -67,7 +67,7 @@ There are exactly three paths.
    events that keep failing go to a dead-letter stream per group.
 2. **The knowledge store's repository API.** Reads and writes of knowledge go through
    `KnowledgeStore`. No component reads another component's tables.
-3. **Synchronous calls** to the interfaces in `packages/contracts/src/interfaces.ts`:
+3. **Synchronous calls** to the interfaces in `libs/contracts/src/interfaces.ts`:
    `AuthZ` (access-control), `ModelGateway` (model-gateway), `Retriever` (retrieval),
    `AgentRuntime` (agent-runtime) and the blob store. Each has an in-process
    implementation and, where useful, an HTTP one with the same interface (the model

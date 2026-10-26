@@ -16,23 +16,23 @@ The foundations are built and tested. The remaining components are specified in
 
 | Part | Package | State |
 | --- | --- | --- |
-| Contracts: JSON Schema, generated types, validators, event catalogue, interfaces | `packages/contracts` | built |
-| Kernel: settings, logging, plugins, migrations, blob store, database pools | `packages/kernel` | built |
-| Event bus: outbox, relay, Valkey Streams consumers, in-memory bus | `packages/eventbus` | built |
-| Test kit: per-test databases and Valkey prefixes on the compose stack | `packages/testkit` | built |
-| Knowledge store, pgvector and pg_search indexes | `packages/knowledge-store` | built |
-| Access control on SpiceDB | `packages/access-control` | built |
-| Model gateway, as a library and an HTTP service | `packages/model-gateway` | built |
-| Agent runtime for built-in agents | `packages/agent-runtime` | built |
-| Connectors: local folders, Feishu documents and approvals (recorded fixtures) | `packages/connectors` | built |
-| Source sync: versions, tombstones, ACL snapshots, principal mapping | `packages/source-sync` | built |
-| Normalization: parsers, source blocks and spans with stable IDs, block diff, duplicates | `packages/normalization` | built |
-| Extraction: claims with verbatim evidence, predicate catalogue and slots, supersede on edits (mocked model) | `packages/extraction` | built |
+| Contracts: JSON Schema, generated types, validators, event catalogue, interfaces | `libs/contracts` | built |
+| Kernel: settings, logging, plugins, migrations, blob store, database pools | `libs/kernel` | built |
+| Event bus: outbox, relay, Valkey Streams consumers, in-memory bus | `libs/eventbus` | built |
+| Test kit: per-test databases and Valkey prefixes on the compose stack | `libs/testkit` | built |
+| Knowledge store, pgvector and pg_search indexes | `engine/knowledge-store` | built |
+| Access control on SpiceDB | `engine/access-control` | built |
+| Model gateway, as a library and an HTTP service | `engine/model-gateway` | built |
+| Agent runtime for built-in agents | `engine/agent-runtime` | built |
+| Connectors: local folders, Feishu documents and approvals (recorded fixtures) | `engine/connectors` | built |
+| Source sync: versions, tombstones, ACL snapshots, principal mapping | `engine/source-sync` | built |
+| Normalization: parsers, source blocks and spans with stable IDs, block diff, duplicates | `engine/normalization` | built |
+| Extraction: claims with verbatim evidence, predicate catalogue and slots, supersede on edits (mocked model) | `engine/extraction` | built |
 | Engine process and CLI: ingest runs, reports, synthetic corpora | `apps/engine` | built |
-| Governance: fact slots and their values, conflict cases with a proposed value, one todo request per conflicting slot, rechecks when a dated change takes effect | `packages/governance` | built |
-| Freshness: review clocks per document, plan days, copies an edit left behind, staleness scores, review.due | `packages/freshness` | built |
-| Page compiler: topics and the knowledge outline, every statement's placement (pages not yet) | `packages/page-compiler` | built |
-| Collaboration: the inbox, todos on owners' weekly cards, notes, campaigns and stewards (comments not yet) | `packages/collaboration` | built |
+| Governance: fact slots and their values, conflict cases with a proposed value, one todo request per conflicting slot, rechecks when a dated change takes effect | `engine/governance` | built |
+| Freshness: review clocks per document, plan days, copies an edit left behind, staleness scores, review.due | `engine/freshness` | built |
+| Page compiler: topics and the knowledge outline, every statement's placement (pages not yet) | `engine/page-compiler` | built |
+| Collaboration: the inbox, todos on owners' weekly cards, notes, campaigns and stewards (comments not yet) | `engine/collaboration` | built |
 | parsing, retrieval, agent-api, research, views, credential-broker, sandbox | | planned |
 
 Everything is TypeScript on Node 22 except the parsing worker, which is Python because the
@@ -77,11 +77,12 @@ curl -s localhost:8100/healthz
 ## Layout
 
 ```
-packages/contracts        schema/*.yaml is the source of truth; codegen/ writes src/generated.ts and src/events.ts
-packages/kernel           settings, logging, plugin registry, migrations runner, blob stores, database pools
-packages/eventbus         transactional outbox, relay to Valkey Streams, consumers, in-memory bus
-packages/testkit          fixtures for tests against the compose stack
-packages/<component>      one package per component (see components.yaml)
+libs/contracts            schema/*.yaml is the source of truth; codegen/ writes src/generated.ts and src/events.ts
+libs/kernel               settings, logging, plugin registry, migrations runner, blob stores, database pools
+libs/eventbus             transactional outbox, relay to Valkey Streams, consumers, in-memory bus
+libs/testkit              fixtures for tests against the compose stack
+engine/<component>        one package per engine component (see components.yaml)
+business/                 business-layer packages (none yet); engine/ and libs/ never depend on them
 apps/engine               the engine process: wires components to the store and the bus; ingest CLI
 examples/corpus           a demo tenant (Chinese enterprise documents, folder ACLs, Feishu fixtures)
 infra/                    docker compose for the prototype stack

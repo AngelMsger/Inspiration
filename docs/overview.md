@@ -400,7 +400,7 @@ flowchart TB
 
 ### Components
 
-The engine has 19 components, each a package `packages/<name>` with one job, plus four shared
+The engine has 19 components, each a package `engine/<name>` with one job, plus four shared
 libraries (contracts, kernel, eventbus, testkit) and one composition root (`apps/engine`). The
 name of a component is also its event producer name, its consumer group and the prefix of its
 model task names. [`components.yaml`](../components.yaml) is the authoritative manifest of what
@@ -720,7 +720,7 @@ Planned, with contracts in place:
 
 ### How we build
 
-- **Contracts first.** `packages/contracts/schema/*.yaml` is the source of truth; types and
+- **Contracts first.** `libs/contracts/schema/*.yaml` is the source of truth; types and
   validators are generated. Additive changes are fine in a branch; anything that removes, renames
   or tightens a field needs agreement first. See [contracts.md](contracts.md).
 - **Plugins by registry.** Connectors, parsers, diagram compilers, index backends, model providers,

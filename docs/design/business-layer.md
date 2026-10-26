@@ -310,7 +310,7 @@ Calls go down, events come up: the business layer sends commands and queries to 
 1. **Authority is split by subject.** The business layer is the authority on people, tenants and policy values. The engine is the authority on knowledge and on every permission check. The engine keeps a copy of whatever it must enforce (members, groups, roles, policies) and never takes the business layer's word on content access.
 2. **Every call carries a principal.** User actions carry the member. Provisioning carries a service principal (for example `svc_tenancy`) with a narrow scope such as `provision.directory`.
 3. **Commands are idempotent.** Each carries an idempotency key and, for directory objects, a version. Each returns a consistency token (the SpiceDB ZedToken), which the web backend passes on the next read so a newly granted space shows at once.
-4. **Contracts live in one place.** JSON Schema in `packages/contracts/schema` stays the source of truth. Business-only types (users, invitations, approvals) go in their own folder that engine packages never import. REST shapes are generated from the schema.
+4. **Contracts live in one place.** JSON Schema in `libs/contracts/schema` stays the source of truth. Business-only types (users, invitations, approvals) go in their own folder that engine packages never import. REST shapes are generated from the schema.
 
 ### Identity on each request
 

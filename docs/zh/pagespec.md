@@ -44,4 +44,4 @@ Inspiration 就是这样在接近 Claude Artifacts 展示能力的同时，让�
 块键在各版本之间保持稳定，所以 `PageDiff` 能说出哪些块被新增、删除、修改或移动，锚定在某个块上的评论也能在重建后
 保留。恢复一个旧版本会写入一个新版本，其中的块被固定为覆盖，这样下一次重建不会撤销它。
 
-`packages/contracts/examples/PageSpec.travel-policy.json` 中的完整示例用到了每一种块类型，并由契约测试校验。
+`libs/contracts/examples/PageSpec.travel-policy.json` 中的完整示例用到了每一种块类型，并由契约测试校验。

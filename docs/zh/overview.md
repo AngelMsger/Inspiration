@@ -301,7 +301,7 @@ flowchart TB
 
 ### 组件
 
-引擎有 19 个组件，每个都是一个只做一件事的包 `packages/<name>`，另有四个共享库（contracts、kernel、eventbus、testkit）
+引擎有 19 个组件，每个都是一个只做一件事的包 `engine/<name>`，另有四个共享库（contracts、kernel、eventbus、testkit）
 和一个组装根（`apps/engine`）。组件名同时也是它的事件生产者名、消费组名和模型任务名的前缀。
 [`components.yaml`](../../components.yaml) 是已构建和计划内容的权威清单；credential-broker 和 sandbox 在构建时加入其中，
 其中的 `web` 条目移到业务层。
@@ -551,7 +551,7 @@ flowchart LR
 
 ### 我们如何构建
 
-- **契约优先。** `packages/contracts/schema/*.yaml` 是事实来源；类型和校验器由它生成。增量式的变更可以直接在分支里做；
+- **契约优先。** `libs/contracts/schema/*.yaml` 是事实来源；类型和校验器由它生成。增量式的变更可以直接在分支里做；
   任何删除、重命名或收紧字段的变更都需要先取得一致。见 [contracts.md](../contracts.md)（英文）。
 - **通过注册表使用插件。** 连接器、解析器、图编译器、索引后端、模型提供方、模型模拟、视图模板和迁移都按名称注册在固定的
   插件组中。新的来源或模型是一个新插件，而不是对核心的修改。

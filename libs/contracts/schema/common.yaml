@@ -9,7 +9,7 @@ description: >
 $defs:
   # ---------------------------------------------------------------- identifiers
   # IDs are a type prefix plus an opaque suffix. New IDs use a ULID suffix
-  # (newId in packages/contracts/src/ids.ts), but a component may use a content-derived suffix
+  # (newId in libs/contracts/src/ids.ts), but a component may use a content-derived suffix
   # when it needs stable IDs across rebuilds (for example spans that did not change).
   TenantId:
     type: string
