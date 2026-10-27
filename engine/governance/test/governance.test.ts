@@ -8,13 +8,13 @@ const POLICY = { title: "Travel policy", authority: 0.9, effective_from: "2026-0
 const GUIDE = { title: "Onboarding guide", authority: 0.5 };
 
 /**
- * The slot's state as governance stored it before governed statements were counted by day:
- * no governed_from in its groups, and no recheck for the day a governed statement takes
- * effect.
+ * The slot's state as an older governance stored it: its groups without the fields named (the
+ * day counts came first, then the best by day), and no recheck for the day a statement
+ * takes effect.
  */
-async function storedBeforeDayCounts(world: World): Promise<void> {
+async function storedWithout(world: World, fields: readonly ("governed_from" | "best_from")[]): Promise<void> {
   const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
-  const legacy = stored.map(({ governed_from: _days, ...g }) => g);
+  const legacy = stored.map((g) => Object.fromEntries(Object.entries(g).filter(([k]) => !fields.includes(k as never))));
   await world.records.transaction(async (tx) => {
     await tx.put(VALUE_GROUPS, legacy as typeof stored);
     await tx.delete(
@@ -22,6 +22,19 @@ async function storedBeforeDayCounts(world: World): Promise<void> {
       (await tx.find(RECHECKS, { tenant_id: TENANT })).map((r) => `${r.tenant_id}\x1f${r.slot}`),
     );
   });
+}
+
+/** A policy says 600; a guide says 700 today, and a stronger 2027 edition says 700 from its day. */
+async function laterAndStronger(world: World): Promise<void> {
+  await world.state({ title: "Travel policy", authority: 0.8, effective_from: "2026-01-01" }, [
+    { text: "The hotel cap is 600 yuan a night.", value: 600 },
+  ]);
+  await world.state({ title: "Onboarding guide", authority: 0.5 }, [
+    { text: "Hotels are capped at 700 yuan a night.", value: 700 },
+  ]);
+  await world.state({ title: "Travel policy (2027 edition)", authority: 0.9, effective_from: "2027-01-01" }, [
+    { text: "The hotel cap is 700 yuan a night.", value: 700 },
+  ]);
 }
 
 /** Two governed documents of equal authority state 600 and 650; the claim IDs, random here, pick the leader. */
@@ -328,7 +341,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       await world.state({ title: "Travel policy (2027 edition)", authority: 0.5, effective_from: "2027-01-01" }, [
         { text: `The hotel cap is ${other} yuan a night.`, value: other },
       ]);
-      await storedBeforeDayCounts(world);
+      await storedWithout(world, ["governed_from", "best_from"]);
 
       expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${leader} CNY/night`);
       // A new statement in the slot stores the groups recounted and schedules the day again.
@@ -343,6 +356,30 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       world.setToday("2027-01-01");
       expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
       expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${other} CNY/night`);
+    });
+
+    test("a statement that takes effect later lends its value no authority before its day", async ({ world }) => {
+      await laterAndStronger(world);
+      const { decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.proposed.value).toBe("600 CNY/night");
+      expect(decision?.cases.map((c) => [c.value, c.classification, c.rationale])).toEqual([
+        [
+          "700 CNY/night",
+          "contradiction",
+          "600 CNY/night comes from the more authoritative Travel policy (0.8); 700 CNY/night from Onboarding guide (0.5).",
+        ],
+      ]);
+      expect((await world.records.find(RECHECKS, { tenant_id: TENANT })).map((r) => r.day)).toEqual(["2027-01-01"]);
+
+      world.setToday("2027-01-01");
+      expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("700 CNY/night");
+    });
+
+    test("groups stored before the best by day are counted again from their members", async ({ world }) => {
+      await laterAndStronger(world);
+      await storedWithout(world, ["best_from"]);
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("600 CNY/night");
     });
 
     test("plans and later dates do not override what is in force", async ({ world }) => {
@@ -513,7 +550,7 @@ describe.skipIf(BACKENDS[1]?.skip)("postgres backend", () => {
     await world.state({ title: "Travel policy (2027 edition)", authority: 0.5, effective_from: "2027-01-01" }, [
       { text: `The hotel cap is ${other} yuan a night.`, value: other },
     ]);
-    await storedBeforeDayCounts(world);
+    await storedWithout(world, ["governed_from", "best_from"]);
 
     await world.sql?.(readFileSync(new URL("../migrations/0003_recount_groups.sql", import.meta.url), "utf8"));
     expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
@@ -521,5 +558,17 @@ describe.skipIf(BACKENDS[1]?.skip)("postgres backend", () => {
     const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
     expect(stored.every((g) => g.governed_from)).toBe(true);
     expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${leader} CNY/night`);
+  });
+
+  test("migration 0004 rechecks slots whose groups were stored before the best by day", async ({ world }) => {
+    await laterAndStronger(world);
+    await storedWithout(world, ["best_from"]);
+
+    await world.sql?.(readFileSync(new URL("../migrations/0004_best_by_day.sql", import.meta.url), "utf8"));
+    expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
+    expect((await world.records.find(RECHECKS, { tenant_id: TENANT })).map((r) => r.day)).toEqual(["2027-01-01"]);
+    const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
+    expect(stored.every((g) => g.best_from)).toBe(true);
+    expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("600 CNY/night");
   });
 });
