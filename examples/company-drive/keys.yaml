@@ -574,7 +574,7 @@ facts:
     about: "Opening of the Hokkaido Shinkansen extension to Sapporo"
     values:
       - from: 2024-10-19
-        value: "2031-03"
+        value: "2031 year"
         texts: ["2031", "2030年度", "fiscal 2030", "FY2030"]
         stated:
           - file: drive/research/en/shinkansen-2024.html
@@ -587,7 +587,7 @@ facts:
             revision: "102321214"
             quote: "2030年度"
       - from: 2026-09-02
-        value: "2038"
+        value: "2038 year"
         texts: ["2038"]
         stated:
           - file: drive/research/en/shinkansen.html
@@ -603,14 +603,14 @@ facts:
     about: "Passengers the Tōkaidō Shinkansen carries a year"
     values:
       - from: 2017-03-31
-        value: "159 million"
+        value: "159 million_passengers"
         texts: ["159 million", "1.59亿", "1亿5900万", "1億5900万", "1.59億"]
         stated:
           - file: drive/research/en/shinkansen-2024.html
             revision: "1252821730"
             quote: "In the one-year period preceding March 2017, it carried 159 million passengers"
       - from: 2024-03-31
-        value: "161 million"
+        value: "161 million_passengers"
         texts: ["161 million", "1.61亿", "1亿6100万", "1億6100万", "1.61億"]
         stated:
           - file: drive/research/en/shinkansen.html

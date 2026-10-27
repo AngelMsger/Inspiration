@@ -867,11 +867,12 @@ export class Retrieval implements Retriever {
     }
     // The question is labelled internal, as anything a member writes; the sources as they are.
     const sensitivity = maxLabel("internal", ...hits.map((h) => searched.labels.get(h.unit_id) ?? "internal"));
+    // Sources first, so prompts with the same sources share their prefix (AnswerInput).
     const input: AnswerInput = {
-      question: query.question,
+      sources,
       language,
       ...(query.context && { context: query.context }),
-      sources,
+      question: query.question,
     };
     const output = await this.#complete<AnswerOutput>({
       task: ANSWER_TASK,

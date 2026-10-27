@@ -37,7 +37,7 @@ import {
   type WindowInput,
   type WindowOutput,
 } from "./protocol.ts";
-import { mentioned, type Vocabulary } from "./vocabulary.ts";
+import { fitToCatalogue, mentioned, type Vocabulary } from "./vocabulary.ts";
 
 const log = logger("extraction");
 
@@ -81,6 +81,8 @@ export interface ExtractionResult {
    * page or an answer uses their passage.
    */
   unused?: number;
+  /** Claims the model fitted to a catalogue fact the way the catalogue does not allow, kept without a slot. */
+  unfit?: number;
   /** A later version of the document was extracted already, so this one changed nothing. */
   outdated?: true;
 }
@@ -152,6 +154,7 @@ export class Extraction {
     failed_windows: 0,
     rejected: 0,
     unused: 0,
+    unfit: 0,
     windows_by_level: { governed: 0, reference: 0, search_only: 0 } as Record<GovernanceLevel, number>,
   };
   readonly #vocabulary: NonNullable<ExtractionOptions["vocabulary"]>;
@@ -272,7 +275,9 @@ export class Extraction {
           result.failed_windows++;
           continue;
         }
-        for (const claim of output.claims) {
+        for (const said of output.claims) {
+          const claim = fitToCatalogue(said, vocabulary);
+          if (claim.predicate === undefined && said.predicate !== undefined) result.unfit = (result.unfit ?? 0) + 1;
           if (slotsOnly && !claim.predicate) {
             result.unused = (result.unused ?? 0) + 1;
             continue;
@@ -288,6 +293,7 @@ export class Extraction {
     this.totals.failed_windows += result.failed_windows;
     this.totals.rejected += result.rejected;
     this.totals.unused += result.unused ?? 0;
+    this.totals.unfit += result.unfit ?? 0;
     this.totals.windows_by_level[level] += result.windows;
     const byId = new Map((await this.#occurrences(version, extracted)).map((e) => [e.claim.id, e]));
     const stored = new Set((await this.store.getClaims([...byId.keys()])).map((c) => c.id));

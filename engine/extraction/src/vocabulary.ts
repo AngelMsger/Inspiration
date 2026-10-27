@@ -9,7 +9,7 @@
  */
 
 import { readFile } from "node:fs/promises";
-import { type ClaimValueKind, schemaErrors } from "@inspiration/contracts";
+import { type ClaimValue, type ClaimValueKind, schemaErrors } from "@inspiration/contracts";
 import { parse } from "yaml";
 
 export interface PredicateQualifier {
@@ -93,6 +93,86 @@ const SCHEMA = {
 export function mentioned(text: string, words: readonly string[]): string[] {
   const folded = text.toLowerCase();
   return words.filter((w) => folded.includes(w.toLowerCase()));
+}
+
+/** What a claim says about its catalogue fact. */
+export interface Fitted {
+  predicate?: string;
+  qualifiers?: string[];
+  value?: ClaimValue;
+}
+
+const LEADING_NUMBER = /^\s*[$€£¥]?\s*(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)/;
+const NUMERIC: readonly ClaimValueKind[] = ["number", "money", "percent", "duration"];
+const fold = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+/** "days" is "day", "USD/night" is "usd/night". */
+const sameUnit = (a: string, b: string) => fold(a).replace(/s$/, "") === fold(b).replace(/s$/, "");
+
+/**
+ * A model's fit to the catalogue, held to it and written the one way governance compares
+ * values, as the stand-in writes it ("300 USD/night"): a model writes one value many ways
+ * ("$300", "300 USD", "300 per night"), and each way would be a value of its own in the slot.
+ * A qualifier may be given by one of its words ("US team members" for "us"). A fit to an
+ * entry the catalogue lacks, with a qualifier the entry lacks, in another unit or currency,
+ * without a number for a numeric entry, or with a value an enum does not list is dropped, and
+ * the claim stays a statement without a slot: a wrong slot asks a person about a conflict
+ * that is not one, a missing slot only leaves the claim ungoverned. Returns the claim as it
+ * came when it fits as written, so a stand-in's claims keep their IDs.
+ */
+export function fitToCatalogue<T extends Fitted>(claim: T, entries: readonly PredicateEntry[]): T {
+  if (claim.predicate === undefined) return claim;
+  const { predicate, qualifiers, value, ...rest } = claim;
+  const entry = entries.find((e) => e.predicate === predicate);
+  const names = qualifiers?.map((q) => {
+    const named = entry?.qualifiers?.find((e) => e.name === q || e.aliases.some((a) => fold(a) === fold(q)));
+    return named?.name;
+  });
+  if (!entry || names?.some((n) => n === undefined)) return rest as T;
+  const fitted = value === undefined ? undefined : valueFor(entry, value);
+  if (value !== undefined && fitted === undefined) return rest as T;
+  if (fitted === value && names?.every((n, i) => n === qualifiers?.[i])) return claim;
+  const named = [...new Set(names as string[])];
+  return { ...rest, predicate, ...(named.length && { qualifiers: named }), ...(fitted && { value: fitted }) } as T;
+}
+
+function valueFor(entry: PredicateEntry, value: ClaimValue): ClaimValue | undefined {
+  const v = entry.value;
+  if (!NUMERIC.includes(v.kind)) {
+    if (v.kind !== "enum" && v.kind !== "text" && v.kind !== "boolean") return value;
+    const said = value.normalized ?? value.text;
+    const listed = said === undefined ? undefined : v.values?.find((x) => fold(x) === fold(said));
+    if (v.values?.length && listed === undefined) return undefined;
+    const normalized = listed ?? said?.trim();
+    if (normalized === undefined) return undefined;
+    const kind = v.kind === "boolean" ? "enum" : v.kind;
+    if (value.kind === kind && value.normalized === normalized) return value;
+    return { kind, text: value.text ?? normalized, normalized };
+  }
+  if (value.unit && v.unit && !sameUnit(value.unit, v.unit) && !(v.currency && sameUnit(value.unit, v.currency))) {
+    return undefined;
+  }
+  if (value.currency && v.currency && value.currency !== v.currency) return undefined;
+  const leading = value.normalized?.match(LEADING_NUMBER)?.[1];
+  const number = value.number ?? (leading === undefined ? undefined : Number(leading.replaceAll(",", "")));
+  if (number === undefined || !Number.isFinite(number)) return undefined;
+  const normalized = v.unit ? `${number} ${v.unit}` : String(number);
+  if (
+    value.kind === v.kind &&
+    value.number === number &&
+    value.unit === v.unit &&
+    value.currency === v.currency &&
+    value.normalized === normalized
+  ) {
+    return value;
+  }
+  return {
+    kind: v.kind,
+    ...(value.text && { text: value.text }),
+    number,
+    ...(v.unit && { unit: v.unit }),
+    ...(v.currency && { currency: v.currency }),
+    normalized,
+  };
 }
 
 export function parseVocabulary(value: unknown): Vocabulary {

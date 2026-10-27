@@ -5,6 +5,9 @@
  * sets `options.mocks: true`, the model_mocks plugin named after the task, otherwise a
  * minimal JSON value that satisfies the response schema, otherwise a fixed text derived
  * from the prompt. Mocks are opt-in so a test of the gateway itself sees the plain fake.
+ * With `options.prefix_cache: true` it reports as cached input the longest prefix a prompt
+ * shares with one of the last PREFIX_PROMPTS it was sent for the model, in whole blocks of
+ * PREFIX_BLOCK tokens, as a provider's prefix cache would serve it; a dry run prices that.
  * embed: hashed words and character n-grams (ngrams), so texts that share words get similar
  * vectors and retrieval tests behave sensibly. rerank: their overlap. ocr: the image bytes as text.
  */
@@ -25,6 +28,11 @@ import type {
 import { markdownToBlocks } from "./markdown.ts";
 
 export type Reply = string | ((messages: readonly ChatMessage[]) => string);
+
+/** Prompts per model the prefix cache compares a new one with. */
+export const PREFIX_PROMPTS = 32;
+/** The prefix cache serves whole blocks of this many tokens. */
+export const PREFIX_BLOCK = 64;
 
 /**
  * A model_mocks plugin: answers one task from the rendered messages, as a model would, so
@@ -126,6 +134,8 @@ export class FakeProvider implements ModelProvider {
   failWith: Error | undefined;
   readonly #scripts = new Map<string, Reply[]>();
   readonly #mocks = new Map<string, Promise<MockResponder | undefined>>();
+  /** The last prompts per model, newest last, for the prefix cache. */
+  readonly #prompts = new Map<string, string[]>();
 
   constructor(config: ProviderConfig, blobs?: BlobStore) {
     this.config = config;
@@ -147,8 +157,23 @@ export class FakeProvider implements ModelProvider {
     return mock;
   }
 
+  /** Tokens of the longest prefix the prompt shares with a recent one, in whole blocks. */
+  #cachedTokens(model: string, prompt: string): number {
+    const recent = this.#prompts.get(model) ?? [];
+    let shared = 0;
+    for (const before of recent) {
+      const most = Math.min(before.length, prompt.length);
+      let i = 0;
+      while (i < most && before.charCodeAt(i) === prompt.charCodeAt(i)) i++;
+      shared = Math.max(shared, i);
+    }
+    this.#prompts.set(model, [...recent, prompt].slice(-PREFIX_PROMPTS));
+    if (!shared) return 0;
+    return Math.floor(estimateTokens(prompt.slice(0, shared)) / PREFIX_BLOCK) * PREFIX_BLOCK;
+  }
+
   async complete(
-    _model: ModelConfig,
+    model: ModelConfig,
     messages: readonly ChatMessage[],
     params: CompletionParams,
   ): Promise<ProviderCompletion> {
@@ -174,9 +199,14 @@ export class FakeProvider implements ModelProvider {
     } else {
       text = `fake completion ${createHash("sha256").update(prompt).digest("hex").slice(0, 12)}`;
     }
+    const cached = this.config.options.prefix_cache === true ? this.#cachedTokens(model.name, prompt) : 0;
     return {
       text,
-      usage: { input_tokens: estimateTokens(prompt), output_tokens: estimateTokens(text) },
+      usage: {
+        input_tokens: estimateTokens(prompt),
+        output_tokens: estimateTokens(text),
+        ...(cached && { cached_input_tokens: cached }),
+      },
       finishReason: "stop",
     };
   }

@@ -191,6 +191,7 @@ export async function ingest(engine: Engine, corpus: Corpus, options: { truth?: 
         failed_windows: totals.failed_windows - before.failed_windows,
         rejected: totals.rejected - before.rejected,
         unused: totals.unused - before.unused,
+        unfit: totals.unfit - before.unfit,
         windows_by_level: {
           governed: totals.windows_by_level.governed - before.windows_by_level.governed,
           reference: totals.windows_by_level.reference - before.windows_by_level.reference,
@@ -477,7 +478,7 @@ function claimLines(c: ClaimsReport, kv: (o: Record<string, number>) => string):
   const pct = (n: number, of: number) => (of ? `${Math.round((100 * n) / of)}%` : "0%");
   const m = c.models;
   return [
-    `claims ${c.added} (per document median ${c.per_document.median}, p90 ${c.per_document.p90}, max ${c.per_document.max}); closed ${c.closed}; ${c.windows} windows, ${c.failed_windows} failed, ${c.rejected} claims rejected, ${c.unused} left unused`,
+    `claims ${c.added} (per document median ${c.per_document.median}, p90 ${c.per_document.p90}, max ${c.per_document.max}); closed ${c.closed}; ${c.windows} windows, ${c.failed_windows} failed, ${c.rejected} claims rejected, ${c.unused} left unused, ${c.unfit} kept without their slot`,
     ...Object.entries(c.by_level)
       .sort(([, a], [, b]) => b.claims - a.claims)
       .map(

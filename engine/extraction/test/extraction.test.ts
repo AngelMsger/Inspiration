@@ -495,5 +495,43 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       expect(result.rejected).toBe(2);
       expect((await world.store.getClaims(result.added)).map((c) => c.statement)).toEqual(["Hotel cap 600 yuan"]);
     });
+
+    test("a model's catalogue fits are held to the catalogue, each value written one way", async ({ world }) => {
+      const quote = "Hotels in tier-1 cities cost at most 600 yuan a night.";
+      const claim = (statement: string, fit: object) => ({
+        statement,
+        claim_type: "rule",
+        ...fit,
+        evidence: [{ span: "s1", quote }],
+      });
+      const hotels = "hotel_cap_per_night";
+      const reply = JSON.stringify({
+        claims: [
+          claim("A", { predicate: hotels, qualifiers: ["tier-1 cities"], value: { kind: "number", number: 600 } }),
+          claim("B", { predicate: hotels, value: { kind: "money", unit: "CNY", normalized: "600 yuan/night" } }),
+          claim("C", { predicate: "payment_day", value: { kind: "text", text: "Every wednesday" } }),
+          claim("D", { predicate: hotels, qualifiers: ["coastal city"], value: { kind: "money", number: 600 } }),
+          claim("E", { predicate: hotels, value: { kind: "money", number: 600, currency: "USD" } }),
+          claim("F", { predicate: hotels, value: { kind: "money", text: "six hundred" } }),
+          claim("G", { predicate: "payment_day", value: { kind: "enum", normalized: "every Monday" } }),
+          claim("H", { predicate: "hotel_stays", value: { kind: "number", number: 600 } }),
+        ],
+      });
+      for (const name of ["cloud", "local"])
+        world.gateway.provider<FakeProvider>(name).script("extraction.extract_claims", reply);
+      const { result } = await world.version("travel-policy.md", [POLICY[0] as Para]);
+      expect(result.unfit).toBe(5);
+      const claims = (await world.store.getClaims(result.added)).sort((a, b) => (a.statement < b.statement ? -1 : 1));
+      expect(claims.map((c) => [c.statement, c.slot_key ?? null, c.value?.normalized ?? null])).toEqual([
+        ["A", "hotel_cap_per_night|tier-1 city", "600 CNY/night"],
+        ["B", "hotel_cap_per_night", "600 CNY/night"],
+        ["C", "payment_day", "every Wednesday"],
+        ["D", null, null],
+        ["E", null, null],
+        ["F", null, null],
+        ["G", null, null],
+        ["H", null, null],
+      ]);
+    });
   });
 });

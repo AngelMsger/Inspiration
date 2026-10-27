@@ -123,5 +123,32 @@ Stand-ins answer every model task, so these numbers measure the pipeline, not mo
   are not. The Chūō opening is no longer answered from the 2024 revision (2027), though the
   stand-in does not find the current one's 2034 either.
 
+The reading check scores extraction against the key. Each place the key gives a value is
+found when governance holds that value in the fact's slot from that file, misread when the
+file is in the slot with other values only, and missed when it is not in the slot at all. Of
+the 77 places of the 24 facts the catalogue names, the stand-in finds 42, misreads 21 and
+misses 14, and it puts 262 values the key does not give into those slots, a precision of
+14%: it takes a number from every sentence that has a fact's words, which in the Shinkansen
+articles is most of them. The other 12 facts have no catalogue entry, so only answers find
+their 36 places.
+
+## On a real model
+
+```
+pnpm engine ingest examples/company-drive --gateway config/gateway.deepseek.yaml --dry-run
+pnpm engine ingest examples/company-drive --gateway config/gateway.deepseek.yaml --valkey <url>
+```
+
+The dry run answers with the stand-ins but meters their calls at the config's prices, with a
+prefix cache like the provider's. For all 150 questions it estimates 1.04 USD at full price:
+extraction 0.36 for 339 windows, and answering 0.58, of which the model reading everything
+takes 0.43. That model reads 48 million input tokens, all but 0.4 million served by the
+prefix cache, because the corpus comes before each question. `--questions 30` asks a spread
+of 30 and estimates 0.66 USD. Output lengths are the stand-ins', and embeddings and reranking
+stay stand-ins. The real run keeps every reply in Valkey for 30 days, so running again on
+unchanged documents and prompts pays only for what changed. The config's budget stops all
+the calls together at 5 USD a day; on a database (`--stack`) it counts the day's earlier
+runs too.
+
 The design's pass bars apply to real models. What a real run needs is in
 [docs/design/validation.md](../../docs/design/validation.md).

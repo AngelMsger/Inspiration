@@ -44,6 +44,8 @@ export interface ClaimsReport {
   rejected: number;
   /** Claims of reference documents outside any slot, left unwritten until a passage is used. */
   unused: number;
+  /** Claims whose catalogue fit the catalogue does not allow, kept without a slot (fitToCatalogue). */
+  unfit: number;
   per_document: Spread;
   /** Documents, claims and model calls by the documents' governance level. */
   by_level: Partial<
@@ -126,6 +128,7 @@ export async function claimsReport(
       failed_windows: number;
       rejected: number;
       unused: number;
+      unfit: number;
       windows_by_level: Record<GovernanceLevel, number>;
     };
     usageFrom: number;

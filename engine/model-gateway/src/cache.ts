@@ -1,6 +1,6 @@
 /** Exact-match response cache for deterministic completions (temperature 0 or unset). */
 
-import type { Redis } from "ioredis";
+import { Redis } from "ioredis";
 
 export interface ResponseCache {
   get(key: string): Promise<string | undefined>;
@@ -40,6 +40,15 @@ export class ValkeyCache implements ResponseCache {
   constructor(client: Redis, options: { prefix?: string } = {}) {
     this.client = client;
     this.prefix = `${options.prefix ?? "insp"}:gw:cache:`;
+  }
+
+  /** A cache with a client of its own, for a process that has none; close() ends it. */
+  static fromUrl(url: string, options: { prefix?: string } = {}): ValkeyCache {
+    return new ValkeyCache(new Redis(url), options);
+  }
+
+  async close(): Promise<void> {
+    await this.client.quit();
   }
 
   async get(key: string): Promise<string | undefined> {

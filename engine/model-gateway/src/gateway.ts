@@ -46,7 +46,7 @@ import {
   preferredModels,
 } from "./config.ts";
 import { ProviderError } from "./errors.ts";
-import { MemoryUsage, periodStart, type UsageSink } from "./metering.ts";
+import { budgetSpent, MemoryUsage, periodStart, type UsageSink } from "./metering.ts";
 import type { CompletionParams, ModelProvider, ModelProviderClass, ProviderCompletion } from "./providers/base.ts";
 import { extractJson, InvalidOutput, schemaInstruction, validateOutput } from "./structured.ts";
 
@@ -199,7 +199,12 @@ export class Gateway implements ModelGateway {
   async #checkBudget(budgetKey: string): Promise<void> {
     const budget = budgetFor(this.config, budgetKey);
     if (budget?.limit === undefined) return;
-    const spent = await this.usage.spent(budgetKey, periodStart(budget.period, new Date(), this.timeZone));
+    const spent = await budgetSpent(
+      this.usage,
+      budget,
+      budgetKey,
+      periodStart(budget.period, new Date(), this.timeZone),
+    );
     if (spent >= budget.limit) {
       throw new GatewayException(
         "budget_exceeded",

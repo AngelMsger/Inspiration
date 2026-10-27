@@ -3,6 +3,7 @@ import { MemoryBlobStore, registry } from "@inspiration/kernel";
 import { describe, expect, test } from "vitest";
 import {
   FakeProvider,
+  Gateway,
   type MemoryUsage,
   type MockResponder,
   minimalInstance,
@@ -124,6 +125,22 @@ describe("budgets and cache", () => {
     await gateway.complete(completionRequest("again", { budget_key: "tenant:other/extraction" }));
   });
 
+  test("a pooled budget holds for all the keys it matches together", async () => {
+    const config = {
+      ...gatewayConfig(),
+      budgets: [{ match: "tenant:a/*", period: "day" as const, limit: 0.0003, pooled: true }],
+    };
+    const providers = Object.fromEntries(config.providers.map((p) => [p.name, new FakeProvider(p)]));
+    const gateway = new Gateway(config, { providers });
+    const longText = "word ".repeat(200); // about 250 tokens, 0.00025 CNY
+    await gateway.complete(completionRequest(longText, { budget_key: "tenant:a/extraction" }));
+    await gateway.complete(completionRequest(`${longText}more`, { budget_key: "tenant:a/retrieval" }));
+    // Each key spent less than the limit on its own; together they spent more.
+    const e = await rejection(gateway.complete(completionRequest("again", { budget_key: "tenant:a/page-compiler" })));
+    expect(e.code).toBe("budget_exceeded");
+    await gateway.complete(completionRequest("again", { budget_key: "tenant:b/extraction" }));
+  });
+
   test("deterministic completions are cached", async () => {
     const gateway = makeGateway();
     const first = await gateway.complete(completionRequest("same prompt"));
@@ -163,6 +180,7 @@ describe("budgets and cache", () => {
           throw new Error("database down");
         },
         spent: async () => 0,
+        spentMatching: async () => 0,
       },
     });
     expect((await gateway.complete(completionRequest())).text).toBeTruthy();
