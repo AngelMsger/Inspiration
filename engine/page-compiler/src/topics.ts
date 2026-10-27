@@ -34,6 +34,8 @@ import {
   type NamedTopic,
   type NameInput,
   type NameOutput,
+  SUMMARY_MAX,
+  TITLE_MAX,
   type TopicInput,
 } from "./protocol.ts";
 
@@ -991,8 +993,9 @@ export class Topics {
 
   /**
    * Titles and summaries for new topics, NAMES_PER_CALL per call, each call carrying the
-   * highest sensitivity of the sections it shows. A topic the model leaves out, or a call
-   * that stays invalid, gets its commonest heading as its title.
+   * highest sensitivity of the sections it shows. A topic the model leaves out or names at
+   * more than TITLE_MAX characters, or a call that stays invalid, gets its commonest heading as
+   * its title; a summary over SUMMARY_MAX is left out.
    */
   async #name(
     tenantId: string,
@@ -1042,18 +1045,19 @@ export class Topics {
         for (const named of answer?.topics ?? []) {
           const b = refs.get(named.ref);
           const title = named.title.trim();
-          if (!b || !title || out.has(b.topic.key)) continue;
+          if (!b || !title || title.length > TITLE_MAX || out.has(b.topic.key)) continue;
+          const summary = named.summary?.trim();
           out.set(b.topic.key, {
             ref: named.ref,
             title,
-            ...(named.summary?.trim() && { summary: named.summary.trim() }),
+            ...(summary && summary.length <= SUMMARY_MAX && { summary }),
           });
           counts.named++;
         }
         for (const [ref, b] of refs) {
           if (out.has(b.topic.key)) continue;
           const title = b.input.headings[0]?.text ?? b.input.documents[0] ?? b.topic.key;
-          out.set(b.topic.key, { ref, title: title.slice(0, 40) });
+          out.set(b.topic.key, { ref, title: title.slice(0, TITLE_MAX) });
         }
       }
     }

@@ -1,7 +1,9 @@
 import type { TaxonomyNode } from "@inspiration/contracts";
 import { Sample } from "@inspiration/knowledge-store/testing";
+import type { FakeProvider } from "@inspiration/model-gateway";
 import { describe, expect } from "vitest";
 import { PENDING, SECTIONS, Topics } from "../src/index.ts";
+import { NAME_TASK, nameInputOf, TITLE_MAX } from "../src/protocol.ts";
 import { about, BACKENDS, SPACE, TENANT, topicsTest, type World } from "./fixtures.ts";
 
 /** The world's store and records, with the nth transaction across them lost before it commits. */
@@ -71,6 +73,33 @@ describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
       expect(await w.store.topics(TENANT, SPACE)).toEqual(nodes);
     },
   );
+
+  test.skipIf(skip)("a name too long for a title costs only its own topic", async ({ world: w }) => {
+    await guides(w);
+    const long = "Hotel lodging for every business trip, whatever the city, the country or the season of it";
+    expect(long.length).toBeGreaterThan(TITLE_MAX);
+    // A real model's names, longer than the stand-in's: one over the limit, one just under 50.
+    const names: Record<string, string> = {
+      "Hotel lodging": long,
+      "Annual leave": "Annual leave entitlements and how to request them",
+      "Expense payment": "Expense payment",
+    };
+    w.gateway.provider<FakeProvider>("cloud").script(NAME_TASK, (messages) =>
+      JSON.stringify({
+        topics: (nameInputOf(messages.map((m) => m.content).join("\n"))?.topics ?? []).map((t) => ({
+          ref: t.ref,
+          title: names[t.headings[0]?.text ?? ""],
+        })),
+      }),
+    );
+    const report = await w.topics.recluster(TENANT);
+    expect(report).toMatchObject({ named: 2, model_calls: 1 });
+    expect((await w.store.topics(TENANT, SPACE)).map((n) => n.title).sort()).toEqual([
+      "Annual leave entitlements and how to request them",
+      "Expense payment",
+      "Hotel lodging",
+    ]);
+  });
 
   test.skipIf(skip)("a topic keeps the owner it is given, and lists the documents it holds", async ({ world: w }) => {
     const OWNER = "mem_01JC000000000000000000LINA";
