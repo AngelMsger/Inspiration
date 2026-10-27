@@ -30,7 +30,8 @@ The foundations are built and tested. The remaining components are specified in
 | Source sync: versions, tombstones, ACL snapshots, principal mapping | `engine/source-sync` | built |
 | Normalization: parsers, source blocks and spans with stable IDs, block diff, duplicates | `engine/normalization` | built |
 | Extraction: claims with verbatim evidence, predicate catalogue and slots, supersede on edits, keep facts a version stops stating (mocked model) | `engine/extraction` | built |
-| Engine process and CLI: ingest runs, reports, synthetic corpora | `apps/engine` | built |
+| Engine process: wires the components to the store, the bus and the blob store | `apps/engine` | built |
+| Measurement harness and CLI: ingest runs, reports, checks against answers, synthetic corpora | `apps/bench` | built |
 | Governance: fact slots and their values counted by independent source (copies and translations once), conflict cases with a proposed value, one todo request per conflicting slot, rechecks when a dated change takes effect | `engine/governance` | built |
 | Freshness: review clocks per document, plan days, copies an edit left behind, staleness scores, review.due | `engine/freshness` | built |
 | Page compiler: topics and the knowledge outline, every statement's placement (pages not yet) | `engine/page-compiler` | built |
@@ -65,13 +66,13 @@ To run the ingest pipeline (sync, normalization, extraction) over the demo corpu
 a fictional company with planted duplicates and conflicts) and print what it produced:
 
 ```bash
-pnpm engine ingest examples/corpus            # in memory
-pnpm engine ingest examples/corpus --stack    # Postgres and Valkey from INSPIRATION_* settings
-pnpm engine synthesize /tmp/synth --documents 2000 && pnpm engine ingest /tmp/synth --stack
-pnpm engine ingest examples/control           # the control corpus, checked case by case
-pnpm engine replay examples/gitlab-expenses   # a real policy through 21 versions of its history
-pnpm engine ingest examples/kubernetes-docs   # real pages in English, Chinese and Japanese
-pnpm engine ask examples/kubernetes-docs "Kubernetes 集群最多可以有多少个节点？"
+pnpm bench ingest examples/corpus            # in memory
+pnpm bench ingest examples/corpus --stack    # Postgres and Valkey from INSPIRATION_* settings
+pnpm bench synthesize /tmp/synth --documents 2000 && pnpm bench ingest /tmp/synth --stack
+pnpm bench ingest examples/control           # the control corpus, checked case by case
+pnpm bench replay examples/gitlab-expenses   # a real policy through 21 versions of its history
+pnpm bench ingest examples/kubernetes-docs   # real pages in English, Chinese and Japanese
+pnpm bench ask examples/kubernetes-docs "Kubernetes 集群最多可以有多少个节点？"
 ```
 
 [`examples/control`](examples/control/README.md) is a small corpus in which every case has one
@@ -106,7 +107,8 @@ libs/eventbus             transactional outbox, relay to Valkey Streams, consume
 libs/testkit              fixtures for tests against the compose stack
 engine/<component>        one package per engine component (see components.yaml)
 business/                 business-layer packages (none yet); engine/ and libs/ never depend on them
-apps/engine               the engine process: wires components to the store and the bus; ingest and replay CLI
+apps/engine               the engine process: wires components to the store and the bus
+apps/bench                the measurement harness and its CLI: ingest runs, reports, replay, checks against answers
 examples/corpus           a demo tenant (Chinese enterprise documents, folder ACLs, Feishu fixtures)
 examples/control          a control corpus with one right answer per case, and the engine's known gaps
 examples/gitlab-expenses  a real policy's edit history, replayed version by version against a timeline

@@ -1037,7 +1037,7 @@ The prototype runs on mocked models on purpose: it proves the pipeline, the volu
 - **Boundaries are checked, not trusted.** A package sits in its layer's folder and depends only on the libraries and the components in its `calls`; dependencies between the layers point one way.
 - **Plugins by registry.** Connectors, agent tools, parsers, diagram compilers, index backends, data providers, model providers, model mocks, view templates and migrations register by name in fixed plugin groups. A new source or model is a new plugin, not a core change.
 - **Tests on both backends.** Unit tests use in-memory doubles; code with a Postgres, Valkey or SpiceDB implementation runs the same tests against the real stack. `make check` runs Biome, strict `tsc`, contract freshness and every test with the stack up.
-- **A demo tenant and a scale generator.** `examples/corpus` is Qinghe Technology, with planted duplicates and conflicts; `pnpm engine synthesize` writes synthetic tenants of any size, and `pnpm engine ingest` prints a volume report.
+- **A demo tenant and a scale generator.** `examples/corpus` is Qinghe Technology, with planted duplicates and conflicts; `pnpm bench synthesize` writes synthetic tenants of any size, and `pnpm bench ingest` prints a volume report.
 - **Every change lands through a pull request.** The product owner's local Codex reviews it; findings are fixed and the PR is merged. Correctness comes first, then layering, clear component boundaries and explicit contracts.
 - **Names describe what things do.** No plan numbers in code, docs or events. [AGENTS.md](../AGENTS.md) has the full rules for anyone, human or agent, building a component.
 

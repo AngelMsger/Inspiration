@@ -7,9 +7,8 @@
  */
 
 import { levelOf } from "@inspiration/contracts";
+import type { Corpus, Engine } from "@inspiration/engine";
 import { type Spread, spread } from "./claims.ts";
-import type { Corpus } from "./corpus.ts";
-import type { Engine } from "./engine.ts";
 
 export interface OnUseReport {
   /** Reference documents, and the passages sampled from them that no claim cited yet. */

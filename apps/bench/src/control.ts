@@ -20,10 +20,9 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { schemaErrors, slotOf, valueKeyOf } from "@inspiration/contracts";
+import type { Corpus, Engine } from "@inspiration/engine";
 import { type CaseDraft, governedAsOf, sourcesOf } from "@inspiration/governance";
 import { parse } from "yaml";
-import type { Corpus } from "./corpus.ts";
-import type { Engine } from "./engine.ts";
 
 /** A slot as the answers give it or as a run leaves it. */
 export interface SlotOutcome {

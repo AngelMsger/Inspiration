@@ -12,12 +12,11 @@
 
 import type { AclChanged, BlocksChanged, ClaimsUpdated, EventEnvelope, GovernanceLevel } from "@inspiration/contracts";
 import { levelOf, payloadOf } from "@inspiration/contracts";
+import type { Corpus, Engine } from "@inspiration/engine";
 import { InMemoryTransport, ValkeyStreamsTransport } from "@inspiration/eventbus";
 import type { ItemOutcome, SyncReport } from "@inspiration/source-sync";
 import { type ClaimsReport, claimsReport, type Spread, spread, type Truth, usageMark } from "./claims.ts";
 import { type GovernanceReport, governanceReport } from "./conflicts.ts";
-import type { Corpus } from "./corpus.ts";
-import type { Engine } from "./engine.ts";
 import { type DaysReport, type FreshnessReport, freshnessReport } from "./freshness.ts";
 import { type InboxReport, inboxLines, inboxReport } from "./inbox.ts";
 import { type OutlineReport, outlineLines, outlineReport } from "./outline.ts";

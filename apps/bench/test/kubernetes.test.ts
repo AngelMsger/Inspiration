@@ -2,14 +2,13 @@ import { cp, mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Corpus, Engine } from "@inspiration/engine";
 import { languageOf } from "@inspiration/kernel";
 import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
 import {
   type Control,
-  Corpus,
   controlReport,
-  Engine,
   ingest,
   loadControl,
   loadQuestions,

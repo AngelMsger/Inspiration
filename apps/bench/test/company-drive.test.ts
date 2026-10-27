@@ -2,12 +2,11 @@ import { cp, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Corpus, Engine } from "@inspiration/engine";
 import { languageOf } from "@inspiration/kernel";
 import { describe, expect, test } from "vitest";
 import { parse } from "yaml";
 import {
-  Corpus,
-  Engine,
   ingest,
   type Keys,
   loadKeys,

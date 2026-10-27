@@ -7,9 +7,9 @@
  * change budget.
  */
 
+import type { Engine } from "@inspiration/engine";
 import type { ReclusterReport } from "@inspiration/page-compiler";
 import { type Spread, spread } from "./claims.ts";
-import type { Engine } from "./engine.ts";
 
 export interface OutlineRun {
   ms: number;

@@ -57,7 +57,9 @@ producer name, its consumer group and the first part of its model task names.
   when a side effect cannot be repeated.
 - Composition roots live in `apps/<name>` and are listed under `apps` in `components.yaml`.
   An app wires components to the store, the bus and the blob store and may depend on any of
-  them; no package depends on an app.
+  them; no package depends on an app. The one exception is a harness that measures an app:
+  `apps/bench` runs the engine process over corpora and lists it under `uses`. Benchmarks,
+  reports and checks against hand-written answers go there, not in `apps/engine`.
 - The engine has no accounts, sign-in or UI concerns. Every API takes the tenant and the
   principal it acts for; people, tenants and policy are provisioned by the business layer
   (see `docs/architecture.md`).

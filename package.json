@@ -15,11 +15,12 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "test:unit": "INSPIRATION_STACK=off vitest run",
-    "engine": "node apps/engine/src/cli.ts"
+    "bench": "node apps/bench/src/cli.ts"
   },
   "dependencies": {
     "@inspiration/access-control": "workspace:*",
     "@inspiration/agent-runtime": "workspace:*",
+    "@inspiration/bench": "workspace:*",
     "@inspiration/collaboration": "workspace:*",
     "@inspiration/connectors": "workspace:*",
     "@inspiration/contracts": "workspace:*",

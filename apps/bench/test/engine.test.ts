@@ -2,9 +2,10 @@ import { cp, mkdtemp, readdir, readFile, rm, utimes, writeFile } from "node:fs/p
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Corpus, Engine } from "@inspiration/engine";
 import { hasStack, stackTest, testData, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
-import { Corpus, days, Engine, inboxReport, ingest, SimulatedClock } from "../src/index.ts";
+import { days, inboxReport, ingest, SimulatedClock } from "../src/index.ts";
 
 const CORPUS = fileURLToPath(new URL("../../../examples/corpus/", import.meta.url));
 const FINANCE = "grp_01QINGHE00000000000FINANCE";
@@ -35,7 +36,7 @@ async function touch(path: string, day: string): Promise<void> {
 
 /** A copy of the demo corpus, so a test can edit it, and an engine over the given backend. */
 async function open(stack?: { databaseUrl: string; streamPrefix: string }): Promise<Run & { close(): Promise<void> }> {
-  const dir = await mkdtemp(join(tmpdir(), "inspiration-engine-"));
+  const dir = await mkdtemp(join(tmpdir(), "inspiration-bench-"));
   await cp(CORPUS, join(dir, "corpus"), { recursive: true });
   // Every document last changed on one day, so review clocks do not depend on the checkout.
   for (const file of await readdir(join(dir, "corpus"), { recursive: true })) {

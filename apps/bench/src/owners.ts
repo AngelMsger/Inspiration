@@ -7,9 +7,8 @@
  */
 
 import type { SourceVersion, TaxonomyNode } from "@inspiration/contracts";
+import type { Corpus, Engine } from "@inspiration/engine";
 import { type Spread, spread } from "./claims.ts";
-import type { Corpus } from "./corpus.ts";
-import type { Engine } from "./engine.ts";
 
 export interface OwnersReport {
   /** Live topics, those with an owner after the run, and those this run gave one. */

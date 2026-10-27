@@ -14,6 +14,9 @@ importers:
       '@inspiration/agent-runtime':
         specifier: workspace:*
         version: link:engine/agent-runtime
+      '@inspiration/bench':
+        specifier: workspace:*
+        version: link:apps/bench
       '@inspiration/collaboration':
         specifier: workspace:*
         version: link:engine/collaboration
@@ -78,6 +81,52 @@ importers:
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
+
+  apps/bench:
+    dependencies:
+      '@inspiration/collaboration':
+        specifier: workspace:*
+        version: link:../../engine/collaboration
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../../libs/contracts
+      '@inspiration/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@inspiration/eventbus':
+        specifier: workspace:*
+        version: link:../../libs/eventbus
+      '@inspiration/extraction':
+        specifier: workspace:*
+        version: link:../../engine/extraction
+      '@inspiration/freshness':
+        specifier: workspace:*
+        version: link:../../engine/freshness
+      '@inspiration/governance':
+        specifier: workspace:*
+        version: link:../../engine/governance
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../../libs/kernel
+      '@inspiration/model-gateway':
+        specifier: workspace:*
+        version: link:../../engine/model-gateway
+      '@inspiration/page-compiler':
+        specifier: workspace:*
+        version: link:../../engine/page-compiler
+      '@inspiration/retrieval':
+        specifier: workspace:*
+        version: link:../../engine/retrieval
+      '@inspiration/source-sync':
+        specifier: workspace:*
+        version: link:../../engine/source-sync
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+    devDependencies:
+      '@inspiration/testkit':
+        specifier: workspace:*
+        version: link:../../libs/testkit
 
   apps/engine:
     dependencies:

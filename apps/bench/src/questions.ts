@@ -33,14 +33,13 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { type GroundedAnswer, schemaErrors, type UsageRecord } from "@inspiration/contracts";
+import type { Corpus, Engine } from "@inspiration/engine";
 import { languageOf } from "@inspiration/kernel";
 import { Gateway } from "@inspiration/model-gateway";
 import { ContextTooLong, type Retrieval } from "@inspiration/retrieval";
 import { parse } from "yaml";
 import { usageMark } from "./claims.ts";
-import type { Corpus } from "./corpus.ts";
 import { type Spend, spendLine, spendOf, usageSince } from "./cost.ts";
-import type { Engine } from "./engine.ts";
 
 /**
  * How an answer turned out: right, a value no longer in effect, a wrong text, wrong

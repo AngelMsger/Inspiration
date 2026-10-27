@@ -1,7 +1,7 @@
 # Questions to the company drive, a third each in English, Chinese and Japanese, asked as the
 # drive's reader. A fact entry asks about a fact of keys.yaml, which gives the answer, the
 # stale values and the documents to cite; a question entry gives its own (answer: null when
-# nothing in the drive answers it). See questions.ts in apps/engine.
+# nothing in the drive answers it). See questions.ts in apps/bench.
 
 questions:
   - fact: "hotel_cap_per_night"

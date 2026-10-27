@@ -1,14 +1,11 @@
 {
   "name": "@inspiration/engine",
   "version": "0.1.0",
-  "description": "The engine process: wires the built components to the store, the event bus and the blob store; CLI for ingest runs and reports",
+  "description": "The engine process: wires the built components to the store, the event bus and the blob store; corpus manifests",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
-  },
-  "bin": {
-    "inspiration-engine": "./src/cli.ts"
   },
   "dependencies": {
     "@inspiration/access-control": "workspace:*",

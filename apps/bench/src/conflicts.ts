@@ -9,8 +9,8 @@
  */
 
 import type { EventEnvelope, GovernanceLevel, Priority } from "@inspiration/contracts";
+import type { Engine } from "@inspiration/engine";
 import { type Spread, spread, type Truth } from "./claims.ts";
-import type { Engine } from "./engine.ts";
 
 export interface GovernanceReport {
   cases: { total: number; by_class: Record<string, number>; by_status: Record<string, number> };

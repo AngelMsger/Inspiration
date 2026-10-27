@@ -2,18 +2,10 @@ import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Corpus, Engine } from "@inspiration/engine";
 import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
-import {
-  Corpus,
-  Engine,
-  type History,
-  inEffect,
-  loadHistory,
-  loadTimeline,
-  replay,
-  type Timeline,
-} from "../src/index.ts";
+import { type History, inEffect, loadHistory, loadTimeline, replay, type Timeline } from "../src/index.ts";
 
 const EXPENSES = fileURLToPath(new URL("../../../examples/gitlab-expenses/", import.meta.url));
 

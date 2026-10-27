@@ -7,8 +7,8 @@
  */
 
 import type { UsageRecord } from "@inspiration/contracts";
+import type { Engine } from "@inspiration/engine";
 import { Gateway, MemoryUsage, type UsageSink } from "@inspiration/model-gateway";
-import type { Engine } from "./engine.ts";
 
 /**
  * A run's usage: every record kept for the cost report and written to a durable sink too

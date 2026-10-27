@@ -29,7 +29,7 @@ const ROOT = new URL("../", import.meta.url);
 const manifest = parse(readFileSync(new URL("components.yaml", ROOT), "utf8")) as {
   components: Record<string, Component>;
   libraries: Record<string, { owns: string }>;
-  apps: Record<string, { owns: string }>;
+  apps: Record<string, { owns: string; uses?: string[] }>;
 };
 const components = Object.entries(manifest.components);
 const names = new Set(Object.keys(manifest.components));
@@ -124,12 +124,25 @@ test("the engine and the libraries never depend on the business layer", () => {
   }
 });
 
-test("every app is listed, and no package depends on an app", () => {
+test("every app is listed, and no package depends on an app but a harness on the app it measures", () => {
   const found = readdirSync(new URL("apps/", ROOT)).filter((d) => packageJson(d, "apps"));
   expect(found.sort()).toEqual([...apps].sort());
-  for (const name of apps) {
+  const measured = new Set(Object.values(manifest.apps).flatMap((a) => a.uses ?? []));
+  for (const [name, app] of Object.entries(manifest.apps)) {
     expect(packageJson(name, "apps")?.name).toBe(`@inspiration/${name}`);
     expect(names.has(name) || libraries.has(name)).toBe(false);
+    const uses = app.uses ?? [];
+    expect(
+      uses.filter((u) => !apps.has(u) || u === name),
+      name,
+    ).toEqual([]);
+    // The app a harness measures is a composition root, which depends on no app.
+    if (measured.has(name)) expect(uses, name).toEqual([]);
+    const pkg = packageJson(name, "apps") as PackageJson;
+    expect(
+      internalDependencies(pkg).filter((d) => apps.has(d) && !uses.includes(d)),
+      name,
+    ).toEqual([]);
   }
   for (const dir of ["engine", "libs", "business"]) {
     for (const name of packagesIn(dir)) {

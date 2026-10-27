@@ -16,10 +16,9 @@ import {
   type UsageRecord,
   valueKeyOf,
 } from "@inspiration/contracts";
+import type { Corpus, Engine } from "@inspiration/engine";
 import { TASK } from "@inspiration/extraction";
 import { Gateway, MemoryUsage } from "@inspiration/model-gateway";
-import type { Corpus } from "./corpus.ts";
-import type { Engine } from "./engine.ts";
 
 export interface Spread {
   median: number;

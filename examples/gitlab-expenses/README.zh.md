@@ -3,11 +3,11 @@
 一份真实的制度文档，按它六年来的编辑历史逐版回放，用来衡量知识在变化时抽取和治理的表现。文档是 GitLab 公开手册中的差旅与费用制度，取 2020 年 11 月到 2026 年 9 月之间的 21 个版本。回放把每个版本依次覆盖写入，引擎时钟设为该版本发布当天，执行 ingest，然后询问 governance 关于 14 个事实（酒店上限、每日餐费、收据门槛、报销期限等）会告诉读者什么。英文版见 [README.md](README.md)；两者不一致时以英文版为准。
 
 ```bash
-pnpm engine replay examples/gitlab-expenses          # 内存中运行，约 6 秒
-pnpm engine replay examples/gitlab-expenses --stack  # Postgres 和 Valkey
+pnpm bench replay examples/gitlab-expenses          # 内存中运行，约 6 秒
+pnpm bench replay examples/gitlab-expenses --stack  # Postgres 和 Valkey
 ```
 
-`apps/engine/test/history.test.ts` 在内存和 Postgres 上运行它，并要求结果与 `timeline.yaml` 一致。
+`apps/bench/test/history.test.ts` 在内存和 Postgres 上运行它，并要求结果与 `timeline.yaml` 一致。
 
 ## 文件
 

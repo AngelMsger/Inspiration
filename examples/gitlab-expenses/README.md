@@ -9,11 +9,11 @@ it was published, ingests, and asks governance what it would tell a reader about
 [README.zh.md](README.zh.md); if the two differ, this English version wins.
 
 ```bash
-pnpm engine replay examples/gitlab-expenses          # in memory, about 6 seconds
-pnpm engine replay examples/gitlab-expenses --stack  # Postgres and Valkey
+pnpm bench replay examples/gitlab-expenses          # in memory, about 6 seconds
+pnpm bench replay examples/gitlab-expenses --stack  # Postgres and Valkey
 ```
 
-`apps/engine/test/history.test.ts` runs it in memory and on Postgres and holds the result to
+`apps/bench/test/history.test.ts` runs it in memory and on Postgres and holds the result to
 `timeline.yaml`.
 
 ## Files

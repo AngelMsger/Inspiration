@@ -1,5 +1,5 @@
 # Model gateway config for validation runs on DeepSeek V4.1 Flash (docs/design/validation.md,
-# "Cost, and how it stays low"). Run with `pnpm engine ingest <corpus> --gateway
+# "Cost, and how it stays low"). Run with `pnpm bench ingest <corpus> --gateway
 # config/gateway.deepseek.yaml`, and first with --dry-run: the same config with stand-ins for
 # every provider, which meters what the run would send and prices it here, without a key.
 #

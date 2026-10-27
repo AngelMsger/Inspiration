@@ -8,14 +8,14 @@ the Japanese pages are two to three years older than their English originals. A 
 is in [README.zh.md](README.zh.md); if the two differ, this English version wins.
 
 ```bash
-pnpm engine ingest examples/kubernetes-docs   # in memory, about 3 seconds
-pnpm engine ask examples/kubernetes-docs "How many nodes can a Kubernetes cluster have at most?"
+pnpm bench ingest examples/kubernetes-docs   # in memory, about 3 seconds
+pnpm bench ask examples/kubernetes-docs "How many nodes can a Kubernetes cluster have at most?"
 ```
 
 After the usual report, the control check (as in [examples/control](../control/README.md))
 prints each page as **right**, **known gap** (it differs the way `expected.yaml` records) or
 **differs**, and the question check does the same for each question of `questions.yaml`.
-`apps/engine/test/kubernetes.test.ts` runs both in memory and on Postgres. `ask` answers one
+`apps/bench/test/kubernetes.test.ts` runs both in memory and on Postgres. `ask` answers one
 question as the corpus's reader, with its citations and notes.
 
 ## Files

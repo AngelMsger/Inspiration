@@ -2,15 +2,14 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Corpus, Engine } from "@inspiration/engine";
 import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
 import {
   type CaseResult,
   type Control,
-  Corpus,
   controlLines,
   controlReport,
-  Engine,
   ingest,
   loadControl,
   SimulatedClock,

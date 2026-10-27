@@ -1,0 +1,31 @@
+{
+  "name": "@inspiration/bench",
+  "version": "0.1.0",
+  "description": "The measurement harness: ingest runs and reports over a corpus, the control check, history replay, questions, the reading check, cost, synthetic corpora; CLI",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "inspiration-bench": "./src/cli.ts"
+  },
+  "dependencies": {
+    "@inspiration/collaboration": "workspace:*",
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/engine": "workspace:*",
+    "@inspiration/eventbus": "workspace:*",
+    "@inspiration/extraction": "workspace:*",
+    "@inspiration/freshness": "workspace:*",
+    "@inspiration/governance": "workspace:*",
+    "@inspiration/kernel": "workspace:*",
+    "@inspiration/model-gateway": "workspace:*",
+    "@inspiration/page-compiler": "workspace:*",
+    "@inspiration/retrieval": "workspace:*",
+    "@inspiration/source-sync": "workspace:*",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@inspiration/testkit": "workspace:*"
+  }
+}

@@ -8,8 +8,8 @@
  */
 
 import { cardKind, type Item, weeksBetween } from "@inspiration/collaboration";
+import type { Engine } from "@inspiration/engine";
 import { type Spread, spread } from "./claims.ts";
-import type { Engine } from "./engine.ts";
 
 export interface InboxReport {
   /** The inbox's settings: cards per owner and week, todos per card. */

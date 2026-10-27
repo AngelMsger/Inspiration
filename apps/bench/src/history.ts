@@ -26,9 +26,8 @@ import { cp, mkdir, mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/pro
 import { tmpdir } from "node:os";
 import { dirname, join, sep } from "node:path";
 import { schemaErrors, slotOf, valueKeyOf } from "@inspiration/contracts";
+import { Corpus, type Engine } from "@inspiration/engine";
 import { parse } from "yaml";
-import { Corpus } from "./corpus.ts";
-import type { Engine } from "./engine.ts";
 import { ingest } from "./ingest.ts";
 
 export interface HistoryStep {

@@ -9,9 +9,9 @@
  */
 
 import type { EventEnvelope, ReviewDue } from "@inspiration/contracts";
+import type { Engine } from "@inspiration/engine";
 import { addDays, clockOf, dayOf, daysBetween, staleness } from "@inspiration/freshness";
 import { type Spread, spread } from "./claims.ts";
-import type { Engine } from "./engine.ts";
 
 export interface FreshnessReport {
   documents: number;

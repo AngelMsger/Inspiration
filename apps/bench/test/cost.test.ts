@@ -3,12 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { UsageRecord } from "@inspiration/contracts";
+import { Corpus, Engine } from "@inspiration/engine";
 import { Gateway, loadGatewayConfig, MemoryUsage, standIn } from "@inspiration/model-gateway";
 import { expect, test } from "vitest";
 import {
-  Corpus,
   costReport,
-  Engine,
   ingest,
   loadQuestions,
   type Question,

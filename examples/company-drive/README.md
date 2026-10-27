@@ -9,11 +9,11 @@ document. A Chinese copy is in [README.zh.md](README.zh.md); if the two differ, 
 version wins.
 
 ```bash
-pnpm engine ingest examples/company-drive --today 2026-10-27 --context 1000000   # in memory, about 50 seconds
+pnpm bench ingest examples/company-drive --today 2026-10-27 --context 1000000   # in memory, about 50 seconds
 ```
 
 `--context` gives the long-context rival a window of a million tokens: the drive is 311,106
-tokens, more than the default 150,000. `apps/engine/test/company-drive.test.ts` checks every
+tokens, more than the default 150,000. `apps/bench/test/company-drive.test.ts` checks every
 key entry against its file and holds the run to the numbers below.
 
 ## What is on the drive
@@ -135,8 +135,8 @@ their 36 places.
 ## On a real model
 
 ```
-pnpm engine ingest examples/company-drive --gateway config/gateway.deepseek.yaml --dry-run
-pnpm engine ingest examples/company-drive --gateway config/gateway.deepseek.yaml --valkey <url>
+pnpm bench ingest examples/company-drive --gateway config/gateway.deepseek.yaml --dry-run
+pnpm bench ingest examples/company-drive --gateway config/gateway.deepseek.yaml --valkey <url>
 ```
 
 The dry run answers with the stand-ins but meters their calls at the config's prices, with a

@@ -18,10 +18,10 @@
 import { mkdir, readdir, readFile, utimes, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type { ClaimValueKind, GovernanceLevel } from "@inspiration/contracts";
+import type { CorpusManifest } from "@inspiration/engine";
 import type { PredicateEntry, Vocabulary } from "@inspiration/extraction";
 import { type LanguagePack, loadLanguages } from "@inspiration/kernel";
 import { stringify } from "yaml";
-import type { CorpusManifest } from "./corpus.ts";
 
 interface Fact {
   key: string;

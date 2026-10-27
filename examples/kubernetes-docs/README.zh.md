@@ -3,11 +3,11 @@
 Kubernetes 文档中的五个页面，每个页面都有英文原文和官方的中文、日文译本，用来衡量跨语言的抽取和治理。知识不依赖于书写它的语言，所以一个页面和它的译本应当让每个事实只有一个值，并算作一个来源。这些译本并非都是最新的：其中三个日文页面比英文原文早两到三年。英文版见 [README.md](README.md)；两者不一致时以英文版为准。
 
 ```bash
-pnpm engine ingest examples/kubernetes-docs   # 内存中运行，约 3 秒
-pnpm engine ask examples/kubernetes-docs "How many nodes can a Kubernetes cluster have at most?"
+pnpm bench ingest examples/kubernetes-docs   # 内存中运行，约 3 秒
+pnpm bench ask examples/kubernetes-docs "How many nodes can a Kubernetes cluster have at most?"
 ```
 
-在常规报告之后，对照检查（与 [examples/control](../control/README.zh.md) 相同）把每个页面标为 **right**（正确）、**known gap**（已知差距：与 `expected.yaml` 记录的方式一致地不同）或 **differs**（不同），问题检查对 `questions.yaml` 中的每个问题也这样标注。`apps/engine/test/kubernetes.test.ts` 在内存和 Postgres 上运行这两项检查。`ask` 以语料的读者身份回答一个问题，并给出引用和说明。
+在常规报告之后，对照检查（与 [examples/control](../control/README.zh.md) 相同）把每个页面标为 **right**（正确）、**known gap**（已知差距：与 `expected.yaml` 记录的方式一致地不同）或 **differs**（不同），问题检查对 `questions.yaml` 中的每个问题也这样标注。`apps/bench/test/kubernetes.test.ts` 在内存和 Postgres 上运行这两项检查。`ask` 以语料的读者身份回答一个问题，并给出引用和说明。
 
 ## 文件
 

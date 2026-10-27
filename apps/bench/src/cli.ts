@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * inspiration-engine ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
+ * inspiration-bench ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
  *                    [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>] [--context <tokens>]
  *                    [--gateway <file> [--dry-run]] [--questions <n>]
- * inspiration-engine synthesize <dir> --documents <n> [--seed <n>]
- * inspiration-engine replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
- * inspiration-engine ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]
+ * inspiration-bench synthesize <dir> --documents <n> [--seed <n>]
+ * inspiration-bench replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
+ * inspiration-bench ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]
  *
  * ingest syncs and normalizes a corpus (see examples/corpus) and prints the report. Without
  * --stack or --database everything stays in memory, which suits the demo corpus; scale runs
@@ -45,13 +45,12 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import { Corpus, Engine, type EngineOptions } from "@inspiration/engine";
 import { loadSettings, openPool, type Pool } from "@inspiration/kernel";
 import { Gateway, loadGatewayConfig, PostgresUsage, standIn, ValkeyCache } from "@inspiration/model-gateway";
 import type { Truth } from "./claims.ts";
 import { controlLines, controlReport, loadControl } from "./control.ts";
-import { Corpus } from "./corpus.ts";
 import { costLines, costReport, RunUsage } from "./cost.ts";
-import { Engine, type EngineOptions } from "./engine.ts";
 import { days, SimulatedClock } from "./freshness.ts";
 import { loadHistory, loadTimeline, replay, replayLines } from "./history.ts";
 import { inboxLines, inboxReport } from "./inbox.ts";
@@ -62,12 +61,12 @@ import { readingLines, readingReport } from "./reading.ts";
 import { edit, synthesize } from "./synthesize.ts";
 
 const USAGE = [
-  "usage: inspiration-engine ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
+  "usage: inspiration-bench ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
   "                          [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>] [--context <tokens>]",
   "                          [--gateway <file> [--dry-run]] [--questions <n>]",
-  "       inspiration-engine synthesize <dir> --documents <n> [--seed <n>]",
-  "       inspiration-engine replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
-  "       inspiration-engine ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]",
+  "       inspiration-bench synthesize <dir> --documents <n> [--seed <n>]",
+  "       inspiration-bench replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
+  "       inspiration-bench ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]",
 ].join("\n");
 
 async function main(argv: string[]): Promise<number> {

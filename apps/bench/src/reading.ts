@@ -14,9 +14,8 @@
  * document costs no more than one that reads only the keyed passages (see cost.ts).
  */
 
+import type { Corpus, Engine } from "@inspiration/engine";
 import { sourcesOf } from "@inspiration/governance";
-import type { Corpus } from "./corpus.ts";
-import type { Engine } from "./engine.ts";
 import type { Keys } from "./questions.ts";
 
 /** Places as "<file>: <value>", sorted. */
