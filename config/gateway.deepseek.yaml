@@ -50,3 +50,7 @@ cache:
   # Shared by runs, so a change to answering alone does not read the corpus again.
   backend: valkey
   ttl_s: 2592000
+  # Completions only, while the stand-ins answer embeddings and reranks for free. With a real
+  # embedding or rerank model, list them too (operations: [complete, embed, rerank]): each text
+  # and each query-document score is cached on its own, and a local model on CPU takes hours to
+  # redo a corpus.

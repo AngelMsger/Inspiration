@@ -98,6 +98,11 @@ export interface CacheConfig {
   backend: "none" | "memory" | "valkey";
   ttl_s: number;
   max_entries: number;
+  /**
+   * The operations whose replies are cached: completions by default; embeddings (per text)
+   * and rerank scores (per query and document) when a real model makes them slow to redo.
+   */
+  operations: ("complete" | "embed" | "rerank")[];
 }
 
 export interface GatewayConfig {
@@ -190,6 +195,7 @@ const SCHEMA = {
         backend: { enum: ["none", "memory", "valkey"] },
         ttl_s: { type: "integer", minimum: 1 },
         max_entries: { type: "integer", minimum: 1 },
+        operations: { type: "array", items: { enum: ["complete", "embed", "rerank"] }, uniqueItems: true },
       },
     },
   },
@@ -222,7 +228,7 @@ export function parseGatewayConfig(value: unknown): GatewayConfig {
     })),
     routes: (raw.routes ?? []) as RouteConfig[],
     budgets: (raw.budgets ?? []).map((b) => ({ ...(b as BudgetConfig), period: b.period ?? "month" })),
-    cache: { backend: "memory", ttl_s: 7 * 24 * 3600, max_entries: 10_000, ...raw.cache },
+    cache: { backend: "memory", ttl_s: 7 * 24 * 3600, max_entries: 10_000, operations: ["complete"], ...raw.cache },
   };
   const names = config.providers.map((p) => p.name);
   const duplicate = names.find((n, i) => names.indexOf(n) !== i);
