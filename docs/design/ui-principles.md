@@ -68,6 +68,8 @@ The look is "ink and paper": a warm paper ground, serif type for reading, one in
 
 ## Key screens
 
+The drawn screens are in [screens](screens/README.md), a snapshot of the design canvas.
+
 | Screen | What it shows | For |
 | --- | --- | --- |
 | Sign in and choose a company | Sign-in, then the companies the person belongs to and their personal library | Everyone |
@@ -195,4 +197,4 @@ Direction from the product owner on 2026-10-27:
 - Review the Japanese terms in the glossary.
 - Confirm the translation rules: cited passages are translated only on request and labelled as machine translation, and knowledge pages stay in their space's content language for now.
 - Whether the Sources tree should say Documents (文档, ドキュメント), the word people use for their material. Sources also covers chats and sheets, which is why it says Sources today.
-- Still to draw: publish and conflict in compact mode, the Knowledge view of a source, and Japanese versions of the key screens.
+- Still to draw: the Knowledge view of a source, and Japanese versions of the key screens. Publish and conflict in compact mode are drawn (D-review and D-conflicts).
