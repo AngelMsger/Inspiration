@@ -1,6 +1,6 @@
 # Inspiration UI: interaction principles and visual design
 
-Status: adopted design, 2026-10-24. The screens are drawn on the product owner's design canvas; there is no production UI code yet. Companion document: [Statements at scale](statements-at-scale.md), which explains how statements are organised and reviewed. A Chinese copy is in [docs/zh/design/ui-principles.md](../zh/design/ui-principles.md).
+Status: adopted design, 2026-10-24. The screens are drawn on the product owner's design canvas; there is no production UI code yet. It follows from the [design philosophy](ui-philosophy.md); where the two differ, the philosophy wins until this document is redone. Companion documents: [Statements at scale](statements-at-scale.md), which explains how statements are organised and reviewed, and [Decide for me](decide-for-me.md). A Chinese copy is in [docs/zh/design/ui-principles.md](../zh/design/ui-principles.md).
 
 ## Who the UI serves
 
@@ -25,8 +25,8 @@ The places these people work in:
 1. **Concrete before abstract.** People meet their own material first. An imported document opens in its Original view, with its headings, paragraphs, lists and tables, and knowledge appears on top of it one step at a time: marks on the passages that became knowledge, then what a passage says and what other documents say about it, then the knowledge page. Knowledge pages and topics are the second way in, for people who already know what they are looking for.
 2. **Reading first, governance on demand.** A page opens as a clean document. Owners, votes and rules appear only when someone asks or acts. The knowledge model itself (statements, counts, lineage) is never part of the reading surface; owners see it in the Trace view.
 3. **Every statement shows where it came from and how fresh it is.** A citation is one click from the source passage, and status is always written in words (Fresh, Review due, Outdated, Disputed), never shown by colour alone.
-4. **Always show which space you are in and who can read it.** The space switcher sits in the header, and every space states who can read it, as set by its owner, with a count such as "All 18 Procurement members".
-5. **The assistant proposes, people decide.** The assistant drafts options, raises conflicts and answers questions, but a named person votes, approves or publishes.
+4. **Always show which company and space you are in, and who can read it.** The top bar names the company, the left column and breadcrumbs name the space, and every space states who can read it, as set by its owner, with a count such as "All 18 Procurement members".
+5. **Every decision has a person, who can let the assistant decide.** The assistant drafts options, raises conflicts and answers questions, and its suggestion is already filled in. A named person votes, approves or publishes, or lets the assistant decide for them, and can undo it. See [Decide for me](decide-for-me.md).
 6. **Never hand over credentials, and make widening visible.** A personal connection stays personal. Publishing shows who will be able to read, and warns without blocking when some readers cannot open the original.
 7. **A conflict always has an owner, a deadline, an approval mode, someone who decides when the deadline passes, and a record.** Meanwhile readers see the last verified value marked Disputed, unless the owners choose otherwise.
 8. **One inbox.** Reviews, votes, notes, reconnect requests and replies all land in one place, grouped into cards and ordered by deadline.
@@ -60,10 +60,10 @@ The look is "ink and paper": a warm paper ground, serif type for reading, one in
 
 ## Layout
 
-- **Header:** company and space switcher (hidden for someone working alone), ask or search, account menu (including interface language).
+- **Header:** the company switcher (the person's companies and their personal library; hidden for someone working alone), ask or search, account menu (including interface language). It never switches spaces; the left column does.
 - **Left:** the Documents tree (source apps and their folders, with an icon per source app), then the Knowledge tree (spaces, topics, pages). Documents come first because people know their documents before they know the knowledge built from them. The Documents tree also holds chats and sheets, but Documents is the word people use for their material.
 - **One navigation everywhere.** The header is the same on every screen. The left column always navigates the area you are in: everyday use (Home, Inbox, My space, the spaces, the Documents and Knowledge trees), a space's owner tools (Freshness queue, Conflicts, Publish requests, Rules, Space settings), Admin, or your account. Reading a page or a document folds the left column away to give the text room; a button brings it back, and breadcrumbs above the text say where you are. Breadcrumbs never replace the header or the left column.
-- **Centre:** the document. A source opens in its Original view: rendered from its blocks without a model, it keeps the headings, paragraphs, lists and tables of the source. It is close to the source app's page but not a copy of it, and a block that cannot be rendered, such as a flowchart, shows a placeholder that opens the source. The Annotated view adds marks: a dotted underline on passages that became knowledge, and the Outdated and Disputed marks. The Knowledge view lists what was built from the document. A knowledge page cites its sources inline.
+- **Centre:** the document. A source opens in its Original view: rendered from its blocks without a model, it keeps the headings, paragraphs, lists and tables of the source. It is close to the source app's page but not a copy of it, and a block that cannot be rendered, such as a flowchart, shows a placeholder that opens the source. The Annotated view adds marks: a dotted underline on passages that became knowledge, and the Outdated and Disputed marks. The Knowledge view lists what was taken from each section of the document, in plain sentences with their status and the pages that use them, and how the document relates to other documents. A knowledge page cites its sources inline.
 - **Right panel:** What this says, Comments, Sources, Related, History. Selecting a passage in the Annotated view opens What this says; clicking a citation opens the source beside the page.
 - **Selection menu:** Comment, Highlight, This is outdated, Propose a correction, Ask about this.
 
@@ -200,4 +200,4 @@ Direction from the product owner on 2026-10-27:
 
 - Review the Japanese terms in the glossary.
 - Confirm the translation rules: cited passages are translated only on request and labelled as machine translation, and knowledge pages stay in their space's content language for now.
-- Still to draw: the Knowledge view of a source, and Japanese versions of the key screens. Publish and conflict in compact mode are drawn (D-review and D-conflicts).
+- Still to draw: Japanese versions of the key screens. Publish and conflict in compact mode are drawn (D-review and D-conflicts).

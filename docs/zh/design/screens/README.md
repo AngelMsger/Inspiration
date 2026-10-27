@@ -44,6 +44,7 @@
 | --- | --- |
 | [E-doc](../../../design/screens/E-doc.dc.html) | 导入之后：先看原文 |
 | [E-doc-layers](../../../design/screens/E-doc-layers.dc.html) | 从原文到知识：批注与“这段讲了什么” |
+| [E-doc-knowledge](../../../design/screens/E-doc-knowledge.dc.html) | 文档的知识视图：每一节整理出了什么、用在哪里、和其他文档的关系 |
 | [E-model](../../../design/screens/E-model.dc.html) | 知识模型（说明图，不是产品界面） |
 | [E-topic](../../../design/screens/E-topic.dc.html) | 主题页（读者） |
 | [E-page](../../../design/screens/E-page.dc.html) | 知识页（读者，点开引用） |

@@ -49,6 +49,7 @@ story in Chinese, but Chinese is one of the three languages the product serves, 
 | --- | --- |
 | [E-doc](E-doc.dc.html) | After importing: the document first, in its Original view |
 | [E-doc-layers](E-doc-layers.dc.html) | From document to knowledge: the Annotated view and What this says |
+| [E-doc-knowledge](E-doc-knowledge.dc.html) | The Knowledge view of a document: what each section became, where it is used, and how it relates to other documents |
 | [E-model](E-model.dc.html) | The knowledge model: an explanatory diagram, not a product screen |
 | [E-topic](E-topic.dc.html) | Topic page, as a reader sees it |
 | [E-page](E-page.dc.html) | Knowledge page, as a reader sees it, with a citation open |
