@@ -1,7 +1,7 @@
 # 界面稿
 
 状态：产品负责人设计画布 “Inspiration UI”（https://claude.ai/artifact/GYXc5GBY3bPq1XGuMUGwAk）的快照，
-取于 2026-10-26，2026-10-27 更新（画布第 74 版）。界面稿在画布上绘制和修改；这个文件夹保存一份副本，方便评审者和团队成员对照文档阅读。两者不一致时，
+取于 2026-10-26，2026-10-27 更新（画布第 81 版）。界面稿在画布上绘制和修改；这个文件夹保存一份副本，方便评审者和团队成员对照文档阅读。两者不一致时，
 以画布为准。本 README 的英文原文在 [docs/design/screens/README.md](../../../design/screens/README.md)；
 两者不一致时，以英文版为准。
 
@@ -26,24 +26,26 @@
 
 | 文件 | 界面 |
 | --- | --- |
-| [V2-map](../../../design/screens/V2-map.dc.html) | 每个界面都遵循的结构：区域、左侧栏的四个区域、助手出现的四种方式、人物 |
-| [V2-switcher](../../../design/screens/V2-switcher.dc.html) | 顶栏的两个菜单：切换企业（先是企业，再是唯一的个人知识库）和账户菜单；个人知识库和我的空间的对照；在个人知识库里邀请别人；一个人用时的顶栏 |
+| [V2-map](../../../design/screens/V2-map.dc.html) | 每个界面共用一套语法，四个地方一眼分得出：区域、按使用频率放置每样东西、每个区域的样子、我在哪和我从哪来、右侧栏对每类东西放什么、助手出现的四种方式、人物 |
+| [V2-switcher](../../../design/screens/V2-switcher.dc.html) | 顶栏用普通文字写企业名；账户菜单里切换企业（先是企业，再是唯一的个人知识库）；常切换的人用 ⌘K；个人知识库和我的空间的对照；在个人知识库里邀请别人；一个人用时的顶栏 |
 | [V2-home](../../../design/screens/V2-home.dc.html) | 成员的首页：提问、常看内容的变化、最近看过 |
 | [V2-search](../../../design/screens/V2-search.dc.html) | 搜索与提问：先回答并带出处，再列结果，筛选在结果上方 |
-| [V2-page](../../../design/screens/V2-page.dc.html) | 阅读知识页：左侧栏收起，打开一个有争议数值的出处 |
+| [V2-page](../../../design/screens/V2-page.dc.html) | 阅读知识页：左侧栏收起，打开一个有争议数值的出处；右侧栏是本页结构和这一页正在处理的事 |
+| [V2-doc](../../../design/screens/V2-doc.dc.html) | 从出处点进来阅读原始文档：有回到知识页的路，右侧栏是对选中一段的评论和提一个修订 |
 | [V2-ja](../../../design/screens/V2-ja.dc.html) | 界面语言是日语的成员选择用日语读同一页：由同样的陈述用日语写出，标为机器翻译，出处指向中文原文 |
 | [V2-phone](../../../design/screens/V2-phone.dc.html) | 手机：阅读、待办概述、投票 |
-| [V2-account](../../../design/screens/V2-account.dc.html) | 账户：替我决定、长期委托及其边界 |
+| [V2-account](../../../design/screens/V2-account.dc.html) | 账户：总是替我决定，每一类写成“当这件事出现，助手就这样处理”，一类事从哪里来，以及边界。替我决定本身发生在待办和每个决定里 |
 | [V2-admin](../../../design/screens/V2-admin.dc.html) | 管理后台按关注点分组：成员，先搜索 |
 | [V2-sources](../../../design/screens/V2-sources.dc.html) | 管理后台：来源连接，企业的和成员的 |
+| [V2-tree](../../../design/screens/V2-tree.dc.html) | 空间的文档和知识在左侧栏里怎么放：四个备选和今天的样子对照；产品负责人选择保留今天的样子 |
 
 处理工作：
 
 | 文件 | 界面 |
 | --- | --- |
-| [V2-inbox](../../../design/screens/V2-inbox.dc.html) | 待办：先给概述，需要你的写明原因，其余用一次“替我决定”处理 |
+| [V2-inbox](../../../design/screens/V2-inbox.dc.html) | 待办：先给四张数字卡片和概述，需要你的写明原因，其余用一次“替我决定”处理 |
 | [V2-decision](../../../design/screens/V2-decision.dc.html) | 一个决定：建议已经预先选好，附理由 |
-| [V2-space](../../../design/screens/V2-space.dc.html) | 维护空间：概览，以及按领域排列、按真实规模画的主题与维护人 |
+| [V2-space](../../../design/screens/V2-space.dc.html) | 维护空间，在它自己带底色的区域里：数字卡片和概述、按领域排列并按真实规模画的主题与维护人，以及选中领域的检查器 |
 | [V2-conflicts](../../../design/screens/V2-conflicts.dc.html) | 维护空间：冲突队列（紧凑模式），没有能替你处理的时候 |
 | [V2-changes](../../../design/screens/V2-changes.dc.html) | 维护空间：制度新版本带来的批量变更，按变化的种类分组 |
 | [V2-review](../../../design/screens/V2-review.dc.html) | 维护空间：发布申请（紧凑模式） |

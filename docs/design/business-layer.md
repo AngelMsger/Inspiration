@@ -424,7 +424,7 @@ The UI says "company" for a tenant, "member" for a member and "account" for a us
 | Screen | Main objects | States and actions |
 | --- | --- | --- |
 | Sign in, sign up | Login methods allowed by the deployment | Company chooser after sign-in, only for people in a company; "sign in with company SSO" when a company requires it |
-| Company switcher | Two groups: the companies the person joined or created (the ones they created are marked), and their one personal library | Hidden until the person joins or creates a company. A badge when entering needs a fresh sign-in |
+| Company switcher, in the account menu | Two groups: the companies the person joined or created (the ones they created are marked), and their one personal library | Hidden until the person joins or creates a company. A badge when entering needs a fresh sign-in |
 | First run | Empty personal library, no company shown | Connect a source, upload, ask a question; later, invite someone or create a company |
 | Account settings | Profile, login identities, language, time zone | Choose English, 中文 or 日本語; link or unlink a login identity; sign out everywhere |
 | Invite and join | Invitations, join requests, and in Members the email domain whose people may join automatically | Pending, accepted, expired; approve or decline a request |

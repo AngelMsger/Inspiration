@@ -2,7 +2,7 @@
 
 Status: a snapshot of the product owner's design canvas, "Inspiration UI"
 (https://claude.ai/artifact/GYXc5GBY3bPq1XGuMUGwAk), taken on 2026-10-26 and updated on
-2026-10-27 (canvas version 74). Screens are drawn and changed on the canvas. This folder holds a copy so reviewers
+2026-10-27 (canvas version 81). Screens are drawn and changed on the canvas. This folder holds a copy so reviewers
 and team members can read the screens next to the docs. Where the two differ, the canvas wins.
 A Chinese copy of this README is in
 [docs/zh/design/screens/README.md](../../zh/design/screens/README.md).
@@ -31,24 +31,26 @@ Structure, reading, account and admin:
 
 | File | Screen |
 | --- | --- |
-| [V2-map](V2-map.dc.html) | The structure every screen follows: the regions, the four areas of the left column, the four ways the assistant shows up, the cast |
-| [V2-switcher](V2-switcher.dc.html) | The top bar's two menus: the company switcher (companies, then the one personal library) and the account menu; personal library and My space compared; inviting from the personal library; the top bar of someone working alone |
+| [V2-map](V2-map.dc.html) | One grammar for every screen and four places you can tell apart: the regions, where each element goes by how often it is used, how each area looks, where am I and where did I come from, what the right panel holds for each kind of thing, the four ways the assistant shows up, the cast |
+| [V2-switcher](V2-switcher.dc.html) | The top bar names the company as plain text; the account menu switches companies (companies, then the one personal library); ⌘K for people who switch often; personal library and My space compared; inviting from the personal library; the top bar of someone working alone |
 | [V2-home](V2-home.dc.html) | A member's home: ask, what changed in what they read, recently viewed |
 | [V2-search](V2-search.dc.html) | Search and ask: the answer first, with citations, then the results with filters above them |
-| [V2-page](V2-page.dc.html) | Reading a knowledge page with the left column folded, and a citation open on a disputed value |
+| [V2-page](V2-page.dc.html) | Reading a knowledge page with the left column folded, and a citation open on a disputed value; the right panel holds the outline and what is in progress on this page |
+| [V2-doc](V2-doc.dc.html) | Reading the original document after following a citation: a way back to the page, and comments and a revision proposal on the selected passage |
 | [V2-ja](V2-ja.dc.html) | The same page for a member whose interface is Japanese, who chose to read it in Japanese: written from the same statements and labelled machine translated, citing the Chinese original |
 | [V2-phone](V2-phone.dc.html) | Phone: reading, the inbox overview and a vote |
-| [V2-account](V2-account.dc.html) | Account: Decide for me, standing delegations and their limits |
+| [V2-account](V2-account.dc.html) | Account: Always decide for me, each kind as a "when this comes up, the assistant does this" rule, where a kind comes from, and the limits. Decide for me itself happens in the inbox and in each decision |
 | [V2-admin](V2-admin.dc.html) | Admin grouped by concern: members, search first |
 | [V2-sources](V2-sources.dc.html) | Admin: source connections, the company's and the members' |
+| [V2-tree](V2-tree.dc.html) | Four options for a space's documents and knowledge in the left column, compared with today's shape; the product owner kept today's shape |
 
 Working:
 
 | File | Screen |
 | --- | --- |
-| [V2-inbox](V2-inbox.dc.html) | Inbox: an overview first, what needs you with the reason, and one Decide for me for the rest |
+| [V2-inbox](V2-inbox.dc.html) | Inbox: four metric cards and an overview first, what needs you with the reason, and one Decide for me for the rest |
 | [V2-decision](V2-decision.dc.html) | One decision: the suggestion is already selected, with its reason |
-| [V2-space](V2-space.dc.html) | Managing a space: the overview, and topics and owners by area at their real size |
+| [V2-space](V2-space.dc.html) | Managing a space, in its own tinted area: metric cards and the overview, topics and owners by area at their real size, and an inspector for the selected area |
 | [V2-conflicts](V2-conflicts.dc.html) | Managing a space: the conflict queue in compact mode, when nothing can be decided for you |
 | [V2-changes](V2-changes.dc.html) | Managing a space: a batch change from a new version of a policy, grouped by kind of change |
 | [V2-review](V2-review.dc.html) | Managing a space: a publish request, in compact mode |

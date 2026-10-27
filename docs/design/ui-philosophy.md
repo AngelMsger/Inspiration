@@ -1,6 +1,6 @@
 # Inspiration UI: design philosophy
 
-Status: proposed, 2026-10-27, after the product owner asked for one clear philosophy that every screen follows, instead of fixes one comment at a time. It goes from the general to the specific: the stance, the beliefs, one structure for every screen, where settings live, how big each list really is, how the assistant shows up, and what this changes on the design canvas. The [UI principles](ui-principles.md) and the drawn screens follow from this document; where they differ, this document wins until they are redone. A Chinese copy is in [docs/zh/design/ui-philosophy.md](../zh/design/ui-philosophy.md).
+Status: proposed, 2026-10-27, after the product owner asked for one clear philosophy that every screen follows, instead of fixes one comment at a time. It goes from the general to the specific: the stance, the beliefs, one grammar with four places you can tell apart, where settings live, how big each list really is, how the assistant shows up, and what this changes on the design canvas. The [UI principles](ui-principles.md) and the drawn screens follow from this document; where they differ, this document wins until they are redone. A Chinese copy is in [docs/zh/design/ui-philosophy.md](../zh/design/ui-philosophy.md).
 
 ## 1. The stance: a quiet surface over complete depth
 
@@ -20,32 +20,78 @@ Every screen has to pass three tests:
 4. **Everything has one place, where the person who answers for it looks.** Navigation follows where you are. Settings follow who is responsible for them. A setting lives in one place, and other places link to it.
 5. **Trust is shown, not claimed.** Why, from where, by whom and since when are one step away on everything. Anything the assistant did can be undone.
 
-## 3. One structure for every screen
+## 3. One grammar, four places you can tell apart
+
+Consistency is in the philosophy, not in identical screens. The product owner pointed out that when every screen looks the same, people cannot tell where they are, and that reading something and managing it must not feel alike. So every screen uses the same grammar (a top bar, a left column, the centre and a right panel), but the four areas look different at a glance, and every screen answers three questions: where am I, where did I come from, and how do I get somewhere else.
 
 | Region | Answers | Holds | Never holds |
 | --- | --- | --- | --- |
-| Top bar | Which company am I in? Find anything. Who am I? | The company switcher (the person's companies and their personal library), search and ask (⌘K), the account menu | Spaces, page titles, filters, or the screen's own actions |
-| Left column | Where am I in this company, and what is here? | The navigation of the area you are in | Actions on the selected item, or a list's filters |
-| Centre | The thing itself | One document, page, list or decision | |
-| Right panel | What about the selected thing? | What this says, comments, history, or the inspector of a selected row | Navigation |
+| Top bar | Find anything. Who am I, and in which company? | The current company's name as plain text, search and ask (⌘K), the account menu, which also switches companies and opens the personal library | Spaces, page titles, filters, or the screen's own actions |
+| Left column | Which area am I in, and what is here? | The navigation of the area you are in, under a header that names the area and the way back | Actions on the selected item, or a list's filters |
+| Centre | The thing itself, and where it sits | Breadcrumbs that start at the area, then one document, page, list or decision | |
+| Right panel | What about the selected thing? | A title that names the selection, then what fits its kind (see below) | Navigation |
 | Command palette | Everything, by name | Every place and action, with its shortcut and CLI command | |
 
-The left column shows one of four areas:
+The left column shows one of four areas, and each one looks like itself:
 
-| Area | For | Entered from | Its left column |
-| --- | --- | --- | --- |
-| Knowledge, the default | Everyone | Signing in, Home | Home, Inbox, My space, then each space the person can read, with its Documents and Knowledge |
-| Managing a space | That space's owners | "Manage" on the space, or a card in the inbox | Overview, Work (reviews, conflicts, publish requests, batch changes), Topics and owners, Documents and governance levels, Readers, Rules, Settings |
-| Admin | The super admin | The account menu | Grouped by concern, as in section 5 |
-| Account | Everyone | The account menu | You (profile and language, sign-in, companies, notifications), then the current company (your source connections, apps with access, Decide for me, your usage) |
+| Area | For | Entered from | How it looks | Its left column |
+| --- | --- | --- | --- | --- |
+| Knowledge, the default | Everyone | Signing in, Home | The paper ground. Folds away while reading | Home, Inbox, My space, then each space the person can read, with its Documents and Knowledge |
+| Managing a space | That space's owners | "Manage" on the space, or a card in the inbox | A blue-tinted column under an indigo header: "Managing a space · Finance", "← Back to reading" | Overview, Work (reviews, conflicts, publish requests, batch changes), Topics and owners, Documents and governance levels, Readers, Rules, Settings |
+| Admin | The super admin | The account menu | A dark column under the header "Admin · the company", "← Back to knowledge" | Grouped by concern, as in section 5 |
+| Account | Everyone | The account menu | The paper ground under the header "Account and settings", with Done | You (profile and language, sign-in, companies, notifications), then the current company (your source connections, apps with access, Always decide for me, your usage) |
+
+Reading stays on paper with nothing tinted, so a glance tells reading from managing.
+
+### Where am I, where did I come from, how do I go elsewhere
+
+- **Where am I.** The area: the left column's colour and its header. The place: breadcrumbs at the top of the centre that start at the area, such as "Managing a space › Finance › Batch changes › Version 4". The item: the selection in the left column and the page title.
+- **Where did I come from.** When a link crosses areas or leaves a page for its source, the breadcrumbs start with a way back, such as "← Back to Travel expense rules". The area header's "← Back to reading" returns to where you left. The browser's Back always works, because every state has its own address.
+- **How do I go elsewhere.** Reading and managing link to each other: Manage next to a space, and "Read this area" in a managing inspector. ⌘K reaches any place, including "Switch to…". The account menu leads to Account and Admin.
+
+### The right panel follows the selection
+
+One rule everywhere: the right panel always has a title that names what it is about, and it is only about the selected thing. What it holds depends on the kind of thing:
+
+| In the centre | The panel's title | What it holds |
+| --- | --- | --- |
+| An original document | The selected passage | Comments, proposing a revision, the knowledge that uses it (V2-doc) |
+| A knowledge page | This page | The page's outline, what is in progress on this page, related pages, sources (V2-page) |
+| A decision in the inbox | About this conflict | Both sides' passages, the votes, what happens once it is decided (V2-decision) |
+| A list in a managed space | Inspector · the selected area | Its owner, this week's work, who reads it, a link to read it (V2-space) |
+| A list in Admin | Inspector · the selected connection | Authorisation, where it is used, what happens when it expires (V2-sources) |
+| Nothing selected | No panel | The centre takes the width |
+
+A revision to an original document never changes it in place: the document lives in its source, so a revision goes to its author as a suggestion and comes back with the next sync.
 
 Rules:
 
-- **The top bar never changes,** in Admin and Account included. It switches companies, never spaces.
+- **The top bar never changes,** in Admin and Account included. It never switches spaces. Companies and the personal library are switched from the account menu.
 - **The left column has at most two levels of headings.** Trees, such as Documents and Knowledge, can go deeper, but open one branch at a time.
-- **A screen's filters and views sit above its content,** never in the left column. The inbox's kinds are chips above the list, not a second menu.
-- **Reading folds the left column away** to give the text room. Breadcrumbs above the text only say where you are; they never replace the left column.
+- **A screen's filters and views sit above its content,** never in the left column. The inbox's kinds are a menu above the list, and its metric cards also filter it.
+- **Reading folds the left column away** to give the text room. Breadcrumbs above the text say where you are and, after a jump, where you came from; they never replace the left column.
 - **Compact is a density setting** (⌘.), not a place. It never changes what the navigation holds.
+
+### Placed by how often it is used
+
+The prime places go to what people do most. The product owner put it this way after seeing a company switcher in the top bar's most visible spot, although most people belong to one company and seldom switch. The more often something is used, the closer it sits: daily things in the middle of the top bar and the top of the left column, weekly things in the left column, monthly things in a menu or at the end of a list, and anything rarer in settings or only in ⌘K.
+
+| Element | Who uses it | How often | Where it goes |
+| --- | --- | --- | --- |
+| Search and ask | Everyone | Several times a day | The middle of the top bar, ⌘K |
+| Reading a page or document | Everyone | Daily | The centre, with the left column folded |
+| The spaces you read | Members | Daily to weekly | The left column, the ones you use first |
+| Inbox | Owners daily; most members 0 to 2 todos a month | Daily to monthly | Second in the left column, with a count when something waits |
+| Managing a space | Space and topic owners (6 in the Finance story) | Daily to weekly | Manage, next to the space |
+| My space | Members who draft and publish | Weekly | The left column |
+| Switching company, opening the personal library | Most people never (one company); a few weekly | Rarely | The top of the account menu, and ⌘K "Switch to…". The top bar only names the current company, as plain text |
+| All spaces | Members | Monthly | The last line of the spaces |
+| Admin | The one super admin | Weekly | The account menu, shown only to them |
+| Always decide for me | Owners | Set once, looked at now and then | Turned on from a one-line question under a decision in the inbox; seen and paused in Account, under the company, which the inbox's "Decided for you" line links to |
+| Compact | Owners | Set once | A switch in the account menu, ⌘. |
+| Profile, language, sign-in | Everyone | A few times a year | Account |
+
+The same test applies to every new element: who uses it, how often, and does its place match that.
 
 ## 4. Two speeds: reading and working
 
@@ -76,7 +122,7 @@ Measured numbers come from the prototype's synthetic company of 10,000 documents
 
 | List | Typical | Large | How it is shown |
 | --- | --- | --- | --- |
-| Companies in the switcher | 1 to 2 | 5 | A plain menu |
+| Companies in the account menu | 1, plus the personal library | 5 | A plain list at the top of the account menu |
 | Spaces in a company | 5 to 15 | 100 or more | The spaces you use first, then All spaces with search |
 | Documents in a space | 300 to 3,000 | 50,000 | A tree by source app and folder, opened lazily, with counts on folders and search inside |
 | Topics in a space | 10 to 40, in 3 to 8 areas | 300 | Folded by area, with search. Sizes come from clustering: a topic splits at about 100 statements |
@@ -102,11 +148,11 @@ The rule of thumb: up to 10 items, show them all. From 10 to 100, group or sort 
 
 Inspiration is an AI-native product, so the assistant is in almost every screen. It should feel like a colleague who has already done the reading, not like a feature asking for attention.
 
-1. **An overview before every pile.** The inbox, a queue, a batch change, a topic, search results and an imported folder each open with two or three sentences the assistant writes from the engine's numbers: what happened, what needs you, and what it can settle. For example: "9 things this week. 6 can be settled the way you usually decide. 3 need you: a split vote on lead times, a permission change on Supplier contracts, and a price."
+1. **An overview before every pile.** The inbox, a queue, a batch change, a topic, search results and an imported folder each open with an overview from the engine's numbers: what happened, what needs you, and what it can settle. Numbers never come as a list in a sentence. The few that matter, at most four, sit on cards in one row: each with its value, a short trend ("4 last week", "up 18 on last month") and a small line where the trend matters; a card is also a filter. Under the cards, two or three sentences say what the numbers mean, as a quality or a trend, without repeating them: "A busier week than usual, mostly routine reviews and notes that can follow your usual choices. What needs you is a split vote, a permission change and a conflict over who approves." A number appears in words only as the label of an action, such as "Settle these 6".
 2. **The suggestion is the default.** Where a person chooses, the assistant's choice is already selected and marked Suggested, with a one-line reason. Enter confirms it; another option is one click away. There is no chat bubble and no "the AI says" panel: the suggestion lives in the state of the controls, in what is selected, what comes first and what is folded.
 3. **Decide for me sits on piles.** One action on an overview or a card settles everything the assistant may settle, and leaves the rest marked Left for you. A single item is decided by accepting its suggestion, so there is no Decide for me button on every item. The `d` key and ⌘K reach it anywhere. After someone accepts the suggestion for one kind of decision five times in a row, the assistant asks once, in a line under the decision, whether to always decide that kind.
 4. **Left for you, with its reason.** When the assistant may not or should not decide (people disagree, it changes who can read, it cannot be undone, it is unsure, or the space keeps that kind for people), it says why in one line and still fills in its suggestion.
-5. **Results, not process.** The assistant's work shows as outcomes: a filled-in choice, a sorted list, "Decided 34 for you this week, 2 undone". It does not narrate progress or open windows nobody asked for.
+5. **Results, not process.** The assistant's work shows as outcomes: a filled-in choice, a sorted list, a card that reads "Decided for you this week: 34, 2 undone". It does not narrate progress or open windows nobody asked for.
 6. **Why and Undo on everything it did.** "Why?" shows the reason and the passages it read; Undo restores the earlier state and gives the item back.
 7. **No styling of its own.** The assistant has no avatar, sparkle or colour. Its marks are words (Suggested, Decided for you, Left for you), small and muted, never louder than the person's own content.
 8. **Asking is always there and never in the way.** The ask box on Home, ⌘K everywhere, and Ask about this on any selection. Answers appear in place, in a panel or a popover, with citations.
@@ -128,7 +174,11 @@ An audit of the design canvas (version 72) against this document:
 | 负责人 on the canvas, 维护人 in the documents | Waiting for the product owner | Follow the decision; until then, the documents' 维护人 |
 | The early explorations A, B and C share the canvas with the chosen design | | Moved to an archive area |
 
-The second version (canvas version 74, rows V2 in [screens](screens/README.md)) applies these rules to nineteen screens. The first row covers the structure, reading, the account and admin; the second covers working: the inbox, decisions, managing a space, publishing and Trace. From the first version, only the three boards after importing (E-doc, E-doc-layers and E-doc-knowledge) still stand.
+The second version (canvas version 74, rows V2 in [screens](screens/README.md)) applies these rules to nineteen screens. The first row covers the structure, reading, the account and admin; the second covers working: the inbox, decisions, managing a space, publishing and Trace. From the first version, only the three boards after importing (E-doc, E-doc-layers and E-doc-knowledge) still stand. Canvas version 79 applies the placement table in section 3 to every second-version board: the top bar names the company as plain text, the account menu switches companies, and Decide for me is no longer an account menu item, because it happens in the inbox and in each decision; its settings are the standing delegations under Account. It also adds V2-tree, which compared four options for showing a space's documents and knowledge in the left column; the product owner chose to keep today's shape, with Documents and Knowledge under each space.
+
+Canvas version 80 applies the product owner's next three comments to every second-version board. The four areas are told apart by their left column (paper, blue-tinted with an indigo header, dark, and the account header), and every screen outside reading starts with breadcrumbs from the area, with a way back after a jump. The right panel always has a title and follows the selection: V2-doc is new and shows an original document with comments and a revision proposal beside it, while V2-page shows a knowledge page with what is in progress on it. Overviews move their numbers onto at most four cards with trends, and their sentences only say what the numbers mean (home, inbox, managing a space, batch changes, documents, members and source connections).
+
+Canvas version 81 renames the standing delegations page, which the product owner found hard to understand, to **Always decide for me**, after the action people already know: Decide for me is this once, Always decide for me is from now on. Each kind is written as a rule in two columns, "when this comes up" and "the assistant does this", and the page shows where a kind comes from: the one-line question under a decision in the inbox. "Standing delegation" stays the name in the [Decide for me](decide-for-me.md) spec.
 
 ## 9. What the UI needs from the engine
 
@@ -144,5 +194,5 @@ Checked against the engine on 2026-10-27 (`main` after pull request #24, and the
 ## Still open
 
 - Whether owners are 维护人 or 负责人 in Chinese.
-- The overview's wording rules: how many sentences, and which numbers are always shown.
+- Which numbers each overview's cards show. The canvas draws a first choice per screen.
 - The Japanese terms for Suggested, Decided for you and Left for you.
