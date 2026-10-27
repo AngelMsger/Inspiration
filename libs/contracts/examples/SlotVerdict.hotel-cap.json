@@ -1,0 +1,20 @@
+{
+  "tenant_id": "ten_01JC0000000000000000000001",
+  "slot_key": "hotel_cap_per_night|一线城市",
+  "held_value": "650 CNY/night",
+  "disputed": false,
+  "values": [
+    {
+      "value": "650 CNY/night",
+      "standing": "holds",
+      "claim_ids": ["clm_01JC0000000000000000000006"]
+    },
+    {
+      "value": "600 CNY/night",
+      "standing": "outdated",
+      "claim_ids": ["clm_01JC0000000000000000000001"],
+      "rationale": "差旅管理办法（2026 年修订）自 2026-10-01 起把上限改为 650 元。"
+    }
+  ],
+  "decided_on": "2026-10-20"
+}

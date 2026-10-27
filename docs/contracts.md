@@ -10,17 +10,17 @@ the database is `snake_case`; TypeScript APIs are `camelCase`. A Chinese copy is
 | --- | --- |
 | `common.yaml` | IDs, instants, intervals, hashes, sensitivity labels, blob references, producer info, component names |
 | `source.yaml` | sources, connector capabilities, versions, normalized documents, spans, chunks, approval flows |
-| `knowledge.yaml` | claims and evidence, entities, relations, SOPs, knowledge models, research, freshness, lineage, conflicts |
+| `knowledge.yaml` | claims and evidence, entities, relations, SOPs, knowledge models, research, freshness, lineage, conflicts, where each value of a fact slot stands |
 | `page.yaml` | PageSpec and its 14 block types, data references, charts, diagrams, views and their message protocol, snapshots |
 | `collab.yaml` | comments, anchors, proposals, overrides, todos, publishing |
 | `authz.yaml` | principals, permissions, decisions, index filters, ACL snapshots, spaces, audit events |
 | `gateway.yaml` | completion, embedding, rerank and OCR requests and results, usage, budgets, errors |
-| `retrieval.yaml` | search and answer requests and results, citations, feedback |
+| `retrieval.yaml` | search and answer requests and results, citations, notes on disputed and replaced values, feedback |
 | `events.yaml` | the event envelope and the payload of each event type (`x-events`) |
 | `agents.yaml` | tool specs, agent specs, run context, steps and results |
 
 Interfaces between components (`KnowledgeStore`, `AuthZ`, `ModelGateway`, `Retriever`,
-`AgentRuntime`, the plugin interfaces) are hand-written TypeScript in
+`AgentRuntime`, `SlotVerdicts`, `StalenessReader`, the plugin interfaces) are hand-written TypeScript in
 `libs/contracts/src/interfaces.ts`, over the generated types.
 
 ## Changing a contract

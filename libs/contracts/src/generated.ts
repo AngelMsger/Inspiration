@@ -77,6 +77,11 @@ export type PageId = string;
 export type BlockKey = string;
 export type ClaimId = string;
 /**
+ * conflict: sources state different values and a person has yet to decide; the answer gives the value that holds meanwhile. outdated: a source the question found states a value governance replaced, and the answer gives the value that holds. thin_evidence: one source, read with low confidence.
+ *
+ */
+export type AnswerNoteKind = "conflict" | "outdated" | "thin_evidence";
+/**
  * Selects the default TTL used by staleness scoring. Known values: policy, product, pricing, org, process, technical, market, general. Tenants may add their own.
  *
  */
@@ -373,6 +378,11 @@ export type ViewTheme = "light" | "dark";
  */
 export type ReviewDueKind = "ttl" | "assumption" | "verification_expiry" | "evidence_changed";
 export type ReviewStatus = "unreviewed" | "verified" | "disputed" | "published";
+/**
+ * Where one value of a fact slot stands with governance today. holds: the value governance proposes. outdated: a supersession puts the held value in its place (an older edition, a translation behind its original). disputed: an open contradiction with the held value, for a person to decide. differs: another difference, such as a scope, a plan or a value only reference documents state.
+ *
+ */
+export type SlotStanding = "holds" | "outdated" | "disputed" | "differs";
 export type SopId = string;
 /**
  * Where an SOP statement comes from; shown to readers and reviewers.
@@ -590,6 +600,14 @@ export interface TextQuote {
   exact: string;
   prefix?: string;
   suffix?: string;
+}
+export interface AnswerNote {
+  kind: AnswerNoteKind;
+  text: string;
+  /**
+   * The units the note is about.
+   */
+  unit_ids: UnitId[];
 }
 export interface AnswerQuery {
   question: string;
@@ -1883,6 +1901,10 @@ export interface GroundedAnswer {
   gaps: string[];
   freshness?: FreshnessInfo;
   token_estimate: number;
+  /**
+   * What the reader should know about the answer's sources, in the question's language.
+   */
+  notes?: AnswerNote[];
 }
 /**
  * Pushed into the search index as a pre-filter. A row matches when its space is in space_ids, its acl_tokens overlap principal_tokens, and its sensitivity is at most max_sensitivity. Results are still re-checked before they leave the server.
@@ -2328,6 +2350,14 @@ export interface SearchHit {
   review_status: ReviewStatus;
   owner_id?: PrincipalId;
   token_estimate: number;
+  space_id?: SpaceId;
+  language?: Locale;
+  /**
+   * The fact slot a claim fills.
+   */
+  slot_key?: string;
+  standing?: SlotStanding;
+  held_unit_id?: UnitId;
 }
 export interface SearchQuery {
   text: string;
@@ -2348,6 +2378,46 @@ export interface SearchResult {
   hits: SearchHit[];
   token_estimate: number;
   next_cursor?: Cursor;
+}
+export interface SlotValueStanding {
+  /**
+   * The value key, as in SlotVariant.
+   */
+  value: string;
+  standing: SlotStanding;
+  /**
+   * Representatives, the best first.
+   *
+   * @minItems 1
+   */
+  claim_ids: [ClaimId, ...ClaimId[]];
+  /**
+   * Why the value stands so, when a conflict case says.
+   */
+  rationale?: string;
+}
+/**
+ * What governance says about one fact slot today, for whoever shows its values: the value that holds, whether an open contradiction stands against it, and where every other current value stands. Retrieval marks hits and answers with it.
+ *
+ */
+export interface SlotVerdict {
+  tenant_id: TenantId;
+  slot_key: string;
+  held_value: string;
+  /**
+   * An open contradiction stands against the held value.
+   */
+  disputed: boolean;
+  /**
+   * Every current value, the held one first.
+   *
+   * @minItems 1
+   */
+  values: [SlotValueStanding, ...SlotValueStanding[]];
+  /**
+   * The day governance decided as of.
+   */
+  decided_on?: string;
 }
 /**
  * A structured procedure. Every step cites claims.

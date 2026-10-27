@@ -153,6 +153,14 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
         await tx.removeChunks([second.id]);
       });
       expect(await store.chunksOf(sv.id)).toEqual([updated]);
+
+      // An unchanged chunk carried into the document's next version moves with it.
+      const [next] = kb.sourceVersion(POLICY, { previous_version_id: sv.id });
+      await store.transaction((tx) => tx.putSourceVersion(next));
+      const moved = { ...updated, source_version_id: next.id };
+      await store.transaction((tx) => tx.putChunks([moved]));
+      expect(await store.chunksOf(sv.id)).toEqual([]);
+      expect(await store.chunksOf(next.id)).toEqual([moved]);
     });
 
     test("chunk writes are checked", async ({ store, kb }) => {

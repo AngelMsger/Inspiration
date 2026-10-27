@@ -984,6 +984,64 @@ $defs:
     type: string
     enum: [open, auto_resolved, resolved, dismissed]
 
+  SlotStanding:
+    description: >
+      Where one value of a fact slot stands with governance today. holds: the value
+      governance proposes. outdated: a supersession puts the held value in its place (an
+      older edition, a translation behind its original). disputed: an open contradiction
+      with the held value, for a person to decide. differs: another difference, such as a
+      scope, a plan or a value only reference documents state.
+    type: string
+    enum: [holds, outdated, disputed, differs]
+
+  SlotValueStanding:
+    type: object
+    required: [value, standing, claim_ids]
+    properties:
+      value:
+        description: The value key, as in SlotVariant.
+        type: string
+      standing:
+        $ref: "#/$defs/SlotStanding"
+      claim_ids:
+        description: Representatives, the best first.
+        type: array
+        minItems: 1
+        items:
+          $ref: "common.yaml#/$defs/ClaimId"
+      rationale:
+        description: Why the value stands so, when a conflict case says.
+        type: string
+
+  SlotVerdict:
+    description: >
+      What governance says about one fact slot today, for whoever shows its values: the value
+      that holds, whether an open contradiction stands against it, and where every other
+      current value stands. Retrieval marks hits and answers with it.
+    type: object
+    required: [tenant_id, slot_key, held_value, disputed, values]
+    properties:
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      slot_key:
+        type: string
+        minLength: 1
+      held_value:
+        type: string
+      disputed:
+        description: An open contradiction stands against the held value.
+        type: boolean
+      values:
+        description: Every current value, the held one first.
+        type: array
+        minItems: 1
+        items:
+          $ref: "#/$defs/SlotValueStanding"
+      decided_on:
+        description: The day governance decided as of.
+        type: string
+        format: date
+
   ConflictCase:
     description: A suspected conflict between claims, found by governance.
     type: object

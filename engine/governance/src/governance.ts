@@ -12,6 +12,10 @@ import {
   type Priority,
   type ProducerInfo,
   payloadOf,
+  type SlotStanding,
+  type SlotValueStanding,
+  type SlotVerdict,
+  type SlotVerdicts,
   type SourceVersion,
   type Span,
   slotOf,
@@ -274,7 +278,7 @@ function noteOf(proposed: ValueGroup, other: ValueGroup, draft: CaseDraft): Note
  * value, and asks for one todo per slot whose decision needs a person. See the package doc
  * comment for the rules.
  */
-export class Governance {
+export class Governance implements SlotVerdicts {
   readonly store: KnowledgeStore;
   readonly records: Records;
   readonly clock: () => Date;
@@ -329,6 +333,53 @@ export class Governance {
     const { groups } = await storedGroups(this.records, tenantId, slot);
     const decision = decide(groups, this.#today());
     return decision ? { groups, decision } : { groups };
+  }
+
+  /**
+   * Where every current value of each slot stands today: the value decide() proposes holds,
+   * a supersession makes another outdated, an open contradiction disputed, and anything else
+   * (a plan, a value only reference documents state) differs. A slot with one value holds it.
+   */
+  async verdicts(tenantId: string, slots: readonly string[]): Promise<SlotVerdict[]> {
+    const today = this.#today();
+    const out: SlotVerdict[] = [];
+    for (const slot of [...new Set(slots)].sort()) {
+      const { groups: stored } = await storedGroups(this.records, tenantId, slot);
+      const groups = asOf(stored, today).filter((g) => g.count > 0);
+      if (!groups.length) continue;
+      const decision = decide(groups, today);
+      const held = decision?.proposed ?? (groups[0] as ValueGroup);
+      const cases = new Map((decision?.cases ?? []).map((c) => [c.value, c]));
+      const standingOf = (c: CaseDraft | undefined): SlotStanding =>
+        c?.classification === "supersession"
+          ? "outdated"
+          : c?.classification === "contradiction" && c.status === "open"
+            ? "disputed"
+            : "differs";
+      const others = groups
+        .filter((g) => g.value !== held.value)
+        .sort((a, b) => b.count - a.count || (a.value < b.value ? -1 : 1));
+      out.push({
+        tenant_id: tenantId,
+        slot_key: slot,
+        held_value: held.value,
+        disputed: [...cases.values()].some((c) => c.classification === "contradiction" && c.status === "open"),
+        values: [
+          { value: held.value, standing: "holds", claim_ids: [held.best.claim_id] },
+          ...others.map((g): SlotValueStanding => {
+            const c = cases.get(g.value);
+            return {
+              value: g.value,
+              standing: standingOf(c),
+              claim_ids: [g.best.claim_id],
+              ...(c && { rationale: c.rationale }),
+            };
+          }),
+        ],
+        decided_on: today,
+      });
+    }
+    return out;
   }
 
   /** A tenant's conflict cases, optionally only those with a status. */

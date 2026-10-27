@@ -129,6 +129,19 @@ $defs:
       token_estimate:
         type: integer
         minimum: 0
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      language:
+        $ref: "common.yaml#/$defs/Locale"
+      slot_key:
+        description: The fact slot a claim fills.
+        type: string
+      standing:
+        description: Where the claim's value stands with governance, for a claim that fills a fact slot.
+        $ref: "knowledge.yaml#/$defs/SlotStanding"
+      held_unit_id:
+        description: For an outdated or disputed value, the claim that states the value that holds.
+        $ref: "common.yaml#/$defs/UnitId"
 
   SearchResult:
     type: object
@@ -194,6 +207,34 @@ $defs:
       token_estimate:
         type: integer
         minimum: 0
+      notes:
+        description: What the reader should know about the answer's sources, in the question's language.
+        type: array
+        items:
+          $ref: "#/$defs/AnswerNote"
+
+  AnswerNoteKind:
+    description: >
+      conflict: sources state different values and a person has yet to decide; the answer
+      gives the value that holds meanwhile. outdated: a source the question found states a
+      value governance replaced, and the answer gives the value that holds. thin_evidence: one
+      source, read with low confidence.
+    type: string
+    enum: [conflict, outdated, thin_evidence]
+
+  AnswerNote:
+    type: object
+    required: [kind, text, unit_ids]
+    properties:
+      kind:
+        $ref: "#/$defs/AnswerNoteKind"
+      text:
+        type: string
+      unit_ids:
+        description: The units the note is about.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/UnitId"
 
   # Low-level index access used by retrieval through the vector and keyword index plugins.
   IndexHit:

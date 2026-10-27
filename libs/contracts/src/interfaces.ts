@@ -62,11 +62,13 @@ import type {
   ScopeSpec,
   SearchQuery,
   SearchResult,
+  SlotVerdict,
   Source,
   SourceBlock,
   SourceRef,
   SourceVersion,
   Span,
+  Staleness,
   SubscriptionInfo,
   TaxonomyNode,
   ToolSpec,
@@ -364,4 +366,17 @@ export interface KeywordIndex {
 export interface Retriever {
   search(q: SearchQuery, who: Principal): Promise<SearchResult>;
   answer(q: AnswerQuery, who: Principal): Promise<GroundedAnswer>;
+}
+
+// ---------------------------------------------------------------- governance and freshness reads
+
+/** What governance holds for fact slots today (governance). */
+export interface SlotVerdicts {
+  /** One verdict per slot that current claims fill; unknown slots are left out. */
+  verdicts(tenantId: string, slotKeys: readonly string[]): Promise<SlotVerdict[]>;
+}
+
+/** How stale source versions and claims are (freshness). Units it does not follow are left out. */
+export interface StalenessReader {
+  staleness(tenantId: string, unitIds: readonly string[]): Promise<Staleness[]>;
 }

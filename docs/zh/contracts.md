@@ -8,16 +8,16 @@
 | --- | --- |
 | `common.yaml` | ID、时刻、区间、哈希、敏感度标签、Blob 引用、生产者信息、组件名 |
 | `source.yaml` | 来源、连接器能力、版本、规范化文档、片段、分块、审批流 |
-| `knowledge.yaml` | 陈述和证据、实体、关系、SOP、知识模型、研究、保鲜、血缘、冲突 |
+| `knowledge.yaml` | 陈述和证据、实体、关系、SOP、知识模型、研究、保鲜、血缘、冲突、事实槽每个取值的状态 |
 | `page.yaml` | PageSpec 及其 14 种块类型、数据引用、图表、示意图、视图及其消息协议、快照 |
 | `collab.yaml` | 评论、锚点、提议、覆盖、待办、发布 |
 | `authz.yaml` | 主体、权限、判定、索引过滤器、ACL 快照、空间、审计事件 |
 | `gateway.yaml` | 补全、向量、重排和 OCR 的请求与结果、用量、预算、错误 |
-| `retrieval.yaml` | 检索和回答的请求与结果、引用、反馈 |
+| `retrieval.yaml` | 检索和回答的请求与结果、引用、关于有争议和已被取代的值的说明、反馈 |
 | `events.yaml` | 事件信封和每种事件类型的载荷（`x-events`） |
 | `agents.yaml` | 工具规格、Agent 规格、运行上下文、步骤和结果 |
 
-组件之间的接口（`KnowledgeStore`、`AuthZ`、`ModelGateway`、`Retriever`、`AgentRuntime`、插件接口）是在生成的类型
+组件之间的接口（`KnowledgeStore`、`AuthZ`、`ModelGateway`、`Retriever`、`AgentRuntime`、`SlotVerdicts`、`StalenessReader`、插件接口）是在生成的类型
 之上手写的 TypeScript，位于 `libs/contracts/src/interfaces.ts`。
 
 ## 修改契约
