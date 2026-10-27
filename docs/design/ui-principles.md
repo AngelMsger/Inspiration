@@ -69,7 +69,7 @@ The look is "ink and paper": a warm paper ground, serif type for reading, one in
 
 ## Key screens
 
-The drawn screens are in [screens](screens/README.md), a snapshot of the design canvas.
+The drawn screens are in [screens](screens/README.md), a snapshot of the design canvas. The second version (row V2) is drawn from the [UI philosophy](ui-philosophy.md) and wins where the rows differ.
 
 | Screen | What it shows | For |
 | --- | --- | --- |

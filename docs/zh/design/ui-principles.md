@@ -69,7 +69,7 @@
 
 ## 关键界面
 
-已经画好的界面在 [screens](screens/README.md)，是设计画布的一份快照。
+已经画好的界面在 [screens](screens/README.md)，是设计画布的一份快照。第二版（V2 行）按 [UI 设计哲学](ui-philosophy.md) 画出，和其他行不一致时以它为准。
 
 | 界面 | 显示什么 | 面向谁 |
 | --- | --- | --- |

@@ -128,6 +128,8 @@ An audit of the design canvas (version 72) against this document:
 | 负责人 on the canvas, 维护人 in the documents | Waiting for the product owner | Follow the decision; until then, the documents' 维护人 |
 | The early explorations A, B and C share the canvas with the chosen design | | Moved to an archive area |
 
+The second version (canvas version 73, row V2 in [screens](screens/README.md)) applies these rules to eight screens: the structure map, a member's home, the inbox, one decision, managing a space, a publish request, admin and Decide for me in the account. The other screens are redrawn the same way next.
+
 ## 9. What the UI needs from the engine
 
 Checked against the engine on 2026-10-27 (`main` after pull request #24, and the engine thread's validation work):

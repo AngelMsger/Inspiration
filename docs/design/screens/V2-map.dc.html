@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>第二版 · 界面结构：每个界面都一样</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&amp;family=Instrument+Sans:wght@400;500;600&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&amp;family=Noto+Sans+SC:wght@400;500;600;700&amp;family=Noto+Serif+SC:wght@400;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2E3F8F}a:hover{color:#1F2C6B}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #EFEEE9; color: #1C1E23; font-family: 'Instrument Sans', 'Noto Sans SC', system-ui, sans-serif; font-size: 14px; line-height: 1.55; display: flex; flex-direction: column">
+<div style="padding: 28px 36px 36px; display: flex; flex-direction: column; gap: 22px">
+      <div style="display: flex; flex-direction: column; gap: 6px"><h1 style="margin: 0; font-family: 'Noto Serif SC', Newsreader, serif; font-weight: 600; font-size: 28px">界面结构：每个界面都一样</h1><p style="margin: 0; color: #545964; max-width: 70em">第二版的所有画板都按这张图来画。立场是“安静的表面，完整的纵深”：每个界面只显示一个人手上这件事需要的东西，其余都在一步之内。依据是设计哲学（docs/design/ui-philosophy.md）。</p></div>
+      <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr) 260px; grid-template-rows: auto 170px; gap: 10px">
+        <div style="border: 1.5px dashed #9EA2AB; border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; grid-column: 1 / 4"><b style="font-weight: 600">顶栏 · 从不变化</b><span style="color: #545964; font-size: 13px">Inspiration · 恒远机械 ▾ · 搜索、提问或执行命令 ⌘K · 账户。回答：我在哪个企业？找任何东西。我是谁？只切换企业，从不切换空间。</span></div>
+        <div style="border: 1.5px dashed #9EA2AB; border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; "><b style="font-weight: 600">左侧栏 · 你所在的区域</b><span style="color: #545964; font-size: 13px">回答：我在企业的哪一块？这里有什么？永远是四个区域之一的导航，最多两级标题。阅读时收起，给正文让出宽度。</span></div>
+        <div style="border: 1.5px dashed #9EA2AB; border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; "><b style="font-weight: 600">中间 · 东西本身</b><span style="color: #545964; font-size: 13px">一份文档、一个页面、一个列表或一个决定。一个界面只有一个主要操作。筛选和视图放在内容上方，不放进左侧栏。成堆的事先给助手写的概述。</span></div>
+        <div style="border: 1.5px dashed #9EA2AB; border-radius: 6px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; "><b style="font-weight: 600">右侧栏 · 选中的这一项</b><span style="color: #545964; font-size: 13px">这段讲了什么、评论、历史，或选中行的检查器。从不放导航。</span></div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 12px"><h2 style="margin: 0; font-family: 'Noto Serif SC', Newsreader, serif; font-weight: 600; font-size: 20px">左侧栏的四个区域</h2><span style="color: #545964">区域只在你明确进入时才切换；⌘K 能直接到任何地方。</span></div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
+        <div style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px"><b style="font-family: 'Noto Serif SC', Newsreader, serif; font-size: 17px; font-weight: 600">知识</b><span style="color: #545964; font-size: 13px">默认 · 所有人 · 从登录和首页进入</span><ul style="list-style: none; margin: 4px 0 0; padding: 0; font-size: 13px"><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">首页</li><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">待办</li><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">我的空间</li><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">空间：常用的几个，每个带文档和知识</li><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">全部空间（搜索）</li></ul></div>
+        <div style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px"><b style="font-family: 'Noto Serif SC', Newsreader, serif; font-size: 17px; font-weight: 600">维护一个空间</b><span style="color: #545964; font-size: 13px">这个空间的维护人 · 从空间旁的“维护”或待办卡片进入</span><ul style="list-style: none; margin: 4px 0 0; padding: 0; font-size: 13px"><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">概览</li><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">工作：复核、冲突、发布申请、批量变更</li><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">主题与维护人</li><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">文档与治理级别</li><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">读者、规则、设置</li></ul></div>
+        <div style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px"><b style="font-family: 'Noto Serif SC', Newsreader, serif; font-size: 17px; font-weight: 600">管理后台</b><span style="color: #545964; font-size: 13px">超级管理员 · 从账户菜单进入</span><ul style="list-style: none; margin: 4px 0 0; padding: 0; font-size: 13px"><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">企业</li><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">人员：成员、登录与加入、邀请</li><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">空间：空间、发布队列</li><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">来源与应用</li><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">安全：敏感标签与模型、审计日志</li><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">用量与账单</li></ul></div>
+        <div style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px"><b style="font-family: 'Noto Serif SC', Newsreader, serif; font-size: 17px; font-weight: 600">账户</b><span style="color: #545964; font-size: 13px">所有人 · 从账户菜单进入</span><ul style="list-style: none; margin: 4px 0 0; padding: 0; font-size: 13px"><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">你：资料与语言、登录方式、所在企业、通知</li><li style="padding: 3px 0; border-bottom: 1px solid #DCDAD2">在恒远机械：我的来源连接、使用知识的应用、替我决定、我的用量</li></ul></div>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 12px"><h2 style="margin: 0; font-family: 'Noto Serif SC', Newsreader, serif; font-weight: 600; font-size: 20px">助手怎样出现：四种方式，处处一样</h2><span style="color: #545964">没有头像、闪光图标或专属颜色；标记是文字。</span></div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
+        <div style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px"><b style="font-weight: 600">1. 先给概述</b><div style="border-top: 1px solid #DCDAD2; padding-top: 8px; font-size: 13px">本周 9 件事。6 件可以按你平时的决定处理。3 件需要你。</div><span style="color: #545964; font-size: 12.5px">成堆的事前面，助手用两三句话说清发生了什么、哪些要你、哪些它能处理。</span></div>
+        <div style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px"><b style="font-weight: 600">2. 建议就是默认值</b><div style="border-top: 1px solid #DCDAD2; padding-top: 8px; font-size: 13px"><label style="display: flex; gap: 8px; align-items: flex-start"><input type="radio" checked style="width: 15px; height: 15px; margin: 2px 0 0; accent-color: #2E3F8F"><span>深圳 650 元单列<span style="font-size: 12px; color: #2E3F8F; font-weight: 500; margin-left: 6px">建议</span><span style="display: block; font-size: 12.5px; color: #545964">价目表晚于制度，只写了深圳 <a href="#">为什么</a></span></span></label><label style="display: flex; gap: 8px; align-items: center; margin-top: 4px"><input type="radio" style="width: 15px; height: 15px; margin: 0; accent-color: #2E3F8F">600 元，以制度为准</label></div><span style="color: #545964; font-size: 12.5px">助手的选择预先选好，标“建议”，附一句理由。回车确认，选别的点一下。没有聊天气泡。</span></div>
+        <div style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px"><b style="font-weight: 600">3. 替我决定放在成堆的事上</b><div style="border-top: 1px solid #DCDAD2; padding-top: 8px; font-size: 13px"><button type="button" style="font: inherit; font-weight: 500; background: #2E3F8F; color: #FFFFFF; border: 0; border-radius: 4px; padding: 4px 10px; min-height: 30px">按建议处理这 6 件 <span style="font-family: 'Geist Mono', monospace; font-size: 11px; opacity: .8">d</span></button></div><span style="color: #545964; font-size: 12.5px">一个操作处理它能决定的，其余标“留给你”。不在每一项上放按钮。</span></div>
+        <div style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px"><b style="font-weight: 600">4. 留给你，并说明原因</b><div style="border-top: 1px solid #DCDAD2; padding-top: 8px; font-size: 13px"><span style="font-size: 12.5px; color: #8A5A00">留给你 · 李娜和王磊的票数持平</span><span style="display: block; margin-top: 4px">建议仍然填好：深圳 650 元单列</span></div><span style="color: #545964; font-size: 12.5px">人与人意见不同、会改变谁能读、无法撤销、没有把握时，助手不决定，但照样给建议。</span></div>
+      </div>
+      <div style="display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start">
+        <div style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 8px"><h2 style="margin: 0; font-family: 'Noto Serif SC', Newsreader, serif; font-weight: 600; font-size: 20px">同一个故事、同一组人物</h2><span style="color: #545964">恒远机械，1,260 名成员，23 个空间。故事发生在财务部：1,846 份文档，31 个主题，读者是全公司。</span>
+          <table style="border-collapse: collapse; background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; font-size: 13.5px"><tr><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2; font-weight: 600">周敏</td><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2">财务部空间维护人</td><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2; color: #545964">处理待办、维护空间</td></tr><tr><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2; font-weight: 600">李娜</td><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2">差旅领域维护人</td><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2; color: #545964">和王磊会签住宿上限的冲突</td></tr><tr><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2; font-weight: 600">王磊</td><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2">借款与预付、预订出差酒店的维护人</td><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2; color: #545964">住宿上限的另一票</td></tr><tr><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2; font-weight: 600">刘洋</td><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2">资产领域维护人</td><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2; color: #545964">从我的空间发布一个常见问题页</td></tr><tr><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2; font-weight: 600">陈晨</td><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2">销售部成员</td><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2; color: #545964">只读：首页、知识页、提问</td></tr><tr><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2; font-weight: 600">赵琳</td><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2">超级管理员（IT）</td><td style="padding: 6px 10px; border-bottom: 1px solid #DCDAD2; color: #545964">成员、来源连接、安全</td></tr></table></div>
+        <div style="flex: 1 1 420px; display: flex; flex-direction: column; gap: 8px"><h2 style="margin: 0; font-family: 'Noto Serif SC', Newsreader, serif; font-weight: 600; font-size: 20px">两种节奏</h2>
+          <p style="margin: 0"><b style="font-weight: 600">阅读</b>是安静的：页面占满中间，左侧栏收起，正文里只有“已过时”和“有争议”。大多数成员只阅读。</p>
+          <p style="margin: 0"><b style="font-weight: 600">处理</b>是密集的：维护人和超级管理员清队列，紧凑模式（⌘.）用表格、快捷键和右侧检查器。紧凑只改变密度，不改变导航。</p>
+          <p style="margin: 0; color: #545964">导入后的“先看原文”三步（E-doc、E-doc-layers、E-doc-knowledge）沿用第一版，是新企业第一天的样子。</p></div>
+      </div>
+    </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1380}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 Status: a snapshot of the product owner's design canvas, "Inspiration UI"
 (https://claude.ai/artifact/GYXc5GBY3bPq1XGuMUGwAk), taken on 2026-10-26 and updated on
-2026-10-27. Screens are drawn and changed on the canvas. This folder holds a copy so reviewers
+2026-10-27 (canvas version 73). Screens are drawn and changed on the canvas. This folder holds a copy so reviewers
 and team members can read the screens next to the docs. Where the two differ, the canvas wins.
 A Chinese copy of this README is in
 [docs/zh/design/screens/README.md](../../zh/design/screens/README.md).
@@ -19,6 +19,24 @@ placeholder. The people, the company (Hengyuan Machinery) and the figures are ma
 
 The files are byte-for-byte copies of the canvas. Biome skips this folder, and the
 languages test allows Chinese and Japanese in it, so the copies never drift from the canvas.
+
+## The second version (row V2, in Chinese)
+
+Drawn on 2026-10-27 from the [UI philosophy](../ui-philosophy.md): one top bar and one left
+column on every screen, one story (the finance space at Hengyuan Machinery) with one cast, and
+the assistant shown the same quiet way everywhere. Where the second version and the rows below
+differ, the second version wins. The other screens are redrawn the same way next.
+
+| File | Screen |
+| --- | --- |
+| [V2-map](V2-map.dc.html) | The structure every screen follows: the regions, the four areas of the left column, the four ways the assistant shows up, the cast |
+| [V2-home](V2-home.dc.html) | A member's home: ask, what changed in what they read, recently viewed |
+| [V2-inbox](V2-inbox.dc.html) | Inbox: an overview first, what needs you with the reason, and one Decide for me for the rest |
+| [V2-decision](V2-decision.dc.html) | One decision: the suggestion is already selected, with its reason |
+| [V2-space](V2-space.dc.html) | Managing a space: the overview, and topics and owners by area at their real size |
+| [V2-review](V2-review.dc.html) | Managing a space: a publish request, in compact mode |
+| [V2-admin](V2-admin.dc.html) | Admin grouped by concern: members, search first |
+| [V2-account](V2-account.dc.html) | Account: Decide for me, standing delegations and their limits |
 
 ## The chosen system (row D, in English)
 
@@ -77,7 +95,8 @@ story in Chinese, but Chinese is one of the three languages the product serves, 
 
 ## Terms as of this snapshot
 
-The Chinese screens call owners 负责人 (空间负责人, 主题负责人, and so on). On 2026-10-26,
-维护人 was proposed in its place and is waiting for the product owner. See the glossary in
+The first version's Chinese screens call owners 负责人 (空间负责人, 主题负责人, and so on).
+On 2026-10-26, 维护人 was proposed in its place and is waiting for the product owner; the second
+version uses 维护人 until then. See the glossary in
 [UI principles](../ui-principles.md) and section 4 of the [overview](../../overview.md). The
 screens stay as drawn and change when the canvas does.
