@@ -60,7 +60,7 @@ components:
     layer: ingest
     status: built
     runtime: node
-    owns: Parser routing (built-in text parsers, the parsing worker for Office, PDF and scans), canonical blocks and spans with stable IDs, block diff against the previous version, duplicate documents
+    owns: Parser routing (built-in text parsers, the parsing worker for Office, PDF and scans), canonical blocks and spans with stable IDs, block diff against the previous version, duplicate documents and editions of one document
     plugins: [parsers, migrations]
     publishes: [blocks.changed]
     subscribes: [document.fetched]
@@ -137,7 +137,7 @@ components:
     layer: serve
     status: built
     runtime: node
-    owns: Chunks of every document with a contextual header, an embedding and ACL tokens, kept across versions; hybrid search (vector and keyword indexes, RRF), the reranker over statements and passages together, ACL pre-filter and post-check; grounded answers that give the value governance holds, in the question's language, with notes on disputed and replaced values; plain-retrieval and long-context baselines to measure answers against. Planned are page, procedure and entity indexes (claims.updated, artifact.dirty, page.rendered, unit.published), FAQ precompute and the semantic cache
+    owns: Chunks of every document with a contextual header, an embedding and ACL tokens, kept across versions; hybrid search (vector and keyword indexes, RRF), the reranker over statements and passages together, ACL pre-filter and post-check; grounded answers that give the value governance holds, in the question's language, with notes on disputed and replaced values, read from the latest edition of a document the asker can read; plain-retrieval and long-context baselines to measure answers against. Planned are page, procedure and entity indexes (claims.updated, artifact.dirty, page.rendered, unit.published), FAQ precompute and the semantic cache
     plugins: [migrations, model_mocks]
     publishes: []
     subscribes: [acl.changed, blocks.changed, claims.updated, artifact.dirty, page.rendered, unit.published]

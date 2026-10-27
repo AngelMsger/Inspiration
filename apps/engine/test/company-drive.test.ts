@@ -94,7 +94,18 @@ describe("the company drive", () => {
       contextTokens: 1_000_000,
     });
     try {
-      expect((await ingest(engine, corpus)).dead_letters).toBe(0);
+      const report = await ingest(engine, corpus);
+      expect(report.dead_letters).toBe(0);
+      // Editions of one document: the policy and its backup; the copies on the drive, which kept
+      // the policy's old title, in a chain; and the two revisions of each article.
+      expect(report.duplicates.map((d) => `${d.document} ~ ${d.duplicate_of}`).sort()).toEqual([
+        "drive/finance/expenses-2022.md ~ drive/downloads/expenses.md",
+        "drive/finance/expenses-2022.md ~ drive/finance/expense-policy-2023.md",
+        "drive/research/en/shinkansen.html ~ drive/research/en/shinkansen-2024.html",
+        "drive/research/ja/shinkansen.html ~ drive/research/ja/shinkansen-2024.html",
+        "drive/research/zh/shinkansen.html ~ drive/research/zh/shinkansen-2024.html",
+        "handbook/finance/expenses.md ~ handbook/finance/expenses-backup-2024.md",
+      ]);
       // The policy holds over its backup and the older copies on the drive, without a person.
       const verdicts = await engine.governance.verdicts(corpus.tenantId, [
         "expense_claim_deadline_days",
@@ -111,33 +122,36 @@ describe("the company drive", () => {
       const score = (right: number, stale: number) => ({ right, stale });
       expect(asked.totals).toEqual({
         questions: 150,
-        right: 48,
-        stale: 5,
-        as_recorded: 48,
-        cited_right: 89,
-        found: 63,
-        notes: 67,
+        right: 47,
+        stale: 3,
+        as_recorded: 47,
+        cited_right: 91,
+        found: 62,
+        notes: 57,
         baselines: { passages: 44, long_context: 49 },
         by_kind: {
-          changed: { questions: 66, engine: score(14, 4), passages: score(10, 5), long_context: score(13, 6) },
-          not_stated: { questions: 15, engine: score(2, 1), passages: score(2, 1), long_context: score(2, 2) },
+          changed: { questions: 66, engine: score(13, 3), passages: score(10, 5), long_context: score(13, 6) },
+          not_stated: { questions: 15, engine: score(2, 0), passages: score(2, 1), long_context: score(2, 2) },
           unchanged: { questions: 69, engine: score(32, 0), passages: score(32, 0), long_context: score(34, 0) },
         },
         by_language: {
-          en: { questions: 50, engine: score(31, 4), passages: score(26, 5), long_context: score(31, 7) },
+          en: { questions: 50, engine: score(28, 2), passages: score(26, 5), long_context: score(31, 7) },
           ja: { questions: 50, engine: score(6, 0), passages: score(8, 0), long_context: score(8, 1) },
-          zh: { questions: 50, engine: score(11, 1), passages: score(10, 1), long_context: score(10, 0) },
+          zh: { questions: 50, engine: score(13, 1), passages: score(10, 1), long_context: score(10, 0) },
         },
       });
-      // A copy of the policy from 2021 says 30 days: plain retrieval answers with it, the engine
-      // with the policy's 90 and a note that an older document says otherwise.
-      const deadline = asked.questions.find((q) =>
-        q.question.startsWith("Within how many days"),
-      ) as (typeof asked.questions)[number];
+      const answerTo = (start: string) =>
+        asked.questions.find((q) => q.question.startsWith(start)) as (typeof asked.questions)[number];
+      // A copy of the policy from 2021 says 30 days: plain retrieval answers with it. The engine
+      // answers with the policy's 90: the copy is an older edition of the copies saved since.
+      const deadline = answerTo("Within how many days");
       expect(deadline).toMatchObject({ outcome: "right", baselines: { passages: { outcome: "stale" } } });
-      expect(deadline.notes).toEqual([
-        "outdated: Expenses still state 30 day; that value was replaced, and 90 day holds.",
-      ]);
+      expect(deadline.cited).not.toContain("drive/downloads/expenses.md");
+      // The monitor caps left the policy in December 2021; only that copy still states them.
+      expect(answerTo("How much can I expense for an external 16:9 monitor")).toMatchObject({
+        outcome: "wrong_answer",
+        baselines: { passages: { outcome: "stale" } },
+      });
     } finally {
       await engine.close();
       await rm(work, { recursive: true, force: true });

@@ -7,6 +7,7 @@ import {
   type ClaimEvidence,
   contentHash,
   type EventEnvelope,
+  type GovernanceLevel,
   type KnowledgeStore,
   newEvent,
   newId,
@@ -70,6 +71,13 @@ export interface DocOptions {
   sensitivity?: SensitivityLabel;
   deleted?: boolean;
   language?: string;
+  /** When the source says it last changed. */
+  modified?: string;
+  /** Governed, at authority 0.9, unless given. */
+  level?: GovernanceLevel;
+  authority?: number;
+  /** Documents normalization reports as editions of this one. */
+  editions?: readonly Doc[];
 }
 
 export interface World {
@@ -181,11 +189,15 @@ export const retrievalTest = (backend: Backend) =>
         source_id: SOURCE,
         space_id: SPACE,
         external_id: externalId,
-        version: { content_hash: contentHash(JSON.stringify(paras)) },
+        version: {
+          content_hash: contentHash(JSON.stringify(paras)),
+          ...(options.modified && { modified_at: options.modified }),
+        },
         title: options.title ?? externalId,
         mime_type: "text/markdown",
         approval_state: "approved",
-        authority: 0.9,
+        authority: options.authority ?? 0.9,
+        ...(options.level && { governance_level: options.level }),
         sensitivity: options.sensitivity ?? "internal",
         fetched_at: new Date(Date.UTC(2026, 9, 1, 0, tick)).toISOString(),
         ...(options.language && { language: options.language }),
@@ -259,6 +271,15 @@ export const retrievalTest = (backend: Backend) =>
           added_span_ids: spans.filter((s) => !known.has(s.id)).map((s) => s.id),
           removed_span_ids: [],
           ...(options.deleted && { deleted: true }),
+          ...(options.editions?.length && {
+            duplicates: options.editions.map((d) => ({
+              source_id: SOURCE,
+              external_id: d.version.external_id,
+              source_version_id: d.version.id,
+              exact: false,
+              similarity: 0.4,
+            })),
+          }),
         },
         { tenantId: TENANT, producer: "normalization" },
       );

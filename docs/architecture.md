@@ -200,6 +200,7 @@ One Postgres instance (ParadeDB image: Postgres 16 with pgvector and pg_search) 
 | `governance` | governance | slot members and value groups, conflict cases, what each slot last asked and the notes it left, recheck days |
 | `page_compiler` | page-compiler | sections with their embeddings and topics, the last clustering's topics and centroids, the topic of each fact slot, store writes an update has yet to finish |
 | `collaboration` | collaboration | the inbox: every todo with its dedupe key, card, week and the week it fell due |
+| `retrieval` | retrieval | per document, the version its chunks are of; documents that are editions of one text, as normalization reported them |
 | `public.inspiration_migrations` | kernel | migration ledger with checksums |
 
 SpiceDB keeps its own datastore in a separate `spicedb` database on the same instance.

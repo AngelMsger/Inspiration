@@ -86,35 +86,42 @@ Stand-ins answer every model task, so these numbers measure the pipeline, not mo
 
 | Questions | Engine right, stale | Plain retrieval | Reading everything |
 | --- | --- | --- | --- |
-| All 150 | 48, 5 | 44, 6 | 49, 8 |
+| All 150 | 47, 3 | 44, 6 | 49, 8 |
 | Unchanged, 69 | 32, 0 | 32, 0 | 34, 0 |
-| Changed, 66 | 14, 4 | 10, 5 | 13, 6 |
-| Not answered by the drive, 15 | 2, 1 | 2, 1 | 2, 2 |
-| In English, 50 | 31, 4 | 26, 5 | 31, 7 |
-| In Chinese, 50 | 11, 1 | 10, 1 | 10, 0 |
+| Changed, 66 | 13, 3 | 10, 5 | 13, 6 |
+| Not answered by the drive, 15 | 2, 0 | 2, 1 | 2, 2 |
+| In English, 50 | 28, 2 | 26, 5 | 31, 7 |
+| In Chinese, 50 | 13, 1 | 10, 1 | 10, 0 |
 | In Japanese, 50 | 6, 0 | 8, 0 | 8, 1 |
 
-- In English, where the stand-ins can read the documents, the engine answers 11 of 22
-  questions on changed facts right and 3 stale, plain retrieval 8 and 4, the model reading
-  everything 11 and 5; on unchanged facts 20, 18 and 20 of 23.
-- Governance settles the copies without a person: the policy's 90 days and $120 hold over
-  the backup and the copies on the drive. The 2021 download's "within 30 days" is out of
-  date, so the engine answers with the policy's 90 days and notes that an older document
-  says 30, where plain retrieval answers 30.
+- In English, where the stand-ins can read the documents, the engine answers 9 of 22
+  questions on changed facts right and 2 stale, plain retrieval 8 and 4, the model reading
+  everything 11 and 5; on unchanged facts 19, 18 and 20 of 23.
+- The engine answers from the latest edition of a document. Normalization pairs the
+  documents that are editions of one text: the policy and its backup, the three copies on
+  the drive, which share a fifth to two fifths of their sentences under the title they kept
+  (Expenses), and the two revisions of each article. The 2021 download is an older edition
+  of the copies saved since, so its "within 30 days" and its monitor caps, which left the
+  policy that December, no longer answer; plain retrieval and the model reading everything
+  still give both.
+- Governance settles the rest without a person: the policy's 90 days and $120 hold over the
+  backup and the copies.
 - Across languages the stand-ins find little: the policy's 52 questions in Chinese and
   Japanese get one right answer. The stand-in search compares words and hashed vectors, so a
   Chinese question does not find an English sentence; a multilingual embedding model is
   needed to measure this.
 - The stand-in answer writes whatever shares a quarter of the question's words, so it says
-  "not stated" for 2 of the 15 questions nothing in force answers, and gives the 2021 copy's
-  monitor cap.
-- Stale answers that are the stand-ins': the policy's current phone cap ("Policy is set at
-  $100" under "Phone Service") is not read, so the 2023 copy's $50 holds; and the Shinkansen
-  predicates, worded generally, take years and other speeds as values.
-- A stale answer that is the engine's: the Chūō Shinkansen opening has no predicate in the
-  vocabulary, so nothing governs it, and the 2024 revision of the article is read as the
-  current one is. The engine does not yet use the fact that a document is an older copy or
-  revision of another.
+  "not stated" for 2 of the 15 questions nothing in force answers.
+- The engine's 3 stale answers: the phone cap twice, because the stand-in does not read the
+  policy's current one ("Policy is set at $100" under "Phone Service") and the 2023 copy is
+  the latest edition of Expenses, since a renamed document is not paired with its old
+  editions; and the Sapporo opening in Chinese, where the current article itself keeps
+  "预计2031年开通" in a table row the stand-in quotes.
+- What editions cost here: a statement the stand-in read only from the 2024 revision of the
+  English article leaves with it, though the current revision says the same, so three
+  answers on unchanged or changed Shinkansen facts that were right through such statements
+  are not. The Chūō opening is no longer answered from the 2024 revision (2027), though the
+  stand-in does not find the current one's 2034 either.
 
 The design's pass bars apply to real models. What a real run needs is in
 [docs/design/validation.md](../../docs/design/validation.md).
