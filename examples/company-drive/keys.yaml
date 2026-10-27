@@ -1,0 +1,658 @@
+# The answer key of the company drive's questions: for each fact, its values by the day each
+# took effect, and where the drive states each, verbatim, with the revision of the file. The
+# value in effect on asked_on answers a question; the others are stale. A value of null means
+# that from that day no document in use states the fact, though an old copy may. Written by
+# reading the files, not by the engine; README.md says how, and how to check an entry.
+
+asked_on: 2026-10-27
+
+facts:
+  "hotel_cap_per_night":
+    about: "Hotel cap per night"
+    values:
+      - from: 2023-08-29
+        value: "300 USD/night"
+        texts: ["300"]
+        stated:
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "Hotel stays are reimbursable up to $300 USD (or equivalent local currency) inclusive of tax per night for standard rooms"
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "Hotel stays are reimbursable up to $300 USD (or equivalent local currency) inclusive of tax per night for standard rooms"
+  "internet_while_traveling_per_day":
+    about: "Internet while traveling, per day"
+    values:
+      - from: 2023-08-29
+        value: "50 USD/day"
+        texts: ["50"]
+        stated:
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "Internet while traveling is reimbursable for up to $50 USD (or local equivalent currency) per day."
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "Internet while traveling is reimbursable for up to $50 USD (or local equivalent currency) per day."
+  "receipt_threshold|us":
+    about: "Receipts required above, for US team members"
+    values:
+      - from: 2023-08-29
+        value: "50 USD"
+        texts: ["50"]
+        stated:
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "US Team Members are required to only submit receipts for any expenses over $50 USD."
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "US Team Members are required to only submit receipts for any expenses over $50 USD."
+  "monthly_reimbursement_limit|e_group":
+    about: "Monthly reimbursement limit of E-Group members"
+    values:
+      - from: 2023-08-29
+        value: "20000 USD/month"
+        texts: ["20K", "20,000", "2万"]
+        stated:
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "E-Group members have a maximum monthly limit to be reimbursed of $20K USD before additional approvals are required."
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "E-Group members have a maximum monthly limit to be reimbursed of $20K USD before additional approvals are required."
+  "home_office_stipend|new_hire":
+    about: "Home office stipend of new hires"
+    values:
+      - from: 2023-02-08
+        value: "1500 USD"
+        texts: ["1,500"]
+        stated:
+          - file: drive/finance/expense-policy-2023.md
+            revision: "c82dc1e19ea36ccaf06243302a603885647912ff"
+            quote: "For Year 1 ($1,500.00) Stipend"
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "new hires will receive a 1,500 USD (or equivalent local currency) stipend to help you towards setting up your home office"
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "new hires will receive a 1,500 USD (or equivalent local currency) stipend to help you towards setting up your home office"
+  "host_gift":
+    about: "Gift for a host when staying with friends or family on a trip"
+    values:
+      - from: 2023-08-29
+        value: "50 USD"
+        texts: ["50"]
+        stated:
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "you may expense up to a $50 appropriate host/hostess gift."
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "you may expense up to a $50 appropriate host/hostess gift."
+  "gift_cap_per_transaction":
+    about: "Cap on a qualified gift, per transaction"
+    values:
+      - from: 2023-02-08
+        value: "125 USD"
+        texts: ["125"]
+        stated:
+          - file: drive/finance/expense-policy-2023.md
+            revision: "c82dc1e19ea36ccaf06243302a603885647912ff"
+            quote: "Qualified gifts are capped at $125 per transaction."
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "Qualified gifts are capped at $125 per transaction."
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "Qualified gifts are capped at $125 per transaction."
+  "coworking_monthly_limit":
+    about: "Co-working space, per month"
+    values:
+      - from: 2022-01-27
+        value: "700 USD/month"
+        texts: ["700"]
+        stated:
+          - file: drive/finance/expenses-2022.md
+            revision: "e066141449e1d919c1f649ba0566a1a7d767404e"
+            quote: "Reimbursable up to $700 USD per month."
+          - file: drive/finance/expense-policy-2023.md
+            revision: "c82dc1e19ea36ccaf06243302a603885647912ff"
+            quote: "$700.00 Limit per month."
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "$700.00 Limit per month."
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "$700.00 Limit per month."
+  "client_meal_per_person":
+    about: "Meals with clients and partners, per person and meal"
+    values:
+      - from: 2023-08-29
+        value: "80 USD/person"
+        texts: ["80"]
+        stated:
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "$80 limit per person per meal."
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "$80 limit per person per meal."
+  "domestic_flight_booking_lead_days":
+    about: "Domestic flights are booked at least this long in advance"
+    values:
+      - from: 2023-08-29
+        value: "14 day"
+        texts: ["14 days", "fourteen days", "two weeks", "2 weeks", "14天", "14 天", "两周", "14日", "14 日", "2週間"]
+        stated:
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "Domestic: At least 14 days in advance"
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "Domestic: At least 14 days in advance"
+  "meal_allowance_per_day":
+    about: "Meals while traveling, per day"
+    values:
+      - from: 2022-01-27
+        value: "100 USD/day"
+        texts: ["100"]
+        stated:
+          - file: drive/finance/expenses-2022.md
+            revision: "e066141449e1d919c1f649ba0566a1a7d767404e"
+            quote: "$100 USD per day cap during travel."
+          - file: drive/finance/expense-policy-2023.md
+            revision: "c82dc1e19ea36ccaf06243302a603885647912ff"
+            quote: "Traveling: meals for myself | $100 per day."
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "Meals while traveling on Company business are reimbursable, up to $100 USD (or local equivalent currency) per day."
+      - from: 2026-06-19
+        value: "120 USD/day"
+        texts: ["120"]
+        stated:
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "Meals while traveling on Company business are reimbursable, up to $120 USD (or local equivalent currency) per day."
+  "expense_claim_deadline_days":
+    about: "Expenses are submitted within this many days of purchase"
+    values:
+      - from: 2020-11-17
+        value: "30 day"
+        texts: ["30"]
+        stated:
+          - file: drive/downloads/expenses.md
+            revision: "c9f780f753fee8a7a3b447cd0d8661cdd4cdfa69"
+            quote: "Expenses should be submitted within 30 days of purchase/spend."
+      - from: 2022-01-27
+        value: "90 day"
+        texts: ["90"]
+        stated:
+          - file: drive/finance/expenses-2022.md
+            revision: "e066141449e1d919c1f649ba0566a1a7d767404e"
+            quote: "Expenses should be submitted within 90 days of purchase, spend, or invoice due date."
+          - file: drive/finance/expense-policy-2023.md
+            revision: "c82dc1e19ea36ccaf06243302a603885647912ff"
+            quote: "Items over 90 days from purchase date will not be reimbursed."
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "Expense claims over 90 days from purchase date will not be reimbursed unless approved by the Manager"
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "Expense claims over 90 days from purchase date will not be reimbursed unless approved by the Manager"
+  "monthly_reimbursement_limit":
+    about: "Monthly reimbursement limit"
+    values:
+      - from: 2023-02-08
+        value: "5000 USD/month"
+        texts: ["5K", "5,000", "5千"]
+        stated:
+          - file: drive/finance/expense-policy-2023.md
+            revision: "c82dc1e19ea36ccaf06243302a603885647912ff"
+            quote: "The maximum monthly limit to be reimbursed is $5K USD (or local currency equivalent)."
+      - from: 2023-08-29
+        value: "10000 USD/month"
+        texts: ["10K", "10,000", "1万"]
+        stated:
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "The maximum monthly limit to be reimbursed is $10K USD (or local currency equivalent)."
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "The maximum monthly limit to be reimbursed is $10K USD (or local currency equivalent)."
+  "phone_service_monthly_cap":
+    about: "Cell phone service, per month"
+    values:
+      - from: 2022-01-27
+        value: "200 USD/month"
+        texts: ["200"]
+        stated:
+          - file: drive/finance/expenses-2022.md
+            revision: "e066141449e1d919c1f649ba0566a1a7d767404e"
+            quote: "Cell phone service is reimbursable up to $200 monthly threshold for employees whose phones are vital to their position."
+      - from: 2023-02-08
+        value: "50 USD/month"
+        texts: ["50"]
+        stated:
+          - file: drive/finance/expense-policy-2023.md
+            revision: "c82dc1e19ea36ccaf06243302a603885647912ff"
+            quote: "Cell phone service is reimbursable up to $50.00 monthly threshold for employees whose phones are vital to their position."
+      - from: 2023-08-29
+        value: "80 USD/month"
+        texts: ["80"]
+        stated:
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "Policy is set at $80, anything over that amount will still be considered for approval"
+      - from: 2026-06-19
+        value: "100 USD/month"
+        texts: ["100"]
+        stated:
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "Policy is set at $100 - claims above this amount will not be reimbursed."
+  "home_internet_monthly_cap":
+    about: "Home internet service, per month"
+    values:
+      - from: 2023-02-08
+        value: "80 USD/month"
+        texts: ["80"]
+        stated:
+          - file: drive/finance/expense-policy-2023.md
+            revision: "c82dc1e19ea36ccaf06243302a603885647912ff"
+            quote: "All monthly internet bills are reimbursable up to $80.00"
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "Policy is set at $80, anything over that amount will still be considered for approval"
+      - from: 2026-06-19
+        value: "100 USD/month"
+        texts: ["100"]
+        stated:
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "Policy is set at $100 - claims above this amount will not be reimbursed."
+  "dry_cleaning_min_stay_days":
+    about: "Dry cleaning is allowable for hotel stays over this many days"
+    values:
+      - from: 2022-01-27
+        value: "3 day"
+        texts: ["3 days", "three days", "3天", "3 天", "3日", "3 日", "三天"]
+        stated:
+          - file: drive/finance/expenses-2022.md
+            revision: "e066141449e1d919c1f649ba0566a1a7d767404e"
+            quote: "Dry cleaning is allowable if the stay is over 3 days."
+      - from: 2023-08-29
+        value: "5 day"
+        texts: ["5 days", "five days", "5天", "5 天", "5日", "5 日", "五天"]
+        stated:
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "Dry cleaning is allowable if the stay is over 5 days."
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "Dry cleaning is allowable if the stay is over 5 days."
+  "marketing_small_purchase_cap":
+    about: "Small purchases for marketing events, expensed below"
+    values:
+      - from: 2022-01-27
+        value: "2500 USD"
+        texts: ["2,500"]
+        stated:
+          - file: drive/finance/expenses-2022.md
+            revision: "e066141449e1d919c1f649ba0566a1a7d767404e"
+            quote: "Small purchases for marketing events which are under $2,500 USD"
+          - file: drive/finance/expense-policy-2023.md
+            revision: "c82dc1e19ea36ccaf06243302a603885647912ff"
+            quote: "Small purchases for marketing events which are under $2,500 USD"
+      - from: 2023-08-29
+        value: "5000 USD"
+        texts: ["5,000"]
+        stated:
+          - file: handbook/finance/expenses-backup-2024.md
+            revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
+            quote: "Small purchases for marketing events which are under $5,000 USD"
+          - file: handbook/finance/expenses.md
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "Small purchases for marketing events which are under $5,000 USD"
+  "external_monitor_cap":
+    about: "External 16:9 monitor"
+    values:
+      - from: 2021-06-23
+        value: "500 USD"
+        texts: ["500"]
+        stated:
+          - file: drive/downloads/expenses.md
+            revision: "c9f780f753fee8a7a3b447cd0d8661cdd4cdfa69"
+            quote: "you can expense up to two 16:9 monitors (up to $500 each is expensable)"
+      - from: 2021-12-03
+        value: null
+        stated: []
+  "external_monitor_cap|ultra_wide":
+    about: "Ultrawide monitor"
+    values:
+      - from: 2021-06-23
+        value: "1000 USD"
+        texts: ["1,000"]
+        stated:
+          - file: drive/downloads/expenses.md
+            revision: "c9f780f753fee8a7a3b447cd0d8661cdd4cdfa69"
+            quote: "or one ultrawide monitor (up to $1,000 is expensable)."
+      - from: 2021-12-03
+        value: null
+        stated: []
+  "cluster_max_nodes":
+    about: "Nodes in one cluster, at most"
+    values:
+      - from: 2023-03-10
+        value: "5000 node"
+        texts: ["5,000"]
+        stated:
+          - file: ../kubernetes-docs/docs/setup/best-practices/cluster-large.html
+            revision: "dc6687c0860580ff34f01daaccd4e78580dc9460"
+            quote: "Kubernetes v1.37 supports clusters with up to 5,000 nodes."
+          - file: ../kubernetes-docs/docs/setup/best-practices/cluster-large.zh-cn.html
+            revision: "38a0981a2c2f7e665595bbf8b035ebea0f7fa259"
+            quote: "Kubernetes v1.37 单个集群支持的最大节点数为 5,000。"
+          - file: ../kubernetes-docs/docs/setup/best-practices/cluster-large.ja.html
+            revision: "50312b1848ad533a2817f916f62f0630053c0330"
+            quote: "Kubernetes v1.37 では、最大5000ノードから構成されるクラスターをサポートします。"
+  "pods_per_node_max":
+    about: "Pods per node, at most"
+    values:
+      - from: 2023-03-10
+        value: "110 pod"
+        texts: ["110"]
+        stated:
+          - file: ../kubernetes-docs/docs/setup/best-practices/cluster-large.html
+            revision: "dc6687c0860580ff34f01daaccd4e78580dc9460"
+            quote: "No more than 110 pods per node"
+          - file: ../kubernetes-docs/docs/setup/best-practices/cluster-large.zh-cn.html
+            revision: "38a0981a2c2f7e665595bbf8b035ebea0f7fa259"
+            quote: "每个节点的 Pod 数量不超过 110"
+          - file: ../kubernetes-docs/docs/setup/best-practices/cluster-large.ja.html
+            revision: "50312b1848ad533a2817f916f62f0630053c0330"
+            quote: "1ノードにつきPodが110個以上存在しない"
+  "cluster_max_pods":
+    about: "Pods in one cluster, at most"
+    values:
+      - from: 2023-03-10
+        value: "150000 pod"
+        texts: ["150,000", "15万"]
+        stated:
+          - file: ../kubernetes-docs/docs/setup/best-practices/cluster-large.html
+            revision: "dc6687c0860580ff34f01daaccd4e78580dc9460"
+            quote: "No more than 150,000 total pods"
+          - file: ../kubernetes-docs/docs/setup/best-practices/cluster-large.zh-cn.html
+            revision: "38a0981a2c2f7e665595bbf8b035ebea0f7fa259"
+            quote: "Pod 总数不超过 150,000"
+          - file: ../kubernetes-docs/docs/setup/best-practices/cluster-large.ja.html
+            revision: "50312b1848ad533a2817f916f62f0630053c0330"
+            quote: "Podの総数が150000個以上存在しない"
+  "kubelet_version_skew":
+    about: "Minor versions the kubelet may be older than kube-apiserver"
+    values:
+      - from: 2026-04-14
+        value: "3 minor_version"
+        texts: ["three minor versions", "3 minor versions", "三个次要版本", "3 个次要版本", "3つ前"]
+        stated:
+          - file: ../kubernetes-docs/docs/releases/version-skew-policy.html
+            revision: "03c191bcc446f9c15a9e68d6cd1154b53bde4291"
+            quote: "kubelet may be up to three minor versions older than kube-apiserver"
+          - file: ../kubernetes-docs/docs/releases/version-skew-policy.zh-cn.html
+            revision: "62751a25ed16e333691e94095edaf0f9be95948e"
+            quote: "kubelet 可以比 kube-apiserver 低三个次要版本"
+          - file: ../kubernetes-docs/docs/releases/version-skew-policy.ja.html
+            revision: "5c0fe168a4f24b362c638f8d06a4788aa6bc858b"
+            quote: "kubeletはkube-apiserverより最大で3つ前のマイナーバージョンまでサポートされます"
+  "pod_termination_grace_period":
+    about: "Default termination grace period of a pod"
+    values:
+      - from: 2024-02-06
+        value: "30 second"
+        texts: ["30 seconds", "30 秒", "30秒", "30s"]
+        stated:
+          - file: ../kubernetes-docs/docs/concepts/workloads/pods/pod-lifecycle.html
+            revision: "b4811b23fdc1a199b0d9754edf90579aa93b45de"
+            quote: "A Pod is granted a term to terminate gracefully, which defaults to 30 seconds."
+          - file: ../kubernetes-docs/docs/concepts/workloads/pods/pod-lifecycle.zh-cn.html
+            revision: "cdac5a754872f89d3db88ac759a9fc8394be2e46"
+            quote: "Pod 被赋予一个可以体面终止的期限，默认为 30 秒"
+          - file: ../kubernetes-docs/docs/concepts/workloads/pods/pod-lifecycle.ja.html
+            revision: "adada78799d09303426a8761fc05d2b43d55f98a"
+            quote: "Podには、正常に終了するための期間を与えられており、デフォルトは30秒です。"
+  "container_restart_backoff_cap":
+    about: "Cap of a container's restart backoff delay"
+    values:
+      - from: 2024-02-06
+        value: "300 second"
+        texts: ["300 seconds", "300 秒", "300秒", "300s", "5 minutes", "five minutes", "5 分钟", "5分钟", "5分"]
+        stated:
+          - file: ../kubernetes-docs/docs/concepts/workloads/pods/pod-lifecycle.html
+            revision: "b4811b23fdc1a199b0d9754edf90579aa93b45de"
+            quote: "that is capped at 300 seconds (5 minutes)."
+          - file: ../kubernetes-docs/docs/concepts/workloads/pods/pod-lifecycle.zh-cn.html
+            revision: "cdac5a754872f89d3db88ac759a9fc8394be2e46"
+            quote: "上限为 300 秒（5 分钟）"
+          - file: ../kubernetes-docs/docs/concepts/workloads/pods/pod-lifecycle.ja.html
+            revision: "adada78799d09303426a8761fc05d2b43d55f98a"
+            quote: "kubeletは5分を上限とする指数バックオフ遅延（10秒、20秒、40秒...）でコンテナを再起動します。"
+  "restart_backoff_reset_after":
+    about: "Run time after which the restart backoff timer resets"
+    values:
+      - from: 2024-02-06
+        value: "10 minute"
+        texts: ["10 minutes", "ten minutes", "10 分钟", "10分钟", "10分"]
+        stated:
+          - file: ../kubernetes-docs/docs/concepts/workloads/pods/pod-lifecycle.html
+            revision: "b4811b23fdc1a199b0d9754edf90579aa93b45de"
+            quote: "Once a container has executed for 10 minutes without any problems, the kubelet resets the restart backoff timer for that container."
+          - file: ../kubernetes-docs/docs/concepts/workloads/pods/pod-lifecycle.zh-cn.html
+            revision: "cdac5a754872f89d3db88ac759a9fc8394be2e46"
+            quote: "一旦容器顺利执行了 10 分钟， kubelet 就会重置该容器的重启延迟计时器"
+          - file: ../kubernetes-docs/docs/concepts/workloads/pods/pod-lifecycle.ja.html
+            revision: "adada78799d09303426a8761fc05d2b43d55f98a"
+            quote: "コンテナが10分間実行されると、kubeletはコンテナの再起動バックオフタイマーをリセットします。"
+  "hard_eviction_imagefs_available":
+    about: "Default hard eviction threshold of imagefs.available"
+    values:
+      - from: 2026-06-08
+        value: "15 %"
+        texts: ["15%"]
+        stated:
+          - file: ../kubernetes-docs/docs/concepts/scheduling-eviction/node-pressure-eviction.html
+            revision: "404e07f176f06c88cbe79c5dccb9fdb1fee12945"
+            quote: "imagefs.available<15%"
+          - file: ../kubernetes-docs/docs/concepts/scheduling-eviction/node-pressure-eviction.zh-cn.html
+            revision: "de354e3366dfd75e57c6a76bad1bc3c5091f9089"
+            quote: "imagefs.available<15%"
+          - file: ../kubernetes-docs/docs/concepts/scheduling-eviction/node-pressure-eviction.ja.html
+            revision: "b7d565b5916f80e312d3163f153d693fd16eb247"
+            quote: "imagefs.available<15%"
+  "shinkansen_max_operating_speed":
+    about: "Maximum operating speed of the Shinkansen"
+    values:
+      - from: 2013-03-16
+        value: "320 km/h"
+        texts: ["320"]
+        stated:
+          - file: drive/research/en/shinkansen-2024.html
+            revision: "1252821730"
+            quote: "The maximum operating speed is 320 km/h (200 mph) (on a 387.5 km (241 mi) section of the Tōhoku Shinkansen)."
+          - file: drive/research/en/shinkansen.html
+            revision: "1379829340"
+            quote: "maximum operating speeds ranging from 260 to 320 kilometres per hour (160 to 200 mph), the latter achieved on a 387.5-kilometre (240.8 mi) section of the Tōhoku Shinkansen"
+          - file: drive/research/zh/shinkansen-2024.html
+            revision: "84643934"
+            quote: "列车运行最高车速依线路可达到每小时240至320公里"
+          - file: drive/research/zh/shinkansen.html
+            revision: "94159827"
+            quote: "列车运行最高车速依线路可达到每小时240至320公里"
+          - file: drive/research/ja/shinkansen-2024.html
+            revision: "102321214"
+            quote: "2024年現在の最高速度は東北新幹線の宇都宮駅 - 盛岡駅間の320km/hとなっている。"
+          - file: drive/research/ja/shinkansen.html
+            revision: "111141496"
+            quote: "2026年現在の最高速度は東北新幹線の宇都宮駅 - 盛岡駅間の320 km/hとなっている。"
+  "shinkansen_conventional_speed_record":
+    about: "Shinkansen speed record for conventional rail"
+    values:
+      - from: 1996-07-26
+        value: "443 km/h"
+        texts: ["443"]
+        stated:
+          - file: drive/research/en/shinkansen-2024.html
+            revision: "1252821730"
+            quote: "Test runs have reached 443 km/h (275 mph) for conventional rail in 1996"
+          - file: drive/research/en/shinkansen.html
+            revision: "1379829340"
+            quote: "The highest speed recorded on the Shinkansen network for conventional rail is 443 km/h (275 mph), achieved by the Class 955 (300X) in 1996"
+          - file: drive/research/zh/shinkansen-2024.html
+            revision: "84643934"
+            quote: "每小时443公里的最高纪录（由“300X”实验列车在1996年所创下）"
+          - file: drive/research/zh/shinkansen.html
+            revision: "94159827"
+            quote: "每小时443公里的最高纪录（由“300X”实验列车在1996年所创下）"
+          - file: drive/research/ja/shinkansen-2024.html
+            revision: "102321214"
+            quote: "日本の非浮上式鉄道の最高記録はJR東海の300Xによって達成された443 km/hで世界第3位"
+          - file: drive/research/ja/shinkansen.html
+            revision: "111141496"
+            quote: "日本の非浮上式鉄道の最高記録はJR東海の300Xによって達成された443 km/hで世界第3位"
+  "maglev_speed_record":
+    about: "Speed record of the L0 series maglev"
+    values:
+      - from: 2015-04-21
+        value: "603 km/h"
+        texts: ["603"]
+        stated:
+          - file: drive/research/en/shinkansen-2024.html
+            revision: "1252821730"
+            quote: "On 21 April 2015, a seven-car L0 series maglev trainset set a world speed record of 603 km/h (375 mph)."
+          - file: drive/research/en/shinkansen.html
+            revision: "1379829340"
+            quote: "On 21 April 2015, a seven-car L0 series maglev trainset, planned to be used on the line, set a world speed record of 603 km/h (375 mph)."
+          - file: drive/research/ja/shinkansen-2024.html
+            revision: "102321214"
+            quote: "日本のL0系が2015年4月に山梨リニア実験線で記録した603 km/h"
+          - file: drive/research/ja/shinkansen.html
+            revision: "111141496"
+            quote: "日本のL0系が2015年4月に山梨リニア実験線で記録した603 km/h"
+  "tokaido_opening_day":
+    about: "Day the Tōkaidō Shinkansen began service"
+    values:
+      - from: 1964-10-01
+        value: "1964-10-01"
+        texts: ["1 October 1964", "October 1, 1964", "1964年10月1日", "1964-10-01"]
+        stated:
+          - file: drive/research/en/shinkansen-2024.html
+            revision: "1252821730"
+            quote: "The Tōkaidō Shinkansen began service on 1 October 1964"
+          - file: drive/research/en/shinkansen.html
+            revision: "1379829340"
+            quote: "The Tōkaidō Shinkansen began service on 1 October 1964"
+          - file: drive/research/zh/shinkansen-2024.html
+            revision: "84643934"
+            quote: "于东京奥运开幕前的1964年10月1日通车营运"
+          - file: drive/research/zh/shinkansen.html
+            revision: "94159827"
+            quote: "于东京奥运开幕前的1964年10月1日通车营运"
+          - file: drive/research/ja/shinkansen.html
+            revision: "111141496"
+            quote: "1964年10月1日：東海道新幹線開業。210 km/h。"
+  "tokaido_seats_per_train":
+    about: "Seats of a 16-car Tōkaidō Shinkansen train"
+    values:
+      - from: 2024-10-23
+        value: "1323 seat"
+        texts: ["1,323"]
+        stated:
+          - file: drive/research/en/shinkansen-2024.html
+            revision: "1252821730"
+            quote: "16 cars each (1,323-seat capacity"
+          - file: drive/research/en/shinkansen.html
+            revision: "1379829340"
+            quote: "using 16-car trainsets with a seating capacity of 1,323"
+  "sapporo_extension_opening":
+    about: "Opening of the Hokkaido Shinkansen extension to Sapporo"
+    values:
+      - from: 2024-10-19
+        value: "2031-03"
+        texts: ["2031", "2030年度", "fiscal 2030", "FY2030"]
+        stated:
+          - file: drive/research/en/shinkansen-2024.html
+            revision: "1252821730"
+            quote: "Hokkaido Shinkansen from Shin-Hakodate-Hokuto to Sapporo is under construction and scheduled to open by March 2031."
+          - file: drive/research/zh/shinkansen-2024.html
+            revision: "84643934"
+            quote: "预计2031年开业（新函馆北斗-札幌）"
+          - file: drive/research/ja/shinkansen-2024.html
+            revision: "102321214"
+            quote: "2030年度"
+      - from: 2026-09-02
+        value: "2038"
+        texts: ["2038"]
+        stated:
+          - file: drive/research/en/shinkansen.html
+            revision: "1379829340"
+            quote: "The Hokkaido Shinkansen from Shin-Hakodate-Hokuto to Sapporo is under construction and scheduled to open by 2038."
+          - file: drive/research/zh/shinkansen.html
+            revision: "94159827"
+            quote: "建设中，预计2038年开业（新函馆北斗-札幌）"
+          - file: drive/research/ja/shinkansen.html
+            revision: "111141496"
+            quote: "2038年末頃"
+  "tokaido_annual_passengers":
+    about: "Passengers the Tōkaidō Shinkansen carries a year"
+    values:
+      - from: 2017-03-31
+        value: "159 million"
+        texts: ["159 million", "1.59亿", "1亿5900万", "1億5900万", "1.59億"]
+        stated:
+          - file: drive/research/en/shinkansen-2024.html
+            revision: "1252821730"
+            quote: "In the one-year period preceding March 2017, it carried 159 million passengers"
+      - from: 2024-03-31
+        value: "161 million"
+        texts: ["161 million", "1.61亿", "1亿6100万", "1億6100万", "1.61億"]
+        stated:
+          - file: drive/research/en/shinkansen.html
+            revision: "1379829340"
+            quote: "It remains the busiest line in the network, carrying 161 million passengers in fiscal 2023"
+  "shinkansen_full_gauge_length":
+    about: "Length of the full-gauge Shinkansen lines"
+    values:
+      - from: 2022-09-23
+        value: "2830 km"
+        texts: ["2,830"]
+        stated:
+          - file: drive/research/ja/shinkansen-2024.html
+            revision: "102321214"
+            quote: "フル規格8路線（合計2,830 km）"
+      - from: 2024-03-16
+        value: "2951.3 km"
+        texts: ["2,951.3", "2,955.7", "2,951", "2,955", "2,956"]
+        stated:
+          - file: drive/research/en/shinkansen-2024.html
+            revision: "1252821730"
+            quote: "the network has expanded to consist of 2,951.3 km (1,833.9 mi) of lines"
+          - file: drive/research/en/shinkansen.html
+            revision: "1379829340"
+            quote: "the network has expanded to include 2,951.3 kilometres (1,833.9 mi) of lines"
+          - file: drive/research/ja/shinkansen.html
+            revision: "111141496"
+            quote: "フル規格8路線（合計2,955.7 km）"
+  "chuo_tokyo_nagoya_opening":
+    about: "Opening of the Chūō Shinkansen maglev from Tokyo to Nagoya"
+    values:
+      - from: 2011-05-26
+        value: "2027"
+        texts: ["2027"]
+        stated:
+          - file: drive/research/en/shinkansen-2024.html
+            revision: "1252821730"
+            quote: "The CEO of JR Central originally announced plans to have the maglev Chūō Shinkansen operating from Tokyo to Nagoya by 2027"
+      - from: 2024-01-01
+        value: "2034"
+        texts: ["2034"]
+        stated:
+          - file: drive/research/en/shinkansen.html
+            revision: "1379829340"
+            quote: "it is not expected to open until at least 2034"

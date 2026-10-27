@@ -1,0 +1,237 @@
+# Questions to the company drive, a third each in English, Chinese and Japanese, asked as the
+# drive's reader. A fact entry asks about a fact of keys.yaml, which gives the answer, the
+# stale values and the documents to cite; a question entry gives its own (answer: null when
+# nothing in the drive answers it). See questions.ts in apps/engine.
+
+questions:
+  - fact: "hotel_cap_per_night"
+    ask:
+      - "What is the most I can spend on a hotel per night on a business trip?"
+      - "出差住酒店，每晚最多可以报销多少？"
+      - "出張時のホテル代は1泊いくらまで精算できますか？"
+  - fact: "internet_while_traveling_per_day"
+    ask:
+      - "How much internet access can I expense per day while traveling?"
+      - "出差期间每天的上网费最多能报销多少？"
+      - "出張中のインターネット代は1日いくらまで経費にできますか？"
+  - fact: "receipt_threshold|us"
+    ask:
+      - "Above what amount do US team members need to submit a receipt?"
+      - "美国的团队成员超过多少金额的费用需要提交收据？"
+      - "米国のチームメンバーは、いくらを超える経費に領収書が必要ですか？"
+  - fact: "monthly_reimbursement_limit|e_group"
+    ask:
+      - "What is the monthly reimbursement limit for E-Group members?"
+      - "E-Group 成员每月的报销上限是多少？"
+      - "E-Group のメンバーの月間精算上限はいくらですか？"
+  - fact: "home_office_stipend|new_hire"
+    ask:
+      - "How much is the home office stipend for new hires?"
+      - "新员工的居家办公补贴是多少？"
+      - "新入社員のホームオフィス手当はいくらですか？"
+  - fact: "host_gift"
+    ask:
+      - "If I stay with friends instead of a hotel on a business trip, how much can I spend on a gift for my host?"
+      - "出差时住在朋友家而不是酒店，给主人的礼物最多可以报销多少？"
+      - "出張でホテルではなく知人宅に泊まる場合、ホストへの手土産はいくらまで経費にできますか？"
+  - fact: "gift_cap_per_transaction"
+    ask:
+      - "What is the cap on a gift per transaction?"
+      - "礼品每笔交易的上限是多少？"
+      - "贈答品は1回の取引あたりいくらが上限ですか？"
+  - fact: "coworking_monthly_limit"
+    ask:
+      - "How much can I expense for a co-working space per month?"
+      - "联合办公空间每月最多可以报销多少？"
+      - "コワーキングスペースは月にいくらまで精算できますか？"
+  - fact: "client_meal_per_person"
+    ask:
+      - "What is the limit per person for a meal with clients?"
+      - "和客户吃饭，每人每餐的上限是多少？"
+      - "顧客との会食は1人1食あたりいくらまでですか？"
+  - fact: "domestic_flight_booking_lead_days"
+    ask:
+      - "How far in advance should domestic flights be booked?"
+      - "国内航班需要提前多久预订？"
+      - "国内線の航空券は何日前までに予約すべきですか？"
+  - fact: "meal_allowance_per_day"
+    ask:
+      - "How much can I spend on meals per day while traveling for work?"
+      - "What is the daily meal cap on a business trip?"
+      - "出差期间每天的餐费上限是多少？"
+      - "因公出差时，一天的伙食费最多能报多少？"
+      - "出張中の食事代は1日いくらまで精算できますか？"
+      - "業務出張の1日あたりの食費の上限はいくらですか？"
+  - fact: "expense_claim_deadline_days"
+    ask:
+      - "Within how many days of a purchase must I submit the expense?"
+      - "How long do I have to file an expense claim?"
+      - "购买后多少天内必须提交报销？"
+      - "报销申请的提交期限是多久？"
+      - "購入から何日以内に経費を申請しなければなりませんか？"
+      - "経費精算の申請期限はどのくらいですか？"
+  - fact: "monthly_reimbursement_limit"
+    ask:
+      - "What is the maximum monthly reimbursement limit?"
+      - "How much can a team member be reimbursed per month at most?"
+      - "每月报销的最高限额是多少？"
+      - "团队成员每个月最多可以报销多少钱？"
+      - "月間の精算上限額はいくらですか？"
+      - "チームメンバーは1か月に最大いくらまで精算してもらえますか？"
+  - fact: "phone_service_monthly_cap"
+    ask:
+      - "How much of my cell phone bill can I expense each month?"
+      - "What is the monthly limit for phone service?"
+      - "手机话费每月最多可以报销多少？"
+      - "电话服务费的每月上限是多少？"
+      - "携帯電話の利用料は毎月いくらまで経費にできますか？"
+      - "電話サービスの月額上限はいくらですか？"
+  - fact: "home_internet_monthly_cap"
+    ask:
+      - "How much of my monthly home internet bill is reimbursed?"
+      - "What is the limit for internet service charges at home?"
+      - "家里的宽带费每月可以报销多少？"
+      - "居家办公的网络服务费报销上限是多少？"
+      - "自宅のインターネット料金は月にいくらまで精算されますか？"
+      - "在宅勤務のインターネット利用料の精算上限はいくらですか？"
+  - fact: "dry_cleaning_min_stay_days"
+    ask:
+      - "How long must a hotel stay be before dry cleaning is reimbursable?"
+      - "When can I expense dry cleaning on a trip?"
+      - "出差住酒店多久以上才能报销干洗费？"
+      - "什么情况下可以报销出差期间的干洗费？"
+      - "ホテルに何日を超えて滞在するとドライクリーニング代が精算できますか？"
+      - "出張中のドライクリーニング代はどんな場合に経費にできますか？"
+  - fact: "marketing_small_purchase_cap"
+    ask:
+      - "Up to what amount can small purchases for marketing events be expensed?"
+      - "What is the limit for small marketing event purchases outside the procurement process?"
+      - "市场活动的小额采购在多少金额以下可以直接报销？"
+      - "不走采购流程的市场活动小额支出上限是多少？"
+      - "マーケティングイベントの少額購入はいくら未満なら経費精算できますか？"
+      - "調達プロセスを通さないマーケティングイベントの少額購入の上限はいくらですか？"
+  - fact: "external_monitor_cap"
+    ask:
+      - "How much can I expense for an external 16:9 monitor?"
+      - "一台 16:9 外接显示器最多可以报销多少？"
+      - "16:9 の外部モニターはいくらまで経費にできますか？"
+  - fact: "external_monitor_cap|ultra_wide"
+    ask:
+      - "What is the reimbursement cap for an ultrawide monitor?"
+      - "超宽显示器的报销上限是多少？"
+      - "ウルトラワイドモニターの精算上限はいくらですか？"
+  - fact: "cluster_max_nodes"
+    ask:
+      - "How many nodes can a Kubernetes cluster have at most?"
+      - "Kubernetes 集群最多可以有多少个节点？"
+      - "Kubernetes クラスターのノード数の上限はいくつですか？"
+  - fact: "pods_per_node_max"
+    ask:
+      - "What is the maximum number of pods per node?"
+      - "每个节点最多可以运行多少个 Pod？"
+      - "1ノードあたりのPod数の上限はいくつですか？"
+  - fact: "cluster_max_pods"
+    ask:
+      - "How many pods can a cluster have in total?"
+      - "集群中 Pod 的总数上限是多少？"
+      - "クラスター全体のPodの総数の上限はいくつですか？"
+  - fact: "kubelet_version_skew"
+    ask:
+      - "How many minor versions older than kube-apiserver may the kubelet be?"
+      - "kubelet 最多可以比 kube-apiserver 低几个次要版本？"
+      - "kubeletはkube-apiserverより何マイナーバージョン前までサポートされますか？"
+  - fact: "pod_termination_grace_period"
+    ask:
+      - "What is the default termination grace period of a pod?"
+      - "Pod 默认的终止宽限期是多少秒？"
+      - "Podの終了猶予期間のデフォルトは何秒ですか？"
+  - fact: "container_restart_backoff_cap"
+    ask:
+      - "What is the cap of a container's restart backoff delay?"
+      - "容器重启回退延迟的上限是多少？"
+      - "コンテナ再起動のバックオフ遅延の上限はどれくらいですか？"
+  - fact: "restart_backoff_reset_after"
+    ask:
+      - "After how long does the kubelet reset a container's restart backoff timer?"
+      - "容器顺利运行多久后，kubelet 会重置其重启延迟计时器？"
+      - "コンテナが何分間実行されると、kubeletは再起動バックオフタイマーをリセットしますか？"
+  - fact: "hard_eviction_imagefs_available"
+    ask:
+      - "What is the default hard eviction threshold for imagefs.available?"
+      - "imagefs.available 的默认硬驱逐阈值是多少？"
+      - "imagefs.available のデフォルトのハード退避しきい値は？"
+  - fact: "shinkansen_max_operating_speed"
+    ask:
+      - "What is the maximum operating speed of the Shinkansen?"
+      - "新干线的最高营运速度是多少？"
+      - "新幹線の営業最高速度は何km/hですか？"
+  - fact: "shinkansen_conventional_speed_record"
+    ask:
+      - "What is the Shinkansen's speed record for conventional rail?"
+      - "新干线非磁浮列车的最高速度纪录是多少？"
+      - "新幹線の非浮上式鉄道としての最高速度記録は何km/hですか？"
+  - fact: "maglev_speed_record"
+    ask:
+      - "What speed record did the L0 series maglev set?"
+      - "L0 系磁浮列车创下的速度纪录是多少？"
+      - "L0系リニアが記録した最高速度はいくつですか？"
+  - fact: "tokaido_opening_day"
+    ask:
+      - "When did the Tōkaidō Shinkansen begin service?"
+      - "东海道新干线是哪一天开通的？"
+      - "東海道新幹線はいつ開業しましたか？"
+  - fact: "tokaido_seats_per_train"
+    ask:
+      - "How many seats does a 16-car Tōkaidō Shinkansen train have?"
+      - "16 节编组的东海道新干线列车有多少个座位？"
+      - "16両編成の東海道新幹線の座席数はいくつですか？"
+  - fact: "sapporo_extension_opening"
+    ask:
+      - "When will the Hokkaido Shinkansen extension to Sapporo open?"
+      - "When is the Shin-Hakodate-Hokuto to Sapporo section scheduled to open?"
+      - "北海道新干线延伸到札幌的路段预计什么时候开通？"
+      - "新函馆北斗到札幌的区间预计哪一年开业？"
+      - "北海道新幹線の札幌延伸はいつ開業する予定ですか？"
+      - "新函館北斗駅 - 札幌駅間の開業予定はいつですか？"
+  - fact: "tokaido_annual_passengers"
+    ask:
+      - "How many passengers does the Tōkaidō Shinkansen carry a year?"
+      - "What is the annual ridership of the Tokaido Shinkansen?"
+      - "东海道新干线每年运送多少乘客？"
+      - "东海道新干线的年客运量是多少？"
+      - "東海道新幹線の年間輸送人員は何人ですか？"
+      - "東海道新幹線は1年に何人の乗客を運んでいますか？"
+  - fact: "shinkansen_full_gauge_length"
+    ask:
+      - "How long is the Shinkansen network, not counting mini-Shinkansen lines?"
+      - "What is the total length of the full-gauge Shinkansen lines?"
+      - "不算迷你新干线，新干线网络的总长度是多少？"
+      - "新干线全规格线路的总里程是多少公里？"
+      - "ミニ新幹線を除く新幹線の路線の総延長は何kmですか？"
+      - "フル規格の新幹線の営業キロは合計何kmですか？"
+  - fact: "chuo_tokyo_nagoya_opening"
+    ask:
+      - "When will the Chūō Shinkansen maglev open between Tokyo and Nagoya?"
+      - "What is the target opening year of the maglev line from Tokyo to Nagoya?"
+      - "中央新干线磁浮东京至名古屋段预计何时开通？"
+      - "东京到名古屋的磁浮线路目标开通年份是哪一年？"
+      - "リニア中央新幹線の東京 - 名古屋間はいつ開業する見込みですか？"
+      - "品川 - 名古屋間のリニアの開業目標は何年ですか？"
+  - question: "How many weeks of paid parental leave do team members get?"
+    answer: null
+  - question: "What is the maximum size of a ConfigMap in Kubernetes?"
+    answer: null
+  - question: "How much does it cost to bring a pet on the Shinkansen?"
+    answer: null
+  - question: "团队成员可以休几周带薪育儿假？"
+    answer: null
+  - question: "Kubernetes 中单个 ConfigMap 最大可以多大？"
+    answer: null
+  - question: "在新干线上携带宠物需要多少费用？"
+    answer: null
+  - question: "チームメンバーの有給の育児休暇は何週間ですか？"
+    answer: null
+  - question: "Kubernetes の ConfigMap のサイズ上限はいくつですか？"
+    answer: null
+  - question: "新幹線にペットを連れて乗る料金はいくらですか？"
+    answer: null

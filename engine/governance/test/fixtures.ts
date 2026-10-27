@@ -52,6 +52,8 @@ export interface Doc {
   approval_state?: SourceVersion["approval_state"];
   /** Front matter effective_from. */
   effective_from?: string;
+  /** When the document was last changed, as its source reports it. */
+  modified_at?: string;
   level?: GovernanceLevel;
   /** The file in the folder source; the title with ".md" when not given. */
   external_id?: string;
@@ -119,7 +121,10 @@ export const governanceTest = (backend: Backend) =>
         source_id: SOURCE,
         space_id: SPACE,
         external_id: doc.external_id ?? `${doc.title}.md`,
-        version: { content_hash: contentHash(JSON.stringify([doc, said])) },
+        version: {
+          content_hash: contentHash(JSON.stringify([doc, said])),
+          ...(doc.modified_at && { modified_at: doc.modified_at }),
+        },
         title: doc.title,
         mime_type: "text/markdown",
         approval_state: doc.approval_state ?? "approved",

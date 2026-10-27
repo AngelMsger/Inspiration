@@ -98,14 +98,15 @@ export const RECHECKS = defineTable<Recheck>("governance.rechecks", {
 
 /** The group keeps what it needs to stand as of any day: its day counts, its best by day and its sources. */
 const countedByDay = (g: ValueGroup) =>
-  g.governed_from !== undefined && g.best_from !== undefined && g.sources !== undefined;
+  g.governed_from !== undefined && g.best_from !== undefined && g.sources !== undefined && g.newest !== undefined;
 
 /**
  * A slot's value groups. A group stored before governed statements were counted by the day
- * they take effect (governed_from), before its best was kept by day (best_from) or before its
- * members were kept by source (sources), or before governance levels, is counted again from
- * its members: its earliest day cannot say when each of them takes effect, nor its count how
- * many sources it has. Returns the groups counted again too, for the caller to store.
+ * they take effect (governed_from), before its best was kept by day (best_from), before its
+ * members were kept by source (sources) or dated (newest), or before governance levels, is
+ * counted again from its members: its earliest day cannot say when each of them takes
+ * effect, nor its count how many sources it has. Returns the groups counted again too, for
+ * the caller to store.
  */
 async function storedGroups(
   reader: RecordReader,
@@ -201,6 +202,8 @@ function memberOf(
   if (from) member.live_from = from;
   if (start && start !== documentFrom) member.stated_from = start;
   if (documentFrom) member.document_from = documentFrom;
+  const modified = version?.version.modified_at?.slice(0, 10);
+  if (modified) member.modified = modified;
   return member;
 }
 

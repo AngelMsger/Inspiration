@@ -39,10 +39,19 @@ export function terms(text: string): Set<string> {
   return out;
 }
 
+/** Words of the texts compared lately: a corpus's lines come up again with every question. */
+const SEEN = new Map<string, ReadonlySet<string>>();
+const SEEN_MAX = 50_000;
+
 /** The share of the question's words the text has, from 0 to 1. */
 export function overlap(question: ReadonlySet<string>, text: string): number {
   if (!question.size) return 0;
-  const have = terms(text);
+  let have = SEEN.get(text);
+  if (!have) {
+    if (SEEN.size >= SEEN_MAX) SEEN.clear();
+    have = terms(text);
+    SEEN.set(text, have);
+  }
   let n = 0;
   for (const t of question) if (have.has(t)) n++;
   return n / question.size;

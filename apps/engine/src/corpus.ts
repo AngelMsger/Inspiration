@@ -2,7 +2,10 @@
  * A corpus on disk: a corpus.yaml that declares a tenant, its spaces, its sources (folders
  * and recorded Feishu fixtures, relative to the corpus) and a directory that maps each
  * source's principals to engine principals, standing in for the business layer. An
- * optional vocabulary.yaml is the tenant's predicate catalogue for extraction.
+ * optional vocabulary.yaml is the tenant's predicate catalogue for extraction. An optional
+ * files.yaml says where each file comes from and when it was last changed: stamp() gives
+ * every file listed that modified time, as the drive the corpus stands for would report it,
+ * where a checkout dates every file the day it was made.
  *
  * provision() writes what the business layer would into access control: the directory's
  * members and the corpus's reader as members of the tenant, every space owned by the reader
@@ -10,10 +13,10 @@
  * are asked as the reader.
  */
 
-import { access, readFile } from "node:fs/promises";
+import { access, readFile, utimes } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { AuthzService } from "@inspiration/access-control";
-import { type AclEntry, type Principal, parseAs, type Source } from "@inspiration/contracts";
+import { type AclEntry, type Principal, parseAs, type Source, schemaErrors } from "@inspiration/contracts";
 import { loadVocabulary, type Vocabulary } from "@inspiration/extraction";
 import type { PrincipalResolver } from "@inspiration/source-sync";
 import { parse } from "yaml";
@@ -43,6 +46,45 @@ export interface CorpusManifest {
   reader?: string;
 }
 
+/** A file of the corpus as files.yaml records it. */
+export interface CorpusFile {
+  /** Relative to the corpus. */
+  path: string;
+  /** When the file was last changed, as its drive would say: a day or an instant. */
+  modified: string;
+  /** What the file is to the company: the document in use, a copy of an older version, or an old revision kept. */
+  kind?: "current" | "stale_copy" | "old_revision";
+  /** For a stale copy or an old revision: the file whose older version it is. */
+  of?: string;
+  url?: string;
+  revision?: string;
+  license?: string;
+}
+
+const FILES_SCHEMA = {
+  type: "object",
+  required: ["files"],
+  properties: {
+    files: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["path", "modified"],
+        additionalProperties: false,
+        properties: {
+          path: { type: "string", minLength: 1 },
+          modified: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}" },
+          kind: { enum: ["current", "stale_copy", "old_revision"] },
+          of: { type: "string" },
+          url: { type: "string" },
+          revision: { type: "string" },
+          license: { type: "string" },
+        },
+      },
+    },
+  },
+};
+
 export class CorpusError extends Error {
   override name = "CorpusError";
 }
@@ -52,13 +94,19 @@ export class Corpus {
   readonly manifest: CorpusManifest;
   readonly sources: Source[];
   readonly vocabulary: Vocabulary | undefined;
+  readonly files: readonly CorpusFile[];
   readonly #directoryOf = new Map<string, Record<string, string>>();
 
-  constructor(dir: string, manifest: CorpusManifest, options: { vocabulary?: Vocabulary; createdAt?: Date } = {}) {
+  constructor(
+    dir: string,
+    manifest: CorpusManifest,
+    options: { vocabulary?: Vocabulary; files?: CorpusFile[]; createdAt?: Date } = {},
+  ) {
     const createdAt = options.createdAt ?? new Date(0);
     this.dir = resolve(dir);
     this.manifest = manifest;
     this.vocabulary = options.vocabulary;
+    this.files = options.files ?? [];
     const spaces = new Set(manifest.spaces.map((s) => s.id));
     this.sources = manifest.sources.map((s) => {
       if (!spaces.has(s.space)) throw new CorpusError(`source ${s.id}: unknown space ${s.space}`);
@@ -88,12 +136,25 @@ export class Corpus {
 
   static async load(dir: string): Promise<Corpus> {
     const text = await readFile(join(dir, "corpus.yaml"), "utf8");
-    const file = join(dir, "vocabulary.yaml");
-    const found = await access(file).then(
-      () => true,
-      () => false,
-    );
-    return new Corpus(dir, parse(text) as CorpusManifest, found ? { vocabulary: await loadVocabulary(file) } : {});
+    const exists = (file: string) =>
+      access(file).then(
+        () => true,
+        () => false,
+      );
+    const vocabulary = join(dir, "vocabulary.yaml");
+    const files = join(dir, "files.yaml");
+    return new Corpus(dir, parse(text) as CorpusManifest, {
+      ...((await exists(vocabulary)) && { vocabulary: await loadVocabulary(vocabulary) }),
+      ...((await exists(files)) && { files: await loadFiles(files) }),
+    });
+  }
+
+  /** Gives each file files.yaml lists the modified time it records. Idempotent. */
+  async stamp(): Promise<void> {
+    for (const f of this.files) {
+      const at = new Date(f.modified.length === 10 ? `${f.modified}T12:00:00Z` : f.modified);
+      await utimes(join(this.dir, f.path), at, at);
+    }
   }
 
   get tenantId(): string {
@@ -140,4 +201,11 @@ export class Corpus {
     entry.external_id === undefined
       ? undefined
       : this.#directoryOf.get(source.id)?.[`${entry.principal_kind}:${entry.external_id}`];
+}
+
+async function loadFiles(file: string): Promise<CorpusFile[]> {
+  const data = parse(await readFile(file, "utf8")) as { files: CorpusFile[] };
+  const errors = schemaErrors(FILES_SCHEMA, data);
+  if (errors.length) throw new CorpusError(`files.yaml: ${errors.join("; ")}`);
+  return data.files;
 }

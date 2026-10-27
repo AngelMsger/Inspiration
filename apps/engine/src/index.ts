@@ -64,6 +64,11 @@ export { daysSummary, type IngestReport, ingest, plantedDuplicates, type Spread,
 export { type OutlineReport, type OutlineRun, outlineReport } from "./outline.ts";
 export { assignOwners, type OwnersReport } from "./owners.ts";
 export {
+  type FactKey,
+  type Keys,
+  type KeyValue,
+  type Kind,
+  loadKeys,
   loadQuestions,
   type Outcome,
   type Question,
@@ -72,6 +77,10 @@ export {
   type QuestionsReport,
   questionLines,
   questionsReport,
+  type Score,
+  says,
+  type Tally,
+  valueOn,
 } from "./questions.ts";
 export {
   type EditOptions,

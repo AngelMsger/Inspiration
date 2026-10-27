@@ -174,6 +174,8 @@ export class MemoryVectorIndex implements VectorIndex {
 export class MemoryKeywordIndex implements KeywordIndex {
   readonly name = "memory";
   readonly store: MemoryStore;
+  /** Term counts by chunk. The store replaces a chunk it writes again and never changes one, so none goes stale. */
+  readonly #counts = new WeakMap<Chunk, Map<string, number>>();
 
   constructor(store: MemoryStore) {
     this.store = store;
@@ -185,14 +187,18 @@ export class MemoryKeywordIndex implements KeywordIndex {
     const docs = new Map<string, Map<string, number>>();
     for (const c of this.store.storedChunks()) {
       if (!visible(c, filter)) continue;
-      const tf = new Map<string, number>();
-      for (const t of terms(searchText(c))) tf.set(t, (tf.get(t) ?? 0) + 1);
+      let tf = this.#counts.get(c);
+      if (!tf) {
+        tf = new Map<string, number>();
+        for (const t of terms(searchText(c))) tf.set(t, (tf.get(t) ?? 0) + 1);
+        this.#counts.set(c, tf);
+      }
       docs.set(c.id, tf);
     }
     if (!docs.size) return [];
     const lengths = new Map([...docs].map(([id, tf]) => [id, [...tf.values()].reduce((a, b) => a + b, 0)]));
     const avg = [...lengths.values()].reduce((a, b) => a + b, 0) / docs.size;
-    const df = (t: string) => [...docs.values()].filter((d) => d.has(t)).length;
+    const df = new Map([...query].map((t) => [t, [...docs.values()].filter((d) => d.has(t)).length]));
     const scored: [string, number][] = [];
     for (const [chunkId, tf] of docs) {
       const length = lengths.get(chunkId) ?? 0;
@@ -200,7 +206,7 @@ export class MemoryKeywordIndex implements KeywordIndex {
       for (const t of query) {
         const f = tf.get(t);
         if (!f) continue;
-        const n = df(t);
+        const n = df.get(t) ?? 0;
         const idf = Math.log(1 + (docs.size - n + 0.5) / (n + 0.5));
         score += (idf * f * 2.2) / (f + 1.2 * (0.25 + (0.75 * length) / avg));
       }
