@@ -39,8 +39,11 @@ providers:
       - {name: fake-ocr, operations: [ocr]}
 
 budgets:
-  # Inside the prepaid balance, which is the hard cap: no more than this a day for all the
-  # run's calls together. A run on a database (--stack) counts the day's earlier runs too.
+  # The prepaid balance is the hard cap. Inside it this is a soft stop for all the run's calls
+  # together: a call is refused once the day's spend, with what calls in flight in this process
+  # hold, reaches the limit. A call let in under it can cost more than it held (a schema retry,
+  # a dearer fallback), and other processes count once they have metered, so a day can end a
+  # little over. A run on a database (--stack) counts the day's earlier runs too.
   - match: "*"
     period: day
     limit: 5

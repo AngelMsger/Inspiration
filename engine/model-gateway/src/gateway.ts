@@ -1,13 +1,16 @@
 /**
  * The model gateway: the only way any component calls a model.
  *
- * For every request it checks the budget, counting what calls still in flight in this process
- * hold against it (their input and output limit at the first candidate's price), picks
- * candidate models that serve the operation and tier and are cleared for the request's
- * sensitivity label, tries them in order (route preferences first, falling back on retryable
- * errors), validates structured output (one corrective retry), caches deterministic
- * completions (and, when the config says, embeddings per text and rerank scores per
- * document), and meters every call, including failures.
+ * For every request it checks the budget, picks candidate models that serve the operation and
+ * tier and are cleared for the request's sensitivity label, tries them in order (route
+ * preferences first, falling back on retryable errors), validates structured output (one
+ * corrective retry), caches deterministic completions (and, when the config says, embeddings
+ * per text and rerank scores per document), and meters every call, including failures.
+ *
+ * A budget is a soft stop. A call is refused once the period's spend, with what calls still in
+ * flight in this process hold (their input and output limit at the first candidate's price),
+ * reaches the limit. A call let in below it can cost more than it held, through a schema retry
+ * or a dearer fallback, and calls in other processes count once they are metered.
  */
 
 import { createHash } from "node:crypto";

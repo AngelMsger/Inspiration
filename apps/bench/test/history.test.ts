@@ -78,7 +78,9 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
   }
 }
 
-describe("the GitLab expense policy history", () => {
+// Twenty versions ingested one after another: about 9 s in memory and 15 s on Postgres on their
+// own, and up to twice that while the rest of the suite runs beside them.
+describe("the GitLab expense policy history", { timeout: 60_000 }, () => {
   test("in memory", async () => {
     await check();
   });
