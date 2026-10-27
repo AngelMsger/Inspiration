@@ -1185,6 +1185,7 @@ After that, pilot and product-v1 work for Artifact-level editing (templates, Wor
 6. **Which connectors come second and third outside China** (for example Confluence, Notion, Google Drive, SharePoint), and which first design partner and industry the pilot targets.
 7. **The order of the remaining prototype stages,** and whether a small, capped probe with a real model on real documents should run before every stage is mocked.
 8. **Two details of the agent tools:** whether `search` ranks blocks and statements together by default, and whose budget pays for the model call inside `ask`.
+9. **Whether a standing "Decide for me" delegation counts as the member's approval** under AG-4 (section 6.7). Pressing Decide for me once is an explicit request, so it already fits AG-4. A standing delegation is a request made in advance, scoped to kinds of decision and pausable; the UI design proposes adding it to AG-4, and asks whether every vote in a joint approval may be delegated. Not decided ([Decide for me](design/decide-for-me.md), PR #25).
 
 ## Appendix A. Glossary in three languages
 
