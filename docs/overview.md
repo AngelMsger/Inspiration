@@ -347,7 +347,7 @@ States: **Built** (on `main`, with tests), **Designed** (decided, not built), **
 | IN-1 | Connect Feishu documents, wiki and approvals and file uploads; serve Lark, Feishu's international edition, with the same connectors | Built (recorded fixtures) |
 | IN-2 | Watch sources continuously: push events as hints, a 15-minute poll and a nightly full listing that also finds deletions | Built |
 | IN-3 | Parse Office files, PDFs and scans into blocks with stable IDs | Planned (parsing worker) |
-| IN-4 | Give every source or folder a governance level, inherited down the Sources tree; uploads and web pages start as Reference | Built |
+| IN-4 | Give every source or folder a governance level, inherited down the Documents tree; uploads and web pages start as Reference | Built |
 | IN-5 | Build procedures from approval flows: definition, mined logs and a write-up, each step tagged by origin and approved by its owner | Designed |
 | IN-6 | Store research reports as sources, with a re-check query and date per assumption | Designed |
 | IN-7 | Add Confluence and DingTalk in the pilot; Notion and Jiandaoyun later; connectors outside China to be chosen | Planned / Open |
@@ -370,7 +370,7 @@ States: **Built** (on `main`, with tests), **Designed** (decided, not built), **
 | ID | Requirement | State |
 | --- | --- | --- |
 | RD-1 | Three views with shared IDs: Original (as written), Annotated (with marks) and Knowledge (topic pages). A newly imported source opens in the Original view, and knowledge is revealed from there, concrete to abstract (section 19) | Designed |
-| RD-2 | Two trees: the Sources tree and the Knowledge tree; a folder or space the reader cannot open is never shown, not even as a count | Designed |
+| RD-2 | Two trees: the Documents tree and the Knowledge tree; a folder or space the reader cannot open is never shown, not even as a count | Designed |
 | RD-3 | Pages as `PageSpec` with 14 block types, every sentence citing statements, every rebuild a version with a diff | Contract built, compiler planned |
 | RD-4 | A citation opens the source beside the page at the exact passage and version, and says so when the passage changed since | Designed |
 | RD-5 | Four statuses in words, never colour alone: Fresh, Review due, Outdated, Disputed; only Outdated and Disputed in the text | Designed |
@@ -684,7 +684,7 @@ Each section of [`components.yaml`](../components.yaml) maps to one folder. A pa
 | Stage | Component | Job | State |
 | --- | --- | --- | --- |
 | Ingest | connectors | One integration per vendor: list, fetch, read ACLs, webhooks, agent tools. Built: local folders, Feishu documents and approvals (recorded fixtures) | Built |
-| Ingest | source-sync | Versions, tombstones, ACL snapshots, polls and reconcile; later `fetch_now` and the Sources tree | Built |
+| Ingest | source-sync | Versions, tombstones, ACL snapshots, polls and reconcile; later `fetch_now` and the Documents tree | Built |
 | Ingest | parsing | Python worker for Office, PDF and scans (Docling, PaddleOCR-VL) behind an HTTP contract | Planned |
 | Ingest | normalization | Canonical blocks and spans with stable IDs, block diff, duplicate documents; later mirror pages | Built |
 | Ingest | research | Research agent over the agent API and approved web search; reports become sources | Planned |
@@ -828,7 +828,7 @@ flowchart TB
 | Entity, relation | People, departments, products, suppliers; every edge backed by a statement | Planned |
 | Procedure, model | Steps, roles, conditions; formulas and decision tables whose assumptions are statements | Planned |
 | Page | `PageSpec` versions with sentences bound to statements; mirror pages for the Original view | Contract only |
-| Source node | The Sources tree: each document's position in its source's hierarchy | Designed |
+| Source node | The Documents tree: each document's position in its source's hierarchy | Designed |
 
 The knowledge store enforces four rules: a statement without evidence or a derivation is rejected; an evidence quote must be a verbatim substring of its span; statements are never deleted; page versions are immutable and increase by one. Reads are bitemporal: what was true at a time, as the system knew it at a time.
 
@@ -985,7 +985,7 @@ flowchart LR
 
 The contracts for pages and views are in place; the compilers, the view host and retrieval are planned.
 
-**From documents to knowledge** (decided 2026-10-27). People meet their own material first. After an import, a source opens as a mirror page: the document in its own shape, with its headings, paragraphs, lists and tables, close to the original even where it is not identical, much as a Claude Artifact renders a page. Knowledge is revealed from there one step at a time, from concrete to abstract: first the marks in the Annotated view, then, when someone selects a passage, the What this says panel (what the passage states, which other documents agree with it, differ from it or add to it, and the pages that use it), then the knowledge pages built from it. Someone new starts in their own documents, not in knowledge cards, and the Sources tree sits above the Knowledge tree. The UI principles call this "Concrete before abstract", and the design canvas draws it. Readers of a shared space stop at the marks and the pages, because statements and lineage belong to the Trace view; a member owns their own My space, so the Trace view is open to them there.
+**From documents to knowledge** (decided 2026-10-27). People meet their own material first. After an import, a source opens as a mirror page: the document in its own shape, with its headings, paragraphs, lists and tables, close to the original even where it is not identical, much as a Claude Artifact renders a page. Knowledge is revealed from there one step at a time, from concrete to abstract: first the marks in the Annotated view, then, when someone selects a passage, the What this says panel (what the passage states, which other documents agree with it, differ from it or add to it, and the pages that use it), then the knowledge pages built from it. Someone new starts in their own documents, not in knowledge cards, and the Documents tree sits above the Knowledge tree. The UI principles call this "Concrete before abstract", and the design canvas draws it. Readers of a shared space stop at the marks and the pages, because statements and lineage belong to the Trace view; a member owns their own My space, so the Trace view is open to them there.
 
 - **A page is a `PageSpec`:** an ordered list of 14 typed blocks (heading, paragraph, list, callout, quote, table, code, math, image, divider, diagram, chart, view, embed) whose sentences carry statement IDs. Every version is an immutable snapshot with its cause, and block keys stay stable so comments survive rebuilds and diffs can say what moved.
 - **A page is written for its audience,** from statements its whole audience can read or that were released to it (section 15). Procedures are published only when their audience can read every step. When a space narrows later, the page is compiled again as a new version.
@@ -1103,14 +1103,14 @@ flowchart TB
 
 Topics come out about ten times larger than the design target of about 100 statements, because the synthetic tenant restates 30 subjects across many documents and fake embeddings cannot tell those sections apart. The budget never had to hold a todo back, because grouping by owner, topic and week already keeps every owner under it.
 
-**Designed, not built:** the two-domain permission rule and the principal token, publishing, compiled-knowledge permissions, the credential broker and sandbox, the Sources tree and mirror pages, pages and views, retrieval and the agent API, research, the parsing worker, source deletions and change reviews, knowledge across languages, code repositories as a source (proposed), and the whole business layer and UI.
+**Designed, not built:** the two-domain permission rule and the principal token, publishing, compiled-knowledge permissions, the credential broker and sandbox, the Documents tree and mirror pages, pages and views, retrieval and the agent API, research, the parsing worker, source deletions and change reviews, knowledge across languages, code repositories as a source (proposed), and the whole business layer and UI.
 
 ## 24. Next steps and effort
 
 The rule is to mock every model call until each stage runs end to end, and only then switch on real models. The proposed order of the remaining stages, for discussion:
 
 1. **Engine side of the business contract:** the principal token, provisioning and the seed command, the space and proof rules in access-control, and domain keys on slots and conflicts.
-2. **Pages and views of sources:** cited page synthesis for an audience, `PageSpec` snapshots and diffs, the dependency graph with `artifact.dirty`, mirror pages and the Sources tree.
+2. **Pages and views of sources:** cited page synthesis for an audience, `PageSpec` snapshots and diffs, the dependency graph with `artifact.dirty`, mirror pages and the Documents tree.
 3. **Search and agents:** retrieval with its own indexes, grounded answers, the topic overview read, and the MCP server with its tools.
 4. **Connections and parsing:** the credential broker, member connections, the parsing worker.
 5. **Research, views and the sandbox.**
@@ -1119,7 +1119,7 @@ The rule is to mock every model call until each stage runs end to end, and only 
 | Scope | Person-weeks |
 | --- | --- |
 | Engine prototype: the 19 engine components and the web app | 70 |
-| Knowledge views (Original, Annotated, Sources tree, split citation pane) | 6 |
+| Knowledge views (Original, Annotated, Documents tree, split citation pane) | 6 |
 | Pipeline boundaries (web connector, `fetch_now`, `web_search`, evidence registration) | 2 |
 | Statements at scale (governance levels, fact slots, topics, grouped review) | 7.5 |
 | Business layer, phases 1 and 2 | 16 |
@@ -1172,6 +1172,7 @@ After that, pilot and product-v1 work for Artifact-level editing (templates, Wor
 | 2026-10-26 | Engine and business layer in one monorepo, a folder per layer (`libs/`, `engine/`, `business/`, `apps/`), with one-way dependencies checked by the manifest test |
 | 2026-10-26 | One integration per vendor serves both sync and agent tools; tools act as the member; only code we did not write runs in the sandbox |
 | 2026-10-27 | Concrete before abstract: an imported source opens as a document in its own shape, and knowledge is revealed from it step by step, concrete to abstract; someone new starts in their documents, not in knowledge cards |
+| 2026-10-27 | The Sources tree is called the Documents tree (文档树, ドキュメントツリー), the word people use for their material, although it also holds chats and sheets; a source is still a source wherever a page cites it |
 
 ## 27. Open questions
 
@@ -1198,7 +1199,7 @@ One glossary feeds every status, button and empty state. The Chinese column is a
 | Company connection, Personal connection | 企业连接, 个人连接 | 企業の接続, 個人の接続 |
 | Source, Passage, Statement | 来源, 段落, 陈述 | ソース, 段落, 記述 |
 | Topic, Knowledge page, Procedure, Card | 主题, 知识页, 流程, 卡片 | トピック, ナレッジページ, 手順, カード |
-| Knowledge tree, Sources tree | 知识树, 来源树 | ナレッジツリー, ソースツリー |
+| Knowledge tree, Documents tree | 知识树, 文档树 | ナレッジツリー, ドキュメントツリー |
 | Original, Annotated, Knowledge views | 原文, 批注, 知识 | 原文, 注釈, ナレッジ |
 | Fresh, Review due, Outdated, Disputed | 有效, 待复核, 已过时, 有争议 | 有効, 要確認, 旧版, 異論あり |
 | Space owner, Topic owner, Page owner, Procedure owner (proposed in Chinese); Super admin | 空间维护人、主题维护人、页面维护人、流程维护人；超级管理员 | スペース担当者、トピック担当者、ページ担当者、手順担当者；特権管理者 |
