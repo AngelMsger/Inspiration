@@ -13,7 +13,7 @@ Status: proposed, 2026-10-27; revised the same day to put conclusions first and 
 
 ### What we need from the product owner
 
-- **A DeepSeek API key with US$20 of credit.** DeepSeek bills from a prepaid balance, so the credit is the hard cap. It is enough for about 20 full runs at peak prices and twice that off-peak, and a daily gateway budget of US$5 stops a day's runs before the balance does.
+- **A DeepSeek API key with US$20 of credit.** DeepSeek bills from a prepaid balance, so the credit is the hard cap. It is enough for about 20 full runs at peak prices and twice that off-peak, and a daily gateway budget of US$5 is a soft stop that ends a day's runs well before the balance does.
 - **Network access for the runs.** Our build environment cannot reach api.deepseek.com yet, nor huggingface.co, where an open multilingual embedding and reranker can be downloaded to run for free (DeepSeek offers no embedding). Without huggingface.co the first run still works, but search stays on the stand-in and cannot cross languages.
 - **About 30 minutes** to check 20 random answer-key entries (rule 3); the keys are written (PR #34).
 - **Agreement on, or changes to,** the pass bars and the design changes proposed in advance.
@@ -117,7 +117,7 @@ Four things keep runs cheap:
 1. **The response cache.** The gateway answers a call whose model, prompt, input and settings are unchanged from its cache, at no cost, and keeps replies in Valkey for 30 days. So a change pays only for what it touches: a new answer prompt pays for the answers (about US$0.58 at peak for all 150 questions), not for reading again.
 2. **Corpus first in long context.** The long-context rival puts the documents before the question, so DeepSeek's cache serves the corpus from the second question on. With the question first, long context alone would cost about US$14 at peak instead of US$0.43. The question after long documents is also the usual advice for answer quality, so the change does not weaken the rival.
 3. **Off-peak.** Full runs are scheduled outside DeepSeek's weekday peak hours, at half price.
-4. **Hard caps.** The prepaid balance stops everything when it runs out. Inside it, one gateway budget of US$5 a day covers all calls together; on a database it counts the day's earlier runs, and dry runs never count. Once it is spent the gateway refuses every further call, so a run overshoots only by the calls already in flight.
+4. **Spending limits.** The prepaid balance is the hard cap: the provider stops everything when it runs out. Inside it, one gateway budget of US$5 a day covers all calls together. On a database it counts the day's earlier runs, and dry runs never count. The budget is a soft stop. The gateway refuses a call once the day's spend, plus what calls in flight in the same process hold, reaches the limit. A call admitted under the limit can still cost more than it held, through a schema retry or a dearer fallback model, and runs in other processes count only once they have metered. So a day can end a little over US$5.
 
 **Reading is checked in full.** Reading every window costs about US$0.36, no more than a sample of windows would, so there is no sample. The reading check scores the whole read against the answer key without calling a model: for each place the key gives a value, whether governance holds that value (found), other values only (misread) or nothing (missed), plus the values the key does not give (extra), which give precision. The 12 facts without a catalogue entry are reported apart, because only answers can find them.
 
