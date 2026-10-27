@@ -17,8 +17,12 @@
  *   a reference document states moves nothing. The case names that change, so the owner
  *   learns of it.
  * - The leader is the in-force group whose best member in effect today is the most
- *   authoritative; between equally authoritative ones, the value more governed statements in
- *   effect today state. A statement that only takes effect later lends its group nothing
+ *   authoritative; between equally authoritative ones, the value more independent governed
+ *   sources in effect today state, then the one from the newer document, then the one more
+ *   governed statements state. Statements count as one source when they come from one
+ *   document, from a document and its translations (DocumentMetadata.translation_of), or from
+ *   copies of one passage: a document copied into several folders, a paragraph pasted into
+ *   several handbooks. A statement that only takes effect later lends its group nothing
  *   before its day.
  * - A change beats the leader when it took effect after the leader's own date, the later of
  *   its document's effective date and any change it states, and no later than today: a
@@ -59,6 +63,14 @@ export interface Member {
   source_version_id: string;
   /** The document's title. */
   document: string;
+  /** The document, as "<source>:<external ID>". Members stored before it was kept count alone. */
+  document_key?: string;
+  /**
+   * What makes another document's statement a copy of this one: the text the document
+   * translates ("t:<source>:<translation key>"), and the passage it states this in, when long
+   * enough to be copied rather than written alike ("p:<hash>").
+   */
+  copy_keys?: string[];
 }
 
 /** The members of one slot that state one value, as counts and representatives. */
@@ -92,6 +104,12 @@ export interface ValueGroup {
   best_from?: Member[];
   /** The best live member for each day a change takes effect, oldest first; at most MAX_CHANGES. */
   changes: Member[];
+  /**
+   * Members by where they come from, for counting independent sources: keys are
+   * sourceEntry(member), values how many members share it. Groups stored before it was kept
+   * are counted again from their members (storedGroups).
+   */
+  sources?: Record<string, number>;
   /** The earliest day a live member takes effect; "" when one is in effect from the start. */
   earliest_live_from?: string;
   /** The same for live members from governed documents. */
@@ -137,6 +155,54 @@ function rank(a: Member, b: Member): number {
   return 0;
 }
 
+/** The day a member counts from, whether it counts for the tie-break, its document and its copy keys. */
+type SourceEntry = [day: string, governed: 0 | 1, document: string, ...copies: string[]];
+
+function sourceEntry(m: Member): string {
+  const entry: SourceEntry = [
+    m.live_from ?? "",
+    isGoverned(m) ? 1 : 0,
+    m.document_key ?? `claim:${m.claim_id}`,
+    ...(m.copy_keys ?? []),
+  ];
+  return JSON.stringify(entry);
+}
+
+/**
+ * The group's documents as independent sources: documents that share a copy key, directly or
+ * through others, are one source. Given today, only governed live members in effect by then.
+ */
+export function sourcesOf(g: ValueGroup, today?: string): string[][] {
+  const parent = new Map<string, string>();
+  const root = (k: string): string => {
+    const up = parent.get(k) ?? k;
+    if (up === k) return k;
+    const top = root(up);
+    parent.set(k, top);
+    return top;
+  };
+  const join = (a: string, b: string) => {
+    const [x, y] = [root(a), root(b)];
+    if (x !== y) parent.set(x < y ? y : x, x < y ? x : y);
+  };
+  const documents = new Set<string>();
+  for (const [key, n] of Object.entries(g.sources ?? {})) {
+    const [day, governed, document, ...copies] = JSON.parse(key) as SourceEntry;
+    if (n <= 0 || (today !== undefined && (!governed || day > today))) continue;
+    documents.add(document);
+    for (const c of copies) join(`d:${document}`, `c:${c}`);
+  }
+  const by = new Map<string, string[]>();
+  for (const d of [...documents].sort()) {
+    const r = root(`d:${d}`);
+    by.set(r, [...(by.get(r) ?? []), d]);
+  }
+  return [...by.values()];
+}
+
+/** Independent governed sources in effect by today that state the group's value. */
+export const independentAsOf = (g: ValueGroup, today: string) => sourcesOf(g, today).length;
+
 /** True when a ranks above b as the representative of a group. */
 function outranks(a: Member, b: Member): boolean {
   const r = rank(a, b);
@@ -144,19 +210,34 @@ function outranks(a: Member, b: Member): boolean {
 }
 
 /**
- * True when group a leads b: its best member outranks b's, or the two tie and more governed
- * statements in effect today state a's value. Without the count a tie would fall to the
- * claim IDs, and a side remark in a policy ("objections within 5 working days") could
- * outrank the article the policy and its copies state. Reference documents and statements
- * that take effect later are not counted: a FAQ, or next year's policy, would decide today's
- * value.
+ * True when group a leads b: its best member outranks b's, or the two tie and more
+ * independent governed sources in effect today state a's value, then the newer document
+ * does (newer), then more governed statements. Without these a tie would fall to the claim
+ * IDs, and a side remark in a policy ("objections within 5 working days") could outrank the
+ * article several policies state. Copies count once, or a notice reposted in three folders
+ * would outvote two handbooks that say otherwise in their own words, and three handbooks
+ * that paste a paragraph of 2025 the travel policy of 2026. Reference documents and
+ * statements that take effect later are not counted: a FAQ, or next year's policy, would
+ * decide today's value.
  */
 function leads(a: ValueGroup, b: ValueGroup, today: string): boolean {
   const r = rank(a.best, b.best);
   if (r) return r > 0;
+  const [s, t] = [independentAsOf(a, today), independentAsOf(b, today)];
+  if (s !== t) return s > t;
+  if (newer(a, b, today) || newer(b, a, today)) return newer(a, b, today);
   const [x, y] = [governedAsOf(a, today), governedAsOf(b, today)];
   if (x !== y) return x > y;
   return a.best.claim_id < b.best.claim_id;
+}
+
+/**
+ * True when a and b are as authoritative and as well supported, and a's best statement is
+ * from a document that took effect later: the newer policy replaces the older one.
+ */
+function newer(a: ValueGroup, b: ValueGroup, today: string): boolean {
+  if (rank(a.best, b.best) || independentAsOf(a, today) !== independentAsOf(b, today)) return false;
+  return (a.best.document_from ?? "") > (b.best.document_from ?? "");
 }
 
 /** The group with one more member. */
@@ -177,8 +258,11 @@ export function withMember(group: ValueGroup | undefined, m: Member): ValueGroup
         best: m,
         best_from: [],
         changes: [],
+        sources: {},
       };
   g.count++;
+  const entry = sourceEntry(m);
+  g.sources = { ...g.sources, [entry]: (g.sources?.[entry] ?? 0) + 1 };
   if (m.reference) g.reference = (g.reference ?? 0) + 1;
   if (m.archived) g.archived++;
   if (m.claim_type === "plan") g.plans++;
@@ -402,6 +486,16 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
           priority: stale && g.best.authority >= GOVERNED ? "high" : "normal",
           confidence: 0.8,
           rationale: `${g.value} (${documents(g)}, the most authoritative ${g.best.document}) predates the change to ${proposed.value} on ${day} in ${changed.change.document}.`,
+        };
+      }
+      if (!changed && newer(proposed, g, today)) {
+        return {
+          ...base,
+          classification: "supersession",
+          status: "open",
+          priority: "normal",
+          confidence: 0.7,
+          rationale: `${g.value} (${documents(g)}, the most authoritative ${g.best.document}, from ${g.best.document_from ?? "an earlier date"}) is older than ${proposed.value} in ${proposed.best.document}, from ${proposed.best.document_from}, which is as authoritative and has as many independent sources.`,
         };
       }
       const governed = g.best.authority >= GOVERNED && proposed.best.authority >= GOVERNED;

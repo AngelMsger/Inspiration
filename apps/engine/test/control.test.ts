@@ -38,24 +38,25 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
   try {
     const run = await ingest(engine, corpus);
     expect(run.dead_letters).toBe(0);
-    const report = await controlReport(engine, corpus, control, run.duplicates);
+    const report = await controlReport(engine, corpus, control);
     for (const c of report.cases) expect(c.observed, c.case).toEqual(c.recorded);
     expect(report.unexpected).toEqual({});
     // The numbers README.md gives.
     expect(report.totals).toEqual({
       cases: 8,
-      as_expected: 3,
+      as_expected: 6,
       as_recorded: 8,
       statements: { expected: 23, in_slot: 22, misplaced: 1 },
-      values: { expected: 14, sources_right: 11 },
-      slots: { expected: 11, proposed_right: 7, cases_right: 8 },
+      values: { expected: 14, sources_right: 13 },
+      slots: { expected: 11, proposed_right: 9, cases_right: 10 },
     });
-    // What governance counts is statements: the notice and its two copies are three.
-    const taxi = report.cases.find((c) => c.case === "reposted-notice")?.counts.taxi_cap_per_day;
-    expect(taxi).toEqual({
+    // The notice and its two copies are three statements but one source, against two.
+    const taxi = report.cases.find((c) => c.case === "reposted-notice");
+    expect(taxi?.counts.taxi_cap_per_day).toEqual({
       "40 USD/day": { statements: 3, governed: 3, documents: 3 },
       "45 USD/day": { statements: 2, governed: 2, documents: 2 },
     });
+    expect(taxi?.observed.taxi_cap_per_day?.proposed).toBe("45 USD/day");
   } finally {
     await engine.close();
     await rm(blobDir, { recursive: true, force: true });

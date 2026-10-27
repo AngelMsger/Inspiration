@@ -116,7 +116,7 @@ async function main(argv: string[]): Promise<number> {
     const out: Record<string, unknown> = { ...report };
     const control = await loadControl(dir);
     if (control) {
-      const checked = await controlReport(engine, corpus, control, report.duplicates);
+      const checked = await controlReport(engine, corpus, control);
       console.log(`\n${controlLines(checked).join("\n")}`);
       out.control = checked;
     }

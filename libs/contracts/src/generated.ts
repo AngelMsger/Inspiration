@@ -1707,6 +1707,7 @@ export interface DocumentMetadata {
    */
   path?: string[];
   tags?: string[];
+  translation_of?: SourceRef;
   extra?: {
     [k: string]: unknown | undefined;
   };

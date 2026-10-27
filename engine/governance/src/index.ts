@@ -9,10 +9,14 @@
  *   later than it changed the value ("from 1 October 2026 ... raised to 650 yuan"). A value
  *   is as authoritative as its best statement in effect today: next year's policy lends it
  *   nothing before its day.
- *   Between equally authoritative values, the one more governed statements in effect today
- *   state is proposed. That counts statements, so a copy of a policy counts too, while the
- *   support people are shown is to count a copy once: an assumption still to be checked
- *   against a corpus built for it.
+ *   Between equally authoritative values, the one more independent governed sources in effect
+ *   today state is proposed, then the one from the newer document (a 2026 policy against a
+ *   2025 handbook), then the one more governed statements state. A source counts once however
+ *   often it is copied: the statements of one document, a document and its translations
+ *   (DocumentMetadata.translation_of, such as the folder's "x.zh.md" beside "x.md"), and
+ *   documents that share the passage, block or whole text a statement rests on (MIN_COPY
+ *   letters and digits at least, compared without case, spaces or punctuation) are one
+ *   source.
  * - Every other value gets a ConflictCase from the deterministic tier: a supersession
  *   (auto-resolved when only archived documents state it), plan versus fact, or a
  *   contradiction, with the proposed value's best claim in effect as proposed_winner_id.

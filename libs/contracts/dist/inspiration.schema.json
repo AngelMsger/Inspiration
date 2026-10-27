@@ -3246,6 +3246,10 @@
             "type": "string"
           }
         },
+        "translation_of": {
+          "description": "The document this one translates, as the source states it: a language version in Feishu, Confluence or Notion, or a folder's \"leave-policy.zh.md\" beside \"leave-policy.md\". Knowledge does not depend on its language, so governance counts a translation with its original, never as a second source. A link the engine detects by alignment is normalization's to record, not the source's.\n",
+          "$ref": "#/$defs/SourceRef"
+        },
         "extra": {
           "type": "object"
         }

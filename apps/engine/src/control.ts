@@ -11,20 +11,19 @@
  * control test holds the run to them, so a change that closes or opens a gap shows in a diff
  * of that file.
  *
- * The observed side comes from the run: the documents from governance's value groups, the
- * sources from normalization's duplicate report (documents it found to be copies of one
- * another count once), the proposal and the other values' cases from governance's decision.
- * Governance itself counts statements, not sources; the report prints both.
+ * The observed side comes from the run: the documents and their independent sources from
+ * governance's value groups (one document, translations of one text and copies of one passage
+ * count once), the proposal and the other values' cases from governance's decision. The report
+ * also prints how many statements governance counts.
  */
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { schemaErrors, slotOf, valueKeyOf } from "@inspiration/contracts";
-import { type CaseDraft, governedAsOf } from "@inspiration/governance";
+import { type CaseDraft, governedAsOf, sourcesOf } from "@inspiration/governance";
 import { parse } from "yaml";
 import type { Corpus } from "./corpus.ts";
 import type { Engine } from "./engine.ts";
-import type { IngestReport } from "./ingest.ts";
 
 /** A slot as the answers give it or as a run leaves it. */
 export interface SlotOutcome {
@@ -187,41 +186,15 @@ function recorded(c: ControlCase): Record<string, SlotOutcome> {
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-/** Documents normalization found to be copies of one another, as one representative each. */
-function copiesOf(duplicates: IngestReport["duplicates"]): (path: string) => string {
-  const parent = new Map<string, string>();
-  const root = (p: string): string => {
-    const up = parent.get(p);
-    if (up === undefined || up === p) return p;
-    const top = root(up);
-    parent.set(p, top);
-    return top;
-  };
-  for (const d of duplicates) {
-    const [a, b] = [root(d.document), root(d.duplicate_of)];
-    if (a !== b) parent.set(a < b ? b : a, a < b ? a : b);
-  }
-  return root;
-}
-
 const caseOutcome = (c: CaseDraft) => (c.note ? "note" : `${c.status} ${c.classification}`);
 
-export async function controlReport(
-  engine: Engine,
-  corpus: Corpus,
-  control: Control,
-  duplicates: IngestReport["duplicates"],
-): Promise<ControlReport> {
+export async function controlReport(engine: Engine, corpus: Corpus, control: Control): Promise<ControlReport> {
   const tenantId = corpus.tenantId;
   const today = engine.governance.clock().toISOString().slice(0, 10);
-  const sourceOf = copiesOf(duplicates);
-  const paths = new Map<string, string>();
-  const pathOf = async (versionId: string) => {
-    if (!paths.has(versionId)) {
-      const v = await engine.store.getSourceVersion(versionId);
-      paths.set(versionId, v ? corpus.pathOf(v.source_id, v.external_id) : versionId);
-    }
-    return paths.get(versionId) as string;
+  // Governance names a document "<source>:<external ID>".
+  const pathOf = (document: string) => {
+    const at = document.indexOf(":");
+    return at < 0 ? document : corpus.pathOf(document.slice(0, at), document.slice(at + 1));
   };
 
   const observe = async (slot: string) => {
@@ -229,13 +202,7 @@ export async function controlReport(
     const values: SlotOutcome["values"] = {};
     const counts: Record<string, ValueCounts> = {};
     for (const g of groups) {
-      const bySource = new Map<string, string[]>();
-      for (const id of g.versions) {
-        const path = await pathOf(id);
-        const source = sourceOf(path);
-        bySource.set(source, [...(bySource.get(source) ?? []), path]);
-      }
-      values[g.value] = [...bySource.values()];
+      values[g.value] = sourcesOf(g).map((documents) => documents.map(pathOf));
       counts[g.value] = { statements: g.count, governed: governedAsOf(g, today), documents: g.versions.length };
     }
     const proposed = decision?.proposed.value ?? (groups.length === 1 ? groups[0]?.value : undefined);

@@ -31,7 +31,7 @@ The foundations are built and tested. The remaining components are specified in
 | Normalization: parsers, source blocks and spans with stable IDs, block diff, duplicates | `engine/normalization` | built |
 | Extraction: claims with verbatim evidence, predicate catalogue and slots, supersede on edits, keep facts a version stops stating (mocked model) | `engine/extraction` | built |
 | Engine process and CLI: ingest runs, reports, synthetic corpora | `apps/engine` | built |
-| Governance: fact slots and their values, conflict cases with a proposed value, one todo request per conflicting slot, rechecks when a dated change takes effect | `engine/governance` | built |
+| Governance: fact slots and their values counted by independent source (copies and translations once), conflict cases with a proposed value, one todo request per conflicting slot, rechecks when a dated change takes effect | `engine/governance` | built |
 | Freshness: review clocks per document, plan days, copies an edit left behind, staleness scores, review.due | `engine/freshness` | built |
 | Page compiler: topics and the knowledge outline, every statement's placement (pages not yet) | `engine/page-compiler` | built |
 | Collaboration: the inbox, todos on owners' weekly cards, notes, campaigns and stewards (comments not yet) | `engine/collaboration` | built |
