@@ -1,7 +1,9 @@
 /**
  * The model gateway: the only way any component calls a model.
  *
- * For every request it checks the budget, picks candidate models that serve the operation
+ * For every request it checks the budget, counting what calls still in flight in this process
+ * hold against it (their input and output limit at the first candidate's price), picks
+ * candidate models that serve the operation
  * and tier and are cleared for the request's sensitivity label, tries them in order (route
  * preferences first, falling back on retryable errors), validates structured output (one
  * corrective retry), caches deterministic completions, and meters every call, including
@@ -37,6 +39,7 @@ import {
 import { logger, registry } from "@inspiration/kernel";
 import { MemoryCache, type ResponseCache } from "./cache.ts";
 import {
+  type BudgetConfig,
   budgetFor,
   ConfigError,
   cost,
@@ -48,6 +51,7 @@ import {
 import { ProviderError } from "./errors.ts";
 import { budgetSpent, MemoryUsage, periodStart, type UsageSink } from "./metering.ts";
 import type { CompletionParams, ModelProvider, ModelProviderClass, ProviderCompletion } from "./providers/base.ts";
+import { estimateTokens } from "./providers/fake.ts";
 import { extractJson, InvalidOutput, schemaInstruction, validateOutput } from "./structured.ts";
 
 const log = logger("model-gateway");
@@ -101,7 +105,12 @@ interface Meta {
   task?: string;
   promptVersion?: string;
   withLatency?: boolean;
+  /** Tokens the call may use at most on a candidate, held against its budget while in flight. */
+  tokens?: (candidate: Candidate) => { input: number; output: number };
 }
+
+/** Output a completion without an output limit is held for while in flight. */
+const OUTPUT_HELD = 1_000;
 
 /** Run fn with an abort signal that fires after timeoutS; reject when it does, even if fn ignores it. */
 async function withTimeout<T>(timeoutS: number | undefined, fn: (signal?: AbortSignal) => Promise<T>): Promise<T> {
@@ -128,6 +137,8 @@ export class Gateway implements ModelGateway {
   readonly blobs: BlobStore | undefined;
   readonly timeZone: string;
   readonly providers: Readonly<Record<string, ModelProvider>>;
+  /** What the calls in flight hold against each budget, in the order they started. */
+  readonly #held = new Map<string, { amount: number }[]>();
 
   /** A gateway whose providers not given in options are built from the model_providers plugins. */
   static async create(config: GatewayConfig, options: GatewayOptions = {}): Promise<Gateway> {
@@ -196,21 +207,47 @@ export class Gateway implements ModelGateway {
     return { amount: Number(amount.toFixed(8)), currency: this.config.currency };
   }
 
-  async #checkBudget(budgetKey: string): Promise<void> {
-    const budget = budgetFor(this.config, budgetKey);
+  /**
+   * Rejects the call when what its budget spent this period, plus what calls started before
+   * it still hold, reaches the limit. So calls started together stop where one call after
+   * another would: at most one call past the limit. Holds are counted before the spend is
+   * read, so a call that finishes in between counts twice, never not at all.
+   */
+  async #checkBudget(budgetKey: string, budget: BudgetConfig | undefined, held: () => number): Promise<void> {
     if (budget?.limit === undefined) return;
-    const spent = await budgetSpent(
-      this.usage,
-      budget,
-      budgetKey,
-      periodStart(budget.period, new Date(), this.timeZone),
-    );
+    const inFlight = held();
+    const since = periodStart(budget.period, new Date(), this.timeZone);
+    const spent = (await budgetSpent(this.usage, budget, budgetKey, since)) + inFlight;
     if (spent >= budget.limit) {
+      const holding = inFlight ? `, ${inFlight.toFixed(4)} of it held by calls in flight,` : "";
       throw new GatewayException(
         "budget_exceeded",
-        `budget ${budgetKey} spent ${spent.toFixed(4)} of ${budget.limit} ${this.config.currency} this ${budget.period}`,
+        `budget ${budgetKey} spent ${spent.toFixed(4)}${holding} of ${budget.limit} ${this.config.currency} this ${budget.period}`,
       );
     }
+  }
+
+  /** A hold on the budget for the call, and the sum of the holds of calls started before it. */
+  #hold(budgetKey: string, budget: BudgetConfig | undefined, amount: number) {
+    const pool = budget?.pooled ? `match:${budget.match}` : `key:${budgetKey}`;
+    const holds = this.#held.get(pool) ?? [];
+    const hold = { amount };
+    holds.push(hold);
+    this.#held.set(pool, holds);
+    return {
+      before: () => {
+        let sum = 0;
+        for (const h of holds) {
+          if (h === hold) break;
+          sum += h.amount;
+        }
+        return sum;
+      },
+      release: () => {
+        holds.splice(holds.indexOf(hold), 1);
+        if (!holds.length) this.#held.delete(pool);
+      },
+    };
   }
 
   async #record(
@@ -256,15 +293,34 @@ export class Gateway implements ModelGateway {
   ): Promise<R & { request_id: string; provider: string; model: string; usage: TokenUsage; cost: Money }> {
     const requestId = newId("request");
     const base = { requestId, operation, req, started: performance.now(), meta };
+    const candidates = this.candidates(operation, req.sensitivity, { tier: meta.tier, task: meta.task });
+    const budget = budgetFor(this.config, req.budget_key);
+    const first = candidates[0];
+    const tokens = first && meta.tokens?.(first);
+    const hold = this.#hold(req.budget_key, budget, tokens ? cost(first.model.price, tokens.input, tokens.output) : 0);
     try {
-      await this.#checkBudget(req.budget_key);
+      return await this.#routed(base, candidates, budget, hold.before, run);
+    } finally {
+      hold.release();
+    }
+  }
+
+  async #routed<R extends object>(
+    base: { requestId: string; operation: GatewayOperation; req: Common; started: number; meta: Meta },
+    candidates: Candidate[],
+    budget: BudgetConfig | undefined,
+    held: () => number,
+    run: (candidate: Candidate) => Promise<Attempt<R>>,
+  ): Promise<R & { request_id: string; provider: string; model: string; usage: TokenUsage; cost: Money }> {
+    const { requestId, operation, req, meta } = base;
+    try {
+      await this.#checkBudget(req.budget_key, budget, held);
     } catch (e) {
       if (!(e instanceof GatewayException)) throw e;
       await this.#record(base, { status: "budget_exceeded", error: e.error.message });
       e.error.request_id = requestId;
       throw e;
     }
-    const candidates = this.candidates(operation, req.sensitivity, { tier: meta.tier, task: meta.task });
     if (!candidates.length) {
       const message = `no ${operation} model allowed for sensitivity ${req.sensitivity}${meta.tier ? ` and tier ${meta.tier}` : ""}`;
       await this.#record(base, { status: "no_route", error: message });
@@ -410,11 +466,14 @@ export class Gateway implements ModelGateway {
       }
       return { fields, usage, status: "ok" };
     };
+    const input = estimateTokens(req.messages.map((m) => m.content).join("\n"));
     return this.#guarded("complete", req, run, {
       tier: req.tier ?? "flash",
       task: req.task,
       promptVersion: req.prompt_version,
       withLatency: true,
+      // A schema retry can double this; the hold bounds a call, not every token it might use.
+      tokens: (c) => ({ input, output: req.max_output_tokens ?? c.model.max_output_tokens ?? OUTPUT_HELD }),
     }) as Promise<Completion>;
   }
 
@@ -422,24 +481,34 @@ export class Gateway implements ModelGateway {
 
   async embed(req: EmbedRequest): Promise<EmbedResult> {
     this.#validated("EmbedRequest", req);
-    return this.#guarded("embed", req, async (candidate) => {
-      const out = await this.provider(candidate.provider.name).embed(candidate.model, req.texts, req.input_type);
-      const dimensions = out.vectors[0]?.length ?? candidate.model.dimensions ?? 0;
-      return { fields: { vectors: out.vectors, dimensions }, usage: out.usage, status: "ok" };
-    });
+    return this.#guarded(
+      "embed",
+      req,
+      async (candidate) => {
+        const out = await this.provider(candidate.provider.name).embed(candidate.model, req.texts, req.input_type);
+        const dimensions = out.vectors[0]?.length ?? candidate.model.dimensions ?? 0;
+        return { fields: { vectors: out.vectors, dimensions }, usage: out.usage, status: "ok" };
+      },
+      { tokens: () => ({ input: estimateTokens(req.texts.join("\n")), output: 0 }) },
+    );
   }
 
   async rerank(req: RerankRequest): Promise<RerankResult> {
     this.#validated("RerankRequest", req);
-    return this.#guarded("rerank", req, async (candidate) => {
-      const out = await this.provider(candidate.provider.name).rerank(
-        candidate.model,
-        req.query,
-        req.documents,
-        req.top_n,
-      );
-      return { fields: { scores: out.scores }, usage: out.usage, status: "ok" };
-    });
+    return this.#guarded(
+      "rerank",
+      req,
+      async (candidate) => {
+        const out = await this.provider(candidate.provider.name).rerank(
+          candidate.model,
+          req.query,
+          req.documents,
+          req.top_n,
+        );
+        return { fields: { scores: out.scores }, usage: out.usage, status: "ok" };
+      },
+      { tokens: () => ({ input: estimateTokens([req.query, ...req.documents].join("\n")), output: 0 }) },
+    );
   }
 
   async ocr(req: OcrRequest): Promise<OcrResult> {

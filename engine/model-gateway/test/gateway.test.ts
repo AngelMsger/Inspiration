@@ -141,6 +141,26 @@ describe("budgets and cache", () => {
     await gateway.complete(completionRequest("again", { budget_key: "tenant:b/extraction" }));
   });
 
+  test("calls started together stop at the limit, as calls one after another would", async () => {
+    const config = { ...gatewayConfig(), budgets: [{ match: "tenant:a/*", period: "day" as const, limit: 0.0003 }] };
+    const providers = Object.fromEntries(config.providers.map((p) => [p.name, new FakeProvider(p)]));
+    const gateway = new Gateway(config, { providers });
+    const key = { budget_key: "tenant:a/extraction" };
+    // Each call holds its input and 1,000 output tokens while in flight: 0.00225 CNY, past the limit.
+    const calls = await Promise.allSettled(
+      [1, 2, 3, 4, 5].map((n) => gateway.complete(completionRequest(`${"word ".repeat(200)}${n}`, key))),
+    );
+    expect(calls.map((c) => c.status)).toEqual(["fulfilled", "rejected", "rejected", "rejected", "rejected"]);
+    expect((calls[1] as PromiseRejectedResult).reason).toMatchObject({ code: "budget_exceeded" });
+    // Once they are done only what was spent counts: the one call spent less than the limit, so
+    // the next call runs, and the one after it does not.
+    await gateway.complete(completionRequest(`${"word ".repeat(200)}6`, key));
+    const after = await rejection(gateway.complete(completionRequest("again", key)));
+    expect([after.code, after.message.includes("in flight")]).toEqual(["budget_exceeded", false]);
+    // A key under no limit holds nothing.
+    await gateway.complete(completionRequest("again", { budget_key: "tenant:b/extraction" }));
+  });
+
   test("deterministic completions are cached", async () => {
     const gateway = makeGateway();
     const first = await gateway.complete(completionRequest("same prompt"));
