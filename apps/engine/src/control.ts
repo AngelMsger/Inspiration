@@ -332,16 +332,26 @@ function slotLines(slot: string, r: CaseResult): string[] {
   return lines;
 }
 
+/**
+ * Right first, then a known gap. A case can be right and still differ from its engine entry,
+ * when a fix closed the gap and the entry is still there, so the totals do not partition cases.
+ */
+function caseState(c: CaseResult): "right" | "known gap" | "differs" {
+  return same(c.observed, c.expected) ? "right" : same(c.observed, c.recorded) ? "known gap" : "differs";
+}
+
 export function controlLines(r: ControlReport): string[] {
   const t = r.totals;
+  const states = r.cases.map(caseState);
+  const count = (state: string) => states.filter((s) => s === state).length;
   const lines = [
-    `control: ${t.cases} cases, ${t.as_expected} as expected; ${t.as_recorded - t.as_expected} differ as expected.yaml records, ${t.cases - t.as_recorded} otherwise`,
+    `control: ${t.cases} cases, ${count("right")} as expected; ${count("known gap")} differ as expected.yaml records, ${count("differs")} otherwise`,
     `  statements: ${t.statements.in_slot} of ${t.statements.expected} in their slot with their value, ${t.statements.misplaced} in a slot or with a value they do not have`,
     `  sources: ${t.values.sources_right} of ${t.values.expected} values with the expected independent sources (copies count once)`,
     `  slots: proposed value as expected in ${t.slots.proposed_right} of ${t.slots.expected}, the other values' outcome in ${t.slots.cases_right}`,
   ];
-  for (const c of r.cases) {
-    const state = same(c.observed, c.expected) ? "right" : same(c.observed, c.recorded) ? "known gap" : "differs";
+  for (const [i, c] of r.cases.entries()) {
+    const state = states[i];
     lines.push(`  ${state}: ${c.case} (${c.group}). ${c.question}`);
     for (const slot of Object.keys(c.expected)) lines.push(...slotLines(slot, c));
     if (c.why && state !== "right") lines.push(`    why: ${c.why}`);

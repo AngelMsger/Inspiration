@@ -4,7 +4,18 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
-import { type Control, Corpus, controlReport, Engine, ingest, loadControl, SimulatedClock } from "../src/index.ts";
+import {
+  type CaseResult,
+  type Control,
+  Corpus,
+  controlLines,
+  controlReport,
+  Engine,
+  ingest,
+  loadControl,
+  SimulatedClock,
+  type SlotOutcome,
+} from "../src/index.ts";
 
 const CONTROL = fileURLToPath(new URL("../../../examples/control/", import.meta.url));
 
@@ -61,6 +72,40 @@ describe("the control corpus", () => {
       expect(valkey).toBeDefined(); // removes this run's stream keys afterwards
       await check({ databaseUrl, streamPrefix });
     });
+  });
+});
+
+describe("the control summary", () => {
+  const outcome = (proposed: string): Record<string, SlotOutcome> => ({
+    s: { values: { [proposed]: [["a.md"]] }, proposed, cases: {} },
+  });
+  const result = (name: string, expected: string, recorded: string, observed: string): CaseResult => ({
+    case: name,
+    group: "g",
+    question: "q",
+    expected: outcome(expected),
+    recorded: outcome(recorded),
+    observed: outcome(observed),
+    counts: {},
+  });
+
+  test("counts each case once, a closed gap whose entry is still there as right", () => {
+    const cases = [result("closed", "1", "2", "1"), result("gap", "1", "2", "2"), result("new", "1", "1", "3")];
+    const totals = { cases: 3, as_expected: 1, as_recorded: 1 } as const;
+    const lines = controlLines({
+      cases,
+      unexpected: {},
+      totals: {
+        ...totals,
+        statements: { expected: 0, in_slot: 0, misplaced: 0 },
+        values: { expected: 0, sources_right: 0 },
+        slots: { expected: 0, proposed_right: 0, cases_right: 0 },
+      },
+    });
+    expect(lines[0]).toBe("control: 3 cases, 1 as expected; 1 differ as expected.yaml records, 1 otherwise");
+    expect(lines.filter((l) => /^ {2}\S/.test(l) && l.includes(": "))).toEqual(
+      expect.arrayContaining(["  right: closed (g). q", "  known gap: gap (g). q", "  differs: new (g). q"]),
+    );
   });
 });
 
