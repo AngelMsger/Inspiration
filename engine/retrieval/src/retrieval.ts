@@ -4,6 +4,7 @@ import {
   type AnswerNote,
   type AnswerQuery,
   type AuthZ,
+  allows,
   type ChatMessage,
   type Chunk,
   type Citation,
@@ -78,15 +79,24 @@ export const RRF_K = 60;
 export const SNIPPET_TOKENS = 80;
 /** Texts per embedding call. */
 export const EMBED_BATCH = 64;
-/** Hits an answer reads. */
+/** Passages an answer reads, and statements beside them. */
 export const ANSWER_SOURCES = 8;
 /** Below this confidence, a statement only one document states is thin evidence. */
 export const THIN = 0.6;
 /** An outdated value ranks as if it scored this share of its score. */
 const OUTDATED_WEIGHT = 0.5;
+/** The most a long-context baseline reads for one answer. */
+export const LONG_CONTEXT_TOKENS = 150_000;
 /** Statements that are no longer believed or never were. */
 const CLOSED = new Set(["superseded", "retracted"]);
 const SEVERITY: readonly FreshnessState[] = ["fresh", "aging", "stale", "at_risk"];
+
+export type Baseline = "passages" | "long_context";
+
+/** The documents a long-context baseline would read do not fit one context. */
+export class ContextTooLong extends Error {
+  override name = "ContextTooLong";
+}
 
 /** A document retrieval has indexed, and the chunks of the version it indexed. */
 export interface IndexedDocument {
@@ -118,6 +128,14 @@ export interface RetrievalOptions {
   verdicts?: SlotVerdicts;
   /** How stale units are; without it every hit is fresh as of now. */
   staleness?: StalenessReader;
+  /**
+   * Answer the way a rival does, to measure the knowledge base against: "passages" is plain
+   * retrieval over the same chunks, without statements or governance; "long_context" is a
+   * model that reads every document the asker may read, for corpora that fit.
+   */
+  baseline?: Baseline;
+  /** The most the long-context baseline reads for one answer; LONG_CONTEXT_TOKENS by default. */
+  contextTokens?: number;
   prompts?: PromptRegistry;
   clock?: () => Date;
 }
@@ -158,6 +176,8 @@ export class Retrieval implements Retriever {
   readonly keywords: KeywordIndex;
   readonly verdicts: SlotVerdicts | undefined;
   readonly staleness: StalenessReader | undefined;
+  readonly baseline: Baseline | undefined;
+  readonly contextTokens: number;
   readonly prompts: PromptRegistry;
   readonly clock: () => Date;
   readonly totals = { indexed: 0, chunks: 0, embedded: 0, searches: 0, answers: 0 };
@@ -173,6 +193,8 @@ export class Retrieval implements Retriever {
     this.keywords = options.keywords;
     this.verdicts = options.verdicts;
     this.staleness = options.staleness;
+    this.baseline = options.baseline;
+    this.contextTokens = options.contextTokens ?? LONG_CONTEXT_TOKENS;
     this.clock = options.clock ?? (() => new Date());
     if (options.prompts) this.prompts = options.prompts;
     else {
@@ -377,6 +399,7 @@ export class Retrieval implements Retriever {
   async #search(query: SearchQuery, who: Principal): Promise<Searched> {
     const topK = query.top_k ?? 10;
     const kinds = new Set(query.kinds?.length ? query.kinds : ["claim", "chunk"]);
+    if (this.baseline) kinds.delete("claim");
     const filter = await this.authz.scopeFilter(who, "read");
     if (query.space_ids?.length) {
       const asked = new Set(query.space_ids);
@@ -423,19 +446,9 @@ export class Retrieval implements Retriever {
     );
     passages.forEach((f, i) => {
       const snippet = snippets[i] as { text: string; spans: Span[] };
-      hits.push({
-        unit_id: f.chunk.id,
-        kind: "chunk",
-        title: titleOf(f.version, f.chunk.heading_path),
-        snippet: snippet.text,
-        score: (scores[listed.length + i] ?? 0) + f.fused / 100,
-        citations: snippet.spans.map((span) => citationOf(span, f.version, span.text)),
-        freshness: freshness(f.version.id),
-        review_status: "unreviewed",
-        token_estimate: f.chunk.token_count + estimateTokens(f.chunk.contextual_header ?? ""),
-        space_id: f.chunk.space_id,
-        ...(f.version.language && { language: f.version.language }),
-      });
+      hits.push(
+        passageHit(f, snippet.spans, (scores[listed.length + i] ?? 0) + f.fused / 100, freshness(f.version.id)),
+      );
     });
     hits.sort((a, b) => b.score - a.score || (a.unit_id < b.unit_id ? -1 : 1));
     const labels = new Map<string, SensitivityLabel>([
@@ -597,23 +610,67 @@ export class Retrieval implements Retriever {
 
   // ------------------------------------------------------------------ answers
 
-  async answer(q: AnswerQuery, who: Principal): Promise<GroundedAnswer> {
-    const query = parseAs<AnswerQuery>("AnswerQuery", q);
-    this.totals.answers++;
-    const language = languageOf(query.question);
-    const pack = packFor(language);
-    const searched = await this.#search(
+  /** The hits an answer to the question reads, in the order the model is given them. */
+  async sources(q: AnswerQuery, who: Principal): Promise<SearchHit[]> {
+    return (await this.#sources(parseAs<AnswerQuery>("AnswerQuery", q), who)).hits;
+  }
+
+  /**
+   * The best passages and, beside them, the best statements, ANSWER_SOURCES of each, so a
+   * statement never takes the place of a passage; then the values that hold instead of the
+   * ones found that do not.
+   */
+  async #sources(query: AnswerQuery, who: Principal): Promise<{ hits: SearchHit[]; searched: Searched }> {
+    if (this.baseline === "long_context") return this.#everything(who);
+    const found = await this.#search(
       {
         text: query.question,
-        top_k: ANSWER_SOURCES,
+        top_k: RERANK_POOL + STATEMENT_POOL,
         kinds: ["claim", "chunk"],
         ...(query.space_ids && { space_ids: query.space_ids }),
         ...(query.filters && { filters: query.filters }),
       },
       who,
     );
+    const taken = new Map<string, number>();
+    const best = found.hits.filter((h) => {
+      const n = taken.get(h.kind) ?? 0;
+      taken.set(h.kind, n + 1);
+      return n < ANSWER_SOURCES;
+    });
+    const searched = { ...found, hits: best };
     const hits = passagesWithoutReplaced(searched);
     await this.#addHeld(hits, searched, who);
+    return { hits, searched };
+  }
+
+  /** Every passage the asker may read, document by document in reading order. */
+  async #everything(who: Principal): Promise<{ hits: SearchHit[]; searched: Searched }> {
+    const filter = await this.authz.scopeFilter(who, "read");
+    const spaces = new Set(filter.space_ids);
+    const ids = (await this.documents(who.tenant_id)).flatMap((d) => d.chunk_ids);
+    const found = (
+      await this.#readable(
+        ids.map((id): [string, number] => [id, 0]),
+        who,
+      )
+    ).filter((f) => spaces.has(f.chunk.space_id) && allows(filter.max_sensitivity, f.chunk.sensitivity));
+    const tokens = found.reduce((n, f) => n + f.chunk.token_count, 0);
+    if (tokens > this.contextTokens) {
+      throw new ContextTooLong(`${tokens} tokens in ${found.length} passages, more than ${this.contextTokens}`);
+    }
+    const now = this.clock().toISOString();
+    const hits = found.map((f) => passageHit(f, f.spans, 0, { state: "fresh", as_of: now }));
+    const labels = new Map(found.map((f): [string, SensitivityLabel] => [f.chunk.id, f.chunk.sensitivity]));
+    return { hits, searched: { hits, statements: new Map(), verdicts: new Map(), filter, labels } };
+  }
+
+  async answer(q: AnswerQuery, who: Principal): Promise<GroundedAnswer> {
+    const query = parseAs<AnswerQuery>("AnswerQuery", q);
+    this.totals.answers++;
+    const language = languageOf(query.question);
+    const pack = packFor(language);
+    const { hits, searched } = await this.#sources(query, who);
     const refOf = new Map(hits.map((h, i) => [h.unit_id, String(i + 1)]));
     const sources: AnswerSource[] = hits.map((h, i) => {
       const held = h.held_unit_id && refOf.get(h.held_unit_id);
@@ -840,6 +897,23 @@ function snippetOf(f: Found, words: ReadonlySet<string>): { text: string; spans:
   }
   const spans = picked.sort((a, b) => a.i - b.i).map((r) => r.s);
   return { text: spans.map((s) => s.text).join(" "), spans };
+}
+
+/** A passage as a hit, quoting the spans given. */
+function passageHit(f: Found, spans: readonly Span[], score: number, freshness: FreshnessInfo): SearchHit {
+  return {
+    unit_id: f.chunk.id,
+    kind: "chunk",
+    title: titleOf(f.version, f.chunk.heading_path),
+    snippet: spans.map((s) => s.text).join(" "),
+    score,
+    citations: spans.map((span) => citationOf(span, f.version, span.text)),
+    freshness,
+    review_status: "unreviewed",
+    token_estimate: f.chunk.token_count + estimateTokens(f.chunk.contextual_header ?? ""),
+    space_id: f.chunk.space_id,
+    ...(f.version.language && { language: f.version.language }),
+  };
 }
 
 /** A statement as a hit, marked with where its value stands and which value holds instead. */

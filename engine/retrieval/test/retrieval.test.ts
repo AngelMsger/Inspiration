@@ -3,7 +3,7 @@
 import type { SlotVerdict } from "@inspiration/contracts";
 import { testData } from "@inspiration/testkit";
 import { describe, expect } from "vitest";
-import { chunk, MAX_TOKENS } from "../src/index.ts";
+import { ContextTooLong, chunk, MAX_TOKENS } from "../src/index.ts";
 import { ALICE, BACKENDS, BOB, CAROL, cap, HOTEL, retrievalTest, SPACE, TENANT } from "./fixtures.ts";
 
 interface Cases {
@@ -239,6 +239,42 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       await world.retrieval.onBlocksChanged(first.event);
       expect((await world.retrieval.search({ text: "hotel tier-1 cities" }, ALICE)).hits).toEqual([]);
       expect(await world.retrieval.documents(TENANT)).toMatchObject([{ deleted: true, chunk_ids: [] }]);
+    });
+
+    test("the rivals: plain retrieval reads passages alone, and long context every readable document", async ({
+      world,
+    }) => {
+      const policy = await world.document("travel.md", POLICY, { title: "Travel policy" });
+      await world.document("salaries.md", [{ id: "p1", text: "Grade 7 salaries start at 30,000 yuan a month." }], {
+        title: "Salary bands",
+        sensitivity: "confidential",
+      });
+      const held = await world.claim(
+        "The hotel cap in tier-1 cities is 650 yuan a night.",
+        policy.spansOf("p1")[0] as never,
+        {
+          ...cap(650),
+          quote: "Hotels in tier-1 cities cost at most 650 yuan a night.",
+        },
+      );
+      const question = { question: "What is the hotel cap a night in tier-1 cities?" };
+
+      expect((await world.retrieval.sources(question, ALICE)).map((h) => h.unit_id)).toContain(held.id);
+      const passages = await world.baseline("passages").sources(question, ALICE);
+      expect(passages.length).toBeGreaterThan(0);
+      expect(passages.every((h) => h.kind === "chunk")).toBe(true);
+      const plain = await world.baseline("passages").answer(question, ALICE);
+      expect(plain.answer).toContain("650");
+      expect(plain.used_unit_ids).not.toContain(held.id);
+
+      // Every passage of the travel policy, in reading order; the salaries are not Alice's to read.
+      const everything = await world.baseline("long_context").sources(question, ALICE);
+      expect(everything.map((h) => h.citations[0]?.source_title)).toEqual(everything.map(() => "Travel policy"));
+      expect(everything.flatMap((h) => h.citations.map((c) => c.quote))).toEqual(policy.spans.map((s) => s.text));
+      expect((await world.baseline("long_context").sources(question, CAROL)).length).toBeGreaterThan(everything.length);
+      await expect(world.baseline("long_context", { contextTokens: 5 }).answer(question, ALICE)).rejects.toThrow(
+        ContextTooLong,
+      );
     });
 
     describe.each(LANGUAGES)("answers in $tag", ({ cases }) => {

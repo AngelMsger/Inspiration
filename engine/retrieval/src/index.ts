@@ -27,16 +27,24 @@
  *   80 tokens and a token estimate of the whole item; token_budget cuts the list.
  *
  * answer(query, principal) searches with the question and asks the model
- * (retrieval.answer_question) to answer from those sources only, every sentence citing
- * them; passages are given sentence by sentence. A statement found whose value does not
- * hold brings the statement of the one that does, which the model is pointed to, in
- * whatever language it is written. So does a passage's sentence that states such a value,
- * through its statement, which joins marked; a sentence that only states replaced values
- * is left out of its passage. A sentence of the answer that cites nothing given is dropped, and one that quotes some of
- * a passage's sentences cites those. Notes in the question's language, on the values the
- * answer gives, say when sources differ and a person has yet to decide, and when a source
- * found states a replaced value; another says when a statement rests on one weakly read
- * source.
+ * (retrieval.answer_question) to answer from the best passages and, beside them, the best
+ * statements only (ANSWER_SOURCES of each, so a statement never takes a passage's place),
+ * every sentence citing them; passages are given sentence by sentence. A statement found
+ * whose value does not hold brings the statement of the one that does, which the model is
+ * pointed to, in whatever language it is written. So does a passage's sentence that states
+ * such a value, through its statement, which joins marked; a sentence that only states
+ * replaced values is left out of its passage. A sentence of the answer that cites nothing
+ * given is dropped, and one that quotes some of a passage's sentences cites those. Notes in
+ * the question's language, on the values the answer gives, say when sources differ and a
+ * person has yet to decide, and when a source found states a replaced value; another says
+ * when a statement rests on one weakly read source. sources(query, principal) gives the
+ * hits an answer reads, in the order the model gets them.
+ *
+ * Baselines, to measure the knowledge base against over the same documents and model
+ * (RetrievalOptions.baseline): "passages" answers from passages alone, without statements
+ * or governance, as plain retrieval over chunks does; "long_context" gives the model every
+ * passage the asker may read, document by document, and refuses with ContextTooLong when
+ * they come to more than contextTokens.
  *
  * Not built yet: indexes of pages, procedures and entities (hits are statements and
  * passages), a full-text index per language, FAQ precompute, the semantic cache, values in
