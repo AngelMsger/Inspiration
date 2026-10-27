@@ -2,7 +2,7 @@
 
 Status: a snapshot of the product owner's design canvas, "Inspiration UI"
 (https://claude.ai/artifact/GYXc5GBY3bPq1XGuMUGwAk), taken on 2026-10-26 and updated on
-2026-10-27 (canvas version 74). Screens are drawn and changed on the canvas. This folder holds a copy so reviewers
+2026-10-27 (canvas version 79). Screens are drawn and changed on the canvas. This folder holds a copy so reviewers
 and team members can read the screens next to the docs. Where the two differ, the canvas wins.
 A Chinese copy of this README is in
 [docs/zh/design/screens/README.md](../../zh/design/screens/README.md).
@@ -31,16 +31,17 @@ Structure, reading, account and admin:
 
 | File | Screen |
 | --- | --- |
-| [V2-map](V2-map.dc.html) | The structure every screen follows: the regions, the four areas of the left column, the four ways the assistant shows up, the cast |
-| [V2-switcher](V2-switcher.dc.html) | The top bar's two menus: the company switcher (companies, then the one personal library) and the account menu; personal library and My space compared; inviting from the personal library; the top bar of someone working alone |
+| [V2-map](V2-map.dc.html) | The structure every screen follows: the regions, where each element goes by how often it is used, the four areas of the left column, the four ways the assistant shows up, the cast |
+| [V2-switcher](V2-switcher.dc.html) | The top bar names the company as plain text; the account menu switches companies (companies, then the one personal library); ⌘K for people who switch often; personal library and My space compared; inviting from the personal library; the top bar of someone working alone |
 | [V2-home](V2-home.dc.html) | A member's home: ask, what changed in what they read, recently viewed |
 | [V2-search](V2-search.dc.html) | Search and ask: the answer first, with citations, then the results with filters above them |
 | [V2-page](V2-page.dc.html) | Reading a knowledge page with the left column folded, and a citation open on a disputed value |
 | [V2-ja](V2-ja.dc.html) | The same page for a member whose interface is Japanese, who chose to read it in Japanese: written from the same statements and labelled machine translated, citing the Chinese original |
 | [V2-phone](V2-phone.dc.html) | Phone: reading, the inbox overview and a vote |
-| [V2-account](V2-account.dc.html) | Account: Decide for me, standing delegations and their limits |
+| [V2-account](V2-account.dc.html) | Account: standing delegations and their limits. Decide for me itself happens in the inbox and in each decision |
 | [V2-admin](V2-admin.dc.html) | Admin grouped by concern: members, search first |
 | [V2-sources](V2-sources.dc.html) | Admin: source connections, the company's and the members' |
+| [V2-tree](V2-tree.dc.html) | Four options for a space's documents and knowledge in the left column, today's shape for comparison; waiting for the product owner's choice |
 
 Working:
 

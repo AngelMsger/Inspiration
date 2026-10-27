@@ -24,7 +24,7 @@ Every screen has to pass three tests:
 
 | Region | Answers | Holds | Never holds |
 | --- | --- | --- | --- |
-| Top bar | Which company am I in? Find anything. Who am I? | The company switcher (the person's companies and their personal library), search and ask (⌘K), the account menu | Spaces, page titles, filters, or the screen's own actions |
+| Top bar | Find anything. Who am I, and in which company? | The current company's name as plain text, search and ask (⌘K), the account menu, which also switches companies and opens the personal library | Spaces, page titles, filters, or the screen's own actions |
 | Left column | Where am I in this company, and what is here? | The navigation of the area you are in | Actions on the selected item, or a list's filters |
 | Centre | The thing itself | One document, page, list or decision | |
 | Right panel | What about the selected thing? | What this says, comments, history, or the inspector of a selected row | Navigation |
@@ -37,15 +37,36 @@ The left column shows one of four areas:
 | Knowledge, the default | Everyone | Signing in, Home | Home, Inbox, My space, then each space the person can read, with its Documents and Knowledge |
 | Managing a space | That space's owners | "Manage" on the space, or a card in the inbox | Overview, Work (reviews, conflicts, publish requests, batch changes), Topics and owners, Documents and governance levels, Readers, Rules, Settings |
 | Admin | The super admin | The account menu | Grouped by concern, as in section 5 |
-| Account | Everyone | The account menu | You (profile and language, sign-in, companies, notifications), then the current company (your source connections, apps with access, Decide for me, your usage) |
+| Account | Everyone | The account menu | You (profile and language, sign-in, companies, notifications), then the current company (your source connections, apps with access, standing delegations, your usage) |
 
 Rules:
 
-- **The top bar never changes,** in Admin and Account included. It switches companies, never spaces.
+- **The top bar never changes,** in Admin and Account included. It never switches spaces. Companies and the personal library are switched from the account menu.
 - **The left column has at most two levels of headings.** Trees, such as Documents and Knowledge, can go deeper, but open one branch at a time.
 - **A screen's filters and views sit above its content,** never in the left column. The inbox's kinds are chips above the list, not a second menu.
 - **Reading folds the left column away** to give the text room. Breadcrumbs above the text only say where you are; they never replace the left column.
 - **Compact is a density setting** (⌘.), not a place. It never changes what the navigation holds.
+
+### Placed by how often it is used
+
+The prime places go to what people do most. The product owner put it this way after seeing a company switcher in the top bar's most visible spot, although most people belong to one company and seldom switch. The more often something is used, the closer it sits: daily things in the middle of the top bar and the top of the left column, weekly things in the left column, monthly things in a menu or at the end of a list, and anything rarer in settings or only in ⌘K.
+
+| Element | Who uses it | How often | Where it goes |
+| --- | --- | --- | --- |
+| Search and ask | Everyone | Several times a day | The middle of the top bar, ⌘K |
+| Reading a page or document | Everyone | Daily | The centre, with the left column folded |
+| The spaces you read | Members | Daily to weekly | The left column, the ones you use first |
+| Inbox | Owners daily; most members 0 to 2 todos a month | Daily to monthly | Second in the left column, with a count when something waits |
+| Managing a space | Space and topic owners (6 in the Finance story) | Daily to weekly | Manage, next to the space |
+| My space | Members who draft and publish | Weekly | The left column |
+| Switching company, opening the personal library | Most people never (one company); a few weekly | Rarely | The top of the account menu, and ⌘K "Switch to…". The top bar only names the current company, as plain text |
+| All spaces | Members | Monthly | The last line of the spaces |
+| Admin | The one super admin | Weekly | The account menu, shown only to them |
+| Standing delegations | Owners | Set once, looked at now and then | Account, under the company; the "Decided for you" line in the inbox links to it |
+| Compact | Owners | Set once | A switch in the account menu, ⌘. |
+| Profile, language, sign-in | Everyone | A few times a year | Account |
+
+The same test applies to every new element: who uses it, how often, and does its place match that.
 
 ## 4. Two speeds: reading and working
 
@@ -76,7 +97,7 @@ Measured numbers come from the prototype's synthetic company of 10,000 documents
 
 | List | Typical | Large | How it is shown |
 | --- | --- | --- | --- |
-| Companies in the switcher | 1 to 2 | 5 | A plain menu |
+| Companies in the account menu | 1, plus the personal library | 5 | A plain list at the top of the account menu |
 | Spaces in a company | 5 to 15 | 100 or more | The spaces you use first, then All spaces with search |
 | Documents in a space | 300 to 3,000 | 50,000 | A tree by source app and folder, opened lazily, with counts on folders and search inside |
 | Topics in a space | 10 to 40, in 3 to 8 areas | 300 | Folded by area, with search. Sizes come from clustering: a topic splits at about 100 statements |
@@ -128,7 +149,7 @@ An audit of the design canvas (version 72) against this document:
 | 负责人 on the canvas, 维护人 in the documents | Waiting for the product owner | Follow the decision; until then, the documents' 维护人 |
 | The early explorations A, B and C share the canvas with the chosen design | | Moved to an archive area |
 
-The second version (canvas version 74, rows V2 in [screens](screens/README.md)) applies these rules to nineteen screens. The first row covers the structure, reading, the account and admin; the second covers working: the inbox, decisions, managing a space, publishing and Trace. From the first version, only the three boards after importing (E-doc, E-doc-layers and E-doc-knowledge) still stand.
+The second version (canvas version 74, rows V2 in [screens](screens/README.md)) applies these rules to nineteen screens. The first row covers the structure, reading, the account and admin; the second covers working: the inbox, decisions, managing a space, publishing and Trace. From the first version, only the three boards after importing (E-doc, E-doc-layers and E-doc-knowledge) still stand. Canvas version 79 applies the placement table in section 3 to every second-version board: the top bar names the company as plain text, the account menu switches companies, and Decide for me is no longer an account menu item, because it happens in the inbox and in each decision; its settings are the standing delegations under Account. It also adds V2-tree, four options for showing a space's documents and knowledge in the left column, for the product owner to choose from.
 
 ## 9. What the UI needs from the engine
 

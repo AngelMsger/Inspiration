@@ -1,7 +1,7 @@
 # 界面稿
 
 状态：产品负责人设计画布 “Inspiration UI”（https://claude.ai/artifact/GYXc5GBY3bPq1XGuMUGwAk）的快照，
-取于 2026-10-26，2026-10-27 更新（画布第 74 版）。界面稿在画布上绘制和修改；这个文件夹保存一份副本，方便评审者和团队成员对照文档阅读。两者不一致时，
+取于 2026-10-26，2026-10-27 更新（画布第 79 版）。界面稿在画布上绘制和修改；这个文件夹保存一份副本，方便评审者和团队成员对照文档阅读。两者不一致时，
 以画布为准。本 README 的英文原文在 [docs/design/screens/README.md](../../../design/screens/README.md)；
 两者不一致时，以英文版为准。
 
@@ -26,16 +26,17 @@
 
 | 文件 | 界面 |
 | --- | --- |
-| [V2-map](../../../design/screens/V2-map.dc.html) | 每个界面都遵循的结构：区域、左侧栏的四个区域、助手出现的四种方式、人物 |
-| [V2-switcher](../../../design/screens/V2-switcher.dc.html) | 顶栏的两个菜单：切换企业（先是企业，再是唯一的个人知识库）和账户菜单；个人知识库和我的空间的对照；在个人知识库里邀请别人；一个人用时的顶栏 |
+| [V2-map](../../../design/screens/V2-map.dc.html) | 每个界面都遵循的结构：区域、按使用频率放置每样东西、左侧栏的四个区域、助手出现的四种方式、人物 |
+| [V2-switcher](../../../design/screens/V2-switcher.dc.html) | 顶栏用普通文字写企业名；账户菜单里切换企业（先是企业，再是唯一的个人知识库）；常切换的人用 ⌘K；个人知识库和我的空间的对照；在个人知识库里邀请别人；一个人用时的顶栏 |
 | [V2-home](../../../design/screens/V2-home.dc.html) | 成员的首页：提问、常看内容的变化、最近看过 |
 | [V2-search](../../../design/screens/V2-search.dc.html) | 搜索与提问：先回答并带出处，再列结果，筛选在结果上方 |
 | [V2-page](../../../design/screens/V2-page.dc.html) | 阅读知识页：左侧栏收起，打开一个有争议数值的出处 |
 | [V2-ja](../../../design/screens/V2-ja.dc.html) | 界面语言是日语的成员选择用日语读同一页：由同样的陈述用日语写出，标为机器翻译，出处指向中文原文 |
 | [V2-phone](../../../design/screens/V2-phone.dc.html) | 手机：阅读、待办概述、投票 |
-| [V2-account](../../../design/screens/V2-account.dc.html) | 账户：替我决定、长期委托及其边界 |
+| [V2-account](../../../design/screens/V2-account.dc.html) | 账户：长期委托及其边界。替我决定本身发生在待办和每个决定里 |
 | [V2-admin](../../../design/screens/V2-admin.dc.html) | 管理后台按关注点分组：成员，先搜索 |
 | [V2-sources](../../../design/screens/V2-sources.dc.html) | 管理后台：来源连接，企业的和成员的 |
+| [V2-tree](../../../design/screens/V2-tree.dc.html) | 空间的文档和知识在左侧栏里怎么放：四个备选，加上今天的样子作对照；等产品负责人选择 |
 
 处理工作：
 
