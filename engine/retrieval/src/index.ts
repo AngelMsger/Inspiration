@@ -12,6 +12,10 @@
  *   version changes nothing.
  * - Each chunk carries the principal tokens of its document's latest captured ACL
  *   (access-control's aclTokens), and an acl.changed rewrites them.
+ * - The duplicates blocks.changed reports are kept as editions of one text, each way
+ *   (retrieval.editions): a copy, an older revision, last year's policy in a downloads
+ *   folder. A document's report replaces the pairs it named before; pairs another document
+ *   named against an earlier version of it go too.
  *
  * search(query, principal):
  * - The vector and keyword indexes each return their best rows under the principal's
@@ -46,6 +50,15 @@
  * when a statement rests on one weakly read source. sources(query, principal) gives the
  * hits an answer reads, in the order the model gets them.
  *
+ * An answer reads the latest edition of a document the asker can read. An edition replaces
+ * another when it changed later, by the dates its source gives, at no lower governance level
+ * and authority, through editions of editions as far as they chain: a newer draft in
+ * someone's folder never replaces the governed policy, and an edition the asker cannot read
+ * replaces nothing. A replaced edition's passages are left out before the best are taken,
+ * and so are statements only replaced editions state, in a fact slot or not, since a value
+ * that left the latest edition is no longer stated; the value that holds in place of such a
+ * statement still joins. search() still lists every edition.
+ *
  * Baselines, to measure the knowledge base against over the same documents and model
  * (RetrievalOptions.baseline): "passages" answers from passages alone, without statements
  * or governance, as plain retrieval over chunks does; "long_context" gives the model every
@@ -57,7 +70,8 @@
  * passages), a full-text index per language, FAQ precompute, the semantic cache, values in
  * notes written the question's way (they are the catalogue's: "5000 node"), and saying an
  * answer may be incomplete because material the asker cannot read would change it
- * (docs/design/compiled-knowledge-permissions.md).
+ * (docs/design/compiled-knowledge-permissions.md), and editions of a renamed document,
+ * which normalization does not pair unless nearly the same.
  */
 
 export * from "./chunks.ts";

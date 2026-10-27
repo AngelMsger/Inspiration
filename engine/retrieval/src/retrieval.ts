@@ -10,6 +10,7 @@ import {
   type Citation,
   type Claim,
   type ClaimEvidence,
+  type DuplicateDocument,
   type EventEnvelope,
   type EventHandler,
   type FreshnessInfo,
@@ -41,7 +42,7 @@ import {
   type VectorIndex,
   valueKeyOf,
 } from "@inspiration/contracts";
-import { defineTable, type Records } from "@inspiration/eventbus";
+import { defineTable, type Records, type RecordTx } from "@inspiration/eventbus";
 import { languageOf, logger } from "@inspiration/kernel";
 import { searchText } from "@inspiration/knowledge-store";
 import { estimateTokens, PromptRegistry } from "@inspiration/model-gateway";
@@ -85,6 +86,10 @@ export const ANSWER_SOURCES = 8;
 export const THIN = 0.6;
 /** An outdated value ranks as if it scored this share of its score. */
 const OUTDATED_WEIGHT = 0.5;
+/** How far an answer follows editions of editions, and the most documents it looks at. */
+const EDITION_HOPS = 3;
+const EDITION_DOCUMENTS = 50;
+const LEVELS = { search_only: 0, reference: 1, governed: 2 } as const;
 /** The most a long-context baseline reads for one answer. */
 export const LONG_CONTEXT_TOKENS = 150_000;
 /** Statements that are no longer believed or never were. */
@@ -115,6 +120,23 @@ const key = (tenantId: string, id: string) => `${tenantId}|${id}`;
 export const DOCUMENTS = defineTable<IndexedDocument>("retrieval.documents", {
   key: (d) => key(d.tenant_id, d.document),
   columns: { tenant_id: (d) => d.tenant_id },
+});
+
+/** Two documents that are editions of one text, as normalization reported them; stored each way. */
+export interface Edition {
+  tenant_id: string;
+  /** source_id:external_id */
+  document: string;
+  other: string;
+  /** The versions compared, the document's and the other's; a row of other versions is stale. */
+  versions: [string, string];
+  /** The document whose report named the pair. */
+  by: string;
+}
+
+export const EDITIONS = defineTable<Edition>("retrieval.editions", {
+  key: (e) => `${key(e.tenant_id, e.document)}|${e.other}`,
+  columns: { tenant_id: (e) => e.tenant_id, document: (e) => e.document },
 });
 
 export interface RetrievalOptions {
@@ -227,7 +249,7 @@ export class Retrieval implements Retriever {
     const change = payloadOf(event, "blocks.changed");
     const version = await this.store.getSourceVersion(change.source_version_id);
     if (!version) throw new RangeError(`unknown source version ${change.source_version_id}`);
-    const document = `${version.source_id}:${version.external_id}`;
+    const document = documentOf(version);
     const state = await this.records.get(DOCUMENTS, key(version.tenant_id, document));
     // Already indexed, or a late event of an older version than the one indexed.
     if (state && (state.source_version_id === version.id || state.fetched_at > version.fetched_at)) return;
@@ -241,7 +263,10 @@ export class Retrieval implements Retriever {
     };
     if (change.deleted || version.deleted) {
       if (old.length) await this.store.transaction((tx) => tx.removeChunks(old.map((c) => c.id)));
-      await this.records.transaction((tx) => tx.put(DOCUMENTS, [{ ...record, deleted: true }]));
+      await this.records.transaction(async (tx) => {
+        await tx.put(DOCUMENTS, [{ ...record, deleted: true }]);
+        await this.#editions(tx, version, []);
+      });
       return;
     }
     const spans = new Map((await this.store.spansOf(version.id)).map((s) => [s.id, s]));
@@ -282,10 +307,38 @@ export class Retrieval implements Retriever {
       if (gone.length) await tx.removeChunks(gone);
       if (chunks.length) await tx.putChunks(chunks, embedded?.vectors, embedded && { model: embedded.model });
     });
-    await this.records.transaction((tx) => tx.put(DOCUMENTS, [{ ...record, chunk_ids: chunks.map((c) => c.id) }]));
+    await this.records.transaction(async (tx) => {
+      await tx.put(DOCUMENTS, [{ ...record, chunk_ids: chunks.map((c) => c.id) }]);
+      await this.#editions(tx, version, change.duplicates ?? []);
+    });
     this.totals.indexed++;
     this.totals.chunks += chunks.length;
     this.totals.embedded += Object.keys(embedded?.vectors ?? {}).length;
+  }
+
+  /**
+   * The document's editions as its version's report names them, each way. The pairs it named
+   * before and no longer does go, and so do the pairs other documents named against an earlier
+   * version of it; pairs they named against this one stay, whichever report came first.
+   */
+  async #editions(tx: RecordTx, version: SourceVersion, reported: readonly DuplicateDocument[]): Promise<void> {
+    const tenantId = version.tenant_id;
+    const document = documentOf(version);
+    const named = new Map(reported.map((d) => [`${d.source_id}:${d.external_id}`, d.source_version_id]));
+    const gone = (await tx.find(EDITIONS, { tenant_id: tenantId, document })).filter((e) =>
+      e.by === document ? !named.has(e.other) : e.versions[0] !== version.id,
+    );
+    if (gone.length) {
+      await tx.delete(
+        EDITIONS,
+        gone.flatMap((e) => [EDITIONS.key(e), EDITIONS.key({ ...e, document: e.other, other: e.document })]),
+      );
+    }
+    const rows = [...named].flatMap(([other, otherVersion]): Edition[] => [
+      { tenant_id: tenantId, document, other, versions: [version.id, otherVersion], by: document },
+      { tenant_id: tenantId, document: other, other: document, versions: [otherVersion, version.id], by: document },
+    ]);
+    if (rows.length) await tx.put(EDITIONS, rows);
   }
 
   /** Each new chunk's contextual header; a chunk the model leaves out has none. */
@@ -701,16 +754,60 @@ export class Retrieval implements Retriever {
       },
       who,
     );
-    const taken = new Map<string, number>();
-    const best = found.hits.filter((h) => {
-      const n = taken.get(h.kind) ?? 0;
-      taken.set(h.kind, n + 1);
-      return n < ANSWER_SOURCES;
-    });
-    const searched = { ...found, hits: best };
+    // Plain retrieval knows nothing of editions; the knowledge base answers from the latest.
+    const replaced = this.baseline ? new Set<string>() : await this.#replaced(found.hits, who);
+    const latest = latestEditions(found.hits, replaced);
+    const searched = { ...found, hits: bestOfEachKind(latest) };
     const hits = passagesWithoutReplaced(searched);
-    await this.#addHeld(hits, searched, who);
-    return { hits, searched };
+    // A replaced edition's statement leaves, and the value that holds in its place still joins.
+    const kept = new Set(latest.map((h) => h.unit_id));
+    const left = bestOfEachKind(found.hits).filter((h) => !kept.has(h.unit_id));
+    await this.#addHeld(hits, searched, who, [...hits, ...left]);
+    return { hits: latestEditions(hits, replaced), searched };
+  }
+
+  /**
+   * The versions the hits cite that a later edition the asker can read replaces: one changed
+   * later, at no lower governance level and authority, found through the documents' editions
+   * as far as they chain (EDITION_HOPS).
+   */
+  async #replaced(hits: readonly SearchHit[], who: Principal): Promise<Set<string>> {
+    const cited = await this.#versions(hits.flatMap((h) => h.citations.map((c) => c.source_version_id)));
+    const found = new Set([...cited.values()].map(documentOf));
+    const seen = new Set(found);
+    const links: Edition[] = [];
+    let frontier = [...found];
+    for (let hop = 0; hop < EDITION_HOPS && frontier.length && seen.size < EDITION_DOCUMENTS; hop++) {
+      const rows = await this.records.find(EDITIONS, { tenant_id: who.tenant_id, document: frontier });
+      links.push(...rows);
+      frontier = [...new Set(rows.map((e) => e.other))].filter((d) => !seen.has(d)).slice(0, EDITION_DOCUMENTS);
+      for (const d of frontier) seen.add(d);
+    }
+    if (!links.length) return new Set();
+    const indexed = await this.records.getMany(
+      DOCUMENTS,
+      [...seen].map((d) => key(who.tenant_id, d)),
+    );
+    const latest = await this.#versions(indexed.filter((d) => !d.deleted).map((d) => d.source_version_id));
+    const current = new Map([...latest.values()].map((v) => [documentOf(v), v]));
+    const readable = await this.#readableDocuments(who, [...latest.values()]);
+    // Families of editions, through the pairs whose versions are the ones indexed now.
+    const near = new Map<string, string[]>();
+    for (const e of links) {
+      if (current.get(e.document)?.id !== e.versions[0] || current.get(e.other)?.id !== e.versions[1]) continue;
+      near.set(e.document, [...(near.get(e.document) ?? []), e.other]);
+    }
+    const out = new Set<string>();
+    for (const v of cited.values()) {
+      const mine = current.get(documentOf(v));
+      const family = mine ? [...familyOf(documentOf(mine), near)] : [];
+      const later = family.some((d) => {
+        const e = current.get(d);
+        return e !== undefined && readable.has(e.id) && replaces(e, mine as SourceVersion);
+      });
+      if (later) out.add(v.id);
+    }
+    return out;
   }
 
   /**
@@ -849,14 +946,19 @@ export class Retrieval implements Retriever {
   }
 
   /**
-   * The value that holds takes the place of an outdated or disputed one the question found:
-   * its statement joins the sources when the asker may read it and it passes the search's
-   * filters, as the hit of a search, with its freshness.
+   * The value that holds takes the place of an outdated or disputed one the question found
+   * (among the hits, else among those given): its statement joins the sources when the asker
+   * may read it and it passes the search's filters, as the hit of a search, with its freshness.
    */
-  async #addHeld(hits: SearchHit[], searched: Searched, who: Principal): Promise<void> {
+  async #addHeld(
+    hits: SearchHit[],
+    searched: Searched,
+    who: Principal,
+    found: readonly SearchHit[] = hits,
+  ): Promise<void> {
     const have = new Set(hits.map((h) => h.unit_id));
     const wanted = [
-      ...new Set(hits.flatMap((h) => (h.held_unit_id && !have.has(h.held_unit_id) ? [h.held_unit_id] : []))),
+      ...new Set(found.flatMap((h) => (h.held_unit_id && !have.has(h.held_unit_id) ? [h.held_unit_id] : []))),
     ];
     if (!wanted.length) return;
     const decisions = await this.authz.checkMany(
@@ -942,6 +1044,49 @@ export class Retrieval implements Retriever {
 }
 
 // ---------------------------------------------------------------- helpers
+
+const documentOf = (v: { source_id: string; external_id: string }) => `${v.source_id}:${v.external_id}`;
+
+/** The first ANSWER_SOURCES hits of each kind, in order: a statement never takes a passage's place. */
+function bestOfEachKind(hits: readonly SearchHit[]): SearchHit[] {
+  const taken = new Map<string, number>();
+  return hits.filter((h) => {
+    const n = taken.get(h.kind) ?? 0;
+    taken.set(h.kind, n + 1);
+    return n < ANSWER_SOURCES;
+  });
+}
+
+/** The documents linked to one through editions, however far. */
+function familyOf(document: string, near: ReadonlyMap<string, readonly string[]>): Set<string> {
+  const family = new Set([document]);
+  for (const d of family) for (const e of near.get(d) ?? []) family.add(e);
+  return family;
+}
+
+/**
+ * Whether edition a replaces edition b: it changed later, by the dates the sources give, and
+ * is no less trusted, so a newer draft in someone's folder never replaces the governed policy.
+ */
+function replaces(a: SourceVersion, b: SourceVersion): boolean {
+  const [x, y] = [Date.parse(a.version.modified_at ?? ""), Date.parse(b.version.modified_at ?? "")];
+  const level = (v: SourceVersion) => LEVELS[v.governance_level ?? "governed"];
+  return x > y && level(a) >= level(b) && a.authority >= b.authority;
+}
+
+/**
+ * The hits without what later editions replace: a replaced edition's passages are left out,
+ * and so are statements only replaced editions state, whatever their standing; a value that
+ * left the latest edition is no longer stated. Other statements cite the latest editions.
+ */
+function latestEditions(hits: readonly SearchHit[], replaced: ReadonlySet<string>): SearchHit[] {
+  if (!replaced.size) return [...hits];
+  return hits.flatMap((h) => {
+    const kept = h.citations.filter((c) => !replaced.has(c.source_version_id));
+    if (kept.length === h.citations.length) return [h];
+    return kept.length ? [{ ...h, citations: kept }] : [];
+  });
+}
 
 function titleOf(version: SourceVersion, path?: readonly string[]): string {
   const title = version.title ?? version.external_id;

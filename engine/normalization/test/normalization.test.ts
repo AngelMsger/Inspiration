@@ -3,7 +3,7 @@ import { MemoryRecords } from "@inspiration/eventbus";
 import { LocalBlobStore, registry } from "@inspiration/kernel";
 import { MemoryStore } from "@inspiration/knowledge-store";
 import { describe, expect, test } from "vitest";
-import { Normalization } from "../src/index.ts";
+import { EDITION_SHARE, NEAR_SHARE, Normalization } from "../src/index.ts";
 import { BACKENDS, NO_MODELS, normalizationTest, SOURCE, TENANT } from "./fixtures.ts";
 
 const POLICY = `# Travel policy
@@ -193,6 +193,28 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
     ]);
     expect(nearDuplicates[0]?.similarity).toBeGreaterThan(0.8);
     expect((await world.normalization.normalize(other.id)).diff?.duplicates).toBeUndefined();
+  });
+
+  it.skipIf(skip)("an edition revised for years is reported under the same title only", async ({ world }) => {
+    const places = ["Beijing", "Shanghai", "Chengdu", "Wuhan", "Xi'an", "Shenzhen"];
+    const rules = (raise: number) =>
+      Array.from({ length: 24 }, (_, i) => {
+        const amount = 100 + i * 10 + (i % 3 ? raise : 0);
+        return `Rule ${i + 1} sets the daily allowance for trips to ${places[i % 6]} at grade ${(i % 4) + 1} to ${amount} yuan.`;
+      }).join("\n\n");
+    const current = await world.ingest({ external_id: "policies/allowances.md", title: "Allowances", text: rules(20) });
+    await world.normalization.normalize(current.id);
+    // Last year's edition: two in three amounts have been raised since.
+    const kept = await world.ingest({ external_id: "downloads/allowances.md", title: "Allowances", text: rules(0) });
+    const [edition, ...more] = (await world.normalization.normalize(kept.id)).diff?.duplicates ?? [];
+    expect(more).toEqual([]);
+    expect(edition).toMatchObject({ external_id: "policies/allowances.md", exact: false });
+    expect(edition?.similarity).toBeGreaterThan(EDITION_SHARE);
+    expect(edition?.similarity).toBeLessThan(NEAR_SHARE);
+    // The same text under another title is another document that repeats a third of this one.
+    const renamed = await world.ingest({ external_id: "hr/rates.md", title: "Grade rates", text: rules(0) });
+    const found = (await world.normalization.normalize(renamed.id)).diff?.duplicates ?? [];
+    expect(found.map((d) => [d.external_id, d.exact])).toEqual([["downloads/allowances.md", true]]);
   });
 
   it.skipIf(skip)("connector blocks keep their native IDs; approval definitions become blocks", async ({ world }) => {

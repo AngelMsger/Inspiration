@@ -24,7 +24,9 @@
  *   removes every block.
  * - Duplicates: exact (equal normalized text) and near (SimHash within 9 of 64 bits, then
  *   at least 60% of the text in shared sentences, for documents of 200 characters or more)
- *   among the tenant's current documents, reported in blocks.changed.
+ *   among the tenant's current documents, reported in blocks.changed. A candidate with the
+ *   same title needs 20% within 11 bits: an edition revised for years, such as last year's
+ *   copy of a policy or an old revision of an article.
  *
  * Normalization keeps its own state (the last stored version per document and the
  * fingerprint index) in the normalization schema. Delivery is at least once: a version is
@@ -35,6 +37,8 @@ export { build, type Draft, draftIds, flatten } from "./blocks.ts";
 export { align, type BlockDiff, blockDiff, SAME_BLOCK, similarity } from "./diff.ts";
 export {
   bands,
+  EDITION_NEAR,
+  EDITION_SHARE,
   type Fingerprint,
   fingerprint,
   hamming,
@@ -44,6 +48,7 @@ export {
   NEAR_SHARE,
   normalizedText,
   probes,
+  sameTitle,
   sharedText,
 } from "./fingerprint.ts";
 export { MIGRATIONS } from "./migrations.ts";

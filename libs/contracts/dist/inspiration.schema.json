@@ -3293,7 +3293,7 @@
       }
     },
     "DuplicateDocument": {
-      "description": "A document whose normalized text (without whitespace, punctuation or case) equals this one's, or that shares most of its sentences: a copy, a re-export, an older edition kept in an archive. Governance decides which one is authoritative.\n",
+      "description": "A document whose normalized text (without whitespace, punctuation or case) equals this one's, or that shares most of its sentences, or a fifth of them under the same title: a copy, a re-export, an older edition kept in an archive or a download. Governance decides which one is authoritative; retrieval answers from the latest edition the asker can read.\n",
       "type": "object",
       "required": [
         "source_id",
@@ -3317,7 +3317,7 @@
           "type": "boolean"
         },
         "similarity": {
-          "description": "Share of the two documents' text that sits in sentences both contain, weighted by length: 1 for equal texts, about 0.9 for an edition with a few changed figures.\n",
+          "description": "Share of the two documents' text that sits in sentences both contain, weighted by length: 1 for equal texts, about 0.9 for an edition with a few changed figures, 0.2 to 0.6 for one revised for years.\n",
           "$ref": "#/$defs/Score01"
         }
       }

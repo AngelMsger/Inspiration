@@ -374,6 +374,49 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       ).resolves.toMatchObject({ citations: [], confidence: 0 });
     });
 
+    test("an answer reads the latest edition the asker can read, and an older one is left out", async ({ world }) => {
+      const maglev = (opening: string) => [
+        { id: "h1", text: "Maglev", heading: true },
+        { id: "p1", text: `The maglev line from Tokyo to Nagoya is to open ${opening}.` },
+        { id: "p2", text: "Its trains are to run at 505 km/h." },
+      ];
+      const asOf = (day: string) => ({ title: "Maglev", level: "reference" as const, authority: 0.5, modified: day });
+      const old = await world.document("research/maglev-2024.md", maglev("in 2027"), asOf("2024-10-23T02:31:09Z"));
+      const said = await world.claim(
+        "The maglev line from Tokyo to Nagoya is to open in 2027.",
+        old.spansOf("p1")[0] as never,
+      );
+      const current = await world.document("research/maglev.md", maglev("in 2034 at the earliest"), {
+        ...asOf("2026-10-12T04:05:32Z"),
+        readers: [ALICE],
+        editions: [old],
+      });
+      const question = { question: "When is the maglev line from Tokyo to Nagoya to open?" };
+
+      const answer = await world.retrieval.answer(question, ALICE);
+      expect(answer.answer).toContain("2034");
+      expect(answer.answer).not.toContain("2027");
+      expect(answer.used_unit_ids).not.toContain(said.id);
+      expect(new Set(answer.citations.map((c) => c.source_version_id))).toEqual(new Set([current.version.id]));
+      // Plain retrieval knows nothing of editions.
+      const plain = await world.baseline("passages").sources(question, ALICE);
+      expect(plain.flatMap((h) => h.citations.map((c) => c.source_version_id))).toContain(old.version.id);
+      // Bob cannot read the latest edition, so for him the older one is the latest he has.
+      expect((await world.retrieval.answer(question, BOB)).answer).toContain("2027");
+
+      // A newer draft in a less trusted place replaces nothing, and a deleted edition nothing either.
+      const draft = await world.document("drafts/maglev.md", maglev("in 2040"), {
+        ...asOf("2026-10-20T00:00:00Z"),
+        authority: 0.3,
+        editions: [current, old],
+      });
+      expect(
+        (await world.retrieval.sources(question, ALICE)).flatMap((h) => h.citations.map((c) => c.source_version_id)),
+      ).toEqual(expect.arrayContaining([current.version.id, draft.version.id]));
+      await world.document("research/maglev.md", [], { ...asOf("2026-10-25T00:00:00Z"), deleted: true });
+      expect((await world.retrieval.answer(question, ALICE)).answer).toContain("2027");
+    });
+
     describe.each(LANGUAGES)("answers in $tag", ({ cases }) => {
       test("every sentence cites its source, the value that holds answers, and the replaced one gets a note", async ({
         world,

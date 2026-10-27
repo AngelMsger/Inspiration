@@ -20,7 +20,9 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U inspiration -d inspiration && psql -U inspiration -d spicedb -c 'select 1' >/dev/null"]
+      # Over TCP: the entrypoint's temporary server, which runs the init scripts and then
+      # restarts, listens only on the socket, so a socket check can pass just before it stops.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U inspiration -d inspiration && psql -U inspiration -d spicedb -c 'select 1' >/dev/null"]
       interval: 2s
       timeout: 5s
       retries: 60

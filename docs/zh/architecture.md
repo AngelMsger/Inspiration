@@ -160,6 +160,7 @@ collaboration 把 `todo.requested` 和 `review.due` 变成待办，并以一个�
 | `governance` | governance | 事实槽成员和取值分组、冲突案例、每个事实槽最近一次的请求和留下的备注、重新检查的日期 |
 | `page_compiler` | page-compiler | 章节及其向量和主题、上一次聚类的主题和质心、每个事实槽所在的主题、更新尚未完成的存储写入 |
 | `collaboration` | collaboration | 待办箱：每个待办及其去重键、卡片、所在周和到期周 |
+| `retrieval` | retrieval | 每份文档的切块所属的版本；规范化报告的、属于同一文本不同版本的文档 |
 | `public.inspiration_migrations` | kernel | 带校验和的迁移台账 |
 
 SpiceDB 把自己的数据存放在同一实例上单独的 `spicedb` 数据库中。Valkey 承载事件流和模型响应缓存。二进制文件

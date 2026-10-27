@@ -17,6 +17,12 @@
  * the share of the two texts in sentences both contain (sharedText) must reach NEAR_SHARE.
  * An older edition with a few changed figures shares nine tenths; two weekly reports of
  * one template share their headings, which have no spans, and little else.
+ *
+ * An edition revised for years keeps less: a long article two years on shares three fifths
+ * of its text word for word, a policy revised every year a fifth to two fifths, and their
+ * SimHashes drift up to 10 bits apart. A candidate under the same title (sameTitle) is an
+ * edition within EDITION_NEAR from EDITION_SHARE on. Reports of one series titled alike
+ * ("Weekly report") still share little but their headings.
  */
 
 import { contentHash } from "@inspiration/contracts";
@@ -33,6 +39,13 @@ export const MIN_NEAR_TEXT = 200;
 export const NEAR = 9;
 /** Share of text in common sentences at which a SimHash candidate is a near duplicate. */
 export const NEAR_SHARE = 0.6;
+/**
+ * Largest distance for a candidate with the same title: every hash the probes find. Two
+ * unrelated texts fall within 11 bits with a chance of about 5 in 100 million.
+ */
+export const EDITION_NEAR = 11;
+/** The share for a candidate with the same title: an edition of the document. */
+export const EDITION_SHARE = 0.2;
 const SHINGLE = 4;
 const BANDS = 4;
 const BAND_BITS = 16;
@@ -49,6 +62,12 @@ export interface Fingerprint {
 /** Text without whitespace, punctuation, symbols or case, so formatting does not count. */
 export function normalizedText(text: string): string {
   return text.toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, "");
+}
+
+/** Whether two documents have the same title, formatting aside; an empty title is no title. */
+export function sameTitle(a: string | undefined, b: string | undefined): boolean {
+  const x = normalizedText(a ?? "");
+  return x !== "" && x === normalizedText(b ?? "");
 }
 
 /** FNV-1a over a string's UTF-16 units, with a seed, as an unsigned 32-bit number. */

@@ -25,6 +25,8 @@ import { build, draftIds, flatten } from "./blocks.ts";
 import { align, blockDiff } from "./diff.ts";
 import {
   bands,
+  EDITION_NEAR,
+  EDITION_SHARE,
   type Fingerprint,
   fingerprint,
   hamming,
@@ -33,6 +35,7 @@ import {
   NEAR,
   NEAR_SHARE,
   probes,
+  sameTitle,
   sharedText,
 } from "./fingerprint.ts";
 
@@ -300,7 +303,7 @@ export class Normalization {
     return JSON.parse(new TextDecoder().decode(await this.blobs.get(blob)));
   }
 
-  /** Current documents of the tenant whose text equals or nearly equals this one. */
+  /** Current documents of the tenant whose text equals or nearly equals this one, or that are editions of it. */
   async #duplicates(version: SourceVersion, print: Fingerprint, spans: readonly Span[]): Promise<DuplicateDocument[]> {
     if (print.length < MIN_TEXT) return [];
     const self = documentKey(version.source_id, version.external_id);
@@ -321,9 +324,12 @@ export class Normalization {
       const exact = theirs.text_hash === print.text_hash;
       const distance = hamming(theirs.simhash, print.simhash);
       const comparable = Math.min(theirs.length, print.length) >= MIN_NEAR_TEXT;
-      if (!exact && (!comparable || distance > NEAR)) continue;
+      if (!exact && (!comparable || distance > EDITION_NEAR)) continue;
       const share = exact ? 1 : sharedText(spans, await this.store.spansOf(row.source_version_id));
-      if (share < NEAR_SHARE) continue;
+      if (share < EDITION_SHARE) continue;
+      const near = share >= NEAR_SHARE && distance <= NEAR;
+      if (!near && !sameTitle(version.title, (await this.store.getSourceVersion(row.source_version_id))?.title))
+        continue;
       out.push({
         source_id: row.source_id,
         external_id: row.external_id,

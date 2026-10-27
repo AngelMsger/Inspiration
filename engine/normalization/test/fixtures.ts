@@ -54,6 +54,8 @@ export interface Item {
   process?: NormalizedDocument["process"];
   /** Change to make a metadata-only change. */
   metadata?: string;
+  /** The external ID unless given. */
+  title?: string;
 }
 
 export interface World {
@@ -122,7 +124,7 @@ export const normalizationTest = (backend: Backend) =>
       const doc: Omit<NormalizedDocument, "acl"> = {
         ref: { source_id: SOURCE, external_id: item.external_id },
         version,
-        title: item.external_id,
+        title: item.title ?? item.external_id,
         mime_type: mimeType,
       };
       if (item.text !== undefined) {
@@ -138,7 +140,7 @@ export const normalizationTest = (backend: Backend) =>
         space_id: SPACE,
         external_id: item.external_id,
         version,
-        title: item.external_id,
+        title: item.title ?? item.external_id,
         mime_type: mimeType,
         approval_state: "unknown",
         authority: 0.5,
