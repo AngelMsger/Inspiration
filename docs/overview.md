@@ -369,7 +369,7 @@ States: **Built** (on `main`, with tests), **Designed** (decided, not built), **
 
 | ID | Requirement | State |
 | --- | --- | --- |
-| RD-1 | Three views with shared IDs: Original (as written), Annotated (with marks) and Knowledge (topic pages) | Designed |
+| RD-1 | Three views with shared IDs: Original (as written), Annotated (with marks) and Knowledge (topic pages). A newly imported source opens in the Original view, and knowledge is revealed from there, concrete to abstract (section 19) | Designed |
 | RD-2 | Two trees: the Sources tree and the Knowledge tree; a folder or space the reader cannot open is never shown, not even as a count | Designed |
 | RD-3 | Pages as `PageSpec` with 14 block types, every sentence citing statements, every rebuild a version with a diff | Contract built, compiler planned |
 | RD-4 | A citation opens the source beside the page at the exact passage and version, and says so when the passage changed since | Designed |
@@ -896,6 +896,8 @@ flowchart LR
 
 The contracts for pages and views are in place; the compilers, the view host and retrieval are planned.
 
+**From documents to knowledge** (decided 2026-10-27). People meet their own material first. After an import, a source opens as a mirror page: the document in its own shape, with its headings, paragraphs, lists and tables, close to the original even where it is not identical, much as a Claude Artifact renders a page. Knowledge is revealed from there one step at a time, from concrete to abstract: first the marks in the Annotated view, then on request what a passage states and where else the same fact is stated or contradicted, then the knowledge pages built from it. Someone new starts in their own documents, not in knowledge cards, and the Knowledge tree comes forward as topics fill up. Readers of a shared space stop at the marks and the pages, because statements and lineage belong to the Trace view; a member owns their own My space, so the Trace view is open to them there.
+
 - **A page is a `PageSpec`:** an ordered list of 14 typed blocks (heading, paragraph, list, callout, quote, table, code, math, image, divider, diagram, chart, view, embed) whose sentences carry statement IDs. Every version is an immutable snapshot with its cause, and block keys stay stable so comments survive rebuilds and diffs can say what moved.
 - **A page is written for its audience,** from statements its whole audience can read or that were released to it (section 15). Procedures are published only when their audience can read every step. When a space narrows later, the page is compiled again as a new version.
 - **Diagrams are compiled from structure:** the model chooses what to show but never draws edges.
@@ -1079,6 +1081,7 @@ After that, pilot and product-v1 work for Artifact-level editing (templates, Wor
 | 2026-10-26 | Agents running on their own only read or propose; a member's explicit request is the approval for an edit within that member's rights (`knowledge.write`) |
 | 2026-10-26 | Engine and business layer in one monorepo, a folder per layer (`libs/`, `engine/`, `business/`, `apps/`), with one-way dependencies checked by the manifest test |
 | 2026-10-26 | One integration per vendor serves both sync and agent tools; tools act as the member; only code we did not write runs in the sandbox |
+| 2026-10-27 | Familiar first: an imported source opens as a document in its own shape, and knowledge is revealed from it step by step, concrete to abstract; someone new starts in their documents, not in knowledge cards |
 
 ## 27. Open questions
 
