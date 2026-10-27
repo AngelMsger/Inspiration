@@ -1,198 +1,255 @@
 # Code repositories as a knowledge source
 
-Status: proposed, 2026-10-26, for the product owner's decision. Revised the same day after a head-to-head test against a coding agent over a clone of this repository, which led us to cut the first design back. Nothing here is built. A Chinese copy is in [docs/zh/design/code-repositories.md](../zh/design/code-repositories.md); if the two differ, this English version wins.
-
-It answers the product owner's questions: can code repositories be a source of knowledge in Inspiration; is there any point when a coding agent can read raw code and hosted Git directly; how do the results compare with giving a coding agent a clone; and does it still work for a large repository that merges many pull requests a day.
+Status: proposed, 2026-10-27, for the product owner's decision. This is the third version. It follows the product owner's direction of 2026-10-27: connect the repository, keep a local clone, build a code graph for it with open-source tools, and make it an input of Deep Research, so that code joins the existing knowledge upkeep. Nothing here is built. A Chinese copy is in [docs/zh/design/code-repositories.md](../zh/design/code-repositories.md); if the two differ, this English version wins.
 
 ## Summary
 
-**A coding agent over a clone answers questions about code better than anything we would precompile, so Inspiration should not precompile code.** In the test on this repository, a fresh coding agent with a clean clone and read access to pull request discussions answered all eight designer-style questions correctly and completely, with exact citations. It needed a median of about 76,000 tokens and 76 seconds per question. It also found eight places where the documents and the code disagree or where the code has a rule no document states. Four of them were missing from our own answer sheet. The first design, which read behavior from code literals, would have caught at most two of the seven code-related findings, because the rest are logic or something missing from the code, not values.
+**A connected repository is kept as a local mirror with a code graph, and Deep Research reads it the way it reads documents and the web.** The research component runs topic by topic, with read-only code tools over the mirror and the graph. Its reports become sources, and their conclusions become statements under the topic, so code knowledge sits on the same topic pages as Feishu documents and goes through the same governance.
 
-**Code still belongs in Inspiration, in a smaller role: answers are produced on demand by a coding agent, then kept, watched and shared.** A coding agent's answer lives for one conversation. Nobody is told when the code under it changes, nobody can see it unless they can read the repository, and nothing ties it to the Feishu documents that say otherwise. Inspiration adds exactly these:
+**Knowledge is organized by topic and by code area, not by question.** This answers the product owner's two objections to the second version:
 
-1. **Ask once, keep the answer.** A code question is answered by a coding agent acting as the member who asks, inside the sandbox. The answer is saved as a research report whose evidence is the exact code spans and discussion it cites.
-2. **Watch what it cites.** Every merge is compared with the cited spans only. An answer whose cited code changed is marked "code changed since" and checked again: once a day for answers a page relies on, otherwise when someone next reads it.
-3. **Share it within permissions.** A saved answer can be released to people who cannot read the repository, such as designers, product managers and support, in their own language.
-4. **Flag disagreements to owners.** When a check or a scheduled audit finds that a document and the code disagree, the document's owner gets a todo within the weekly budget.
-5. **Read the repository's text as ordinary sources.** README files, `docs/`, pull requests and issues are Reference documents next to Feishu documents.
+- **Nobody had to ask.** Graph communities and folders are mapped to topics, and each mapped area is researched once when the repository connects. Areas without a topic are listed for the space owner.
+- **The links are structural, not fragments.** Evidence is anchored to graph symbols at a commit, and each conclusion that rests on code carries a code assumption naming its symbols.
 
-**It works at many merges a day because nothing is precompiled.** Each merge costs one compare call, a lookup of cited spans and the embedding of the merged pull request's text. Cost grows with the questions people ask and the answers they keep, not with the merge rate. A per-repository daily budget caps the checks.
+**Every merge is compared on the graph, without a model.** The mirror fetches the merge and the graph is re-indexed incrementally. The diff of the two graphs gives the changed symbols and their nearest callers. Freshness turns the hits on cited symbols into one `review.due` per affected report a day. Research then re-checks only the conclusions that rest on those symbols. A changed conclusion becomes a new report version, and a disagreement with a document becomes a todo for that document's owner.
 
-**When to drop it.** If the people asking can all read the repository and already use a coding agent, and the product documents live in the repository too, Inspiration adds little for code. They should keep using their coding agent.
+**The graph is an open-source tool behind our own interface.** [codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp) is recommended first:
 
-The work shrinks from about 10 to about 6 person-weeks.
+- It is MIT-licensed and ships as one C binary with no network access.
+- It stores the graph in SQLite and has tree-sitter grammars for 162 languages.
+- It resolves types for the main languages, including TypeScript, Python, Go and Java.
+- It updates by file hash and diffs graphs between commits.
 
-## Who asks what of a repository
+It runs in the sandbox, behind a `code_indexers` plugin, so it can be replaced.
 
-| Who | A typical question | Where the answer lives | Served today by |
+**The work is about 8.5 person-weeks,** on top of the research component itself. It is feasible at hundreds of merges a day, because per-merge work is a fetch, an incremental index and a diff, and model work is capped per topic and per day.
+
+## The direction, and what it fixes
+
+The second version kept code answers that a coding agent produced on demand. The product owner rejected it on 2026-10-27, for three reasons:
+
+1. **Answers are fragmentary.** Knowledge kept as questions and answers is scattered.
+2. **Knowledge nobody asks about does not exist.**
+3. **The links are fragmentary too.** The links between upstream changes and individual answers are scattered.
+
+The direction instead: connect the repository; keep a cloned copy locally; build a code graph for it with open-source tools; use it as an input of Deep Research, which then searches the local copy; and make the associations in the research agent, so that code fits into the existing knowledge upkeep.
+
+| Objection | How this version answers it |
+| --- | --- |
+| Answers are fragments | Research runs per topic under a standing brief, and its conclusions become statements of that topic, next to the statements from documents |
+| What nobody asks about does not exist | An initial sweep covers every mapped area; a coverage list shows code areas without a topic and topics without research |
+| Updates and answers are linked in fragments | Evidence is anchored to graph symbols; a merge is diffed on the graph, and the affected conclusions are found by their symbols and re-checked together, one run per report a day |
+
+## How it works
+
+```mermaid
+flowchart LR
+  GH[Code host] -->|webhook hint, poll| SY[source-sync]
+  SY -->|README, docs, PRs, issues| N[normalization]
+  SY -->|source.changed: new commit| CG[code-graph]
+  CG -->|git fetch| M[(Mirror)]
+  CG -->|incremental index in the sandbox| G[(Graph per commit)]
+  CG -->|code.changed| F[freshness]
+  F -->|review.due| RS[research]
+  RS -->|code tools| CG
+  RS -->|report| SRC[source.changed]
+  SRC --> EX[extraction]
+  EX --> GV[governance]
+  GV -->|todo.requested| CO[collaboration]
+```
+
+### Connection and mirror
+
+- **One integration per code host,** as for every vendor. A typed client serves sync and agent tools, with one scope set and one rate budget per connection. GitHub comes first; GitLab, Gitee or Alibaba Cloud Codeup follow, chosen with the first design partner. A company connection is a GitHub App installation.
+- **The mirror is a git clone owned by code-graph.** It sits on an encrypted per-company volume, because git needs a file system rather than the blob store. When source-sync records a new commit on the followed ref, code-graph fetches it with a short lease from the credential broker. That is sync, not an agent run, so the company connection may be used.
+  - A very large monorepo is cloned without blobs and fetches the blobs of the followed commit.
+  - Hooks never run and submodules are not fetched.
+- **The followed ref** is what the company says is live: a release branch or tag, else the default branch. Each fetched commit on it is a version of the repository source.
+- **Repository text is an ordinary source.** README files, `docs/`, decision records, and pull requests and issues with their discussions become Reference documents, read on use like uploads. A pull request's links to the issues it closes and to documents Inspiration already holds become links between sources.
+- **Disconnecting** erases the mirror and the graphs. Registered evidence quotes stay under the [source changes](source-changes.md) rules.
+
+### The code graph
+
+- **What it holds:** files, modules, classes, functions, routes, configuration keys and environment variables. Edges cover calls, imports, inheritance, HTTP routes to handlers, configuration keys to the code that reads them, and documentation to the code it mentions, plus communities of call edges.
+- **Indexing runs in the sandbox** under a new profile, `code_index`. The mirror's worktree is mounted read only, a graph directory is writable, there is no network, and CPU and memory are limited. The binary is pinned by version and checksum. Tree-sitter parses code without running it; indexers that would need a build (SCIP for Java, for example) are not used by default.
+- **One graph per indexed commit.** The first index is full. After that, only files whose hash changed are parsed again; the paper behind codebase-memory-mcp reports about 1.2 seconds for an incremental update. Snapshots are compressed into the blob store (zstd, typically 8 to 13 times smaller). The latest snapshot is kept, together with those still named by an open review.
+- **Symbol IDs** are the graph's qualified names (`engine/collaboration/src/inbox.ts::INBOX_DEFAULTS`). They do not change when code moves within a file. A rename is matched on the graph and on git's rename detection, and is carried over silently, like a document move.
+- **code-graph owns the mirror and the graph,** not retrieval. The graph is to code what normalized blocks are to documents: the structure with stable IDs that evidence is anchored to and that changes are computed on. Its keyword and structure search serves research's tools only. Knowledge derived from code is indexed by retrieval like any other.
+
+### Deep Research over the code
+
+- **Tools.** code-graph provides read-only `agent_tools` plugins. Each call goes through the agent-runtime gate.
+
+  | Tool | What it does |
+  | --- | --- |
+  | `code_overview` | Areas, packages, routes and hot spots of a repository at a commit |
+  | `code_search` | Names, text and structure |
+  | `code_read` | A file or a symbol at a commit, with lines |
+  | `code_trace` | Callers, callees and paths between symbols |
+  | `code_impact` | What a symbol's change reaches |
+  | `code_history` | Commits and pull requests that touched a symbol, from the mirror's history and the code host's discussions |
+
+  The head-to-head showed that an agent over plain files answers well. The paper behind codebase-memory-mcp reports that graph queries use about a tenth of the tokens of file-by-file exploration, at about 90% of its answer quality. So research gets both kinds of tool.
+- **A standing brief per topic.** "How does the product behave in this topic's areas, with which rules, limits, states and exceptions, since when and why." A run reads the mapped areas, the topic's existing statements and its documents. It writes a report of conclusions, code assumptions and evidence.
+- **Code evidence** is a quote from a file at a commit, with path, lines and symbol. It is checked as a verbatim substring of that file before it is stored, and it passes the secret scanner. Discussion evidence is a quote from a pull request or issue.
+- **Code assumptions.** Each conclusion that rests on code names the symbols it depends on, as an assumption with the re-check method `code`. This is what ties later merges to conclusions.
+- **Disagreements with documents.** A run compares its conclusions with the documents of the same topic. Where they differ, it proposes a drift todo: "The product does X (code at a commit, pull request); the onboarding guide says Y". The todo goes to the document's owner, who can update the document, ask the assistant to open an issue against the code as themselves, or record that both hold in different cases. Separately, governance also finds conflicts between the new statements and document statements in the same fact slot, as usual.
+- **A report is a source.** It is stored as an `inspiration.research` source of the topic's space, and extraction turns its conclusions into statements, as for every research report. The topic page shows them in its "How it works today" and "History" sections.
+
+### Associations
+
+| From | To | Made by | Used for |
 | --- | --- | --- | --- |
-| A designer new to the team | "How many inbox cards can an owner get in a week, and is that a hard cap?" | Code, pull request discussions, design documents, meeting notes | Asking an engineer, or a coding agent if they can read the repository |
-| Product, support, sales | "Does the Team plan include single sign-on? How long does an invitation link last?" | Configuration and code; help pages that may be out of date | Asking an engineer |
-| Compliance, security | "Is a departed member's My space really erased after 30 days?" | Code, compared with the policy | A manual audit |
-| An engineer from another team | "How does source sync call the connectors?" | Code | Code search, coding agents, code wikis |
-| A coding agent | "Change the invitation flow" | Code, plus the rules the code must follow and why | The repository for the code; nothing for the rules |
+| Code area (community or path pattern) | Topic | Research proposes them from the graph and the knowledge tree; the space owner confirms them, with bulk confirmation | Coverage, the sweep, routing changes to topics |
+| Conclusion | Symbols at a commit | The research run, as a code assumption | Finding the conclusions a merge affects |
+| Evidence | File, lines, symbol, commit | The research run | Citations; "code changed since" on a citation |
+| Merged pull request | Issues it closes; documents it links | The connector | History, and links between sources |
+| Repository document | Symbols it mentions | The graph's documentation-to-code edges | Showing which repository documents a change makes stale |
 
-The first three questions are about the product and the last two about the code. A coding agent with the repository answers both kinds well, and the test below shows it on the first kind. What none of them do on their own is keep an answer, notice when it stops being true, show it to people without repository access, and connect it to documents outside the repository.
+### Keeping knowledge current at every merge
 
-## Head-to-head: a coding agent over a clone
+1. **A push to the followed ref** arrives as a webhook hint, or a poll finds it. source-sync records the new commit as a version of the repository source, and code-graph fetches it into the mirror.
+2. **code-graph indexes the new commit incrementally** and compares the graph with the last indexed one. It publishes `code.changed`, which lists the changed, added, removed and renamed symbols, and the impacted symbols: direct callers and readers of a changed symbol, up to a depth the company can set (1 by default).
+3. **Freshness looks up the code assumptions** that name those symbols. It collects them per report over a day, and emits one `review.due` of kind `evidence_changed` per affected report, with the symbols as causes. Freshness decides when; research decides how, as already settled for research.
+4. **Research re-checks only the affected conclusions.** It gets the old conclusions, the diff of the named symbols and the code tools. If nothing changed, it records the re-check on the new commit. If a conclusion changed, it writes a new report version, and the usual pipeline supersedes the old statements.
+5. **People see a todo only when something changed.** A changed conclusion that a page or governed topic relies on goes to the topic's owner. A new disagreement with a document goes to the document's owner. A release that changes many conclusions becomes one change review, under the existing rule.
+6. **A daily budget per repository** caps re-check runs. Beyond it, reports wait for the next day, oldest change first, and their citations show "code changed since".
 
-**Setup.** Eight questions a designer or product manager could ask about Inspiration's own behavior and history. Their right answers were written down before any run, from the code, the documents and the pull request discussions. Each question went to a fresh general-purpose coding agent with a clean clone of `main` at 4d5ea00 (without this design) and its full history, and read-only access to the discussions of pull requests #1 to #20. Only question 4 asked about disagreements. The questions, right answers, verbatim answers and per-run numbers are in [examples/code-questions](../../examples/code-questions/answers.md).
+Changes in unmapped areas trigger nothing. They are counted on the coverage list, so the space owner sees code that no topic covers.
 
-| Question | Score (of 2) | Raised a disagreement unasked | Tokens | Seconds |
-| --- | --- | --- | --- | --- |
-| 1. How many todos fit on a card, and what happens when it is full? | 2 | No | 80,954 | 81 |
-| 2. Is "10 cards per owner per week" a hard cap? | 2 | Yes | 79,512 | 94 |
-| 3. Why is the budget a soft limit, and when was that decided? | 2 | No | 73,269 | 71 |
-| 4. Do the documents describe the budget correctly? | 2 | (asked) | 100,783 | 125 |
-| 5. How fast are changes and upstream deletions noticed? | 2 | Yes | 101,488 | 141 |
-| 6. Default review intervals for policy and process | 2 | Not applicable | 55,751 | 28 |
-| 7. Default governance level of an upload | 2 | Not applicable | 71,606 | 67 |
-| 8. When and why did the packages move into `engine/` and `libs/`? | 2 | Not applicable | 66,045 | 60 |
-| **Median** | | | **76,391** | **76** |
+### Knowledge nobody asked for
 
-Tokens and seconds are what the agent runtime reported for each run.
+- **The initial sweep.** After the area mapping is confirmed, research runs the brief once for each mapped topic. A space owner can start it area by area to spread the cost.
+- **Coverage list,** on the space owner's notes card:
+  - code areas with no topic;
+  - topics with mapped areas but no research;
+  - areas whose research is older than a set age.
+- **Questions in the assistant.** A question about how the product behaves is first answered from the topic's statements. When they do not cover it, the assistant offers to research it. The run attaches to the topic as part of its research, never as a loose answer.
 
-**What it found.** Eight disagreements or undocumented rules, all real when checked against the code:
+### Permissions and secrets
 
-| # | Finding | In our answer sheet | The first design would catch it |
-| --- | --- | --- | --- |
-| 1 | The overview names "urgent" todos as the budget exception; the code and Architecture say high and urgent | Yes | Perhaps, if the priority set were mapped as a literal |
-| 2 | The overview leaves out that a conflict and its copy reviews go over the budget together | Yes | No: logic |
-| 3 | A todo waits at most 26 weeks (`horizon: 26`); no document says so | Yes | Yes, as "not documented" |
-| 4 | The overview marks the 15-minute poll and the nightly listing "Built", but no timer or webhook receiver exists in the code | Yes | No: something missing |
-| 5 | Notes cards have no 20-todo cap | No | No: logic |
-| 6 | Done and dismissed todos still count toward a card's 20 and the week's 10, so clearing an inbox frees no room that week; possibly a bug | No | No: logic |
-| 7 | The overview and Source changes disagree on which listing finds deletions | No | By ordinary document governance, not by reading code |
-| 8 | Campaign and steward cards carry no assignee, while the documents say the space owner gets them | No | No: logic |
-
-**What it means.**
-
-- **For answering questions, a coding agent is as good as it gets.** It read the code, the tests, the history and the review threads, and wrote plain answers for a designer. Precompiled statements could at best match this, and the first design would have missed most of the findings.
-- **The reasons live on the code host, not in the clone.** Question 3's answer exists only in a pull request comment, so reading the host's discussions is necessary.
-- **The cost is per question, every time.** Each run costs tens of thousands of tokens and a minute or two. The same question asked by ten people costs ten runs, and nothing warns anyone when the answer stops being true.
-- **The findings need an owner.** Findings 4 and 6 are worth fixing now, but a coding agent's conversation ends with them. In Inspiration they would be todos for the overview's owner and the collaboration component's owner.
-- **Limits of the test.** This repository is small (about 450,000 tokens of code and structured files), young (66 commits over five days) and unusually well documented. On a large repository with thin documents the agent will take longer and cost more. The agent ran on a frontier-class model. Inspiration's own serving side (retrieval, saved answers) is not built, so its numbers below are estimates.
-
-## The design
-
-### Repository text is an ordinary source
-
-- **One integration per code host,** as for every vendor: one typed client serves sync and agent tools, with one scope set and one rate budget per connection. GitHub first; then GitLab, Gitee or Alibaba Cloud Codeup, chosen with the first design partner. A company connection is a GitHub App installation; a member connection is the member's own OAuth sign-in.
-- **What is synced:** README files, `docs/` and other Markdown, decision records, and pull requests and issues with their discussions. All are Reference by default, read on use like uploads. Code files are not synced.
-- **A commit is a version.** A Markdown file's `external_version` is its blob hash; the change cursor is the last synced commit; a compare between commits lists changes, deletions and renames, and renames are moves under the [source changes](source-changes.md) rules. A source follows the ref the company says is live (a release branch or tag), else the default branch.
-- **Links.** A pull request's links to the issues it closes and to documents Inspiration already holds (a requirements document in Feishu, meeting minutes) become links between the sources.
-
-### Code answers on demand
-
-- **A code question goes to a coding agent,** run by the research component on the agent runtime, in the sandbox, as the member who asks and with that member's own connection. Its tools are read-only `agent_tools` plugins on the code host client: `code_search`, `code_read` (a path at a commit, a range of lines), `code_history` (commits and pull requests that touched a path or range) and the discussions of pull requests and issues. A large repository is cloned partially in the sandbox, without hooks or submodules.
-- **The answer is a research report.** Its conclusions are statements; its evidence is the code spans it cites (path, commit, lines) and quotes from discussions, registered as evidence so they stay readable after the code moves on. Each conclusion records which spans support it.
-- **The assistant decides when to ask the code.** When existing knowledge covers a question, it answers from knowledge. When the question is about what the product does, or knowledge is thin, it offers to read the code. The answer says which commit it read.
-- **Saving.** A member can save an answer into a topic page, for example as the page's "How it works today" section. A saved answer is pinned when a page or a governed topic relies on it.
-
-### Watching what answers cite
-
-- **Each merge is compared with cited spans only.** The compare between the last checked commit and the new one gives changed hunks; they are intersected with an index of cited spans, following renames. A span whose lines did not change, even if its file did, triggers nothing.
-- **A touched answer is marked "code changed since".** A pinned answer is checked again at most once a day, by an agent given the old answer, the cited spans and the diff. Any other answer is checked when someone next reads it. A check that leaves the conclusions unchanged only moves the answer to the new commit.
-- **A changed conclusion** gives the answer's owner one todo, riding on the change's card. A release that changes many answers is one change review, under the existing rule.
-- **A daily budget per repository** caps checks. Over it, pinned answers wait for their next read, oldest first.
-
-### Disagreements between documents and code
-
-- **During a check or an answer,** the agent compares what it found with the documents Inspiration holds on the same topic, and proposes a drift todo when they disagree: "The product does X (code at a commit, pull request); the onboarding guide says Y". It goes to the document's owner. The choices are to update the document, to file an issue against the code (the person deciding asks the assistant to open it, as themselves), or to record that both hold in different cases.
-- **A scheduled audit,** off by default, asks "do the documents of this topic match the code?" per topic, for example weekly, as the space owner. Question 4 of the test is that audit; it took about 100,000 tokens and two minutes.
-- **Readers meanwhile see the document marked Disputed,** with the code's answer one click away.
-
-### Permissions
-
-- **The rules do not change.** The agent reads code only as the member who asks. A company connection is never leased to an agent run, so a person who cannot read the repository cannot make an agent read it either.
-- **People without repository access read released answers.** Saved answers live in the space the repository was published to, usually an Engineering space. Its owner releases an answer to a wider audience under the per-statement release of [Permissions in compiled knowledge](compiled-knowledge-permissions.md), without its code quotes where code is restricted. Readers see "Source: code in repository X (engineering only)".
-- **A question from someone without access** becomes a request to the topic owner, whose answer is saved and released.
-- **Secrets.** Cited spans pass a secret scanner before they are stored; a span that looks like a secret is never stored as citable text. Code evidence carries the `confidential` label by default, so the model gateway sends it only to providers cleared for it.
+- **The rules do not change.** The repository is published to a space, usually Engineering, whose audience reads what research derived from it. The code host's readers only feed the audience-gap warning ("12 people can read this repository; this space has 400 readers").
+- **Agents never hold a token.** Research reads the mirror only through code-graph's tools, within the permissions of the member or space it runs for. A company connection is never leased to an agent run.
+- **Wider audiences** read released statements. The space owner releases statements under the per-statement release of [Permissions in compiled knowledge](compiled-knowledge-permissions.md), without code quotes where code is restricted. Readers then see "Source: code in repository X (engineering only)".
+- **Secrets.** Code evidence passes a secret scanner before it is stored, and the graph stores the names of environment variables but never their values. Code evidence carries the `confidential` label by default, so the model gateway sends it only to providers cleared for it.
+- **Isolation.** Mirrors, graphs and sandboxes are per company and never shared.
 
 ### What people see
 
 | Where | What appears |
 | --- | --- |
-| Documents tree | The repository with its folders of documents, Pull requests and Issues |
-| Knowledge view | Topic pages with saved code answers, each conclusion cited to code at a commit and to the discussion |
+| Documents tree | The repository with its documents, Pull requests and Issues, and its code areas with their topics |
+| Knowledge view | Topic pages whose "How it works today" and "History" sections cite code at a commit and the discussion behind it |
 | Citation popover | File, lines, commit, "Open in GitHub", and "code changed since" when it did; or "code in repository X" without a quote |
-| Assistant | "Read the code for this?" when knowledge is thin, with the commit the answer read |
-| Inbox | Drift todos, changed conclusions of pinned answers, one change review per large release |
-| Agent API | The same ten tools; `search` finds saved code answers like any other knowledge |
+| Inbox | Drift todos, changed conclusions, change reviews for large releases, and the coverage list on the notes card |
+| Agent API | The same ten tools; code knowledge is found like any other knowledge |
+
+## Choosing the code graph
+
+| Tool | Licence | What it is | Fit |
+| --- | --- | --- | --- |
+| [codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp) | MIT; vendored parts MIT, BSD, public domain; bundled code embedding model Apache-2.0 | One C binary, SQLite, 162 grammars, type resolution for the main languages, routes, configuration keys, documentation-to-code edges, communities, graph diff between commits, CLI and MCP, no network access | **Recommended first.** Runs in the sandbox as is; fits private deployment and arm64 |
+| [CodeGraphContext](https://github.com/CodeGraphContext/CodeGraphContext) | MIT | Python, with an embedded or server graph database | Second choice; more to operate |
+| CodeGraph | MIT | Rust engine, SQLite | Telemetry is on by default; younger |
+| SCIP indexers (Sourcegraph) | Apache-2.0 | Precise per-language indexes | Precise, but needs a build per language, so code runs; later, per language, if precision demands it |
+| GitNexus | PolyForm Noncommercial 1.0.0 | Graph with impact queries | Ruled out: no commercial use |
+| Code Wiki, DeepWiki | Hosted services | Generated wikis | Not a source: generated prose, not evidence |
+
+The backend sits behind a `code_indexers` plugin with a `CodeGraph` interface in the contracts, so a second backend can replace it per language or per customer. Licences and the first two tools' details were read on 2026-10-27 from their repositories and package registries. A review of 17 tools ([rywalker.com](https://rywalker.com/research/code-intelligence-tools)) and one of five ([ai.dosa.dev](https://ai.dosa.dev/blog/code-knowledge-graph-tools-ai-coding-agents)) agree on these licences. codebase-memory-mcp is a young project from one company that changes quickly; version 0.11 changed its index format. So the version is pinned, and an upgrade is a full re-index checked by the validation set.
 
 ## Cost at many merges a day
 
-### What one merge costs
+### Per merge, no model
+
+| Work | Cost |
+| --- | --- |
+| Fetch the merge into the mirror | One incremental `git fetch` |
+| Index the changed files | Seconds of CPU in the sandbox |
+| Diff the graphs and look up code assumptions | Database lookups |
+| Store the merged pull request's text | Embedding a few thousand tokens |
+
+### With a model
 
 | Work | When | Cost |
 | --- | --- | --- |
-| Compare the new commit with the last checked one | Every merge on the followed ref | One API call |
-| Intersect changed hunks with cited spans | Every merge | An in-memory lookup |
-| Store the merged pull request's text as a Reference document | Every merged pull request | Embedding a few thousand tokens; no generation |
-| Re-check a pinned answer whose cited lines changed | At most once a day per answer | One agent run, given the old answer and the diff |
-| Re-check any other touched answer | When someone next reads it | One agent run |
-| Answer a new question | When asked | One agent run: a median of about 76,000 tokens and 76 seconds in the test |
-| Answer a repeated question | When asked, if no cited line changed | A saved answer: retrieval and a page read, estimated at 1,000 to 3,000 tokens and a few seconds |
-
-Nothing reads code that nobody asked about. That is the difference from precompiling: a full compile has to re-read at least every changed file on every merge, whatever anyone asks.
-
-### Measured on this repository
-
-Replaying its 66 commits up to 4d5ea00:
-
-- A commit changes a median of 6 files (2 of them code), and 42 at the 90th percentile.
-- The changed code and structured files of one commit hold a median of about 6,800 tokens, 71,000 at the 75th percentile and 143,000 at the 90th. A full compile would re-read at least that per commit.
-- On 2026-10-26, its busiest day, 30 commits landed. The files cited by each answer of the test were touched by 1 or 2 of them, and none changed the substance of an answer: one only moved paths, and one wrote down a rule the code already had.
+| Area-to-topic proposals | Once, then for new areas | One run per repository, in the hundreds of thousands of tokens on a large one |
+| Initial sweep | Once per mapped topic | One research run per topic; estimated at about twice a single question, about 150,000 tokens |
+| Re-check | At most once a day per affected report | One run given the old conclusions and the diff, estimated at 30,000 to 60,000 tokens |
+| A new question not covered by a topic | When asked | One research run; in the head-to-head a question took a median of about 76,000 tokens and 76 seconds without graph tools |
 
 ### A large repository, worked through
 
-Assumptions, not measurements: 300 merges a day; 20,000 files and about 200,000 declarations; a merge changes about 30 declarations; 500 pinned answers citing 5 spans each.
+These are assumptions, not measurements:
 
-- **Per-merge work:** 300 compares and lookups a day, and the embedding of 300 pull requests (about a million tokens a day at 3,000 each).
-- **Re-checks:** each merge touches about 30 × 2,500 / 200,000 ≈ 0.4 cited spans, so about 110 a day, fewer when hot code is touched several times in one day. At an assumed 40,000 tokens per check, about 4.5 million tokens a day, under a budget the company sets.
-- **Questions:** the measured cost per question, minus repeats served from saved answers.
-- **For comparison, a full compile** would re-read 300 × 7,000 to 70,000 tokens, that is 2 to 21 million tokens a day, before writing anything, and its pages would still miss most of what an agent finds.
-- **People:** a todo arises only when a pinned answer's conclusion changes or an audit finds a disagreement, within the weekly budget of 10 cards per owner, with change reviews for large releases.
+- 300 merges a day, about 30 changed symbols per merge, in a repository of 200,000 symbols;
+- 100 topics whose research cites 40 symbols each, so 4,000 cited symbols in all.
 
-So the revised design is feasible at high merge rates, and its cost stays under the company's control. Precompiling code is not worth doing at any merge rate.
+- **Per merge:** 300 fetches, incremental indexes and diffs a day, plus about a million tokens of embeddings for the pull requests' text.
+- **Hits:** with depth-1 callers counted at about three times the direct changes, a merge touches 90 × 4,000 / 200,000 ≈ 1.8 cited symbols. That is about 540 hits a day, falling on a few dozen reports, because changes cluster in hot areas. At an assumed 40 reports a day and 50,000 tokens a run, re-checks come to about 2 million tokens a day, under the daily budget.
+- **The sweep:** about 100 × 150,000 = 15 million tokens once, spread over days if wanted.
+- **For comparison:** compiling the changed files into knowledge on every merge would re-read 2 to 21 million tokens a day before writing anything (measured on this repository's commits, scaled to 300 merges). Here, the per-merge work uses no model at all.
+- **People:** todos arise only when a conclusion changes or a document disagrees, within the weekly budget of 10 cards per owner.
 
-## The first design, and why it was cut back
+So the model cost follows the number of topics and how often their code really changes, not the merge rate, and a company caps it with the daily budget.
 
-The first version of this proposal (PR #21) read behavior statements from chosen code paths. Tree-sitter split code into declarations; literals were mapped to fact slots; a `basis` field marked statements as specified or implemented, so that a document and the code disagreeing in one slot became a drift conflict; history was joined from code lines to commits and pull requests; and feature pages were compiled from all of it. The head-to-head showed three problems:
+## Evidence so far
 
-1. **Low recall where it matters.** Most real disagreements are about logic or about something missing, not about a literal value. Of the seven code-related findings in the test, literal mapping catches at most two.
-2. **No better answers.** A coding agent already writes the history and the explanation, from the same sources and with exact citations.
-3. **Cost that follows the merge rate.** Parsing and extracting governed paths on every merge costs tokens and inbox attention even when nobody asks.
+- **The head-to-head of 2026-10-26** ([examples/code-questions](../../examples/code-questions/answers.md)):
+  - Setup: a fresh coding agent over a clean clone of this repository at 4d5ea00, with read access to pull request discussions.
+  - It answered all eight designer-style questions correctly and completely, at a median of 76,391 tokens and 76 seconds. Answers whose reasons lived only in a pull request comment needed the code host's discussions.
+  - It found eight disagreements between documents and code, or rules that no document states. Three are worth fixing now:
+    - The overview marks the 15-minute poll "Built", but no timer exists.
+    - The overview names only "urgent" todos as the exception to the inbox budget.
+    - Done todos still take room on cards.
 
-What survives: the repository as a source with commits as versions, pull requests and issues as documents, drift as a todo for the document's owner, the live code tools (now central rather than plumbing), the secret scanner, and the permission rules.
+  This is the quality bar for research over the mirror. The same eight questions are the first validation set.
+- **Published numbers for codebase-memory-mcp,** from its paper and README, measured on an Apple M3 Pro, not by us:
+  - Django: indexed in about 6 seconds, 49,000 nodes.
+  - The Linux kernel: indexed in about 3 minutes, 4.8 million nodes.
+  - About 10 times fewer tokens than file-by-file exploration, at 0.83 against 0.92 answer quality.
+  - Named limits: static structure only, no reflection or dynamic dispatch, and macros are missing from the parse.
+- **Not yet measured:** the graph on this repository. This environment does not allow building or running downloaded code, so the first step of stage 2 indexes this repository in the sandbox. It measures index time, graph size, the incremental update per commit, and whether the diff of each later commit flags exactly the conclusions it should.
+
+## How this design got here
+
+| Version | Idea | Why it changed |
+| --- | --- | --- |
+| 1 (PR #21) | Read behavior statements from code literals into fact slots; compile feature pages | The head-to-head: literal mapping caught at most 2 of 7 real code findings, and the per-merge cost follows the merge rate |
+| 2 (PR #22) | Answers produced on demand by a coding agent, kept, watched and shared | The product owner: answers are fragments, what nobody asks about does not exist, and links from changes to answers are fragmented |
+| 3 (this) | A mirror and code graph as an input of Deep Research, organized by topic and area | — |
+
+What carried over: repository text as Reference sources, commits as versions, the code tools, code evidence, drift todos to document owners, the secret scanner, the permission rules, and the daily budget.
 
 ## What we do not build
 
-- **Precompiled behavior statements from code,** for the reasons above.
-- **A code graph.** Symbols and call graphs serve engineers' navigation, which code tools and coding agents do well, and nobody governs a call edge.
-- **A wiki of the whole repository.** It is becoming free (Google Code Wiki, DeepWiki), a single source has nothing to govern, and its sentences are a model's prose rather than quotes from evidence. Machine-written wikis are never cited as sources either, since they would count as support for themselves.
-- **A code search engine.** Code search goes through the host's own search.
-- **A proxy that serves raw code to external coding agents.** They use their code host for code and Inspiration for knowledge; the verified rules of a topic can be exported to them as an Agent Skill.
+- **A graph or wiki for people to browse.** The graph is research's instrument. People read topic pages; engineers keep their own code tools.
+- **Our own parser or graph engine.** We wrap an open-source one.
+- **Precompiled pages from code without research.** Every sentence about code comes from a research report with evidence.
+- **Machine-written wikis as sources** (Code Wiki, DeepWiki). They would count as support for themselves.
+- **A proxy that serves raw code to external coding agents.** They use their code host; the verified rules of a topic can be exported to them as an Agent Skill.
 - **Writing to repositories on our own.** An issue is opened only when a person deciding a drift todo asks for it, as themselves.
 
 ## Validation
 
-1. **Done: this repository, round one.** Eight questions, eight correct answers from a coding agent, eight findings. The data is in [examples/code-questions](../../examples/code-questions/answers.md).
-2. **Next, with the first stages built:** the same questions through Inspiration. Measure that saved answers are served correctly, that a change to a cited span marks exactly the answers it should (by replaying this repository's later history), the tokens and time of re-checks against fresh runs, and the precision of drift todos against the bar of at least half that applies to conflicts.
-3. **A larger repository** with long pull request history, thin documents and more than one language, chosen with the product owner, to measure agent cost and re-check rates at a realistic size.
+1. **This repository first, mocked end to end:**
+   - Index the repository in the sandbox, and map areas to topics.
+   - Run the brief for the inbox and source-sync topics, with model calls mocked, so the pipeline is measured, not model quality.
+   - Replay the commits after 4d5ea00. Measure whether each commit flags exactly the conclusions it should, the index time per commit, and the graph size.
+2. **The eight questions with real models,** answered from the topic pages after the sweep, against the head-to-head's answers, tokens and time.
+3. **A larger repository,** chosen with the product owner, with long pull request history, thin documents and more than one language. It measures the sweep's cost, re-checks a day, and the precision of drift todos against the bar of at least half that applies to conflicts.
 4. **A design partner's repository in the pilot,** read only.
 
 ## Stages and effort
 
 | Stage | Delivers | Main work | Person-weeks |
 | --- | --- | --- | --- |
-| 1. Repository text as sources | README, `docs/`, pull requests and issues as Reference documents next to Feishu documents | GitHub connector (App and OAuth through the credential broker, webhooks, followed ref, compares, renames), pull request and issue items, links between sources | 2.5 |
-| 2. Code answers on demand | A coding agent that answers as the member, saved as a research report with code evidence | The code agent spec and its tools, a sandbox profile with a partial clone, evidence registration for code spans, saving into topic pages | 2 |
-| 3. Watching cited spans | "Code changed since", daily re-checks of pinned answers, re-check on read, budget | Hunk-to-span intersection that follows renames, the re-check run, todos for changed conclusions | 1 |
-| 4. Drift todos and audits | Disagreements proposed to document owners; an optional scheduled audit per topic | The drift todo kind, the audit job, routing within the weekly budget | 0.5 |
-| **Total** | | | **about 6** |
+| 1. Connection, mirror and repository text | The repository as a source; README, `docs/`, pull requests and issues as Reference documents | GitHub connector (App and OAuth through the credential broker, webhooks, followed ref, compares, renames), the mirror and its fetches, pull request and issue items, links between sources | 2.5 |
+| 2. Code graph | A graph per commit and its diff | The code-graph component, the `code_index` sandbox profile, the codebase-memory-mcp backend behind `code_indexers`, the `CodeGraph` read API, snapshots, `code.changed` | 2 |
+| 3. Deep Research over code | Topic research from code, with code evidence and assumptions | The code tools, verbatim checks of code evidence, symbol anchors, area-to-topic proposals and confirmation, the brief and the sweep, mocks for the research tasks | 2.5 |
+| 4. Keeping it current | Re-checks per merge, drift todos, the coverage list | The freshness rule from `code.changed` to `review.due` with the daily batch and budget, re-checking affected conclusions only, carrying renames over, drift todos, the coverage list | 1.5 |
+| **Total** | | | **about 8.5** |
 
-GitLab self-managed adds about 1.5 person-weeks. Stage 1 depends on the credential broker; with a deployment token it can run earlier on this repository as a probe on real content.
+Stages 3 and 4 build on the research component (planned, about 2.5 person-weeks in the overall plan). GitLab self-managed adds about 1.5 person-weeks. Stages 1 and 2 can run on this repository before the credential broker, with a deployment token, as the probe on real content.
 
 ## Contract changes
 
@@ -200,31 +257,33 @@ All additive; see [contracts.md](../contracts.md).
 
 - `SourceItemKind` gains `change_request` (a pull or merge request) and `issue`.
 - `SourceVersion` gains optional `commit { sha, ref, committed_at, reached_ref_at }`.
-- `ResearchEvidence` gains optional `code { repository, path, commit, start_line, end_line }`, so a code span is evidence.
-- `RecheckMethod` gains `code_span`: an assumption that the cited code still reads as it did, re-checked when a merge changes it.
-- `ResearchReport` gains optional `recheck: pinned | on_read`.
+- `ResearchEvidence` gains optional `code { repository, commit, path, start_line, end_line, symbol }`.
+- `RecheckMethod` gains `code`: the target is a list of symbol IDs, re-checked when a merge changes them.
+- A new event `code.changed { source_id, from_commit, to_commit, changed, added, removed, renamed, impacted }`, published by code-graph and consumed by freshness.
+- A new `CodeArea { source_id, id, paths, community, topic_id, confirmed_by }` for the area-to-topic mapping.
 - `TodoKind` gains `drift`: a document and the code disagree.
 - A new `SourceLink { from, to, kind: closes | references }` between source items.
-- No new events: pushes arrive as `source.changed`.
+- A new `CodeGraph` interface in `interfaces.ts`, and a new plugin group `code_indexers` in the kernel.
 
 ## Risks and open points
 
 | Risk | Mitigation |
 | --- | --- |
-| Agent runs are costly on large repositories | Saved answers serve repeats; re-checks only for changed cited lines; a daily budget; a flash-class model for re-checks once its quality is measured |
-| An agent answer is wrong and gets saved | Saving is a member's act; pinned answers have an owner; citations are exact and checked against the code at the commit; G1 measures answer accuracy |
-| Customers will not send code to a SaaS | Stage 1 reads only documents, pull requests and issues; code is read only when a member asks, and only the cited spans are kept; the `confidential` default and routing by label; private deployment |
+| A static graph misses runtime behavior (reflection, dependency injection, feature flags, configuration read at run time) | Research reads code as well as the graph; impact depth is configurable; a conclusion records which symbols it rests on, so a miss shows as a missing assumption in the validation |
+| Graph accuracy differs by language | Type resolution covers the main languages; the validation set runs per language; SCIP per language where precision demands it |
+| The backend is young and changes fast | Pinned version, an interface of our own, a second backend ready (CodeGraphContext), and a full re-index on upgrade |
+| Communities are not product features | Area-to-topic mappings are proposals that the space owner confirms; path patterns override communities |
+| The sweep costs a lot on large repositories | Only confirmed areas; started area by area; budgeted |
+| Customers will not send code to a SaaS | Stage 1 reads only text; code stays in the company's mirror and only cited spans are stored; the `confidential` label routes model calls; private deployment, where the single binary helps |
+| Mirrors take disk space | One mirror per repository and company; blobless clones for monorepos; old graph snapshots dropped once no review names them |
 | Self-hosted GitLab cannot be reached from SaaS | GitHub, Gitee and Codeup first; private deployment or an outbound-only relay (not designed) |
-| Readers without repository access get little | Released answers and requests to topic owners; the value depends on owners saving and releasing answers |
-| The followed ref is not what is live | The space owner names the release ref; answers say which commit they read |
 
 ## Decisions for the product owner
 
-1. **The direction:** code answers on demand by a coding agent, kept, watched and shared by Inspiration, instead of precompiled code knowledge; or drop code sources for now.
-2. **Order:** stage 1 now on this repository as a probe on real content, or after the credential broker.
-3. **Two defaults:** pinned answers re-checked daily and others on read (recommended); scheduled audits off until a space owner turns them on (recommended).
-
-Whatever is decided, the test's findings are worth acting on now: the overview's "Built" for the 15-minute poll, its exception for "urgent" todos only, and done todos still taking room on cards.
+1. **The design:** a mirror and code graph as an input of Deep Research, organized by topic and code area, with code knowledge maintained through the existing upkeep.
+2. **The graph backend:** codebase-memory-mcp first behind our own interface (recommended), CodeGraphContext, or SCIP per language.
+3. **Order:** stages 1 and 2 now on this repository as a probe, then research when its component is built (recommended); or everything after the credential broker and the research component.
+4. **Two defaults:** re-check affected reports at most once a day (recommended) rather than on every merge; the sweep runs only for areas the space owner confirms (recommended) rather than for the whole repository.
 
 ## Terms
 
@@ -233,8 +292,8 @@ Whatever is decided, the test's findings are worth acting on now: the overview's
 | Code repository | Repository | 代码仓库 | リポジトリ |
 | Followed ref | Followed branch | 跟踪分支 | 追跡ブランチ |
 | Pull request | Pull request | 合并请求 | プルリクエスト |
-| Code answer | Answer from the code | 代码解答 | コードからの回答 |
+| Code graph | Code map | 代码图谱 | コードマップ |
+| Code area | Code area | 代码区域 | コード領域 |
 | Code changed since | Code changed since | 代码已更新 | コードが更新されました |
-| Pinned answer | Pinned | 已固定 | 固定済み |
 | Drift | Documents and product disagree | 文档与产品不一致 | 文書と製品の不一致 |
-| Audit | Check documents against code | 文档与代码核对 | 文書とコードの照合 |
+| Coverage list | Not covered yet | 尚未覆盖 | 未カバー |
