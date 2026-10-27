@@ -16,6 +16,7 @@ import {
   type SourceBlock,
   type SourceVersion,
   type Span,
+  type Staleness,
   stableId,
 } from "@inspiration/contracts";
 import { MemoryRecords, PgRecords, type Records } from "@inspiration/eventbus";
@@ -70,6 +71,8 @@ export interface DocOptions {
   sensitivity?: SensitivityLabel;
   deleted?: boolean;
   language?: string;
+  /** False: stored but not indexed yet, so no search finds it, though a statement of it can join an answer. */
+  indexed?: false;
 }
 
 export interface World {
@@ -80,6 +83,8 @@ export interface World {
   retrieval: Retrieval;
   /** The verdicts the governance double gives, by slot. */
   verdicts: Map<string, SlotVerdict>;
+  /** What the freshness double says of units, by ID; fresh when not here. */
+  staleness: Map<string, Staleness>;
   /**
    * Store a version of a document the way normalization does (block and span IDs stable
    * across versions, a span per sentence), with its ACL, then index it.
@@ -161,6 +166,7 @@ export const retrievalTest = (backend: Backend) =>
     const gateway = await Gateway.create(loadGatewayConfig(join(workspaceRoot(), "config", "gateway.dev.yaml")));
     cleanups.push(() => gateway.close());
     const verdicts = new Map<string, SlotVerdict>();
+    const staleness = new Map<string, Staleness>();
     const retrieval = new Retrieval({
       store,
       records,
@@ -169,6 +175,7 @@ export const retrievalTest = (backend: Backend) =>
       vectors,
       keywords,
       verdicts: { verdicts: async (_tenant, slots) => slots.flatMap((s) => verdicts.get(s) ?? []) },
+      staleness: { staleness: async (_tenant, ids) => ids.flatMap((id) => staleness.get(id) ?? []) },
     });
     const last = new Map<string, SourceVersion>();
     let tick = 0;
@@ -263,7 +270,7 @@ export const retrievalTest = (backend: Backend) =>
         },
         { tenantId: TENANT, producer: "normalization" },
       );
-      await retrieval.onBlocksChanged(event);
+      if (options.indexed !== false) await retrieval.onBlocksChanged(event);
       last.set(externalId, version);
       const byId = new Map(stored.map((s) => [s.id, s]));
       return {
@@ -322,5 +329,5 @@ export const retrievalTest = (backend: Backend) =>
       return c;
     };
 
-    return { store, records, authz, gateway, retrieval, verdicts, document, share, claim };
+    return { store, records, authz, gateway, retrieval, verdicts, staleness, document, share, claim };
   });

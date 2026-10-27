@@ -20,17 +20,23 @@
  * - The current statements those chunks quote join them, when the principal may read the
  *   statement (access control's derived-knowledge rule). A statement cites only evidence in
  *   documents the principal can read now; hidden support is never cited or named.
- * - The reranker orders statements and passages together. A statement that fills a fact
- *   slot is marked with where its value stands with governance (holds, outdated, disputed,
- *   differs) and, when it is not the value that holds, the statement that is. Outdated
- *   values rank lower. Hits carry freshness from the freshness engine, a snippet of about
+ * - The reranker orders statements and passages together, in a request labelled as the
+ *   most sensitive of them, so the gateway sends it only to a provider cleared for that;
+ *   with none cleared the fused order stands. A statement that fills a fact slot is marked
+ *   with where its value stands with governance (holds, outdated, disputed, differs) and,
+ *   when it is not the value that holds, the statement that is. The principal sees a
+ *   verdict only as far as they may read its values: a value with no statement they may
+ *   read is left out, a contradiction stands only between values left, and without the
+ *   value that holds the slot is unmarked, so a hidden value shows through no mark, note
+ *   or ID. Outdated values rank lower. Hits carry freshness from the freshness engine, a snippet of about
  *   80 tokens and a token estimate of the whole item; token_budget cuts the list.
  *
  * answer(query, principal) searches with the question and asks the model
  * (retrieval.answer_question) to answer from those sources only, every sentence citing
  * them; passages are given sentence by sentence. A statement found whose value does not
  * hold brings the statement of the one that does, which the model is pointed to, in
- * whatever language it is written. So does a passage's sentence that states such a value,
+ * whatever language it is written, when it passes the question's filters, with its own
+ * freshness. So does a passage's sentence that states such a value,
  * through its statement, which joins marked; a sentence that only states replaced values
  * is left out of its passage. A sentence of the answer that cites nothing given is dropped, and one that quotes some of
  * a passage's sentences cites those. Notes in the question's language, on the values the
