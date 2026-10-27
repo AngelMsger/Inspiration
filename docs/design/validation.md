@@ -1,6 +1,25 @@
 # Validating the knowledge core
 
-Status: proposed, 2026-10-27, after the product owner asked to validate the core value first: the knowledge part, which few products do well. The pass bars and the design changes below are proposals until the product owner agrees them. The engine thread runs every measurement and owns the benchmark code; this document is its specification. A Chinese copy is in [docs/zh/design/validation.md](../zh/design/validation.md).
+Status: proposed, 2026-10-27; revised the same day to put conclusions first and to plan real runs on DeepSeek V4.1 Flash, at a cost low enough to repeat often. The pass bars and the design changes below are proposals until the product owner agrees them. The engine thread runs every measurement and owns the benchmark code; this document is its specification. A Chinese copy is in [docs/zh/design/validation.md](../zh/design/validation.md).
+
+## Conclusions so far
+
+1. **The pipeline runs end to end on real documents in English, Chinese and Japanese; quality is not measured yet.** Every number so far comes from a deterministic stand-in for the model, so it measures the pipeline, not reading.
+2. **Deciding is right in every case the engine owns:** 21 versions of GitLab's expense policy, 15 Kubernetes pages in three languages, and the company-as-it-looks corpus. One gap is being closed: old copies and revisions of a document answering as if current. The fix's first run cuts Inspiration's stale answers from 5 to 3.
+3. **On facts that changed, governance already beats plain RAG and matches long context.** Of 66 questions about changed facts, Inspiration answers 14 right, plain RAG 10 and long context 13; on the 69 about unchanged facts the three are close (32, 32 and 34). Questions asked in Chinese or Japanese about the English policy wait on a multilingual embedding: with the stand-in search, 1 of 52 is right.
+4. **Reading is the open risk.** The stand-in reads 92 of the 212 values GitLab's policy states. Only a real model shows whether reading reaches the bar.
+5. **A real run is now cheap enough to repeat often.** With DeepSeek V4.1 Flash, one full run of all three rivals on the 150 questions costs about US$2 off-peak (US$4 at peak), and a quick run after a change costs US$0.15 to US$0.50. The one large cost is long context reading the whole corpus for every question, about US$7; it falls to about US$0.25 once the corpus comes before the question and DeepSeek's cache serves it ([Cost, and how it stays low](#cost-and-how-it-stays-low)).
+6. **Next:** a free dry run that meters every call, then quick runs until reading and answering settle, then one full run. Its gate: claims 1, 3 and 5 have real numbers.
+
+### What we need from the product owner
+
+- **A DeepSeek API key with US$20 of credit.** DeepSeek bills from a prepaid balance, so the credit is the hard cap. It is enough for about 30 quick runs and three full runs, and a gateway budget stops a run before the balance does.
+- **Network access for the runs.** Our build environment cannot reach api.deepseek.com yet, nor huggingface.co, where an open multilingual embedding and reranker can be downloaded to run for free (DeepSeek offers no embedding).
+- **About 30 minutes** to check 20 random answer-key entries (rule 3); the keys are written (PR #34).
+- **Agreement on, or changes to,** the pass bars and the design changes proposed in advance.
+- Later, a design partner whose documents we may run in step 4.
+
+Until claims 1 to 4 have real numbers, we suggest pausing engine work that does not serve them: the credential broker, sandbox, views and code graph.
 
 ## What we must prove
 
@@ -64,43 +83,46 @@ Deciding is ready to be measured with a real model; reading is the open risk. Th
 - **Real text found engine bugs.** A line break in the HTML split a sentence, "…)," ended one, and a long real heading made the gateway refuse every topic name in an answer. All three are fixed.
 - **The baseline and the todo count found two more.** Statements were crowding the answer's own passages out of its sources; an answer now reads 8 passages plus 8 statements. And a fact stated in two places raised a todo when one of the places was removed. Both are fixed.
 - **Real text found two missing rules, now built.** A fact a page stopped stating used to vanish without notice (20 of GitLab's fact-versions); it is now kept and marked, with one todo. Copies and translations used to count as separate sources; they now count once.
-- **The company-as-it-looks corpus found one more fix and one gap.** A value that only a reference copy states, older than the governed document, is now out of date: the 2021 copy's 30 days no longer answers beside the policy's 90, while plain RAG still answers 30. Still open: an old revision whose fact has no governing slot is read as current, as with the Chuo Shinkansen's opening in the 2024 Shinkansen articles. The engine thread works on copy and revision identity next.
+- **The company-as-it-looks corpus found one more fix and one gap.** A value that only a reference copy states, older than the governed document, is now out of date: the 2021 copy's 30 days no longer answers beside the policy's 90, while plain RAG still answers 30. The gap: an old revision whose fact has no governing slot was read as current, as with the Chuo Shinkansen's opening in the 2024 Shinkansen articles. The engine thread is closing it by recognising old copies and revisions of one document and answering from the latest; its first run cuts Inspiration's stale answers from 5 to 3.
 - **Old translations leave out rather than contradict.** The Japanese Kubernetes pages from 2023 and 2024 state the same values as the English ones, and simply lack the newer sections.
 
 ## Order of work and cost
 
-Four steps, each closed by a gate. Only step 2 needs anything from the product owner: a model key with a hard spending cap.
+Four steps, each closed by a gate. Only step 2 needs anything from the product owner, listed above.
 
 1. **Without a model (done, engine thread).** Write the answer keys and the 150 questions (PR #34), add the plain-RAG and long-context runs (PR #32), count todos per changed fact on the GitLab replay (PR #33), and assemble the company-as-it-looks corpus (PR #34). Gate met: all three runs score the same 150 questions end to end with the stand-ins, in 52 seconds in memory.
-2. **A capped probe with a real model.** One model through the model gateway, with the cap set as the probe's gateway budget, and a multilingual embedding, because the stand-in search cannot match a Chinese or Japanese question to English text. It starts with a dry run and a context check ([What the probe costs](#what-the-probe-costs)). Gate: claims 1, 3 and 5 have real numbers.
-3. **Fix and run again.** Work on prompts, the fact vocabulary and tables, then rerun the same keys. Gate: the pass bars are met, or a result from the next section changes the design.
+2. **Real runs on DeepSeek V4.1 Flash.** The model goes through the model gateway, with a multilingual embedding beside it, because the stand-in search cannot match a Chinese or Japanese question to English text. A free dry run comes first, then quick runs until reading and answering settle, then one full run ([Cost, and how it stays low](#cost-and-how-it-stays-low)). Gate: claims 1, 3 and 5 have real numbers.
+3. **Fix and run again.** Work on prompts, the fact vocabulary and tables, then rerun the same keys, quick runs first. Before a reading result changes the design, the reading check runs once on a larger model, for about US$3, to tell a limit of Flash from a limit of the design. Gate: the pass bars are met, or a result from [Results that would change the design](#results-that-would-change-the-design) changes the design.
 4. **A design partner's documents.** A company's own documents, ideally written in Chinese or Japanese, run the same way with their permission. Gate: one of their owners marks which todos were worth asking (claim 4).
 
-### What the probe costs
+### Cost, and how it stays low
 
-The cap is a hard stop, not a forecast: the gateway refuses every call once a budget is spent, so a run overshoots only by the calls already in flight. The estimate below decides what the first run includes; real counts replace it before any paid call.
+With DeepSeek V4.1 Flash a full run costs about US$2 off-peak and a quick run US$0.15 to US$0.50, so the loop can turn many times a day. The figures below are estimates; the dry run replaces the input counts before any paid call.
 
-- **Dry run.** The stand-in run sends every call through the gateway with the inputs a real model would get, so the gateway's metering gives each task's input tokens, including any task the table below leaves out, by its rough count of about four characters a token and one per Han or kana character. The budget is redone from those counts. A stand-in's output says nothing about a real model's, so output stays an estimate.
-- **Context check.** The long-context window (`--context`) is set to the selected model's real limit. The company-as-it-looks corpus is 311,106 tokens, more than a 200,000-token window; where the documents do not fit, the long-context rival reports that instead of running.
+The prices are as reported in September and October 2026, to be confirmed on DeepSeek's own price page, which our environment cannot reach. Per million tokens: US$0.30 for input, US$0.006 for input served from DeepSeek's cache, and US$1.20 for output. Off-peak they are half that; peak is seven hours on weekdays, 01:00 to 04:00 and 06:00 to 10:00 UTC. The window holds 1 million tokens, so the 311,106-token corpus fits whole, and the long-context window (`--context`) is set to it.
 
-| Part of one run | Input tokens | Output tokens | Runs again when |
-| --- | --- | --- | --- |
-| Reading every corpus: claims and chunk headers | About 4 to 5 million: about a million tokens of text, and each 1,500-character window also carries about 2,000 tokens of instructions and fact vocabulary | About 1 million | The reading prompts or the fact vocabulary change |
-| Multilingual embeddings of chunks and statements | About 1.5 million | None | Chunking changes |
-| Inspiration's answers to 150 questions: a rerank of 60 candidates, then an answer from 16 sources, per question | About 1.5 million | About 0.1 million | Answering changes |
-| Plain RAG's answers to 150 questions | About 1 million | About 0.1 million | Answering changes |
-| Long context's answers to 150 questions over the 311,106-token corpus | About 46.7 million: every question reads the whole corpus | Under 0.1 million | Answering changes |
+| Part of one full run | Input tokens | Output tokens | Off-peak | Peak | Runs again when |
+| --- | --- | --- | --- | --- | --- |
+| Reading every corpus: claims and chunk headers | About 4 to 5 million | About 1 million | US$1.30 | US$2.60 | The reading prompts or the fact vocabulary change |
+| Inspiration's answers to 150 questions, from 16 sources each | About 0.6 million | Under 0.1 million | US$0.12 | US$0.25 | Answering or reading changes |
+| Plain RAG's answers to 150 questions, from 8 passages each | About 0.5 million | Under 0.1 million | US$0.10 | US$0.20 | Answering or chunking changes |
+| Long context's answers to 150 questions, corpus first and served from the cache | About 46.7 million, all but the first question's from the cache | Under 0.1 million | US$0.25 | US$0.50 | Answering changes |
+| The same with the question first, as built today: nothing cached | About 46.7 million | Under 0.1 million | US$7 | US$14 | Answering changes |
+| Multilingual embeddings and reranking | About 3 million | None | Free on an open model run locally; under US$0.50 hosted | The same | Chunking changes |
 
-No prompt caching is assumed. The answer input puts the question before the documents, so a provider's cache cannot reuse the documents from one question to the next.
+A full run is about US$2 off-peak and US$4 at peak, or about US$9 and US$18 while long context still puts the question first. Inspiration's and plain RAG's sources differ from one question to the next, so no cache is assumed for them.
 
-At an example list price of US$3 per million input tokens and US$15 per million output tokens, one run costs about US$30 for reading, US$10 for the two retrieval-based answers, under US$1 for embeddings at embedding prices of cents per million tokens, and about US$140 for long context on all 150 questions; a provider that charges more above 200,000 tokens of context makes that last part dearer. Long context alone would exceed a US$100 cap, so the first run is proposed as:
+Five things keep each run cheap:
 
-- reading, embeddings, and Inspiration and plain RAG on all 150 questions: about US$40;
-- long context on a sample of 30 questions, 10 per language, with changed and unchanged facts in proportion: about 9.3 million input tokens, US$28.
+1. **The response cache.** The gateway answers a call whose model, prompt, input and settings are unchanged from its cache, at no cost. Kept between runs, it means a change reruns only what it touches: a new answer prompt reruns the answers (about US$0.50 off-peak for all three rivals), not reading.
+2. **A reading check on part of the text.** Prompt and vocabulary work reads only the windows that hold a value in the answer key, and as many windows that hold none, to catch invented values: about 200 windows, for about US$0.15 off-peak. Reading everything waits for a full run.
+3. **Corpus first in long context.** The long-context rival puts the documents before the question, so DeepSeek's cache serves the corpus from the second question on. All 150 questions then cost about US$0.25 instead of US$7, and no sample is needed. The question after long documents is also the usual advice for answer quality, so the change does not weaken the rival.
+4. **Off-peak.** Full runs are scheduled outside DeepSeek's weekday peak hours, at half price.
+5. **Hard caps.** The prepaid balance stops everything when it runs out. Inside it, a daily gateway budget of US$5 refuses every further call once spent, so a run overshoots only by the calls already in flight.
 
-That first run is about US$70. Rerunning reading costs about US$30, and rerunning the answers (long context still on the sample) about US$38. So a US$100 cap covers the first run and leaves about US$30: enough to rerun reading once, not the answers. A cap of US$200 covers the first run, one rerun of reading and two of the answers. Long context on all 150 questions needs either a larger cap or a change to the answer input that puts the documents first and the question last: a provider that charges a tenth of the input price for cached reads would then bring all 150 to about US$15, if the questions run back to back within its cache lifetime.
+**Dry run first.** The stand-in run sends every call through the gateway with the inputs a real model would get, so the gateway's metering gives each task's input tokens, including any task the table leaves out, by its rough count of about four characters a token and one per Han or kana character. The budget is redone from those counts before any paid call. A stand-in's output says nothing about a real model's, so output stays an estimate; reading's output is the largest unknown.
 
-The public data needs no sensitivity clearance, so any provider the gateway supports will do.
+The public data needs no sensitivity clearance, so DeepSeek's own API may read it. A design partner's documents in step 4 go only to a provider the gateway clears for their sensitivity; DeepSeek publishes the model's weights, so a host the partner trusts can serve the same model.
 
 ## Results that would change the design
 
@@ -114,12 +136,3 @@ A validation is worth running only if some results would change what we build. T
 | More than 3 todos per changed fact, or under 60% marked worth asking | Governance asks people too much | Settle more by rule, raise the bar for a todo, and group by document change (the change-set review) |
 | Reading costs more per 1,000 pages than a seat can carry | Full reading of everything is too expensive | New sources start as Reference (read on use); only governed folders are read in full |
 | Deciding gets a case wrong that reading got right | A bug in the engine | Fixed before anything else runs |
-
-## What we need from the product owner
-
-- A model key with a hard spending cap for the probe in step 2. US$100 covers the first run and one rerun of reading; US$200 also covers two reruns of the answers ([What the probe costs](#what-the-probe-costs)).
-- About 30 minutes to check 20 random answer-key entries (rule 3); the keys are now written (PR #34).
-- Agreement on, or changes to, the pass bars and the design changes proposed in advance.
-- Later, a design partner whose documents we may run in step 4.
-
-Until claims 1 to 4 have real numbers, we suggest pausing engine work that does not serve them: the credential broker, sandbox, views and code graph.
