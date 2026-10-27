@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sign in and choose a company</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&amp;family=Instrument+Sans:wght@400;500;600&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&amp;family=Noto+Sans+SC:wght@400;500;600&amp;family=Noto+Serif+SC:wght@400;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2E3F8F}a:hover{color:#1F2C6B}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #EFEEE9; color: #1C1E23; font-family: 'Instrument Sans', 'Noto Sans SC', system-ui, sans-serif; font-size: 14px; line-height: 1.5">
+  <header style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 28px">
+    <div style="font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 500">Inspiration</div>
+    <button type="button" style="font: inherit; background: transparent; border: 1px solid #DCDAD2; border-radius: 4px; padding: 6px 10px; min-height: 36px; color: #1C1E23">中文</button>
+  </header>
+
+  <div style="max-width: 1220px; margin: 0 auto; padding: 12px 28px 40px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+
+    <section aria-label="Step 1, sign in" style="flex: 1 1 340px; background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 32px; display: flex; flex-direction: column; gap: 18px">
+      <div style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #636874; font-weight: 600">1 · Sign in</div>
+      <h1 style="margin: 0; font-family: Newsreader, 'Noto Serif SC', Georgia, serif; font-weight: 500; font-size: 32px; line-height: 1.15">One account for all your companies</h1>
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <button type="button" style="font: inherit; font-weight: 500; text-align: left; background: #FFFFFF; color: #1C1E23; border: 1px solid #1C1E23; border-radius: 4px; padding: 12px 14px; min-height: 48px">Continue with Feishu</button>
+        <button type="button" style="font: inherit; font-weight: 500; text-align: left; background: #FFFFFF; color: #1C1E23; border: 1px solid #DCDAD2; border-radius: 4px; padding: 12px 14px; min-height: 48px">Continue with DingTalk</button>
+        <button type="button" style="font: inherit; font-weight: 500; text-align: left; background: #FFFFFF; color: #1C1E23; border: 1px solid #DCDAD2; border-radius: 4px; padding: 12px 14px; min-height: 48px">Continue with WeCom</button>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; color: #636874; font-size: 12.5px"><span style="flex: 1; height: 1px; background: #DCDAD2"></span>or with your work email<span style="flex: 1; height: 1px; background: #DCDAD2"></span></div>
+      <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 500">Work email
+        <input type="email" value="lin.xiao@hengyuan.com" style="font: inherit; font-weight: 400; background: #FFFFFF; border: 1px solid #DCDAD2; border-radius: 4px; padding: 10px 12px; min-height: 44px; color: #1C1E23">
+      </label>
+      <div style="background: #E7E9F4; border-radius: 4px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px">
+        <span style="font-weight: 600">hengyuan.com uses company sign-in</span>
+        <span style="color: #545964">You will continue to Hengyuan's own login page. Inspiration never sees your password.</span>
+      </div>
+      <button type="button" style="font: inherit; font-weight: 500; background: #2E3F8F; color: #FFFFFF; border: 0; border-radius: 4px; padding: 12px 16px; min-height: 48px">Continue to company sign-in</button>
+      <div style="font-size: 12.5px; color: #545964">Signing in the first time opens your own library. No company appears until you invite someone or join one.</div>
+    </section>
+
+    <section aria-label="Step 2, choose a company" style="flex: 1 1 380px; background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 32px; display: flex; flex-direction: column; gap: 16px">
+      <div style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #636874; font-weight: 600">2 · Choose a company</div>
+      <h2 style="margin: 0; font-family: Newsreader, 'Noto Serif SC', Georgia, serif; font-weight: 500; font-size: 28px; line-height: 1.2">Welcome back, Lin</h2>
+      <ul style="list-style: none; margin: 0; padding: 0; border-top: 1px solid #DCDAD2">
+        <li style="border-bottom: 1px solid #DCDAD2">
+          <button type="button" style="font: inherit; width: 100%; text-align: left; background: transparent; border: 0; padding: 14px 4px; min-height: 64px; color: #1C1E23; display: flex; gap: 14px; align-items: center">
+            <span style="flex: none; width: 36px; height: 36px; border-radius: 4px; background: #DCDAD2; display: grid; place-items: center; font-family: Newsreader, Georgia, serif; font-size: 18px">H</span>
+            <span style="flex: 1; display: flex; flex-direction: column"><span style="font-weight: 600">Hengyuan Machinery</span><span style="color: #545964; font-size: 13px">Member · Procurement, Finance · 4 things need you</span></span>
+            <span style="font-size: 12px; font-weight: 500; color: #2E3F8F; background: #E7E9F4; border-radius: 3px; padding: 2px 8px">Company sign-in</span>
+          </button>
+        </li>
+        <li style="border-bottom: 1px solid #DCDAD2">
+          <button type="button" style="font: inherit; width: 100%; text-align: left; background: transparent; border: 0; padding: 14px 4px; min-height: 64px; color: #1C1E23; display: flex; gap: 14px; align-items: center">
+            <span style="flex: none; width: 36px; height: 36px; border-radius: 50%; background: #DCDAD2; display: grid; place-items: center; font-size: 12px; font-weight: 600">LX</span>
+            <span style="flex: 1; display: flex; flex-direction: column"><span style="font-weight: 600">Personal library</span><span style="color: #545964; font-size: 13px">Only you · 2 sources, 3 knowledge pages</span></span>
+          </button>
+        </li>
+        <li style="border-bottom: 1px solid #DCDAD2">
+          <button type="button" style="font: inherit; width: 100%; text-align: left; background: transparent; border: 0; padding: 14px 4px; min-height: 64px; color: #1C1E23; display: flex; gap: 14px; align-items: center">
+            <span style="flex: none; width: 36px; height: 36px; border-radius: 4px; background: #DCDAD2; display: grid; place-items: center; font-family: Newsreader, Georgia, serif; font-size: 18px">S</span>
+            <span style="flex: 1; display: flex; flex-direction: column"><span style="font-weight: 600">Shenzhen Precision Parts</span><span style="color: #545964; font-size: 13px">Member · Joint sourcing</span></span>
+          </button>
+        </li>
+      </ul>
+      <div style="border: 1px solid #2E3F8F; border-radius: 4px; padding: 14px; display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between">
+        <span style="flex: 1 1 220px"><b style="font-weight: 600">Hengyuan Logistics</b> <span style="color: #545964">lets anyone with a verified hengyuan.com address ask to join.</span></span>
+        <button type="button" style="font: inherit; font-weight: 500; background: transparent; color: #1C1E23; border: 1px solid #1C1E23; border-radius: 4px; padding: 8px 14px; min-height: 44px">Ask to join</button>
+      </div>
+      <div style="font-size: 12.5px; color: #545964">You switch companies from the header at any time. Content never moves between them unless you transfer it.</div>
+    </section>
+
+    <section aria-label="Step 3, company sign-in needed" style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 14px">
+      <div style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 24px; display: flex; flex-direction: column; gap: 12px">
+        <div style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #636874; font-weight: 600">3 · When a company asks again</div>
+        <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 22px; line-height: 1.25">Hengyuan needs you to sign in with its company login</h2>
+        <p style="margin: 0; color: #545964">Its rules ask for a sign-in within the last 12 hours and a second factor. Your other companies stay open.</p>
+        <button type="button" style="font: inherit; font-weight: 500; background: #2E3F8F; color: #FFFFFF; border: 0; border-radius: 4px; padding: 10px 16px; min-height: 44px">Sign in to Hengyuan</button>
+        <a href="#" style="font-size: 13.5px">Go to my personal library instead</a>
+      </div>
+      <div style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 24px; display: flex; flex-direction: column; gap: 10px">
+        <div style="font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: #636874; font-weight: 600">Linking a second login</div>
+        <p style="margin: 0; color: #545964">To add DingTalk to this account, sign in with DingTalk now while you are signed in. Accounts are never joined by email alone.</p>
+        <button type="button" style="font: inherit; font-weight: 500; align-self: flex-start; background: transparent; color: #1C1E23; border: 1px solid #1C1E23; border-radius: 4px; padding: 8px 14px; min-height: 44px">Link DingTalk</button>
+      </div>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":960}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

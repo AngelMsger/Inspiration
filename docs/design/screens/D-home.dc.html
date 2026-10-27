@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Home with the ask bar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&amp;family=Instrument+Sans:wght@400;500;600&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&amp;family=Noto+Sans+SC:wght@400;500;600&amp;family=Noto+Serif+SC:wght@400;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2E3F8F}a:hover{color:#1F2C6B}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #EFEEE9; color: #1C1E23; font-family: 'Instrument Sans', 'Noto Sans SC', system-ui, sans-serif; font-size: 14px; line-height: 1.5">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 14px 28px; border-bottom: 1px solid #DCDAD2">
+    <div style="font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 500; letter-spacing: -.01em">Inspiration</div>
+    <button type="button" style="font: inherit; display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 1px solid #DCDAD2; border-radius: 4px; padding: 6px 10px; min-height: 36px; color: #1C1E23">Hengyuan Machinery<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
+    <button type="button" style="font: inherit; flex: 1 1 260px; display: flex; align-items: center; gap: 8px; background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 0 12px; min-height: 38px; color: #636874; text-align: left">
+      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="m9.5 9.5 3 3" stroke="currentColor" stroke-width="1.4"/></svg>
+      <span style="flex: 1">Search, jump to, or run a command</span>
+      <span style="font-family: 'Geist Mono', monospace; font-size: 12px; border: 1px solid #DCDAD2; border-radius: 3px; padding: 0 5px; color: #545964">⌘K</span>
+    </button>
+    <button type="button" aria-label="Account" style="font: inherit; width: 36px; height: 36px; border-radius: 50%; border: 0; background: #DCDAD2; font-size: 12px; font-weight: 600; color: #1C1E23">LX</button>
+  </header>
+
+  <div style="max-width: 1220px; margin: 0 auto; padding: 28px; display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start">
+    <nav aria-label="Library" style="flex: 1 1 200px; display: flex; flex-direction: column; gap: 22px">
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <a href="#" aria-current="page" style="color: #1C1E23; text-decoration: none; font-weight: 600; padding: 8px 10px; border-radius: 4px; background: #FBFAF7">Home</a>
+        <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px; display: flex; justify-content: space-between">Inbox<span style="font-variant-numeric: tabular-nums; color: #1C1E23; font-weight: 600">4</span></a>
+        <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">My space</a>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div style="font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: #636874; font-weight: 600; padding: 0 10px 6px">Spaces</div>
+        <a href="#" style="color: #545964; text-decoration: none; padding: 7px 10px">Procurement</a>
+        <a href="#" style="color: #545964; text-decoration: none; padding: 7px 10px">Finance</a>
+        <a href="#" style="color: #545964; text-decoration: none; padding: 7px 10px">Shenzhen office</a>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <div style="font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: #636874; font-weight: 600; padding: 0 10px 6px">Browse</div>
+        <a href="#" style="color: #545964; text-decoration: none; padding: 7px 10px">Knowledge</a>
+        <a href="#" style="color: #545964; text-decoration: none; padding: 7px 10px">Sources</a>
+      </div>
+    </nav>
+
+    <main style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 24px">
+      <section style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 40px 48px; display: flex; flex-direction: column; gap: 18px">
+        <h1 style="margin: 0; font-family: Newsreader, 'Noto Serif SC', Georgia, serif; font-weight: 500; font-size: 38px; line-height: 1.1; letter-spacing: -.015em">Good morning, Lin. What do you need to know?</h1>
+        <div style="border: 1.5px solid #1C1E23; border-radius: 6px; background: #FFFFFF; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px">
+          <label style="display: flex"><span style="position: absolute; left: -9999px">Ask</span><textarea rows="2" placeholder="Ask anything Hengyuan knows, in Chinese or English" style="font: inherit; font-family: Newsreader, 'Noto Serif SC', Georgia, serif; font-size: 19px; line-height: 1.5; flex: 1; min-width: 0; border: 0; outline: none; resize: none; background: transparent; color: #1C1E23"></textarea></label>
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px">
+            <div style="display: flex; flex-wrap: wrap; gap: 8px">
+              <button type="button" style="font: inherit; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 1px solid #DCDAD2; border-radius: 4px; padding: 7px 10px; min-height: 36px; color: #1C1E23">All spaces you can read<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
+              <button type="button" style="font: inherit; font-size: 13px; background: transparent; border: 1px solid #DCDAD2; border-radius: 4px; padding: 7px 10px; min-height: 36px; color: #1C1E23">Attach</button>
+              <button type="button" aria-pressed="false" style="font: inherit; font-size: 13px; background: transparent; border: 1px solid #DCDAD2; border-radius: 4px; padding: 7px 10px; min-height: 36px; color: #1C1E23">Deep research</button>
+            </div>
+            <button type="button" style="font: inherit; font-weight: 500; background: #2E3F8F; color: #FFFFFF; border: 0; border-radius: 4px; padding: 10px 20px; min-height: 44px">Ask</button>
+          </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13.5px">
+          <span style="color: #636874">Others asked</span>
+          <a href="#">What is the hotel cap in Shenzhen?</a>
+          <a href="#">How do I onboard a new supplier?</a>
+          <a href="#">供应商付款账期是多少天?</a>
+        </div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 10px">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px"><h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 24px">Needs you</h2><a href="#" style="font-size: 13.5px">Open Inbox</a></div>
+        <ul style="list-style: none; margin: 0; padding: 0; border-top: 1px solid #DCDAD2">
+          <li style="display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid #DCDAD2">
+            <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: #8A5A00; background: #F5EBD6; padding: 3px 9px; border-radius: 3px"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="3.3" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M4 .7a3.3 3.3 0 0 1 0 6.6z" fill="currentColor"/></svg>Review due</span>
+            <span style="flex: 1 1 300px"><b style="font-weight: 600">Supplier onboarding</b> <span style="color: #545964">· you are its topic owner · due 10-26</span></span>
+            <button type="button" style="font: inherit; font-weight: 500; background: transparent; color: #1C1E23; border: 1px solid #1C1E23; border-radius: 4px; padding: 8px 14px; min-height: 40px">Review</button>
+          </li>
+          <li style="display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid #DCDAD2">
+            <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: #2E3F8F; background: #E7E9F4; padding: 3px 9px; border-radius: 3px">In review</span>
+            <span style="flex: 1 1 300px"><b style="font-weight: 600">Payment terms</b> <span style="color: #545964">· your request to publish to Procurement · with Zhou Min</span></span>
+            <a href="#" style="font-weight: 500; padding: 8px 4px">See request</a>
+          </li>
+          <li style="display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; padding: 14px 0; border-bottom: 1px solid #DCDAD2">
+            <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: #8A5A00; background: #F5EBD6; padding: 3px 9px; border-radius: 3px">In 5 days</span>
+            <span style="flex: 1 1 300px"><b style="font-weight: 600">Your Feishu connection needs a fresh sign-in</b> <span style="color: #545964">· Procurement notes in My space stops updating after that</span></span>
+            <button type="button" style="font: inherit; font-weight: 500; background: transparent; color: #1C1E23; border: 1px solid #1C1E23; border-radius: 4px; padding: 8px 14px; min-height: 40px">Reconnect</button>
+          </li>
+        </ul>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 10px">
+        <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 24px">Changed since you last looked</h2>
+        <ul style="list-style: none; margin: 0; padding: 0; border-top: 1px solid #DCDAD2">
+          <li style="display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 12px 0; border-bottom: 1px solid #DCDAD2"><a href="#" style="font-family: Newsreader, Georgia, serif; font-size: 17px; color: #1C1E23; text-decoration: none; flex: 1 1 260px">Travel expense policy</a><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: #A3341F; background: #F6E2DC; padding: 3px 9px; border-radius: 3px"><svg width="9" height="9" viewBox="0 0 9 9" aria-hidden="true"><path d="M4.5 0 9 4.5 4.5 9 0 4.5z" fill="currentColor"/></svg>Disputed</span><span style="color: #545964; font-size: 13px">Finance · hotel cap under review</span></li>
+          <li style="display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 12px 0; border-bottom: 1px solid #DCDAD2"><a href="#" style="font-family: Newsreader, Georgia, serif; font-size: 17px; color: #1C1E23; text-decoration: none; flex: 1 1 260px">Onboard a new supplier</a><span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: #2D6A4F; background: #E3EFE8; padding: 3px 9px; border-radius: 3px"><svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>Fresh</span><span style="color: #545964; font-size: 13px">Procurement · step 4 changed yesterday</span></li>
+        </ul>
+      </section>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

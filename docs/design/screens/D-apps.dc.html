@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Connected apps</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&amp;family=Instrument+Sans:wght@400;500;600&amp;family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&amp;family=Noto+Sans+SC:wght@400;500;600&amp;family=Noto+Serif+SC:wght@400;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:#2E3F8F}a:hover{color:#1F2C6B}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #EFEEE9; color: #1C1E23; font-family: 'Instrument Sans', 'Noto Sans SC', system-ui, sans-serif; font-size: 14px; line-height: 1.5">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 14px 28px; border-bottom: 1px solid #DCDAD2">
+    <div style="font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 500">Inspiration</div>
+    <span style="color: #545964">Your account</span>
+    <span style="flex: 1"></span>
+    <button type="button" aria-label="Account, Lin Xiao" style="font: inherit; width: 36px; height: 36px; border-radius: 50%; border: 0; background: #DCDAD2; font-size: 12px; font-weight: 600; color: #1C1E23">LX</button>
+  </header>
+
+  <div style="max-width: 1240px; margin: 0 auto; padding: 28px; display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start">
+    <nav aria-label="Account" style="flex: 1 1 180px; display: flex; flex-direction: column; gap: 2px">
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Profile</a>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Sign-in methods</a>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Companies</a>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">My connections</a>
+      <a href="#" aria-current="page" style="color: #1C1E23; text-decoration: none; font-weight: 600; padding: 8px 10px; border-radius: 4px; background: #FBFAF7">Connected apps</a>
+    </nav>
+
+    <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 22px">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 36px">Connected apps</h1>
+        <p style="margin: 0; color: #545964; max-width: 62ch">Assistants and tools that use Inspiration for you. An app never sees more than you can, and only where you allowed it.</p>
+      </div>
+
+      <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px">
+        <li style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 16px 18px; display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center">
+          <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-weight: 600; font-size: 15px">Claude</span>
+            <span style="color: #545964">Hengyuan Machinery · Procurement only · read knowledge, propose corrections</span>
+            <span style="color: #636874; font-size: 13px">Allowed 10-02 · last used 10 minutes ago</span>
+          </div>
+          <div style="display: flex; gap: 8px"><a href="#" style="padding: 10px 6px; font-weight: 500">Activity</a><button type="button" style="font: inherit; font-weight: 500; background: transparent; color: #A3341F; border: 1px solid #A3341F; border-radius: 4px; padding: 8px 14px; min-height: 44px">Revoke</button></div>
+        </li>
+        <li style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 16px 18px; display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center">
+          <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-weight: 600; font-size: 15px">Cursor</span>
+            <span style="color: #545964">Personal library · read knowledge</span>
+            <span style="color: #636874; font-size: 13px">Allowed 09-14 · last used 3 days ago</span>
+          </div>
+          <div style="display: flex; gap: 8px"><a href="#" style="padding: 10px 6px; font-weight: 500">Activity</a><button type="button" style="font: inherit; font-weight: 500; background: transparent; color: #A3341F; border: 1px solid #A3341F; border-radius: 4px; padding: 8px 14px; min-height: 44px">Revoke</button></div>
+        </li>
+        <li style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 16px 18px; display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center">
+          <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-weight: 600; font-size: 15px">Inspiration CLI <span style="font-family: 'Geist Mono', monospace; font-size: 12.5px; color: #545964; font-weight: 400">lin-macbook</span></span>
+            <span style="color: #545964">Hengyuan Machinery · everything you can do</span>
+            <span style="color: #636874; font-size: 13px">Signed in from the device 10-20 · last used yesterday</span>
+          </div>
+          <div style="display: flex; gap: 8px"><button type="button" style="font: inherit; font-weight: 500; background: transparent; color: #A3341F; border: 1px solid #A3341F; border-radius: 4px; padding: 8px 14px; min-height: 44px">Sign out</button></div>
+        </li>
+        <li style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 16px 18px; display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center">
+          <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 4px">
+            <span style="font-weight: 600; font-size: 15px">Access token "Monthly supplier report"</span>
+            <span style="color: #545964">Hengyuan Machinery · Procurement only · read knowledge</span>
+            <span style="color: #8A5A00; font-size: 13px">Expires 2026-12-30 · tokens last at most 90 days</span>
+          </div>
+          <div style="display: flex; gap: 8px"><button type="button" style="font: inherit; font-weight: 500; background: transparent; color: #A3341F; border: 1px solid #A3341F; border-radius: 4px; padding: 8px 14px; min-height: 44px">Revoke</button></div>
+        </li>
+      </ul>
+
+      <section style="display: flex; flex-direction: column; gap: 8px">
+        <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 22px">Company agents you use</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding: 12px 0; border-top: 1px solid #DCDAD2; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 260px"><b style="font-weight: 600">Procurement bot</b> <span style="color: #545964">· added by Hengyuan's super admin · answers with your rights when you ask it in Feishu</span></span><span style="color: #636874; font-size: 13px">The super admin manages it</span></div>
+      </section>
+    </main>
+
+    <aside aria-label="When an app asks for access" style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 10px">
+      <div style="font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: #636874; font-weight: 600">When an app asks for access</div>
+      <div style="background: #FFFFFF; border: 1px solid #DCDAD2; border-radius: 4px; box-shadow: 0 16px 40px rgba(28,30,35,.12); padding: 24px; display: flex; flex-direction: column; gap: 16px">
+        <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 24px; line-height: 1.2">Claude wants to use Inspiration as Lin Xiao</h2>
+        <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+          <legend style="font-weight: 600; padding: 0 0 8px">Where may it work?</legend>
+          <label style="display: flex; gap: 10px; align-items: center; min-height: 32px"><input type="radio" name="ws" checked style="width: 18px; height: 18px; margin: 0; accent-color: #2E3F8F">Hengyuan Machinery</label>
+          <label style="display: flex; gap: 10px; align-items: center; min-height: 32px"><input type="radio" name="ws" style="width: 18px; height: 18px; margin: 0; accent-color: #2E3F8F">Personal library</label>
+        </fieldset>
+        <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+          <legend style="font-weight: 600; padding: 0 0 8px">It may</legend>
+          <label style="display: flex; gap: 10px; align-items: flex-start; min-height: 32px"><input type="checkbox" checked disabled style="width: 18px; height: 18px; margin: 2px 0 0; accent-color: #2E3F8F"><span>Read knowledge you can read</span></label>
+          <label style="display: flex; gap: 10px; align-items: flex-start; min-height: 32px"><input type="checkbox" checked style="width: 18px; height: 18px; margin: 2px 0 0; accent-color: #2E3F8F"><span>Propose corrections, which people then review</span></label>
+          <label style="display: flex; gap: 10px; align-items: flex-start; min-height: 32px"><input type="checkbox" style="width: 18px; height: 18px; margin: 2px 0 0; accent-color: #2E3F8F"><span>Write comments in your name</span></label>
+        </fieldset>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-weight: 600">Only in these spaces
+          <select style="font: inherit; font-weight: 400; background: #FFFFFF; border: 1px solid #DCDAD2; border-radius: 4px; padding: 8px 10px; min-height: 44px; color: #1C1E23"><option>Procurement</option><option>All spaces I can read</option></select>
+        </label>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <button type="button" style="font: inherit; font-weight: 500; background: #2E3F8F; color: #FFFFFF; border: 0; border-radius: 4px; padding: 10px 18px; min-height: 44px">Allow</button>
+          <button type="button" style="font: inherit; font-weight: 500; background: transparent; color: #1C1E23; border: 1px solid #DCDAD2; border-radius: 4px; padding: 10px 18px; min-height: 44px">Cancel</button>
+        </div>
+        <p style="margin: 0; font-size: 12.5px; color: #545964">You can revoke this here at any time. Hengyuan's super admin can see and revoke it too.</p>
+      </div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

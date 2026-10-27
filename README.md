@@ -121,6 +121,10 @@ feasibility check, and what is built and what is planned.
   translations, cross-language merge and pages in another language.
 - [Permissions in compiled knowledge](docs/design/compiled-knowledge-permissions.md): how pages,
   procedures and answers use material that part of their audience cannot read.
+- [Code repositories as a knowledge source](docs/design/code-repositories.md) (proposed): code
+  answers produced on demand by a coding agent, then kept, watched across merges and shared with
+  people who do not read code; with a head-to-head against a coding agent over a clone
+  ([examples/code-questions](examples/code-questions/answers.md)).
 - [Architecture](docs/architecture.md): engine and business layer, components, how they
   talk, storage, security.
 - [Contracts](docs/contracts.md): changing schemas, code generation, IDs, events,
