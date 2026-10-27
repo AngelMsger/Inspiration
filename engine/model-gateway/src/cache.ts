@@ -58,4 +58,22 @@ export class ValkeyCache implements ResponseCache {
   async set(key: string, value: string, ttlS: number): Promise<void> {
     await this.client.set(this.prefix + key, value, "EX", ttlS);
   }
+
+  /** Every entry, keys without the prefix: for keeping the replies longer than the store lives. */
+  async *entries(): AsyncGenerator<[key: string, value: string]> {
+    const seen = new Set<string>(); // SCAN may return a key twice
+    let cursor = "0";
+    do {
+      const [next, keys] = await this.client.scan(cursor, "MATCH", `${this.prefix}*`, "COUNT", 500);
+      cursor = next;
+      const fresh = keys.filter((k) => !seen.has(k));
+      if (!fresh.length) continue;
+      const values = await this.client.mget(fresh);
+      for (const [i, k] of fresh.entries()) {
+        seen.add(k);
+        const value = values[i];
+        if (value != null) yield [k.slice(this.prefix.length), value];
+      }
+    } while (cursor !== "0");
+  }
 }

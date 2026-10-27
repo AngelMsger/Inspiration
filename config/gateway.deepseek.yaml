@@ -18,11 +18,14 @@ providers:
     max_sensitivity: internal
     timeout_s: 300
     models:
-      - name: deepseek-v4.1-flash
+      - name: deepseek-flash
         operations: [complete]
         tiers: [flash, standard, flagship]
         # JSON mode only: the gateway puts the schema in the prompt and checks the reply.
         json_schema: false
+        # The model thinks by default, which bills its reasoning as output and slows each call.
+        # Every task here asks for a short structured reply, so thinking stays off.
+        request: {thinking: {type: disabled}}
         price: {input: 0.30, output: 1.20, cached_input: 0.006}
 
   # DeepSeek has no embedding, rerank or OCR models, and none is reachable from the build
