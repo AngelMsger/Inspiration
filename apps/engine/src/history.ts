@@ -145,6 +145,8 @@ export interface SlotState {
   leads?: string;
   /** Every value the slot holds, sorted. */
   values: string[];
+  /** The document no longer states the leading value: it is kept, marked (Claim.unstated). */
+  unstated?: true;
 }
 
 export interface StepResult {
@@ -186,8 +188,9 @@ export function inEffect(entries: readonly TimelineEntry[], day: string): string
 
 async function observe(engine: Engine, corpus: Corpus): Promise<{ slots: Record<string, SlotState>; claims: number }> {
   const tenantId = corpus.tenantId;
-  // One document's claims fit in one page.
-  const claims = await engine.store.asOf({ space_ids: corpus.manifest.spaces.map((s) => s.id) });
+  const limit = 10000;
+  const claims = await engine.store.asOf({ space_ids: corpus.manifest.spaces.map((s) => s.id), limit });
+  if (claims.length === limit) throw new HistoryError(`more than ${limit} current claims: the replay reads one page`);
   const slots = new Set(claims.flatMap((c) => (valueKeyOf(c) !== undefined ? (slotOf(c) ?? []) : [])));
   const out: Record<string, SlotState> = {};
   for (const slot of [...slots].sort()) {
@@ -195,7 +198,9 @@ async function observe(engine: Engine, corpus: Corpus): Promise<{ slots: Record<
     const values = groups.map((g) => g.value).sort();
     if (!values.length) continue;
     const leads = decision?.proposed.value ?? (values.length === 1 ? values[0] : undefined);
-    out[slot] = { values, ...(leads !== undefined && { leads }) };
+    const stating = claims.filter((c) => slotOf(c) === slot && valueKeyOf(c) === leads);
+    const unstated = stating.length > 0 && stating.every((c) => c.unstated);
+    out[slot] = { values, ...(leads !== undefined && { leads }), ...(unstated && { unstated }) };
   }
   return { slots: out, claims: claims.length };
 }
@@ -271,7 +276,9 @@ function check(steps: StepResult[], timeline: Timeline): NonNullable<ReplayRepor
 export function replayLines(r: ReplayReport): string[] {
   const lines = [`replay: ${r.steps.length} versions`];
   for (const s of r.steps) {
-    const held = Object.entries(s.slots).map(([slot, st]) => `${slot}=${st.leads ?? `[${st.values.join(" | ")}]`}`);
+    const held = Object.entries(s.slots).map(
+      ([slot, st]) => `${slot}=${st.leads ?? `[${st.values.join(" | ")}]`}${st.unstated ? " (no longer stated)" : ""}`,
+    );
     lines.push(`  ${s.at.slice(0, 10)} ${s.claims} claims; ${held.join(", ") || "no slot holds a value"}`);
   }
   if (!r.check) return lines;

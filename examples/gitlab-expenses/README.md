@@ -73,32 +73,41 @@ retires it.
 
 ## What the run shows
 
-With the stand-in model, **165 of 294** fact-versions (14 facts after each of 21 versions)
+With the stand-in model, **185 of 294** fact-versions (14 facts after each of 21 versions)
 lead with the value a reader should be told. That splits into two very different halves:
 
 - Of the 82 fact-versions in which the policy stated nothing yet, all 82 are right: nothing
   is invented, though one statement lands in a slot of its own (below).
-- Of the 212 in which it stated a value, 83 are right. Two lead with a wrong value
+- Of the 212 in which it stated a value, 103 are right. Two lead with a wrong value
   (`receipt_threshold` takes "$5,000 USD" from the line above an indented summary); the other
-  127 lead with nothing.
+  107 lead with nothing.
 
-What the replay gets right is the part the engine owns: a new version supersedes the old
-value on the day it is published (claim deadline 30 to 90 days on 2022-01-27, phone 200 to
-50 on 2023-02-08, meals 100 to 120 on 2026-06-19), unrelated edits change nothing, and the
-restored page on 2026-05-14 brings every value back.
+Every miss is the stand-in's; the part the engine owns is right throughout:
 
-The 129 that are wrong come from two places:
+- A new version supersedes the old value on the day it is published: the claim deadline goes
+  from 30 to 90 days on 2022-01-27, the phone cap from 200 to 50 on 2023-02-08, meals from
+  100 to 120 on 2026-06-19. Edits that change none of the facts change nothing.
+- A version that stops stating a fact keeps it, marked "no longer stated", and gives the
+  document's owner one todo that lists everything it stopped stating. The moved notice of
+  2026-03-18 keeps all nine facts the page held until it comes back on 2026-05-14, which
+  removes the marks and withdraws the todo. The phone cap, which the page stopped stating in
+  2023, is still 50, marked, today.
 
-| Cause | Fact-versions | What it is |
-| --- | --- | --- |
-| The engine drops a value a new version stops stating | 20 | The moved notice retracts every statement of the version before it, so for two months every fact disappears silently (7 fact-versions). The phone cap and the claim deadline go the same way when a version stops stating them, or states them only where the stand-in does not read (13). |
-| The stand-in does not read the value | 109 | Amounts in thousands ("$10K"), table cells with a currency sign ("$380" under "Average Price in USD"), HTML tables, a rule with no number ("required for all expenses" means 0), and wording outside the catalogue ("**Phone** \| $200", "new Team Members" for new hires). |
+Before the engine kept such facts, the run was 165 of 294: the moved notice and the phone cap
+made 20 fact-versions disappear silently, against rule 1 of the
+[source-change design](../../docs/design/source-changes.md).
 
-So the engine's own gap is 20 fact-versions, and fixing it (keep what a version stops
-stating, marked, and review the change as one: rules 1 and 4 of the source-change design)
-would take the run to 185 of 294. The rest measures the stand-in: it reads digits next to
-catalogue words, which real policy text often does not offer. The same corpus is meant to run
-again once a real model is configured; then the 109 measure extraction quality.
+The 109 misses all come from the stand-in not reading a value. It reads digits next to
+catalogue words, which real policy text often does not offer. It misses:
+
+- amounts in thousands ("$10K");
+- table cells with a currency sign ("$380" under "Average Price in USD");
+- HTML tables;
+- a rule with no number ("required for all expenses", which means 0);
+- wording outside the catalogue ("**Phone** \| $200", or "new Team Members" for new hires).
+
+The same corpus is meant to run again once a real model is configured. Then the 109 measure
+extraction quality.
 
 Two more findings from real text:
 

@@ -206,6 +206,7 @@
       "ClaimValueKind",
       "ClaimValue",
       "Claim",
+      "Unstated",
       "EvidenceRole",
       "ClaimEvidence",
       "DerivationMethod",
@@ -2018,6 +2019,9 @@
         },
         "review_due": {
           "$ref": "#/$defs/Instant"
+        },
+        "unstated": {
+          "$ref": "#/$defs/Unstated"
         },
         "created_at": {
           "$ref": "#/$defs/Instant"
@@ -7264,7 +7268,7 @@
       "pattern": "^todo_[0-9A-Za-z]{8,64}$"
     },
     "TodoKind": {
-      "description": "note: a value only reference documents state disagrees with the governed one. It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget.\n",
+      "description": "note: a value only reference documents state disagrees with the governed one. It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget. unstated: a new version of a document stopped stating claims, which are kept, marked, until the owner keeps or retires them; source_deleted: the same for a deleted document (docs/design/source-changes.md).\n",
       "type": "string",
       "enum": [
         "conflict",
@@ -7277,7 +7281,9 @@
         "coverage_gap",
         "extraction_review",
         "feedback",
-        "note"
+        "note",
+        "unstated",
+        "source_deleted"
       ]
     },
     "TodoRequested": {
@@ -7488,6 +7494,27 @@
         },
         "widened": {
           "description": "True when the publish widened who can see the unit.",
+          "type": "boolean"
+        }
+      }
+    },
+    "Unstated": {
+      "description": "The source stopped stating a claim: a later version of its document no longer has the passage, or the document was deleted. The claim stays current, marked, until a person retires it or the document states it again; knowledge never disappears silently (docs/design/source-changes.md, rule 1).\n",
+      "type": "object",
+      "required": [
+        "since",
+        "source_version_id"
+      ],
+      "properties": {
+        "since": {
+          "description": "When extraction read the version that stopped stating it.",
+          "$ref": "#/$defs/Instant"
+        },
+        "source_version_id": {
+          "$ref": "#/$defs/SourceVersionId"
+        },
+        "deleted": {
+          "description": "That version is the document's deletion.",
           "type": "boolean"
         }
       }

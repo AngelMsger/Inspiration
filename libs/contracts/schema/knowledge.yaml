@@ -175,10 +175,30 @@ $defs:
         $ref: "common.yaml#/$defs/ContentHash"
       review_due:
         $ref: "common.yaml#/$defs/Instant"
+      unstated:
+        $ref: "#/$defs/Unstated"
       created_at:
         $ref: "common.yaml#/$defs/Instant"
       updated_at:
         $ref: "common.yaml#/$defs/Instant"
+
+  Unstated:
+    description: >
+      The source stopped stating a claim: a later version of its document no longer has the
+      passage, or the document was deleted. The claim stays current, marked, until a person
+      retires it or the document states it again; knowledge never disappears silently
+      (docs/design/source-changes.md, rule 1).
+    type: object
+    required: [since, source_version_id]
+    properties:
+      since:
+        description: When extraction read the version that stopped stating it.
+        $ref: "common.yaml#/$defs/Instant"
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      deleted:
+        description: That version is the document's deletion.
+        type: boolean
 
   EvidenceRole:
     type: string
