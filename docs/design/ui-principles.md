@@ -18,7 +18,8 @@ The places these people work in:
 - A **company** is the shared area of a business or a team, for example Hengyuan Machinery.
 - A **space** is an area of a company, such as Procurement. Its owner decides who can read it; the super admin can only narrow that in a security incident.
 - **My space** is a member's private area inside a company. Nobody else can see into it, the super admin included.
-- The **personal library** is what someone has before they work with anyone else. Inviting someone or creating a company turns on the company switcher and My space.
+- The **personal library** belongs to the account: one per account, outside every company, and it never becomes one. It is what someone has before they work with anyone else, and it stays as it was when they join, create or leave companies. Inviting someone from it creates a new company. Joining or creating a company turns on the company switcher, with two groups: companies, and the personal library.
+- My space and the personal library are both private, but My space belongs to its company: usage counts there, its connections follow the company's settings, and it is locked when the member leaves. V2-switcher compares the two.
 
 ## Interaction principles
 
@@ -149,7 +150,7 @@ The Chinese terms are adopted. The Japanese terms are proposed and wait for the 
 
 | English | Chinese | Japanese | Note |
 | --- | --- | --- | --- |
-| Personal library | 我的知识库 (个人知识库 in the switcher) | マイライブラリ (個人ライブラリ in the switcher) | What someone working alone has |
+| Personal library | 个人知识库 | 個人ライブラリ | One per account, outside every company. Not 我的知识库, which reads too close to 我的空间 |
 | Company | 企业 | 企業 | Never "tenant", "workspace" or "organisation" in English; Chinese says 企业, as Feishu and DingTalk do, never 租户 |
 | Space, My space | 空间, 我的空间 | スペース, マイスペース | My space is private to the member |
 | Member | 成员 | メンバー | Never "user" or "account" |

@@ -27,7 +27,7 @@
 | 文件 | 界面 |
 | --- | --- |
 | [V2-map](../../../design/screens/V2-map.dc.html) | 每个界面都遵循的结构：区域、左侧栏的四个区域、助手出现的四种方式、人物 |
-| [V2-switcher](../../../design/screens/V2-switcher.dc.html) | 顶栏的两个菜单：切换企业和账户菜单；一个人用时的顶栏 |
+| [V2-switcher](../../../design/screens/V2-switcher.dc.html) | 顶栏的两个菜单：切换企业（先是企业，再是唯一的个人知识库）和账户菜单；个人知识库和我的空间的对照；在个人知识库里邀请别人；一个人用时的顶栏 |
 | [V2-home](../../../design/screens/V2-home.dc.html) | 成员的首页：提问、常看内容的变化、最近看过 |
 | [V2-search](../../../design/screens/V2-search.dc.html) | 搜索与提问：先回答并带出处，再列结果，筛选在结果上方 |
 | [V2-page](../../../design/screens/V2-page.dc.html) | 阅读知识页：左侧栏收起，打开一个有争议数值的出处 |

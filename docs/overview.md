@@ -406,7 +406,7 @@ States: **Built** (on `main`, with tests), **Designed** (decided, not built), **
 
 | ID | Requirement | State |
 | --- | --- | --- |
-| PB-1 | Someone working alone sees no company; inviting someone or turning on collaboration creates one | Designed |
+| PB-1 | Someone working alone sees no company; inviting someone creates a new company, and the personal library (one per account) stays as it was | Designed |
 | PB-2 | My space is private to its member, the super admin included | Designed |
 | PB-3 | Publishing moves items from My space into a shared space after checks and an owner's approval; approvers read only the request's items | Designed |
 | PB-4 | Each published source chooses how it stays fresh: company connection (default), the member's own connection (with consent), or a snapshot | Designed |
@@ -431,7 +431,7 @@ States: **Built** (on `main`, with tests), **Designed** (decided, not built), **
 | ID | Requirement | State |
 | --- | --- | --- |
 | AD-1 | Three product roles (member, owner by scope, super admin), each a bundle of internal roles | Decided; boundary proposed |
-| AD-2 | Lifecycle: sign-up, invitations (links expire after 7 days), joining by verified email domain, SSO with directory sync, personal to team, leaving, account deletion, company deletion (30 days of grace with export) | Designed |
+| AD-2 | Lifecycle: sign-up, invitations (links expire after 7 days), joining by verified email domain, SSO with directory sync, personal to company, leaving, account deletion, company deletion (30 days of grace with export) | Designed |
 | AD-3 | Seats fill one usage pool; each member has a default cap the super admin can raise; the super admin sees usage per member and kind of work, never content | Direction decided; details with billing |
 | AD-4 | Audit of reads of knowledge, permission changes, decisions and break-glass access | Designed |
 | AD-5 | Before a label rises or an audience narrows, show how many units and readers it affects | Proposed |
@@ -709,7 +709,7 @@ Each section of [`components.yaml`](../components.yaml) maps to one folder. A pa
 | Component | Owns | Phase |
 | --- | --- | --- |
 | accounts | Users, login identities, sessions, the identity-provider adapter (Logto; Keycloak as fallback) | 1 |
-| tenancy | Tenants, members and member IDs, invitations, verified domains, company roles, sign-in policy, personal to team, transfers | 1 |
+| tenancy | Tenants, members and member IDs, invitations, verified domains, company roles, sign-in policy, personal to company, transfers | 1 |
 | directory | SSO connections, Feishu contacts (SCIM in phase 2), groups, departments, external identity links | 1 and 2 |
 | access-grants | OAuth authorization server, client registry, device flow, personal tokens, company agents, revocation | 1 |
 | connections | Connect flows for company and personal connections, consents | 1 |
@@ -1194,7 +1194,7 @@ One glossary feeds every status, button and empty state. The Chinese column is a
 <!-- glossary -->
 | English | Chinese | Japanese |
 | --- | --- | --- |
-| Personal library | 我的知识库 (个人知识库 in the switcher) | マイライブラリ (個人ライブラリ in the switcher) |
+| Personal library | 个人知识库 | 個人ライブラリ |
 | Company | 企业 | 企業 |
 | Space, My space | 空间, 我的空间 | スペース, マイスペース |
 | Member | 成员 | メンバー |

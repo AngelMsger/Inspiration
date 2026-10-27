@@ -32,7 +32,7 @@ Structure, reading, account and admin:
 | File | Screen |
 | --- | --- |
 | [V2-map](V2-map.dc.html) | The structure every screen follows: the regions, the four areas of the left column, the four ways the assistant shows up, the cast |
-| [V2-switcher](V2-switcher.dc.html) | The top bar's two menus: the company switcher and the account menu; the top bar of someone working alone |
+| [V2-switcher](V2-switcher.dc.html) | The top bar's two menus: the company switcher (companies, then the one personal library) and the account menu; personal library and My space compared; inviting from the personal library; the top bar of someone working alone |
 | [V2-home](V2-home.dc.html) | A member's home: ask, what changed in what they read, recently viewed |
 | [V2-search](V2-search.dc.html) | Search and ask: the answer first, with citations, then the results with filters above them |
 | [V2-page](V2-page.dc.html) | Reading a knowledge page with the left column folded, and a citation open on a disputed value |
