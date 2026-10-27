@@ -11,6 +11,7 @@
     "inspiration-engine": "./src/cli.ts"
   },
   "dependencies": {
+    "@inspiration/access-control": "workspace:*",
     "@inspiration/collaboration": "workspace:*",
     "@inspiration/connectors": "workspace:*",
     "@inspiration/contracts": "workspace:*",
@@ -23,6 +24,7 @@
     "@inspiration/model-gateway": "workspace:*",
     "@inspiration/normalization": "workspace:*",
     "@inspiration/page-compiler": "workspace:*",
+    "@inspiration/retrieval": "workspace:*",
     "@inspiration/source-sync": "workspace:*",
     "yaml": "^2.9.1"
   },

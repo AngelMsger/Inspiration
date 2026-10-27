@@ -4,9 +4,10 @@ Kubernetes 文档中的五个页面，每个页面都有英文原文和官方的
 
 ```bash
 pnpm engine ingest examples/kubernetes-docs   # 内存中运行，约 3 秒
+pnpm engine ask examples/kubernetes-docs "How many nodes can a Kubernetes cluster have at most?"
 ```
 
-在常规报告之后，对照检查（与 [examples/control](../control/README.zh.md) 相同）把每个页面标为 **right**（正确）、**known gap**（已知差距：与 `expected.yaml` 记录的方式一致地不同）或 **differs**（不同）。`apps/engine/test/kubernetes.test.ts` 在内存和 Postgres 上运行它。
+在常规报告之后，对照检查（与 [examples/control](../control/README.zh.md) 相同）把每个页面标为 **right**（正确）、**known gap**（已知差距：与 `expected.yaml` 记录的方式一致地不同）或 **differs**（不同），问题检查对 `questions.yaml` 中的每个问题也这样标注。`apps/engine/test/kubernetes.test.ts` 在内存和 Postgres 上运行这两项检查。`ask` 以语料的读者身份回答一个问题，并给出引用和说明。
 
 ## 文件
 
@@ -16,6 +17,7 @@ pnpm engine ingest examples/kubernetes-docs   # 内存中运行，约 3 秒
 | `sources.yaml` | 每个文件的 URL、kubernetes/website 的 commit、页脚给出的日期，以及所提供页面的 SHA-256 |
 | `vocabulary.yaml` | 所跟踪的 11 个事实，每个都按英文、中文和日文页面的措辞命名 |
 | `expected.yaml` | 答案，以及引擎目前在哪里给出不同结果、原因是什么 |
+| `questions.yaml` | 三种语言的 12 个问题，含正确回答应包含的文本和应引用的页面，以及引擎目前在哪里回答得不同、原因是什么 |
 | `corpus.yaml` | 一个受治理的文件夹来源 |
 
 ## 来源与许可
@@ -54,5 +56,22 @@ pnpm engine ingest examples/kubernetes-docs   # 内存中运行，约 3 秒
 - **一个词指所有宽限期：** 日文的 "猶予期間" 也指硬驱逐的 0 秒和 preStop 回调额外获得的 2 秒。
 
 `expected.yaml` 完整给出了每个原因。真实文本还带来一个发现：中文的驱逐页面漏掉了 Windows 节点内存默认值那一行，并把 "（Windows 节点）" 加到了下一行上，所以读取它的模型会把节点文件系统阈值只归到 Windows 下。这里还没有跟踪这个限定条件。
+
+## 问题
+
+这些问题用英文、中文和日文询问所跟踪的事实，另加一个这里没有答案的问题。回答包含一个预期文本、并引用了某个预期页面（任何语言的版本均可）时，算作正确。在模型替身下（回答由与问题共享词语最多的来源句子组成，重排器只数共享的词），12 个问题中有 7 个正确。检查还会说明回答所依据的搜索是否找到了预期文本：在 11 个有答案的问题中，有 9 个找到了，所以多数错误出在替身的回答上，而不是搜索上。
+
+引擎始终做对的部分：
+
+- **无论哪种语言，都给出现行值。** 英文页面把节点上限提高到 6,000 之后，用中文提问得到的是英文的 6,000，并附一条说明，指出中文页面仍写着 5,000。写着 5,000 的那句中文不会交给回答；交给回答的是它的陈述，标为已被取代，并附上现行值的陈述。
+- **说明只针对回答给出的值。** 冲突说明跟着节点上限出现（替身抽取给它读出了七个值），不会出现在关于阈值的回答中。
+- **没有答案的问题是一个缺口。** 护照问题什么也不引用，并如实说明。
+
+错误都记录在 `questions.yaml` 中，并附原因：
+
+- **同一件事的不同说法：** "at most" 与 "no more than"，以及日文的 上限 与 最大。
+- **词形变化：** 替身重排器不会把 "capped"、"containers"、"restarts" 与 "cap"、"container"、"restart" 对上，所以没有找到重启延迟上限。
+- **列表与它的引导句：** "The kubelet has the following default hard eviction thresholds:" 与问题共享的词比列表项 "nodefs.available<10%" 更多。
+- **假名与汉字：** 日文问题写的是 しきい値，页面写的是 閾値。
 
 配置好真实模型后，应当再用同一份语料运行一次。届时替身模型的错误衡量的就是抽取质量，而引擎负责的部分应当保持不变。

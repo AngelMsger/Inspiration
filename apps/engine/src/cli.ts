@@ -4,6 +4,7 @@
  *                    [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>]
  * inspiration-engine synthesize <dir> --documents <n> [--seed <n>]
  * inspiration-engine replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
+ * inspiration-engine ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]
  *
  * ingest syncs and normalizes a corpus (see examples/corpus) and prints the report. Without
  * --stack or --database everything stays in memory, which suits the demo corpus; scale runs
@@ -18,7 +19,10 @@
  * fact it states, for scale runs.
  *
  * A corpus with an expected.yaml (examples/control) also gets the control check, case by case
- * (see control.ts).
+ * (see control.ts), and one with a questions.yaml the question check (see questions.ts).
+ *
+ * ask ingests the corpus and answers one question as the corpus's reader, with the answer's
+ * citations and notes.
  *
  * replay writes the versions history.yaml lists into a working copy of the corpus one at a
  * time, each on its own day, ingests after each and prints what governance led with, checked
@@ -39,6 +43,7 @@ import { loadHistory, loadTimeline, replay, replayLines } from "./history.ts";
 import { inboxLines, inboxReport } from "./inbox.ts";
 import { daysSummary, ingest, plantedDuplicates, summary } from "./ingest.ts";
 import { onUse, onUseSummary } from "./onuse.ts";
+import { loadQuestions, questionLines, questionsReport } from "./questions.ts";
 import { edit, synthesize } from "./synthesize.ts";
 
 const USAGE = [
@@ -46,6 +51,7 @@ const USAGE = [
   "                          [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>]",
   "       inspiration-engine synthesize <dir> --documents <n> [--seed <n>]",
   "       inspiration-engine replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
+  "       inspiration-engine ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]",
 ].join("\n");
 
 async function main(argv: string[]): Promise<number> {
@@ -66,7 +72,7 @@ async function main(argv: string[]): Promise<number> {
       days: { type: "string" },
     },
   });
-  const [command, dir] = positionals;
+  const [command, dir, ...rest] = positionals;
   if (command === "synthesize" && dir && values.documents) {
     const made = await synthesize(dir, { documents: Number(values.documents), seed: Number(values.seed ?? 1) });
     console.log(
@@ -74,7 +80,8 @@ async function main(argv: string[]): Promise<number> {
     );
     return 0;
   }
-  if ((command !== "ingest" && command !== "replay") || !dir) {
+  const question = rest.join(" ").trim();
+  if ((command !== "ingest" && command !== "replay" && command !== "ask") || !dir || (command === "ask" && !question)) {
     console.error(USAGE);
     return 2;
   }
@@ -108,6 +115,18 @@ async function main(argv: string[]): Promise<number> {
       if (values.json) await writeFile(values.json, `${JSON.stringify(report, null, 2)}\n`);
       return 0;
     }
+    if (command === "ask") {
+      const run = await ingest(engine, corpus);
+      const answer = await engine.retrieval.answer({ question }, corpus.reader);
+      console.log(answer.answer);
+      answer.citations.forEach((c, i) => {
+        console.log(`  [${i + 1}] ${c.source_title}: ${c.quote.replace(/\s+/g, " ").slice(0, 120)}`);
+      });
+      for (const n of answer.notes ?? []) console.log(`  ${n.kind}: ${n.text}`);
+      if (answer.gaps.length) console.log(`  gaps: ${answer.gaps.join("; ")}`);
+      console.log(`  confidence ${answer.confidence}, freshness ${answer.freshness?.state ?? "unknown"}`);
+      return run.dead_letters ? 1 : 0;
+    }
     const text = await readFile(join(dir, "truth.json"), "utf8").catch(() => undefined);
     const truth = text ? (JSON.parse(text) as Truth & { duplicates: { document: string; of: string }[] }) : undefined;
     const report = await ingest(engine, corpus, truth ? { truth } : {});
@@ -119,6 +138,12 @@ async function main(argv: string[]): Promise<number> {
       const checked = await controlReport(engine, corpus, control);
       console.log(`\n${controlLines(checked).join("\n")}`);
       out.control = checked;
+    }
+    const questions = await loadQuestions(dir);
+    if (questions) {
+      const asked = await questionsReport(engine, corpus, questions);
+      console.log(`\n${questionLines(asked).join("\n")}`);
+      out.questions = asked;
     }
     let deadLetters = report.dead_letters;
     if (values["on-use"]) {

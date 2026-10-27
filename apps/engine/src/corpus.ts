@@ -3,11 +3,17 @@
  * and recorded Feishu fixtures, relative to the corpus) and a directory that maps each
  * source's principals to engine principals, standing in for the business layer. An
  * optional vocabulary.yaml is the tenant's predicate catalogue for extraction.
+ *
+ * provision() writes what the business layer would into access control: the directory's
+ * members and the corpus's reader as members of the tenant, every space owned by the reader
+ * and readable by the whole tenant, and each source in its space. Questions (questions.ts)
+ * are asked as the reader.
  */
 
 import { access, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { type AclEntry, parseAs, type Source } from "@inspiration/contracts";
+import type { AuthzService } from "@inspiration/access-control";
+import { type AclEntry, type Principal, parseAs, type Source } from "@inspiration/contracts";
 import { loadVocabulary, type Vocabulary } from "@inspiration/extraction";
 import type { PrincipalResolver } from "@inspiration/source-sync";
 import { parse } from "yaml";
@@ -33,6 +39,8 @@ export interface CorpusManifest {
   /** Section name, then "<principal kind>:<source principal ID>", then the engine principal. */
   directory?: Record<string, Record<string, string>>;
   sources: SourceSpec[];
+  /** The member questions are asked as; mem_ with the tenant's ID when not given. */
+  reader?: string;
 }
 
 export class CorpusError extends Error {
@@ -102,6 +110,29 @@ export class Corpus {
   memberOf(sourceId: string, user: string): string | undefined {
     const id = this.#directoryOf.get(sourceId)?.[`user:${user}`];
     return id?.startsWith("mem_") ? id : undefined;
+  }
+
+  /** A member of the tenant who reads every space, as tenant-wide documents allow. */
+  get reader(): Principal {
+    const id = this.manifest.reader ?? `mem_${this.tenantId.slice("ten_".length)}`;
+    return { id, kind: "member", tenant_id: this.tenantId };
+  }
+
+  /** What the business layer would provision in access control for the corpus. Idempotent. */
+  async provision(authz: AuthzService): Promise<void> {
+    const tenantId = this.tenantId;
+    const members = new Set([
+      this.reader.id,
+      ...Object.values(this.manifest.directory ?? {}).flatMap((section) =>
+        Object.values(section).filter((id) => id.startsWith("mem_")),
+      ),
+    ]);
+    for (const id of [...members].sort()) await authz.addTenantMember(tenantId, id);
+    for (const space of this.manifest.spaces) {
+      await authz.createSpace(space.id, { tenantId, ownerId: this.reader.id });
+      await authz.grantSpace(space.id, "viewer", tenantId);
+    }
+    for (const source of this.sources) await authz.registerSource(source.id, source.space_id);
   }
 
   /** The directory lookup source sync calls for every ACL entry without an engine principal. */

@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { AuthzService, aclChangedHandler, type Graph, MemoryGraph } from "@inspiration/access-control";
 import { Inbox } from "@inspiration/collaboration";
 import type {
   BlobStore,
@@ -23,10 +24,18 @@ import { Extraction, type ExtractionOptions } from "@inspiration/extraction";
 import { Freshness } from "@inspiration/freshness";
 import { Governance, type GovernanceResult } from "@inspiration/governance";
 import { applyMigrations, LocalBlobStore, logger, openPool, type Pool, workspaceRoot } from "@inspiration/kernel";
-import { MemoryStore, PostgresStore } from "@inspiration/knowledge-store";
+import {
+  MemoryKeywordIndex,
+  MemoryStore,
+  MemoryVectorIndex,
+  PgSearchIndex,
+  PgVectorIndex,
+  PostgresStore,
+} from "@inspiration/knowledge-store";
 import { Gateway, loadGatewayConfig } from "@inspiration/model-gateway";
 import { Normalization } from "@inspiration/normalization";
 import { Topics } from "@inspiration/page-compiler";
+import { Retrieval } from "@inspiration/retrieval";
 import { type PrincipalResolver, SourceSync } from "@inspiration/source-sync";
 
 const log = logger("engine");
@@ -47,6 +56,8 @@ export interface EngineOptions {
   vocabulary?: ExtractionOptions["vocabulary"];
   /** What governance and freshness take as now; simulated runs move it a day at a time. */
   clock?: () => Date;
+  /** The permission graph; in memory unless given (a SpiceDBGraph in a deployment). */
+  graph?: Graph;
 }
 
 /** A component as the engine runs it: event handlers by type, under the component's consumer group. */
@@ -72,6 +83,8 @@ export class Engine {
   readonly freshness: Freshness;
   readonly topics: Topics;
   readonly inbox: Inbox;
+  readonly authz: AuthzService;
+  readonly retrieval: Retrieval;
   readonly consumer: Consumer;
   readonly transport: Transport;
   readonly #relay: OutboxRelay | undefined;
@@ -89,6 +102,7 @@ export class Engine {
     resolvePrincipal?: PrincipalResolver;
     vocabulary?: ExtractionOptions["vocabulary"];
     clock?: () => Date;
+    graph?: Graph;
   }) {
     this.store = parts.store;
     this.records = parts.records;
@@ -122,6 +136,19 @@ export class Engine {
     this.freshness = new Freshness({ store: this.store, records: this.records, ...clock });
     this.topics = new Topics({ store: this.store, records: this.records, models: this.models, ...clock });
     this.inbox = new Inbox({ store: this.store, records: this.records, ...clock });
+    this.authz = new AuthzService(parts.graph ?? new MemoryGraph(), this.store);
+    const memory = this.store instanceof MemoryStore ? this.store : undefined;
+    this.retrieval = new Retrieval({
+      store: this.store,
+      records: this.records,
+      models: this.models,
+      authz: this.authz,
+      vectors: memory ? new MemoryVectorIndex(memory) : new PgVectorIndex(parts.pool as Pool),
+      keywords: memory ? new MemoryKeywordIndex(memory) : new PgSearchIndex(parts.pool as Pool),
+      verdicts: this.governance,
+      staleness: this.freshness,
+      ...clock,
+    });
     const components: Running[] = [
       { group: "source-sync", handlers: () => this.sync.handlers() },
       { group: "normalization", handlers: () => this.normalization.handlers() },
@@ -130,6 +157,8 @@ export class Engine {
       { group: "freshness", handlers: () => this.freshness.handlers() },
       { group: "page-compiler", handlers: () => this.topics.handlers() },
       { group: "collaboration", handlers: () => this.inbox.handlers() },
+      { group: "access-control", handlers: () => ({ "acl.changed": aclChangedHandler(this.authz) }) },
+      { group: "retrieval", handlers: () => this.retrieval.handlers() },
     ];
     for (const c of components) {
       for (const [type, handler] of Object.entries(c.handlers())) this.consumer.subscribe(type, c.group, handler);
@@ -157,6 +186,7 @@ export class Engine {
       ...(options.resolvePrincipal && { resolvePrincipal: options.resolvePrincipal }),
       ...(options.vocabulary && { vocabulary: options.vocabulary }),
       ...(options.clock && { clock: options.clock }),
+      ...(options.graph && { graph: options.graph }),
     };
 
     let engine: Engine;

@@ -2,17 +2,30 @@ import { cp, mkdtemp, readFile, rm, utimes, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { languageOf } from "@inspiration/kernel";
 import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
-import { type Control, Corpus, controlReport, Engine, ingest, loadControl, SimulatedClock } from "../src/index.ts";
+import {
+  type Control,
+  Corpus,
+  controlReport,
+  Engine,
+  ingest,
+  loadControl,
+  loadQuestions,
+  type Question,
+  questionsReport,
+  SimulatedClock,
+} from "../src/index.ts";
 
 const KUBERNETES = fileURLToPath(new URL("../../../examples/kubernetes-docs/", import.meta.url));
 
 /**
- * Every page and its translations come out as expected.yaml answers them, or as its engine
- * entries record. Then, were the English page to raise its node limit, the translations would
- * fall behind: the original's new value holds without a person, and freshness asks for both
- * translations to be brought up to date.
+ * Every page and its translations come out as expected.yaml answers them, and every question
+ * of questions.yaml as it answers it, or as their engine entries record. Then, were the
+ * English page to raise its node limit, the translations would fall behind: the original's
+ * new value holds without a person, freshness asks for both translations to be brought up
+ * to date, and a question in Chinese gets the new value, with a note that its page is behind.
  */
 async function check(stack?: { databaseUrl: string; streamPrefix: string }): Promise<void> {
   const work = await mkdtemp(join(tmpdir(), "inspiration-kubernetes-"));
@@ -41,6 +54,10 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
       values: { expected: 11, sources_right: 9 },
       slots: { expected: 11, proposed_right: 10, cases_right: 7 },
     });
+    const questions = (await loadQuestions(work)) as Question[];
+    const asked = await questionsReport(engine, corpus, questions);
+    for (const q of asked.questions) expect(q.outcome, q.question).toBe(q.expected);
+    expect(asked.totals).toEqual({ questions: 12, right: 7, as_recorded: 12, cited_right: 11, found: 9, notes: 3 });
 
     const page = join(work, "docs/setup/best-practices/cluster-large.html");
     await writeFile(page, (await readFile(page, "utf8")).replaceAll("5,000 nodes", "6,000 nodes"));
@@ -58,6 +75,13 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
       "docs/setup/best-practices/cluster-large.ja.html",
       "docs/setup/best-practices/cluster-large.zh-cn.html",
     ]);
+    const limit = questions.find(
+      (q) => languageOf(q.question) === "zh" && q.cites?.includes("docs/setup/best-practices/cluster-large"),
+    ) as Question;
+    const answer = await engine.retrieval.answer({ question: limit.question }, corpus.reader);
+    expect(answer.answer).toContain("6,000");
+    expect(answer.answer).not.toContain("5,000");
+    expect(answer.notes?.find((n) => n.kind === "outdated")?.text).toContain("5000 node");
   } finally {
     await engine.close();
     await rm(work, { recursive: true, force: true });
@@ -70,9 +94,14 @@ describe("the Kubernetes pages in three languages", () => {
   });
 
   describe.skipIf(!hasStack())("on the stack", () => {
-    stackTest("Postgres with the outbox relayed to Valkey Streams", async ({ databaseUrl, streamPrefix, valkey }) => {
-      expect(valkey).toBeDefined(); // removes this run's stream keys afterwards
-      await check({ databaseUrl, streamPrefix });
-    });
+    // Two ingests and 24 searches over Postgres take longer than the default limit.
+    stackTest(
+      "Postgres with the outbox relayed to Valkey Streams",
+      { timeout: 60_000 },
+      async ({ databaseUrl, streamPrefix, valkey }) => {
+        expect(valkey).toBeDefined(); // removes this run's stream keys afterwards
+        await check({ databaseUrl, streamPrefix });
+      },
+    );
   });
 });

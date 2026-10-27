@@ -179,7 +179,7 @@ A sales manager asks: "May I book a 700-yuan hotel in Shenzhen next week?" The a
 
 - **Why.** The hotel cap is one fact slot holding every value over time, so the answer takes the value in force on the travel date, with its evidence. Retrieval over chunks would return all six documents and leave the reader to sort them out.
 - **What the reader sees.** A plain answer and a page with small citation numbers. Only Outdated and Disputed appear in the text; Review due appears in the citation popover. If relevant material sits in a space the asker cannot read, the answer says it may be incomplete and whom to ask (section 15).
-- **State.** Statements, slots and the proposal of 650 are built and run on the demo corpus. Retrieval, answers and the reading UI are designed.
+- **State.** Statements, slots and the proposal of 650 are built and run on the demo corpus. Search and answers that give the value that holds are built, on stand-ins for the models; taking the value in force on a given date and the reading UI are designed.
 
 ### 5.2 A policy changes
 
@@ -573,7 +573,7 @@ flowchart TB
   end
   subgraph SRV[Serve]
     direction LR
-    ret["retrieval (planned)<br/><i>pgvector, pg_search</i>: reuse<br/><i>≈ RAGFlow</i>: reference"]
+    ret["retrieval<br/><i>pgvector, pg_search</i>: reuse<br/><i>≈ RAGFlow</i>: reference"]
     api["agent-api (planned)<br/>ask, search, read, get_changes<br/><i>MCP SDK</i>: reuse"]
     vw["views (planned)<br/><i>≈ Claude Artifacts</i><br/>reference"]
     ret --> api
@@ -615,7 +615,7 @@ flowchart TB
 | Governance and freshness | governance, freshness | The LLM Wiki pattern (a model keeps a wiki from raw sources and lints it for contradictions and stale claims); verification in Guru and Confluence; ranks in Wikidata | Reference | In an LLM Wiki the model rewrites pages itself; we keep statements with their evidence, and named people settle disagreements, with deadlines and a record |
 | Pages | page-compiler | LLM Wiki pages, DeepWiki, Notion AI | Reference | Pages are compiled from statements for one audience, every sentence cites, and every rebuild is a version |
 | Knowledge store | knowledge-store | Wikibase (statements with references and qualifiers), XTDB and Datomic (history and time travel) | Reuse PostgreSQL; reference the models | One database a customer can run, with lineage and "known when" reads |
-| Search and answers | retrieval (planned) | RAGFlow, Onyx, Glean | Reuse pgvector and pg_search (OpenSearch or Milvus later); reference RAGFlow's pipeline | Indexes over statements as well as blocks, filtered by readable spaces before ranking, and a reader status on every citation |
+| Search and answers | retrieval | RAGFlow, Onyx, Glean | Reuse pgvector and pg_search (OpenSearch or Milvus later); reference RAGFlow's pipeline | Indexes over statements as well as blocks, filtered by readable spaces before ranking, and a reader status on every citation |
 | Agent access | agent-api (planned) | The MCP servers of Glean and Notion | Reuse the MCP TypeScript SDK | Four task-shaped tools over the same permissions as the screens (section 18) |
 | Interactive views | views (planned) | Claude Artifacts | Reference | Code and data kept apart, a render check and a person's approval, run in a sandboxed frame |
 | Agent framework | agent-runtime | LangGraph, OpenAI Agents SDK, Claude Agent SDK | Reference; our own small loop is built | Tools are gated by our permissions and approvals; if research needs long, durable runs, LangGraph.js is the first candidate to adopt |
@@ -694,7 +694,7 @@ Each section of [`components.yaml`](../components.yaml) maps to one folder. A pa
 | Compile | governance | Slot values, conflict cases with a proposed value, todo requests, notes; later model-judge tiers and rules | Built |
 | Compile | page-compiler | Topics and placements; later cited pages, the omission check, diagrams, snapshots | Topics built |
 | Store | knowledge-store | The only owner of knowledge tables: lineage, bitemporal reads, slots, topics, page snapshots | Built |
-| Serve | retrieval | Every search index; hybrid search, rerank, permission filters, grounded answers | Planned |
+| Serve | retrieval | Every search index; hybrid search, rerank, permission filters, grounded answers | Built for passages and statements; page, procedure and entity indexes planned |
 | Serve | agent-api | MCP server, REST and OpenAPI, Skills export, per-call audit | Planned |
 | Serve | views | Interactive view templates, generation, render check, sandbox hosting | Planned |
 | Control | collaboration | The inbox; later comments, overrides, publishing, decisions, releases | Inbox built |
@@ -832,7 +832,7 @@ flowchart TB
 
 The knowledge store enforces four rules: a statement without evidence or a derivation is rejected; an evidence quote must be a verbatim substring of its span; statements are never deleted; page versions are immutable and increase by one. Reads are bitemporal: what was true at a time, as the system knew it at a time.
 
-**Storage.** Everything lives in one PostgreSQL 16 instance (the ParadeDB image, with pgvector and pg_search). Each component that owns tables has its own schema: `kb` (knowledge store), `bus`, `gateway`, `agents`, `sync`, `normalization`, `extraction`, `freshness`, `governance`, `page_compiler` and `collaboration`; retrieval gets its own when it takes over indexes from `kb`. SpiceDB keeps its database on the same instance, Valkey carries the streams and the model response cache, and files go to a blob store. Each `kb` table keeps the full contract object in a `doc` column and copies only filterable fields into typed columns, so most contract changes need no migration.
+**Storage.** Everything lives in one PostgreSQL 16 instance (the ParadeDB image, with pgvector and pg_search). Each component that owns tables has its own schema: `kb` (knowledge store), `bus`, `gateway`, `agents`, `sync`, `normalization`, `extraction`, `freshness`, `governance`, `page_compiler`, `collaboration` and `retrieval`, which records what it indexed; the chunks and their indexes are still kept by the knowledge store in `kb`. SpiceDB keeps its database on the same instance, Valkey carries the streams and the model response cache, and files go to a blob store. Each `kb` table keeps the full contract object in a `doc` column and copies only filterable fields into typed columns, so most contract changes need no migration.
 
 ## 13. The pipeline and incremental freshness
 
@@ -983,7 +983,7 @@ flowchart LR
 
 ## 19. Pages, views and search
 
-The contracts for pages and views are in place; the compilers, the view host and retrieval are planned.
+The contracts for pages and views are in place; the compilers and the view host are planned. Retrieval is built for passages and statements.
 
 **From documents to knowledge** (decided 2026-10-27). People meet their own material first. After an import, a source opens as a mirror page: the document in its own shape, with its headings, paragraphs, lists and tables, close to the original even where it is not identical, much as a Claude Artifact renders a page. Knowledge is revealed from there one step at a time, from concrete to abstract: first the marks in the Annotated view, then, when someone selects a passage, the What this says panel (what the passage states, which other documents agree with it, differ from it or add to it, and the pages that use it), then the knowledge pages built from it. Someone new starts in their own documents, not in knowledge cards, and the Documents tree sits above the Knowledge tree. The UI principles call this "Concrete before abstract", and the design canvas draws it. Readers of a shared space stop at the marks and the pages, because statements and lineage belong to the Trace view; a member owns their own My space, so the Trace view is open to them there.
 
@@ -1006,7 +1006,7 @@ The contracts for pages and views are in place; the compilers, the view host and
 | Extraction | Prompts state the source language; quotes stay verbatim; dates, eras, large-number units and currencies become typed values | Designed |
 | Fact slots | Language-neutral predicate and qualifier keys with labels and aliases per language; entity names resolved across scripts | Keys and typed values built; the rest designed |
 | Statements | A translation is linked to its original and counts with it; statements merge across languages after a model check | Designed |
-| Retrieval | Multilingual embeddings (Qwen3-Embedding); BM25 with a tokenizer per language (jieba, a Japanese morphological tokenizer, English stemming) | Designed; a jieba index exists in the knowledge store |
+| Retrieval | Multilingual embeddings (Qwen3-Embedding); BM25 with a tokenizer per language (jieba, a Japanese morphological tokenizer, English stemming) | Hybrid search, rerank and answers built on stand-ins; a jieba index exists in the knowledge store; the tokenizers per language are designed |
 | Page-compiler | A page's structure is built once; its canonical rendering is in the space's content language, and other languages are compiled from the same statements on request | Designed |
 | Business layer | Account language, a company default for broadcasts, ICU MessageFormat catalogs (a missing string fails the build), localized sign-in, region per tenant | Designed |
 | UI | Catalogs for en, zh-Hans and ja; a language tag on every block; fonts per script; locale formats and collation; input-method rules; pseudo-locale tests | Designed |
@@ -1084,6 +1084,8 @@ flowchart TB
 
 **Built and merged on `main`:** contracts, kernel, event bus, test kit, knowledge store, access control, model gateway, agent runtime, connectors, source sync, normalization, extraction, governance, freshness, tenant-scoped member IDs, and the engine process with its CLI, demo corpus and synthesizer (PRs #2 to #7); governance levels, fact-slot keys and extract on use, topics and placements, and the inbox (PRs #8 to #10); language rules in resource files for en, zh and ja with a repo test against Chinese and Japanese in code (PRs #12 and #13); the move into a folder per layer (PR #15); the design documents (PRs #11 and #14) and this overview as product requirements and technical architecture (PR #17); a value from statements not yet in effect lends no authority (PR #16); a control corpus whose cases each have one right answer, with the engine's known gaps recorded (PR #18); who owns vendor integrations, the tool gate and the sandbox in `components.yaml` (PR #19); a snapshot of the UI screens (PR #20); and the design for code repositories (PRs #21 to #23).
 
+**Built, in review** (PRs #27 to #30): the replay of a real policy through its edit history; facts a new version stops stating are kept, marked; values counted by independent source, with copies and translations once, and the original holding over a translation that says otherwise; real pages of the Kubernetes documentation in English, Chinese and Japanese; and retrieval, with search and answers that give the value that holds, checked with 12 questions in three languages.
+
 **Measured** on a synthetic tenant of 10,000 documents with the mocked model and fake embeddings (Postgres and Valkey). These numbers describe volumes and the pipeline, not model quality:
 
 | Measure | Value |
@@ -1103,7 +1105,7 @@ flowchart TB
 
 Topics come out about ten times larger than the design target of about 100 statements, because the synthetic tenant restates 30 subjects across many documents and fake embeddings cannot tell those sections apart. The budget never had to hold a todo back, because grouping by owner, topic and week already keeps every owner under it.
 
-**Designed, not built:** the two-domain permission rule and the principal token, publishing, compiled-knowledge permissions, the credential broker and sandbox, the Documents tree and mirror pages, pages and views, retrieval and the agent API, research, the parsing worker, source deletions and change reviews, knowledge across languages, code repositories as a source (proposed), and the whole business layer and UI.
+**Designed, not built:** the two-domain permission rule and the principal token, publishing, compiled-knowledge permissions, the credential broker and sandbox, the Documents tree and mirror pages, pages and views, the agent API, research, the parsing worker, source deletions and change reviews, cross-language merge and pages in another language, code repositories as a source (proposed), and the whole business layer and UI.
 
 ## 24. Next steps and effort
 

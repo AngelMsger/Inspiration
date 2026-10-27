@@ -35,7 +35,8 @@ The foundations are built and tested. The remaining components are specified in
 | Freshness: review clocks per document, plan days, copies an edit left behind, staleness scores, review.due | `engine/freshness` | built |
 | Page compiler: topics and the knowledge outline, every statement's placement (pages not yet) | `engine/page-compiler` | built |
 | Collaboration: the inbox, todos on owners' weekly cards, notes, campaigns and stewards (comments not yet) | `engine/collaboration` | built |
-| parsing, retrieval, agent-api, research, views, credential-broker, sandbox | | planned |
+| Retrieval: chunks with contextual headers, hybrid search and rerank over statements and passages, permission filters, answers that give the value governance holds, with notes (mocked model; page indexes not yet) | `engine/retrieval` | built |
+| parsing, agent-api, research, views, credential-broker, sandbox | | planned |
 
 Everything is TypeScript on Node 22 except the parsing worker, which is Python because the
 best document parsers are.
@@ -70,6 +71,7 @@ pnpm engine synthesize /tmp/synth --documents 2000 && pnpm engine ingest /tmp/sy
 pnpm engine ingest examples/control           # the control corpus, checked case by case
 pnpm engine replay examples/gitlab-expenses   # a real policy through 21 versions of its history
 pnpm engine ingest examples/kubernetes-docs   # real pages in English, Chinese and Japanese
+pnpm engine ask examples/kubernetes-docs "Kubernetes 集群最多可以有多少个节点？"
 ```
 
 [`examples/control`](examples/control/README.md) is a small corpus in which every case has one
@@ -86,6 +88,7 @@ each version on the day it was published and checks what governance would tell a
 languages: five pages of the Kubernetes documentation with their official Chinese and Japanese
 translations, checked like the control corpus. A page and its translations should give each
 fact one value and one source, and the original holds over a translation that says otherwise.
+Its 12 questions in the three languages check the answers, and `ask` answers any other one.
 
 To try the model gateway without a model server, run it with the fake providers:
 
