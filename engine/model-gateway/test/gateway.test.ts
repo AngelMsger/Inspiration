@@ -6,6 +6,7 @@ import {
   Gateway,
   type MemoryUsage,
   type MockResponder,
+  type ModelConfig,
   minimalInstance,
   type ProviderConfig,
   ProviderError,
@@ -191,6 +192,34 @@ describe("budgets and cache", () => {
     expect(gateway.cacheKey(candidate, completionRequest("a", { prompt_version: "claims@2" }))).not.toBe(base);
     expect(gateway.cacheKey(candidate, completionRequest("a", { response_schema: SCHEMA }))).not.toBe(base);
     expect(gateway.cacheKey(candidate, completionRequest("a", { use_cache: false }))).toBeUndefined();
+  });
+
+  test("a model's request fields reach the provider and change the cache key", async () => {
+    const config = gatewayConfig({ includeLocal: false });
+    const cloud = config.providers[0] as ProviderConfig;
+    const [flash, ...rest] = cloud.models as [ModelConfig, ...ModelConfig[]];
+    const off: ProviderConfig = {
+      ...cloud,
+      models: [{ ...flash, request: { thinking: { type: "disabled" } } }, ...rest],
+    };
+    const provider = new FakeProvider(off);
+    const sent: unknown[] = [];
+    const complete = provider.complete.bind(provider);
+    provider.complete = (model, messages, params) => {
+      sent.push(params.extra);
+      return complete(model, messages, params);
+    };
+    const gateway = new Gateway({ ...config, providers: [off] }, { providers: { cloud: provider } });
+    await gateway.complete(completionRequest("a"));
+    expect(sent).toEqual([{ thinking: { type: "disabled" } }]);
+
+    const plain = makeGateway({ includeLocal: false });
+    const [withRequest] = gateway.candidates("complete", "internal", { tier: "flash" });
+    const [without] = plain.candidates("complete", "internal", { tier: "flash" });
+    if (!withRequest || !without) throw new Error("no candidate");
+    expect(gateway.cacheKey(withRequest, completionRequest("a"))).not.toBe(
+      plain.cacheKey(without, completionRequest("a")),
+    );
   });
 
   test("a metering failure does not hide the result", async () => {

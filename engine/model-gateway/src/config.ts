@@ -62,6 +62,8 @@ export interface ModelConfig {
   max_output_tokens?: number;
   /** Prefix for embedding queries (Qwen3-Embedding style). */
   query_instruction?: string;
+  /** Fields added to every request body, such as DeepSeek's switch that turns thinking off. */
+  request?: Record<string, unknown>;
 }
 
 export interface ProviderConfig {
@@ -162,6 +164,7 @@ const SCHEMA = {
                 dimensions: { type: "integer", minimum: 1 },
                 max_output_tokens: { type: "integer", minimum: 1 },
                 query_instruction: { type: "string" },
+                request: { type: "object" },
               },
             },
           },

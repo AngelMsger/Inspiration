@@ -26,6 +26,10 @@
  * (readingReport): which keyed statements extraction put in their slot, and which values it
  * put there that no key gives.
  *
+ * Every paid run leaves a log in apps/bench/runs, and its replies outlive the container:
+ * `pnpm bench cache export` writes the gateway's response cache to a file (exportReplies) and
+ * `cache import` reads it back (importReplies), so the next run pays only for new calls.
+ *
  * It is the one app that depends on another: components.yaml lists the engine under its
  * `uses`, and nothing else may depend on an app.
  */
@@ -85,6 +89,7 @@ export {
   valueOn,
 } from "./questions.ts";
 export { type FactReading, type ReadingReport, readingLines, readingReport } from "./reading.ts";
+export { exportReplies, importReplies } from "./replies.ts";
 export {
   type EditOptions,
   type Edits,

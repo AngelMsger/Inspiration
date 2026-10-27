@@ -408,6 +408,8 @@ export class Gateway implements ModelGateway {
       req.response_schema ?? null,
       req.max_output_tokens ?? null,
       req.stop ?? null,
+      // Only when set, so models without it keep the keys they had.
+      ...(candidate.model.request ? [candidate.model.request] : []),
     ]);
     return createHash("sha256").update(material).digest("hex");
   }
@@ -429,6 +431,7 @@ export class Gateway implements ModelGateway {
       if (maxOutput !== undefined) params.maxOutputTokens = maxOutput;
       if (req.temperature !== undefined) params.temperature = req.temperature;
       if (req.stop) params.stop = req.stop;
+      if (candidate.model.request) params.extra = candidate.model.request;
       if (req.response_schema) {
         if (candidate.model.json_schema) params.responseSchema = req.response_schema;
         else {
