@@ -1,6 +1,6 @@
 # Business layer: functional design
 
-Status: adopted design, 2026-10-24; updated 2026-10-26 with two decisions (importing with any credential one holds, and agent edits on a member's request) and one proposal (the boundary between the super admin and owners). The engine contract changes it needs are listed in [Business layer and engine contract](business-engine-contract.md). Chinese copy: [docs/zh/design/business-layer.md](../zh/design/business-layer.md).
+Status: adopted design, 2026-10-24; updated 2026-10-26 with two decisions (importing with any credential one holds, and agent edits on a member's request) and one proposal (the boundary between the super admin and owners); updated 2026-10-27 with the names for source connections (decision 15). The engine contract changes it needs are listed in [Business layer and engine contract](business-engine-contract.md). Chinese copy: [docs/zh/design/business-layer.md](../zh/design/business-layer.md).
 
 ## Summary
 
