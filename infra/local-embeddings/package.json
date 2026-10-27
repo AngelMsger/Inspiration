@@ -1,0 +1,13 @@
+{
+  "name": "inspiration-local-embeddings",
+  "version": "0.1.0",
+  "description": "Local embedding server for development and validation runs: the OpenAI embeddings API on CPU (see server.ts)",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.ts"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "4.3.1"
+  }
+}

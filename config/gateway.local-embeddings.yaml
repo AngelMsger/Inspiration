@@ -1,0 +1,50 @@
+# Model gateway config for measuring search with a real multilingual embedding at no cost: the
+# development stand-ins answer every completion, rerank and OCR, and the local embedding server
+# (infra/local-embeddings, Qwen3-Embedding-0.6B on CPU) embeds. Start the server first, then run
+# `pnpm bench ingest <corpus> --gateway config/gateway.local-embeddings.yaml`. The question
+# check's `found` then says whether search finds the passage a question needs, in any language.
+currency: CNY
+
+providers:
+  - name: cloud
+    kind: fake
+    max_sensitivity: internal
+    options: {mocks: true}
+    models:
+      - name: fake-flash
+        operations: [complete]
+        tiers: [flash, standard, flagship]
+        price: {input: 1.0, output: 2.0, cached_input: 0.2}
+
+  # Runs on this machine, so it may see everything. A corpus takes minutes to embed on CPU.
+  - name: embeddings
+    kind: openai_compatible
+    base_url: http://127.0.0.1:8090/v1
+    max_sensitivity: secret
+    timeout_s: 900
+    max_retries: 0
+    models:
+      - name: qwen3-embedding-0.6b
+        operations: [embed]
+        dimensions: 1024
+        query_instruction: Given a question, retrieve passages that answer it
+
+  - name: local
+    kind: fake
+    max_sensitivity: secret
+    options: {mocks: true}
+    models:
+      - name: fake-local-chat
+        operations: [complete]
+        tiers: [flash, standard, flagship]
+        json_schema: true
+      - {name: fake-reranker, operations: [rerank]}
+      - {name: fake-ocr, operations: [ocr]}
+
+budgets:
+  - match: "*"
+    period: month
+
+cache:
+  backend: memory
+  operations: [complete, embed]
