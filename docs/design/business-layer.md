@@ -20,7 +20,7 @@ Five points shape the design:
 
 ## Risks the design addresses
 
-The structure is simple: tenant as the unit of isolation and billing, user above members, member as the actor, bottom-up publishing followed by top-down administration. The risks are almost all at the transitions: personal to team, a member leaving, a credential owner leaving, and a decision that nobody makes.
+The structure is simple: tenant as the unit of isolation and billing, user above members, member as the actor, bottom-up publishing followed by top-down administration. The risks are almost all at the transitions: personal to company, a member leaving, a credential owner leaving, and a decision that nobody makes.
 
 | # | Risk | Why it matters | How the design handles it |
 | --- | --- | --- | --- |
@@ -70,7 +70,7 @@ While phase 1 reuses the body, anyone holding member IDs can link one person acr
 
 **A tenant's say over a member is commercial.** In the tenant domain the tenant gives the member roles. In the member domain it only sets limits: plan, seats, storage and model usage per member, and which connections the company's settings allow. It never decides what a member's My space contains or who sees it.
 
-**Solo use never shows the tenant.** Sign-up creates a personal tenant with one member, and the product shows no company, space or publishing: the person sees their own library, and all of it is their member domain. Collaboration has two ways in. Inviting someone, or turning on collaboration, turns the personal tenant into a company: the company layer appears, and existing content stays private in the creator's My space. Creating a company starts a new tenant and leaves the personal one as it was. Either way nothing is shared until it is published. Every member of a team or company has a My space there for drafts, personal connections and experiments.
+**Solo use never shows the tenant.** Sign-up creates a personal tenant with one member, and the product shows no company, space or publishing: the person sees their personal library, and all of it is their member domain. Every account has exactly one personal library. It belongs to the account, not to any company, and it never becomes a company, so it stays as it was when the person joins, creates or leaves companies. Collaboration always happens in a company: inviting someone from the personal library creates a new company, just as creating one from the account menu does, and the person can bring items along by transfer. Nothing is shared until it is published. Every member of a company also has a My space there for drafts, personal connections and experiments. My space and the personal library are both private, but My space belongs to its company: its usage counts toward the company, its connections follow the company's settings, and it is locked when the member leaves.
 
 **Sign-in policy is per tenant.** The user's session is global, but entering a tenant checks that tenant's rules: required SSO connection, MFA, session length, and later an IP allow-list. If the session does not meet them, the person signs in again through the tenant's SSO. Each tenant context then gets its own short-lived engine token.
 
@@ -80,7 +80,7 @@ While phase 1 reuses the body, anyone holding member IDs can link one person acr
 
 ## Lifecycle flows
 
-Every flow ends in an engine command, and none of them widens who can read anything without an explicit publish. Turning a personal library into a company, for example, shares nothing until someone publishes.
+Every flow ends in an engine command, and none of them widens who can read anything without an explicit publish. Creating a company from the personal library, for example, shares nothing until someone publishes.
 
 | Flow | Trigger | What the person sees | What the engine does |
 | --- | --- | --- | --- |
@@ -88,7 +88,7 @@ Every flow ends in an engine command, and none of them widens who can read anyth
 | Invite | The super admin invites by email, phone or link (link expires after 7 days) | The invitee signs in or signs up, then the company appears in the switcher | Adds the member, creates their personal space |
 | Join by domain | The tenant has verified its email domain by DNS | People with a verified address in that domain see "Join". Policy picks: join at once, or ask the super admin | Same as invite, after approval if required |
 | SSO and directory | First SSO sign-in (just in time), or a SCIM or Feishu contacts push | Nothing to do: the member exists before first sign-in | Adds members, groups, departments and external identity links |
-| Personal to team | The person invites someone or turns on collaboration | The company layer appears: a name, an admin area, shared spaces. Existing content stays private in their My space | Tenant kind becomes team. Nothing becomes readable by anyone else |
+| Invite from the personal library | The person invites someone while in their personal library | They name the new company, then the invitation goes out. The personal library stays as it was; they can bring items along, copied or moved | Same as Create a company, then Transfer to company for the chosen items. The personal tenant never changes kind, and nothing becomes readable by anyone else |
 | Create a company | The person creates one from the account menu | A new company with them as super admin. Their personal library stays as it was | Provisions a new tenant (kind team), their member and their My space |
 | Personal to company | A member chooses "Transfer to company" on items in their personal library | Picks items and copy or move. Sources ask for a connection in the target company | Exports human-made content (uploads, comments, overrides), re-creates sources in their My space there, recompiles knowledge there. Derived knowledge is rebuilt, never copied |
 | Member leaves | Removed by the super admin, deprovisioned by SCIM or directory, or leaves | The scopes they own and their published pages appear as handover todos for the space owner. Their My space is never handed over | Removes their permission tuples, revokes their member connections and agent tokens, pauses team sources kept fresh by those connections, locks their My space so nobody can read it, and erases it after the retention period |
@@ -398,10 +398,10 @@ The UI says "company" for a tenant, "member" for a member and "account" for a us
 
 | Concept | UI term | 中文 | 日本語 (draft) | Note |
 | --- | --- | --- | --- | --- |
-| Tenant | Company | 企业 | 企業 | Never shown for a personal tenant: a solo user sees only their library until they invite someone or create a company |
-| Personal tenant | Personal library | 我的知识库 (in the switcher: 个人知识库) | マイライブラリ (in the switcher: 個人ライブラリ) | A solo user sees no company words at all |
+| Tenant | Company | 企业 | 企業 | Never shown for a personal tenant: a solo user sees only their library until they join or create a company |
+| Personal tenant | Personal library | 个人知识库 | 個人ライブラリ | One per account and outside every company; it never becomes one. A solo user sees no company words at all |
 | Member | Member | 成员 | メンバー |  |
-| Personal space in a company | My space | 我的空间 | マイスペース | Private to the member. The super admin cannot see into it |
+| Personal space in a company | My space | 我的空间 | マイスペース | Private to the member. The super admin cannot see into it. Belongs to its company: usage counts there, and it is locked when the member leaves |
 | Team or org space | Space | 空间 | スペース |  |
 | Claim | Statement | 陈述 | 記述 | "Claim" stays an engine word |
 | Tenant connection | Source connection: company | 来源连接：企业 | ソース接続：企業 | Where knowledge comes from. "Connection" alone always means a source connection; "company connection" is the short form |
@@ -424,7 +424,7 @@ The UI says "company" for a tenant, "member" for a member and "account" for a us
 | Screen | Main objects | States and actions |
 | --- | --- | --- |
 | Sign in, sign up | Login methods allowed by the deployment | Company chooser after sign-in, only for people in a company; "sign in with company SSO" when a company requires it |
-| Company switcher | Personal library and companies | Hidden until the person joins or creates a company. A badge when entering needs a fresh sign-in |
+| Company switcher | Two groups: the companies the person joined or created (the ones they created are marked), and their one personal library | Hidden until the person joins or creates a company. A badge when entering needs a fresh sign-in |
 | First run | Empty personal library, no company shown | Connect a source, upload, ask a question; later, invite someone or create a company |
 | Account settings | Profile, login identities, language, time zone | Choose English, 中文 or 日本語; link or unlink a login identity; sign out everywhere |
 | Invite and join | Invitations, join requests, and in Members the email domain whose people may join automatically | Pending, accepted, expired; approve or decline a request |
@@ -444,7 +444,7 @@ Decisions 1 to 10 were made on 2026-10-24, 11 to 14 on 2026-10-26 and 15 on 2026
 | # | Question | Decision |
 | --- | --- | --- |
 | 1 | The split and protocol | Adopted. The web app belongs to the business layer; access control drops SSO and directory sync; the engine makes the contract changes |
-| 2 | How personal work reaches a company | A personal library, plus a private My space in every company. Publishing stays inside one company; moving between companies is an explicit transfer |
+| 2 | How personal work reaches a company | A personal library, plus a private My space in every company. Publishing stays inside one company; moving between companies is an explicit transfer. Every account has exactly one personal library; it never becomes a company, and inviting someone from it creates a new one |
 | 3 | How published sources stay fresh | The company connection by default. "My connection" is allowed by default for small teams and off by default for enterprises |
 | 4 | When a source's permissions tighten after publishing | Notify the space owner. Quarantine is a company setting |
 | 5 | Go-to-market | SaaS first, with private deployment as a second profile of the same code. Public SaaS in mainland China needs a generative AI filing, an ICP licence and classified protection |
