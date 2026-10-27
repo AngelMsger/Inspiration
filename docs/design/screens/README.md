@@ -2,7 +2,7 @@
 
 Status: a snapshot of the product owner's design canvas, "Inspiration UI"
 (https://claude.ai/artifact/GYXc5GBY3bPq1XGuMUGwAk), taken on 2026-10-26 and updated on
-2026-10-27 (canvas version 80). Screens are drawn and changed on the canvas. This folder holds a copy so reviewers
+2026-10-27 (canvas version 81). Screens are drawn and changed on the canvas. This folder holds a copy so reviewers
 and team members can read the screens next to the docs. Where the two differ, the canvas wins.
 A Chinese copy of this README is in
 [docs/zh/design/screens/README.md](../../zh/design/screens/README.md).
@@ -39,7 +39,7 @@ Structure, reading, account and admin:
 | [V2-doc](V2-doc.dc.html) | Reading the original document after following a citation: a way back to the page, and comments and a revision proposal on the selected passage |
 | [V2-ja](V2-ja.dc.html) | The same page for a member whose interface is Japanese, who chose to read it in Japanese: written from the same statements and labelled machine translated, citing the Chinese original |
 | [V2-phone](V2-phone.dc.html) | Phone: reading, the inbox overview and a vote |
-| [V2-account](V2-account.dc.html) | Account: standing delegations and their limits. Decide for me itself happens in the inbox and in each decision |
+| [V2-account](V2-account.dc.html) | Account: Always decide for me, each kind as a "when this comes up, the assistant does this" rule, where a kind comes from, and the limits. Decide for me itself happens in the inbox and in each decision |
 | [V2-admin](V2-admin.dc.html) | Admin grouped by concern: members, search first |
 | [V2-sources](V2-sources.dc.html) | Admin: source connections, the company's and the members' |
 | [V2-tree](V2-tree.dc.html) | Four options for a space's documents and knowledge in the left column, compared with today's shape; the product owner kept today's shape |

@@ -1,7 +1,7 @@
 # 界面稿
 
 状态：产品负责人设计画布 “Inspiration UI”（https://claude.ai/artifact/GYXc5GBY3bPq1XGuMUGwAk）的快照，
-取于 2026-10-26，2026-10-27 更新（画布第 80 版）。界面稿在画布上绘制和修改；这个文件夹保存一份副本，方便评审者和团队成员对照文档阅读。两者不一致时，
+取于 2026-10-26，2026-10-27 更新（画布第 81 版）。界面稿在画布上绘制和修改；这个文件夹保存一份副本，方便评审者和团队成员对照文档阅读。两者不一致时，
 以画布为准。本 README 的英文原文在 [docs/design/screens/README.md](../../../design/screens/README.md)；
 两者不一致时，以英文版为准。
 
@@ -34,7 +34,7 @@
 | [V2-doc](../../../design/screens/V2-doc.dc.html) | 从出处点进来阅读原始文档：有回到知识页的路，右侧栏是对选中一段的评论和提一个修订 |
 | [V2-ja](../../../design/screens/V2-ja.dc.html) | 界面语言是日语的成员选择用日语读同一页：由同样的陈述用日语写出，标为机器翻译，出处指向中文原文 |
 | [V2-phone](../../../design/screens/V2-phone.dc.html) | 手机：阅读、待办概述、投票 |
-| [V2-account](../../../design/screens/V2-account.dc.html) | 账户：长期委托及其边界。替我决定本身发生在待办和每个决定里 |
+| [V2-account](../../../design/screens/V2-account.dc.html) | 账户：总是替我决定，每一类写成“当这件事出现，助手就这样处理”，一类事从哪里来，以及边界。替我决定本身发生在待办和每个决定里 |
 | [V2-admin](../../../design/screens/V2-admin.dc.html) | 管理后台按关注点分组：成员，先搜索 |
 | [V2-sources](../../../design/screens/V2-sources.dc.html) | 管理后台：来源连接，企业的和成员的 |
 | [V2-tree](../../../design/screens/V2-tree.dc.html) | 空间的文档和知识在左侧栏里怎么放：四个备选和今天的样子对照；产品负责人选择保留今天的样子 |

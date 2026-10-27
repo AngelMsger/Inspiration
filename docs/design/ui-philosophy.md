@@ -39,7 +39,7 @@ The left column shows one of four areas, and each one looks like itself:
 | Knowledge, the default | Everyone | Signing in, Home | The paper ground. Folds away while reading | Home, Inbox, My space, then each space the person can read, with its Documents and Knowledge |
 | Managing a space | That space's owners | "Manage" on the space, or a card in the inbox | A blue-tinted column under an indigo header: "Managing a space · Finance", "← Back to reading" | Overview, Work (reviews, conflicts, publish requests, batch changes), Topics and owners, Documents and governance levels, Readers, Rules, Settings |
 | Admin | The super admin | The account menu | A dark column under the header "Admin · the company", "← Back to knowledge" | Grouped by concern, as in section 5 |
-| Account | Everyone | The account menu | The paper ground under the header "Account and settings", with Done | You (profile and language, sign-in, companies, notifications), then the current company (your source connections, apps with access, standing delegations, your usage) |
+| Account | Everyone | The account menu | The paper ground under the header "Account and settings", with Done | You (profile and language, sign-in, companies, notifications), then the current company (your source connections, apps with access, Always decide for me, your usage) |
 
 Reading stays on paper with nothing tinted, so a glance tells reading from managing.
 
@@ -87,7 +87,7 @@ The prime places go to what people do most. The product owner put it this way af
 | Switching company, opening the personal library | Most people never (one company); a few weekly | Rarely | The top of the account menu, and ⌘K "Switch to…". The top bar only names the current company, as plain text |
 | All spaces | Members | Monthly | The last line of the spaces |
 | Admin | The one super admin | Weekly | The account menu, shown only to them |
-| Standing delegations | Owners | Set once, looked at now and then | Account, under the company; the "Decided for you" line in the inbox links to it |
+| Always decide for me | Owners | Set once, looked at now and then | Turned on from a one-line question under a decision in the inbox; seen and paused in Account, under the company, which the inbox's "Decided for you" line links to |
 | Compact | Owners | Set once | A switch in the account menu, ⌘. |
 | Profile, language, sign-in | Everyone | A few times a year | Account |
 
@@ -177,6 +177,8 @@ An audit of the design canvas (version 72) against this document:
 The second version (canvas version 74, rows V2 in [screens](screens/README.md)) applies these rules to nineteen screens. The first row covers the structure, reading, the account and admin; the second covers working: the inbox, decisions, managing a space, publishing and Trace. From the first version, only the three boards after importing (E-doc, E-doc-layers and E-doc-knowledge) still stand. Canvas version 79 applies the placement table in section 3 to every second-version board: the top bar names the company as plain text, the account menu switches companies, and Decide for me is no longer an account menu item, because it happens in the inbox and in each decision; its settings are the standing delegations under Account. It also adds V2-tree, which compared four options for showing a space's documents and knowledge in the left column; the product owner chose to keep today's shape, with Documents and Knowledge under each space.
 
 Canvas version 80 applies the product owner's next three comments to every second-version board. The four areas are told apart by their left column (paper, blue-tinted with an indigo header, dark, and the account header), and every screen outside reading starts with breadcrumbs from the area, with a way back after a jump. The right panel always has a title and follows the selection: V2-doc is new and shows an original document with comments and a revision proposal beside it, while V2-page shows a knowledge page with what is in progress on it. Overviews move their numbers onto at most four cards with trends, and their sentences only say what the numbers mean (home, inbox, managing a space, batch changes, documents, members and source connections).
+
+Canvas version 81 renames the standing delegations page, which the product owner found hard to understand, to **Always decide for me**, after the action people already know: Decide for me is this once, Always decide for me is from now on. Each kind is written as a rule in two columns, "when this comes up" and "the assistant does this", and the page shows where a kind comes from: the one-line question under a decision in the inbox. "Standing delegation" stays the name in the [Decide for me](decide-for-me.md) spec.
 
 ## 9. What the UI needs from the engine
 
