@@ -7,9 +7,9 @@
  *   governance_level, owner, tags, language, translation_of (the external ID of the file
  *   it translates) and any other key (kept in metadata.extra).
  * - Translations: a file named for its language ("leave-policy.zh.md", a two-letter
- *   language code with an optional script or region) is in that language, and translates
- *   the file without it ("leave-policy.md") when that file exists and front matter names no
- *   other.
+ *   language code with an optional script or region) is in that language, whatever its
+ *   folder's .meta.yaml says, and translates the file without it ("leave-policy.md") when
+ *   that file exists. Front matter overrides both.
  * - `.meta.yaml` in a folder: the same keys as defaults for every file below it; deeper
  *   folders and front matter win.
  * - `.acl.yaml` in a folder: who may read the files below it, as short entries
@@ -213,7 +213,9 @@ export class FolderConnector implements Connector {
     ]);
     const ext = extname(f.path).toLowerCase();
     const own = ext === ".md" || ext === ".markdown" ? frontMatter(data.toString("utf8")).meta : {};
-    const meta = { ...folderMeta, ...own };
+    // The language a file is named for is more specific than its folder's and less than its own front matter.
+    const named = translationOf(f.rel)?.language;
+    const meta = { ...folderMeta, ...(named && { language: named }), ...own };
     const version: Version = {
       content_hash: contentHash(data),
       metadata_hash: contentHash(canonicalJson(meta)),
@@ -297,7 +299,6 @@ export class FolderConnector implements Connector {
       acl: this.#snapshot(f, acl),
     };
     if (typeof meta.language === "string") doc.language = meta.language;
-    else if (translation) doc.language = translation.language;
     if (typeof approval_state === "string" && APPROVAL_STATES.has(approval_state)) {
       doc.approval_state = approval_state as ApprovalState;
     }

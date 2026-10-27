@@ -135,11 +135,15 @@ describe("folder connector", () => {
     expect(titles).toEqual(["Chapter 2 General provisions", "b", "Notice"]);
   });
 
-  test("a file named for its language translates the file without it, unless front matter names another", async () => {
+  test("a file named for its language is in it and translates the file without it; front matter says otherwise", async () => {
+    await put("corpus/.meta.yaml", "language: en\n");
     await put("corpus/hr/leave.md", "# Leave policy\n\nTwenty days.");
     await put("corpus/hr/leave.zh.md", "# Leave policy\n\nIn Chinese.");
     await put("corpus/hr/leave.zh-Hant-TW.md", "# Leave policy\n\nIn traditional Chinese.");
-    await put("corpus/hr/travel.ja.md", "---\ntranslation_of: hr/travel-policy.md\n---\n# Travel\n\nIn Japanese.");
+    await put(
+      "corpus/hr/travel.ja.md",
+      "---\nlanguage: ja-JP\ntranslation_of: hr/travel-policy.md\n---\n# Travel\n\nIn Japanese.",
+    );
     // Named for its language, but nothing it could translate.
     await put("corpus/hr/faq.ja.md", "# FAQ\n\nIn Japanese.");
     await put("corpus/hr/notes.new.md", "# Notes\n\nNot a language.");
@@ -151,11 +155,11 @@ describe("folder connector", () => {
     }
     expect(docs).toEqual({
       "hr/faq.ja.md": ["ja", undefined],
-      "hr/leave.md": [undefined, undefined],
+      "hr/leave.md": ["en", undefined],
       "hr/leave.zh.md": ["zh", "hr/leave.md"],
       "hr/leave.zh-Hant-TW.md": ["zh-Hant-TW", "hr/leave.md"],
-      "hr/notes.new.md": [undefined, undefined],
-      "hr/travel.ja.md": ["ja", "hr/travel-policy.md"],
+      "hr/notes.new.md": ["en", undefined],
+      "hr/travel.ja.md": ["ja-JP", "hr/travel-policy.md"],
     });
   });
 

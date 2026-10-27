@@ -435,6 +435,41 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect(decision?.proposed.value).toBe("650 CNY/night");
     });
 
+    test("a translation that says otherwise than its original is out of date, and asks nobody", async ({ world }) => {
+      const original = await world.state({ ...POLICY, external_id: "travel-policy.md" }, [
+        { text: "The hotel cap is 650 yuan a night.", value: 650 },
+      ]);
+      // Translated before the original changed 600 to 650, and two of them.
+      for (const external_id of ["travel-policy.zh.md", "travel-policy.ja.md"]) {
+        await world.state({ ...POLICY, external_id, translation_of: "travel-policy.md" }, [
+          { text: "Hotel cap 600 yuan per night.", value: 600 },
+        ]);
+      }
+      const { decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.proposed.best.claim_id).toBe(original.claims[0]?.id);
+      expect(decision?.cases.map((c) => [c.value, c.classification, c.status, c.rationale])).toEqual([
+        [
+          "600 CNY/night",
+          "supersession",
+          "auto_resolved",
+          "Only translations (2 documents) state 600 CNY/night, of documents that state 650 CNY/night: the original holds, and a translation that says otherwise is out of date.",
+        ],
+      ]);
+      expect(await world.requests()).toEqual([]);
+    });
+
+    test("a translation counts as any document against a value its original does not state", async ({ world }) => {
+      await world.state({ ...POLICY, external_id: "travel-policy.md" }, [
+        { text: "Meals are paid at 100 yuan a day.", value: 100, slot: "meal_allowance_per_day" },
+      ]);
+      await world.state({ ...POLICY, external_id: "travel-policy.zh.md", translation_of: "travel-policy.md" }, [
+        { text: "Hotel cap 600 yuan per night.", value: 600 },
+      ]);
+      await world.state({ ...POLICY, title: "Travel standard" }, [{ text: "Hotels: 650 yuan a night.", value: 650 }]);
+      const { decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.cases.map((c) => [c.classification, c.status])).toEqual([["contradiction", "open"]]);
+    });
+
     test("a reference document does not break a tie between governed values", async ({ world }) => {
       const { leader, other } = await tied(world);
       await world.state({ title: "Travel FAQ", authority: 0.5, level: "reference" }, [

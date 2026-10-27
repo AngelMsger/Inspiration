@@ -20,10 +20,13 @@
  *   authoritative; between equally authoritative ones, the value more independent governed
  *   sources in effect today state, then the one from the newer document, then the one more
  *   governed statements state. Statements count as one source when they come from one
- *   document, from a document and its translations (DocumentMetadata.translation_of), or from
- *   copies of one passage: a document copied into several folders, a paragraph pasted into
- *   several handbooks. A statement that only takes effect later lends its group nothing
+ *   document, from a document and its translations (DocumentMetadata.translation_of), or
+ *   from copies of one passage: a document copied into several folders, a paragraph pasted
+ *   into several handbooks. A statement that only takes effect later lends its group nothing
  *   before its day.
+ * - A value only translations state, each of a document that states another value, is out of
+ *   date: the original holds, and the case settles without a person (freshness asks for the
+ *   translation to be brought up to date).
  * - A change beats the leader when it took effect after the leader's own date, the later of
  *   its document's effective date and any change it states, and no later than today: a
  *   notice that the cap is 650 from October outranks the policy that says 600 from January
@@ -203,6 +206,32 @@ export function sourcesOf(g: ValueGroup, today?: string): string[][] {
 /** Independent governed sources in effect by today that state the group's value. */
 export const independentAsOf = (g: ValueGroup, today: string) => sourcesOf(g, today).length;
 
+/**
+ * The group's governed documents in effect by today, each with the document it translates
+ * ("<source>:<external ID>"), or undefined for one that translates none.
+ */
+function originalsOf(g: ValueGroup, today: string): Map<string, string | undefined> {
+  const out = new Map<string, string | undefined>();
+  for (const [key, n] of Object.entries(g.sources ?? {})) {
+    const [day, governed, document, ...copies] = JSON.parse(key) as SourceEntry;
+    if (n <= 0 || !governed || day > today) continue;
+    const text = copies.find((c) => c.startsWith("t:"))?.slice(2);
+    out.set(document, text !== undefined && text !== document ? text : undefined);
+  }
+  return out;
+}
+
+/**
+ * True when only translations state a's value, each of a document that states b's. The
+ * original holds: a translation that says otherwise has fallen behind it, or misreads it.
+ */
+export function translates(a: ValueGroup, b: ValueGroup, today: string): boolean {
+  const ours = originalsOf(a, today);
+  if (!ours.size) return false;
+  const theirs = originalsOf(b, today);
+  return [...ours.values()].every((original) => original !== undefined && theirs.has(original));
+}
+
 /** True when a ranks above b as the representative of a group. */
 function outranks(a: Member, b: Member): boolean {
   const r = rank(a, b);
@@ -210,9 +239,10 @@ function outranks(a: Member, b: Member): boolean {
 }
 
 /**
- * True when group a leads b: its best member outranks b's, or the two tie and more
- * independent governed sources in effect today state a's value, then the newer document
- * does (newer), then more governed statements. Without these a tie would fall to the claim
+ * True when group a leads b: its best member outranks b's, or the two tie and only
+ * translations of documents stating a's value state b's (translates), or more independent
+ * governed sources in effect today state a's value, then the newer document does (newer),
+ * then more governed statements. Without these a tie would fall to the claim
  * IDs, and a side remark in a policy ("objections within 5 working days") could outrank the
  * article several policies state. Copies count once, or a notice reposted in three folders
  * would outvote two handbooks that say otherwise in their own words, and three handbooks
@@ -223,6 +253,7 @@ function outranks(a: Member, b: Member): boolean {
 function leads(a: ValueGroup, b: ValueGroup, today: string): boolean {
   const r = rank(a.best, b.best);
   if (r) return r > 0;
+  if (translates(b, a, today) || translates(a, b, today)) return translates(b, a, today);
   const [s, t] = [independentAsOf(a, today), independentAsOf(b, today)];
   if (s !== t) return s > t;
   if (newer(a, b, today) || newer(b, a, today)) return newer(a, b, today);
@@ -475,6 +506,16 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
           priority: "low",
           confidence: 0.7,
           rationale: `${g.value} takes effect on ${startOf(g, governedSlot)}.`,
+        };
+      }
+      if (translates(g, proposed, today)) {
+        return {
+          ...base,
+          classification: "supersession",
+          status: "auto_resolved",
+          priority: "low",
+          confidence: 0.9,
+          rationale: `Only translations (${documents(g)}) state ${g.value}, of documents that state ${proposed.value}: the original holds, and a translation that says otherwise is out of date.`,
         };
       }
       if (changed && day && since(g, today, governedSlot) < day) {

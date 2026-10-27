@@ -78,6 +78,13 @@ export interface Copy {
   similarity: number;
 }
 
+/** A translation, by the document it translates (its DocumentMetadata.translation_of). */
+export interface Translation {
+  tenant_id: string;
+  translation: string;
+  original: string;
+}
+
 /** A document freshness no longer follows, and the version from which it stopped: deleted, or not governed. */
 export interface Deletion {
   tenant_id: string;
@@ -106,6 +113,11 @@ export const DOCUMENTS = defineTable<DocumentState>("freshness.documents", {
 export const COPIES = defineTable<Copy>("freshness.copies", {
   key: (c) => key(c.tenant_id, c.document, c.other),
   columns: { tenant_id: (c) => c.tenant_id, document: (c) => c.document },
+});
+
+export const TRANSLATIONS = defineTable<Translation>("freshness.translations", {
+  key: (t) => key(t.tenant_id, t.translation),
+  columns: { tenant_id: (t) => t.tenant_id, original: (t) => t.original },
 });
 
 export const DELETED = defineTable<Deletion>("freshness.deleted", {
@@ -241,6 +253,31 @@ export class Freshness {
         { tenant_id: tenantId, document: other, other: document, similarity },
       ]);
       if (rows.length) await tx.put(COPIES, rows);
+
+      // A translation cannot be compared with its original's text: it is behind when the
+      // original changed later in its source than the translation last did.
+      const original = version.metadata?.translation_of;
+      if (original)
+        await tx.put(TRANSLATIONS, [{ tenant_id: tenantId, translation: document, original: documentOf(original) }]);
+      else await tx.delete(TRANSLATIONS, [key(tenantId, document)]);
+      if (!edited) return;
+      for (const t of await tx.find(TRANSLATIONS, { tenant_id: tenantId, original: document })) {
+        const other = await tx.get(DOCUMENTS, key(tenantId, t.translation));
+        if (!other || other.archived || other.changed_on >= state.changed_on) continue;
+        other.behind = { document, title: state.title, since: dayOf(now) };
+        await tx.put(DOCUMENTS, [other]);
+        const review: ReviewDue = {
+          unit_ids: [other.source_version_id],
+          kind: "evidence_changed",
+          due_at: now.toISOString(),
+          space_id: other.space_id,
+          reason: `${other.title} translates ${state.title}, which changed on ${state.changed_on}; it has not been translated again since.`,
+          cause_ids: [version.id],
+          dedupe_key: `${COMPONENT}:evidence_changed:${other.document}`,
+        };
+        await tx.publish(this.#event(tenantId, other.document, review, event));
+        reviews.push(review);
+      }
     });
     this.#count(reviews);
     return reviews;
@@ -468,6 +505,7 @@ export class Freshness {
         COPIES,
         copies.flatMap((c) => [key(tenantId, c.document, c.other), key(tenantId, c.other, c.document)]),
       );
+    await tx.delete(TRANSLATIONS, [key(tenantId, document)]);
   }
 
   #reviewOf(state: DocumentState, d: Due): ReviewDue | undefined {
