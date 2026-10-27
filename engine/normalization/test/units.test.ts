@@ -33,11 +33,13 @@ interface Cases {
   cut: { first: string; comma: string; second: string; stop: string };
   /** Thirty articles ({n} is the number), a change of formatting, a light edit and an unrelated text. */
   fingerprint: { article: string; reformat: [string, string]; edit: [string, string]; other: string };
+  /** A paragraph whose sentence the HTML source wraps over lines, and the text it reads as. */
+  wrapped: { html: string; text: string };
 }
 
 const LANGUAGES = ["en", "ja", "zh"].map((tag) => ({ tag, ...testData<Cases>(import.meta.url, `${tag}.yaml`) }));
 
-describe.each(LANGUAGES)("passages in $tag", ({ passages: cases, cut }) => {
+describe.each(LANGUAGES)("passages in $tag", ({ passages: cases, cut, wrapped }) => {
   test("sentences, clauses and closing quotes; short fragments join the next one; offsets into the text", () => {
     for (const { text, passages: expected } of cases) {
       const found = passages(text);
@@ -52,6 +54,10 @@ describe.each(LANGUAGES)("passages in $tag", ({ passages: cases, cut }) => {
     expect(found.length).toBe(2);
     expect(found.every((p) => p.text.length <= MAX_PASSAGE)).toBe(true);
     expect(found.map((p) => p.text).join("")).toBe(text);
+  });
+
+  test("a sentence the HTML source wraps over lines reads as one", () => {
+    expect(parseHtml(wrapped.html).map((b) => b.text)).toEqual([wrapped.text]);
   });
 });
 
@@ -89,6 +95,17 @@ describe("parsers", () => {
     expect(blocks[0]).toMatchObject({ anchor: "#a", level: 2 });
     expect(blocks[3]?.children?.[0]?.text).toBe("Second");
     expect(blocks[4]?.attrs).toEqual({ header_rows: 1 });
+  });
+
+  test("HTML: a line break in the source is a space, except in preformatted text and at <br>", () => {
+    const blocks = parseHtml(
+      "<p>Once a container has run for 10 minutes without any\nproblems, the <b>kubelet</b>\n  resets  the timer.</p><p>One<br>Two</p><pre>a\n  b</pre>",
+    );
+    expect(blocks.map((b) => b.text)).toEqual([
+      "Once a container has run for 10 minutes without any problems, the kubelet resets the timer.",
+      "One\nTwo",
+      "a\n  b",
+    ]);
   });
 
   test("CSV and plain text", () => {

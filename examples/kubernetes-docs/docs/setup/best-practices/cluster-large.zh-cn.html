@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>大规模集群的注意事项</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>大规模集群的注意事项</h1><header class=article-meta></header><p>集群包含多个运行着 Kubernetes 代理程序、
+由<a class=glossary-tooltip title='控制平面是指容器编排层，它暴露 API 和接口来定义、部署容器和管理容器的生命周期。' data-bs-toggle=tooltip data-bs-placement=top href='/zh-cn/docs/reference/glossary/?all=true#term-control-plane' target=_blank aria-label=控制平面>控制平面</a>管理的一组<a class=glossary-tooltip title='Kubernetes 中的工作机器称作节点。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/architecture/nodes/ target=_blank aria-label=节点>节点</a>（物理机或虚拟机）。
+Kubernetes v1.37 单个集群支持的最大节点数为 5,000。
+更具体地说，Kubernetes 设计为满足以下<strong>所有</strong>标准的配置：</p><ul><li>每个节点的 Pod 数量不超过 110</li><li>节点数不超过 5,000</li><li>Pod 总数不超过 150,000</li><li>容器总数不超过 300,000</li></ul><p>你可以通过添加或删除节点来对集群扩缩容。集群扩缩容的方式取决于集群的部署方式。</p><h2 id=quota-issues>云供应商资源配额<a class=td-heading-self-link href=#quota-issues aria-label="Heading self-link"></a></h2><p>为避免遇到云供应商配额问题，在创建具有大规模节点的集群时，请考虑以下事项：</p><ul><li>请求增加云资源的配额，例如：<ul><li>计算实例</li><li>CPU</li><li>存储卷</li><li>使用中的 IP 地址</li><li>数据包过滤规则集</li><li>负载均衡数量</li><li>网络子网</li><li>日志流</li></ul></li><li>由于某些云供应商限制了创建新实例的速度，因此通过分批启动新节点来控制集群扩展操作，并在各批之间有一个暂停。</li></ul><h2 id=control-plane-components>控制面组件 <a class=td-heading-self-link href=#control-plane-components aria-label="Heading self-link"></a></h2><p>对于大型集群，你需要一个具有足够计算能力和其他资源的控制平面。</p><p>通常，你将在每个故障区域运行一个或两个控制平面实例，
+先垂直缩放这些实例，然后在到达下降点（垂直）后再水平缩放。</p><p>你应该在每个故障区域至少应运行一个实例，以提供容错能力。
+Kubernetes 节点不会自动将流量引向相同故障区域中的控制平面端点。
+但是，你的云供应商可能有自己的机制来执行此操作。</p><p>例如，使用托管的负载均衡器时，你可以配置负载均衡器发送源自故障区域 <strong>A</strong> 中的 kubelet 和 Pod 的流量，
+并将该流量仅定向到也位于区域 <strong>A</strong> 中的控制平面主机。
+如果单个控制平面主机或端点故障区域 <strong>A</strong> 脱机，则意味着区域 <strong>A</strong> 中的节点的所有控制平面流量现在都在区域之间发送。
+在每个区域中运行多个控制平面主机能降低出现这种结果的可能性。</p><h3 id=etcd-storage>etcd 存储 <a class=td-heading-self-link href=#etcd-storage aria-label="Heading self-link"></a></h3><p>为了提高大规模集群的性能，你可以将事件对象存储在单独的专用 etcd 实例中。</p><p>在创建集群时，你可以（使用自定义工具）：</p><ul><li>启动并配置额外的 etcd 实例</li><li>配置 <a class=glossary-tooltip title='提供 Kubernetes API 服务的控制面组件。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/architecture/#kube-apiserver target=_blank aria-label='API 服务器'>API 服务器</a>，将它用于存储事件</li></ul><p>有关为大型集群配置和管理 etcd 的详细信息，
+请参阅<a href=/zh-cn/docs/tasks/administer-cluster/configure-upgrade-etcd/>为 Kubernetes 运行 etcd 集群</a>和使用
+<a href=/zh-cn/docs/setup/production-environment/tools/kubeadm/setup-ha-etcd-with-kubeadm/>kubeadm 创建一个高可用 etcd 集群</a>。</p><h2 id=addon-resources>插件资源 <a class=td-heading-self-link href=#addon-resources aria-label="Heading self-link"></a></h2><p>Kubernetes
+<a href=/zh-cn/docs/concepts/configuration/manage-resources-containers/>资源限制</a>有助于最大程度地减少内存泄漏的影响以及
+Pod 和容器可能对其他组件的其他方式的影响。
+这些资源限制适用于<a class=glossary-tooltip title='扩展 Kubernetes 功能的资源。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/cluster-administration/addons/ target=_blank aria-label=插件>插件</a>资源，
+就像它们适用于应用程序工作负载一样。</p><p>例如，你可以对日志组件设置 CPU 和内存限制：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=w>  </span><span class=l>...</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>fluentd-cloud-logging</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>fluent/fluentd-kubernetes-daemonset:v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>limits</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>cpu</span><span class=p>:</span><span class=w> </span><span class=l>100m</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>memory</span><span class=p>:</span><span class=w> </span><span class=l>200Mi</span><span class=w>
+</span></span></span></code></pre></div><p>插件的默认限制通常基于从中小规模 Kubernetes 集群上运行每个插件的经验收集的数据。
+插件在大规模集群上运行时，某些资源消耗常常比其默认限制更多。
+如果在不调整这些值的情况下部署了大规模集群，则插件可能会不断被杀死，因为它们不断达到内存限制。
+或者，插件可能会运行，但由于 CPU 时间片的限制而导致性能不佳。</p><p>为避免遇到集群插件资源问题，在创建大规模集群时，请考虑以下事项：</p><ul><li>部分垂直扩展插件 —— 总有一个插件副本服务于整个集群或服务于整个故障区域。
+对于这些附加组件，请在扩大集群时加大资源请求和资源限制。</li><li>许多水平扩展插件 —— 你可以通过运行更多的 Pod 来增加容量——但是在大规模集群下，
+可能还需要稍微提高 CPU 或内存限制。
+<a href=https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler#readme>Vertical Pod Autoscaler</a>
+可以在 <strong>recommender</strong> 模式下运行，以提供有关请求和限制的建议数字。</li><li>一些插件在每个节点上运行一个副本，并由 DaemonSet 控制：
+例如，节点级日志聚合器。与水平扩展插件的情况类似，
+你可能还需要稍微提高 CPU 或内存限制。</li></ul><h2 id=优先处理集群关键组件>优先处理集群关键组件<a class=td-heading-self-link href=#%e4%bc%98%e5%85%88%e5%a4%84%e7%90%86%e9%9b%86%e7%be%a4%e5%85%b3%e9%94%ae%e7%bb%84%e4%bb%b6 aria-label="Heading self-link"></a></h2><p>为确保集群关键组件（例如 CoreDNS、metrics-server 和其他关键插件）优先于其他工作负载运行，
+并且不会被低优先级 Pod 抢占，请使用系统 <a href=/zh-cn/docs/concepts/scheduling-eviction/pod-priority-preemption/>PriorityClass</a>
+运行它们，例如 <code>system-cluster-critical</code> 或 <code>system-node-critical</code>。</p><h2 id=接下来>接下来<a class=td-heading-self-link href=#%e6%8e%a5%e4%b8%8b%e6%9d%a5 aria-label="Heading self-link"></a></h2><ul><li><p><code>VerticalPodAutoscaler</code> 是一种自定义资源，你可以将其部署到集群中，帮助你管理 Pod 的资源请求和资源限制。
+了解有关 <a href=https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler#readme>Vertical Pod Autoscaler</a>
+的更多信息，了解如何用它扩展集群组件（包括对集群至关重要的插件）的信息。</p></li><li><p>阅读关于<a href=/zh-cn/docs/concepts/cluster-administration/node-autoscaling/>节点自动扩缩</a>的信息。</p></li></ul><ul><li><a href=https://github.com/kubernetes/autoscaler/tree/master/addon-resizer#readme>addon resizer</a>
+可帮助你在集群规模变化时自动调整插件的大小。</li></ul></div>
+</body>
+</html>

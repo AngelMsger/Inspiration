@@ -43,6 +43,8 @@ export interface Doc {
   /** Front matter date: a record of that day. */
   date?: string;
   level?: GovernanceLevel;
+  /** The path of the document it translates. */
+  translation_of?: string;
 }
 
 export interface Said {
@@ -136,7 +138,11 @@ export const freshnessTest = (backend: Backend) =>
         sensitivity: "internal",
         ...(doc.level && { governance_level: doc.level }),
         fetched_at: now.toISOString(),
-        metadata: { modified_at: `${doc.modified}T08:00:00Z`, ...(extra && { extra }) },
+        metadata: {
+          modified_at: `${doc.modified}T08:00:00Z`,
+          ...(extra && { extra }),
+          ...(doc.translation_of && { translation_of: { source_id: SOURCE, external_id: doc.translation_of } }),
+        },
         ...(options.previous && { previous_version_id: options.previous.version.id }),
         ...(options.deleted && { deleted: true }),
       };

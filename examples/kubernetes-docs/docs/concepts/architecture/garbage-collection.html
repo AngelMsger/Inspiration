@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Garbage Collection</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Garbage Collection</h1><header class=article-meta></header><p>Garbage collection is a collective term for the various mechanisms Kubernetes uses to clean up
+cluster resources. This
+allows the clean up of resources like the following:</p><ul><li><a href=/docs/concepts/workloads/pods/pod-lifecycle/#pod-garbage-collection>Terminated pods</a></li><li><a href=/docs/concepts/workloads/controllers/ttlafterfinished/>Completed Jobs</a></li><li><a href=#owners-dependents>Objects without owner references</a></li><li><a href=#containers-images>Unused containers and container images</a></li><li><a href=/docs/concepts/storage/persistent-volumes/#delete>Dynamically provisioned PersistentVolumes with a StorageClass reclaim policy of Delete</a></li><li><a href=/docs/reference/access-authn-authz/certificate-signing-requests/#request-signing-process>Stale or expired CertificateSigningRequests (CSRs)</a></li><li><a class=glossary-tooltip title='A node is a worker machine in Kubernetes.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/architecture/nodes/ target=_blank aria-label=Nodes>Nodes</a> deleted in the following scenarios:<ul><li>On a cloud when the cluster uses a <a href=/docs/concepts/architecture/cloud-controller/>cloud controller manager</a></li><li>On-premises when the cluster uses an addon similar to a cloud controller
+manager</li></ul></li><li><a href=/docs/concepts/architecture/nodes/#heartbeats>Node Lease objects</a></li></ul><h2 id=owners-dependents>Owners and dependents<a class=td-heading-self-link href=#owners-dependents aria-label="Heading self-link"></a></h2><p>Many objects in Kubernetes link to each other through <a href=/docs/concepts/overview/working-with-objects/owners-dependents/><em>owner references</em></a>.
+Owner references tell the control plane which objects are dependent on others.
+Kubernetes uses owner references to give the control plane, and other API
+clients, the opportunity to clean up related resources before deleting an
+object. In most cases, Kubernetes manages owner references automatically.</p><p>Ownership is different from the <a href=/docs/concepts/overview/working-with-objects/labels/>labels and selectors</a>
+mechanism that some resources also use. For example, consider a
+<a class=glossary-tooltip title='A way to expose an application running on a set of Pods as a network service.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/services-networking/service/ target=_blank aria-label=Service>Service</a> that creates
+<code>EndpointSlice</code> objects. The Service uses <em>labels</em> to allow the control plane to
+determine which <code>EndpointSlice</code> objects are used for that Service. In addition
+to the labels, each <code>EndpointSlice</code> that is managed on behalf of a Service has
+an owner reference. Owner references help different parts of Kubernetes avoid
+interfering with objects they don’t control.</p><div class="alert alert-info" role=note><h4 class=alert-heading>Note:</h4><p>Cross-namespace owner references are disallowed by design.
+Namespaced dependents can specify cluster-scoped or namespaced owners.
+A namespaced owner <strong>must</strong> exist in the same namespace as the dependent.
+If it does not, the owner reference is treated as absent, and the dependent
+is subject to deletion once all owners are verified absent.</p><p>Cluster-scoped dependents can only specify cluster-scoped owners.
+In v1.20+, if a cluster-scoped dependent specifies a namespaced kind as an owner,
+it is treated as having an unresolvable owner reference, and is not able to be garbage collected.</p><p>In v1.20+, if the garbage collector detects an invalid cross-namespace <code>ownerReference</code>,
+or a cluster-scoped dependent with an <code>ownerReference</code> referencing a namespaced kind, a warning Event
+with a reason of <code>OwnerRefInvalidNamespace</code> and an <code>involvedObject</code> of the invalid dependent is reported.
+You can check for that kind of Event by running
+<code>kubectl get events -A --field-selector=reason=OwnerRefInvalidNamespace</code>.</p></div><h2 id=cascading-deletion>Cascading deletion<a class=td-heading-self-link href=#cascading-deletion aria-label="Heading self-link"></a></h2><p>Kubernetes checks for and deletes objects that no longer have owner
+references, like the pods left behind when you delete a ReplicaSet. When you
+delete an object, you can control whether Kubernetes deletes the object's
+dependents automatically, in a process called <em>cascading deletion</em>. There are
+two types of cascading deletion, as follows:</p><ul><li>Foreground cascading deletion</li><li>Background cascading deletion</li></ul><p>You can also control how and when garbage collection deletes resources that have
+owner references using Kubernetes <a class=glossary-tooltip title='A namespaced key that tells Kubernetes to wait until specific conditions are met before it fully deletes an object marked for deletion.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/overview/working-with-objects/finalizers/ target=_blank aria-label=finalizers>finalizers</a>.</p><h3 id=foreground-deletion>Foreground cascading deletion<a class=td-heading-self-link href=#foreground-deletion aria-label="Heading self-link"></a></h3><p>In foreground cascading deletion, the owner object you're deleting first enters
+a <em>deletion in progress</em> state. In this state, the following happens to the
+owner object:</p><ul><li>The Kubernetes API server sets the object's <code>metadata.deletionTimestamp</code>
+field to the time the object was marked for deletion.</li><li>The Kubernetes API server also sets the <code>metadata.finalizers</code> field to
+<code>foregroundDeletion</code>.</li><li>The object remains visible through the Kubernetes API until the deletion
+process is complete.</li></ul><p>After the owner object enters the <em>deletion in progress</em> state, the controller
+deletes dependents it knows about. After deleting all the dependent objects it knows about,
+the controller deletes the owner object. At this point, the object is no longer visible in the
+Kubernetes API.</p><p>During foreground cascading deletion, the only dependents that block owner
+deletion are those that have the <code>ownerReference.blockOwnerDeletion=true</code> field
+and are in the garbage collection controller cache. The garbage collection controller
+cache may not contain objects whose resource type cannot be listed / watched successfully,
+or objects that are created concurrent with deletion of an owner object.
+See <a href=/docs/tasks/administer-cluster/use-cascading-deletion/#use-foreground-cascading-deletion>Use foreground cascading deletion</a>
+to learn more.</p><h3 id=background-deletion>Background cascading deletion<a class=td-heading-self-link href=#background-deletion aria-label="Heading self-link"></a></h3><p>In background cascading deletion, the Kubernetes API server deletes the owner
+object immediately and the garbage collector controller (custom or default)
+cleans up the dependent objects in the background.
+If a finalizer exists, it ensures that objects are not deleted until all necessary clean-up tasks are completed.
+By default, Kubernetes uses background cascading deletion unless
+you manually use foreground deletion or choose to orphan the dependent objects.</p><p>See <a href=/docs/tasks/administer-cluster/use-cascading-deletion/#use-background-cascading-deletion>Use background cascading deletion</a>
+to learn more.</p><h3 id=orphaned-dependents>Orphaned dependents<a class=td-heading-self-link href=#orphaned-dependents aria-label="Heading self-link"></a></h3><p>When Kubernetes deletes an owner object, the dependents left behind are called
+<em>orphan</em> objects. By default, Kubernetes deletes dependent objects. To learn how
+to override this behaviour, see <a href=/docs/tasks/administer-cluster/use-cascading-deletion/#set-orphan-deletion-policy>Delete owner objects and orphan dependents</a>.</p><h2 id=containers-images>Garbage collection of unused containers and images<a class=td-heading-self-link href=#containers-images aria-label="Heading self-link"></a></h2><p>The <a class=glossary-tooltip title='An agent that runs on each node in the cluster. It makes sure that containers are running in a pod.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/reference/command-line-tools-reference/kubelet target=_blank aria-label=kubelet>kubelet</a> performs garbage
+collection on unused images every five minutes and on unused containers every
+minute. You should avoid using external garbage collection tools, as these can
+break the kubelet behavior and remove containers that should exist.</p><p>To configure options for unused container and image garbage collection, tune the
+kubelet using a <a href=/docs/tasks/administer-cluster/kubelet-config-file/>configuration file</a>
+and change the parameters related to garbage collection using the
+<a href=/docs/reference/config-api/kubelet-config.v1beta1/><code>KubeletConfiguration</code></a>
+resource type.</p><h3 id=container-image-lifecycle>Container image lifecycle<a class=td-heading-self-link href=#container-image-lifecycle aria-label="Heading self-link"></a></h3><p>Kubernetes manages the lifecycle of all images through its <em>image manager</em>,
+which is part of the kubelet, with the cooperation of
+<a class=glossary-tooltip title='Tool that provides understanding of the resource usage and performance characteristics for containers' data-bs-toggle=tooltip data-bs-placement=top href=https://github.com/google/cadvisor/ target=_blank aria-label=cadvisor>cadvisor</a>. The kubelet
+considers the following disk usage limits when making garbage collection
+decisions:</p><ul><li><code>HighThresholdPercent</code></li><li><code>LowThresholdPercent</code></li></ul><p>Disk usage above the configured <code>HighThresholdPercent</code> value triggers garbage
+collection, which deletes images in order based on the last time they were used,
+starting with the oldest first. The kubelet deletes images
+until disk usage reaches the <code>LowThresholdPercent</code> value.</p><h4 id=image-maximum-age-gc>Garbage collection for unused container images<a class=td-heading-self-link href=#image-maximum-age-gc aria-label="Heading self-link"></a></h4><p>You can specify the maximum time a local image can be unused for,
+regardless of disk usage. This is a kubelet setting that you configure for each node.</p><p>To configure the setting, you need to set a value for the <code>imageMaximumGCAge</code>
+field in the kubelet configuration file.</p><p>The value is specified as a Kubernetes <a class=glossary-tooltip title='A string value representing an amount of time.' data-bs-toggle=tooltip data-bs-placement=top href='/docs/reference/glossary/?all=true#term-duration' target=_blank aria-label=duration>duration</a>.
+See <a href="/docs/reference/glossary/?all=true#term-duration">duration</a> in the glossary
+for more details.</p><p>For example, you can set the configuration field to <code>12h45m</code>,
+which means 12 hours and 45 minutes.</p><div class="alert alert-info" role=note><h4 class=alert-heading>Note:</h4>This feature does not track image usage across kubelet restarts. If the kubelet
+is restarted, the tracked image age is reset, causing the kubelet to wait the full
+<code>imageMaximumGCAge</code> duration before qualifying images for garbage collection
+based on image age.</div><h3 id=container-image-garbage-collection>Container garbage collection<a class=td-heading-self-link href=#container-image-garbage-collection aria-label="Heading self-link"></a></h3><p>The kubelet garbage collects unused containers based on the following variables,
+which you can define:</p><ul><li><code>MinAge</code>: the minimum age at which the kubelet can garbage collect a
+container. Disable by setting to <code>0</code>.</li><li><code>MaxPerPodContainer</code>: the maximum number of dead containers each Pod
+can have. Disable by setting to less than <code>0</code>.</li><li><code>MaxContainers</code>: the maximum number of dead containers the cluster can have.
+Disable by setting to less than <code>0</code>.</li></ul><p>In addition to these variables, the kubelet garbage collects unidentified and
+deleted containers, typically starting with the oldest first.</p><p><code>MaxPerPodContainer</code> and <code>MaxContainers</code> may potentially conflict with each other
+in situations where retaining the maximum number of containers per Pod
+(<code>MaxPerPodContainer</code>) would go outside the allowable total of global dead
+containers (<code>MaxContainers</code>). In this situation, the kubelet adjusts
+<code>MaxPerPodContainer</code> to address the conflict. A worst-case scenario would be to
+downgrade <code>MaxPerPodContainer</code> to <code>1</code> and evict the oldest containers.
+Additionally, containers owned by pods that have been deleted are removed once
+they are older than <code>MinAge</code>.</p><div class="alert alert-info" role=note><h4 class=alert-heading>Note:</h4>The kubelet only garbage collects the containers it manages.</div><h2 id=configuring-gc>Configuring garbage collection<a class=td-heading-self-link href=#configuring-gc aria-label="Heading self-link"></a></h2><p>You can tune garbage collection of resources by configuring options specific to
+the controllers managing those resources. The following pages show you how to
+configure garbage collection:</p><ul><li><a href=/docs/tasks/administer-cluster/use-cascading-deletion/>Configuring cascading deletion of Kubernetes objects</a></li><li><a href=/docs/concepts/workloads/controllers/ttlafterfinished/>Configuring cleanup of finished Jobs</a></li></ul><h2 id=what-s-next>What's next<a class=td-heading-self-link href=#what-s-next aria-label="Heading self-link"></a></h2><ul><li>Learn more about <a href=/docs/concepts/overview/working-with-objects/owners-dependents/>ownership of Kubernetes objects</a>.</li><li>Learn more about Kubernetes <a href=/docs/concepts/overview/working-with-objects/finalizers/>finalizers</a>.</li><li>Learn about the <a href=/docs/concepts/workloads/controllers/ttlafterfinished/>TTL controller</a> that cleans up finished Jobs.</li></ul></div>
+</body>
+</html>

@@ -362,7 +362,7 @@ States: **Built** (on `main`, with tests), **Designed** (decided, not built), **
 | ST-4 | Read reference documents only where they touch a known fact, and in full the first time a page or answer cites them | Built |
 | ST-5 | File statements into topics at most three levels deep, with stable keys; at most 5% move in one re-clustering, and nothing a person placed ever moves | Built |
 | ST-6 | Resolve entities (people, departments, products, suppliers) and relations, each backed by a statement | Planned |
-| ST-7 | Treat translations as copies of their originals, and merge the same statement across languages after a model check | Designed |
+| ST-7 | Treat translations as copies of their originals, and merge the same statement across languages after a model check | Built for translations the source states; the merge designed |
 | ST-8 | Never merge or compare knowledge across domains: a member's My space and the company's shared spaces | Designed |
 
 ### 6.3 Reading and asking

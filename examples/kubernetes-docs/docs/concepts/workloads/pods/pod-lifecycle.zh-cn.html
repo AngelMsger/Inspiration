@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Pod 的生命周期</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Pod 的生命周期</h1><header class=article-meta></header><p>本页面讲述 Pod 的生命周期。
+Pod 遵循预定义的生命周期，起始于 <code>Pending</code> <a href=#pod-phase>阶段</a>，
+如果至少其中有一个主要容器正常启动，则进入 <code>Running</code>，之后取决于 Pod
+中是否有容器以失败状态结束而进入 <code>Succeeded</code> 或者 <code>Failed</code> 阶段。</p><p>在 Pod 运行期间，kubelet 负责管理容器，并将 Pod 规约转换为容器运行时所需的指令。
+此外，kubelet 还负责执行用于监控应用程序健康状况的<a href=#container-probes>探针</a>。</p><p>和一个个独立的应用容器一样，Pod 也被认为是相对临时性（而不是长期存在）的实体。
+Pod 会被创建、赋予一个唯一的
+ID（<a href=/zh-cn/docs/concepts/overview/working-with-objects/names/#uids>UID</a>），
+并被调度到节点，并在终止（根据重启策略）或删除之前一直运行在该节点。
+如果一个<a class=glossary-tooltip title='Kubernetes 中的工作机器称作节点。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/architecture/nodes/ target=_blank aria-label=节点>节点</a>死掉了，调度到该节点的
+Pod 也被计划在给定超时期限结束后<a href=#pod-garbage-collection>删除</a>。</p><h2 id=pod-lifetime>Pod 生命期 <a class=td-heading-self-link href=#pod-lifetime aria-label="Heading self-link"></a></h2><p>在 Pod 运行期间，<code>kubelet</code> 能够重启容器以处理一些失效场景。
+在 Pod 内部，Kubernetes 跟踪不同容器的<a href=#container-states>状态</a>并确定使
+Pod 重新变得健康所需要采取的动作。
+这一过程是在一个<a href=/zh-cn/docs/reference/node/kubelet-sync-loop/>轮询循环</a>中完成的，
+该循环定期将期望状态（Pod 规约）与运行中容器的实际状态进行协调。</p><p>在 Kubernetes API 中，Pod 包含规约部分和实际状态部分。
+Pod 对象的状态包含了一组 <a href=#pod-conditions>Pod 状况（Conditions）</a>。
+如果应用需要的话，你也可以向其中注入<a href=#pod-readiness-gate>自定义的就绪态信息</a>。</p><p>Pod 在其生命周期中只会被<a href=/zh-cn/docs/concepts/scheduling-eviction/>调度</a>一次。
+将 Pod 分配到特定节点的过程称为<strong>绑定</strong>，而选择使用哪个节点的过程称为<strong>调度</strong>。
+一旦 Pod 被调度并绑定到某个节点，Kubernetes 会尝试在该节点上运行 Pod。
+Pod 会在该节点上运行，直到 Pod 停止或者被<a href=#pod-termination>终止</a>；
+如果 Kubernetes 无法在选定的节点上启动 Pod（例如，如果节点在 Pod 启动前崩溃），
+那么特定的 Pod 将永远不会启动。</p><p>你可以使用 <a href=/zh-cn/docs/concepts/scheduling-eviction/pod-scheduling-readiness/>Pod 调度就绪态</a>来延迟
+Pod 的调度，直到所有的<strong>调度门控</strong>都被移除。
+例如，你可能想要定义一组 Pod，但只有在所有 Pod 都被创建完成后才会触发调度。</p><h3 id=pod-fault-recovery>Pod 和故障恢复 <a class=td-heading-self-link href=#pod-fault-recovery aria-label="Heading self-link"></a></h3><p>如果 Pod 中的某个容器失败，Kubernetes 可能会尝试重启特定的容器。
+有关细节参阅 <a href=#container-restarts>Pod 如何处理容器问题</a>。</p><p>然而，Pod 也可能以集群无法恢复的方式失败，在这种情况下，Kubernetes 不会进一步尝试修复 Pod；
+相反，Kubernetes 会删除 Pod 并依赖其他组件提供自动修复。</p><p>如果 Pod 被调度到某个<a class=glossary-tooltip title='Kubernetes 中的工作机器称作节点。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/architecture/nodes/ target=_blank aria-label=节点>节点</a>而该节点之后失效，
+Pod 会被视为不健康，最终 Kubernetes 会删除 Pod。
+Pod 无法在因节点资源耗尽或者节点维护而被<a class=glossary-tooltip title='终止节点上一个或多个 Pod 的过程。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/scheduling-eviction/ target=_blank aria-label=驱逐>驱逐</a>期间继续存活。</p><p>Kubernetes 使用一种高级抽象来管理这些相对而言可随时丢弃的 Pod 实例，
+称作<a class=glossary-tooltip title='控制器通过 API 服务器监控集群的公共状态，并致力于将当前状态转变为期望的状态。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/architecture/controller/ target=_blank aria-label=控制器>控制器</a>。</p><p>任何给定的 Pod （由 UID 定义）从不会被“重新调度（rescheduled）”到不同的节点；
+相反，这一 Pod 可以被一个新的、几乎完全相同的 Pod 替换掉。
+如果你创建一个替换 Pod，它甚至可以拥有与旧 Pod 相同的名称（如 <code>.metadata.name</code>），
+但替换 Pod 将具有与旧 Pod 不同的 <code>.metadata.uid</code>。</p><p>Kubernetes 不保证现有 Pod 的替换 Pod 会被调度到与被替换的旧 Pod 相同的节点。</p><h3 id=associated-lifetimes>关联的生命期 <a class=td-heading-self-link href=#associated-lifetimes aria-label="Heading self-link"></a></h3><p>如果某物声称其生命期与某 Pod 相同，例如存储<a class=glossary-tooltip title='包含可被 Pod 中容器访问的数据的目录。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/storage/volumes/ target=_blank aria-label=卷>卷</a>，
+这就意味着该对象在此 Pod （UID 亦相同）存在期间也一直存在。
+如果 Pod 因为任何原因被删除，甚至某完全相同的替代 Pod 被创建时，
+这个相关的对象（例如这里的卷）也会被删除并重建。</p><figure class=diagram-medium><img src=/images/docs/pod.svg alt="一个包含文件拉取程序 Sidecar（边车） 和 Web 服务器的多容器 Pod。此 Pod 使用临时 emptyDir 卷作为容器之间的共享存储。"><figcaption><h4>图 1</h4><p>一个包含文件拉取程序 <a href=/zh-cn/docs/concepts/workloads/pods/sidecar-containers/>Sidecar（边车）</a> 和 Web 服务器的多容器 Pod。此 Pod 使用<a href=/zh-cn/docs/concepts/storage/volumes/#emptydir>临时 <code>emptyDir</code> 卷</a>作为容器之间的共享存储。</p></figcaption></figure><h2 id=pod-phase>Pod 阶段 <a class=td-heading-self-link href=#pod-phase aria-label="Heading self-link"></a></h2><p>Pod 的 <code>status</code> 字段是一个
+<a href=/docs/reference/generated/kubernetes-api/v1.37/#podstatus-v1-core>PodStatus</a>
+对象，其中包含一个 <code>phase</code> 字段。</p><p>Pod 的阶段（Phase）是 Pod 在其生命周期中所处位置的简单宏观概述。
+该阶段并不是对容器或 Pod 状态的综合汇总，也不是为了成为完整的状态机。</p><p>Pod 阶段的数量和含义是严格定义的。
+除了本文档中列举的内容外，不应该再假定 Pod 有其他的 <code>phase</code> 值。</p><p>下面是 <code>phase</code> 可能的值：</p><table><thead><tr><th style=text-align:left>取值</th><th style=text-align:left>描述</th></tr></thead><tbody><tr><td style=text-align:left><code>Pending</code>（悬决）</td><td style=text-align:left>Pod 已被 Kubernetes 系统接受，但有一个或者多个容器尚未创建亦未运行。此阶段包括等待 Pod 被调度的时间和通过网络下载镜像的时间。</td></tr><tr><td style=text-align:left><code>Running</code>（运行中）</td><td style=text-align:left>Pod 已经绑定到了某个节点，Pod 中所有的容器都已被创建。至少有一个容器仍在运行，或者正处于启动或重启状态。</td></tr><tr><td style=text-align:left><code>Succeeded</code>（成功）</td><td style=text-align:left>Pod 中的所有容器都已成功结束，并且不会再重启。</td></tr><tr><td style=text-align:left><code>Failed</code>（失败）</td><td style=text-align:left>Pod 中的所有容器都已终止，并且至少有一个容器是因为失败终止。也就是说，容器以非 0 状态退出或者被系统终止，且未被设置为自动重启。</td></tr><tr><td style=text-align:left><code>Unknown</code>（未知）</td><td style=text-align:left>因为某些原因无法取得 Pod 的状态。这种情况通常是因为与 Pod 所在主机通信失败。</td></tr></tbody></table><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>当 Pod 反复启动失败时，某些 kubectl 命令的 <code>Status</code> 字段中可能会出现 <code>CrashLoopBackOff</code>。
+同样，当 Pod 被删除时，某些 kubectl 命令的 <code>Status</code> 字段中可能会出现 <code>Terminating</code>。</p><p>确保不要将 <strong>Status</strong>（kubectl 用于用户直觉的显示字段）与 Pod 的 <code>phase</code> 混淆。
+Pod 阶段（phase）是 Kubernetes 数据模型和
+<a href=/zh-cn/docs/reference/kubernetes-api/workload-resources/pod-v1/>Pod API</a>
+的一个明确的部分。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-console data-lang=console><span class=line><span class=cl><span class=go>NAMESPACE               NAME               READY   STATUS             RESTARTS   AGE
+</span></span></span><span class=line><span class=cl><span class=go>alessandras-namespace   alessandras-pod    0/1     CrashLoopBackOff   200        2d9h
+</span></span></span></code></pre></div><p>Pod 被赋予一个可以体面终止的期限，默认为 30 秒。
+你可以使用 <code>--force</code> 参数来<a href=/zh-cn/docs/concepts/workloads/pods/pod-lifecycle/#pod-termination-forced>强制终止 Pod</a>。</p></div><p>从 Kubernetes 1.27 起，kubelet 会在被删除的 Pod 从 API 服务器移除之前，
+将它们切换到一个终止阶段（<code>Failed</code> 或 <code>Succeeded</code>，具体取决于 Pod 容器的退出状态），
+但有两种例外情况：</p><ul><li><a href=/zh-cn/docs/tasks/configure-pod-container/static-pod/>静态 Pod</a>
+（由 kubelet 直接管理，并通过{{&lt; glossary_tooltip text="镜像 Pod" term_id="mirror-pod" >}} 来表示）</li><li>没有设置 finalizer
+的<a href=/zh-cn/docs/concepts/workloads/pods/pod-lifecycle/#pod-termination-forced>被强制删除的 Pod</a></li></ul><p>如果某节点死掉或者与集群中其他节点失联，Kubernetes
+会实施一种策略，将失去的节点上运行的所有 Pod 的 <code>phase</code> 设置为 <code>Failed</code>。</p><h2 id=container-states>容器状态 <a class=td-heading-self-link href=#container-states aria-label="Heading self-link"></a></h2><p>Kubernetes 会跟踪 Pod 中每个容器的状态，就像它跟踪 Pod 总体上的<a href=#pod-phase>阶段</a>一样。
+你可以使用<a href=/zh-cn/docs/concepts/containers/container-lifecycle-hooks/>容器生命周期回调</a>
+来在容器生命周期中的特定时间点触发事件。</p><p>一旦<a class=glossary-tooltip title='控制平面组件，负责监视新创建的、未指定运行节点的 Pod，选择节点让 Pod 在上面运行。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/reference/command-line-tools-reference/kube-scheduler/ target=_blank aria-label=调度器>调度器</a>将 Pod
+分派给某个节点，<code>kubelet</code>
+就通过<a class=glossary-tooltip title=容器运行时是负责运行容器的软件。 data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/setup/production-environment/container-runtimes target=_blank aria-label=容器运行时>容器运行时</a>开始为
+Pod 创建容器。容器的状态有三种：<code>Waiting</code>（等待）、<code>Running</code>（运行中）和
+<code>Terminated</code>（已终止）。</p><p>要检查 Pod 中容器的状态，你可以使用 <code>kubectl describe pod &lt;pod 名称></code>。
+其输出中包含 Pod 中每个容器的状态。</p><p>每种状态都有特定的含义：</p><h3 id=container-state-waiting><code>Waiting</code>（等待） <a class=td-heading-self-link href=#container-state-waiting aria-label="Heading self-link"></a></h3><p>如果容器并不处在 <code>Running</code> 或 <code>Terminated</code> 状态之一，它就处在 <code>Waiting</code> 状态。
+处于 <code>Waiting</code> 状态的容器仍在运行它完成启动所需要的操作：例如，
+从某个容器镜像仓库拉取容器镜像，或者向容器应用 <a class=glossary-tooltip title='Secret 用于存储敏感信息，如密码、 OAuth 令牌和 SSH 密钥。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/configuration/secret/ target=_blank aria-label=Secret>Secret</a>
+数据等等。
+当你使用 <code>kubectl</code> 来查询包含 <code>Waiting</code> 状态的容器的 Pod 时，你也会看到一个
+Reason 字段，其中给出了容器处于等待状态的原因。</p><h3 id=container-state-running><code>Running</code>（运行中） <a class=td-heading-self-link href=#container-state-running aria-label="Heading self-link"></a></h3><p><code>Running</code> 状态表明容器正在执行状态并且没有问题发生。
+如果配置了 <code>postStart</code> 回调，那么该回调已经执行且已完成。
+如果你使用 <code>kubectl</code> 来查询包含 <code>Running</code> 状态的容器的 Pod 时，
+你也会看到关于容器进入 <code>Running</code> 状态的信息。</p><h3 id=container-state-terminated><code>Terminated</code>（已终止） <a class=td-heading-self-link href=#container-state-terminated aria-label="Heading self-link"></a></h3><p>处于 <code>Terminated</code> 状态的容器开始执行后，或者运行至正常结束或者因为某些原因失败。
+如果你使用 <code>kubectl</code> 来查询包含 <code>Terminated</code> 状态的容器的 Pod 时，
+你会看到容器进入此状态的原因、退出代码以及容器执行期间的起止时间。</p><p>如果容器配置了 <code>preStop</code> 回调，则该回调会在容器进入 <code>Terminated</code>
+状态之前执行。</p><h2 id=container-restarts>Pod 如何处理容器问题<a class=td-heading-self-link href=#container-restarts aria-label="Heading self-link"></a></h2><p>Kubernetes 通过在 Pod <code>spec</code> 中定义的 <a href=#restart-policy><code>restartPolicy</code></a> 管理 Pod 内容器出现的失效。
+该策略决定了 Kubernetes 如何对由于错误或其他原因而退出的容器做出反应，其顺序如下：</p><ol><li><strong>最初的崩溃</strong>：Kubernetes 尝试根据 Pod 的 <code>restartPolicy</code> 立即重新启动。</li><li><strong>反复的崩溃</strong>：在最初的崩溃之后，Kubernetes 对于后续重新启动的容器采用指数级回退延迟机制，
+如 <a href=#restart-policy><code>restartPolicy</code></a> 中所述。
+这一机制可以防止快速、重复的重新启动尝试导致系统过载。</li><li><strong>CrashLoopBackOff 状态</strong>：这一状态表明，对于一个给定的、处于崩溃循环、反复失效并重启的容器，
+回退延迟机制目前正在生效。</li><li><strong>回退重置</strong>：如果容器成功运行了一定时间（如 10 分钟），
+Kubernetes 会重置回退延迟机制，将新的崩溃视为第一次崩溃。</li></ol><p>在实际部署中，<code>CrashLoopBackOff</code> 是在描述或列出 Pod 时从 <code>kubectl</code> 命令输出的一种状况或事件。
+当 Pod 中的容器无法正常启动，并反复进入尝试与失败的循环时就会出现。</p><p>换句话说，当容器进入崩溃循环时，Kubernetes 会应用<a href=#restart-policy>容器重启策略</a>
+中提到的指数级回退延迟机制。这种机制可以防止有问题的容器因不断进行启动失败尝试而导致系统不堪重负。</p><p>下列问题可以导致 <code>CrashLoopBackOff</code>：</p><ul><li>应用程序错误导致的容器退出。</li><li>配置错误，如环境变量不正确或配置文件丢失。</li><li>资源限制，容器可能没有足够的内存或 CPU 正常启动。</li><li>如果应用程序没有在预期时间内启动服务，健康检查就会失败。</li><li>容器的存活探针或者启动探针返回 <code>失败</code> 结果，如<a href=#container-probes>探针部分</a>所述。</li></ul><p>要调查 <code>CrashLoopBackOff</code> 问题的根本原因，用户可以：</p><ol><li><strong>检查日志</strong>：使用 <code>kubectl logs &lt;pod名称></code> 检查容器的日志。
+这通常是诊断导致崩溃的问题的最直接方法。</li><li><strong>检查事件</strong>：使用 <code>kubectl describe pod &lt;pod名称></code> 查看 Pod 的事件，
+这可以提供有关配置或资源问题的提示。</li><li><strong>审查配置</strong>：确保 Pod 配置正确无误，包括环境变量和挂载卷，并且所有必需的外部资源都可用。</li><li><strong>检查资源限制</strong>： 确保容器被分配了足够的 CPU 和内存。有时，增加 Pod 定义中的资源可以解决问题。</li><li><strong>调试应用程序</strong>：应用程序代码中可能存在错误或配置不当。
+在本地或开发环境中运行此容器镜像有助于诊断应用程序的特定问题。</li></ol><h3 id=restart-policy>容器重启 <a class=td-heading-self-link href=#restart-policy aria-label="Heading self-link"></a></h3><p>当 Pod 中的某个容器停止或发生故障时，Kubernetes 可以重新启动此容器。但重启并不总是合适的；例如，
+<a class=glossary-tooltip title='应用容器运行前必须先运行完成的一个或多个 Init 容器（Init Container）。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/pods/init-containers/ target=_blank aria-label='Init 容器'>Init 容器</a>只在 Pod 启动期间运行一次（如果成功）。
+你可以将重启配置为适用于所有 Pod 的策略，或者使用容器级别的配置（例如：
+在你定义<a class=glossary-tooltip title='在 Pod 的整个生命期内保持运行的辅助容器。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/pods/sidecar-containers/ target=_blank aria-label=边车容器>边车容器</a>或定义容器级别重载时）。</p><h4 id=container-restart-resilience>容器重启与弹性 <a class=td-heading-self-link href=#container-restart-resilience aria-label="Heading self-link"></a></h4><p>Kubernetes 项目建议遵循云原生原则，包括能够应对未预告或随意重启的弹性设计。
+你可以通过让 Pod 失败并依赖自动<a href=/zh-cn/docs/concepts/workloads/controllers/>替换</a>，
+或者通过容器级别的弹性设计来实现。
+无论哪种方式，都有助于确保即使在部分故障的情况下，你的整体工作负载依然保持可用。</p><h3 id=pod-级别容器重启策略>Pod 级别容器重启策略<a class=td-heading-self-link href=#pod-%e7%ba%a7%e5%88%ab%e5%ae%b9%e5%99%a8%e9%87%8d%e5%90%af%e7%ad%96%e7%95%a5 aria-label="Heading self-link"></a></h3><p>Pod 的 <code>spec</code> 中包含一个 <code>restartPolicy</code> 字段，其可能取值包括
+Always、OnFailure 和 Never。默认值是 Always。</p><p><code>restartPolicy</code> 应用于 Pod
+中的<a class=glossary-tooltip title='用于运行部分工作负载的容器。与 Init 容器比较而言。' data-bs-toggle=tooltip data-bs-placement=top href='/zh-cn/docs/reference/glossary/?all=true#term-app-container' target=_blank aria-label=应用容器>应用容器</a>和常规的
+<a href=/zh-cn/docs/concepts/workloads/pods/init-containers/>Init 容器</a>。
+<a href=/zh-cn/docs/concepts/workloads/pods/sidecar-containers/>Sidecar 容器</a>忽略
+Pod 级别的 <code>restartPolicy</code> 字段：在 Kubernetes 中，Sidecar 被定义为
+<code>initContainers</code> 内的一个条目，其容器级别的 <code>restartPolicy</code> 被设置为 <code>Always</code>。
+对于因错误而退出的 Init 容器，如果 Pod 级别 <code>restartPolicy</code> 为 <code>OnFailure</code> 或 <code>Always</code>，
+则 kubelet 会重新启动 Init 容器。</p><ul><li><code>Always</code>：只要容器终止就自动重启容器。</li><li><code>OnFailure</code>：只有在容器错误退出（退出状态非零）时才重新启动容器。</li><li><code>Never</code>：不会自动重启已终止的容器。</li></ul><h5 id=重启行为比较>重启行为比较<a class=td-heading-self-link href=#%e9%87%8d%e5%90%af%e8%a1%8c%e4%b8%ba%e6%af%94%e8%be%83 aria-label="Heading self-link"></a></h5><p>下表显示了在不同的重启策略和退出代码下容器的行为：</p><table><thead><tr><th>退出代码</th><th><code>restartPolicy: Always</code></th><th><code>restartPolicy: OnFailure</code></th><th><code>restartPolicy: Never</code></th><th>边车容器</th></tr></thead><tbody><tr><td>0 （成功）</td><td>重启</td><td>不重启</td><td>不重启</td><td>总是重启</td></tr><tr><td>非零 （失败）</td><td>重启</td><td>重启</td><td>不重启</td><td>总是重启</td></tr></tbody></table><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>在选择 Deployment 还是 Job 时，重启行为尤为重要：</p><ul><li><strong>Deployment</strong> 通常使用 <code>restartPolicy: Always</code>（唯一允许的值）来保持应用程序持续运行。</li><li><strong>Job</strong> 通常使用 <code>restartPolicy: OnFailure</code> 或 <code>restartPolicy: Never</code> 来妥善处理批处理作业。</li><li><strong>边车容器</strong>是初始化容器，无论 Pod 的 <code>restartPolicy</code> 设置如何，
+它们都会始终重启，因为它们拥有自己的容器级 <code>restartPolicy: Always</code> 设置。</li></ul></div><h5 id=示例场景>示例场景<a class=td-heading-self-link href=#%e7%a4%ba%e4%be%8b%e5%9c%ba%e6%99%af aria-label="Heading self-link"></a></h5><p>以下是一些具体示例，演示了不同的重启行为：</p><p><strong>示例 1：Web 服务器，使用 <code>restartPolicy: Always</code>（通常用于 Deployment）</strong></p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>web-server</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Always </span><span class=w> </span><span class=c># 无论退出代码如何，容器都会重启</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>nginx</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>nginx:1.14.2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 如果此容器因任何原因崩溃或退出，它将被重新启动</span><span class=w>
+</span></span></span></code></pre></div><p><strong>示例 2：使用 <code>restartPolicy: OnFailure</code> 的批处理作业</strong></p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>batch/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Job</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>data-processor</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>template</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>OnFailure </span><span class=w> </span><span class=c># 仅当退出代码非零时才重新启动</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>processor</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>busybox:1.28</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s1>&#39;sh&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;-c&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;echo &#34;Processing data...&#34;; exit 0&#39;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=c># 退出代码 0：作业成功完成，无需重启</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=c># 退出代码 1+：容器重启以重试作业</span><span class=w>
+</span></span></span></code></pre></div><p><strong>示例 3：使用 <code>restartPolicy: Never</code> 执行一次性作业</strong></p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>migration-task</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Never </span><span class=w> </span><span class=c># 无论退出代码如何，都不要重新启动</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>migrate</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>busybox:1.28</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s1>&#39;sh&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;-c&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;echo &#34;Running migration...&#34;; exit 1&#39;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 即使退出代码为 1（失败），容器也不会重启</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># Pod 将保持失败状态</span><span class=w>
+</span></span></span></code></pre></div><h5 id=边车容器和重启策略>边车容器和重启策略<a class=td-heading-self-link href=#%e8%be%b9%e8%bd%a6%e5%ae%b9%e5%99%a8%e5%92%8c%e9%87%8d%e5%90%af%e7%ad%96%e7%95%a5 aria-label="Heading self-link"></a></h5><p><a href=/zh-cn/docs/concepts/workloads/pods/sidecar-containers/>边车容器</a>具有与常规应用容器不同的特殊重启行为：</p><ul><li><p><strong>边车容器忽略 Pod 级别的 <code>restartPolicy</code></strong>：
+它们使用自己的容器级 <code>restartPolicy</code> 字段，该字段始终设置为 <code>Always</code></p></li><li><p><strong>独立生命周期</strong>：边车容器可以独立于主应用容器重启</p></li><li><p><strong>持久运行</strong>：边车容器在 Pod 的整个生命周期内持续运行，以提供支持服务</p></li></ul><p><strong>示例：带有边车容器的 Pod</strong></p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>app-with-sidecar</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>OnFailure </span><span class=w> </span><span class=c># 仅适用于主容器</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>initContainers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>logging-sidecar   </span><span class=w> </span><span class=c># 这是一个边车容器</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>fluent/fluent-bit:1.8</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Always   </span><span class=w> </span><span class=c># 无论退出代码如何，边车容器始终会重新启动。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 在 Pod 的整个生命周期内提供日志记录服务</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>main-app         </span><span class=w> </span><span class=c># 这遵循 Pod 级别的重启策略</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>nginx:1.14.2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 根据 Pod 的 OnFailure 策略，仅在失败（非零退出）时才会重启。</span><span class=w>
+</span></span></span></code></pre></div><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>虽然主应用程序容器遵循 Pod 的 <code>restartPolicy: OnFailure</code>，
+但边车容器无论其退出代码如何都会重新启动，因为边车容器在容器级别会始终设置
+<code>restartPolicy: Always</code>。</p></div><p>当 kubelet 根据配置的重启策略处理容器重启时，仅适用于同一 Pod
+内替换容器并在同一节点上运行的重启。当 Pod 中的容器退出时，<code>kubelet</code>
+会以指数级回退延迟机制（10 秒、20 秒、40 秒......）重启容器，
+上限为 300 秒（5 分钟）。一旦容器顺利执行了 10 分钟，
+kubelet 就会重置该容器的重启延迟计时器。
+<a href=/zh-cn/docs/concepts/workloads/pods/sidecar-containers/#sidecar-containers-and-pod-lifecycle>Sidecar 容器和 Pod 生命周期</a>中解释了
+<code>init containers</code> 在指定 <code>restartPolicy</code> 字段时的行为。</p><h4 id=container-restart-rules>单个容器的重启策略与规则 <a class=td-heading-self-link href=#container-restart-rules aria-label="Heading self-link"></a></h4><div class="feature-state-notice feature-beta" title="特性门控： ContainerRestartRules"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Beta</span> since Kubernetes v1.35; （默认启用）</span></div><div class=feature-beta></div><p>如果你的集群启用了 <code>ContainerRestartRules</code> 特性门控，你可以针对<strong>单个容器</strong>指定
+<code>restartPolicy</code> 和 <code>restartPolicyRules</code> 来覆盖 Pod 重启策略。容器重启策略和规则适用于 Pod
+中的<a class=glossary-tooltip title='用于运行部分工作负载的容器。与 Init 容器比较而言。' data-bs-toggle=tooltip data-bs-placement=top href='/zh-cn/docs/reference/glossary/?all=true#term-app-container' target=_blank aria-label=应用容器>应用容器</a>以及常规的
+<a href=/zh-cn/docs/concepts/workloads/pods/init-containers/>Init 容器</a>。</p><p>Kubernetes 原生的<a href=/zh-cn/docs/concepts/workloads/pods/sidecar-containers/>边车容器</a>将其容器级别的
+<code>restartPolicy</code> 设置为 <code>Always</code>。</p><p>容器重启会遵循与前文所述的 Pod 重启策略相同的指数回退机制。支持的容器重启策略有：</p><ul><li><code>Always</code>：在任何原因的容器终止后都会自动重启容器。</li><li><code>OnFailure</code>：仅当容器因错误退出（非零退出状态）时才重启。</li><li><code>Never</code>：不自动重启已终止的容器。</li></ul><p>此外，<strong>单个容器</strong>可以指定 <code>restartPolicyRules</code>。如果指定了 <code>restartPolicyRules</code> 字段，
+则<strong>必须</strong>同时指定容器的 <code>restartPolicy</code>。<code>restartPolicyRules</code> 定义了一系列在容器退出时应用的规则。
+每条规则由条件和动作组成。支持的条件是 <code>exitCodes</code>，用于将容器的退出码与给定值列表进行比较。
+支持的动作是 <code>Restart</code>，表示容器将被重启。这些规则会按顺序进行评估。一旦匹配成功，立即执行相应动作。
+如果没有任何规则的状况被匹配，Kubernetes 回退到容器配置的 <code>restartPolicy</code>。</p><p>例如，重启策略为 OnFailure 的某个 Pod 包含一个 <code>try-once</code> 容器。
+这样可以让 Pod 仅重启某些容器：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=kc>on</span>-<span class=l>failure-pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>OnFailure</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>try-once-container   </span><span class=w> </span><span class=c># 此容器只运行一次，因为 restartPolicy 设置为 Never。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>registry.k8s.io/busybox:1.27.2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s1>&#39;sh&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;-c&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;echo &#34;Only running once&#34; &amp;&amp; sleep 10 &amp;&amp; exit 1&#39;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Never     </span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=kc>on</span>-<span class=l>failure-container </span><span class=w> </span><span class=c># 此容器将在失败时重启。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>registry.k8s.io/busybox:1.27.2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s1>&#39;sh&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;-c&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;echo &#34;Keep restarting&#34; &amp;&amp; sleep 1800 &amp;&amp; exit 1&#39;</span><span class=p>]</span><span class=w>
+</span></span></span></code></pre></div><p>下面是一个重启策略为 <code>Always</code> 的 Pod，其中包含一个只执行一次的 Init 容器。
+如果 Init 容器失败，则 Pod 也会失败。
+这样可以在初始化失败时让 Pod 失败，但在初始化成功后保持 Pod 运行：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>fail-pod-if-init-fails</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Always</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>initContainers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>init-once     </span><span class=w> </span><span class=c># 这个 Init 容器只尝试一次。如果失败，Pod 将失败。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>registry.k8s.io/busybox:1.27.2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s1>&#39;sh&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;-c&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;echo &#34;Failing initialization&#34; &amp;&amp; sleep 10 &amp;&amp; exit 1&#39;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Never</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>main-container</span><span class=w> </span><span class=c># 一旦初始化成功，此容器会始终被重启。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>registry.k8s.io/busybox:1.27.2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s1>&#39;sh&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;-c&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;sleep 1800 &amp;&amp; exit 0&#39;</span><span class=p>]</span><span class=w>
+</span></span></span></code></pre></div><p>下面是一个重启策略为 Never 的 Pod，其中包含的容器会在遇到特定的退出码时忽略之并重启。
+这种配置有助于区分可重启错误和不可重启错误：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>restart-on-exit-codes</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Never</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>restart-on-exit-codes</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>registry.k8s.io/busybox:1.27.2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s1>&#39;sh&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;-c&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;sleep 60 &amp;&amp; exit 0&#39;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Never    </span><span class=w> </span><span class=c># 如果指定了规则，必须同时指定容器重启策略</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>restartPolicyRules</span><span class=p>:</span><span class=w>      </span><span class=c># 仅当退出码为 42 时才重启容器</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>action</span><span class=p>:</span><span class=w> </span><span class=l>Restart</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>exitCodes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>operator</span><span class=p>:</span><span class=w> </span><span class=l>In</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>values</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=m>42</span><span class=p>]</span><span class=w>
+</span></span></span></code></pre></div><p>重启规则可用于许多其他高级的生命周期管理场景。
+需要注意的是，重启规则会受到不一致性影响，这一点上与常规的重启策略相同。
+kubelet 重启、容器运行时垃圾收集、与控制平面的间歇性连接问题都可能导致状态丢失，
+容器可能会在你预期不应被重启的情况下被再次运行。</p><h4 id=restart-all-containers>重启所有容器<a class=td-heading-self-link href=#restart-all-containers aria-label="Heading self-link"></a></h4><div class="feature-state-notice feature-beta" title="特性门控： RestartAllContainersOnContainerExits"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Beta</span> since Kubernetes v1.36; （默认启用）</span></div><div class=feature-beta></div><p>如果你的集群已启用特性门控 <code>RestartAllContainersOnContainerExits</code>，
+你可以在容器级别的 <code>restartPolicyRules</code> 中指定 <code>RestartAllContainers</code> 作为一个动作。
+当容器的退出符合包含此动作的某个规则时，整个 Pod 被终止并就地重启。</p><p>这种“就地”重启比完全删除并重新创建 Pod 提供了更高效的方式来重置 Pod 的状态。
+这对于调度批处理作业或 AI/ML 训练任务这类开销高的工作负载尤其有价值。</p><h5 id=就地重启-pod-的工作原理>就地重启 Pod 的工作原理<a class=td-heading-self-link href=#%e5%b0%b1%e5%9c%b0%e9%87%8d%e5%90%af-pod-%e7%9a%84%e5%b7%a5%e4%bd%9c%e5%8e%9f%e7%90%86 aria-label="Heading self-link"></a></h5><p>当触发 <code>RestartAllContainers</code> 动作时，kubelet 执行以下步骤：</p><ol><li><p><strong>快速终止</strong>：Pod 中所有正在运行的容器被终止。<br>配置的 <code>terminationGracePeriodSeconds</code> 不会生效，配置的所有
+<code>preStop</code> 回调也不会被执行。这样可以确保快速关闭容器。</p></li><li><p><strong>保留 Pod 资源</strong>：Pod 的关键资源被保留：</p><ul><li>Pod UID、IP 地址和网络命名空间</li><li>Pod 沙箱及所挂接的所有设备</li><li>所有卷，包括 <code>emptyDir</code> 和挂载卷</li></ul></li></ol><ol start=3><li><p><strong>更新 Pod 状态</strong>：Pod 的状态被更新，同时 <code>PodRestartInPlace</code> 状况设置为 <code>True</code>，使重启过程可观测。</p></li><li><p><strong>完整重启序列</strong>：当所有容器终止后，将 <code>PodRestartInPlace</code> 状况设置为 <code>False</code>，然后 Pod 开始标准的启动流程：</p><ul><li><strong>Init 容器按顺序重新运行</strong>。</li><li>边车和普通容器启动。</li></ul></li></ol><p>此特性的一个关键点是<strong>所有</strong>容器都会被重启，包括之前已成功完成或失败的容器。
+<code>RestartAllContainers</code> 动作会重载所有已配置的容器级或 Pod 级别的 <code>restartPolicy</code>。</p><p>这种机制在需要为所有容器提供干净环境的场景中非常有用，例如：</p><ul><li>当 Init 容器设置的环境可能被破坏时，此特性确保重新执行此设置过程。</li><li>边车容器可以监控主应用的健康状态，如果该应用进入不可恢复的状态，则触发整个 Pod 重启。</li></ul><p>考虑一种工作负载，其中 watcher 边车负责在主应用出错时从已知良好状态重启主应用。
+watcher 可以以特定代码退出，从而触发 worker Pod 的就地完整重启。</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/pods/restart-policy/restart-all-containers.yaml download=pods/restart-policy/restart-all-containers.yaml><code>pods/restart-policy/restart-all-containers.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("pods-restart-policy-restart-all-containers-yaml")' title="复制 pods/restart-policy/restart-all-containers.yaml 到剪贴板"></img></div><div class=includecode id=pods-restart-policy-restart-all-containers-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>ml-worker</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Never</span><span class=w> </span><span class=c># Pod 本身不会自动重启，除非被显式指定。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>initContainers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>setup-environment</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>registry.k8s.io/busybox:1.27.2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s1>&#39;sh&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;-c&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;echo &#34;Setting up environment&#34;&#39;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 这个 Init 容器只运行一次，用于准备环境。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 在触发 RestartAllContainers 动作后，此容器会再次运行。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>watcher-sidecar</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>registry.k8s.io/busybox:1.27.2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 在真实场景中，这里通常会使用一个专用的 watcher 镜像。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 此命令用于模拟 watcher 以特定的退出码退出。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s1>&#39;sh&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;-c&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;sleep 60; exit 88&#39;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Always</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>restartPolicyRules</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>action</span><span class=p>:</span><span class=w> </span><span class=l>RestartAllContainers</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>onExit</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>exitCodes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=c># 退出码 88 会触发整个 Pod 的完全重启。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>operator</span><span class=p>:</span><span class=w> </span><span class=l>In</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>values</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=m>88</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>main-application</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>registry.k8s.io/busybox:1.27.2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s1>&#39;sh&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;-c&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;echo &#34;Application is running&#34;; sleep 3600&#39;</span><span class=p>]</span><span class=w>
+</span></span></span></code></pre></div></div></div><p>在此示例中：</p><ul><li>Pod 的整体 <code>restartPolicy</code> 为 <code>Never</code>。</li><li><code>watcher-sidecar</code> 执行命令后以退出码 <code>88</code> 退出。</li><li>退出码符合规则，触发 <code>RestartAllContainers</code> 动作。</li><li>整个 Pod（包括 <code>setup-environment</code> init 容器和 <code>main-application</code> 容器）随后就地重启。
+Pod 保留其 UID、沙箱、IP 和卷。</li></ul><h3 id=Reduced-container-restart-delay>减少容器重启延迟 <a class=td-heading-self-link href=#Reduced-container-restart-delay aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-alpha" title="特性门控： ReduceDefaultCrashLoopBackOffDecay"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.33; （默认禁用）</span></div><div class=feature-alpha><details><summary>More information about this feature</summary><p>To use this feature, you (or a cluster administrator) will need to enable the <a href=/docs/reference/command-line-tools-reference/feature-gates/#ReduceDefaultCrashLoopBackOffDecay><tt>ReduceDefaultCrashLoopBackOffDecay</tt></a> feature gate for all relevant components in your cluster.</p><p>See <a href=/docs/tasks/administer-cluster/configure-feature-gates/>Enable Or Disable Feature Gates</a> for more information.</p></details></div><p>启用 Alpha 特性开关 <code>ReduceDefaultCrashLoopBackOffDecay</code> 后，
+集群中容器启动重试的初始延迟将从 10 秒减少到 1 秒，
+之后每次重启延迟时间按 2 倍指数增长，直到达到最大延迟 60 秒（之前为 300 秒，即 5 分钟）。</p><p>如果你同时使用了下面介绍的 Alpha 特性 <code>KubeletCrashLoopBackOffMax</code>，
+那么单个节点上可能会有不同的最大延迟值。</p><h3 id=configurable-container-restart-delay>可配置的容器重启延迟 <a class=td-heading-self-link href=#configurable-container-restart-delay aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-beta" title="特性门控： KubeletCrashLoopBackOffMax"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Beta</span> since Kubernetes v1.35; （默认启用）</span></div><div class=feature-beta></div><p>启用特性门控 <code>KubeletCrashLoopBackOffMax</code> 后，
+你可以重新配置容器启动重试之间的最大延迟，默认值为 300 秒（5 分钟）。
+此配置是针对每个节点使用 kubelet 配置进行设置的。
+在你的 <a href=/zh-cn/docs/tasks/administer-cluster/kubelet-config-file/>kubelet 配置</a>中，
+在 <code>crashLoopBackOff</code> 下设置 <code>maxContainerRestartPeriod</code> 字段，取值范围在 <code>"1s"</code> 到 <code>"300s"</code> 之间。
+如上文<a href=#restart-policy>容器重启策略</a>所述，该节点上的延迟仍将从 10 秒开始，并在每次重启后以指数方式增加
+2 倍，但现在其上限将被限制为你所配置的最大值。如果你配置的 <code>maxContainerRestartPeriod</code> 小于默认初始值 10 秒，
+则初始延迟将被设置为配置的最大值。</p><p>参见以下 kubelet 配置示例：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=c># 容器重启延迟将从 10 秒开始，每次重启增加 2 倍</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># 最高达到 100 秒</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>KubeletConfiguration</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>crashLoopBackOff</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>maxContainerRestartPeriod</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;100s&#34;</span><span class=w>
+</span></span></span></code></pre></div><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=c># 容器重启之间的延迟将始终为 2 秒</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>KubeletConfiguration</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>crashLoopBackOff</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>maxContainerRestartPeriod</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;2s&#34;</span><span class=w>
+</span></span></span></code></pre></div><p>如果你将此特性与上文提到的 Alpha 特性 <code>ReduceDefaultCrashLoopBackOffDecay</code> 一起使用，
+那么集群的初始退避时间和最大退避时间默认值将不再是 10 秒和 300 秒，而是 1 秒和 60 秒。
+每个节点上的配置优先于 <code>ReduceDefaultCrashLoopBackOffDecay</code> 所设置的默认值，
+即使这会导致某些节点的最大退避时间比集群中的其他节点更长。</p><h2 id=pod-conditions>Pod 状况 <a class=td-heading-self-link href=#pod-conditions aria-label="Heading self-link"></a></h2><p>Pod 有一个 PodStatus 对象，其中包含一个
+<a href=/docs/reference/generated/kubernetes-api/v1.37/#podcondition-v1-core>PodConditions</a>
+数组。Pod 可能通过也可能未通过其中的一些状况测试。
+Kubelet 管理以下 PodCondition：</p><ul><li><code>PodScheduled</code>：Pod 已经被调度到某节点；</li><li><code>PodReadyToStartContainers</code>：Pod 沙箱已成功创建，网络已配置，存储卷已挂载，
+并且（如果请求了）任何动态资源均已分配完成；</li><li><code>ContainersReady</code>：Pod 中所有容器都已就绪；</li><li><code>Initialized</code>：所有的 <a href=/zh-cn/docs/concepts/workloads/pods/init-containers/>Init 容器</a>都已成功完成；</li><li><code>Ready</code>：Pod 可以为请求提供服务，并且应该被添加到对应服务的负载均衡池中。</li><li><code>DisruptionTarget</code>：由于干扰（例如抢占、驱逐或垃圾回收），Pod 即将被终止。</li><li><code>PodResizePending</code>：已请求对 Pod 进行调整大小，但尚无法应用。
+详见 <a href=/zh-cn/docs/tasks/configure-pod-container/resize-container-resources#pod-resize-status>Pod 调整大小状态</a>。</li><li><code>PodResizeInProgress</code>：Pod 正在调整大小中。
+详见 <a href=/zh-cn/docs/tasks/configure-pod-container/resize-container-resources#pod-resize-status>Pod 调整大小状态</a>。</li></ul><table><thead><tr><th style=text-align:left>字段名称</th><th style=text-align:left>描述</th></tr></thead><tbody><tr><td style=text-align:left><code>type</code></td><td style=text-align:left>Pod 状况的名称</td></tr><tr><td style=text-align:left><code>status</code></td><td style=text-align:left>表明该状况是否适用，可能的取值有 "<code>True</code>"、"<code>False</code>" 或 "<code>Unknown</code>"</td></tr><tr><td style=text-align:left><code>lastProbeTime</code></td><td style=text-align:left>上次探测 Pod 状况时的时间戳</td></tr><tr><td style=text-align:left><code>lastTransitionTime</code></td><td style=text-align:left>Pod 上次从一种状态转换到另一种状态时的时间戳</td></tr><tr><td style=text-align:left><code>reason</code></td><td style=text-align:left>机器可读的、驼峰编码（UpperCamelCase）的文字，表述上次状况变化的原因</td></tr><tr><td style=text-align:left><code>message</code></td><td style=text-align:left>人类可读的消息，给出上次状态转换的详细信息</td></tr></tbody></table><h3 id=pod-readiness-gate>Pod 就绪态 <a class=td-heading-self-link href=#pod-readiness-gate aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.37</span></div><p>你的应用可以向 PodStatus 中注入额外的反馈或者信号：<strong>Pod Readiness（Pod 就绪态）</strong>。
+要使用这一特性，可以设置 Pod 规约中的 <code>readinessGates</code> 列表，为 kubelet
+提供一组额外的状况供其评估 Pod 就绪态时使用。</p><p>就绪态门控基于 Pod 的 <code>status.conditions</code> 字段的当前值来做决定。
+如果 Kubernetes 无法在 <code>status.conditions</code> 字段中找到某状况，
+则该状况的状态值默认为 "<code>False</code>"。</p><p>这里是一个例子：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nn>...</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>readinessGates</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>conditionType</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;www.example.com/feature-1&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>status</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>conditions</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>Ready                             </span><span class=w> </span><span class=c># 内置的 Pod 状况</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>status</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;False&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>lastProbeTime</span><span class=p>:</span><span class=w> </span><span class=kc>null</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>lastTransitionTime</span><span class=p>:</span><span class=w> </span><span class=ld>2018-01-01T00:00:00Z</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;www.example.com/feature-1&#34;</span><span class=w>        </span><span class=c># 额外的 Pod 状况</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>status</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;False&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>lastProbeTime</span><span class=p>:</span><span class=w> </span><span class=kc>null</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>lastTransitionTime</span><span class=p>:</span><span class=w> </span><span class=ld>2018-01-01T00:00:00Z</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containerStatuses</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>containerID</span><span class=p>:</span><span class=w> </span><span class=l>docker://abcd...</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>ready</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nn>...</span><span class=w>
+</span></span></span></code></pre></div><p>你所添加的 Pod 状况名称必须满足 Kubernetes
+<a href=/zh-cn/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set>标签键名格式</a>。</p><h3 id=pod-readiness-status>Pod 就绪态的状态<a class=td-heading-self-link href=#pod-readiness-status aria-label="Heading self-link"></a></h3><p>命令 <code>kubectl patch</code> 不支持修改对象的状态。
+如果需要设置 Pod 的 <code>status.conditions</code>，应用或者
+<a class=glossary-tooltip title=一种用于管理自定义资源的专用控制器 data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/extend-kubernetes/operator/ target=_blank aria-label=Operators>Operators</a>
+需要使用 <code>PATCH</code> 操作。你可以使用
+<a href=/zh-cn/docs/reference/using-api/client-libraries/>Kubernetes 客户端库</a>之一来编写代码，
+针对 Pod 就绪态设置定制的 Pod 状况。</p><p>对于使用定制状况的 Pod 而言，只有当下面的陈述都适用时，该 Pod 才会被评估为就绪：</p><ul><li>Pod 中所有容器都已就绪；</li><li><code>readinessGates</code> 中的所有状况都为 <code>True</code> 值。</li></ul><p>当 Pod 的容器都已就绪，但至少一个定制状况没有取值或者取值为 <code>False</code>，
+<code>kubelet</code> 将 Pod 的<a href=#pod-conditions>状况</a>设置为 <code>ContainersReady</code>。</p><h3 id=pod-has-network>Pod 启动容器的就绪状态<a class=td-heading-self-link href=#pod-has-network aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-alpha"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.25</span></div><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>在其早期开发过程中，这种状况被命名为 <code>PodHasNetwork</code>。</p></div><p>在 Pod 被调度到某节点后，它需要被 kubelet 接受并且挂载所需的存储卷。
+一旦这些阶段完成，Kubelet 将与容器运行时（使用<a class=glossary-tooltip title='在 kubelet 和本地容器运行时之间通讯的协议' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/architecture/cri target=_blank aria-label='容器运行时接口（Container Runtime Interface；CRI）'>容器运行时接口（Container Runtime Interface；CRI）</a>）
+一起为 Pod 生成运行时沙箱并配置网络。
+如果该 Pod 使用了<a href=/zh-cn/docs/concepts/scheduling-eviction/dynamic-resource-allocation/>动态资源分配（DRA）</a>，
+这些资源也会在该阶段被一起分配。
+<code>PodReadyToStartContainers</code> 状况被添加到 Pod 的 <code>status.conditions</code> 字段中。</p><p>当 kubelet 检测到 Pod 不具备配置了网络的运行时沙箱时，状况将被设置为 <code>False</code>。
+这种情况发生在以下场景中：</p><ul><li>在 Pod 生命周期的早期阶段，kubelet 还没有开始使用容器运行时为 Pod 设置沙箱时。</li><li>在 Pod 生命周期的末期阶段，Pod 的沙箱由于以下原因被销毁时：<ul><li>节点重启时 Pod 没有被驱逐</li><li>对于使用虚拟机进行隔离的容器运行时，Pod 沙箱虚拟机重启时，需要创建一个新的沙箱和全新的容器网络配置。</li></ul></li></ul><p>在沙箱创建、网络配置、卷挂载以及（如有请求）动态资源分配完成之后，kubelet
+会将 <code>PodReadyToStartContainers</code> 状况设置为 <code>True</code>。镜像拉取与容器创建会在此之后进行。</p><p>对于带有 Init 容器的 Pod，kubelet 会在 Init 容器成功完成后将 <code>Initialized</code> 状况设置为 <code>True</code>
+（这发生在运行时成功创建沙箱和配置网络之后），
+对于没有 Init 容器的 Pod，kubelet 会在创建沙箱和网络配置开始之前将
+<code>Initialized</code> 状况设置为 <code>True</code>。</p><h2 id=pod-resize>调整 Pod 大小 <a class=td-heading-self-link href=#pod-resize aria-label="Heading self-link"></a></h2><p><div class="feature-state-notice feature-stable" title="特性门控： InPlacePodVerticalScaling"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.35</span></div><div class=feature-stable><details><summary>More information about this feature</summary><p>This is a stable feature in Kubernetes, and has been since version v1.35. It was first available in the v1.27 release. You can no longer disable or opt out of this feature or behavior (it is locked); if you explicitly set a value for the associated feature gate <tt>InPlacePodVerticalScaling</tt>, Kubernetes ignores it but does not report any error.</p></details></div><div class="feature-state-notice feature-beta" title="特性门控： InPlacePodLevelResourcesVerticalScaling"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Beta</span> since Kubernetes v1.36; （默认启用）</span></div><div class=feature-beta></div></p><p>Kubernetes 支持在 Pod 创建后更改分配给 Pod 的 CPU 和内存资源。
+（对于其他基础设施资源，你需要使用特定于这些资源的不同技术。）
+调整 CPU 和内存资源主要有两种方法：</p><h3 id=pod-resize-inplace>原地 Pod 调整大小<a class=td-heading-self-link href=#pod-resize-inplace aria-label="Heading self-link"></a></h3><p>你可以调整 Pod 的容器级别 CPU 和内存资源，而无需重建 Pod。
+这亦被称为<strong>原地 Pod 垂直扩缩</strong>。这允许你在可能避免应用程序中断的同时，
+调整运行容器的资源配置。</p><p>如果你已在 Pod 级别指定了资源，也可以直接调整这些资源的大小。
+更多详情，请参阅<a href=/zh-cn/docs/tasks/configure-pod-container/resize-pod-resources/>调整分配给 Pod 的 CPU 和内存资源大小</a>。</p><p>要执行原地调整大小，你可以使用 <code>/resize</code> 子资源更新 Pod 的期望状态。
+然后，kubelet 会尝试将新的资源值应用到运行中的容器。
+Pod <a class=glossary-tooltip title='状况表示 Kubernetes 资源的当前状态，提供资源某些方面是否为真的信息。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/pods/pod-lifecycle/#pod-conditions target=_blank aria-label=状况>状况</a>
+<code>PodResizePending</code> 和 <code>PodResizeInProgress</code> （在 <a href=#pod-conditions>Pod 状况</a> 中描述）
+指示调整大小操作的状态。有关调整大小状态的更多详情，请参见
+<a href=/zh-cn/docs/tasks/configure-pod-container/resize-container-resources/#container-resize-status>容器调整大小状态</a>。</p><p>就地调整大小的关键考量：</p><ul><li>仅 CPU 和内存资源可以原地调整大小。</li><li>Pod 的<a href=/zh-cn/docs/concepts/workloads/pods/pod-qos/>服务质量（QoS）类</a>在创建时确定，
+且不能通过调整大小来更改。</li><li>你可以使用容器规约中的 <code>resizePolicy</code> 配置是否需要重启容器以进行调整大小。</li></ul><p>有关执行原地调整大小的详细说明，
+请参见<a href=/zh-cn/docs/tasks/configure-pod-container/resize-container-resources/>调整分配给容器的 CPU 和内存资源</a>。</p><h3 id=通过启动替代-pod-进行调整大小>通过启动替代 Pod 进行调整大小<a class=td-heading-self-link href=#%e9%80%9a%e8%bf%87%e5%90%af%e5%8a%a8%e6%9b%bf%e4%bb%a3-pod-%e8%bf%9b%e8%a1%8c%e8%b0%83%e6%95%b4%e5%a4%a7%e5%b0%8f aria-label="Heading self-link"></a></h3><p>更改 Pod 资源更云原生的方法是通过管理它的工作负载资源（如 Deployment 或 StatefulSet）。
+当你更新 Pod 模板中的资源规约时，
+工作负载的控制器会根据其更新策略创建具有更新资源的新 Pod 并终止旧 Pod。</p><p>这种方法：</p><ul><li>适用于任何 Kubernetes 版本。</li><li>可以更改任何 Pod 规约，而不仅仅是资源。</li><li>会导致 Pod 替换，因此你应该设计你的工作负载来处理<a href=/zh-cn/docs/concepts/workloads/pods/disruptions/>计划内的干扰</a>。
+考虑使用 <a href=/zh-cn/docs/tasks/run-application/configure-pdb/>PodDisruptionBudget</a>
+来控制可用性。</li><li>要求你的 Pod 由工作负载资源管理。</li></ul><p>你也可以使用
+<a href=/zh-cn/docs/concepts/workloads/autoscaling/vertical-pod-autoscale/>VerticalPodAutoscaler</a>
+来自动管理 Pod 资源建议和更新。</p><h2 id=container-probes>容器探针 <a class=td-heading-self-link href=#container-probes aria-label="Heading self-link"></a></h2><p>Kubernetes 允许你定义<strong>探针（Probe）</strong> 来持续监测 Pod 中容器的健康状况。
+探针是由 {{&lt; glossary_tooltip text="kubelet" term_id="kubelet" >}}
+周期性地在容器上执行的一种诊断操作。为执行该诊断，kubelet 要么在容器内执行一段代码，要么发起一次网络请求。</p><p>根据探针检测结果，Kubernetes 可以重启不健康的容器，或者停止向未就绪的容器发送流量。</p><p>kubelet 可以选择性地对运行中的容器执行并响应三种探针，每种探针的作用各不相同。
+有关探针机制（<code>exec</code>、<code>grpc</code>、<code>httpGet</code>、<code>tcpSocket</code>）、配置字段以及详细的使用指南，
+请参见<a href=/zh-cn/docs/concepts/workloads/pods/probes/>存活态、就绪态与启动探针</a>。</p><h3 id=启动探针>启动探针<a class=td-heading-self-link href=#%e5%90%af%e5%8a%a8%e6%8e%a2%e9%92%88 aria-label="Heading self-link"></a></h3><p>启动探针用于验证容器内的应用是否已启动。如果配置了启动探针，在启动探针成功之前，
+Kubernetes 不会执行存活态探针或就绪态探针，从而为应用的初始化留出时间。</p><p>这种探针仅在启动阶段执行，与周期性运行的存活态探针和就绪态探针不同。</p><p>如果启动探针失败，kubelet 会终止该容器，
+并按照其<a href=/zh-cn/docs/concepts/workloads/pods/pod-lifecycle/#restart-policy>重启策略</a>对容器进行处理。</p><h3 id=存活态探针>存活态探针<a class=td-heading-self-link href=#%e5%ad%98%e6%b4%bb%e6%80%81%e6%8e%a2%e9%92%88 aria-label="Heading self-link"></a></h3><p>存活态探针决定何时重启容器。例如，存活态探针可以捕捉到死锁——即应用仍在运行但无法继续推进。
+在此状态下重启容器有助于提高应用的可用性，即使存在缺陷。</p><p>如果一个容器在存活态探针上的失败次数超过了配置的容忍度，kubelet 就会重启该容器。
+存活态探针不等待就绪态探针成功。如果你希望在执行存活态探针前进行等待，可以定义
+<code>initialDelaySeconds</code>，或者使用启动探针。</p><h3 id=就绪态探针>就绪态探针<a class=td-heading-self-link href=#%e5%b0%b1%e7%bb%aa%e6%80%81%e6%8e%a2%e9%92%88 aria-label="Heading self-link"></a></h3><p>就绪态探针用于确定容器何时可以接收流量。
+当应用需要执行耗时的初始化任务（例如建立网络连接、加载文件、预热缓存）时，它非常有用。
+就绪态探针在容器生命周期的后期同样很有用，例如在从临时故障或过载中恢复时。</p><p>如果就绪态探针返回失败状态，{{&lt; glossary_tooltip text="EndpointSlice" term_id="endpoint-slice" >}}
+控制器会从所有与该 Pod 匹配的 Service 的 EndpointSlice 中移除该 Pod 的 IP 地址。</p><p>就绪态探针会在容器的整个生命周期内持续运行。</p><h2 id=pod-termination>Pod 的终止 <a class=td-heading-self-link href=#pod-termination aria-label="Heading self-link"></a></h2><p>由于 Pod 所代表的是在集群中节点上运行的进程，当不再需要这些进程时允许其体面地终止是很重要的。
+一般不应武断地使用 <code>KILL</code> 信号终止它们，导致这些进程没有机会完成清理操作。</p><p>设计的目标是令你能够请求删除进程，并且知道进程何时被终止，同时也能够确保删除操作终将完成。
+当你请求删除某个 Pod 时，集群会记录并跟踪 Pod 的体面终止周期，
+而不是直接强制地杀死 Pod。在存在强制关闭设施的前提下，
+<a class=glossary-tooltip title='一个在集群中每个节点上运行的代理。它保证容器都运行在 Pod 中。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/reference/command-line-tools-reference/kubelet target=_blank aria-label=kubelet>kubelet</a> 会尝试体面地终止
+Pod。</p><p>通常 Pod 体面终止的过程为：kubelet 先发送一个带有体面超时限期的 TERM（又名 SIGTERM）
+信号到每个容器中的主进程，将请求发送到容器运行时来尝试停止 Pod 中的容器。
+停止容器的这些请求由容器运行时以异步方式处理。
+这些请求的处理顺序无法被保证。许多容器运行时遵循容器镜像内定义的 <code>STOPSIGNAL</code> 值，
+如果不同，则发送容器镜像中配置的 STOPSIGNAL，而不是 TERM 信号。
+一旦超出了体面终止限期，容器运行时会向所有剩余进程发送 KILL 信号，之后
+Pod 就会被从 <a class=glossary-tooltip title='提供 Kubernetes API 服务的控制面组件。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/architecture/#kube-apiserver target=_blank aria-label='API 服务器'>API 服务器</a>上移除。
+如果 kubelet 或者容器运行时的管理服务在等待进程终止期间被重启，
+集群会从头开始重试，赋予 Pod 完整的体面终止限期。</p><h3 id=pod-termination-stop-signals>终止信号<a class=td-heading-self-link href=#pod-termination-stop-signals aria-label="Heading self-link"></a></h3><p>用于终止容器的终止信号可以通过容器镜像中的 <code>STOPSIGNAL</code> 指令进行定义。
+如果镜像中未定义终止信号，容器运行时（containerd 和 CRI-O 都是 SIGTERM）
+会使用默认的终止信号来终止容器。</p><h3 id=Defining-custom-stop-signals>定义自定义终止信号 <a class=td-heading-self-link href=#Defining-custom-stop-signals aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-alpha" title="特性门控： ContainerStopSignals"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.33; （默认禁用）</span></div><div class=feature-alpha><details><summary>More information about this feature</summary><p>To use this feature, you (or a cluster administrator) will need to enable the <a href=/docs/reference/command-line-tools-reference/feature-gates/#ContainerStopSignals><tt>ContainerStopSignals</tt></a> feature gate for all relevant components in your cluster.</p><p>See <a href=/docs/tasks/administer-cluster/configure-feature-gates/>Enable Or Disable Feature Gates</a> for more information.</p></details></div><p>如果启用了 <code>ContainerStopSignals</code> 特性门控（feature gate），
+你可以通过容器的生命周期（Lifecycle）配置自定义的终止信号。
+在容器生命周期中定义终止信号时，Pod 的 <code>spec.os.name</code> 字段必须存在。
+可用的信号列表取决于 Pod 调度到的操作系统。
+对于调度到 Windows 节点的 Pod，仅支持 SIGTERM 和 SIGKILL 信号。</p><p>以下是一个定义了自定义终止信号的 Pod 示例：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>os</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>linux</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-container</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>container-image:latest</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>lifecycle</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>stopSignal</span><span class=p>:</span><span class=w> </span><span class=l>SIGUSR1</span><span class=w>
+</span></span></span></code></pre></div><p>如果在生命周期中定义了终止信号，则会覆盖容器镜像中定义的信号。
+如果容器规约中未定义终止信号，则容器将回退到默认行为。</p><h3 id=pod-termination-flow>Pod 终止流程<a class=td-heading-self-link href=#pod-termination-flow aria-label="Heading self-link"></a></h3><p>Pod 终止流程，如下例所示：</p><ol><li><p>你使用 <code>kubectl</code> 工具手动删除某个特定的 Pod，而该 Pod 的体面终止限期是默认值（30 秒）。</p></li><li><p>API 服务器中的 Pod 对象被更新，记录涵盖体面终止限期在内 Pod
+的最终死期，超出所计算时间点则认为 Pod 已死（dead）。
+如果你使用 <code>kubectl describe</code> 来查验你正在删除的 Pod，该 Pod 会显示为
+"Terminating" （正在终止）。
+在 Pod 运行所在的节点上：kubelet 一旦看到 Pod
+被标记为正在终止（已经设置了体面终止限期），kubelet 即开始本地的 Pod 关闭过程。</p><ol><li><p>如果 Pod 中的容器之一定义了 <code>preStop</code>
+<a href=/zh-cn/docs/concepts/containers/container-lifecycle-hooks>回调</a>
+且 Pod 规约中的 <code>terminationGracePeriodSeconds</code> 未设为 0，
+<code>kubelet</code> 开始在容器内运行该回调逻辑。默认的 <code>terminationGracePeriodSeconds</code>
+设置为 30 秒.</p><p>如果 <code>preStop</code> 回调在体面期结束后仍在运行，kubelet 将请求短暂的、一次性的体面期延长 2 秒。</p></li></ol><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>如果 <code>preStop</code> 回调所需要的时间长于默认的体面终止限期，你必须修改
+<code>terminationGracePeriodSeconds</code> 属性值来使其正常工作。</p></div><ol start=2><li><p>kubelet 接下来触发容器运行时发送 TERM 信号给每个容器中的进程 1。</p><p>如果 Pod 中定义了<a class=glossary-tooltip title='在 Pod 的整个生命期内保持运行的辅助容器。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/pods/sidecar-containers/ target=_blank aria-label=边车容器>边车容器</a>，
+则存在<a href=#termination-with-sidecars>特殊排序</a>。否则，Pod 中的容器会在不同的时间和任意的顺序接收
+TERM 信号。如果关闭顺序很重要，考虑使用 <code>preStop</code> 钩子进行同步（或者切换为使用边车容器）。</p></li></ol></li></ol><ol start=3><li><p>在 kubelet 启动 Pod 的体面关闭逻辑的同时，控制平面会评估是否将关闭的
+Pod 从对应的 EndpointSlice 对象中移除，过滤条件是 Pod
+被对应的 <a class=glossary-tooltip title='将运行在一组 Pod 上的应用程序公开为网络服务的抽象方法。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/services-networking/service/ target=_blank aria-label=Service>Service</a> 以某
+<a class=glossary-tooltip title=选择算符允许用户通过标签对一组资源对象进行筛选过滤。 data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/overview/working-with-objects/labels/ target=_blank aria-label=选择算符>选择算符</a>选定。
+<a class=glossary-tooltip title='ReplicaSet 确保一次运行指定数量的 Pod 副本。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/controllers/replicaset/ target=_blank aria-label=ReplicaSet>ReplicaSet</a>
+和其他工作负载资源不再将关闭进程中的 Pod 视为合法的、能够提供服务的副本。</p><p>关闭动作很慢的 Pod 不应继续处理常规服务请求，而应开始终止并完成对打开的连接的处理。
+一些应用程序不仅需要完成对打开的连接的处理，还需要更进一步的体面终止逻辑 -
+比如：排空和完成会话。</p><p>任何正在终止的 Pod 所对应的端点都不会立即从 EndpointSlice
+中被删除，EndpointSlice API 会公开一个状态来指示其处于
+<a href=/zh-cn/docs/concepts/services-networking/endpoint-slices/#conditions>终止状态</a>。
+正在终止的端点始终将其 <code>ready</code> 状态设置为 <code>false</code>（为了向后兼容 1.26 之前的版本），
+因此负载均衡器不会将其用于常规流量。</p><p>如果需要排空正被终止的 Pod 上的流量，可以将 <code>serving</code> 状况作为实际的就绪状态。你可以在教程
+<a href=/zh-cn/docs/tutorials/services/pods-and-endpoint-termination-flow/>探索 Pod 及其端点的终止行为</a>
+中找到有关如何实现连接排空的更多详细信息。</p><a id=pod-termination-beyond-grace-period></li></ol><ol start=4><li><p>kubelet 确保 Pod 被关闭和终止</p><ol><li><p>超出终止宽限期限时，如果 Pod 中仍有容器在运行，kubelet 会触发强制关闭过程。
+容器运行时会向 Pod 中所有容器内仍在运行的进程发送 <code>SIGKILL</code> 信号。
+kubelet 也会清理隐藏的 <code>pause</code> 容器，如果容器运行时使用了这种容器的话。</p></li><li><p>kubelet 将 Pod 转换到终止阶段（<code>Failed</code> 或 <code>Succeeded</code>，具体取决于其容器的结束状态）。</p></li><li><p>kubelet 通过将宽限期设置为 0（立即删除），触发从 API 服务器强制移除 Pod 对象的操作。</p></li><li><p>API 服务器删除 Pod 的 API 对象，从任何客户端都无法再看到该对象。</p></li></ol></li></ol><h3 id=pod-termination-forced>强制终止 Pod <a class=td-heading-self-link href=#pod-termination-forced aria-label="Heading self-link"></a></h3><div class="alert alert-caution" role=note><h4 class=alert-heading>注意：</h4><p>对于某些工作负载及其 Pod 而言，强制删除很可能会带来某种破坏。</p></div><p>默认情况下，所有的删除操作都会附有 30 秒钟的宽限期限。
+<code>kubectl delete</code> 命令支持 <code>--grace-period=&lt;seconds></code> 选项，允许你重载默认值，
+设定自己希望的期限值。</p><p>将宽限期限强制设置为 <code>0</code> 意味着立即从 API 服务器删除 Pod。
+如果 Pod 仍然运行于某节点上，强制删除操作会触发 <code>kubelet</code> 立即执行清理操作。</p><p>使用 kubectl 时，你必须在设置 <code>--grace-period=0</code> 的同时额外设置 <code>--force</code>
+参数才能发起强制删除请求。</p><p>执行强制删除操作时，API 服务器不再等待来自 <code>kubelet</code> 的、关于 Pod
+已经在原来运行的节点上终止执行的确认消息。
+API 服务器直接删除 Pod 对象，这样新的与之同名的 Pod 即可以被创建。
+在节点侧，被设置为立即终止的 Pod 仍然会在被强行杀死之前获得一点点的宽限时间。</p><div class="alert alert-caution" role=note><h4 class=alert-heading>注意：</h4><p>马上删除时不等待确认正在运行的资源已被终止。这些资源可能会无限期地继续在集群上运行。</p></div><p>如果你需要强制删除 StatefulSet 的 Pod，
+请参阅<a href=/zh-cn/docs/tasks/run-application/force-delete-stateful-set-pod/>从 StatefulSet 中删除 Pod</a>
+的任务文档。</p><h3 id=termination-with-sidecars>Pod 关闭和边车容器<a class=td-heading-self-link href=#termination-with-sidecars aria-label="Heading self-link"></a></h3><p>如果你的 Pod 包含一个或多个 <a href=/zh-cn/docs/concepts/workloads/pods/sidecar-containers/>边车容器</a>
+（重启策略为 <code>Always</code> 的 Init 容器），kubelet 将延迟向这些边车容器发送 TERM 信号，
+直到最后一个主容器已完全终止。边车容器将按照它们在 Pod 规约中被定义的相反顺序被终止。
+这样确保了边车容器继续为 Pod 中的其他容器提供服务，直到完全不再需要为止。</p><p>这意味着主容器的慢终止也会延迟边车容器的终止。
+如果在终止过程完成之前宽限期已到，Pod 可能会进入<a href=#pod-termination-beyond-grace-period>强制终止</a>阶段。
+在这种情况下，Pod 中所有剩余的容器将在某个短宽限期内被同时终止。</p><p>同样地，如果 Pod 有一个 <code>preStop</code> 钩子超过了终止宽限期，可能会发生紧急终止。
+总体而言，如果你以前使用 <code>preStop</code> 钩子来控制没有边车容器 的 Pod 中容器的终止顺序，
+你现在可以移除这些钩子，允许 kubelet 自动管理边车容器的终止。</p><h3 id=pod-garbage-collection>Pod 的垃圾收集 <a class=td-heading-self-link href=#pod-garbage-collection aria-label="Heading self-link"></a></h3><p>对于已失败的 Pod 而言，对应的 API 对象仍然会保留在集群的 API 服务器上，
+直到用户或者<a class=glossary-tooltip title='控制器通过 API 服务器监控集群的公共状态，并致力于将当前状态转变为期望的状态。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/architecture/controller/ target=_blank aria-label=控制器>控制器</a>进程显式地将其删除。</p><p>Pod 的垃圾收集器（PodGC）是控制平面的控制器，它会在 Pod 个数超出所配置的阈值
+（根据 <code>kube-controller-manager</code> 的 <code>terminated-pod-gc-threshold</code> 设置）时删除已终止的
+Pod（阶段值为 <code>Succeeded</code> 或 <code>Failed</code>）。
+这一行为会避免随着时间演进不断创建和终止 Pod 而引起的资源泄露问题。</p><p>此外，PodGC 会清理满足以下任一条件的所有 Pod：</p><ol><li>孤儿 Pod - 绑定到不再存在的节点，</li><li>计划外终止的 Pod</li><li>终止过程中的 Pod，绑定到有
+<a href=/zh-cn/docs/reference/labels-annotations-taints/#node-kubernetes-io-out-of-service><code>node.kubernetes.io/out-of-service</code></a>
+污点的未就绪节点。</li></ol><p>在清理 Pod 的同时，如果它们处于非终止状态阶段，PodGC 也会将它们标记为失败。
+此外，PodGC 在清理孤儿 Pod 时会添加 Pod 干扰状况。参阅
+<a href=/zh-cn/docs/concepts/workloads/pods/disruptions#pod-disruption-conditions>Pod 干扰状况</a>了解更多详情。</p><h2 id=kubelet-restarts>kubelet 重启期间的 Pod 行为<a class=td-heading-self-link href=#kubelet-restarts aria-label="Heading self-link"></a></h2><p>如果你重启 kubelet，Pod（及其容器）即使在重启过程中也会继续运行。
+如果某个节点上存在正在运行的 Pod，停止或重启该节点上的 kubelet <strong>不会</strong>在
+kubelet 自身停止之前让 kubelet 停止所有本地 Pod。
+如果需要停止节点上的 Pod，可以使用 <code>kubectl drain</code>。</p><h3 id=detection-of-kubelet-restarts>检测 kubelet 重启 <a class=td-heading-self-link href=#detection-of-kubelet-restarts aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-deprecated" title="特性门控： ChangeContainerStatusOnKubeletRestart"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>已弃用</span> since Kubernetes v1.35; （默认禁用）</span></div><div class=feature-deprecated><details><summary>More information about this feature</summary><p>To use this feature, you (or a cluster administrator) will need to enable the <a href=/docs/reference/command-line-tools-reference/feature-gates/#ChangeContainerStatusOnKubeletRestart><tt>ChangeContainerStatusOnKubeletRestart</tt></a> feature gate for all relevant components in your cluster.</p><p>See <a href=/docs/tasks/administer-cluster/configure-feature-gates/>Enable Or Disable Feature Gates</a> for more information.</p></details></div><p>当 kubelet 启动时，它会检查是否已经存在一个绑定了 Pod 的 Node。
+如果该 Node 的 <a href=/zh-cn/docs/reference/node/node-status/#condition><code>Ready</code> 状况</a>保持不变，
+也就是说该状况没有从 true 变为 false，Kubernetes 就会将其检测为一次 <strong>kubelet 重启</strong>。
+（也可能通过其他方式重启 kubelet，例如为修复某个节点缺陷而重启；在这些情况下，
+Kubernetes 会选择更安全的处理方式，例如先停止再启动 kubelet。）</p><p>当 kubelet 重启时，容器状态将基于特性门控的设置以不同方式进行管理：</p><ul><li><p>默认情况下，kubelet 在重启后不更改容器状态。
+之前设置为 <code>ready: true</code> 状态的容器仍然保持就绪。</p><p>如果你停止 kubelet 的时间足够长，
+导致其连续多次<a href=/zh-cn/docs/concepts/architecture/leases/#node-heart-beats>节点心跳</a>检查失败，
+并且在重启 kubelet 之前又等待了一段时间，Kubernetes 可能会开始从该节点驱逐 Pod。
+但是，即使开始发生 Pod 驱逐，Kubernetes 也不会将这些 Pod 中的单个容器标记为 <code>ready: false</code>。
+Pod 级别的驱逐是在控制平面因心跳失败而将节点标记为 <code>node.kubernetes.io/not-ready</code> 之后发生的。</p></li></ul><ul><li><p>在 Kubernetes 1.37 中，你可以选择启用一种<strong>传统的行为</strong>：
+在 kubelet 重启后，总是将容器的 <code>ready</code> 状况修改为 false。</p><p>这种传统行为在很长一段时间内都是默认设置的，但给 Kubernetes 用户带来了一些问题，
+尤其是在大规模部署场景中。虽然此特性门控允许暂时回退到这种传统行为，
+但 Kubernetes 项目建议如果你遇到相关问题，应提交 Bug 报告。
+<code>ChangeContainerStatusOnKubeletRestart</code>
+<a href=/zh-cn/docs/reference/command-line-tools-reference/feature-gates/#ChangeContainerStatusOnKubeletRestart>特性门控</a>
+将在未来被移除。</p></li></ul><h2 id=接下来>接下来<a class=td-heading-self-link href=#%e6%8e%a5%e4%b8%8b%e6%9d%a5 aria-label="Heading self-link"></a></h2><ul><li>动手实践<a href=/zh-cn/docs/tasks/configure-pod-container/attach-handler-lifecycle-event/>为容器生命周期时间关联处理程序</a>。</li><li>动手实践<a href=/zh-cn/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/>配置存活态、就绪态和启动探针</a>。</li><li>进一步了解<a href=/zh-cn/docs/concepts/containers/container-lifecycle-hooks/>容器生命周期回调</a>。</li><li>进一步了解<a href=/zh-cn/docs/concepts/workloads/pods/sidecar-containers/>边车容器</a>。</li><li>关于 API 中定义的有关 Pod 和容器状态的详细规范信息，
+可参阅 API 参考文档中 Pod 的
+<a href=/zh-cn/docs/reference/kubernetes-api/workload-resources/pod-v1/#PodStatus><code>status</code></a> 字段。</li></ul></div>
+</body>
+</html>

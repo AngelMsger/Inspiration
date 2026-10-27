@@ -9,6 +9,7 @@ import {
   type KnowledgeStore,
   newEvent,
   newId,
+  type SourceBlock,
   type SourceVersion,
   type Span,
   stableId,
@@ -41,6 +42,8 @@ export interface Said {
   from?: string;
   type?: ClaimType;
   slot?: string;
+  /** The paragraph the statement is in, when the document's blocks are stored. */
+  paragraph?: string;
 }
 
 export interface Doc {
@@ -50,6 +53,10 @@ export interface Doc {
   /** Front matter effective_from. */
   effective_from?: string;
   level?: GovernanceLevel;
+  /** The file in the folder source; the title with ".md" when not given. */
+  external_id?: string;
+  /** The external ID of the document it translates, in the same source. */
+  translation_of?: string;
 }
 
 export interface World {
@@ -111,7 +118,7 @@ export const governanceTest = (backend: Backend) =>
         tenant_id: TENANT,
         source_id: SOURCE,
         space_id: SPACE,
-        external_id: `${doc.title}.md`,
+        external_id: doc.external_id ?? `${doc.title}.md`,
         version: { content_hash: contentHash(JSON.stringify([doc, said])) },
         title: doc.title,
         mime_type: "text/markdown",
@@ -120,22 +127,43 @@ export const governanceTest = (backend: Backend) =>
         sensitivity: "internal",
         fetched_at: TODAY.toISOString(),
         ...(doc.level && { governance_level: doc.level }),
-        ...(doc.effective_from && { metadata: { extra: { effective_from: doc.effective_from } } }),
+        ...((doc.effective_from || doc.translation_of) && {
+          metadata: {
+            ...(doc.translation_of && { translation_of: { source_id: SOURCE, external_id: doc.translation_of } }),
+            ...(doc.effective_from && { extra: { effective_from: doc.effective_from } }),
+          },
+        }),
       };
       const spans: Span[] = [];
+      const blocks: SourceBlock[] = [];
       const claims: Claim[] = [];
       const evidence: ClaimEvidence[] = [];
       for (const [i, s] of said.entries()) {
+        const blockId = s.paragraph === undefined ? undefined : stableId("source_block", version.id, String(i));
         const span: Span = {
           id: stableId("span", version.id, String(i)),
           tenant_id: TENANT,
           source_version_id: version.id,
+          ...(blockId && { block_id: blockId }),
           locator: { kind: "text_range", block_anchor: `p${i}` },
           text: s.text,
           text_hash: contentHash(s.text),
           ordinal: i,
         };
         spans.push(span);
+        if (blockId && s.paragraph !== undefined) {
+          blocks.push({
+            id: blockId,
+            tenant_id: TENANT,
+            source_version_id: version.id,
+            kind: "paragraph",
+            anchor: `p${i}`,
+            text: s.paragraph,
+            text_hash: contentHash(s.paragraph),
+            ordinal: i,
+            span_ids: [span.id],
+          });
+        }
         const [predicate, ...qualifiers] = (s.slot ?? HOTEL).split("|") as [string, ...string[]];
         const start = s.from ?? doc.effective_from;
         const claim: Claim = {
@@ -183,7 +211,16 @@ export const governanceTest = (backend: Backend) =>
       };
       const event = newEvent("claims.updated", update, { tenantId: TENANT, producer: "extraction" });
       await store.transaction(async (tx) => {
-        await tx.putSourceVersion(version, spans);
+        await tx.putSourceVersion(
+          version,
+          spans.filter((sp) => !sp.block_id),
+        );
+        if (blocks.length)
+          await tx.putBlocks(
+            version.id,
+            blocks,
+            spans.filter((sp) => sp.block_id),
+          );
         await tx.upsertClaims(claims, evidence);
       });
       return { claims, event, result: await governance.apply(event) };

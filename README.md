@@ -31,7 +31,7 @@ The foundations are built and tested. The remaining components are specified in
 | Normalization: parsers, source blocks and spans with stable IDs, block diff, duplicates | `engine/normalization` | built |
 | Extraction: claims with verbatim evidence, predicate catalogue and slots, supersede on edits, keep facts a version stops stating (mocked model) | `engine/extraction` | built |
 | Engine process and CLI: ingest runs, reports, synthetic corpora | `apps/engine` | built |
-| Governance: fact slots and their values, conflict cases with a proposed value, one todo request per conflicting slot, rechecks when a dated change takes effect | `engine/governance` | built |
+| Governance: fact slots and their values counted by independent source (copies and translations once), conflict cases with a proposed value, one todo request per conflicting slot, rechecks when a dated change takes effect | `engine/governance` | built |
 | Freshness: review clocks per document, plan days, copies an edit left behind, staleness scores, review.due | `engine/freshness` | built |
 | Page compiler: topics and the knowledge outline, every statement's placement (pages not yet) | `engine/page-compiler` | built |
 | Collaboration: the inbox, todos on owners' weekly cards, notes, campaigns and stewards (comments not yet) | `engine/collaboration` | built |
@@ -69,6 +69,7 @@ pnpm engine ingest examples/corpus --stack    # Postgres and Valkey from INSPIRA
 pnpm engine synthesize /tmp/synth --documents 2000 && pnpm engine ingest /tmp/synth --stack
 pnpm engine ingest examples/control           # the control corpus, checked case by case
 pnpm engine replay examples/gitlab-expenses   # a real policy through 21 versions of its history
+pnpm engine ingest examples/kubernetes-docs   # real pages in English, Chinese and Japanese
 ```
 
 [`examples/control`](examples/control/README.md) is a small corpus in which every case has one
@@ -80,6 +81,11 @@ lands in, each value's independent sources, the proposed value and what becomes 
 changes: GitLab's public expense policy at 21 versions from 2020 to 2026. The replay ingests
 each version on the day it was published and checks what governance would tell a reader about
 14 facts against a timeline read by hand.
+
+[`examples/kubernetes-docs`](examples/kubernetes-docs/README.md) is real knowledge in three
+languages: five pages of the Kubernetes documentation with their official Chinese and Japanese
+translations, checked like the control corpus. A page and its translations should give each
+fact one value and one source, and the original holds over a translation that says otherwise.
 
 To try the model gateway without a model server, run it with the fake providers:
 
@@ -101,6 +107,7 @@ apps/engine               the engine process: wires components to the store and 
 examples/corpus           a demo tenant (Chinese enterprise documents, folder ACLs, Feishu fixtures)
 examples/control          a control corpus with one right answer per case, and the engine's known gaps
 examples/gitlab-expenses  a real policy's edit history, replayed version by version against a timeline
+examples/kubernetes-docs  real pages in English with their Chinese and Japanese translations, checked like the control corpus
 infra/                    docker compose for the prototype stack
 config/                   example configuration
 docs/                     overview, design, architecture, contracts, PageSpec and views, licensing

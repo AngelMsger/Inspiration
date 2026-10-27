@@ -13,6 +13,7 @@ import {
   type ProducerInfo,
   payloadOf,
   type SourceVersion,
+  type Span,
   slotOf,
   stableId,
   type TodoRequested,
@@ -91,19 +92,22 @@ export const RECHECKS = defineTable<Recheck>("governance.rechecks", {
   columns: { tenant_id: (r) => r.tenant_id, day: (r) => r.day },
 });
 
-/** The group keeps what it needs to stand as of any day: its day counts and its best by day. */
-const countedByDay = (g: ValueGroup) => g.governed_from !== undefined && g.best_from !== undefined;
+/** The group keeps what it needs to stand as of any day: its day counts, its best by day and its sources. */
+const countedByDay = (g: ValueGroup) =>
+  g.governed_from !== undefined && g.best_from !== undefined && g.sources !== undefined;
 
 /**
  * A slot's value groups. A group stored before governed statements were counted by the day
- * they take effect (governed_from) or before its best was kept by day (best_from), or before
- * governance levels, is counted again from its members: its earliest day cannot say when each
- * of them takes effect. Returns the groups counted again too, for the caller to store.
+ * they take effect (governed_from), before its best was kept by day (best_from) or before its
+ * members were kept by source (sources), or before governance levels, is counted again from
+ * its members: its earliest day cannot say when each of them takes effect, nor its count how
+ * many sources it has. Returns the groups counted again too, for the caller to store.
  */
 async function storedGroups(
   reader: RecordReader,
   tenantId: string,
   slot: string,
+  membersOf: (value: string) => Promise<Member[]>,
 ): Promise<{ groups: ValueGroup[]; recounted: ValueGroup[] }> {
   const recounted: ValueGroup[] = [];
   const groups: ValueGroup[] = [];
@@ -112,7 +116,7 @@ async function storedGroups(
       groups.push(stored);
       continue;
     }
-    const [group] = groupsOf(await reader.find(MEMBERS, { tenant_id: tenantId, slot, value: stored.value }));
+    const [group] = groupsOf(await membersOf(stored.value));
     if (!group) continue;
     groups.push(group);
     recounted.push(group);
@@ -129,6 +133,11 @@ function slotKey(tenantId: string, slot: string): string {
 }
 
 const PRIORITY: readonly Priority[] = ["low", "normal", "high", "urgent"];
+/**
+ * Letters and digits a passage needs before two documents stating it are a copy rather than
+ * two sources that happen to word a short rule alike.
+ */
+export const MIN_COPY = 40;
 const RETIRED = new Set(["archived", "retired"]);
 const LIVE_STATUSES = new Set(["active", "verified", "disputed"]);
 
@@ -151,7 +160,11 @@ export interface GovernanceResult {
 }
 
 /** The slot of a current claim with a value, as the member governance keeps for it. */
-function memberOf(claim: Claim, version: SourceVersion | undefined): Member | undefined {
+function memberOf(
+  claim: Claim,
+  version: SourceVersion | undefined,
+  passages: readonly string[] = [],
+): Member | undefined {
   const slot = slotOf(claim);
   const value = valueKeyOf(claim);
   if (!slot || value === undefined || !LIVE_STATUSES.has(claim.status)) return undefined;
@@ -173,6 +186,7 @@ function memberOf(claim: Claim, version: SourceVersion | undefined): Member | un
     source_version_id: version?.id ?? "",
     document: version?.title ?? version?.external_id ?? "",
   };
+  if (version) Object.assign(member, sourceKeysOf(version, passages));
   // Either way the claim counts only from its start. A start equal to the document's
   // effective date is the document's, not a change it states.
   const from = start ?? documentFrom;
@@ -180,6 +194,19 @@ function memberOf(claim: Claim, version: SourceVersion | undefined): Member | un
   if (start && start !== documentFrom) member.stated_from = start;
   if (documentFrom) member.document_from = documentFrom;
   return member;
+}
+
+/** What makes a member's document a source, and another's statement a copy of it. */
+function sourceKeysOf(
+  version: SourceVersion,
+  passages: readonly string[],
+): Required<Pick<Member, "document_key" | "copy_keys">> {
+  // A translation shares its original's key, and an original has its own.
+  const original = version.metadata?.translation_of ?? version;
+  return {
+    document_key: `${version.source_id}:${version.external_id}`,
+    copy_keys: [`t:${original.source_id}:${original.external_id}`, ...passages.map((p) => `p:${p}`)],
+  };
 }
 
 /** "hotel_cap_per_night (tier-1 city)" */
@@ -308,7 +335,9 @@ export class Governance {
 
   /** The value groups of a slot and the decision over them. */
   async slot(tenantId: string, slot: string): Promise<{ groups: ValueGroup[]; decision?: SlotDecision }> {
-    const { groups } = await storedGroups(this.records, tenantId, slot);
+    const { groups } = await storedGroups(this.records, tenantId, slot, (value) =>
+      this.#members(this.records, tenantId, slot, value),
+    );
     const decision = decide(groups, this.#today());
     return decision ? { groups, decision } : { groups };
   }
@@ -330,7 +359,8 @@ export class Governance {
     const claims: Claim[] = [];
     for (let i = 0; i < reread.length; i += 500) claims.push(...(await this.store.getClaims(reread.slice(i, i + 500))));
     const versions = await this.#versionsOf(claims, update.source_version_id);
-    const members = claims.flatMap((c) => memberOf(c, versions.get(c.id)) ?? []);
+    const passages = await this.#passagesOf(claims, versions);
+    const members = claims.flatMap((c) => memberOf(c, versions.get(c.id), passages.get(c.id)) ?? []);
     const closing = [...update.superseded, ...update.updated];
 
     await this.records.transaction(async (tx) => {
@@ -355,7 +385,7 @@ export class Governance {
         const [, slot, value] = key.split("\x1f") as [string, string, string];
         let group = lost.has(key) ? undefined : await tx.get(VALUE_GROUPS, key);
         if (lost.has(key) || (group && !countedByDay(group))) {
-          [group] = groupsOf(await tx.find(MEMBERS, { tenant_id: event.tenant_id, slot, value }));
+          [group] = groupsOf(await this.#members(tx, event.tenant_id, slot, value, tx));
         } else {
           for (const m of fresh) if (m.slot === slot && m.value === value) group = withMember(group, m);
         }
@@ -414,6 +444,85 @@ export class Governance {
     this.totals.withdrawn += result.withdrawn.length;
   }
 
+  /**
+   * What each claim with a slot is a copy of, as hashes of letters and digits, each when long
+   * enough to be copied rather than written alike (MIN_COPY): its supporting spans, the blocks
+   * they sit in, and its document's whole text. A short rule copied with its paragraph, or a
+   * short document reposted whole, still shares a key with the original.
+   */
+  async #passagesOf(
+    claims: readonly Claim[],
+    versions: ReadonlyMap<string, SourceVersion>,
+  ): Promise<Map<string, string[]>> {
+    const ids = claims.filter((c) => slotOf(c) && valueKeyOf(c) !== undefined).map((c) => c.id);
+    const evidence = ids.length ? (await this.store.evidenceOf(ids)).filter((e) => e.role === "supports") : [];
+    const spans = new Map(
+      (await this.store.getSpans([...new Set(evidence.map((e) => e.span_id))])).map((s) => [s.id, s]),
+    );
+    const letters = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+    const key = (texts: Iterable<string>, ordered = false) => {
+      const all = [...texts].map(letters);
+      const parts = ordered ? all : [...new Set(all)].sort();
+      return parts.join("").length >= MIN_COPY ? contentHash(parts.join("\x1f")) : undefined;
+    };
+    // Block IDs are stable across versions, so a claim's version has the blocks it cites, unless
+    // the version no longer states it.
+    const documents = new Map<string, { blocks: Map<string, string>; key?: string }>();
+    for (const id of new Set(ids.flatMap((c) => versions.get(c)?.id ?? []))) {
+      const blocks = (await this.store.blocksOf(id)).sort((a, b) => a.ordinal - b.ordinal);
+      const whole = key(
+        blocks.map((b) => b.text),
+        true,
+      );
+      documents.set(id, { blocks: new Map(blocks.map((b) => [b.id, b.text])), ...(whole && { key: whole }) });
+    }
+    const cited = new Map<string, Span[]>();
+    for (const e of evidence) {
+      const span = spans.get(e.span_id);
+      if (span) cited.set(e.claim_id, [...(cited.get(e.claim_id) ?? []), span]);
+    }
+    const out = new Map<string, string[]>();
+    for (const [id, cites] of cited) {
+      const document = documents.get(versions.get(id)?.id ?? "");
+      const blocks = cites.flatMap((s) => document?.blocks.get(s.block_id ?? "") ?? []);
+      const keys = [key(cites.map((s) => s.text)), key(blocks), document?.key];
+      const found = [...new Set(keys.filter((k) => k !== undefined))];
+      if (found.length) out.set(id, found);
+    }
+    return out;
+  }
+
+  /**
+   * The members that state a value. Members stored before they kept their document and copy
+   * keys would each count as a source of its own, so they get them from their claims and
+   * source versions, stored with them when a transaction is given.
+   */
+  async #members(
+    reader: RecordReader,
+    tenantId: string,
+    slot: string,
+    value: string,
+    tx?: RecordTx,
+  ): Promise<Member[]> {
+    const members = await reader.find(MEMBERS, { tenant_id: tenantId, slot, value });
+    const unkeyed = members.filter((m) => m.document_key === undefined && m.source_version_id);
+    if (!unkeyed.length) return members;
+    const versions = new Map<string, SourceVersion>();
+    for (const m of unkeyed) {
+      const version = await this.store.getSourceVersion(m.source_version_id);
+      if (version) versions.set(m.claim_id, version);
+    }
+    const claims = await this.store.getClaims(unkeyed.map((m) => m.claim_id));
+    const passages = await this.#passagesOf(claims, versions);
+    const keyed = new Map<string, Member>();
+    for (const m of unkeyed) {
+      const version = versions.get(m.claim_id);
+      if (version) keyed.set(m.claim_id, { ...m, ...sourceKeysOf(version, passages.get(m.claim_id) ?? []) });
+    }
+    if (tx && keyed.size) await tx.put(MEMBERS, [...keyed.values()]);
+    return members.map((m) => keyed.get(m.claim_id) ?? m);
+  }
+
   /** The source version of every claim: the update's, else the version its evidence comes from. */
   async #versionsOf(claims: readonly Claim[], versionId: string | undefined): Promise<Map<string, SourceVersion>> {
     const out = new Map<string, SourceVersion>();
@@ -445,7 +554,9 @@ export class Governance {
     cause?: EventEnvelope,
   ): Promise<{ request?: TodoRequested; notes: TodoRequested[]; withdrawn: TodoRequested[] }> {
     const today = this.#today();
-    const { groups: stored, recounted } = await storedGroups(tx, tenantId, slot);
+    const { groups: stored, recounted } = await storedGroups(tx, tenantId, slot, (value) =>
+      this.#members(tx, tenantId, slot, value, tx),
+    );
     if (recounted.length) await tx.put(VALUE_GROUPS, recounted);
     const decision = decide(stored, today);
     const recheck = await tx.get(RECHECKS, slotKey(tenantId, slot));

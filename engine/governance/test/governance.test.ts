@@ -1,22 +1,35 @@
 import { readFileSync } from "node:fs";
 import { type Claim, type ClaimsUpdated, newEvent } from "@inspiration/contracts";
 import { describe, expect } from "vitest";
-import { RECHECKS, VALUE_GROUPS } from "../src/index.ts";
+import { MEMBERS, RECHECKS, sourcesOf, VALUE_GROUPS, type ValueGroup } from "../src/index.ts";
 import { BACKENDS, governanceTest, HOTEL, SPACE, TENANT, type World } from "./fixtures.ts";
 
 const POLICY = { title: "Travel policy", authority: 0.9, effective_from: "2026-01-01" };
 const GUIDE = { title: "Onboarding guide", authority: 0.5 };
+/** A source's documents by file, without the source ID governance names them by. */
+const files = (documents: string[]) => documents.map((d) => d.slice(d.indexOf(":") + 1));
 
 /**
  * The slot's state as an older governance stored it: its groups without the fields named (the
- * day counts came first, then the best by day), and no recheck for the day a statement
- * takes effect.
+ * day counts came first, then the best by day, then the sources, when members also began to
+ * keep their document and copy keys), and no recheck for the day a statement takes effect.
  */
-async function storedWithout(world: World, fields: readonly ("governed_from" | "best_from")[]): Promise<void> {
+async function storedWithout(
+  world: World,
+  fields: readonly ("governed_from" | "best_from" | "sources")[],
+): Promise<void> {
+  const without = <T extends object>(row: T, names: readonly string[]) =>
+    Object.fromEntries(Object.entries(row).filter(([k]) => !names.includes(k))) as T;
   const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
-  const legacy = stored.map((g) => Object.fromEntries(Object.entries(g).filter(([k]) => !fields.includes(k as never))));
+  const legacy = stored.map((g) => without(g, fields));
+  const members = fields.includes("sources")
+    ? (await world.records.find(MEMBERS, { tenant_id: TENANT, slot: HOTEL })).map((m) =>
+        without(m, ["document_key", "copy_keys"]),
+      )
+    : [];
   await world.records.transaction(async (tx) => {
-    await tx.put(VALUE_GROUPS, legacy as typeof stored);
+    await tx.put(VALUE_GROUPS, legacy);
+    if (members.length) await tx.put(MEMBERS, members);
     await tx.delete(
       RECHECKS,
       (await tx.find(RECHECKS, { tenant_id: TENANT })).map((r) => `${r.tenant_id}\x1f${r.slot}`),
@@ -34,6 +47,18 @@ async function laterAndStronger(world: World): Promise<void> {
   ]);
   await world.state({ title: "Travel policy (2027 edition)", authority: 0.9, effective_from: "2027-01-01" }, [
     { text: "The hotel cap is 700 yuan a night.", value: 700 },
+  ]);
+}
+
+/** A rule reposted in three folders says 600; two handbooks say 650, each in its own words. */
+async function reposted(world: World): Promise<void> {
+  const rule = "From now on, hotels in every tier-1 city are capped at 600 yuan a night.";
+  for (const external_id of ["notice.md", "sales/notice.md", "support/notice.md"]) {
+    await world.state({ ...POLICY, title: "Hotel notice", external_id }, [{ text: rule, value: 600 }]);
+  }
+  await world.state({ ...POLICY, title: "Sales handbook" }, [{ text: "Hotels: 650 yuan a night.", value: 650 }]);
+  await world.state({ ...POLICY, title: "Support handbook" }, [
+    { text: "We pay up to 650 yuan a night for hotels.", value: 650 },
   ]);
 }
 
@@ -311,6 +336,174 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       }
     });
 
+    test("copies of one passage are one source: a reposted rule does not outvote two in their own words", async ({
+      world,
+    }) => {
+      await reposted(world);
+      const { groups, decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.proposed.value).toBe("650 CNY/night");
+      expect(Object.fromEntries(groups.map((g) => [g.value, sourcesOf(g).map(files)]))).toEqual({
+        "600 CNY/night": [["notice.md", "sales/notice.md", "support/notice.md"]],
+        "650 CNY/night": [["Sales handbook.md"], ["Support handbook.md"]],
+      });
+    });
+
+    test("groups stored before their sources are counted again from their members", async ({ world }) => {
+      await reposted(world);
+      await storedWithout(world, ["sources"]);
+      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("650 CNY/night");
+    });
+
+    test("members stored before their document was kept count by their document when their group is counted again", async ({
+      world,
+    }) => {
+      await world.state(POLICY, [
+        { text: "Hotels: 600 yuan a night.", value: 600 },
+        { text: "Article 9 Hotels are capped at 600 yuan.", value: 600 },
+        { text: "In short, 600 yuan a night for hotels.", value: 600 },
+      ]);
+      await world.state({ ...POLICY, title: "Sales handbook" }, [{ text: "Hotels: 700 yuan a night.", value: 700 }]);
+      await world.state({ ...POLICY, title: "Support handbook" }, [
+        { text: "We pay up to 700 yuan a night for hotels.", value: 700 },
+      ]);
+      await storedWithout(world, ["sources"]);
+      // A new statement makes the stored group be counted again, and its members be stored with their keys.
+      await world.state({ ...POLICY, title: "Engineering handbook" }, [
+        { text: "Hotels cost at most 600 yuan a night.", value: 600 },
+      ]);
+      const { groups } = await world.governance.slot(TENANT, HOTEL);
+      expect(groups.map((g) => [g.value, g.count, sourcesOf(g).length])).toEqual([
+        ["600 CNY/night", 4, 2],
+        ["700 CNY/night", 2, 2],
+      ]);
+      const members = await world.records.find(MEMBERS, { tenant_id: TENANT, slot: HOTEL });
+      expect(members.every((m) => m.document_key && m.copy_keys)).toBe(true);
+    });
+
+    test("a short rule worded alike in two documents is two sources; one document stating it twice is one", async ({
+      world,
+    }) => {
+      await world.state(POLICY, [
+        { text: "Hotels: 600 yuan a night.", value: 600 },
+        { text: "Article 9 Hotels are capped at 600 yuan.", value: 600 },
+      ]);
+      await world.state({ ...POLICY, title: "Sales handbook" }, [{ text: "Hotels: 650 yuan a night.", value: 650 }]);
+      await world.state({ ...POLICY, title: "Support handbook" }, [{ text: "Hotels: 650 yuan a night.", value: 650 }]);
+      const { groups, decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.proposed.value).toBe("650 CNY/night");
+      expect(groups.map((g) => [g.value, g.count, sourcesOf(g).length])).toEqual([
+        ["600 CNY/night", 2, 1],
+        ["650 CNY/night", 2, 2],
+      ]);
+    });
+
+    test("a paragraph pasted into older handbooks is one source, and the newer policy supersedes it", async ({
+      world,
+    }) => {
+      const paragraph = "Meals and hotels. Hotels are capped at 600 yuan a night; keep every receipt.";
+      for (const title of ["Sales handbook", "Support handbook", "Engineering handbook"]) {
+        await world.state({ title, authority: 0.9, effective_from: "2025-01-01" }, [
+          { text: "Hotels are capped at 600 yuan a night", value: 600, paragraph },
+          // A paragraph of its own, so only the pasted one, not the whole text, is shared.
+          {
+            text: `${title} questions go to the team lead within 3 days.`,
+            value: 3,
+            slot: "questions_days",
+            paragraph: `${title} questions go to the team lead within 3 days.`,
+          },
+        ]);
+      }
+      const policy = await world.state(POLICY, [{ text: "The hotel cap is 650 yuan a night.", value: 650 }]);
+      const { groups, decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.proposed.best.claim_id).toBe(policy.claims[0]?.id);
+      expect(sourcesOf(groups.find((g) => g.value === "600 CNY/night") as ValueGroup).map(files)).toEqual([
+        ["Engineering handbook.md", "Sales handbook.md", "Support handbook.md"],
+      ]);
+      expect(decision?.cases.map((c) => [c.value, c.classification, c.status, c.rationale])).toEqual([
+        [
+          "600 CNY/night",
+          "supersession",
+          "open",
+          // Claim IDs, random here, pick which handbook is the most authoritative.
+          expect.stringMatching(
+            /^600 CNY\/night \(3 documents, the most authoritative \w+ handbook, from 2025-01-01\) is older than 650 CNY\/night in Travel policy, from 2026-01-01, which is as authoritative and has as many independent sources\.$/,
+          ),
+        ],
+      ]);
+    });
+
+    test("a short document reposted whole is one source, though none of its passages is long enough alone", async ({
+      world,
+    }) => {
+      const notice = [
+        {
+          text: "Hotels in tier-1 cities: 600 yuan a night.",
+          value: 600,
+          paragraph: "Hotels in tier-1 cities: 600 yuan a night.",
+        },
+        { text: "Taxis: 40 yuan a day.", value: 40, slot: "taxi_cap_per_day", paragraph: "Taxis: 40 yuan a day." },
+      ];
+      await world.state({ ...POLICY, title: "Notice", external_id: "notice.md" }, notice);
+      await world.state({ ...POLICY, title: "Notice", external_id: "sales/notice.md" }, notice);
+      const { groups } = await world.governance.slot(TENANT, HOTEL);
+      expect(groups.map((g) => sourcesOf(g).map(files))).toEqual([[["notice.md", "sales/notice.md"]]]);
+    });
+
+    test("a translation is one source with the text it translates", async ({ world }) => {
+      await world.state({ ...POLICY, external_id: "travel-policy.md" }, [
+        { text: "The hotel cap is 600 yuan a night.", value: 600 },
+      ]);
+      // Its words would be Chinese; what makes it a translation is the key.
+      await world.state({ ...POLICY, external_id: "travel-policy.zh.md", translation_of: "travel-policy.md" }, [
+        { text: "Hotel cap 600 yuan per night.", value: 600 },
+      ]);
+      await world.state({ ...POLICY, title: "Sales handbook" }, [{ text: "Hotels: 650 yuan a night.", value: 650 }]);
+      await world.state({ ...POLICY, title: "Support handbook" }, [
+        { text: "We pay up to 650 yuan a night for hotels.", value: 650 },
+      ]);
+      const { groups, decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(groups.map((g) => [g.value, sourcesOf(g).map(files)])).toEqual([
+        ["600 CNY/night", [["travel-policy.md", "travel-policy.zh.md"]]],
+        ["650 CNY/night", [["Sales handbook.md"], ["Support handbook.md"]]],
+      ]);
+      expect(decision?.proposed.value).toBe("650 CNY/night");
+    });
+
+    test("a translation that says otherwise than its original is out of date, and asks nobody", async ({ world }) => {
+      const original = await world.state({ ...POLICY, external_id: "travel-policy.md" }, [
+        { text: "The hotel cap is 650 yuan a night.", value: 650 },
+      ]);
+      // Translated before the original changed 600 to 650, and two of them.
+      for (const external_id of ["travel-policy.zh.md", "travel-policy.ja.md"]) {
+        await world.state({ ...POLICY, external_id, translation_of: "travel-policy.md" }, [
+          { text: "Hotel cap 600 yuan per night.", value: 600 },
+        ]);
+      }
+      const { decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.proposed.best.claim_id).toBe(original.claims[0]?.id);
+      expect(decision?.cases.map((c) => [c.value, c.classification, c.status, c.rationale])).toEqual([
+        [
+          "600 CNY/night",
+          "supersession",
+          "auto_resolved",
+          "Only translations (2 documents) state 600 CNY/night, of documents that state 650 CNY/night: the original holds, and a translation that says otherwise is out of date.",
+        ],
+      ]);
+      expect(await world.requests()).toEqual([]);
+    });
+
+    test("a translation counts as any document against a value its original does not state", async ({ world }) => {
+      await world.state({ ...POLICY, external_id: "travel-policy.md" }, [
+        { text: "Meals are paid at 100 yuan a day.", value: 100, slot: "meal_allowance_per_day" },
+      ]);
+      await world.state({ ...POLICY, external_id: "travel-policy.zh.md", translation_of: "travel-policy.md" }, [
+        { text: "Hotel cap 600 yuan per night.", value: 600 },
+      ]);
+      await world.state({ ...POLICY, title: "Travel standard" }, [{ text: "Hotels: 650 yuan a night.", value: 650 }]);
+      const { decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.cases.map((c) => [c.classification, c.status])).toEqual([["contradiction", "open"]]);
+    });
+
     test("a reference document does not break a tie between governed values", async ({ world }) => {
       const { leader, other } = await tied(world);
       await world.state({ title: "Travel FAQ", authority: 0.5, level: "reference" }, [
@@ -558,6 +751,17 @@ describe.skipIf(BACKENDS[1]?.skip)("postgres backend", () => {
     const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
     expect(stored.every((g) => g.governed_from)).toBe(true);
     expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe(`${leader} CNY/night`);
+  });
+
+  test("migration 0005 rechecks slots whose groups were stored before their sources", async ({ world }) => {
+    await reposted(world);
+    await storedWithout(world, ["sources"]);
+
+    await world.sql?.(readFileSync(new URL("../migrations/0005_sources.sql", import.meta.url), "utf8"));
+    expect((await world.governance.recheck(TENANT)).slots).toEqual([HOTEL]);
+    const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
+    expect(stored.every((g) => g.sources)).toBe(true);
+    expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("650 CNY/night");
   });
 
   test("migration 0004 rechecks slots whose groups were stored before the best by day", async ({ world }) => {

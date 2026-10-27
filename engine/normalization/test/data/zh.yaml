@@ -26,3 +26,9 @@ fingerprint:
   reformat: ["，", ", "]
   edit: ["第3条", "第三条"]
   other: "会议室预订须提前一天在行政系统提交申请，并注明参会人数和设备需求。"
+
+# A sentence the HTML source wraps over lines: a line break between two Chinese characters
+# goes away, any other is a space.
+wrapped:
+  html: "<p>Pod 被赋予一个可以体面终止的期限，\n默认为 30 秒。一旦容器顺利执行了 10 分钟，\n<code>kubelet</code> 就会重置该容器的重启延迟计时器。</p>"
+  text: "Pod 被赋予一个可以体面终止的期限，默认为 30 秒。一旦容器顺利执行了 10 分钟， kubelet 就会重置该容器的重启延迟计时器。"

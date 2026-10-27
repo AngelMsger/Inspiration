@@ -9,7 +9,10 @@
  *   are remembered from the version's duplicates. When an edit leaves a copy sharing less
  *   of the new text, and the copy is no more authoritative and not archived, the copy gets
  *   an evidence_changed review at once ("Fwd - Travel policy repeats Travel policy, which
- *   changed").
+ *   changed"). A translation (DocumentMetadata.translation_of) is remembered by its
+ *   original, and when an edit of the original is later than the translation's last change
+ *   in its source, the translation gets the same review: governance holds the original's
+ *   value meanwhile.
  * - On claims.updated, it keeps the knowledge class of each current claim and the day each
  *   plan names (the claim's valid_time start). The shortest review interval among the
  *   classes of claims that are not plans sets the document's next ttl review; a plan day

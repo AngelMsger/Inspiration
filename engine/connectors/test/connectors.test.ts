@@ -13,6 +13,7 @@ import {
   FolderConnector,
   globToRegExp,
   parseEntry,
+  translationOf,
 } from "../src/index.ts";
 
 const T0 = "2026-01-01T00:00:00.000Z";
@@ -134,6 +135,50 @@ describe("folder connector", () => {
     expect(titles).toEqual(["Chapter 2 General provisions", "b", "Notice"]);
   });
 
+  test("a file named for its language is in it and translates the file without it; front matter says otherwise", async () => {
+    await put("corpus/.meta.yaml", "language: en\n");
+    await put("corpus/hr/leave.md", "# Leave policy\n\nTwenty days.");
+    await put("corpus/hr/leave.zh.md", "# Leave policy\n\nIn Chinese.");
+    await put("corpus/hr/leave.zh-Hant-TW.md", "# Leave policy\n\nIn traditional Chinese.");
+    await put(
+      "corpus/hr/travel.ja.md",
+      "---\nlanguage: ja-JP\ntranslation_of: hr/travel-policy.md\n---\n# Travel\n\nIn Japanese.",
+    );
+    // Named for its language, but nothing it could translate.
+    await put("corpus/hr/faq.ja.md", "# FAQ\n\nIn Japanese.");
+    await put("corpus/hr/notes.new.md", "# Notes\n\nNot a language.");
+    const { connector } = await folder();
+    const docs: Record<string, [string | undefined, string | undefined]> = {};
+    for (const item of (await connector.list({ kind: "folder" })).items) {
+      const doc = asDocument(await connector.fetch(item.ref));
+      docs[item.ref.external_id] = [doc.language, doc.metadata?.translation_of?.external_id];
+    }
+    expect(docs).toEqual({
+      "hr/faq.ja.md": ["ja", undefined],
+      "hr/leave.md": ["en", undefined],
+      "hr/leave.zh.md": ["zh", "hr/leave.md"],
+      "hr/leave.zh-Hant-TW.md": ["zh-Hant-TW", "hr/leave.md"],
+      "hr/notes.new.md": ["en", undefined],
+      "hr/travel.ja.md": ["ja-JP", "hr/travel-policy.md"],
+    });
+  });
+
+  test("a translation changes when the original it is named for appears or goes", async () => {
+    await put("corpus/hr/leave.zh.md", "# Leave policy\n\nIn Chinese.");
+    const { connector } = await folder();
+    const ref = { source_id: "src_x", external_id: "hr/leave.zh.md" };
+    const alone = asDocument(await connector.fetch(ref));
+    expect(alone.metadata?.translation_of).toBeUndefined();
+    await put("corpus/hr/leave.md", "# Leave policy\n\nTwenty days.");
+    const linked = asDocument(await connector.fetch(ref, alone.version));
+    expect(linked.metadata?.translation_of?.external_id).toBe("hr/leave.md");
+    expect(linked.version.content_hash).toBe(alone.version.content_hash);
+    const listed = (await connector.list({ kind: "folder" })).items.find((i) => i.ref.external_id === ref.external_id);
+    expect(listed?.version?.metadata_hash).toBe(linked.version.metadata_hash);
+    await rm(join(dir, "corpus/hr/leave.md"));
+    expect(asDocument(await connector.fetch(ref, linked.version)).metadata?.translation_of).toBeUndefined();
+  });
+
   test("refuses paths outside the root", async () => {
     await put("corpus/a.md", "x");
     const { connector } = await folder();
@@ -145,6 +190,14 @@ describe("folder connector", () => {
       expect.arrayContaining(["folder", "feishu.docx", "feishu.approval"]),
     );
   });
+});
+
+test("a language suffix is a two-letter code known to Intl, with an optional script and region", () => {
+  expect(translationOf("a/b.zh-cn.md")).toEqual({ original: "a/b.md", language: "zh-CN" });
+  expect(translationOf("x.ja.html")).toEqual({ original: "x.html", language: "ja" });
+  // Not languages: unknown codes, three letters, a dot file, no extension.
+  for (const rel of ["a.qq.md", "a.fin.md", "a/.en.md", "a.en", "a.md"])
+    expect(translationOf(rel), rel).toBeUndefined();
 });
 
 test("globs", () => {

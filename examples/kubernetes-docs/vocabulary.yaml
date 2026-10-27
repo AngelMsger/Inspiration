@@ -1,0 +1,69 @@
+# The facts of the five pages that the check follows, each named the way the English, Chinese
+# and Japanese pages word it. Keys and units are language-neutral, so the three languages put
+# a fact in one slot with one value.
+predicates:
+  - predicate: cluster_max_nodes
+    label: Nodes in a cluster, at most
+    knowledge_class: reference
+    aliases: [nodes, 节点数, ノードから構成されるクラスター, ノード以上存在しない]
+    value: {kind: number, unit: node}
+
+  - predicate: pods_per_node_max
+    label: Pods per node, at most
+    knowledge_class: reference
+    aliases: [pods per node, 每个节点的 Pod 数量, 1ノードにつきPod]
+    value: {kind: number, unit: pod}
+
+  - predicate: cluster_max_pods
+    label: Pods in a cluster, at most
+    knowledge_class: reference
+    aliases: [total pods, Pod 总数, Podの総数]
+    value: {kind: number, unit: pod}
+
+  - predicate: cluster_max_containers
+    label: Containers in a cluster, at most
+    knowledge_class: reference
+    aliases: [total containers, 容器总数, コンテナの総数]
+    value: {kind: number, unit: container}
+
+  - predicate: kubelet_version_skew
+    label: Minor versions a kubelet may be older than kube-apiserver
+    knowledge_class: reference
+    aliases: [kubelet may be up to, kubelet 可以比 kube-apiserver 低, kubeletはkube-apiserverより最大で]
+    value: {kind: number, unit: minor_version}
+
+  - predicate: pod_termination_grace_period
+    label: Default grace period for a pod to terminate
+    knowledge_class: reference
+    aliases: [terminate gracefully, 体面终止, 猶予期間]
+    value: {kind: duration, unit: second, words: [seconds, 秒]}
+
+  - predicate: container_restart_backoff_cap
+    label: Longest delay between container restarts
+    knowledge_class: reference
+    aliases: [capped at, 上限为, を上限とする]
+    value: {kind: duration, unit: second, words: [seconds, 秒]}
+
+  - predicate: restart_backoff_reset_after
+    label: Running time after which the restart backoff resets
+    knowledge_class: reference
+    aliases: [restart backoff timer, 重启延迟计时器, 再起動バックオフタイマー]
+    value: {kind: duration, unit: minute, words: [minutes, 分钟, 分間]}
+
+  - predicate: hard_eviction_nodefs_available
+    label: Default hard eviction threshold for free node filesystem space
+    knowledge_class: reference
+    aliases: [nodefs.available<]
+    value: {kind: percent, unit: "%", words: ["%"]}
+
+  - predicate: hard_eviction_imagefs_available
+    label: Default hard eviction threshold for free image filesystem space
+    knowledge_class: reference
+    aliases: [imagefs.available<]
+    value: {kind: percent, unit: "%", words: ["%"]}
+
+  - predicate: hard_eviction_nodefs_inodes_free
+    label: Default hard eviction threshold for free node filesystem inodes
+    knowledge_class: reference
+    aliases: [nodefs.inodesFree<]
+    value: {kind: percent, unit: "%", words: ["%"]}

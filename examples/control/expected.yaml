@@ -33,19 +33,6 @@ cases:
           50 USD/day: [[handbooks/sales.md, handbooks/support.md, handbooks/engineering.md]]
         proposed: 60 USD/day
         cases: {50 USD/day: open supersession}
-    engine:
-      why: >-
-        All four statements are governed and equally authoritative, so governance counts them:
-        three for 50, one for 60. Normalization finds copies of whole documents, not of a
-        paragraph, and a later effective date (2026 against 2025) is not a tie-break. Had the
-        policy said "from 1 January 2026", that dated change would win.
-      slots:
-        meal_allowance_per_day:
-          values:
-            60 USD/day: [[policies/travel-policy.md]]
-            50 USD/day: [[handbooks/sales.md], [handbooks/support.md], [handbooks/engineering.md]]
-          proposed: 50 USD/day
-          cases: {60 USD/day: open contradiction}
 
   - case: two-named-deadlines
     group: two deadlines in one passage
@@ -120,14 +107,6 @@ cases:
           45 USD/day: [[handbooks/sales.md], [handbooks/engineering.md]]
         proposed: 45 USD/day
         cases: {40 USD/day: open contradiction}
-    engine:
-      why: >-
-        Normalization reports both copies as exact duplicates of the notice, but governance
-        counts statements, not sources: three for 40 against two for 45.
-      slots:
-        taxi_cap_per_day:
-          proposed: 40 USD/day
-          cases: {45 USD/day: open contradiction}
 
   - case: translated-policy
     group: reposts and independent sources
@@ -137,13 +116,3 @@ cases:
         values:
           20 day: [[policies/leave-policy.md, policies/leave-policy.zh.md], [wiki/onboarding.md]]
         proposed: 20 day
-    engine:
-      why: >-
-        Knowledge does not depend on the language it is written in, so a translation is a copy.
-        Normalization compares texts and does not see the Chinese translation as a copy of the
-        English policy, so the value has three sources. With one value nothing is decided here,
-        but governance would count both statements against another value.
-      slots:
-        annual_leave_days:
-          values:
-            20 day: [[policies/leave-policy.md], [policies/leave-policy.zh.md], [wiki/onboarding.md]]

@@ -54,5 +54,8 @@ Sample data in `examples/` is ours except where its README names a source.
 [`examples/gitlab-expenses`](../examples/gitlab-expenses/README.md) holds 21 versions of
 GitLab's public travel and expense policy, © GitLab Inc. and contributors, under CC BY-SA
 4.0. They are copied unchanged with a link to each commit, which is the attribution the
-licence asks for; a changed copy would have to carry the same licence. Test data stays out
-of what we ship to customers.
+licence asks for; a changed copy would have to carry the same licence.
+[`examples/kubernetes-docs`](../examples/kubernetes-docs/README.md) holds the content of five
+pages of the Kubernetes documentation in English, Chinese and Japanese, © The Kubernetes
+Authors, under CC BY 4.0, with the title and link of each page and its commit in
+`sources.yaml`. Test data stays out of what we ship to customers.

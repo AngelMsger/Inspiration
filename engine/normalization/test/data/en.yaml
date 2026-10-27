@@ -1,7 +1,8 @@
 # English cases for the normalization unit tests (units.test.ts).
 
 # A full stop ends a sentence, with its closing quotes, unless it ends an abbreviation, a
-# lowercase word follows or no space does; a list number standing alone joins what follows.
+# lowercase word follows or no space does; a list number standing alone joins what follows;
+# a comma after a terminator continues the sentence.
 passages:
   - text: "Hotels cost 600 RMB, e.g. in Beijing. Meals are extra. Is that clear?"
     passages:
@@ -14,6 +15,9 @@ passages:
     passages: ["1.\nReceipts are required."]
   - text: "Version 2.1 is out. See the site."
     passages: ["Version 2.1 is out.", "See the site."]
+  # An ellipsis followed by a comma continues the sentence.
+  - text: "Restarts back off (10s, 20s, 40s, …), capped at 300 seconds. Then it resets."
+    passages: ["Restarts back off (10s, 20s, 40s, …), capped at 300 seconds.", "Then it resets."]
 
 cut: { first: "a", comma: ",", second: "b", stop: "." }
 
@@ -22,3 +26,8 @@ fingerprint:
   reformat: [",", " ,"]
   edit: ["Article 3", "Article three"]
   other: "Meeting rooms are booked a day ahead in the office system, with the number of people and the equipment needed."
+
+# A sentence the HTML source wraps over lines: each line break is a space.
+wrapped:
+  html: "<p>Once a container has executed for 10 minutes without any\n  problems, the <code>kubelet</code>\n  resets the restart backoff timer.</p>"
+  text: "Once a container has executed for 10 minutes without any problems, the kubelet resets the restart backoff timer."

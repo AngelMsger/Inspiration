@@ -4,7 +4,13 @@
  * directory says about them.
  *
  * - Markdown front matter: title, approval_state, sensitivity, authority,
- *   governance_level, owner, tags and any other key (kept in metadata.extra).
+ *   governance_level, owner, tags, language, translation_of (the external ID of the file
+ *   it translates) and any other key (kept in metadata.extra).
+ * - Translations: a file named for its language ("leave-policy.zh.md", a two-letter
+ *   language code with an optional script or region) is in that language, whatever its
+ *   folder's .meta.yaml says, and translates the file without it ("leave-policy.md") when
+ *   that file exists; the link changes the translation's version when that file appears or goes.
+ *   Front matter overrides both.
  * - `.meta.yaml` in a folder: the same keys as defaults for every file below it; deeper
  *   folders and front matter win.
  * - `.acl.yaml` in a folder: who may read the files below it, as short entries
@@ -199,7 +205,7 @@ export class FolderConnector implements Connector {
   async #describe(
     f: FileInfo,
     sidecars: Sidecars,
-  ): Promise<{ data: Uint8Array; meta: Meta; version: Version; acl: AclEntry[] }> {
+  ): Promise<{ data: Uint8Array; meta: Meta; original?: string; version: Version; acl: AclEntry[] }> {
     const [data, info, folderMeta, acl] = await Promise.all([
       readFile(f.path),
       stat(f.path),
@@ -208,15 +214,25 @@ export class FolderConnector implements Connector {
     ]);
     const ext = extname(f.path).toLowerCase();
     const own = ext === ".md" || ext === ".markdown" ? frontMatter(data.toString("utf8")).meta : {};
-    const meta = { ...folderMeta, ...own };
+    // The language a file is named for is more specific than its folder's and less than its own front matter.
+    const translation = translationOf(f.rel);
+    const meta: Meta = { ...folderMeta, ...(translation && { language: translation.language }), ...own };
+    const original =
+      typeof meta.translation_of === "string" && meta.translation_of
+        ? meta.translation_of
+        : translation && (await isFile(join(this.root, ...translation.original.split("/"))))
+          ? translation.original
+          : undefined;
     const version: Version = {
       content_hash: contentHash(data),
-      metadata_hash: contentHash(canonicalJson(meta)),
+      // The original a file translates is part of its metadata even when inferred from the file name, so the
+      // translation changes when its original appears or goes.
+      metadata_hash: contentHash(canonicalJson(original ? { ...meta, translation_of: original } : meta)),
       acl_hash: aclHash(acl),
       modified_at: info.mtime.toISOString(),
       size_bytes: info.size,
     };
-    return { data, meta, version, acl };
+    return { data, meta, ...(original && { original }), version, acl };
   }
 
   #ref(f: FileInfo, title?: string): SourceRef {
@@ -250,14 +266,24 @@ export class FolderConnector implements Connector {
 
   async fetch(ref: SourceRef, known?: Version): Promise<NormalizedDocument | Unchanged> {
     const f = this.#file(ref);
-    const { data, meta, version, acl } = await this.#describe(f, new Sidecars());
+    const { data, meta, original, version, acl } = await this.#describe(f, new Sidecars());
     if (sameVersion(known, version)) return { unchanged: true };
     const ext = extname(f.path).toLowerCase();
     const mimeType = MIME_TYPES[ext] ?? "application/octet-stream";
     const name = basename(f.path);
     const title = typeof meta.title === "string" ? meta.title : (titleOf(data, ext) ?? name.slice(0, -ext.length));
     const file = await this.#ctx.blobs.put(data, { mimeType, filename: name });
-    const { title: _title, approval_state, sensitivity, authority, governance_level, owner, tags, ...extra } = meta;
+    const {
+      title: _title,
+      approval_state,
+      sensitivity,
+      authority,
+      governance_level,
+      owner,
+      tags,
+      translation_of,
+      ...extra
+    } = meta;
     const doc: NormalizedDocument = {
       ref: this.#ref(f, title),
       version,
@@ -269,6 +295,7 @@ export class FolderConnector implements Connector {
         path: f.folders,
         ...(typeof owner === "string" && { author_external_id: owner }),
         ...(Array.isArray(tags) && { tags: tags.map(String) }),
+        ...(original && { translation_of: { source_id: this.source.id, external_id: original } }),
         ...(Object.keys(extra).length > 0 && { extra }),
       },
       acl: this.#snapshot(f, acl),
@@ -291,6 +318,24 @@ export class FolderConnector implements Connector {
     const f = this.#file(ref);
     return this.#snapshot(f, await this.#aclEntries(f.folders, new Sidecars()));
   }
+}
+
+const LANGUAGES = new Intl.DisplayNames(["en"], { type: "language", fallback: "none" });
+// Two-letter codes only: three-letter ones read too many file names ("notes.new.md") as languages.
+const SUFFIX = /^(.*[^/])\.([a-z]{2}(?:-[a-z]{4})?(?:-(?:[a-z]{2}|\d{3}))?)(\.[^./]+)$/i;
+
+const isFile = (path: string) =>
+  stat(path).then(
+    (s) => s.isFile(),
+    () => false,
+  );
+
+/** For a file named for its language ("policies/leave-policy.zh.md"), that language and the file it translates. */
+export function translationOf(rel: string): { original: string; language: string } | undefined {
+  const [, stem, tag, ext] = SUFFIX.exec(rel) ?? [];
+  if (!stem || !tag || !ext) return undefined;
+  const [language] = Intl.getCanonicalLocales(tag);
+  return language && LANGUAGES.of(language) ? { original: `${stem}${ext}`, language } : undefined;
 }
 
 /** The first Markdown heading, or the HTML title. */
