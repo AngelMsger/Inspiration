@@ -1,0 +1,21 @@
+# One real policy, replayed through its edit history: GitLab's travel and expense policy from
+# its public handbook, at 21 versions between November 2020 and September 2026. history.yaml
+# lists the versions and timeline.yaml what a reader should be told after each one. The
+# handbook folder starts empty; the replay writes each version into it.
+
+tenant:
+  id: ten_01GITLABEXPENSES000000001
+  name: GitLab handbook
+
+spaces:
+  - id: spc_01GITLABEXPENSES00FINANCE
+    name: Finance
+
+sources:
+  - id: src_01GITLABEXPENSES0HANDBOOK
+    type: folder
+    space: spc_01GITLABEXPENSES00FINANCE
+    name: Handbook
+    root: handbook
+    default_authority: 0.9
+    governance_level: governed

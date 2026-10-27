@@ -39,3 +39,9 @@ Valkey 是 BSD 许可的分支，协议相同，并可使用同一个客户端�
 
 **模型权重**不属于本仓库。一个部署在网关中配置的每个模型（Qwen、DeepSeek、bge、PaddleOCR-VL 等）都有自己的
 许可证，部署方必须检查，特别是商业用途和微调变体。
+
+## 测试数据
+
+`examples/` 中的示例数据由我们编写，README 注明来源的除外。[`examples/gitlab-expenses`](../../examples/gitlab-expenses/README.zh.md)
+包含 GitLab 公开的差旅与费用制度的 21 个版本，© GitLab Inc. 及贡献者，采用 CC BY-SA 4.0 许可。它们原样复制，并链接到各自的
+commit，这正是该许可要求的署名；修改后的副本必须采用相同的许可。测试数据不包含在交付给客户的内容中。

@@ -17,5 +17,5 @@ untitled: Untitled
 summary: "Rules and guidance on {title}."
 summary_from: "Rules and guidance on {title}, from {documents} and other documents."
 list_mark: ", "
-title_length: 60
+title_length: 40
 shared_length: 1

@@ -17,6 +17,8 @@ brackets:
 
 # Naming. {title} is the topic's name, {documents} the first documents it comes from.
 # A name is shared by headings when they have at least shared_length characters in common.
+# A name is at most title_length characters, and never more than the 40 the name_topics
+# answer allows (src/protocol.ts), or the whole answer is refused.
 related: "{title}相关"
 untitled: 未命名
 summary: "{title}相关的规定与说明。"

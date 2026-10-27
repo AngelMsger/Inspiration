@@ -68,12 +68,18 @@ pnpm engine ingest examples/corpus            # in memory
 pnpm engine ingest examples/corpus --stack    # Postgres and Valkey from INSPIRATION_* settings
 pnpm engine synthesize /tmp/synth --documents 2000 && pnpm engine ingest /tmp/synth --stack
 pnpm engine ingest examples/control           # the control corpus, checked case by case
+pnpm engine replay examples/gitlab-expenses   # a real policy through 21 versions of its history
 ```
 
 [`examples/control`](examples/control/README.md) is a small corpus in which every case has one
 right answer: a correct rule against a copied wrong value, two deadlines in one passage, and
 reposts against independent sources. Its run reports, for each case, the slot each statement
 lands in, each value's independent sources, the proposed value and what becomes of the others.
+
+[`examples/gitlab-expenses`](examples/gitlab-expenses/README.md) is real knowledge that
+changes: GitLab's public expense policy at 21 versions from 2020 to 2026. The replay ingests
+each version on the day it was published and checks what governance would tell a reader about
+14 facts against a timeline read by hand.
 
 To try the model gateway without a model server, run it with the fake providers:
 
@@ -91,9 +97,10 @@ libs/eventbus             transactional outbox, relay to Valkey Streams, consume
 libs/testkit              fixtures for tests against the compose stack
 engine/<component>        one package per engine component (see components.yaml)
 business/                 business-layer packages (none yet); engine/ and libs/ never depend on them
-apps/engine               the engine process: wires components to the store and the bus; ingest CLI
+apps/engine               the engine process: wires components to the store and the bus; ingest and replay CLI
 examples/corpus           a demo tenant (Chinese enterprise documents, folder ACLs, Feishu fixtures)
 examples/control          a control corpus with one right answer per case, and the engine's known gaps
+examples/gitlab-expenses  a real policy's edit history, replayed version by version against a timeline
 infra/                    docker compose for the prototype stack
 config/                   example configuration
 docs/                     overview, design, architecture, contracts, PageSpec and views, licensing

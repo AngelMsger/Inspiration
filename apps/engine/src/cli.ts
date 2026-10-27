@@ -3,6 +3,7 @@
  * inspiration-engine ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
  *                    [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>]
  * inspiration-engine synthesize <dir> --documents <n> [--seed <n>]
+ * inspiration-engine replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
  *
  * ingest syncs and normalizes a corpus (see examples/corpus) and prints the report. Without
  * --stack or --database everything stays in memory, which suits the demo corpus; scale runs
@@ -18,6 +19,10 @@
  *
  * A corpus with an expected.yaml (examples/control) also gets the control check, case by case
  * (see control.ts).
+ *
+ * replay writes the versions history.yaml lists into a working copy of the corpus one at a
+ * time, each on its own day, ingests after each and prints what governance led with, checked
+ * against timeline.yaml when there is one (see history.ts and examples/gitlab-expenses).
  */
 
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
@@ -30,6 +35,7 @@ import { controlLines, controlReport, loadControl } from "./control.ts";
 import { Corpus } from "./corpus.ts";
 import { Engine, type EngineOptions } from "./engine.ts";
 import { days, SimulatedClock } from "./freshness.ts";
+import { loadHistory, loadTimeline, replay, replayLines } from "./history.ts";
 import { inboxLines, inboxReport } from "./inbox.ts";
 import { daysSummary, ingest, plantedDuplicates, summary } from "./ingest.ts";
 import { onUse, onUseSummary } from "./onuse.ts";
@@ -39,6 +45,7 @@ const USAGE = [
   "usage: inspiration-engine ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
   "                          [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>]",
   "       inspiration-engine synthesize <dir> --documents <n> [--seed <n>]",
+  "       inspiration-engine replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
 ].join("\n");
 
 async function main(argv: string[]): Promise<number> {
@@ -67,7 +74,7 @@ async function main(argv: string[]): Promise<number> {
     );
     return 0;
   }
-  if (command !== "ingest" || !dir) {
+  if ((command !== "ingest" && command !== "replay") || !dir) {
     console.error(USAGE);
     return 2;
   }
@@ -87,6 +94,20 @@ async function main(argv: string[]): Promise<number> {
   if (settings) options.streamPrefix = settings.streamPrefix;
   const engine = await Engine.open(options);
   try {
+    if (command === "replay") {
+      const history = await loadHistory(dir);
+      if (!history) {
+        console.error(`${dir} has no history.yaml`);
+        return 2;
+      }
+      const timeline = await loadTimeline(dir);
+      const report = await replay(engine, dir, history, (at) => clock.set(at.toISOString().slice(0, 10)), {
+        ...(timeline && { timeline }),
+      });
+      console.log(replayLines(report).join("\n"));
+      if (values.json) await writeFile(values.json, `${JSON.stringify(report, null, 2)}\n`);
+      return 0;
+    }
     const text = await readFile(join(dir, "truth.json"), "utf8").catch(() => undefined);
     const truth = text ? (JSON.parse(text) as Truth & { duplicates: { document: string; of: string }[] }) : undefined;
     const report = await ingest(engine, corpus, truth ? { truth } : {});
