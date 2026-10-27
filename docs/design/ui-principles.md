@@ -23,17 +23,16 @@ The places these people work in:
 ## Interaction principles
 
 1. **Reading first, governance on demand.** A page opens as a clean document. Owners, votes and rules appear only when someone asks or acts. The knowledge model itself (statements, counts, lineage) is never part of the reading surface; owners see it in the Trace view.
-2. **Start from the documents people know, then show what was learned.** After an import, a source opens as a document in its own shape: its headings, paragraphs, lists and tables, close to the original even where it is not identical, much as a Claude Artifact renders a page. Knowledge is revealed from there, concrete to abstract: the marks of the Annotated view, then on request what a passage states and where else the same fact appears or is contradicted, then the pages built from it. Someone new starts in their own documents, not in knowledge cards; the Knowledge tree comes forward as topics fill up. Readers stop at the marks and the pages; a member owns their own My space, so the Trace view is open to them there.
-3. **Every statement shows where it came from and how fresh it is.** A citation is one click from the source passage, and status is always written in words (Fresh, Review due, Outdated, Disputed), never shown by colour alone.
-4. **Always show which space you are in and who can read it.** The space switcher sits in the header, and every space states who can read it, as set by its owner, with a count such as "All 18 Procurement members".
-5. **The assistant proposes, people decide.** The assistant drafts options, raises conflicts and answers questions, but a named person votes, approves or publishes.
-6. **Never hand over credentials, and make widening visible.** A personal connection stays personal. Publishing shows who will be able to read, and warns without blocking when some readers cannot open the original.
-7. **A conflict always has an owner, a deadline, an approval mode, someone who decides when the deadline passes, and a record.** Meanwhile readers see the last verified value marked Disputed, unless the owners choose otherwise.
-8. **One inbox.** Reviews, votes, notes, reconnect requests and replies all land in one place, grouped into cards and ordered by deadline.
-9. **Calm by default.** Only Outdated and Disputed marks show inline. Everything else waits in the margin or the side panel.
-10. **Keyboard, command and CLI parity.** Every action has a shortcut, a command-palette entry and a CLI equivalent.
-11. **Three languages from day one.** Every screen ships in English, Chinese and Japanese. Type, line height and line length are tuned per language, and layouts leave room for the longest label.
-12. **Trust through history.** Every value can answer "Why this value?": who verified it, when, and which decision or rule set it.
+2. **Every statement shows where it came from and how fresh it is.** A citation is one click from the source passage, and status is always written in words (Fresh, Review due, Outdated, Disputed), never shown by colour alone.
+3. **Always show which space you are in and who can read it.** The space switcher sits in the header, and every space states who can read it, as set by its owner, with a count such as "All 18 Procurement members".
+4. **The assistant proposes, people decide.** The assistant drafts options, raises conflicts and answers questions, but a named person votes, approves or publishes.
+5. **Never hand over credentials, and make widening visible.** A personal connection stays personal. Publishing shows who will be able to read, and warns without blocking when some readers cannot open the original.
+6. **A conflict always has an owner, a deadline, an approval mode, someone who decides when the deadline passes, and a record.** Meanwhile readers see the last verified value marked Disputed, unless the owners choose otherwise.
+7. **One inbox.** Reviews, votes, notes, reconnect requests and replies all land in one place, grouped into cards and ordered by deadline.
+8. **Calm by default.** Only Outdated and Disputed marks show inline. Everything else waits in the margin or the side panel.
+9. **Keyboard, command and CLI parity.** Every action has a shortcut, a command-palette entry and a CLI equivalent.
+10. **Three languages from day one.** Every screen ships in English, Chinese and Japanese. Type, line height and line length are tuned per language, and layouts leave room for the longest label.
+11. **Trust through history.** Every value can answer "Why this value?": who verified it, when, and which decision or rule set it.
 
 ## Visual system
 
@@ -68,13 +67,11 @@ The look is "ink and paper": a warm paper ground, serif type for reading, one in
 
 ## Key screens
 
-The drawn screens are in [screens](screens/README.md), a snapshot of the design canvas.
-
 | Screen | What it shows | For |
 | --- | --- | --- |
 | Sign in and choose a company | Sign-in, then the companies the person belongs to and their personal library | Everyone |
-| Home | Ask bar, recently imported documents and recent pages, the inbox cards that need you | Everyone |
-| First run alone | Ask box, connect a source, setup progress, then the imported documents in their Original view; the account menu offers "Invite someone" and "Create a company" | Someone working alone |
+| Home | Ask bar, recent pages, the inbox cards that need you | Everyone |
+| First run alone | Ask box, connect a source, setup progress; the account menu offers "Invite someone" and "Create a company" | Someone working alone |
 | Search and ask results | An answer in the asker's language with citations, then matching pages and sources | Everyone |
 | Knowledge page | Text with small citation numbers, only Outdated and Disputed inline; owner and freshness in the margin; "Why this value?" on a disputed value; comment threads with the assistant's replies | Readers |
 | Citation popover | The source passage at once, one sentence on its status (Review due shows here), translation on request | Readers |
@@ -185,12 +182,8 @@ Adopted on 2026-10-26:
 - Proposed later the same day, waiting for the product owner: the super admin runs the company and owners run knowledge (the super admin creates spaces and names their owners but never decides what knowledge says or who reads a space), and the Chinese name for owners becomes 维护人 instead of 负责人. See section 4 of the [overview](../overview.md).
 - In Chinese, a company is 企业 and the governance levels are 严格, 宽松 and 仅检索. English says Company and Japanese 企業, to match.
 
-Adopted on 2026-10-27:
-
-- Familiar first (principle 2): an imported source opens as a document in its own shape, and knowledge is revealed from it step by step, concrete to abstract.
-
 ## Still open
 
 - Review the Japanese terms in the glossary.
 - Confirm the translation rules: cited passages are translated only on request and labelled as machine translation, and knowledge pages stay in their space's content language for now.
-- Still to draw: Japanese versions of the key screens. Publish and conflict in compact mode are drawn (D-review and D-conflicts).
+- Still to draw: publish and conflict in compact mode, and Japanese versions of the key screens.
