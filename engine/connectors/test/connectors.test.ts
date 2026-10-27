@@ -163,6 +163,22 @@ describe("folder connector", () => {
     });
   });
 
+  test("a translation changes when the original it is named for appears or goes", async () => {
+    await put("corpus/hr/leave.zh.md", "# Leave policy\n\nIn Chinese.");
+    const { connector } = await folder();
+    const ref = { source_id: "src_x", external_id: "hr/leave.zh.md" };
+    const alone = asDocument(await connector.fetch(ref));
+    expect(alone.metadata?.translation_of).toBeUndefined();
+    await put("corpus/hr/leave.md", "# Leave policy\n\nTwenty days.");
+    const linked = asDocument(await connector.fetch(ref, alone.version));
+    expect(linked.metadata?.translation_of?.external_id).toBe("hr/leave.md");
+    expect(linked.version.content_hash).toBe(alone.version.content_hash);
+    const listed = (await connector.list({ kind: "folder" })).items.find((i) => i.ref.external_id === ref.external_id);
+    expect(listed?.version?.metadata_hash).toBe(linked.version.metadata_hash);
+    await rm(join(dir, "corpus/hr/leave.md"));
+    expect(asDocument(await connector.fetch(ref, linked.version)).metadata?.translation_of).toBeUndefined();
+  });
+
   test("refuses paths outside the root", async () => {
     await put("corpus/a.md", "x");
     const { connector } = await folder();

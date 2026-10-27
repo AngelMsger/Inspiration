@@ -112,6 +112,7 @@ async function storedGroups(
   reader: RecordReader,
   tenantId: string,
   slot: string,
+  membersOf: (value: string) => Promise<Member[]>,
 ): Promise<{ groups: ValueGroup[]; recounted: ValueGroup[] }> {
   const recounted: ValueGroup[] = [];
   const groups: ValueGroup[] = [];
@@ -120,7 +121,7 @@ async function storedGroups(
       groups.push(stored);
       continue;
     }
-    const [group] = groupsOf(await reader.find(MEMBERS, { tenant_id: tenantId, slot, value: stored.value }));
+    const [group] = groupsOf(await membersOf(stored.value));
     if (!group) continue;
     groups.push(group);
     recounted.push(group);
@@ -190,12 +191,7 @@ function memberOf(
     source_version_id: version?.id ?? "",
     document: version?.title ?? version?.external_id ?? "",
   };
-  if (version) {
-    // A translation shares its original's key, and an original has its own.
-    const original = version.metadata?.translation_of ?? version;
-    member.document_key = `${version.source_id}:${version.external_id}`;
-    member.copy_keys = [`t:${original.source_id}:${original.external_id}`, ...passages.map((p) => `p:${p}`)];
-  }
+  if (version) Object.assign(member, sourceKeysOf(version, passages));
   // Either way the claim counts only from its start. A start equal to the document's
   // effective date is the document's, not a change it states.
   const from = start ?? documentFrom;
@@ -205,6 +201,19 @@ function memberOf(
   const modified = version?.version.modified_at?.slice(0, 10);
   if (modified) member.modified = modified;
   return member;
+}
+
+/** What makes a member's document a source, and another's statement a copy of it. */
+function sourceKeysOf(
+  version: SourceVersion,
+  passages: readonly string[],
+): Required<Pick<Member, "document_key" | "copy_keys">> {
+  // A translation shares its original's key, and an original has its own.
+  const original = version.metadata?.translation_of ?? version;
+  return {
+    document_key: `${version.source_id}:${version.external_id}`,
+    copy_keys: [`t:${original.source_id}:${original.external_id}`, ...passages.map((p) => `p:${p}`)],
+  };
 }
 
 /** "hotel_cap_per_night (tier-1 city)" */
@@ -333,7 +342,9 @@ export class Governance implements SlotVerdicts {
 
   /** The value groups of a slot and the decision over them. */
   async slot(tenantId: string, slot: string): Promise<{ groups: ValueGroup[]; decision?: SlotDecision }> {
-    const { groups } = await storedGroups(this.records, tenantId, slot);
+    const { groups } = await storedGroups(this.records, tenantId, slot, (value) =>
+      this.#members(this.records, tenantId, slot, value),
+    );
     const decision = decide(groups, this.#today());
     return decision ? { groups, decision } : { groups };
   }
@@ -347,7 +358,9 @@ export class Governance implements SlotVerdicts {
     const today = this.#today();
     const out: SlotVerdict[] = [];
     for (const slot of [...new Set(slots)].sort()) {
-      const { groups: stored } = await storedGroups(this.records, tenantId, slot);
+      const { groups: stored } = await storedGroups(this.records, tenantId, slot, (value) =>
+        this.#members(this.records, tenantId, slot, value),
+      );
       const groups = asOf(stored, today).filter((g) => g.count > 0);
       if (!groups.length) continue;
       const decision = decide(groups, today);
@@ -428,7 +441,7 @@ export class Governance implements SlotVerdicts {
         const [, slot, value] = key.split("\x1f") as [string, string, string];
         let group = lost.has(key) ? undefined : await tx.get(VALUE_GROUPS, key);
         if (lost.has(key) || (group && !countedByDay(group))) {
-          [group] = groupsOf(await tx.find(MEMBERS, { tenant_id: event.tenant_id, slot, value }));
+          [group] = groupsOf(await this.#members(tx, event.tenant_id, slot, value, tx));
         } else {
           for (const m of fresh) if (m.slot === slot && m.value === value) group = withMember(group, m);
         }
@@ -535,6 +548,37 @@ export class Governance implements SlotVerdicts {
     return out;
   }
 
+  /**
+   * The members that state a value. Members stored before they kept their document and copy
+   * keys would each count as a source of its own, so they get them from their claims and
+   * source versions, stored with them when a transaction is given.
+   */
+  async #members(
+    reader: RecordReader,
+    tenantId: string,
+    slot: string,
+    value: string,
+    tx?: RecordTx,
+  ): Promise<Member[]> {
+    const members = await reader.find(MEMBERS, { tenant_id: tenantId, slot, value });
+    const unkeyed = members.filter((m) => m.document_key === undefined && m.source_version_id);
+    if (!unkeyed.length) return members;
+    const versions = new Map<string, SourceVersion>();
+    for (const m of unkeyed) {
+      const version = await this.store.getSourceVersion(m.source_version_id);
+      if (version) versions.set(m.claim_id, version);
+    }
+    const claims = await this.store.getClaims(unkeyed.map((m) => m.claim_id));
+    const passages = await this.#passagesOf(claims, versions);
+    const keyed = new Map<string, Member>();
+    for (const m of unkeyed) {
+      const version = versions.get(m.claim_id);
+      if (version) keyed.set(m.claim_id, { ...m, ...sourceKeysOf(version, passages.get(m.claim_id) ?? []) });
+    }
+    if (tx && keyed.size) await tx.put(MEMBERS, [...keyed.values()]);
+    return members.map((m) => keyed.get(m.claim_id) ?? m);
+  }
+
   /** The source version of every claim: the update's, else the version its evidence comes from. */
   async #versionsOf(claims: readonly Claim[], versionId: string | undefined): Promise<Map<string, SourceVersion>> {
     const out = new Map<string, SourceVersion>();
@@ -566,7 +610,9 @@ export class Governance implements SlotVerdicts {
     cause?: EventEnvelope,
   ): Promise<{ request?: TodoRequested; notes: TodoRequested[]; withdrawn: TodoRequested[] }> {
     const today = this.#today();
-    const { groups: stored, recounted } = await storedGroups(tx, tenantId, slot);
+    const { groups: stored, recounted } = await storedGroups(tx, tenantId, slot, (value) =>
+      this.#members(tx, tenantId, slot, value, tx),
+    );
     if (recounted.length) await tx.put(VALUE_GROUPS, recounted);
     const decision = decide(stored, today);
     const recheck = await tx.get(RECHECKS, slotKey(tenantId, slot));

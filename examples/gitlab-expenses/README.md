@@ -134,8 +134,9 @@ of that file.
 
 The replay also counts what each version asks a person to decide (`review` in the report and
 the `review:` line). After the first read, the 20 versions change 20 facts: a value appears,
-changes or stops being stated. They raise 2 todos and give the open todo more to decide twice,
-so people are asked 4 times, 0.2 per changed fact. One of the todos is withdrawn a week later
+changes or stops being stated. They raise 2 todos and give the open todo more to decide twice
+(statements it did not list at the version before), so people are asked 4 times, 0.2 per
+changed fact. One of the todos is withdrawn a week later
 without a person. The first read asks nothing.
 
 One of the four asks is worth a person's time, and the other three are the stand-in's:

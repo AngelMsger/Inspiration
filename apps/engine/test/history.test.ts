@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -97,6 +97,52 @@ describe("the GitLab expense policy history", () => {
       await check({ databaseUrl, streamPrefix });
     });
   });
+});
+
+test("a statement that leaves an open todo and comes back gives it more to decide each time it comes back", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "inspiration-history-"));
+  const blobDir = await mkdtemp(join(tmpdir(), "inspiration-history-"));
+  const hotel = "- Hotel stays are reimbursable up to $600 USD per night.";
+  const meal = "- Meals while traveling are reimbursable, up to $100 USD per day.";
+  const other = "- Book every trip through the travel desk.";
+  // Both, neither, the hotel back, the hotel gone again, both back.
+  const versions = [[hotel, meal], [other], [hotel], [other], [hotel, meal]];
+  try {
+    for (const file of ["corpus.yaml", "vocabulary.yaml"]) await copyFile(join(EXPENSES, file), join(dir, file));
+    await mkdir(join(dir, "handbook", "finance"), { recursive: true });
+    await mkdir(join(dir, "history"));
+    const steps = [];
+    for (const [i, lines] of versions.entries()) {
+      await writeFile(join(dir, "history", `v${i + 1}.md`), `# Travel and expenses\n\n${lines.join("\n")}\n`);
+      steps.push(`  - {at: 2024-0${i + 1}-01T00:00:00Z, from: history/v${i + 1}.md}`);
+    }
+    await writeFile(join(dir, "history.yaml"), `document: handbook/finance/expenses.md\nsteps:\n${steps.join("\n")}\n`);
+    const corpus = await Corpus.load(dir);
+    const history = (await loadHistory(dir)) as History;
+    let now = new Date(history.steps[0]?.at as string);
+    const engine = await Engine.open({
+      clock: () => now,
+      blobDir,
+      resolvePrincipal: corpus.resolvePrincipal,
+      vocabulary: () => corpus.vocabulary,
+    });
+    try {
+      const report = await replay(engine, dir, history, (at) => (now = at));
+      expect(report.steps.map((s) => s.asks)).toMatchObject([
+        { todos: {} },
+        { todos: { unstated: 1 } },
+        { more: {} },
+        { more: { unstated: 1 } },
+        { withdrawn: 1 },
+      ]);
+      expect(report.review).toMatchObject({ todos: 1, more: 1, withdrawn: 1 });
+    } finally {
+      await engine.close();
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+    await rm(blobDir, { recursive: true, force: true });
+  }
 });
 
 describe("history.yaml and timeline.yaml", () => {

@@ -161,7 +161,7 @@ export interface SlotState {
 export interface StepAsks {
   /** Todos it raised, by kind; notes ask for no decision and are counted apart. */
   todos: Record<string, number>;
-  /** Open todos it added statements to, by kind. */
+  /** Open todos that list statements they did not list at the step before, by kind. */
   more: Record<string, number>;
   /** Todos withdrawn because what they asked about went away. */
   withdrawn: number;
@@ -188,7 +188,10 @@ export interface ReviewLoad {
   changed_facts: number | null;
   todos: number;
   todos_by_kind: Record<string, number>;
-  /** Times an open todo was given statements to decide on that it did not list before. */
+  /**
+   * Times an open todo was given statements to decide on that it did not list at the step
+   * before, so a statement that leaves and comes back counts each time it comes back.
+   */
   more: number;
   withdrawn: number;
   notes: number;
@@ -259,7 +262,7 @@ function add(counts: Record<string, number>, kind: string, n = 1): void {
 
 /**
  * What was asked since the last call. `seen` remembers each todo's status and the units it
- * listed, and the conflict cases.
+ * listed at the last call, and the conflict cases.
  */
 async function asked(
   engine: Engine,
@@ -270,7 +273,7 @@ async function asked(
   for (const { todo } of await engine.inbox.items(tenantId)) {
     const open = todo.status === "open";
     const before = seen.todos.get(todo.id);
-    seen.todos.set(todo.id, { open, units: new Set([...(before?.units ?? []), ...todo.unit_ids]) });
+    seen.todos.set(todo.id, { open, units: new Set(todo.unit_ids) });
     if (!before) {
       if (todo.kind === "note") asks.notes++;
       else add(asks.todos, todo.kind);

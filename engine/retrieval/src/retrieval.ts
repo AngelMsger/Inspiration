@@ -163,6 +163,7 @@ interface Searched {
   statements: Map<string, Statement>;
   verdicts: Map<string, SlotVerdict>;
   filter: IndexFilter;
+  filters?: SearchQuery["filters"];
   /** The sensitivity of every unit found. */
   labels: Map<string, SensitivityLabel>;
 }
@@ -400,11 +401,7 @@ export class Retrieval implements Retriever {
     const topK = query.top_k ?? 10;
     const kinds = new Set(query.kinds?.length ? query.kinds : ["claim", "chunk"]);
     if (this.baseline) kinds.delete("claim");
-    const filter = await this.authz.scopeFilter(who, "read");
-    if (query.space_ids?.length) {
-      const asked = new Set(query.space_ids);
-      filter.space_ids = filter.space_ids.filter((s) => asked.has(s));
-    }
+    const filter = await this.#scope(who, query.space_ids);
     const empty: Searched = {
       hits: [],
       statements: new Map(),
@@ -419,9 +416,13 @@ export class Retrieval implements Retriever {
     if (!found.length) return empty;
     const words = terms(query.text);
     const statements = kinds.has("claim") ? await this.#statements(found, words, who, filter, query) : new Map();
-    const verdicts = await this.#verdictsOf(
-      who.tenant_id,
-      [...statements.values()].map((s) => s.claim),
+    const verdicts = await this.#visibleVerdicts(
+      who,
+      await this.#verdictsOf(
+        who.tenant_id,
+        [...statements.values()].map((s) => s.claim),
+      ),
+      statements.values(),
     );
     for (const s of statements.values()) {
       const slot = slotOf(s.claim);
@@ -433,7 +434,12 @@ export class Retrieval implements Retriever {
     const snippets = passages.map((f) => snippetOf(f, words));
     const listed = [...statements.values()];
     const texts = [...listed.map((s) => s.claim.statement), ...snippets.map((s) => s.text)];
-    const scores = texts.length ? await this.#rerank(query.text, texts, who.tenant_id) : [];
+    const sensitivity = maxLabel(
+      "internal",
+      ...listed.map((s) => s.claim.sensitivity),
+      ...passages.map((f) => f.chunk.sensitivity),
+    );
+    const scores = texts.length ? await this.#rerank(query.text, texts, sensitivity, who.tenant_id) : [];
     const staleness = await this.#staleness(who.tenant_id, [
       ...listed.map((s) => s.claim.id),
       ...passages.map((f) => f.version.id),
@@ -455,7 +461,24 @@ export class Retrieval implements Retriever {
       ...listed.map((s): [string, SensitivityLabel] => [s.claim.id, s.claim.sensitivity]),
       ...passages.map((f): [string, SensitivityLabel] => [f.chunk.id, f.chunk.sensitivity]),
     ]);
-    return { hits: hits.slice(0, topK), statements, verdicts, filter, labels };
+    return {
+      hits: hits.slice(0, topK),
+      statements,
+      verdicts,
+      filter,
+      ...(query.filters && { filters: query.filters }),
+      labels,
+    };
+  }
+
+  /** What the asker may read, within the spaces asked for when any are. */
+  async #scope(who: Principal, spaceIds: readonly string[] | undefined): Promise<IndexFilter> {
+    const filter = await this.authz.scopeFilter(who, "read");
+    if (spaceIds?.length) {
+      const asked = new Set(spaceIds);
+      filter.space_ids = filter.space_ids.filter((s) => asked.has(s));
+    }
+    return filter;
   }
 
   /** Chunk IDs by reciprocal rank fusion of the vector and keyword indexes, best first. */
@@ -529,18 +552,7 @@ export class Retrieval implements Retriever {
     const spanScore = new Map<string, number>();
     for (const f of found) for (const s of f.spans) spanScore.set(s.id, Math.max(spanScore.get(s.id) ?? 0, f.fused));
     const ids = await this.store.claimsCiting([...spanScore.keys()]);
-    const f = query.filters;
-    const spaces = new Set(filter.space_ids);
-    const claims = (await this.store.getClaims(ids)).filter(
-      (c) =>
-        !c.superseded_at &&
-        !CLOSED.has(c.status) &&
-        spaces.has(c.space_id) &&
-        rank(c.sensitivity) <= rank(filter.max_sensitivity) &&
-        (!f?.knowledge_classes?.length || f.knowledge_classes.includes(c.knowledge_class)) &&
-        (!f?.statuses?.length || f.statuses.includes(c.status)) &&
-        (f?.min_confidence === undefined || c.confidence >= f.min_confidence),
-    );
+    const claims = (await this.store.getClaims(ids)).filter(asked(filter, query.filters));
     const evidence = await this.store.evidenceOf(claims.map((c) => c.id));
     const supports = new Map<string, ClaimEvidence[]>();
     for (const e of evidence)
@@ -591,16 +603,73 @@ export class Retrieval implements Retriever {
     return new Map((await this.verdicts.verdicts(tenantId, slots)).map((v) => [v.slot_key, v]));
   }
 
-  async #rerank(query: string, texts: readonly string[], tenantId: string): Promise<number[]> {
-    const result = await this.models.rerank({
-      query,
-      documents: [...texts] as [string, ...string[]],
-      // The texts passed the asker's permission check; label them as the asker may read.
-      sensitivity: "internal",
-      budget_key: `tenant:${tenantId}/${COMPONENT}`,
-      tenant_id: tenantId,
-    });
-    return result.scores;
+  /**
+   * The verdicts as the asker may see them. A value keeps the statements of it the asker may
+   * read, the representatives governance gave and those the search found; a value with none
+   * is left out, and a contradiction stands only between values left. What a value the asker
+   * cannot see does to the others is not theirs to know either: without the held value the
+   * slot has no verdict for them, as if governance had none.
+   */
+  async #visibleVerdicts(
+    who: Principal,
+    verdicts: ReadonlyMap<string, SlotVerdict>,
+    found: Iterable<Statement>,
+  ): Promise<Map<string, SlotVerdict>> {
+    const out = new Map<string, SlotVerdict>();
+    if (!verdicts.size) return out;
+    const own = new Map<string, string[]>();
+    for (const s of found) {
+      const slot = slotOf(s.claim);
+      const value = valueKeyOf(s.claim);
+      if (slot && value !== undefined)
+        own.set(`${slot}|${value}`, [...(own.get(`${slot}|${value}`) ?? []), s.claim.id]);
+    }
+    const ids = [...new Set([...verdicts.values()].flatMap((v) => v.values.flatMap((x) => x.claim_ids)))];
+    const decisions = await this.authz.checkMany(
+      who,
+      "read",
+      ids.map((id) => ({ type: "claim", id })),
+    );
+    const readable = new Set(ids.filter((_, i) => decisions[i]?.allow));
+    for (const [slot, verdict] of verdicts) {
+      const values = verdict.values.flatMap((x) => {
+        const mine = own.get(`${slot}|${x.value}`) ?? [];
+        const claimIds = [...new Set([...x.claim_ids.filter((id) => readable.has(id)), ...mine])];
+        return claimIds.length ? [{ ...x, claim_ids: claimIds as [string, ...string[]] }] : [];
+      });
+      const [held, ...rest] = values;
+      if (!held || held.value !== verdict.values[0].value) continue;
+      const contested = values.filter((x) => x.standing === "holds" || x.standing === "disputed").length > 1;
+      out.set(slot, { ...verdict, values: [held, ...rest], disputed: verdict.disputed && contested });
+    }
+    return out;
+  }
+
+  /**
+   * Scores for the texts, labelled as the most sensitive of them: that the asker may read a
+   * text does not clear a provider to see it. With no reranker cleared for the label the
+   * fused order stands.
+   */
+  async #rerank(
+    query: string,
+    texts: readonly string[],
+    sensitivity: SensitivityLabel,
+    tenantId: string,
+  ): Promise<number[]> {
+    try {
+      const result = await this.models.rerank({
+        query,
+        documents: [...texts] as [string, ...string[]],
+        sensitivity,
+        budget_key: `tenant:${tenantId}/${COMPONENT}`,
+        tenant_id: tenantId,
+      });
+      return result.scores;
+    } catch (e) {
+      if (!(e instanceof GatewayException && e.code === "no_route")) throw e;
+      log.warn("no reranker for the label; keeping the fused order", { sensitivity });
+      return [];
+    }
   }
 
   async #staleness(tenantId: string, unitIds: readonly string[]): Promise<Map<string, Staleness>> {
@@ -621,7 +690,7 @@ export class Retrieval implements Retriever {
    * ones found that do not.
    */
   async #sources(query: AnswerQuery, who: Principal): Promise<{ hits: SearchHit[]; searched: Searched }> {
-    if (this.baseline === "long_context") return this.#everything(who);
+    if (this.baseline === "long_context") return this.#everything(query, who);
     const found = await this.#search(
       {
         text: query.question,
@@ -644,11 +713,15 @@ export class Retrieval implements Retriever {
     return { hits, searched };
   }
 
-  /** Every passage the asker may read, document by document in reading order. */
-  async #everything(who: Principal): Promise<{ hits: SearchHit[]; searched: Searched }> {
-    const filter = await this.authz.scopeFilter(who, "read");
+  /**
+   * Every passage the asker may read in the spaces asked for, document by document in
+   * reading order. The query's filters are on statements, which a passage is not, as for the
+   * passages baseline.
+   */
+  async #everything(query: AnswerQuery, who: Principal): Promise<{ hits: SearchHit[]; searched: Searched }> {
+    const filter = await this.#scope(who, query.space_ids);
     const spaces = new Set(filter.space_ids);
-    const ids = (await this.documents(who.tenant_id)).flatMap((d) => d.chunk_ids);
+    const ids = spaces.size ? (await this.documents(who.tenant_id)).flatMap((d) => d.chunk_ids) : [];
     const found = (
       await this.#readable(
         ids.map((id): [string, number] => [id, 0]),
@@ -777,7 +850,8 @@ export class Retrieval implements Retriever {
 
   /**
    * The value that holds takes the place of an outdated or disputed one the question found:
-   * its statement joins the sources when the asker may read it, as the hit of a search.
+   * its statement joins the sources when the asker may read it and it passes the search's
+   * filters, as the hit of a search, with its freshness.
    */
   async #addHeld(hits: SearchHit[], searched: Searched, who: Principal): Promise<void> {
     const have = new Set(hits.map((h) => h.unit_id));
@@ -790,11 +864,18 @@ export class Retrieval implements Retriever {
       "read",
       wanted.map((id) => ({ type: "claim", id })),
     );
-    const claims = await this.store.getClaims(wanted.filter((_, i) => decisions[i]?.allow));
+    const claims = (await this.store.getClaims(wanted.filter((_, i) => decisions[i]?.allow))).filter(
+      asked(searched.filter, searched.filters),
+    );
+    if (!claims.length) return;
     const evidence = (await this.store.evidenceOf(claims.map((c) => c.id))).filter((e) => e.role === "supports");
     const versions = await this.#versions(evidence.map((e) => e.source_version_id));
     const readable = await this.#readableDocuments(who, [...versions.values()]);
     const spans = new Map((await this.store.getSpans(evidence.map((e) => e.span_id))).map((s) => [s.id, s]));
+    const staleness = await this.#staleness(
+      who.tenant_id,
+      claims.map((c) => c.id),
+    );
     const now = this.clock().toISOString();
     for (const c of claims) {
       const own = evidence.filter((e) => e.claim_id === c.id && readable.has(e.source_version_id));
@@ -817,7 +898,7 @@ export class Retrieval implements Retriever {
       };
       searched.statements.set(c.id, statement);
       searched.labels.set(c.id, c.sensitivity);
-      hits.push(statementHit(statement, 0, { state: "fresh", as_of: now }));
+      hits.push(statementHit(statement, 0, freshnessOf(staleness.get(c.id), now)));
     }
   }
 
@@ -914,6 +995,19 @@ function passageHit(f: Found, spans: readonly Span[], score: number, freshness: 
     space_id: f.chunk.space_id,
     ...(f.version.language && { language: f.version.language }),
   };
+}
+
+/** Whether a claim is current and within what the search asked for and the asker's scope. */
+function asked(filter: IndexFilter, f: SearchQuery["filters"]): (c: Claim) => boolean {
+  const spaces = new Set(filter.space_ids);
+  return (c) =>
+    !c.superseded_at &&
+    !CLOSED.has(c.status) &&
+    spaces.has(c.space_id) &&
+    rank(c.sensitivity) <= rank(filter.max_sensitivity) &&
+    (!f?.knowledge_classes?.length || f.knowledge_classes.includes(c.knowledge_class)) &&
+    (!f?.statuses?.length || f.statuses.includes(c.status)) &&
+    (f?.min_confidence === undefined || c.confidence >= f.min_confidence);
 }
 
 /** A statement as a hit, marked with where its value stands and which value holds instead. */
