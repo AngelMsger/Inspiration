@@ -32,10 +32,12 @@ import {
 import { Gateway, loadGatewayConfig } from "@inspiration/model-gateway";
 import { createTestDatabase, hasStack } from "@inspiration/testkit";
 import { test } from "vitest";
-import { Retrieval } from "../src/index.ts";
+import { type Baseline, Retrieval, type RetrievalOptions } from "../src/index.ts";
 
 export const TENANT = "ten_01JC0000000000000000TENANT";
 export const SPACE = "spc_01JC00000000000000000SPACE";
+/** A second space every member reads, with no documents. */
+export const EMPTY_SPACE = "spc_01JC0000000000000000EMPTY1";
 export const SOURCE = "src_01JC0000000000000000FOLDER";
 export const HOTEL = "hotel_cap_per_night|tier-1 city";
 
@@ -81,6 +83,8 @@ export interface World {
   authz: AuthzService;
   gateway: Gateway;
   retrieval: Retrieval;
+  /** A rival over the same chunks, indexes and model. */
+  baseline: (kind: Baseline, options?: Partial<RetrievalOptions>) => Retrieval;
   /** The verdicts the governance double gives, by slot. */
   verdicts: Map<string, SlotVerdict>;
   /** What the freshness double says of units, by ID; fresh when not here. */
@@ -160,6 +164,8 @@ export const retrievalTest = (backend: Backend) =>
     await authz.createSpace(SPACE, { tenantId: TENANT, ownerId: ALICE.id });
     for (const m of [ALICE, BOB, CAROL]) await authz.addTenantMember(TENANT, m.id);
     await authz.grantSpace(SPACE, "viewer", TENANT);
+    await authz.createSpace(EMPTY_SPACE, { tenantId: TENANT, ownerId: ALICE.id });
+    await authz.grantSpace(EMPTY_SPACE, "viewer", TENANT);
     await authz.grantClearance(TENANT, CAROL.id, "confidential");
     await authz.registerSource(SOURCE, SPACE);
 
@@ -167,16 +173,13 @@ export const retrievalTest = (backend: Backend) =>
     cleanups.push(() => gateway.close());
     const verdicts = new Map<string, SlotVerdict>();
     const staleness = new Map<string, Staleness>();
+    const indexes = { store, records, models: gateway, authz, vectors, keywords };
     const retrieval = new Retrieval({
-      store,
-      records,
-      models: gateway,
-      authz,
-      vectors,
-      keywords,
+      ...indexes,
       verdicts: { verdicts: async (_tenant, slots) => slots.flatMap((s) => verdicts.get(s) ?? []) },
       staleness: { staleness: async (_tenant, ids) => ids.flatMap((id) => staleness.get(id) ?? []) },
     });
+    const baseline: World["baseline"] = (kind, options) => new Retrieval({ ...indexes, ...options, baseline: kind });
     const last = new Map<string, SourceVersion>();
     let tick = 0;
 
@@ -329,5 +332,5 @@ export const retrievalTest = (backend: Backend) =>
       return c;
     };
 
-    return { store, records, authz, gateway, retrieval, verdicts, staleness, document, share, claim };
+    return { store, records, authz, gateway, retrieval, baseline, verdicts, staleness, document, share, claim };
   });

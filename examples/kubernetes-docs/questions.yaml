@@ -40,13 +40,6 @@ questions:
   - question: What is the cap of a container's restart backoff delay?
     answer: ["300 seconds", "300s", "five minutes"]
     cites: [docs/concepts/workloads/pods/pod-lifecycle]
-    engine:
-      outcome: wrong_answer
-      why: 'The page says the kubelet "restarts" "containers" with a delay "capped at 300
-        seconds". The stand-in reranker compares exact words over all that either text has,
-        so "capped", "containers" and "restarts" do not meet the question''s "cap",
-        "container" and "restart", and the long sentence loses to short ones of the same
-        page: it does not reach the answer''s sources (the stand-in).'
   - question: After how long does the kubelet reset a container's restart backoff timer?
     answer: ["10 minutes"]
     cites: [docs/concepts/workloads/pods/pod-lifecycle]
