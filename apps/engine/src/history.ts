@@ -11,6 +11,14 @@
  * why, in the same shape; the history test holds the replay to them, so a change that closes
  * or opens a gap shows in a diff of that file.
  *
+ * The replay also counts what each version asked of people: the todos it raised, by kind;
+ * the open todos it gave more to decide (a list of statements no longer stated that grew),
+ * which ask again; the todos withdrawn without a person; and the conflict cases governance
+ * opened, with how many it settled without a person. With a timeline, a fact changed in a
+ * version when the value in effect differs from the one before (a value that appears or
+ * stops being stated counts too), so the report gives asks per changed fact. The first
+ * version is the first read of the document, counted apart.
+ *
  * The working copy lives in a temporary folder, so the corpus on disk stays as it is.
  */
 
@@ -149,12 +157,50 @@ export interface SlotState {
   unstated?: true;
 }
 
+/** What one version asked of people. */
+export interface StepAsks {
+  /** Todos it raised, by kind; notes ask for no decision and are counted apart. */
+  todos: Record<string, number>;
+  /** Open todos that list statements they did not list at the step before, by kind. */
+  more: Record<string, number>;
+  /** Todos withdrawn because what they asked about went away. */
+  withdrawn: number;
+  notes: number;
+  /** Conflict cases governance opened, and how many of them it settled without a person. */
+  cases: number;
+  settled: number;
+}
+
 export interface StepResult {
   at: string;
   title?: string;
   /** Slots that hold a value, by slot. */
   slots: Record<string, SlotState>;
   claims: number;
+  asks: StepAsks;
+}
+
+/** Review load over the versions after the first: what people were asked per real change. */
+export interface ReviewLoad {
+  /** Versions after the first. */
+  versions: number;
+  /** Facts the timeline changes in those versions; null without a timeline. */
+  changed_facts: number | null;
+  todos: number;
+  todos_by_kind: Record<string, number>;
+  /**
+   * Times an open todo was given statements to decide on that it did not list at the step
+   * before, so a statement that leaves and comes back counts each time it comes back.
+   */
+  more: number;
+  withdrawn: number;
+  notes: number;
+  /** Todos raised and todos given more, per changed fact; null without a timeline or a change. */
+  asks_per_changed_fact: number | null;
+  cases: number;
+  settled: number;
+  /** What the first read asked. */
+  first: StepAsks;
 }
 
 export interface SlotCheck {
@@ -171,6 +217,7 @@ export interface SlotCheck {
 
 export interface ReplayReport {
   steps: StepResult[];
+  review: ReviewLoad;
   check?: {
     slots: SlotCheck[];
     /** Slots the run filled that timeline.yaml does not name: statements in a slot they do not belong to. */
@@ -205,6 +252,81 @@ async function observe(engine: Engine, corpus: Corpus): Promise<{ slots: Record<
   return { slots: out, claims: claims.length };
 }
 
+function noAsks(): StepAsks {
+  return { todos: {}, more: {}, withdrawn: 0, notes: 0, cases: 0, settled: 0 };
+}
+
+function add(counts: Record<string, number>, kind: string, n = 1): void {
+  counts[kind] = (counts[kind] ?? 0) + n;
+}
+
+/**
+ * What was asked since the last call. `seen` remembers each todo's status and the units it
+ * listed at the last call, and the conflict cases.
+ */
+async function asked(
+  engine: Engine,
+  tenantId: string,
+  seen: { todos: Map<string, { open: boolean; units: Set<string> }>; cases: Set<string> },
+): Promise<StepAsks> {
+  const asks = noAsks();
+  for (const { todo } of await engine.inbox.items(tenantId)) {
+    const open = todo.status === "open";
+    const before = seen.todos.get(todo.id);
+    seen.todos.set(todo.id, { open, units: new Set(todo.unit_ids) });
+    if (!before) {
+      if (todo.kind === "note") asks.notes++;
+      else add(asks.todos, todo.kind);
+    } else if (before.open && !open && todo.resolved_with === "withdrawn") {
+      asks.withdrawn++;
+    } else if (open && todo.unit_ids.some((id) => !before.units.has(id))) {
+      add(asks.more, todo.kind);
+    }
+  }
+  for (const c of await engine.governance.conflicts(tenantId)) {
+    if (seen.cases.has(c.id)) continue;
+    seen.cases.add(c.id);
+    asks.cases++;
+    if (c.status === "auto_resolved") asks.settled++;
+  }
+  return asks;
+}
+
+/** Facts whose value in effect differs from the version before, per version after the first. */
+function changedFacts(steps: readonly StepResult[], timeline: Timeline): number {
+  let n = 0;
+  for (const entries of Object.values(timeline.slots)) {
+    for (let i = 1; i < steps.length; i++) {
+      const day = (s: StepResult | undefined) => s?.at.slice(0, 10) ?? "";
+      if (inEffect(entries, day(steps[i])) !== inEffect(entries, day(steps[i - 1]))) n++;
+    }
+  }
+  return n;
+}
+
+function review(steps: readonly StepResult[], timeline: Timeline | undefined): ReviewLoad {
+  const later = steps.slice(1);
+  const byKind: Record<string, number> = {};
+  for (const s of later) for (const [k, n] of Object.entries(s.asks.todos)) add(byKind, k, n);
+  const sum = (f: (a: StepAsks) => number) => later.reduce((n, s) => n + f(s.asks), 0);
+  const todos = sum((a) => Object.values(a.todos).reduce((x, y) => x + y, 0));
+  const more = sum((a) => Object.values(a.more).reduce((x, y) => x + y, 0));
+  const changed = timeline ? changedFacts(steps, timeline) : null;
+  return {
+    versions: later.length,
+    changed_facts: changed,
+    todos,
+    todos_by_kind: byKind,
+    more,
+    withdrawn: sum((a) => a.withdrawn),
+    notes: sum((a) => a.notes),
+    asks_per_changed_fact: changed ? Math.round(((todos + more) / changed) * 100) / 100 : null,
+    cases: sum((a) => a.cases),
+    settled: sum((a) => a.settled),
+    first: steps[0]?.asks ?? noAsks(),
+  };
+}
+
 /**
  * Replays the history of the corpus in dir against the engine, whose clock is set to each
  * step's time before it is ingested. The engine must take its clock from setNow's target.
@@ -224,6 +346,7 @@ export async function replay(
     const corpus = await Corpus.load(work);
     const target = join(work, history.document);
     const steps: StepResult[] = [];
+    const seen = { todos: new Map<string, { open: boolean; units: Set<string> }>(), cases: new Set<string>() };
     for (const step of history.steps) {
       const at = new Date(step.at);
       await mkdir(dirname(target), { recursive: true });
@@ -232,9 +355,18 @@ export async function replay(
       setNow(at);
       const run = await ingest(engine, corpus);
       if (run.dead_letters) throw new HistoryError(`step ${step.at}: ${run.dead_letters} dead letters`);
-      steps.push({ at: step.at, ...(step.title && { title: step.title }), ...(await observe(engine, corpus)) });
+      steps.push({
+        at: step.at,
+        ...(step.title && { title: step.title }),
+        ...(await observe(engine, corpus)),
+        asks: await asked(engine, corpus.tenantId, seen),
+      });
     }
-    return { steps, ...(options.timeline && { check: check(steps, options.timeline) }) };
+    return {
+      steps,
+      review: review(steps, options.timeline),
+      ...(options.timeline && { check: check(steps, options.timeline) }),
+    };
   } finally {
     await rm(work, { recursive: true, force: true });
   }
@@ -279,8 +411,26 @@ export function replayLines(r: ReplayReport): string[] {
     const held = Object.entries(s.slots).map(
       ([slot, st]) => `${slot}=${st.leads ?? `[${st.values.join(" | ")}]`}${st.unstated ? " (no longer stated)" : ""}`,
     );
-    lines.push(`  ${s.at.slice(0, 10)} ${s.claims} claims; ${held.join(", ") || "no slot holds a value"}`);
+    const a = s.asks;
+    const asks = [
+      ...Object.entries(a.todos).map(([k, n]) => plural(n, `${k} todo`)),
+      ...Object.entries(a.more).map(([k, n]) => `more to decide in ${plural(n, `open ${k} todo`)}`),
+      ...(a.withdrawn ? [`${plural(a.withdrawn, "todo")} withdrawn`] : []),
+      ...(a.notes ? [plural(a.notes, "note")] : []),
+      ...(a.cases ? [`${plural(a.cases, "conflict case")}, ${a.settled} settled without a person`] : []),
+    ];
+    const asked = asks.length ? `; asked: ${asks.join(", ")}` : "";
+    lines.push(`  ${s.at.slice(0, 10)} ${s.claims} claims; ${held.join(", ") || "no slot holds a value"}${asked}`);
   }
+  const v = r.review;
+  const kinds = Object.entries(v.todos_by_kind).map(([k, n]) => `${n} ${k}`);
+  lines.push(
+    `review: after the first read, ${plural(v.versions, "version")} changed ${v.changed_facts ?? "?"} facts and raised ${plural(v.todos, "todo")}${kinds.length ? ` (${kinds.join(", ")})` : ""}, gave open todos more to decide ${plural(v.more, "time")} and withdrew ${v.withdrawn}: ${v.asks_per_changed_fact ?? "?"} asks per changed fact; ${plural(v.notes, "note")}; ${plural(v.cases, "conflict case")}, ${v.settled} settled without a person`,
+  );
+  const f = Object.entries(v.first.todos).map(([k, n]) => `${n} ${k}`);
+  lines.push(
+    `  the first read raised ${f.join(", ") || "no todo"}, ${plural(v.first.cases, "conflict case")}, ${v.first.settled} settled without a person`,
+  );
   if (!r.check) return lines;
   const t = r.check.totals;
   lines.push(`timeline: ${t.right} of ${t.steps} slot-versions as expected, ${t.as_recorded} as timeline.yaml records`);
@@ -310,4 +460,8 @@ export function replayLines(r: ReplayReport): string[] {
   }
   if (r.check.unexpected.length) lines.push(`  in slots timeline.yaml does not name: ${r.check.unexpected.join(", ")}`);
   return lines;
+}
+
+function plural(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }

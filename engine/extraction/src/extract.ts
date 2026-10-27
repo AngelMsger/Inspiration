@@ -292,7 +292,7 @@ export class Extraction {
     const byId = new Map((await this.#occurrences(version, extracted)).map((e) => [e.claim.id, e]));
     const stored = new Set((await this.store.getClaims([...byId.keys()])).map((c) => c.id));
     const fresh = [...byId.values()].filter((e) => !stored.has(e.claim.id));
-    const lost = await this.#lost(change.removed_span_ids, [...byId.values()]);
+    const lost = await this.#lost(version, change.removed_span_ids, [...byId.values()]);
     const restated = await this.#restated(fresh, new Set(byId.keys()));
     const closing = [...new Map([...lost, ...restated].map((c) => [c.claim.id, c])).values()];
     const before = await this.#unstated(mark, byId, closing);
@@ -702,11 +702,12 @@ export class Extraction {
   }
 
   /**
-   * Current claims whose every supporting span was removed, each with the new claim that
-   * replaces it, if any: one of the same slot, else the most similar statement cut from the
-   * same block.
+   * Current claims whose every supporting span was removed, each with the claim that replaces
+   * it, if any: a new one of the same slot, else the most similar statement cut from the same
+   * block, else one of the same slot that the version still states where it did not change.
    */
   async #lost(
+    version: SourceVersion,
     removedSpanIds: readonly string[],
     extracted: readonly Built[],
   ): Promise<{ claim: Claim; by?: string }[]> {
@@ -728,7 +729,7 @@ export class Extraction {
         s.block_id,
       ]),
     );
-    return lost.map((old) => {
+    const replaced: { claim: Claim; by?: string }[] = lost.map((old) => {
       const slot = slotOf(old);
       const blocks = new Set((support.get(old.id) ?? []).map((id) => blockOf.get(id)));
       let by = slot ? extracted.find((e) => e.claim.id !== old.id && slotOf(e.claim) === slot)?.claim.id : undefined;
@@ -742,5 +743,20 @@ export class Extraction {
       }
       return by ? { claim: old, by } : { claim: old };
     });
+    // A version that removes one of two places stating a fact still states it: the claim of
+    // the place left replaces the other, so nobody is asked about a repeat that went away.
+    const open = replaced.filter((r) => !r.by && slotOf(r.claim) !== undefined);
+    if (!open.length) return replaced;
+    const gone = new Set(lost.map((c) => c.id));
+    const spans = (await this.store.spansOf(version.id)).map((s) => s.id);
+    const left = (await this.store.getClaims(await this.store.claimsCiting(spans))).filter(
+      (c) => c.superseded_at === undefined && !gone.has(c.id),
+    );
+    for (const r of open) {
+      const same = left.filter((c) => slotOf(c) === slotOf(r.claim));
+      const by = same.find((c) => valueKeyOf(c) === valueKeyOf(r.claim)) ?? same[0];
+      if (by) r.by = by.id;
+    }
+    return replaced;
   }
 }

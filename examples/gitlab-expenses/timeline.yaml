@@ -31,10 +31,13 @@ slots:
     - {from: 2023-02-08, value: 1500 USD}
   home_office_stipend|yearly_refresh:
     - {from: 2023-02-08, value: 500 USD}
-  # Not stated from 2023-08-29 on; the 50 stays.
+  # From 2023-08-29 "Policy is set at $80" under the heading "Phone Service", from 2026-06-19
+  # "Policy is set at $100"; the moved notice of 2026-03-18 states nothing, so the 80 stays.
   phone_service_monthly_cap:
     - {from: 2022-01-27, value: 200 USD/month}
     - {from: 2023-02-08, value: 50 USD/month}
+    - {from: 2023-08-29, value: 80 USD/month}
+    - {from: 2026-06-19, value: 100 USD/month}
   # The hardware table left the page on 2021-12-03; its values stay.
   external_monitor_cap:
     - {from: 2020-11-17, value: 380 USD}
@@ -83,7 +86,9 @@ engine:
   phone_service_monthly_cap:
     why: >-
       On 2022-01-27 the row reads "**Phone** | $200 monthly threshold", without the catalogue's
-      "cell phone service" (the stand-in).
+      "cell phone service" (the stand-in). From 2023-05-17 the cap is "Policy is set at $50",
+      then $80 and $100, in a sentence that names neither the catalogue's words nor a month,
+      under the heading "Phone Service" (the stand-in), so the 50 of 2023-02-08 stays, marked.
     timeline:
       - {from: 2022-05-31, value: 200 USD/month}
       - {from: 2023-02-08, value: 50 USD/month}

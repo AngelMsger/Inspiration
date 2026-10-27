@@ -1,4 +1,11 @@
-import { type ClaimsUpdated, newEvent, payloadOf, type TodoRequested } from "@inspiration/contracts";
+import {
+  type ClaimsUpdated,
+  newEvent,
+  payloadOf,
+  slotOf,
+  type TodoRequested,
+  valueKeyOf,
+} from "@inspiration/contracts";
 import type { FakeProvider } from "@inspiration/model-gateway";
 import { describe, expect } from "vitest";
 import { BACKENDS, extractionTest, type Para, TENANT } from "./fixtures.ts";
@@ -313,6 +320,27 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       expect(old).toMatchObject({ status: "superseded", superseded_by: now?.id, value: { number: 600 } });
       expect(now?.value?.number).toBe(650);
       expect(todoRequests(await world.events()).at(-1)).toMatchObject({ kind: "unstated", withdrawn: true });
+    });
+
+    test("a fact stated twice is still stated when one place goes, and nobody is asked", async ({ world }) => {
+      const cap = { id: "p1", heading: HEADING, text: "Hotels in tier-1 cities cost at most 600 yuan a night." };
+      const summary = {
+        id: "p9",
+        heading: ["Travel policy", "Summary"],
+        text: "In tier-1 cities, hotels cost at most 600 yuan a night.",
+      };
+      const v1 = await world.version("travel.md", [cap, summary]);
+      const claims = await world.store.getClaims(v1.result.added);
+      expect(claims).toHaveLength(2);
+      expect(new Set(claims.map((c) => `${slotOf(c)}=${valueKeyOf(c)}`)).size).toBe(1);
+      const left = claims.find((c) => c.statement === cap.text)?.id;
+      const gone = claims.find((c) => c.statement === summary.text)?.id;
+
+      const v2 = await world.version("travel.md", [cap]);
+      expect(v2.result).toMatchObject({ added: [], superseded: [gone], unstated: [] });
+      const [old] = await world.store.getClaims([gone as string]);
+      expect(old).toMatchObject({ status: "superseded", superseded_by: left });
+      expect(todoRequests(await world.events())).toEqual([]);
     });
 
     test("a renamed heading supersedes the claims read under the old one", async ({ world }) => {

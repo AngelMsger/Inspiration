@@ -31,6 +31,9 @@
  * - superseded by a new claim of the same slot (predicate and qualifiers);
  * - else superseded by the most similar new statement cut from the same block, at
  *   SAME_CLAIM or above;
+ * - else superseded by a current claim of the same slot that the version still states where
+ *   it did not change, of the same value when there is one: a fact the document stated twice
+ *   is still stated when one of the two places goes;
  * - else, when it states a fact (a slot and a value) or the version deletes the document,
  *   kept current and marked unstated (Claim.unstated), because knowledge never disappears
  *   silently (docs/design/source-changes.md, rules 1 and 3);
