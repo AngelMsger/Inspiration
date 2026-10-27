@@ -49,8 +49,9 @@
  * Baselines, to measure the knowledge base against over the same documents and model
  * (RetrievalOptions.baseline): "passages" answers from passages alone, without statements
  * or governance, as plain retrieval over chunks does; "long_context" gives the model every
- * passage the asker may read, document by document, and refuses with ContextTooLong when
- * they come to more than contextTokens.
+ * passage the asker may read in the spaces asked for, document by document, and refuses
+ * with ContextTooLong when they come to more than contextTokens. The query's filters are on
+ * statements, so neither baseline applies them.
  *
  * Not built yet: indexes of pages, procedures and entities (hits are statements and
  * passages), a full-text index per language, FAQ precompute, the semantic cache, values in

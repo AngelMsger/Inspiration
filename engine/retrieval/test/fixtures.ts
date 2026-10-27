@@ -36,6 +36,8 @@ import { type Baseline, Retrieval, type RetrievalOptions } from "../src/index.ts
 
 export const TENANT = "ten_01JC0000000000000000TENANT";
 export const SPACE = "spc_01JC00000000000000000SPACE";
+/** A second space every member reads, with no documents. */
+export const EMPTY_SPACE = "spc_01JC0000000000000000EMPTY1";
 export const SOURCE = "src_01JC0000000000000000FOLDER";
 export const HOTEL = "hotel_cap_per_night|tier-1 city";
 
@@ -162,6 +164,8 @@ export const retrievalTest = (backend: Backend) =>
     await authz.createSpace(SPACE, { tenantId: TENANT, ownerId: ALICE.id });
     for (const m of [ALICE, BOB, CAROL]) await authz.addTenantMember(TENANT, m.id);
     await authz.grantSpace(SPACE, "viewer", TENANT);
+    await authz.createSpace(EMPTY_SPACE, { tenantId: TENANT, ownerId: ALICE.id });
+    await authz.grantSpace(EMPTY_SPACE, "viewer", TENANT);
     await authz.grantClearance(TENANT, CAROL.id, "confidential");
     await authz.registerSource(SOURCE, SPACE);
 

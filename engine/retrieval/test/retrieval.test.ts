@@ -4,7 +4,7 @@ import { GatewayException, type SlotVerdict } from "@inspiration/contracts";
 import { testData } from "@inspiration/testkit";
 import { describe, expect, vi } from "vitest";
 import { ContextTooLong, chunk, MAX_TOKENS } from "../src/index.ts";
-import { ALICE, BACKENDS, BOB, CAROL, cap, HOTEL, retrievalTest, SPACE, TENANT } from "./fixtures.ts";
+import { ALICE, BACKENDS, BOB, CAROL, cap, EMPTY_SPACE, HOTEL, retrievalTest, SPACE, TENANT } from "./fixtures.ts";
 
 interface Cases {
   answers: {
@@ -359,6 +359,19 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       await expect(world.baseline("long_context", { contextTokens: 5 }).answer(question, ALICE)).rejects.toThrow(
         ContextTooLong,
       );
+
+      // Both baselines read only the spaces asked for: here one Alice reads with nothing in it.
+      for (const kind of ["passages", "long_context"] as const) {
+        const scoped = (space: string) => world.baseline(kind).sources({ ...question, space_ids: [space] }, ALICE);
+        expect(await scoped(EMPTY_SPACE), kind).toEqual([]);
+        expect((await scoped(SPACE)).length, kind).toBeGreaterThan(0);
+      }
+      const filtered = { ...question, space_ids: [SPACE], filters: { min_confidence: 0.99 } };
+      const ids = (hits: { unit_id: string }[]) => hits.map((h) => h.unit_id);
+      expect(ids(await world.baseline("long_context").sources(filtered, ALICE))).toEqual(ids(everything));
+      await expect(
+        world.baseline("long_context", { contextTokens: 5 }).answer({ ...question, space_ids: [EMPTY_SPACE] }, ALICE),
+      ).resolves.toMatchObject({ citations: [], confidence: 0 });
     });
 
     describe.each(LANGUAGES)("answers in $tag", ({ cases }) => {

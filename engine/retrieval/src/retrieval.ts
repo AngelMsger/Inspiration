@@ -401,11 +401,7 @@ export class Retrieval implements Retriever {
     const topK = query.top_k ?? 10;
     const kinds = new Set(query.kinds?.length ? query.kinds : ["claim", "chunk"]);
     if (this.baseline) kinds.delete("claim");
-    const filter = await this.authz.scopeFilter(who, "read");
-    if (query.space_ids?.length) {
-      const asked = new Set(query.space_ids);
-      filter.space_ids = filter.space_ids.filter((s) => asked.has(s));
-    }
+    const filter = await this.#scope(who, query.space_ids);
     const empty: Searched = {
       hits: [],
       statements: new Map(),
@@ -473,6 +469,16 @@ export class Retrieval implements Retriever {
       ...(query.filters && { filters: query.filters }),
       labels,
     };
+  }
+
+  /** What the asker may read, within the spaces asked for when any are. */
+  async #scope(who: Principal, spaceIds: readonly string[] | undefined): Promise<IndexFilter> {
+    const filter = await this.authz.scopeFilter(who, "read");
+    if (spaceIds?.length) {
+      const asked = new Set(spaceIds);
+      filter.space_ids = filter.space_ids.filter((s) => asked.has(s));
+    }
+    return filter;
   }
 
   /** Chunk IDs by reciprocal rank fusion of the vector and keyword indexes, best first. */
@@ -684,7 +690,7 @@ export class Retrieval implements Retriever {
    * ones found that do not.
    */
   async #sources(query: AnswerQuery, who: Principal): Promise<{ hits: SearchHit[]; searched: Searched }> {
-    if (this.baseline === "long_context") return this.#everything(who);
+    if (this.baseline === "long_context") return this.#everything(query, who);
     const found = await this.#search(
       {
         text: query.question,
@@ -707,11 +713,15 @@ export class Retrieval implements Retriever {
     return { hits, searched };
   }
 
-  /** Every passage the asker may read, document by document in reading order. */
-  async #everything(who: Principal): Promise<{ hits: SearchHit[]; searched: Searched }> {
-    const filter = await this.authz.scopeFilter(who, "read");
+  /**
+   * Every passage the asker may read in the spaces asked for, document by document in
+   * reading order. The query's filters are on statements, which a passage is not, as for the
+   * passages baseline.
+   */
+  async #everything(query: AnswerQuery, who: Principal): Promise<{ hits: SearchHit[]; searched: Searched }> {
+    const filter = await this.#scope(who, query.space_ids);
     const spaces = new Set(filter.space_ids);
-    const ids = (await this.documents(who.tenant_id)).flatMap((d) => d.chunk_ids);
+    const ids = spaces.size ? (await this.documents(who.tenant_id)).flatMap((d) => d.chunk_ids) : [];
     const found = (
       await this.#readable(
         ids.map((id): [string, number] => [id, 0]),
