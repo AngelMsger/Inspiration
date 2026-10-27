@@ -1014,7 +1014,7 @@ The contracts for pages and views are in place; the compilers, the view host and
 
 ## 21. Feasibility: what is proven, what is not, and how we will find out
 
-The prototype runs on mocked models on purpose: it proves the pipeline, the volumes and the boundaries, not model quality. Each hard part below says what the evidence is today and what will settle it.
+The prototype runs on mocked models on purpose: it proves the pipeline, the volumes and the boundaries, not model quality. Each hard part below says what the evidence is today and what will settle it. How the knowledge core is validated on real documents, with pass bars, a plain-RAG baseline and the results that would change the design, is in [Validating the knowledge core](design/validation.md).
 
 | Hard part | Evidence today | Not yet proven | How we find out | If it falls short |
 | --- | --- | --- | --- | --- |
@@ -1225,6 +1225,7 @@ One glossary feeds every status, button and empty state. The Chinese column is a
 - [Source changes](design/source-changes.md): what happens when a source corrects itself, is deleted or changes at scale.
 - [Knowledge and language](design/knowledge-and-language.md): translations, cross-language merge and pages in another language.
 - [Permissions in compiled knowledge](design/compiled-knowledge-permissions.md): writing for an audience, omissions that change the meaning, releases, abuse cases and trade-offs.
+- [Validating the knowledge core](design/validation.md): the claims of core value, pass bars, real corpora, answer keys, a plain-RAG baseline and the results that would change the design.
 - [Architecture](architecture.md): components, how they talk, storage and security as built.
 - [Contracts](contracts.md): changing schemas, IDs, events, versioning.
 - [PageSpec and views](pagespec.md): pages compared with Claude Artifacts, and the view sandbox.
