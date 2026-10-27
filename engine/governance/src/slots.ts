@@ -60,7 +60,10 @@ export interface Member {
   stated_from?: string;
   /** The effective date of its document (front matter effective_from). */
   document_from?: string;
-  /** The day its document was last changed, as its source reports it. */
+  /**
+   * The day its document was last changed, as its source reports it; "" when it does not.
+   * Members stored before it was kept are given it when their group is counted again.
+   */
   modified?: string;
   /** Its source version is archived or retired. */
   archived: boolean;

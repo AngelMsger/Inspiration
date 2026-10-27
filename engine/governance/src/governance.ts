@@ -198,9 +198,13 @@ function memberOf(
   if (from) member.live_from = from;
   if (start && start !== documentFrom) member.stated_from = start;
   if (documentFrom) member.document_from = documentFrom;
-  const modified = version?.version.modified_at?.slice(0, 10);
-  if (modified) member.modified = modified;
+  if (version) member.modified = modifiedOf(version);
   return member;
+}
+
+/** The day a source version's document was last changed, as its source reports it; "" when it does not. */
+function modifiedOf(version: SourceVersion): string {
+  return version.version.modified_at?.slice(0, 10) ?? "";
 }
 
 /** What makes a member's document a source, and another's statement a copy of it. */
@@ -550,7 +554,8 @@ export class Governance implements SlotVerdicts {
 
   /**
    * The members that state a value. Members stored before they kept their document and copy
-   * keys would each count as a source of its own, so they get them from their claims and
+   * keys would each count as a source of its own, and those stored before they kept their
+   * document's date would lose to any dated copy, so they get both from their claims and
    * source versions, stored with them when a transaction is given.
    */
   async #members(
@@ -561,22 +566,30 @@ export class Governance implements SlotVerdicts {
     tx?: RecordTx,
   ): Promise<Member[]> {
     const members = await reader.find(MEMBERS, { tenant_id: tenantId, slot, value });
-    const unkeyed = members.filter((m) => m.document_key === undefined && m.source_version_id);
-    if (!unkeyed.length) return members;
+    const old = members.filter(
+      (m) => (m.document_key === undefined || m.modified === undefined) && m.source_version_id,
+    );
+    if (!old.length) return members;
     const versions = new Map<string, SourceVersion>();
-    for (const m of unkeyed) {
+    for (const m of old) {
       const version = await this.store.getSourceVersion(m.source_version_id);
       if (version) versions.set(m.claim_id, version);
     }
-    const claims = await this.store.getClaims(unkeyed.map((m) => m.claim_id));
+    const unkeyed = old.filter((m) => m.document_key === undefined);
+    const claims = unkeyed.length ? await this.store.getClaims(unkeyed.map((m) => m.claim_id)) : [];
     const passages = await this.#passagesOf(claims, versions);
-    const keyed = new Map<string, Member>();
-    for (const m of unkeyed) {
+    const filled = new Map<string, Member>();
+    for (const m of old) {
       const version = versions.get(m.claim_id);
-      if (version) keyed.set(m.claim_id, { ...m, ...sourceKeysOf(version, passages.get(m.claim_id) ?? []) });
+      if (!version) continue;
+      filled.set(m.claim_id, {
+        ...m,
+        ...(m.document_key === undefined && sourceKeysOf(version, passages.get(m.claim_id) ?? [])),
+        modified: m.modified ?? modifiedOf(version),
+      });
     }
-    if (tx && keyed.size) await tx.put(MEMBERS, [...keyed.values()]);
-    return members.map((m) => keyed.get(m.claim_id) ?? m);
+    if (tx && filled.size) await tx.put(MEMBERS, [...filled.values()]);
+    return members.map((m) => filled.get(m.claim_id) ?? m);
   }
 
   /** The source version of every claim: the update's, else the version its evidence comes from. */
