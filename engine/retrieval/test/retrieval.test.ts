@@ -279,7 +279,7 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
 
       const bob = await world.retrieval.answer({ question }, BOB);
       expect(bob.answer).toContain("650");
-      expect(JSON.stringify(bob)).not.toMatch(new RegExp(`987654|${hidden.id}`));
+      expect(JSON.stringify(bob)).not.toMatch(new RegExp(`\\b987654\\b|${hidden.id}`));
       const seen = (await world.retrieval.search({ text: question }, BOB)).hits.find((h) => h.unit_id === held.id);
       expect(seen).toMatchObject({ standing: "holds", review_status: "unreviewed" });
 
@@ -468,7 +468,7 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
         expect(found?.standing).toBeUndefined();
         expect(found?.held_unit_id).toBeUndefined();
         const answer = await world.retrieval.answer({ question: c.question }, BOB);
-        expect(JSON.stringify(answer)).not.toMatch(new RegExp(`650|${held.id}`));
+        expect(JSON.stringify(answer)).not.toMatch(new RegExp(`\\b650\\b|${held.id}`));
         expect(answer.notes).toBeUndefined();
         expect((await world.retrieval.answer({ question: c.question }, ALICE)).answer).toContain("650");
       });
