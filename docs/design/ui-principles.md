@@ -199,5 +199,5 @@ Direction from the product owner on 2026-10-27:
 ## Still open
 
 - Review the Japanese terms in the glossary.
-- Confirm the translation rules: cited passages are translated only on request and labelled as machine translation, and knowledge pages stay in their space's content language for now.
+- Confirm the translation rules: cited passages are translated only on request and labelled as machine translation. A knowledge page shows in its space's content language unless the reader chooses their own; then it is written from the same statements and labelled machine translated.
 - Still to draw: the other key screens in Japanese, after the Japanese terms are reviewed. V2-ja shows a knowledge page in Japanese.
