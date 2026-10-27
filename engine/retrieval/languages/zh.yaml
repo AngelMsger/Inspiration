@@ -1,0 +1,14 @@
+# What retrieval writes in Chinese. See en.yaml for the fields.
+
+nothing: 知识库中没有能回答这个问题的内容。
+conflict: "各来源说法不一：{values}。在有人决定之前，以 {held} 为准。"
+outdated: "{documents} 仍写着 {old}；该值已被取代，现行值为 {held}。"
+thin_evidence: "只有一个来源写明这一点，且读取的置信度较低：{document}。"
+list_mark: "、"
+sentence_join: ""
+context: "{title}：{path}。"
+context_title: "{title}。"
+path_mark: " › "
+stopwords: [的, 了, 是, 吗, 呢, 和, 与, 在, 有, 多少, 什么, 怎么, 如何, 哪些, 一个]
+# Chinese and Japanese words do not inflect.
+stem: ""

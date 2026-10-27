@@ -1,0 +1,9 @@
+# Answers in English: a policy, a copy that states a value the policy replaced, and a
+# question nothing answers.
+answers:
+  question: What is the hotel cap in tier-1 cities?
+  policy: Hotels in tier-1 cities cost at most 650 yuan a night.
+  copy: Hotels in tier-1 cities cost at most 600 yuan a night.
+  outdated: Copy still state 600 CNY/night
+  nothing: Nothing in the knowledge base answers this.
+  unrelated: How do I book a meeting room?

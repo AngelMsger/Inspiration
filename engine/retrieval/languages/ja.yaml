@@ -1,0 +1,13 @@
+# What retrieval writes in Japanese. See en.yaml for the fields.
+
+nothing: ナレッジベースには、この質問に答える内容がありません。
+conflict: "情報源によって記述が異なります：{values}。担当者が判断するまでは {held} が有効です。"
+outdated: "{documents} にはまだ {old} と書かれていますが、この値は置き換えられ、現在は {held} です。"
+thin_evidence: "これを記述している情報源は一つだけで、読み取りの確信度も低めです：{document}。"
+list_mark: "、"
+sentence_join: ""
+context: "{title}：{path}。"
+context_title: "{title}。"
+path_mark: " › "
+stopwords: [の, は, が, を, に, で, と, も, か, ですか, ますか, 何, いくつ, どの, どう]
+stem: ""

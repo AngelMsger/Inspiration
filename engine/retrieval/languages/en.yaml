@@ -1,0 +1,18 @@
+# What retrieval writes in English: the notes an answer carries, the answer when nothing
+# answers a question, and how the retrieval.write_context and retrieval.answer_question
+# stand-ins (src/mock.ts) write. Every pack has the same fields.
+
+nothing: Nothing in the knowledge base answers this.
+conflict: "Sources differ on this: {values}. {held} holds until a person decides."
+outdated: "{documents} still state {old}; that value was replaced, and {held} holds."
+thin_evidence: "Only one source states this, read with low confidence: {document}."
+list_mark: ", "
+# Between two sentences of an answer.
+sentence_join: " "
+context: "{title}: {path}."
+context_title: "{title}."
+path_mark: " › "
+# Words retrieval leaves out when it compares a question with its sources.
+stopwords: [a, an, as, at, be, by, do, if, in, is, it, of, on, or, to, the, and, for, how, what, which, who, when, where, why, many, much, does, did, with, are, can, from, that, this, into, per, its, has, have, was, were, will, may, there, any, our, your, their, one, after, long]
+# Removed from the end of every word before comparing, so "clusters" meets "cluster".
+stem: '(?<=\p{L}{3})(?<![su])s$'

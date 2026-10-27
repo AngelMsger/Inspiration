@@ -1,0 +1,8 @@
+# Answers in Chinese. See en.yaml.
+answers:
+  question: 一线城市的酒店住宿上限是多少？
+  policy: 一线城市酒店住宿费每人每晚不超过650元。
+  copy: 一线城市酒店住宿费每人每晚不超过600元。
+  outdated: Copy 仍写着 600 CNY/night
+  nothing: 知识库中没有能回答这个问题的内容。
+  unrelated: 会议室怎么预订？

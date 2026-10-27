@@ -1,0 +1,293 @@
+// Retrieval against the in-memory doubles and Postgres (pgvector, pg_search).
+
+import type { SlotVerdict } from "@inspiration/contracts";
+import { testData } from "@inspiration/testkit";
+import { describe, expect } from "vitest";
+import { chunk, MAX_TOKENS } from "../src/index.ts";
+import { ALICE, BACKENDS, BOB, CAROL, cap, HOTEL, retrievalTest, SPACE, TENANT } from "./fixtures.ts";
+
+interface Cases {
+  answers: {
+    question: string;
+    policy: string;
+    copy: string;
+    /** Part of the note an answer gives on the copy's outdated value. */
+    outdated: string;
+    /** What the answer says when nothing answers the question. */
+    nothing: string;
+    unrelated: string;
+  };
+}
+
+const LANGUAGES = ["en", "zh", "ja"].map((tag) => ({ tag, cases: testData<Cases>(import.meta.url, `${tag}.yaml`) }));
+
+const POLICY = [
+  { id: "h1", text: "Lodging", heading: true },
+  { id: "p1", text: "Hotels in tier-1 cities cost at most 650 yuan a night. Book through the travel desk." },
+  { id: "h2", text: "Meals", heading: true },
+  { id: "p2", text: "Meals are paid at 100 yuan a day. Keep every receipt." },
+];
+
+const verdict = (held: { value: string; claim: string }, outdated: { value: string; claim: string }): SlotVerdict => ({
+  tenant_id: TENANT,
+  slot_key: HOTEL,
+  held_value: held.value,
+  disputed: false,
+  values: [
+    { value: held.value, standing: "holds", claim_ids: [held.claim] },
+    { value: outdated.value, standing: "outdated", claim_ids: [outdated.claim] },
+  ],
+  decided_on: "2026-10-01",
+});
+
+describe("chunks", () => {
+  const span = (id: string, text: string) => ({
+    id,
+    tenant_id: TENANT,
+    source_version_id: "sv_01JC00000000000000000000001",
+    locator: { block_anchor: id, kind: "text_range" as const },
+    text,
+    text_hash: "sha256:0",
+    ordinal: 0,
+  });
+  const block = (id: string, text: string, spanIds: string[], heading = false) => ({
+    id: `blk_${id.padStart(8, "0")}`,
+    tenant_id: TENANT,
+    source_version_id: "sv_01JC00000000000000000000001",
+    kind: heading ? ("heading" as const) : ("paragraph" as const),
+    anchor: id,
+    text,
+    text_hash: "sha256:0",
+    ordinal: Number(id),
+    span_ids: spanIds,
+  });
+  const doc = { tenantId: TENANT, sourceId: "src_01JC0000000000000000FOLDER", externalId: "a.md" };
+
+  retrievalTest("memory")("headings travel with the text below them, and a long block is cut between spans", () => {
+    const long = Array.from({ length: 60 }, (_, i) => `Sentence ${i} says something about the travel policy here.`);
+    const spans = new Map(
+      long.map((t, i) => [`spn_${String(i).padStart(8, "0")}`, span(`spn_${String(i).padStart(8, "0")}`, t)]),
+    );
+    const ids = [...spans.keys()];
+    const drafts = chunk(doc, [block("1", "Travel", [], true), block("2", long.join(" "), ids)], spans);
+    expect(drafts.length).toBeGreaterThan(1);
+    expect(drafts[0]?.text.startsWith("Travel\n")).toBe(true);
+    expect(drafts.flatMap((d) => d.span_ids)).toEqual(ids);
+    for (const d of drafts) expect(d.token_count).toBeLessThanOrEqual(MAX_TOKENS);
+    // The same text gives the same IDs.
+    expect(
+      chunk(doc, [block("1", "Travel", [], true), block("2", long.join(" "), ids)], spans).map((d) => d.id),
+    ).toEqual(drafts.map((d) => d.id));
+  });
+});
+
+describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
+  const test = retrievalTest(backend);
+
+  describe.skipIf(skip)("", () => {
+    test("a passage is found by its words, under the headers it was given", async ({ world }) => {
+      const first = await world.document("travel.md", POLICY, { title: "Travel policy" });
+      const result = await world.retrieval.search({ text: "hotel tier-1 cities night", kinds: ["chunk"] }, ALICE);
+      expect(result.hits[0]).toMatchObject({ kind: "chunk", title: expect.stringContaining("Travel policy") });
+      expect(result.hits[0]?.snippet).toContain("650 yuan a night");
+      expect(result.hits[0]?.citations[0]).toMatchObject({
+        source_title: "Travel policy",
+        source_version_id: first.version.id,
+      });
+      const [indexed] = await world.retrieval.documents(TENANT);
+      const [one] = await world.store.getChunks(indexed?.chunk_ids ?? []);
+      expect(one?.contextual_header).toBe("Travel policy: Lodging.");
+      expect(one?.acl_tokens).toEqual([`system:${TENANT}`, `tenant:${TENANT}`]);
+    });
+
+    test("an edit keeps the chunks it left alone, with their headers and embeddings", async ({ world }) => {
+      // Two sections, each a chunk of its own.
+      const long = (topic: string) =>
+        Array.from({ length: 40 }, (_, i) => `Rule ${i} of ${topic} applies to every trip.`).join(" ");
+      const paras = [
+        { id: "h1", text: "Lodging", heading: true },
+        { id: "p1", text: long("lodging") },
+        { id: "h2", text: "Meals", heading: true },
+        { id: "p2", text: long("meals") },
+      ];
+      await world.document("travel.md", paras, { title: "Travel policy" });
+      const [first] = await world.retrieval.documents(TENANT);
+      expect(first?.chunk_ids).toHaveLength(2);
+      const embedded = world.retrieval.totals.embedded;
+
+      const edited = [...paras.slice(0, 3), { id: "p2", text: `${long("meals")} Taxis are paid in full after 22:00.` }];
+      await world.document("travel.md", edited, { title: "Travel policy" });
+      const [second] = await world.retrieval.documents(TENANT);
+      expect(second?.chunk_ids[0]).toBe(first?.chunk_ids[0]);
+      expect(second?.chunk_ids[1]).not.toBe(first?.chunk_ids[1]);
+      expect(world.retrieval.totals.embedded - embedded).toBe(1);
+      const kept = await world.store.getChunks([second?.chunk_ids[0] as string]);
+      expect(kept[0]).toMatchObject({
+        source_version_id: second?.source_version_id,
+        contextual_header: "Travel policy: Lodging.",
+      });
+      expect(await world.store.getChunks([first?.chunk_ids[1] as string])).toEqual([]);
+      const again = await world.retrieval.search({ text: "taxis after 22:00", kinds: ["chunk"] }, ALICE);
+      expect(again.hits[0]?.snippet).toContain("Taxis are paid in full");
+    });
+
+    test("statements come with the passages that quote them, marked with where their value stands", async ({
+      world,
+    }) => {
+      const policy = await world.document("travel.md", POLICY, { title: "Travel policy" });
+      const handbook = await world.document(
+        "handbook.md",
+        [{ id: "p1", text: "Hotels in tier-1 cities cost at most 600 yuan a night." }],
+        { title: "Old handbook" },
+      );
+      const held = await world.claim(
+        "Hotels in tier-1 cities cost at most 650 yuan a night.",
+        policy.spansOf("p1")[0] as never,
+        cap(650),
+      );
+      const old = await world.claim(
+        "Hotels in tier-1 cities cost at most 600 yuan a night.",
+        handbook.spansOf("p1")[0] as never,
+        cap(600),
+      );
+      world.verdicts.set(
+        HOTEL,
+        verdict({ value: "650 CNY/night", claim: held.id }, { value: "600 CNY/night", claim: old.id }),
+      );
+
+      const { hits } = await world.retrieval.search({ text: "hotel cap tier-1 cities", kinds: ["claim"] }, ALICE);
+      expect(hits.map((h) => [h.unit_id, h.standing])).toEqual([
+        [held.id, "holds"],
+        [old.id, "outdated"],
+      ]);
+      expect(hits[1]).toMatchObject({ held_unit_id: held.id, slot_key: HOTEL, title: "Old handbook", space_id: SPACE });
+      expect(hits[0]?.citations).toMatchObject([{ quote: "Hotels in tier-1 cities cost at most 650 yuan a night." }]);
+
+      // A budget cuts the list, keeping at least one hit.
+      const cut = await world.retrieval.search(
+        { text: "hotel cap tier-1 cities", token_budget: 100, top_k: 20 },
+        ALICE,
+      );
+      expect(cut.token_estimate).toBeLessThanOrEqual(100);
+      expect(cut.hits.length).toBeGreaterThan(0);
+    });
+
+    test("nobody finds what they cannot read, and a statement cites only readable evidence", async ({ world }) => {
+      const secret = await world.document(
+        "board.md",
+        [{ id: "p1", text: "The board approved hotels at most 900 yuan a night for directors." }],
+        { title: "Board minutes", readers: [ALICE] },
+      );
+      const shared = await world.document(
+        "faq.md",
+        [{ id: "p1", text: "Directors' hotels: at most 900 yuan a night." }],
+        {
+          title: "Travel FAQ",
+        },
+      );
+      const hidden = await world.claim(
+        "Directors may book hotels at 900 yuan a night.",
+        secret.spansOf("p1")[0] as never,
+      );
+      const both = await world.claim(
+        "Directors' hotels cost at most 900 yuan a night.",
+        secret.spansOf("p1")[0] as never,
+      );
+      await world.store.transaction((tx) =>
+        tx.upsertClaims(
+          [],
+          [
+            {
+              claim_id: both.id,
+              span_id: shared.spansOf("p1")[0]?.id as string,
+              source_version_id: shared.version.id,
+              role: "supports",
+              quote: "Directors' hotels: at most 900 yuan a night.",
+            },
+          ],
+        ),
+      );
+
+      const forAlice = await world.retrieval.search({ text: "directors hotels 900 yuan" }, ALICE);
+      expect(forAlice.hits.map((h) => h.unit_id)).toEqual(expect.arrayContaining([hidden.id, both.id]));
+      const forBob = await world.retrieval.search({ text: "directors hotels 900 yuan" }, BOB);
+      const ids = forBob.hits.map((h) => h.unit_id);
+      expect(ids).not.toContain(hidden.id);
+      expect(forBob.hits.filter((h) => h.kind === "chunk").map((h) => h.title)).toEqual(["Travel FAQ"]);
+      const cited = forBob.hits.find((h) => h.unit_id === both.id);
+      expect(cited?.citations.map((c) => c.source_title)).toEqual(["Travel FAQ"]);
+
+      // Shared with Bob later: the chunks take the new ACL.
+      await world.share("board.md", [ALICE, BOB]);
+      const later = await world.retrieval.search({ text: "directors hotels 900 yuan" }, BOB);
+      expect(later.hits.map((h) => h.unit_id)).toContain(hidden.id);
+    });
+
+    test("a confidential document is found only by those cleared for it", async ({ world }) => {
+      await world.document("salaries.md", [{ id: "p1", text: "Grade 7 salaries start at 30,000 yuan a month." }], {
+        title: "Salary bands",
+        sensitivity: "confidential",
+      });
+      expect((await world.retrieval.search({ text: "grade 7 salaries" }, BOB)).hits).toEqual([]);
+      expect((await world.retrieval.search({ text: "grade 7 salaries" }, CAROL)).hits[0]?.title).toBe("Salary bands");
+    });
+
+    test("a deleted document leaves the index, and a late older version changes nothing", async ({ world }) => {
+      const first = await world.document("travel.md", POLICY, { title: "Travel policy" });
+      await world.document("travel.md", [], { title: "Travel policy", deleted: true });
+      expect((await world.retrieval.search({ text: "hotel tier-1 cities" }, ALICE)).hits).toEqual([]);
+      await world.retrieval.onBlocksChanged(first.event);
+      expect((await world.retrieval.search({ text: "hotel tier-1 cities" }, ALICE)).hits).toEqual([]);
+      expect(await world.retrieval.documents(TENANT)).toMatchObject([{ deleted: true, chunk_ids: [] }]);
+    });
+
+    describe.each(LANGUAGES)("answers in $tag", ({ cases }) => {
+      test("every sentence cites its source, the value that holds answers, and the replaced one gets a note", async ({
+        world,
+      }) => {
+        const { answers: c } = cases;
+        const policy = await world.document("policy.md", [{ id: "p1", text: c.policy }], { title: "Policy" });
+        const copy = await world.document("copy.md", [{ id: "p1", text: c.copy }], { title: "Copy" });
+        const held = await world.claim(c.policy, policy.spansOf("p1")[0] as never, cap(650));
+        const old = await world.claim(c.copy, copy.spansOf("p1")[0] as never, cap(600));
+        world.verdicts.set(
+          HOTEL,
+          verdict({ value: "650 CNY/night", claim: held.id }, { value: "600 CNY/night", claim: old.id }),
+        );
+
+        const answer = await world.retrieval.answer({ question: c.question }, ALICE);
+        expect(answer.answer).toContain("650");
+        expect(answer.answer).not.toContain("600");
+        expect(answer.answer).toMatch(/\[1\]/);
+        expect(answer.citations[0]).toMatchObject({ source_title: "Policy" });
+        expect(answer.used_unit_ids).toContain(held.id);
+        expect(answer.notes?.find((n) => n.kind === "outdated")?.text).toContain(c.outdated);
+        expect(answer.gaps).toEqual([]);
+        expect(answer.confidence).toBeGreaterThan(0);
+
+        const none = await world.retrieval.answer({ question: c.unrelated }, ALICE);
+        expect(none).toMatchObject({ answer: c.nothing, citations: [], confidence: 0, gaps: [c.unrelated] });
+      });
+
+      test("a translation behind its original answers with the original's value", async ({ world }) => {
+        const { answers: c } = cases;
+        const original = LANGUAGES[0]?.cases.answers as Cases["answers"];
+        const policy = await world.document("policy.md", [{ id: "p1", text: original.policy }], { title: "Policy" });
+        const copy = await world.document("copy.md", [{ id: "p1", text: c.copy }], { title: "Copy" });
+        const held = await world.claim(original.policy, policy.spansOf("p1")[0] as never, cap(650));
+        const old = await world.claim(c.copy, copy.spansOf("p1")[0] as never, cap(600));
+        world.verdicts.set(
+          HOTEL,
+          verdict({ value: "650 CNY/night", claim: held.id }, { value: "600 CNY/night", claim: old.id }),
+        );
+
+        // The copy's sentence is left out of its passage; its statement brings the original's.
+        const answer = await world.retrieval.answer({ question: c.question }, ALICE);
+        expect(answer.answer).toContain("650");
+        expect(answer.answer).not.toContain("600");
+        expect(answer.citations.map((x) => x.source_title)).toEqual(["Policy"]);
+        expect(answer.notes?.find((n) => n.kind === "outdated")?.text).toContain(c.outdated);
+      });
+    });
+  });
+});
