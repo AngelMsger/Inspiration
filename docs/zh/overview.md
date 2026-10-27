@@ -1,6 +1,6 @@
 # Inspiration：产品需求与技术架构
 
-第 2 版，截至 2026-10-26。本文取代第一版产品与技术总览，并吸收了围绕它的全部讨论。第一部分是产品需求：Inspiration 为谁而做、必须应对哪些场景、必须做到什么。第二部分是技术架构：它如何构建，以及我们怎样知道难点能够做成。第三部分是计划：现在到了哪里、接下来做什么、有哪些风险和决定。每条需求和每个组件都注明它是已构建、已设计、提议中还是尚未决定。细节在文末列出的设计文档里。本文是英文版 [overview.md](../overview.md) 的中文副本，两者不一致时以英文版为准。
+第 2 版，截至 2026-10-27。本文取代第一版产品与技术总览，并吸收了围绕它的全部讨论。第一部分是产品需求：Inspiration 为谁而做、必须应对哪些场景、必须做到什么。第二部分是技术架构：它如何构建，以及我们怎样知道难点能够做成。第三部分是计划：现在到了哪里、接下来做什么、有哪些风险和决定。每条需求和每个组件都注明它是已构建、已设计、提议中还是尚未决定。细节在文末列出的设计文档里。本文是英文版 [overview.md](../overview.md) 的中文副本，两者不一致时以英文版为准。
 
 | 想了解 | 阅读 |
 | --- | --- |
@@ -52,7 +52,7 @@ Inspiration 的与众不同在于四个判断，每一个都针对今天工具�
 - 汇编知识为它的受众而写，从不按读者删减；改变意思的省略交给人来决定（提议，第 15 节）。
 - 持有来源凭据的人都可以从中导入；个人连接不再按邮箱域名或飞书组织拦截（已决定，第 17 节）。
 - 自主运行的 Agent 只读取或提议；成员明确提出的请求，就是在该成员自身权限内修改的批准（已决定，第 18 节）。
-- 十个 Agent 工具的初稿，包括粒度、输入、输出和权限（提议，第 18 节）。
+- Agent 工具：四个按 Agent 要做的事划分的工具和一个反馈工具，包括输入、输出和权限（提议，第 18 节）。
 
 ## 第一部分 产品需求
 
@@ -289,11 +289,11 @@ sequenceDiagram
   participant AZ as access-control
   participant R as retrieval
   M->>B: 新供应商怎么准入？
-  B->>API: get_sop(task)，令牌代表这位成员
+  B->>API: ask(question)，令牌代表这位成员
   API->>AZ: 这位成员可读的空间和许可级别，按机器人的授权范围收窄
   API->>R: 查找已核实的流程
   R-->>API: 带引用、新鲜度和复核状态的步骤
-  API-->>B: 不超过约 2,500 个 token 的流程
+  API-->>B: 不超过约 2,500 个 token 的流程，附它的句柄
   B-->>M: 各个步骤，每步附来源链接
   M->>B: 第 3 步已经过时了
   B->>API: report_feedback
@@ -303,7 +303,7 @@ sequenceDiagram
 *图 7. Agent 以它所代表的成员的权限读取，它的反馈作为待办送达维护人。*
 
 - **原因。** Agent 会因为过时或互相矛盾的上下文而出错，而且每个 token 都要付费。一个受治理的端点给它们带来源、新鲜度和 token 估算的当前流程，而且从不超出成员能读的范围。编码 Agent 通过 MCP 使用同样的工具。
-- **进展。** Agent API 和十个工具是提议中的初稿（第 18 节）；内置 Agent 使用的 Agent 运行时已经构建。
+- **进展。** Agent API 和它的工具是提议（第 18 节）；内置 Agent 使用的 Agent 运行时已经构建。
 
 ### 5.8 成员借助助手更正知识
 
@@ -325,7 +325,7 @@ sequenceDiagram
 
 青禾的差旅申请审批在飞书里运行。
 
-- **发生了什么。** 流程由三部分构建：流程定义、对 90 到 180 天审批日志的流程挖掘，以及模型写出的说明。每一步都标注“来自定义”“挖掘所得”或“推断”，流程维护人批准之后才有人能读到。Agent 通过 `get_sop` 获取它，它也可以导出为 Agent Skill。
+- **发生了什么。** 流程由三部分构建：流程定义、对 90 到 180 天审批日志的流程挖掘，以及模型写出的说明。每一步都标注“来自定义”“挖掘所得”或“推断”，流程维护人批准之后才有人能读到。Agent 用 `ask` 或读取它的句柄获取它，它也可以导出为 Agent Skill。
 - **原因。** 正式定义说明谁来审批；日志说明实际发生了什么（例如超过 5,000 元的金额总会转到财务）。标注出处能防止推断出的步骤被当成事实。
 - **进展。** 飞书审批连接器已用录制的测试数据构建；流程构建已经设计。
 
@@ -421,7 +421,7 @@ sequenceDiagram
 | 编号 | 需求 | 状态 |
 | --- | --- | --- |
 | AG-1 | 一个受治理的端点：远程 MCP 服务器和 REST API 来自同一份 schema；已核实的流程可导出为 Agent Skill | 已计划 |
-| AG-2 | 十个按 Agent 预算设计的工具，每个结果带来源、版本、新鲜度、置信度、复核状态和 token 估算 | 提议中的初稿 |
+| AG-2 | 四个按 Agent 要做的事划分的工具（`ask`、`search`、`read`、`get_changes`）和一个反馈工具，按 Agent 预算设计，每个结果带来源、版本、新鲜度、置信度、复核状态和 token 估算 | 提议 |
 | AG-3 | Agent 总是代表一位成员行事，权限是该成员的权限再按授权范围和空间收窄 | 已设计 |
 | AG-4 | 自主运行的 Agent 只读取或提议；成员明确提出的请求，就是在该成员权限内修改的批准 | 已决定 |
 | AG-5 | MCP 客户端使用带 PKCE 的 OAuth，CLI 使用设备授权流程；企业 Agent 由超级管理员注册 | 已设计 |
@@ -540,6 +540,97 @@ flowchart TB
 
 **业务层是围绕引擎、面向人和企业的产品**：一个人是谁，属于哪些企业，这些企业买了什么，怎样询问、提醒和通知一个人，界面长什么样。它把人的决定和商业决定变成引擎命令，把引擎事件变成人读的消息；它可以因市场而异，而不触及知识。
 
+**整个系统，以及每个部分的外部对等产品。** 图 10 画出了每个组件，并为每个组件列出做类似工作的产品或项目。这个对照帮助读者理解每个部分的位置，也记录了我们从外部拿来了什么。我们不是把这些项目拼在一起。工作通用、许可证也合适的地方，我们直接运行现成的项目，有时放在插件后面，以便替换。其他地方我们参考它们的设计、自己实现，因为 Inspiration 的增量正在这些地方：逐字证据、事实槽、由具名的人做的决定，以及从来源到回答的一套权限模型。
+
+```mermaid
+flowchart TB
+  subgraph SRC[来源]
+    direction LR
+    s1["飞书和 Lark 的文档、<br/>知识库和审批；上传文件"]
+    s2["代码托管平台<br/>（先做 GitHub）"]
+    s3[网页]
+    s1 ~~~ s2 ~~~ s3
+  end
+  subgraph ING[导入]
+    direction LR
+    con["connectors、source-sync<br/><i>≈ Airbyte、Onyx 连接器</i><br/>参考"]
+    par["parsing（计划中）<br/><i>Docling、PaddleOCR-VL</i><br/>复用"]
+    nor["normalization<br/><i>≈ Unstructured、RAGFlow DeepDoc</i><br/>参考"]
+    cg["code-graph（提议）<br/><i>codebase-memory-mcp</i><br/>放在插件后面复用"]
+    res["research（计划中）<br/><i>≈ GPT Researcher、Deep Research</i><br/>参考"]
+    con --> par --> nor
+    cg --> res
+  end
+  subgraph CMP[编译]
+    direction LR
+    ext["extraction<br/><i>≈ LangExtract、GraphRAG</i><br/>参考"]
+    gov["governance、freshness<br/><i>≈ LLM Wiki 的 lint、Guru 的核实</i><br/>参考"]
+    pc["page-compiler<br/><i>≈ LLM Wiki 的页面、DeepWiki</i><br/>参考"]
+    ext --> gov --> pc
+  end
+  subgraph STO[存储]
+    ks[("knowledge-store<br/><i>PostgreSQL</i>：复用<br/><i>≈ Wikibase 的陈述</i>：参考")]
+  end
+  subgraph SRV[服务]
+    direction LR
+    ret["retrieval（计划中）<br/><i>pgvector、pg_search</i>：复用<br/><i>≈ RAGFlow</i>：参考"]
+    api["agent-api（计划中）<br/>ask、search、read、get_changes<br/><i>MCP SDK</i>：复用"]
+    vw["views（计划中）<br/><i>≈ Claude Artifacts</i><br/>参考"]
+    ret --> api
+    api ~~~ vw
+  end
+  subgraph USE[人和 Agent]
+    direction LR
+    biz["业务层：账户、企业、<br/>发布、审批、通知、<br/>网页应用<br/><i>Logto</i>：复用"]
+    agt["企业 Agent、<br/>MCP 客户端、CLI"]
+    biz ~~~ agt
+  end
+  subgraph CTL[控制，每个阶段都会用到]
+    direction LR
+    gw["model-gateway<br/><i>≈ LiteLLM</i><br/>参考"]
+    rt["agent-runtime<br/><i>≈ LangGraph</i><br/>参考"]
+    ac["access-control<br/><i>SpiceDB</i><br/>复用"]
+    co["collaboration<br/>待办箱和待办<br/>自研"]
+    cb["credential-broker、sandbox（计划中）<br/><i>OpenBao、gVisor</i><br/>复用"]
+    gw ~~~ rt ~~~ ac ~~~ co ~~~ cb
+  end
+  SRC --> ING
+  ING -- "块、段落、研究报告" --> CMP
+  CMP <-- "陈述、事实槽、主题、页面" --> STO
+  STO --> SRV
+  SRV --> USE
+  USE ~~~ CTL
+```
+
+*图 10. 整个系统。每个框写的是我们的组件，≈ 后面是做类似工作的外部产品。复用表示直接运行它；放在插件后面表示可以替换；参考表示我们研究了它的设计、自己实现。标为计划中或提议的组件尚未构建。*
+
+| 部分 | 我们的组件 | 外部对等产品 | 我们怎样用 | 原因 |
+| --- | --- | --- | --- | --- |
+| 来源集成 | connectors、source-sync | Airbyte、Onyx 的连接器、LlamaHub 的读取器 | 参考；直接使用厂商 SDK | 我们需要版本、删除、ACL 快照，以及同步和 Agent 工具共用的每厂商一个集成；这些项目对飞书和 Lark 的支持很薄 |
+| 文档解析 | parsing（计划中） | Docling、PaddleOCR-VL、MinerU、RAGFlow DeepDoc | 在 Python worker 中复用 Docling 和 PaddleOCR-VL | 解析已经是通用能力；由路由器按文档类型选择解析器 |
+| 块和段落 | normalization | Unstructured 的元素、Docling 的文档模型、RAGFlow 的分块 | 参考 | 证据需要跨版本保持稳定的块 ID 和段落 ID，以及按块的差异；这些工具每次都从头重建文档 |
+| 代码仓库 | code-graph（提议） | codebase-memory-mcp、CodeGraphContext、Sourcegraph SCIP；DeepWiki 和 Code Wiki | 在沙箱中、放在 `code_indexers` 插件后面复用 codebase-memory-mcp；不使用生成的 wiki | 每个提交一张图，提供锚定证据的符号，并在每次合并时给出差异；生成的文字不是证据（[代码仓库](design/code-repositories.md)） |
+| 深度研究 | research（计划中） | OpenAI 和 Gemini 的 Deep Research、GPT Researcher、LangChain 的 open_deep_research | 参考 | 报告必须成为来源，带逐字证据，以及在代码或页面变化时会重新核对的前提 |
+| 抽取 | extraction | LangExtract（以原文偏移为依据的抽取）、GraphRAG 和 LightRAG（实体和断言抽取） | 参考 | 证据要作为逐字子串核对，陈述要有事实槽键并能相互取代；图摘要会丢掉证据 |
+| 治理与保鲜 | governance、freshness | LLM Wiki 模式（模型根据原始资料维护一个 wiki，并检查其中的矛盾和过时说法）；Guru 和 Confluence 的核实；Wikidata 的等级 | 参考 | 在 LLM Wiki 里模型自己改写页面；我们保留陈述及其证据，由具名的人解决分歧，有截止日期，也有记录 |
+| 页面 | page-compiler | LLM Wiki 的页面、DeepWiki、Notion AI | 参考 | 页面由陈述为一个受众编译而成，每句都有引用，每次重建都是一个版本 |
+| 知识存储 | knowledge-store | Wikibase（带出处和限定词的陈述）、XTDB 和 Datomic（历史和时间回溯） | 复用 PostgreSQL；参考它们的模型 | 一个客户自己就能运行的数据库，带来龙去脉和“何时得知”的读取 |
+| 搜索与回答 | retrieval（计划中） | RAGFlow、Onyx、Glean | 复用 pgvector 和 pg_search（以后可换 OpenSearch 或 Milvus）；参考 RAGFlow 的流水线 | 不仅为块建索引，也为陈述建索引；排序前先按可读空间过滤；每条引用带读者状态 |
+| Agent 访问 | agent-api（计划中） | Glean 和 Notion 的 MCP 服务器 | 复用 MCP TypeScript SDK | 四个按任务划分的工具，权限与界面相同（第 18 节） |
+| 交互式视图 | views（计划中） | Claude Artifacts | 参考 | 代码和数据分开，有渲染检查和人的批准，在沙箱框架中运行 |
+| Agent 框架 | agent-runtime | LangGraph、OpenAI Agents SDK、Claude Agent SDK | 参考；我们自己的小循环已经构建 | 工具受我们的权限和审批约束；如果研究需要长时间、可持久的运行，LangGraph.js 是第一个考虑采用的 |
+| 模型网关 | model-gateway | LiteLLM、Portkey、OpenRouter | 参考 | 按敏感标签路由、按企业和成员的预算、带版本的提示词和模拟都是我们自己的；LiteLLM 可以作为服务商适配器放在它后面 |
+| 权限 | access-control | SpiceDB、OpenFGA（都以 Zanzibar 为模型） | 复用 SpiceDB | 基于关系的检查和搜索预过滤，规模覆盖每一条陈述 |
+| 待办与决定 | collaboration | Guru 和 Confluence 的复核队列 | 自研 | 按主题和周分组、受预算约束的待办是产品本身，不是基础设施 |
+| 凭据 | credential-broker（计划中） | Nango、Composio；OpenBao、Vault | 复用 OpenBao Transit 管理密钥；OAuth 流程参考 Nango | 令牌从不交给 Agent；租约短，按任务发放 |
+| 沙箱 | sandbox（计划中） | E2B、Daytona；gVisor、Kata Containers、Firecracker | 复用 gVisor，之后是 Kata Containers 或 Firecracker；参考 E2B | 不是我们写的代码，每个任务一个容器 |
+| 事件 | eventbus（库） | Kafka、NATS JetStream | 复用 Postgres outbox 和 Valkey Streams；产品中用 NATS 或 Kafka | 事件和数据一起提交 |
+| 身份 | accounts（业务层） | Logto、Keycloak、Auth0 | 复用 Logto | 标准能力；成员 ID 仍由我们自己管理 |
+| 通知 | notifications（业务层） | Novu、Knock | 参考 | 消息以代码和参数到达，按每个收件人的语言措辞 |
+| 计费 | billing（业务层） | Stripe、Lago | 以后复用 | 试点之前不需要 |
+
+与之竞争的是整个产品，而不是其中某个部分：Glean、Guru、Onyx、RAGFlow、Notion AI，以及飞书的知识问答（第 2 节）。
+
 **某样东西放在哪里。** 按顺序提问，第一个“是”决定归属。
 
 1. 它是否读取、修改、推导或执行任何与知识有关的东西，或者决定一个主体能否看到某样东西？放在引擎。
@@ -584,7 +675,7 @@ flowchart LR
   business --> libs
 ```
 
-*图 10. 依赖只朝一个方向。`engine/` 和 `libs/` 里的任何东西都不依赖 `business/`，任何试图这样做的改动都会让清单测试失败。*
+*图 11. 依赖只朝一个方向。`engine/` 和 `libs/` 里的任何东西都不依赖 `business/`，任何试图这样做的改动都会让清单测试失败。*
 
 [`components.yaml`](../../components.yaml) 的每一节对应一个文件夹。一个包只依赖基础库和它 `calls` 中列出的组件。一套工具链和一个 `make check` 覆盖两层，所以契约改动可以在一个拉取请求里同时落到两边，而引擎和业务后端作为独立进程部署。各个包已经在一个只做重命名的拉取请求（#15）里从 `packages/` 迁到这些文件夹。
 
@@ -597,6 +688,7 @@ flowchart LR
 | 导入 | parsing | 处理 Office、PDF 和扫描件的 Python worker（Docling、PaddleOCR-VL），通过 HTTP 契约调用 | 已计划 |
 | 导入 | normalization | 带稳定 ID 的规范块和片段、块差异、重复文档；之后是镜像页 | 已构建 |
 | 导入 | research | 基于 Agent API 和经批准的网络搜索的研究 Agent；报告成为来源 | 已计划 |
+| 导入 | code-graph | 每个仓库一个 git 镜像，每个提交一张代码图，在沙箱中构建；每次合并发出 `code.changed`（[代码仓库](design/code-repositories.md)） | 提议中 |
 | 编译 | extraction | 带原文证据的陈述、事实槽键、治理级别、按需抽取；之后是实体和流程 | 已构建 |
 | 编译 | freshness | 复核时钟、计划日期、副本、过时判断、`review.due`；之后是依赖图和 `artifact.dirty` | 已构建 |
 | 编译 | governance | 事实槽取值、带提议值的冲突案例、待办请求、备注；之后是模型裁判层级和裁决规则 | 已构建 |
@@ -658,7 +750,7 @@ flowchart LR
   RS -->|报告的新版本| S
 ```
 
-*图 11. 以事件表示的引擎流水线。每个组件只对它订阅的事件作出反应。*
+*图 12. 以事件表示的引擎流水线。每个组件只对它订阅的事件作出反应。*
 
 | 事件 | 发布者 | 消费者 | 状态 |
 | --- | --- | --- | --- |
@@ -705,7 +797,7 @@ flowchart TB
   cm -.-> bl
 ```
 
-*图 12. 三层。来源层始终与来源一致；人添加的一切都在自己的层里，锚定在稳定的 ID 上。*
+*图 13. 三层。来源层始终与来源一致；人添加的一切都在自己的层里，锚定在稳定的 ID 上。*
 
 - **来源层始终与来源一致。** 每次同步保存一个不可变的来源版本；变化增加一个版本，删除增加一个“已删除”版本。Inspiration 内部没有任何东西编辑它。
 - **知识层是派生的。** 陈述、事实槽、主题和页面由来源版本计算得出，在来源版本变化时重建。
@@ -796,7 +888,7 @@ flowchart TD
   Q4 -- 会 --> TODO["给单元维护人的一条待办：<br/>申请放行、中立改写，<br/>或带说明发布"]
 ```
 
-*图 13. 编译器如何处理每个输入。`secret` 输入在它自己的空间之外从不进入这个流程；如果它与某个单元矛盾，待办发给该机密空间的维护人。*
+*图 14. 编译器如何处理每个输入。`secret` 输入在它自己的空间之外从不进入这个流程；如果它与某个单元矛盾，待办发给该机密空间的维护人。*
 
 - **省略检查。** 省略一个输入会改变意思，是指它为单元用到的事实槽给出了不同的值、取代了单元所说的内容、增加了条件或例外，或者论述了某个观点的另一面。前三种不需要模型调用，从知识模型就能得出；最后一种需要模型任务 `page_compiler.check_omission`，原型里有确定性的模拟实现。
 - **按陈述放行。** 一次放行把一条陈述开放给一个受众，记录谁、在何时批准，并成为该受众能读的依据。证据引文默认不随之开放，除非放行时一并包含。之后的变化会让批准人收到一条待办，决定保留还是撤回。
@@ -830,7 +922,7 @@ sequenceDiagram
   W-->>U: 用这个人的语言呈现的页面
 ```
 
-*图 14. 请求只携带一个短期的签名主体。引擎自己检查权限。*
+*图 15. 请求只携带一个短期的签名主体。引擎自己检查权限。*
 
 - **开通命令是幂等的**（幂等键，目录对象带版本），并返回 SpiceDB 的一致性令牌，让下一次读取能看到变化。每晚的目录快照修复偏差，每小时的摘要检查在两次之间发现偏差。
 - **契约只在一个地方。** 这个仓库中的 JSON Schema 是两层共同的事实来源；只属于业务的类型放在自己的文件夹里，引擎包从不导入。
@@ -850,7 +942,7 @@ flowchart LR
   sandbox["沙箱<br/>厂商 CLI 和 MCP 服务器"] -. "只用于没有<br/>可用 API 的厂商" .-> vendor
 ```
 
-*图 15. 同步和 Agent 工具共用一个厂商集成和一个凭据代理；只有不是我们写的代码才在沙箱里运行。*
+*图 16. 同步和 Agent 工具共用一个厂商集成和一个凭据代理；只有不是我们写的代码才在沙箱里运行。*
 
 - **每个厂商一个集成，同时服务同步和 Agent 工具。** 两者面对同样的问题：调用用谁的身份、租户和成员之间的隔离、令牌刷新、速率限制、同意、撤销和审计。所以每个厂商（先是飞书）只有一个带类型的客户端，每个连接一套授权范围、一份速率预算。同步用它跟踪变化；注册为 `agent_tools` 插件的 Agent 工具用它搜索、读取和提议。撤销一个连接会同时停止两者。交互式的工具调用在速率预算中有保留份额，所以大规模同步永远不会让它们得不到额度。
 - **两者遵循同样的身份规则。** 同步使用发布时选定的连接。Agent 工具总是以它所服务的成员身份、用该成员自己的连接行事；企业连接从不租给 Agent 运行。
@@ -872,25 +964,22 @@ flowchart LR
 
 **授权范围按调用对知识做了什么来划分**，采用常见的 `resource.action` 形式：`knowledge.read` 没有副作用；`knowledge.propose` 创建一个需要经过审批的提议；`knowledge.write` 以成员自己的权限直接修改，如上所述；`comments.write` 写入讨论，讨论本身不是知识。Agent 的权限总是成员的权限再按它的授权范围和空间收窄。
 
-**十个工具**（提议中的初稿，尚需对照契约检查）：
+**工具**（2026-10-27 提议，取代十个工具的初稿）。Agent 按名字和描述选择工具，所以工具按 Agent 想做的事来划分，而不是按我们知识模型的形状。由引擎在一次调用内部决定用陈述、流程、实体还是段落来回答。
 
-| 工具 | 粒度 | 主要输入 | 主要输出 | 授权范围 |
+| 工具 | 何时使用 | 主要输入 | 主要输出 | 授权范围 |
 | --- | --- | --- | --- | --- |
-| `search` | 块、陈述、流程和页面上的命中 | `query`、`types`、`spaces`、`exclude_states`（例如 stale、superseded）、`limit`（默认 10，最多 50）、`cursor` | 命中：句柄、类型、上下文标题、约 80 个 token 的摘录、读者状态、空间、整个条目的 token 估算；从不返回全文 | `knowledge.read` |
-| `get_outline` | 页面或空间的标题树 | `id`、`depth` | 节点句柄、标题、每节的 token 估算 | `knowledge.read` |
-| `read` | 一个块、一节或整个页面 | `id`、`max_tokens`、`cursor` | 每句带引用的文本；在预算处截断，并给出继续用的 `cursor` | `knowledge.read` |
-| `get_sop` | 一个已核实的流程 | `id` 或 `task` | 前提条件、步骤、执行角色和例外，不超过约 2,500 个 token | `knowledge.read` |
-| `get_entity` | 一个实体 | `id` 或 `name` | 它的陈述及来源，以及别名 | `knowledge.read` |
-| `graph_neighbors` | 一个实体周围的一跳 | `id`、`relations`、`limit` | 边；不可读的边被省去 | `knowledge.read` |
-| `answer` | 一个问题 | `question`、`spaces`、`max_tokens` | 每句带引用的回答，并说明冲突、证据不足或可能不完整 | `knowledge.read` |
-| `get_changes` | 一段时间内的变化 | `since`（上一次的 `cursor`）、`spaces`、`types` | 新增、变化和被取代的条目，以及新的 `cursor` | `knowledge.read` |
-| `verify_claim` | 一个断言 | `text`、`context` | 支持、矛盾或无依据，附证据 | `knowledge.read` |
-| `report_feedback` | 对一个结果的反馈 | `target`、`kind`（wrong、outdated、missing）、`note` | 给该范围维护人的一条待办 | `comments.write` |
+| `ask` | 有一个问题，或有一句话要核对 | `question` 或 `claim`、`spaces`、`max_tokens` | 每句带引用的回答，并说明冲突、证据不足或可能不完整；对一句话则给出支持、矛盾或无依据，附证据；以及可继续读取的句柄 | `knowledge.read` |
+| `search` | 要查找或列出材料 | `query`、`types`、`spaces`、`exclude_states`（例如 stale、superseded）、`limit`（默认 10，最多 50）、`cursor` | 命中：句柄、类型、上下文标题、约 80 个 token 的摘录、读者状态、空间、整个条目的 token 估算；从不返回全文 | `knowledge.read` |
+| `read` | 手里有句柄，要看它背后的内容 | `id`（页面、章节、流程、卡片或段落）、`outline` 和 `depth`、`max_tokens`、`cursor` | 每句带引用的内容，或带每节 token 估算的标题树；相关的卡片和页面以句柄给出；在预算处截断，并给出继续用的 `cursor` | `knowledge.read` |
+| `get_changes` | 要让一份副本、缓存或索引保持同步 | `since`（上一次的 `cursor`）、`spaces`、`types` | 新增、变化和被取代的条目，以及新的 `cursor` | `knowledge.read` |
+| `report_feedback` | 某个结果有错、过时或缺失 | `target`、`kind`（wrong、outdated、missing）、`note` | 给该范围维护人的一条待办 | `comments.write` |
 
+- **初稿里的工具去了哪里。** `get_outline` 和 `get_sop` 是对页面或流程的 `read`；流程以前提条件、步骤、执行角色和例外返回，不超过约 2,500 个 token。`get_entity` 和 `graph_neighbors` 是 `read` 返回的卡片和链接。`verify_claim` 是带一句话的 `ask`，`answer` 就是 `ask`。
 - **和界面相同的权限规则。** Agent 能读的，是成员可读的空间和许可级别，再按 Agent 的授权范围和注册的空间收窄。“无权限”和“不存在”返回同样的 `not_found`。
 - **统一的响应信封。** 每个结果都带来源、版本、读者状态、置信度、复核状态和 token 估算；每个响应带一个一致性令牌，Agent 回传它就能读到同一个版本。
-- **为 Agent 设计。** 先搜索再读取：`search` 返回句柄和估算，由 Agent 在自己的预算内决定读什么。句柄稳定，在每个工具中都可用。拒绝或截断会说明下一步该怎么做（用哪个 `cursor`，收窄哪个参数）。每个工具都无状态，读取类工具是幂等的。
-- **仍未决定**：`search` 默认是否把块和陈述放在一起排序，以及 `answer` 内部的模型调用由谁的预算支付。
+- **为 Agent 设计。** 先提问或搜索，再读取：回答和命中都返回句柄和估算，由 Agent 在自己的预算内决定读什么。句柄稳定，在每个工具中都可用。每个结果都说明下一步（“完整流程请 read 这个句柄”），拒绝或截断会说明该用哪个 `cursor` 或参数。每个工具都无状态，读取类工具是幂等的。
+- **靠测量，不靠推断。** 在 API 定下来之前，用同一组任务、几种模型，分别跑这组工具和初稿的十个工具，比较完成的任务数、调用次数和 token 用量。
+- **仍未决定**：`search` 默认是否把块和陈述放在一起排序，以及 `ask` 内部的模型调用由谁的预算支付。
 
 ## 19. 页面、视图与搜索
 
@@ -984,7 +1073,7 @@ flowchart TB
   eng --> sbx[沙箱池]
 ```
 
-*图 16. 一个 SaaS 区域。每个企业的数据留在创建企业时选定的区域。*
+*图 17. 一个 SaaS 区域。每个企业的数据留在创建企业时选定的区域。*
 
 - **一套代码，两种部署形态。** SaaS 优先：企业的区域在创建时确定，先开中国大陆和一个全球区域。在中国大陆提供公有 SaaS 需要生成式 AI 备案、ICP 许可证和等级保护。私有化部署是第二种形态，以国产化基础设施（麒麟、鲲鹏或海光、人大金仓、昇腾）为认证目标。
 - **许可证。** pg_search 是 AGPL-3.0；BM25 放在插件接口后面，客户需要时可以换成 OpenSearch 索引。使用 Valkey（BSD）而不是 Redis。见 [licensing.md](licensing.md)。
@@ -993,7 +1082,7 @@ flowchart TB
 
 ## 23. 现在到了哪里
 
-**已构建并合入 `main`**：契约、kernel、事件总线、测试工具包、知识存储、访问控制、模型网关、Agent 运行时、连接器、来源同步、规范化、抽取、治理、保鲜、按租户划分的成员 ID，以及引擎进程及其 CLI、演示语料和合成器（PR #2 至 #7）；治理级别、事实槽键和按需抽取、主题和归属，以及待办箱（PR #8 至 #10）；en、zh 和 ja 的语言规则放入资源文件，并有一项防止代码中出现中文和日文的仓库测试（PR #12 和 #13）；按层分文件夹的迁移（PR #15）；以及设计文档（PR #11 和 #14）。
+**已构建并合入 `main`**：契约、kernel、事件总线、测试工具包、知识存储、访问控制、模型网关、Agent 运行时、连接器、来源同步、规范化、抽取、治理、保鲜、按租户划分的成员 ID，以及引擎进程及其 CLI、演示语料和合成器（PR #2 至 #7）；治理级别、事实槽键和按需抽取、主题和归属，以及待办箱（PR #8 至 #10）；en、zh 和 ja 的语言规则放入资源文件，并有一项防止代码中出现中文和日文的仓库测试（PR #12 和 #13）；按层分文件夹的迁移（PR #15）；设计文档（PR #11 和 #14），以及这份作为产品需求和技术架构的总览（PR #17）；尚未生效的陈述给出的值不带权威（PR #16）；每个案例只有一个正确答案的对照语料，并记录引擎已知的差距（PR #18）；在 `components.yaml` 中写明谁负责厂商集成、工具关卡和沙箱（PR #19）；界面的快照（PR #20）；以及代码仓库的设计（PR #21 至 #23）。
 
 **测量结果**来自一个 10,000 份文档的合成租户，使用模拟模型和假向量（Postgres 和 Valkey）。这些数字描述的是数据量和流水线，而不是模型质量：
 
@@ -1014,7 +1103,7 @@ flowchart TB
 
 主题比约 100 条陈述的设计目标大了约十倍，因为合成租户在许多文档中反复陈述 30 个对象，而假向量无法区分这些小节。预算从来不需要压下任何一条待办，因为按维护人、主题和周分组已经让每位维护人都在预算之内。
 
-**已设计、未构建**：双域权限规则和主体令牌、发布、汇编知识的权限、凭据代理和沙箱、来源树和镜像页、页面和视图、检索和 Agent API、研究、解析 worker、来源删除和批量变更审阅、跨语言的知识，以及整个业务层和界面。
+**已设计、未构建**：双域权限规则和主体令牌、发布、汇编知识的权限、凭据代理和沙箱、来源树和镜像页、页面和视图、检索和 Agent API、研究、解析 worker、来源删除和批量变更审阅、跨语言的知识、代码仓库作为来源（提议中），以及整个业务层和界面。
 
 ## 24. 下一步与工作量
 
@@ -1022,7 +1111,7 @@ flowchart TB
 
 1. **业务契约在引擎一侧的实现**：主体令牌、开通和种子命令、access-control 中的空间和依据规则，以及事实槽和冲突上的域键。
 2. **来源的页面和视图**：为受众合成带引用的页面、`PageSpec` 快照和差异、带 `artifact.dirty` 的依赖图、镜像页和来源树。
-3. **搜索和 Agent**：有自己索引的 retrieval、有依据的回答、主题概览读取，以及带十个工具的 MCP 服务器。
+3. **搜索和 Agent**：有自己索引的 retrieval、有依据的回答、主题概览读取，以及带这些工具的 MCP 服务器。
 4. **连接和解析**：凭据代理、成员连接、解析 worker。
 5. **研究、视图和沙箱。**
 6. **业务层第一阶段和网页应用**，契约就位后并行进行。
@@ -1039,7 +1128,8 @@ flowchart TB
 | 来源变化（删除、移动、批量变更审阅） | 3 |
 | 跨语言的知识（译文、跨语言合并、其他语言的页面） | 3.5 |
 | 汇编知识的权限（为受众而写、省略检查、放行） | 3 |
-| **合计** | **约 123** |
+| 代码仓库（code-graph、对代码的研究；提议中） | 8.5 |
+| **合计** | **约 131** |
 
 之后，试点和产品 v1 中 Artifact 级编辑的工作（模板、Word 和 PDF 导出、块编辑器、实时协同编辑、视图宿主 API、移动端、分享链接）约 19 到 27 人周，计费约 3 人周。原型的前七个阶段由 Agent 在两天内构建完成，所以日历时间更多取决于评审和集成，而不是这些数字。
 
@@ -1092,7 +1182,7 @@ flowchart TB
 5. **每个区域由哪些模型服务商提供服务**，以及在哪些敏感标签下。
 6. **中国以外第二、第三个连接器是哪些**（例如 Confluence、Notion、Google Drive、SharePoint），以及试点面向哪一位设计合作伙伴、哪个行业。
 7. **剩余原型阶段的顺序**，以及是否应在每个阶段都模拟完成之前，先用真实模型在真实文档上做一次小规模、有上限的探测。
-8. **Agent 工具的两个细节**：`search` 默认是否把块和陈述放在一起排序，以及 `answer` 内部的模型调用由谁的预算支付。
+8. **Agent 工具的两个细节**：`search` 默认是否把块和陈述放在一起排序，以及 `ask` 内部的模型调用由谁的预算支付。
 
 ## 附录 A. 三种语言的词表
 
