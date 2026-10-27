@@ -1,10 +1,11 @@
 # UI screens
 
 Status: a snapshot of the product owner's design canvas, "Inspiration UI"
-(https://claude.ai/artifact/GYXc5GBY3bPq1XGuMUGwAk), taken on 2026-10-26. Screens are drawn
-and changed on the canvas. This folder holds a copy so reviewers and team members can read
-the screens next to the docs. Where the two differ, the canvas wins. A Chinese copy of this
-README is in [docs/zh/design/screens/README.md](../../zh/design/screens/README.md).
+(https://claude.ai/artifact/GYXc5GBY3bPq1XGuMUGwAk), taken on 2026-10-26 and updated on
+2026-10-27. Screens are drawn and changed on the canvas. This folder holds a copy so reviewers
+and team members can read the screens next to the docs. Where the two differ, the canvas wins.
+A Chinese copy of this README is in
+[docs/zh/design/screens/README.md](../../zh/design/screens/README.md).
 
 The principles behind the screens are in [UI principles](../ui-principles.md). How statements
 are grouped and reviewed is in [Statements at scale](../statements-at-scale.md).
@@ -39,12 +40,15 @@ Ink and paper, with the command palette from direction B and the ask bar from di
 
 ## The demo story (row E, in Chinese)
 
-Readers see only documents. Owners at every level see the structure in the Trace view. The
-canvas tells its demo story in Chinese, but Chinese is one of the three languages the product
-serves, not the default (see Internationalisation in [UI principles](../ui-principles.md)).
+Documents come first, in their original form, and knowledge appears on top of them step by
+step. Owners at every level see the structure in the Trace view. The canvas tells its demo
+story in Chinese, but Chinese is one of the three languages the product serves, not the default
+(see Internationalisation in [UI principles](../ui-principles.md)).
 
 | File | Screen |
 | --- | --- |
+| [E-doc](E-doc.dc.html) | After importing: the document first, in its Original view |
+| [E-doc-layers](E-doc-layers.dc.html) | From document to knowledge: the Annotated view and What this says |
 | [E-model](E-model.dc.html) | The knowledge model: an explanatory diagram, not a product screen |
 | [E-topic](E-topic.dc.html) | Topic page, as a reader sees it |
 | [E-page](E-page.dc.html) | Knowledge page, as a reader sees it, with a citation open |

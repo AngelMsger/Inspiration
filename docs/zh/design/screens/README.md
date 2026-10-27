@@ -1,7 +1,7 @@
 # 界面稿
 
 状态：产品负责人设计画布 “Inspiration UI”（https://claude.ai/artifact/GYXc5GBY3bPq1XGuMUGwAk）的快照，
-取于 2026-10-26。界面稿在画布上绘制和修改；这个文件夹保存一份副本，方便评审者和团队成员对照文档阅读。两者不一致时，
+取于 2026-10-26，2026-10-27 更新。界面稿在画布上绘制和修改；这个文件夹保存一份副本，方便评审者和团队成员对照文档阅读。两者不一致时，
 以画布为准。本 README 的英文原文在 [docs/design/screens/README.md](../../../design/screens/README.md)；
 两者不一致时，以英文版为准。
 
@@ -37,11 +37,13 @@
 
 ## 演示故事（E 行，中文）
 
-读者只看到文档，各级负责人在追溯里看结构。画布用中文讲演示故事，但中文只是产品支持的三种语言之一，
+文档先出现，保留原来的形式，知识再一步步叠加上来；各级负责人在追溯里看结构。画布用中文讲演示故事，但中文只是产品支持的三种语言之一，
 不是默认语言（见 [UI 原则](../ui-principles.md) 的“国际化”一节）。
 
 | 文件 | 界面 |
 | --- | --- |
+| [E-doc](../../../design/screens/E-doc.dc.html) | 导入之后：先看原文 |
+| [E-doc-layers](../../../design/screens/E-doc-layers.dc.html) | 从原文到知识：批注与“这段讲了什么” |
 | [E-model](../../../design/screens/E-model.dc.html) | 知识模型（说明图，不是产品界面） |
 | [E-topic](../../../design/screens/E-topic.dc.html) | 主题页（读者） |
 | [E-page](../../../design/screens/E-page.dc.html) | 知识页（读者，点开引用） |

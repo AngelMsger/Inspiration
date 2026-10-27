@@ -22,17 +22,18 @@ The places these people work in:
 
 ## Interaction principles
 
-1. **Reading first, governance on demand.** A page opens as a clean document. Owners, votes and rules appear only when someone asks or acts. The knowledge model itself (statements, counts, lineage) is never part of the reading surface; owners see it in the Trace view.
-2. **Every statement shows where it came from and how fresh it is.** A citation is one click from the source passage, and status is always written in words (Fresh, Review due, Outdated, Disputed), never shown by colour alone.
-3. **Always show which space you are in and who can read it.** The space switcher sits in the header, and every space states who can read it, as set by its owner, with a count such as "All 18 Procurement members".
-4. **The assistant proposes, people decide.** The assistant drafts options, raises conflicts and answers questions, but a named person votes, approves or publishes.
-5. **Never hand over credentials, and make widening visible.** A personal connection stays personal. Publishing shows who will be able to read, and warns without blocking when some readers cannot open the original.
-6. **A conflict always has an owner, a deadline, an approval mode, someone who decides when the deadline passes, and a record.** Meanwhile readers see the last verified value marked Disputed, unless the owners choose otherwise.
-7. **One inbox.** Reviews, votes, notes, reconnect requests and replies all land in one place, grouped into cards and ordered by deadline.
-8. **Calm by default.** Only Outdated and Disputed marks show inline. Everything else waits in the margin or the side panel.
-9. **Keyboard, command and CLI parity.** Every action has a shortcut, a command-palette entry and a CLI equivalent.
-10. **Three languages from day one.** Every screen ships in English, Chinese and Japanese. Type, line height and line length are tuned per language, and layouts leave room for the longest label.
-11. **Trust through history.** Every value can answer "Why this value?": who verified it, when, and which decision or rule set it.
+1. **Concrete before abstract.** People meet their own material first. An imported document opens in its Original view, with its headings, paragraphs, lists and tables, and knowledge appears on top of it one step at a time: marks on the passages that became knowledge, then what a passage says and what other documents say about it, then the knowledge page. Knowledge pages and topics are the second way in, for people who already know what they are looking for.
+2. **Reading first, governance on demand.** A page opens as a clean document. Owners, votes and rules appear only when someone asks or acts. The knowledge model itself (statements, counts, lineage) is never part of the reading surface; owners see it in the Trace view.
+3. **Every statement shows where it came from and how fresh it is.** A citation is one click from the source passage, and status is always written in words (Fresh, Review due, Outdated, Disputed), never shown by colour alone.
+4. **Always show which space you are in and who can read it.** The space switcher sits in the header, and every space states who can read it, as set by its owner, with a count such as "All 18 Procurement members".
+5. **The assistant proposes, people decide.** The assistant drafts options, raises conflicts and answers questions, but a named person votes, approves or publishes.
+6. **Never hand over credentials, and make widening visible.** A personal connection stays personal. Publishing shows who will be able to read, and warns without blocking when some readers cannot open the original.
+7. **A conflict always has an owner, a deadline, an approval mode, someone who decides when the deadline passes, and a record.** Meanwhile readers see the last verified value marked Disputed, unless the owners choose otherwise.
+8. **One inbox.** Reviews, votes, notes, reconnect requests and replies all land in one place, grouped into cards and ordered by deadline.
+9. **Calm by default.** Only Outdated and Disputed marks show inline. Everything else waits in the margin or the side panel.
+10. **Keyboard, command and CLI parity.** Every action has a shortcut, a command-palette entry and a CLI equivalent.
+11. **Three languages from day one.** Every screen ships in English, Chinese and Japanese. Type, line height and line length are tuned per language, and layouts leave room for the longest label.
+12. **Trust through history.** Every value can answer "Why this value?": who verified it, when, and which decision or rule set it.
 
 ## Visual system
 
@@ -60,9 +61,9 @@ The look is "ink and paper": a warm paper ground, serif type for reading, one in
 ## Layout
 
 - **Header:** company and space switcher (hidden for someone working alone), ask or search, account menu (including interface language).
-- **Left:** the Knowledge tree (spaces, topics, pages) and the Sources tree (connected apps and their folders), with an icon per source app.
-- **Centre:** the document. A source has an Original view (as written) and an Annotated view (outdated and disputed lines marked inline, other notes in the margin), plus an "In knowledge" chip that leads to the pages using it. A knowledge page cites its sources inline.
-- **Right panel:** Comments, Sources, Related, History. Clicking a citation opens the source beside the page.
+- **Left:** the Sources tree (connected apps and their folders, with an icon per source app), then the Knowledge tree (spaces, topics, pages). Sources come first because people know their documents before they know the knowledge built from them.
+- **Centre:** the document. A source opens in its Original view: rendered from its blocks without a model, it keeps the headings, paragraphs, lists and tables of the source. It is close to the source app's page but not a copy of it, and a block that cannot be rendered, such as a flowchart, shows a placeholder that opens the source. The Annotated view adds marks: a dotted underline on passages that became knowledge, and the Outdated and Disputed marks. The Knowledge view lists what was built from the document. A knowledge page cites its sources inline.
+- **Right panel:** What this says, Comments, Sources, Related, History. Selecting a passage in the Annotated view opens What this says; clicking a citation opens the source beside the page.
 - **Selection menu:** Comment, Highlight, This is outdated, Propose a correction, Ask about this.
 
 ## Key screens
@@ -70,12 +71,12 @@ The look is "ink and paper": a warm paper ground, serif type for reading, one in
 | Screen | What it shows | For |
 | --- | --- | --- |
 | Sign in and choose a company | Sign-in, then the companies the person belongs to and their personal library | Everyone |
-| Home | Ask bar, recent pages, the inbox cards that need you | Everyone |
-| First run alone | Ask box, connect a source, setup progress; the account menu offers "Invite someone" and "Create a company" | Someone working alone |
+| Home | Ask bar, recent documents and pages, the inbox cards that need you; someone new sees the documents they imported first | Everyone |
+| First run alone | Connect or upload a source and setup progress, then the imported documents, each readable as soon as it has been read; the ask box; the account menu offers "Invite someone" and "Create a company" | Someone working alone |
+| Source document | Original, Annotated and Knowledge views; the selection menu; What this says, with the knowledge taken from a passage, what other documents say about it and the pages that use it | Everyone; the first screen after importing |
 | Search and ask results | An answer in the asker's language with citations, then matching pages and sources | Everyone |
 | Knowledge page | Text with small citation numbers, only Outdated and Disputed inline; owner and freshness in the margin; "Why this value?" on a disputed value; comment threads with the assistant's replies | Readers |
 | Citation popover | The source passage at once, one sentence on its status (Review due shows here), translation on request | Readers |
-| Source document | Original and Annotated views, the selection menu, the "In knowledge" chip | Anyone checking where knowledge came from |
 | Inbox | Cards per topic and week, conflict cards with their copy reviews, the weekly notes card, campaign cards for space owners | Owners |
 | Conflict, joint approval | Both sides with evidence, options with counts, votes, approval mode, deadline, who decides after it, what readers see meanwhile, "Make this a rule", the record | Owners |
 | Trace view, page | The page's statements grouped by page section, with lineage from source to passage to statement to page | Owners |
@@ -91,9 +92,11 @@ The look is "ink and paper": a warm paper ground, serif type for reading, one in
 
 Readers never see the structure behind a page. A knowledge page, procedure or topic page reads as a normal document: text, small citation numbers, and only the Disputed and Outdated marks. Clicking a number shows the source passage and one sentence on its status.
 
+**From documents to knowledge.** Someone new starts from documents they already know, not from knowledge pages or cards. Each step adds a little. The Original view shows the document as written. The Annotated view marks the passages that became knowledge and the outdated and disputed lines. Selecting a passage opens What this says: the knowledge taken from it in plain sentences, the other documents that agree with it, differ from it or add to it, and the pages and procedures that use it. From there the knowledge page is one click away. What this says never shows statements, fact slots, counts or governance levels; those stay in the Trace view, which owners can open from the same panel.
+
 Behind the page, knowledge has layers:
 
-- **Sources** stay as written, in the Sources tree. Nothing is copied or cleaned per document.
+- **Sources** stay as written, in the Sources tree. The Original view renders them from their blocks; nothing is copied or cleaned per document.
 - **Passages** are the spans the engine cuts out of a source. Every later layer points back to them.
 - **Statements** are the smallest governed unit: one fact with its status, owner, effective date and the passages behind it. Reviews, disputes and rules act on statements. Statements about the same fact share a fact slot.
 - **Knowledge forms** are built only from statements: knowledge pages, procedures, and cards for things such as a city, a supplier or a role. One statement can appear in several forms, so it is governed once.
@@ -152,6 +155,7 @@ The Chinese terms are adopted. The Japanese terms are proposed and wait for the 
 | Topic, Knowledge page, Procedure, Card | 主题, 知识页, 流程, 卡片 | トピック, ナレッジページ, 手順, カード | |
 | Knowledge tree, Sources tree | 知识树, 来源树 | ナレッジツリー, ソースツリー | |
 | Original, Annotated, Knowledge views | 原文, 批注, 知识 | 原文, 注釈, ナレッジ | |
+| What this says | 这段讲了什么 | この段落の要点 | The panel for a selected passage |
 | Trace view | 追溯 | 追跡 | Owners only |
 | Governed, Reference, Search only | 严格, 宽松, 仅检索 | 規程, 参考, 検索のみ | Governance levels |
 | Fresh, Review due, Outdated, Disputed | 有效, 待复核, 已过时, 有争议 | 有効, 要確認, 旧版, 異論あり | Only Outdated and Disputed show inline |
@@ -182,8 +186,13 @@ Adopted on 2026-10-26:
 - Proposed later the same day, waiting for the product owner: the super admin runs the company and owners run knowledge (the super admin creates spaces and names their owners but never decides what knowledge says or who reads a space), and the Chinese name for owners becomes 维护人 instead of 负责人. See section 4 of the [overview](../overview.md).
 - In Chinese, a company is 企业 and the governance levels are 严格, 宽松 and 仅检索. English says Company and Japanese 企業, to match.
 
+Direction from the product owner on 2026-10-27:
+
+- Concrete before abstract (principle 1). After importing, people first see their documents in their original form, and knowledge appears on top of them step by step, rather than starting from knowledge cards. The knowledge-first path stays for people who already know what they want. The canvas shows it in E-doc and E-doc-layers.
+
 ## Still open
 
 - Review the Japanese terms in the glossary.
 - Confirm the translation rules: cited passages are translated only on request and labelled as machine translation, and knowledge pages stay in their space's content language for now.
-- Still to draw: publish and conflict in compact mode, and Japanese versions of the key screens.
+- Whether the Sources tree should say Documents (文档, ドキュメント), the word people use for their material. Sources also covers chats and sheets, which is why it says Sources today.
+- Still to draw: publish and conflict in compact mode, the Knowledge view of a source, and Japanese versions of the key screens.
