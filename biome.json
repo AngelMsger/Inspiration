@@ -6,7 +6,13 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!libs/contracts/dist", "!libs/contracts/src/generated.ts", "!libs/contracts/src/events.ts"]
+    "includes": [
+      "**",
+      "!libs/contracts/dist",
+      "!libs/contracts/src/generated.ts",
+      "!libs/contracts/src/events.ts",
+      "!docs/design/screens"
+    ]
   },
   "formatter": {
     "enabled": true,
