@@ -69,12 +69,36 @@ Deciding is ready to be measured with a real model; reading is the open risk. Th
 
 ## Order of work and cost
 
-Four steps, each closed by a gate. Only step 2 needs anything from the product owner, and it costs tens of dollars.
+Four steps, each closed by a gate. Only step 2 needs anything from the product owner: a model key with a hard spending cap.
 
 1. **Without a model (done, engine thread).** Write the answer keys and the 150 questions (PR #34), add the plain-RAG and long-context runs (PR #32), count todos per changed fact on the GitLab replay (PR #33), and assemble the company-as-it-looks corpus (PR #34). Gate met: all three runs score the same 150 questions end to end with the stand-ins, in 52 seconds in memory.
-2. **A capped probe with a real model.** One model through the model gateway, with a spending cap. The probe also needs a multilingual embedding, because the stand-in search cannot match a Chinese or Japanese question to English text. Reading every corpus takes about 3 million input tokens. Answering 150 questions three ways takes about 2.5 million more, plus about half a million output tokens. At a mid-size model's list price of a few dollars per million input tokens, one full run is tens of dollars, so a cap of US$100 leaves room for two reruns. Gate: claims 1, 3 and 5 have real numbers.
+2. **A capped probe with a real model.** One model through the model gateway, with the cap set as the probe's gateway budget, and a multilingual embedding, because the stand-in search cannot match a Chinese or Japanese question to English text. It starts with a dry run and a context check ([What the probe costs](#what-the-probe-costs)). Gate: claims 1, 3 and 5 have real numbers.
 3. **Fix and run again.** Work on prompts, the fact vocabulary and tables, then rerun the same keys. Gate: the pass bars are met, or a result from the next section changes the design.
 4. **A design partner's documents.** A company's own documents, ideally written in Chinese or Japanese, run the same way with their permission. Gate: one of their owners marks which todos were worth asking (claim 4).
+
+### What the probe costs
+
+The cap is a hard stop, not a forecast: the gateway refuses every call once a budget is spent, so a run overshoots only by the calls already in flight. The estimate below decides what the first run includes; real counts replace it before any paid call.
+
+- **Dry run.** The stand-in run sends every call through the gateway with the inputs a real model would get, so the gateway's metering gives each task's input tokens, including any task the table below leaves out, by its rough count of about four characters a token and one per Han or kana character. The budget is redone from those counts. A stand-in's output says nothing about a real model's, so output stays an estimate.
+- **Context check.** The long-context window (`--context`) is set to the selected model's real limit. The company-as-it-looks corpus is 311,106 tokens, more than a 200,000-token window; where the documents do not fit, the long-context rival reports that instead of running.
+
+| Part of one run | Input tokens | Output tokens | Runs again when |
+| --- | --- | --- | --- |
+| Reading every corpus: claims and chunk headers | About 4 to 5 million: about a million tokens of text, and each 1,500-character window also carries about 2,000 tokens of instructions and fact vocabulary | About 1 million | The reading prompts or the fact vocabulary change |
+| Multilingual embeddings of chunks and statements | About 1.5 million | None | Chunking changes |
+| Inspiration's answers to 150 questions: a rerank of 60 candidates, then an answer from 16 sources, per question | About 1.5 million | About 0.1 million | Answering changes |
+| Plain RAG's answers to 150 questions | About 1 million | About 0.1 million | Answering changes |
+| Long context's answers to 150 questions over the 311,106-token corpus | About 46.7 million: every question reads the whole corpus | Under 0.1 million | Answering changes |
+
+No prompt caching is assumed. The answer input puts the question before the documents, so a provider's cache cannot reuse the documents from one question to the next.
+
+At an example list price of US$3 per million input tokens and US$15 per million output tokens, one run costs about US$30 for reading, US$10 for the two retrieval-based answers, under US$1 for embeddings at embedding prices of cents per million tokens, and about US$140 for long context on all 150 questions; a provider that charges more above 200,000 tokens of context makes that last part dearer. Long context alone would exceed a US$100 cap, so the first run is proposed as:
+
+- reading, embeddings, and Inspiration and plain RAG on all 150 questions: about US$40;
+- long context on a sample of 30 questions, 10 per language, with changed and unchanged facts in proportion: about 9.3 million input tokens, US$28.
+
+That first run is about US$70. Rerunning reading costs about US$30, and rerunning the answers (long context still on the sample) about US$38. So a US$100 cap covers the first run and leaves about US$30: enough to rerun reading once, not the answers. A cap of US$200 covers the first run, one rerun of reading and two of the answers. Long context on all 150 questions needs either a larger cap or a change to the answer input that puts the documents first and the question last: a provider that charges a tenth of the input price for cached reads would then bring all 150 to about US$15, if the questions run back to back within its cache lifetime.
 
 The public data needs no sensitivity clearance, so any provider the gateway supports will do.
 
@@ -93,7 +117,7 @@ A validation is worth running only if some results would change what we build. T
 
 ## What we need from the product owner
 
-- A model key with a spending cap (US$100 suggested) for the probe in step 2.
+- A model key with a hard spending cap for the probe in step 2. US$100 covers the first run and one rerun of reading; US$200 also covers two reruns of the answers ([What the probe costs](#what-the-probe-costs)).
 - About 30 minutes to check 20 random answer-key entries (rule 3); the keys are now written (PR #34).
 - Agreement on, or changes to, the pass bars and the design changes proposed in advance.
 - Later, a design partner whose documents we may run in step 4.
