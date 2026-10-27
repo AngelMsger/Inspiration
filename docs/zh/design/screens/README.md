@@ -1,7 +1,7 @@
 # 界面稿
 
 状态：产品负责人设计画布 “Inspiration UI”（https://claude.ai/artifact/GYXc5GBY3bPq1XGuMUGwAk）的快照，
-取于 2026-10-26，2026-10-27 更新（画布第 73 版）。界面稿在画布上绘制和修改；这个文件夹保存一份副本，方便评审者和团队成员对照文档阅读。两者不一致时，
+取于 2026-10-26，2026-10-27 更新（画布第 74 版）。界面稿在画布上绘制和修改；这个文件夹保存一份副本，方便评审者和团队成员对照文档阅读。两者不一致时，
 以画布为准。本 README 的英文原文在 [docs/design/screens/README.md](../../../design/screens/README.md)；
 两者不一致时，以英文版为准。
 
@@ -17,21 +17,39 @@
 
 界面稿只放在 `docs/design/screens/` 下，这里不再复制一份。
 
-## 第二版（V2 行，中文）
+## 第二版（V2 两行，中文）
 
 2026-10-27 按 [UI 设计哲学](../ui-philosophy.md) 重画：每个界面同一个顶栏和同一个左侧栏，同一个故事（恒远机械的财务部）和同一组人物，
-助手在每个地方都以同样安静的方式出现。第二版和下面各行不一致时，以第二版为准。其余界面接下来按同样的方式重画。
+助手在每个地方都以同样安静的方式出现。第二版和下面各行不一致时，以第二版为准。
+
+结构、阅读、账户与管理后台：
 
 | 文件 | 界面 |
 | --- | --- |
 | [V2-map](../../../design/screens/V2-map.dc.html) | 每个界面都遵循的结构：区域、左侧栏的四个区域、助手出现的四种方式、人物 |
+| [V2-switcher](../../../design/screens/V2-switcher.dc.html) | 顶栏的两个菜单：切换企业和账户菜单；一个人用时的顶栏 |
 | [V2-home](../../../design/screens/V2-home.dc.html) | 成员的首页：提问、常看内容的变化、最近看过 |
+| [V2-search](../../../design/screens/V2-search.dc.html) | 搜索与提问：先回答并带出处，再列结果，筛选在结果上方 |
+| [V2-page](../../../design/screens/V2-page.dc.html) | 阅读知识页：左侧栏收起，打开一个有争议数值的出处 |
+| [V2-ja](../../../design/screens/V2-ja.dc.html) | 界面语言是日语的成员选择用日语读同一页：由同样的陈述用日语写出，标为机器翻译，出处指向中文原文 |
+| [V2-phone](../../../design/screens/V2-phone.dc.html) | 手机：阅读、待办概述、投票 |
+| [V2-account](../../../design/screens/V2-account.dc.html) | 账户：替我决定、长期委托及其边界 |
+| [V2-admin](../../../design/screens/V2-admin.dc.html) | 管理后台按关注点分组：成员，先搜索 |
+| [V2-sources](../../../design/screens/V2-sources.dc.html) | 管理后台：来源连接，企业的和成员的 |
+
+处理工作：
+
+| 文件 | 界面 |
+| --- | --- |
 | [V2-inbox](../../../design/screens/V2-inbox.dc.html) | 待办：先给概述，需要你的写明原因，其余用一次“替我决定”处理 |
 | [V2-decision](../../../design/screens/V2-decision.dc.html) | 一个决定：建议已经预先选好，附理由 |
 | [V2-space](../../../design/screens/V2-space.dc.html) | 维护空间：概览，以及按领域排列、按真实规模画的主题与维护人 |
+| [V2-conflicts](../../../design/screens/V2-conflicts.dc.html) | 维护空间：冲突队列（紧凑模式），没有能替你处理的时候 |
+| [V2-changes](../../../design/screens/V2-changes.dc.html) | 维护空间：制度新版本带来的批量变更，按变化的种类分组 |
 | [V2-review](../../../design/screens/V2-review.dc.html) | 维护空间：发布申请（紧凑模式） |
-| [V2-admin](../../../design/screens/V2-admin.dc.html) | 管理后台按关注点分组：成员，先搜索 |
-| [V2-account](../../../design/screens/V2-account.dc.html) | 账户：替我决定、长期委托及其边界 |
+| [V2-publish](../../../design/screens/V2-publish.dc.html) | 从我的空间发布：每份来源一个问题，建议已经选好 |
+| [V2-trace](../../../design/screens/V2-trace.dc.html) | 一个主题的追溯（主题维护人）：先列事实，再看用到它们的页面，其余按文档折叠 |
+| [V2-documents](../../../design/screens/V2-documents.dc.html) | 维护空间：文档与治理级别，按文件夹设定 |
 
 ## 选定的系统（D 行，英文）
 
@@ -81,7 +99,7 @@
 
 - **A、B、C 三行。** 这是 2026-10-23 比较过的三个方向：A 墨与纸，B 石墨工作台，C 荧光笔工作室。D 以 A 为基础，
   保留了 B 的命令面板、检查器和紧凑模式，以及 C 的提问栏。这三行留在画布上，仅作参考。
-- **日文界面。** 关键界面的日文版尚未绘制；目前由 E-i18n 展示三语对照。
+- **更多日文界面。** V2-ja 画了一张日文的知识页；其余关键界面的日文版等日文用词审阅后再画。E-i18n 展示三语对照。
 
 ## 快照中的用语
 

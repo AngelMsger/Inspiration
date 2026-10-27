@@ -2,7 +2,7 @@
 
 Status: a snapshot of the product owner's design canvas, "Inspiration UI"
 (https://claude.ai/artifact/GYXc5GBY3bPq1XGuMUGwAk), taken on 2026-10-26 and updated on
-2026-10-27 (canvas version 73). Screens are drawn and changed on the canvas. This folder holds a copy so reviewers
+2026-10-27 (canvas version 74). Screens are drawn and changed on the canvas. This folder holds a copy so reviewers
 and team members can read the screens next to the docs. Where the two differ, the canvas wins.
 A Chinese copy of this README is in
 [docs/zh/design/screens/README.md](../../zh/design/screens/README.md).
@@ -20,23 +20,41 @@ placeholder. The people, the company (Hengyuan Machinery) and the figures are ma
 The files are byte-for-byte copies of the canvas. Biome skips this folder, and the
 languages test allows Chinese and Japanese in it, so the copies never drift from the canvas.
 
-## The second version (row V2, in Chinese)
+## The second version (rows V2, in Chinese)
 
 Drawn on 2026-10-27 from the [UI philosophy](../ui-philosophy.md): one top bar and one left
 column on every screen, one story (the finance space at Hengyuan Machinery) with one cast, and
 the assistant shown the same quiet way everywhere. Where the second version and the rows below
-differ, the second version wins. The other screens are redrawn the same way next.
+differ, the second version wins.
+
+Structure, reading, account and admin:
 
 | File | Screen |
 | --- | --- |
 | [V2-map](V2-map.dc.html) | The structure every screen follows: the regions, the four areas of the left column, the four ways the assistant shows up, the cast |
+| [V2-switcher](V2-switcher.dc.html) | The top bar's two menus: the company switcher and the account menu; the top bar of someone working alone |
 | [V2-home](V2-home.dc.html) | A member's home: ask, what changed in what they read, recently viewed |
+| [V2-search](V2-search.dc.html) | Search and ask: the answer first, with citations, then the results with filters above them |
+| [V2-page](V2-page.dc.html) | Reading a knowledge page with the left column folded, and a citation open on a disputed value |
+| [V2-ja](V2-ja.dc.html) | The same page for a member whose interface is Japanese, who chose to read it in Japanese: written from the same statements and labelled machine translated, citing the Chinese original |
+| [V2-phone](V2-phone.dc.html) | Phone: reading, the inbox overview and a vote |
+| [V2-account](V2-account.dc.html) | Account: Decide for me, standing delegations and their limits |
+| [V2-admin](V2-admin.dc.html) | Admin grouped by concern: members, search first |
+| [V2-sources](V2-sources.dc.html) | Admin: source connections, the company's and the members' |
+
+Working:
+
+| File | Screen |
+| --- | --- |
 | [V2-inbox](V2-inbox.dc.html) | Inbox: an overview first, what needs you with the reason, and one Decide for me for the rest |
 | [V2-decision](V2-decision.dc.html) | One decision: the suggestion is already selected, with its reason |
 | [V2-space](V2-space.dc.html) | Managing a space: the overview, and topics and owners by area at their real size |
+| [V2-conflicts](V2-conflicts.dc.html) | Managing a space: the conflict queue in compact mode, when nothing can be decided for you |
+| [V2-changes](V2-changes.dc.html) | Managing a space: a batch change from a new version of a policy, grouped by kind of change |
 | [V2-review](V2-review.dc.html) | Managing a space: a publish request, in compact mode |
-| [V2-admin](V2-admin.dc.html) | Admin grouped by concern: members, search first |
-| [V2-account](V2-account.dc.html) | Account: Decide for me, standing delegations and their limits |
+| [V2-publish](V2-publish.dc.html) | Publishing from My space: one question per source, with the suggestion selected |
+| [V2-trace](V2-trace.dc.html) | Trace view of one topic, for its owner: facts first, then the pages that use them, the rest folded by document |
+| [V2-documents](V2-documents.dc.html) | Managing a space: documents and governance levels, set by folder |
 
 ## The chosen system (row D, in English)
 
@@ -90,8 +108,8 @@ story in Chinese, but Chinese is one of the three languages the product serves, 
   paper, B the graphite workbench, C the highlighter studio. D was built on A, keeping B's
   command palette, inspector and compact mode and C's ask bar. The three rows stay on the
   canvas, for reference only.
-- **Japanese screens.** Japanese versions of the key screens are still to draw. For now,
-  E-i18n shows the three languages side by side.
+- **More Japanese screens.** V2-ja shows a knowledge page in Japanese. The other key screens in
+  Japanese wait until the Japanese terms are reviewed; E-i18n shows the three languages side by side.
 
 ## Terms as of this snapshot
 
