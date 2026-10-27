@@ -29,8 +29,8 @@
 | [D-signin](../../../design/screens/D-signin.dc.html) | 登录并选择企业 |
 | [D-inbox](../../../design/screens/D-inbox.dc.html) | 待办 |
 | [D-search](../../../design/screens/D-search.dc.html) | 搜索与提问结果 |
-| [D-connections](../../../design/screens/D-connections.dc.html) | 管理：连接 |
-| [D-apps](../../../design/screens/D-apps.dc.html) | 已连接的应用与授权页 |
+| [D-connections](../../../design/screens/D-connections.dc.html) | 管理：来源连接 |
+| [D-apps](../../../design/screens/D-apps.dc.html) | 使用知识的应用与授权页 |
 | [D-space](../../../design/screens/D-space.dc.html) | 空间设置与角色 |
 | [D-review](../../../design/screens/D-review.dc.html) | 发布申请审阅（紧凑模式） |
 | [D-conflicts](../../../design/screens/D-conflicts.dc.html) | 冲突队列（紧凑模式），由空间负责人裁决 |

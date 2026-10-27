@@ -61,7 +61,7 @@ The look is "ink and paper": a warm paper ground, serif type for reading, one in
 ## Layout
 
 - **Header:** company and space switcher (hidden for someone working alone), ask or search, account menu (including interface language).
-- **Left:** the Documents tree (connected apps and their folders, with an icon per source app), then the Knowledge tree (spaces, topics, pages). Documents come first because people know their documents before they know the knowledge built from them. The Documents tree also holds chats and sheets, but Documents is the word people use for their material.
+- **Left:** the Documents tree (source apps and their folders, with an icon per source app), then the Knowledge tree (spaces, topics, pages). Documents come first because people know their documents before they know the knowledge built from them. The Documents tree also holds chats and sheets, but Documents is the word people use for their material.
 - **Centre:** the document. A source opens in its Original view: rendered from its blocks without a model, it keeps the headings, paragraphs, lists and tables of the source. It is close to the source app's page but not a copy of it, and a block that cannot be rendered, such as a flowchart, shows a placeholder that opens the source. The Annotated view adds marks: a dotted underline on passages that became knowledge, and the Outdated and Disputed marks. The Knowledge view lists what was built from the document. A knowledge page cites its sources inline.
 - **Right panel:** What this says, Comments, Sources, Related, History. Selecting a passage in the Annotated view opens What this says; clicking a citation opens the source beside the page.
 - **Selection menu:** Comment, Highlight, This is outdated, Propose a correction, Ask about this.
@@ -86,7 +86,7 @@ The drawn screens are in [screens](screens/README.md), a snapshot of the design 
 | Documents | The Documents tree with each folder's governance level, which the space owner can change | Space owners |
 | Publish to a space | The items to publish, the target space and who can read it (set by its owner), one freshness question per source, checks, the "Some readers can't open the original" warning, approver and request state | Members publishing from My space |
 | Admin: spaces and publishing | Spaces with who can read them, sensitivity label and owner; the publish queue; "Source permissions tightened" todos; usage per member | Super admin |
-| Admin: connections | Company connections to source apps; the consent screen for connecting a personal account | Super admin, members |
+| Source connections, Apps with access | The company's and members' connections to source apps, and what keeps each source fresh; the apps and agents that use knowledge, with the consent screen an app shows first | Super admin, members |
 | Space settings | Owner, who can read it, default governance level, content language | Space owner; the super admin creates spaces and names their owners |
 | Phone | Reading, joint approval and the inbox | Everyone |
 
@@ -152,7 +152,8 @@ The Chinese terms are adopted. The Japanese terms are proposed and wait for the 
 | Company | 企业 | 企業 | Never "tenant", "workspace" or "organisation" in English; Chinese says 企业, as Feishu and DingTalk do, never 租户 |
 | Space, My space | 空间, 我的空间 | スペース, マイスペース | My space is private to the member |
 | Member | 成员 | メンバー | Never "user" or "account" |
-| Company connection, Personal connection | 企业连接, 个人连接 | 企業の接続, 個人の接続 | Never "credential" or "token" |
+| Source connection: company, personal | 来源连接：企业、个人 | ソース接続：企業、個人 | Where knowledge comes from. "Connection" alone always means a source connection. Never "credential" or "token" |
+| Apps with access | 使用知识的应用 | アクセスを許可したアプリ | Apps and agents that use knowledge, such as Claude, Cursor, the CLI and access tokens. Never "connected apps" |
 | Source, Passage, Statement | 来源, 段落, 陈述 | ソース, 段落, 記述 | |
 | Topic, Knowledge page, Procedure, Card | 主题, 知识页, 流程, 卡片 | トピック, ナレッジページ, 手順, カード | |
 | Knowledge tree, Documents tree | 知识树, 文档树 | ナレッジツリー, ドキュメントツリー | The Documents tree also holds chats and sheets |
@@ -192,6 +193,7 @@ Direction from the product owner on 2026-10-27:
 
 - Concrete before abstract (principle 1). After importing, people first see their documents in their original form, and knowledge appears on top of them step by step, rather than starting from knowledge cards. The knowledge-first path stays for people who already know what they want. The canvas shows it in E-doc and E-doc-layers.
 - The Sources tree is called Documents (文档, ドキュメント), the word people use for their material, although it also holds chats and sheets. A source is still a source wherever a page cites it.
+- Connections that bring knowledge in are Source connections (来源连接, ソース接続), so people can tell them from the apps that use knowledge, which are Apps with access (使用知识的应用, アクセスを許可したアプリ; proposed) and are never called connected apps. Verified domains is not a separate admin page: the email domain sits in Members, under who can join automatically, and the company's own Feishu organization sits beside Source connections. Neither blocks a personal connection.
 
 ## Still open
 
