@@ -205,6 +205,19 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       expect(await store.getClaims([lonely.id, invented.id])).toEqual([]);
     });
 
+    test("evidence named twice in one write is kept once, the last", async ({ store, kb }) => {
+      // A model may quote one span twice for one claim; evidence is one row per claim, span and role.
+      const [, spans] = await seed(store, kb);
+      const [claim, [first]] = kb.claim("The tier-1 city hotel cap is 600 yuan a night", spans[0], {
+        quote: "tier-1 cities at most 600 yuan a night",
+      });
+      const [, [second]] = kb.claim("The same cap", spans[0], { quote: "600 yuan a night" });
+      if (!first || !second) throw new Error("no evidence");
+      const again = { ...second, claim_id: claim.id };
+      await store.transaction((tx) => tx.upsertClaims([claim], [first, again]));
+      expect(await store.evidenceOf([claim.id])).toEqual([again]);
+    });
+
     test("contradicting evidence alone does not support a claim", async ({ store, kb }) => {
       const [, spans] = await seed(store, kb);
       const [claim, [ev]] = kb.claim("Tier-1 cities: 700 yuan a night", spans[0], {

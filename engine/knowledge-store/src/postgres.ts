@@ -42,6 +42,15 @@ export function searchText(c: Chunk): string {
   return [c.contextual_header, (c.heading_path ?? []).join(" / "), c.text].filter(Boolean).join("\n");
 }
 
+/**
+ * The last row of each key. One INSERT ... ON CONFLICT DO UPDATE cannot update a row twice, and
+ * a batch may name one twice (a model quoting a span twice for one claim); MemoryStore keeps
+ * the last, so this store does too.
+ */
+function lastOf<T>(rows: readonly T[], keyOf: (row: T) => string): T[] {
+  return [...new Map(rows.map((r) => [keyOf(r), r])).values()];
+}
+
 export function vectorLiteral(v: readonly number[]): string {
   return `[${v.join(",")}]`;
 }
@@ -193,7 +202,7 @@ export class PgTx implements StoreTx {
     ]);
     rules.checkChunks(chunks, new Set(found.map((r) => r.id)), embeddings, options.model);
     if (chunks.length) {
-      const rows = chunks.map((c) => ({
+      const rows = lastOf(chunks, (c) => c.id).map((c) => ({
         id: c.id,
         tenant_id: c.tenant_id,
         source_version_id: c.source_version_id,
@@ -296,11 +305,11 @@ export class PgTx implements StoreTx {
         `INSERT INTO kb.claim_derivations (claim_id, from_claim_ids, method)
          SELECT * FROM jsonb_to_recordset($1::jsonb) AS r(claim_id text, from_claim_ids text[], method text)
          ON CONFLICT (claim_id) DO UPDATE SET from_claim_ids = excluded.from_claim_ids, method = excluded.method`,
-        [JSON.stringify(derivations)],
+        [JSON.stringify(lastOf(derivations, (d) => d.claim_id))],
       );
     }
     if (evidence.length) {
-      const rows = evidence.map((e) => ({
+      const rows = lastOf(evidence, (e) => `${e.claim_id}\x1f${e.span_id}\x1f${e.role}`).map((e) => ({
         claim_id: e.claim_id,
         span_id: e.span_id,
         source_version_id: e.source_version_id,
@@ -406,7 +415,7 @@ export class PgTx implements StoreTx {
          SET space_id = EXCLUDED.space_id, parent_key = EXCLUDED.parent_key, doc = EXCLUDED.doc`,
       [
         JSON.stringify(
-          nodes.map((n) => ({
+          lastOf(nodes, (n) => `${n.tenant_id}\x1f${n.key}`).map((n) => ({
             tenant_id: n.tenant_id,
             key: n.key,
             space_id: n.space_id,
@@ -442,7 +451,7 @@ export class PgTx implements StoreTx {
        ON CONFLICT (claim_id) DO UPDATE SET taxonomy_key = EXCLUDED.taxonomy_key, doc = EXCLUDED.doc`,
       [
         JSON.stringify(
-          placements.map((p) => ({
+          lastOf(placements, (p) => p.claim_id).map((p) => ({
             claim_id: p.claim_id,
             tenant_id: p.tenant_id,
             taxonomy_key: p.taxonomy_key,

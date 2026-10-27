@@ -6,6 +6,7 @@
  * inspiration-bench synthesize <dir> --documents <n> [--seed <n>]
  * inspiration-bench replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
  * inspiration-bench ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]
+ * inspiration-bench cache export|import <file> [--stack | --valkey <url>] [--gateway <file>]
  *
  * ingest syncs and normalizes a corpus (see examples/corpus) and prints the report. Without
  * --stack or --database everything stays in memory, which suits the demo corpus; scale runs
@@ -39,6 +40,11 @@
  * replay writes the versions history.yaml lists into a working copy of the corpus one at a
  * time, each on its own day, ingests after each and prints what governance led with, checked
  * against timeline.yaml when there is one (see history.ts and examples/gitlab-expenses).
+ *
+ * cache export writes every model reply in the gateway's Valkey response cache to a JSON lines
+ * file; cache import puts them back, for the TTL that --gateway's config gives (30 days
+ * without one). A run on real models exports its replies when it ends, and the next run,
+ * in a fresh container too, imports them first (see replies.ts and apps/bench/runs).
  */
 
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
@@ -58,6 +64,7 @@ import { daysSummary, ingest, plantedDuplicates, summary } from "./ingest.ts";
 import { onUse, onUseSummary } from "./onuse.ts";
 import { loadKeys, loadQuestions, questionLines, questionsReport, sampleQuestions } from "./questions.ts";
 import { readingLines, readingReport } from "./reading.ts";
+import { exportReplies, importReplies } from "./replies.ts";
 import { edit, synthesize } from "./synthesize.ts";
 
 const USAGE = [
@@ -67,6 +74,7 @@ const USAGE = [
   "       inspiration-bench synthesize <dir> --documents <n> [--seed <n>]",
   "       inspiration-bench replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
   "       inspiration-bench ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]",
+  "       inspiration-bench cache export|import <file> [--stack | --valkey <url>] [--gateway <file>]",
 ].join("\n");
 
 async function main(argv: string[]): Promise<number> {
@@ -97,6 +105,25 @@ async function main(argv: string[]): Promise<number> {
     console.log(
       `${made.documents} documents, ${made.statements} fact statements, ${made.duplicates.length} planted duplicates in ${dir}`,
     );
+    return 0;
+  }
+  if (command === "cache" && (dir === "export" || dir === "import") && rest.length === 1) {
+    const file = rest[0] as string;
+    const url = values.valkey ?? (values.stack ? loadSettings().valkeyUrl : undefined);
+    if (!url) {
+      console.error("cache export and import need --valkey or --stack");
+      return 2;
+    }
+    const cache = ValkeyCache.fromUrl(url);
+    try {
+      if (dir === "export") console.log(`${await exportReplies(cache, file)} replies written to ${file}`);
+      else {
+        const ttl = values.gateway ? loadGatewayConfig(values.gateway).cache.ttl_s : 30 * 24 * 3600;
+        console.log(`${await importReplies(cache, file, ttl)} replies read from ${file}`);
+      }
+    } finally {
+      await cache.close();
+    }
     return 0;
   }
   const question = rest.join(" ").trim();

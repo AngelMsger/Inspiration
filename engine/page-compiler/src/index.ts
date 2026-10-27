@@ -36,7 +36,8 @@
  *   exists. The moves that gain least wait for a later run.
  * - New topics are named by the model, on page-compiler.name_topics, 20 per call, from the
  *   bottom up: subtopics, then topics, then areas, so a topic with topics below it is named
- *   after them. A topic the model leaves out takes its commonest heading.
+ *   after them. A topic the model leaves out, or names at more than 80 characters, takes its
+ *   commonest heading; the other names of the call stand.
  * - Topics written to the knowledge store are proposed until an owner confirms them, and
  *   retired when they have no statements left.
  * - A topic an owner confirmed, or one that holds a confirmed placement, is never dissolved

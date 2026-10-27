@@ -9,6 +9,13 @@ export const NAME_PROMPT_VERSION = "name_topics@2";
 /** Topics named per call. */
 export const NAMES_PER_CALL = 20;
 
+/**
+ * The longest title and summary kept, in characters: eight words of English fit. They are not
+ * in the schema, because one long title would then throw away every name of its call.
+ */
+export const TITLE_MAX = 80;
+export const SUMMARY_MAX = 200;
+
 export interface TopicInput {
   /** A reference local to the call ("t1"). */
   ref: string;
@@ -51,8 +58,8 @@ export const NAME_SCHEMA: Record<string, unknown> = {
         additionalProperties: false,
         properties: {
           ref: { type: "string" },
-          title: { type: "string", minLength: 1, maxLength: 40 },
-          summary: { type: "string", maxLength: 200 },
+          title: { type: "string", minLength: 1 },
+          summary: { type: "string" },
         },
       },
     },

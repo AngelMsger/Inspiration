@@ -1,13 +1,16 @@
 /**
  * The model gateway: the only way any component calls a model.
  *
- * For every request it checks the budget, counting what calls still in flight in this process
- * hold against it (their input and output limit at the first candidate's price), picks
- * candidate models that serve the operation and tier and are cleared for the request's
- * sensitivity label, tries them in order (route preferences first, falling back on retryable
- * errors), validates structured output (one corrective retry), caches deterministic
- * completions (and, when the config says, embeddings per text and rerank scores per
- * document), and meters every call, including failures.
+ * For every request it checks the budget, picks candidate models that serve the operation and
+ * tier and are cleared for the request's sensitivity label, tries them in order (route
+ * preferences first, falling back on retryable errors), validates structured output (one
+ * corrective retry), caches deterministic completions (and, when the config says, embeddings
+ * per text and rerank scores per document), and meters every call, including failures.
+ *
+ * A budget is a soft stop. A call is refused once the period's spend, with what calls still in
+ * flight in this process hold (their input and output limit at the first candidate's price),
+ * reaches the limit. A call let in below it can cost more than it held, through a schema retry
+ * or a dearer fallback, and calls in other processes count once they are metered.
  */
 
 import { createHash } from "node:crypto";
@@ -405,6 +408,8 @@ export class Gateway implements ModelGateway {
       req.response_schema ?? null,
       req.max_output_tokens ?? null,
       req.stop ?? null,
+      // Only when set, so models without it keep the keys they had.
+      ...(candidate.model.request ? [candidate.model.request] : []),
     ]);
     return createHash("sha256").update(material).digest("hex");
   }
@@ -426,6 +431,7 @@ export class Gateway implements ModelGateway {
       if (maxOutput !== undefined) params.maxOutputTokens = maxOutput;
       if (req.temperature !== undefined) params.temperature = req.temperature;
       if (req.stop) params.stop = req.stop;
+      if (candidate.model.request) params.extra = candidate.model.request;
       if (req.response_schema) {
         if (candidate.model.json_schema) params.responseSchema = req.response_schema;
         else {

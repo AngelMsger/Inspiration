@@ -146,9 +146,11 @@ takes 0.43. That model reads 48 million input tokens, all but 0.4 million served
 prefix cache, because the corpus comes before each question. `--questions 30` asks a spread
 of 30 and estimates 0.66 USD. Output lengths are the stand-ins', and embeddings and reranking
 stay stand-ins. The real run keeps every reply in Valkey for 30 days, so running again on
-unchanged documents and prompts pays only for what changed. The config's budget stops all
-the calls together at 5 USD a day; on a database (`--stack`) it counts the day's earlier
-runs too.
+unchanged documents and prompts pays only for what changed. The config's budget is a soft stop
+for all the calls together at 5 USD a day: it refuses calls once the day's spend, with what
+calls in flight hold, reaches the limit, but a call let in under it can cost more than it held,
+so a day may exceed it by an amount only the balance bounds. On a database (`--stack`) it
+counts the day's earlier runs too. The hard cap is the prepaid balance.
 
 The design's pass bars apply to real models. What a real run needs is in
 [docs/design/validation.md](../../docs/design/validation.md).
