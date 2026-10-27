@@ -6,7 +6,7 @@ earlier runs found and pays only for what has changed since. A Chinese copy is i
 
 | Run | Model | What it answered | Cost |
 | --- | --- | --- | --- |
-| [2026-10-27, DeepSeek first run](2026-10-27-deepseek.md) | deepseek-flash, thinking off | Reading 69% recall, 50% precision; prefix cache 99.9%; 10 questions | CNY 2.74 (US$0.39) |
+| [2026-10-27, DeepSeek first run](2026-10-27-deepseek.md) | deepseek-flash, thinking off | Reading: recall 77%, precision 53% (86% without one slot). 150 questions: engine 71, plain retrieval 60, reading everything 140; the engine is limited by stand-in search. Replay: 0.35 asks per changed fact | CNY 6.61 (US$0.93) |
 
 ## What a log holds
 
