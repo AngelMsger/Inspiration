@@ -18,3 +18,9 @@ fingerprint:
   reformat: ["、", "，"]
   edit: ["第3条", "第三条"]
   other: "会議室の予約は前日までに総務システムで申請し、参加人数と必要な機材を記入すること。"
+
+# A sentence the HTML source wraps over lines: a line break between two Japanese characters
+# goes away, any other is a space.
+wrapped:
+  html: "<p>コンテナが10分間実行されると、\nkubeletはコンテナの再起動\nバックオフタイマーをリセットします。</p>"
+  text: "コンテナが10分間実行されると、 kubeletはコンテナの再起動バックオフタイマーをリセットします。"

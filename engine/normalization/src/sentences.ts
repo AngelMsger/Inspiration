@@ -48,7 +48,10 @@ function endsSentence(text: string, i: number): boolean {
   return j === text.length || !/[a-z]/.test(text[j] as string);
 }
 
-/** End offsets of sentences: after a terminator and its closing quotes, or at a line break. */
+/**
+ * End offsets of sentences: after a terminator and its closing quotes, unless a comma follows
+ * them, or at a line break.
+ */
 function boundaries(text: string): number[] {
   const out: number[] = [];
   for (let i = 0; i < text.length; i++) {
@@ -57,7 +60,8 @@ function boundaries(text: string): number[] {
     if (terminal) {
       let end = i + 1;
       while (end < text.length && (TERMINATORS.has(text[end] as string) || CLOSERS.has(text[end] as string))) end++;
-      out.push(end);
+      // A comma after it continues the sentence: "(10s, 20s, 40s, …), that is capped at 300s".
+      if (!COMMAS.has(text[end] as string)) out.push(end);
       i = end - 1;
     } else if (c === "\n") out.push(i + 1);
   }
