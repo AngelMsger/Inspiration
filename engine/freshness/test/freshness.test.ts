@@ -237,6 +237,47 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect(again.reviews.map((r) => r.unit_ids)).toEqual([[jaAgain.version.id]]);
     });
 
+    test("a translation that arrives after its original's edit is behind all the same", async ({ world }) => {
+      const policy = await world.put({ path: "Travel policy.md", authority: 0.9, modified: "2025-01-01" }, [
+        { text: "The hotel cap is 500 yuan a night.", knowledge_class: "policy" },
+      ]);
+      const edited = await world.put(
+        { path: "Travel policy.md", authority: 0.9, modified: "2026-10-20" },
+        [{ text: "The hotel cap is 600 yuan a night.", knowledge_class: "policy" }],
+        { previous: policy },
+      );
+      const doc = (path: string, modified: string) => ({ path, modified, translation_of: "Travel policy.md" });
+      const zh = await world.put(doc("Travel policy.zh.md", "2025-01-01"), [{ text: "Hotel cap 500 a night." }]);
+      expect(zh.reviews).toEqual([
+        {
+          unit_ids: [zh.version.id],
+          kind: "evidence_changed",
+          due_at: "2026-10-23T09:00:00.000Z",
+          space_id: zh.version.space_id,
+          reason:
+            "Travel policy.zh translates Travel policy, which changed on 2026-10-20; it has not been translated again since.",
+          cause_ids: [edited.version.id],
+          dedupe_key: `freshness:evidence_changed:${zh.version.source_id}:Travel policy.zh.md`,
+        },
+      ]);
+      expect((await world.freshness.staleness(TENANT, [zh.version.id]))[0]).toMatchObject({
+        state: "at_risk",
+        upstream_component: 1,
+      });
+      // One translated after the edit, and one of an original never edited, are not behind.
+      expect((await world.put(doc("Travel policy.ja.md", "2026-10-21"), [{ text: "Hotel cap 600." }])).reviews).toEqual(
+        [],
+      );
+      await world.put({ path: "Leave policy.md", authority: 0.9, modified: "2026-10-20" }, [
+        { text: "Leave is twenty days a year.", knowledge_class: "policy" },
+      ]);
+      const leave = await world.put(
+        { path: "Leave policy.zh.md", modified: "2025-01-01", translation_of: "Leave policy.md" },
+        [{ text: "Twenty days." }],
+      );
+      expect(leave.reviews).toEqual([]);
+    });
+
     test("a review already due when its document arrives is marked as backlog", async ({ world }) => {
       world.setToday("2026-03-01");
       await world.put({ path: "Expenses FAQ.md", modified: "2025-01-01" }, [

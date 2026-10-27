@@ -220,13 +220,13 @@ export class Freshness {
         return;
       }
       if (gone) await tx.delete(DELETED, [key(tenantId, document)]);
+      const edited = change.previous_version_id !== undefined;
       const state = this.#stateOf(version, before);
       await tx.put(DOCUMENTS, [state]);
       await this.#schedule(tx, state);
 
       const now = this.clock();
       const duplicates = new Map((change.duplicates ?? []).map((d) => [documentOf(d), d.similarity]));
-      const edited = change.previous_version_id !== undefined;
       for (const c of copies) {
         const similarity = duplicates.get(c.other) ?? 0;
         if (!duplicates.has(c.other))
@@ -255,28 +255,38 @@ export class Freshness {
       if (rows.length) await tx.put(COPIES, rows);
 
       // A translation cannot be compared with its original's text: it is behind when the
-      // original changed later in its source than the translation last did.
+      // original's current version is an edit made later in its source than the translation
+      // last changed, whichever of the two freshness hears of first.
+      const behind = async (translation: DocumentState, of: DocumentState, cause: string) => {
+        if (translation.archived || translation.changed_on >= of.changed_on) return;
+        translation.behind = { document: of.document, title: of.title, since: dayOf(now) };
+        await tx.put(DOCUMENTS, [translation]);
+        const review: ReviewDue = {
+          unit_ids: [translation.source_version_id],
+          kind: "evidence_changed",
+          due_at: now.toISOString(),
+          space_id: translation.space_id,
+          reason: `${translation.title} translates ${of.title}, which changed on ${of.changed_on}; it has not been translated again since.`,
+          cause_ids: [cause],
+          dedupe_key: `${COMPONENT}:evidence_changed:${translation.document}`,
+        };
+        await tx.publish(this.#event(tenantId, translation.document, review, event));
+        reviews.push(review);
+      };
       const original = version.metadata?.translation_of;
-      if (original)
-        await tx.put(TRANSLATIONS, [{ tenant_id: tenantId, translation: document, original: documentOf(original) }]);
-      else await tx.delete(TRANSLATIONS, [key(tenantId, document)]);
+      if (original) {
+        const of = documentOf(original);
+        await tx.put(TRANSLATIONS, [{ tenant_id: tenantId, translation: document, original: of }]);
+        const known = await tx.get(DOCUMENTS, key(tenantId, of));
+        if (known && state.behind?.document !== of) {
+          const current = await this.store.getSourceVersion(known.source_version_id);
+          if (current?.previous_version_id) await behind(state, known, known.source_version_id);
+        }
+      } else await tx.delete(TRANSLATIONS, [key(tenantId, document)]);
       if (!edited) return;
       for (const t of await tx.find(TRANSLATIONS, { tenant_id: tenantId, original: document })) {
         const other = await tx.get(DOCUMENTS, key(tenantId, t.translation));
-        if (!other || other.archived || other.changed_on >= state.changed_on) continue;
-        other.behind = { document, title: state.title, since: dayOf(now) };
-        await tx.put(DOCUMENTS, [other]);
-        const review: ReviewDue = {
-          unit_ids: [other.source_version_id],
-          kind: "evidence_changed",
-          due_at: now.toISOString(),
-          space_id: other.space_id,
-          reason: `${other.title} translates ${state.title}, which changed on ${state.changed_on}; it has not been translated again since.`,
-          cause_ids: [version.id],
-          dedupe_key: `${COMPONENT}:evidence_changed:${other.document}`,
-        };
-        await tx.publish(this.#event(tenantId, other.document, review, event));
-        reviews.push(review);
+        if (other) await behind(other, state, version.id);
       }
     });
     this.#count(reviews);
