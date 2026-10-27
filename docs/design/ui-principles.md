@@ -69,7 +69,7 @@ The look is "ink and paper": a warm paper ground, serif type for reading, one in
 
 ## Key screens
 
-The drawn screens are in [screens](screens/README.md), a snapshot of the design canvas. The second version (row V2) is drawn from the [UI philosophy](ui-philosophy.md) and wins where the rows differ.
+The drawn screens are in [screens](screens/README.md), a snapshot of the design canvas. The second version (rows V2) is drawn from the [UI philosophy](ui-philosophy.md) and wins where the rows differ.
 
 | Screen | What it shows | For |
 | --- | --- | --- |
@@ -129,7 +129,7 @@ An owner's inbox holds a handful of cards a week. Todos for one owner about one 
 Inspiration is an international product. English, Chinese (Simplified) and Japanese are equal from the first release. The canvas tells its demo story in Chinese, but Chinese is one of three languages, not the default.
 
 - **The interface follows the person; content keeps its own language.** Each person picks an interface language in the account menu. It belongs to their account, so it stays the same in every company, and its first value comes from the browser at sign-up. A company has its own default language for messages it sends to many people. Sources stay in the language they were written in and are never translated silently.
-- **Each space has a content language.** The space owner sets it, and the assistant writes that space's knowledge pages in it. A Japanese member reading a Chinese space sees Japanese menus, buttons and statuses around Chinese pages.
+- **Each space has a content language.** The space owner sets it, and the assistant writes that space's knowledge pages in it. A Japanese member reading a Chinese space sees Japanese menus, buttons and statuses around Chinese pages, and can choose to read a page in Japanese: it is written from the same statements and labelled machine translated (see [Knowledge and language](knowledge-and-language.md)).
 - **Answers follow the asker.** The assistant answers in the asker's interface language and cites passages in their original language. The citation popover can show a translation on request, labelled as machine translation, with the original one click away.
 - **One glossary in three languages.** Every product term has an English, Chinese and Japanese form (see Glossary). Statuses, buttons and empty states are written from it, never translated ad hoc.
 - **Type per script.** Chinese and Japanese share many characters but draw some of them differently, so every block carries its language tag, and a Japanese passage quoted inside a Chinese page still renders with Japanese glyphs. Chinese and Japanese body text uses a line height of about 1.75 and no letter spacing, and Japanese follows its line-breaking rules: no line starts with closing punctuation or a small kana.
@@ -200,4 +200,4 @@ Direction from the product owner on 2026-10-27:
 
 - Review the Japanese terms in the glossary.
 - Confirm the translation rules: cited passages are translated only on request and labelled as machine translation, and knowledge pages stay in their space's content language for now.
-- Still to draw: Japanese versions of the key screens. Publish and conflict in compact mode are drawn (D-review and D-conflicts).
+- Still to draw: the other key screens in Japanese, after the Japanese terms are reviewed. V2-ja shows a knowledge page in Japanese.
