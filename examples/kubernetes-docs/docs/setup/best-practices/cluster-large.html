@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Considerations for large clusters</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Considerations for large clusters</h1><header class=article-meta></header><p>A cluster is a set of <a class=glossary-tooltip title='A node is a worker machine in Kubernetes.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/architecture/nodes/ target=_blank aria-label=nodes>nodes</a> (physical
+or virtual machines) running Kubernetes agents, managed by the
+<a class=glossary-tooltip title='The container orchestration layer that exposes the API and interfaces to define, deploy, and manage the lifecycle of containers.' data-bs-toggle=tooltip data-bs-placement=top href='/docs/reference/glossary/?all=true#term-control-plane' target=_blank aria-label='control plane'>control plane</a>.
+Kubernetes v1.37 supports clusters with up to 5,000 nodes. More specifically,
+Kubernetes is designed to accommodate configurations that meet <em>all</em> of the following criteria:</p><ul><li>No more than 110 pods per node</li><li>No more than 5,000 nodes</li><li>No more than 150,000 total pods</li><li>No more than 300,000 total containers</li></ul><p>You can scale your cluster by adding or removing nodes. The way you do this depends
+on how your cluster is deployed.</p><h2 id=quota-issues>Cloud provider resource quotas<a class=td-heading-self-link href=#quota-issues aria-label="Heading self-link"></a></h2><p>To avoid running into cloud provider quota issues, when creating a cluster with many nodes,
+consider:</p><ul><li>Requesting a quota increase for cloud resources such as:<ul><li>Computer instances</li><li>CPUs</li><li>Storage volumes</li><li>In-use IP addresses</li><li>Packet filtering rule sets</li><li>Number of load balancers</li><li>Network subnets</li><li>Log streams</li></ul></li><li>Gating the cluster scaling actions to bring up new nodes in batches, with a pause
+between batches, because some cloud providers rate limit the creation of new instances.</li></ul><h2 id=control-plane-components>Control plane components<a class=td-heading-self-link href=#control-plane-components aria-label="Heading self-link"></a></h2><p>For a large cluster, you need a control plane with sufficient compute and other
+resources.</p><p>Typically you would run one or two control plane instances per failure zone,
+scaling those instances vertically first and then scaling horizontally after reaching
+the point of falling returns to (vertical) scale.</p><p>You should run at least one instance per failure zone to provide fault-tolerance. Kubernetes
+nodes do not automatically steer traffic towards control-plane endpoints that are in the
+same failure zone; however, your cloud provider might have its own mechanisms to do this.</p><p>For example, using a managed load balancer, you configure the load balancer to send traffic
+that originates from the kubelet and Pods in failure zone <em>A</em>, and direct that traffic only
+to the control plane hosts that are also in zone <em>A</em>. If a single control-plane host or
+endpoint failure zone <em>A</em> goes offline, that means that all the control-plane traffic for
+nodes in zone <em>A</em> is now being sent between zones. Running multiple control plane hosts in
+each zone makes that outcome less likely.</p><h3 id=etcd-storage>etcd storage<a class=td-heading-self-link href=#etcd-storage aria-label="Heading self-link"></a></h3><p>To improve performance of large clusters, you can store Event objects in a separate
+dedicated etcd instance.</p><p>When creating a cluster, you can (using custom tooling):</p><ul><li>start and configure additional etcd instance</li><li>configure the <a class=glossary-tooltip title='Control plane component that serves the Kubernetes API.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/architecture/#kube-apiserver target=_blank aria-label='API server'>API server</a> to use it for storing events</li></ul><p>See <a href=/docs/tasks/administer-cluster/configure-upgrade-etcd/>Operating etcd clusters for Kubernetes</a> and
+<a href=/docs/setup/production-environment/tools/kubeadm/setup-ha-etcd-with-kubeadm/>Set up a High Availability etcd cluster with kubeadm</a>
+for details on configuring and managing etcd for a large cluster.</p><h2 id=addon-resources>Addon resources<a class=td-heading-self-link href=#addon-resources aria-label="Heading self-link"></a></h2><p>Kubernetes <a href=/docs/concepts/configuration/manage-resources-containers/>resource limits</a>
+help to minimize the impact of memory leaks and other ways that pods and containers can
+impact on other components. These resource limits apply to
+<a class=glossary-tooltip title='Resources that extend the functionality of Kubernetes.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/cluster-administration/addons/ target=_blank aria-label=addon>addon</a> resources just as they apply to application workloads.</p><p>For example, you can set CPU and memory limits for a logging component:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=w>  </span><span class=l>...</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>fluentd-cloud-logging</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>fluent/fluentd-kubernetes-daemonset:v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>limits</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>cpu</span><span class=p>:</span><span class=w> </span><span class=l>100m</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>memory</span><span class=p>:</span><span class=w> </span><span class=l>200Mi</span><span class=w>
+</span></span></span></code></pre></div><p>Addons' default limits are typically based on data collected from experience running
+each addon on small or medium Kubernetes clusters. When running on large
+clusters, addons often consume more of some resources than their default limits.
+If a large cluster is deployed without adjusting these values, the addon(s)
+may continuously get killed because they keep hitting the memory limit.
+Alternatively, the addon may run but with poor performance due to CPU time
+slice restrictions.</p><p>To avoid running into cluster addon resource issues, when creating a cluster with
+many nodes, consider the following:</p><ul><li>Some addons scale vertically - there is one replica of the addon for the cluster
+or serving a whole failure zone. For these addons, increase requests and limits
+as you scale out your cluster.</li><li>Many addons scale horizontally - you add capacity by running more pods - but with
+a very large cluster you may also need to raise CPU or memory limits slightly.
+The <a href=https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler#readme>Vertical Pod Autoscaler</a> can run in <em>recommender</em> mode to provide suggested
+figures for requests and limits.</li><li>Some addons run as one copy per node, controlled by a <a class=glossary-tooltip title='Ensures a copy of a Pod is running across a set of nodes in a cluster.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/workloads/controllers/daemonset target=_blank aria-label=DaemonSet>DaemonSet</a>: for example, a node-level log aggregator. Similar to
+the case with horizontally-scaled addons, you may also need to raise CPU or memory
+limits slightly.</li></ul><h2 id=prioritizing-cluster-essential-components>Prioritizing cluster-essential components<a class=td-heading-self-link href=#prioritizing-cluster-essential-components aria-label="Heading self-link"></a></h2><p>To ensure cluster-essential components (such as CoreDNS, metrics-server, and other critical add-ons) are scheduled ahead of other workloads and are not preempted by lower-priority pods, run them with a system <a href=/docs/concepts/scheduling-eviction/pod-priority-preemption/>PriorityClass</a>, such as <code>system-cluster-critical</code> or <code>system-node-critical</code>.</p><h2 id=what-s-next>What's next<a class=td-heading-self-link href=#what-s-next aria-label="Heading self-link"></a></h2><ul><li><p><code>VerticalPodAutoscaler</code> is a custom resource that you can deploy into your cluster
+to help you manage resource requests and limits for pods.<br>Learn more about <a href=https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler#readme>Vertical Pod Autoscaler</a>
+and how you can use it to scale cluster
+components, including cluster-critical addons.</p></li><li><p>Read about <a href=/docs/concepts/cluster-administration/node-autoscaling/>Node autoscaling</a></p></li><li><p>The <a href=https://github.com/kubernetes/autoscaler/tree/master/addon-resizer#readme>addon resizer</a>
+helps you in resizing the addons automatically as your cluster's scale changes.</p></li></ul></div>
+</body>
+</html>

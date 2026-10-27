@@ -24,7 +24,7 @@ Every unit of knowledge has an identity that does not depend on language: a stat
 | Answer | The statements and passages it uses | The asker's language; quotes stay in their original |
 | Todo, note, event | Codes and parameters | Each recipient's language (as designed for the business layer) |
 
-Built today: the language of a source version and of a claim is a recorded field, predicate keys are language-neutral, and values are typed and normalized. A translation its source states (in a folder, "leave-policy.zh.md" beside "leave-policy.md") is linked to its original, and governance counts the two as one source ([control corpus](../../examples/control/README.md), translated-policy). Not built: qualifier keys (the demo catalogue uses Chinese words as keys), per-language aliases beyond Chinese, entity resolution, and everything below.
+Built today: the language of a source version and of a claim is a recorded field, predicate keys are language-neutral, and values are typed and normalized. A translation its source states (in a folder, "leave-policy.zh.md" beside "leave-policy.md") is linked to its original, and governance counts the two as one source ([control corpus](../../examples/control/README.md), translated-policy). Where a translation states another value than its original, the original holds without a person, and an edit of the original gives its translations a review until they are translated again ([Kubernetes pages](../../examples/kubernetes-docs/README.md) in English, Chinese and Japanese). Not built: qualifier keys (the demo catalogue uses Chinese words as keys), per-language aliases beyond Chinese, entity resolution, and everything below.
 
 ## Through the pipeline
 
@@ -32,8 +32,8 @@ Built today: the language of a source version and of a claim is a recorded field
 - **Extraction** fills a statement's meaning in language-neutral form: predicate and qualifier keys from the catalogue, entity IDs after resolution, typed values. The statement text stays in the source language, and the prompt states that language.
 - **Statements merge across languages.** Candidates come from multilingual embeddings and from sharing a fact slot. They merge only when a model check confirms the same meaning, conditions included, never on similarity alone. The merged statement keeps every claim's evidence, each quote in its own language. This is the claim merge into canonical statements that governance already plans, applied across languages.
 - **Entity resolution works across languages and scripts:** external keys first, then names and aliases per language, transliteration and the catalogue's lists, then a model check.
-- **Governance compares meaning.** Support counts independent sources, and a translation counts with its original, never as a second source (built for links the source states). A disagreement between a document and its own translation is not a conflict between sources: the original holds, and the translation gets a "translation out of date" review attached to the original's change, the way a copy left behind by an edit gets one today. Two independent documents in different languages that state different values are a real conflict; the reviewer sees each value's quotes in their language, with a labelled translation.
-- **Freshness** gives a translation the review that copies already get when their original changes (built for copies).
+- **Governance compares meaning.** Support counts independent sources, and a translation counts with its original, never as a second source (built for links the source states). A disagreement between a document and its own translation is not a conflict between sources: the original holds, and the translation gets a "translation out of date" review attached to the original's change, the way a copy left behind by an edit gets one today (built for links the source states). Two independent documents in different languages that state different values are a real conflict; the reviewer sees each value's quotes in their language, with a labelled translation.
+- **Freshness** gives a translation the review that copies already get when their original changes (built for copies, and for translations the source states).
 - **Topics** cluster with multilingual embeddings, so one topic gathers statements from every language. A topic's title and summary are written per language.
 - **The page compiler** builds a page's structure once and renders its prose per language. The canonical rendering is the space's content language. A reader can ask for a page in their own language: it is compiled in that language from the same statements, not translated from the page's text, and it is labelled machine-written. Quotes stay in their original language. A person's edit is written in one language; other renderings carry it as a labelled translation.
 - **Retrieval** uses multilingual embeddings and a full-text index per language (designed). A statement found in several languages comes back as one result, with its other languages listed.
@@ -51,6 +51,8 @@ The work is done when these cases pass on the in-memory doubles and the stack, w
 | The same procedure step appears in Chinese and English as plain statements without a slot | One statement with two pieces of evidence; search returns one result |
 | Two statements in different languages look alike but differ in a condition | Not merged: the model check rejects it |
 | A Chinese reader asks for a page of an English space in Chinese | The page is compiled in Chinese from the same statements and labelled machine-written; quotes stay in English |
+
+The first two cases pass today for translations the source states, in the control and Kubernetes corpora.
 
 ## Contract changes
 

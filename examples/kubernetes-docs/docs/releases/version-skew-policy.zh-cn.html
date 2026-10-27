@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>版本偏差策略</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>版本偏差策略</h1><div class=lead>Kubernetes 各个组件之间所支持的最大版本偏差。</div><header class=article-meta></header><p>本文档描述了 Kubernetes 各个组件之间所支持的最大版本偏差。
+特定的集群部署工具可能会对版本偏差添加额外的限制。</p><h2 id=supported-versions>支持的版本 <a class=td-heading-self-link href=#supported-versions aria-label="Heading self-link"></a></h2><p>Kubernetes 版本以 <strong>x.y.z</strong> 表示，其中 <strong>x</strong> 是主要版本，
+<strong>y</strong> 是次要版本，<strong>z</strong> 是补丁版本，遵循<a href=https://semver.org/>语义版本控制</a>术语。
+更多信息请参见
+<a href=https://git.k8s.io/sig-release/release-engineering/versioning.md#kubernetes-release-versioning>Kubernetes 版本发布控制</a>。</p><p>Kubernetes 项目维护最近的三个次要版本（1.37、1.36、1.35）的发布分支。
+Kubernetes 1.19 和更新的版本获得<a href=/zh-cn/releases/patch-releases/#support-period>大约 1 年的补丁支持</a>。
+Kubernetes 1.18 及更早的版本获得了大约 9 个月的补丁支持。</p><p>适当的修复，包括安全问题修复，可能会被后沿三个发布分支，具体取决于问题的严重性和可行性。
+补丁版本按<a href=/zh-cn/releases/patch-releases/#cadence>常规节奏</a>从这些分支中删除，并在需要时增加额外的紧急版本。</p><p><a href=/zh-cn/releases/release-managers/>发布管理员</a>小组拥有这件事的决定权。</p><p>有关更多信息，请参阅 Kubernetes <a href=/zh-cn/releases/patch-releases/>补丁发布</a>页面。</p><h2 id=supported-version-skew>支持的版本偏差 <a class=td-heading-self-link href=#supported-version-skew aria-label="Heading self-link"></a></h2><h3 id=kube-apiserver>kube-apiserver <a class=td-heading-self-link href=#kube-apiserver aria-label="Heading self-link"></a></h3><p>在<a href=/zh-cn/docs/setup/production-environment/tools/kubeadm/high-availability/>高可用性（HA）集群</a>中，
+最新版和最老版的 <code>kube-apiserver</code> 实例版本偏差最多为一个次要版本。</p><p>例如：</p><ul><li>最新的 <code>kube-apiserver</code> 实例处于 <strong>1.37</strong> 版本</li><li>其他 <code>kube-apiserver</code> 实例支持 <strong>1.37</strong> 和 <strong>1.36</strong> 版本</li></ul><h3 id=kubelet>kubelet <a class=td-heading-self-link href=#kubelet aria-label="Heading self-link"></a></h3><ul><li><code>kubelet</code> 版本不能比 <code>kube-apiserver</code> 版本新。</li><li><code>kubelet</code> 可以比 <code>kube-apiserver</code> 低三个次要版本（如果 <code>kubelet</code> &lt; 1.25，则只能比 <code>kube-apiserver</code> 低两个次要版本）。</li></ul><p>例如：</p><ul><li><code>kube-apiserver</code> 处于 <strong>1.37</strong> 版本</li><li><code>kubelet</code> 支持 <strong>1.37</strong>、<strong>1.36</strong>、<strong>1.35</strong> 和 <strong>1.34</strong> 版本</li></ul><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>如果 HA 集群中的 <code>kube-apiserver</code> 实例之间存在版本偏差，这会缩小允许的 <code>kubelet</code> 版本范围。</p></div><p>例如：</p><ul><li><code>kube-apiserver</code> 实例处于 <strong>1.37</strong> 和 <strong>1.36</strong> 版本</li><li><code>kubelet</code> 支持 <strong>1.36</strong>、<strong>1.35</strong> 和 <strong>1.34</strong> 版本，
+（不支持 <strong>1.37</strong> 版本，因为这将比
+<code>kube-apiserver</code> <strong>1.36</strong> 版本的实例新）</li></ul><h3 id=kube-proxy>kube-proxy <a class=td-heading-self-link href=#kube-proxy aria-label="Heading self-link"></a></h3><ul><li><code>kube-proxy</code> 不能比 <code>kube-apiserver</code> 新。</li><li><code>kube-proxy</code> 最多可以比 <code>kube-apiserver</code> 旧三个小版本（<code>kube-proxy</code> &lt; 1.25 最多只能比 <code>kube-apiserver</code> 旧两个小版本）。</li><li><code>kube-proxy</code> 可能比它旁边运行的 <code>kubelet</code> 实例旧或新最多三个次要版本（<code>kube-proxy</code> &lt; 1.25 最多只能是比它并行运行的 <code>kubelet</code> 实例旧或新的两个次要版本）。</li></ul><p>例如：</p><ul><li><code>kube-apiserver</code> 的版本是 <strong>1.37</strong></li><li><code>kube-proxy</code> 支持的版本是 <strong>1.37</strong>、
+<strong>1.36</strong> 、<strong>1.35</strong> 和
+<strong>1.34</strong></li></ul><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>如果在 HA 集群中的 <code>kube-apiserver</code> 实例之间存在版本偏差，
+所允许的 <code>kube-proxy</code> 版本范围会被缩小。</p></div><p>例如：</p><ul><li><code>kube-apiserver</code> 实例的版本是 <strong>1.37</strong> 和 <strong>1.36</strong></li><li><code>kube-proxy</code> 版本为 <strong>1.36</strong>、
+<strong>1.35</strong> 和 1.34。（<strong>1.37</strong> 将不被支持，
+因为该版本将比 <strong>1.36</strong> 的 kube-apiserver 实例更新）</li></ul><h3 id=kube-controller-manager-kube-scheduler-and-cloud-controller-manager>kube-controller-manager、kube-scheduler 和 cloud-controller-manager <a class=td-heading-self-link href=#kube-controller-manager-kube-scheduler-and-cloud-controller-manager aria-label="Heading self-link"></a></h3><p><code>kube-controller-manager</code>、<code>kube-scheduler</code> 和 <code>cloud-controller-manager</code>
+不能比与它们通信的 <code>kube-apiserver</code> 实例新。
+它们应该与 <code>kube-apiserver</code> 次要版本相匹配，但可能最多旧一个次要版本（允许实时升级）。</p><p>例如：</p><ul><li><code>kube-apiserver</code> 处于 <strong>1.37</strong> 版本</li><li><code>kube-controller-manager</code>、<code>kube-scheduler</code> 和 <code>cloud-controller-manager</code>
+支持 <strong>1.37</strong> 和 <strong>1.36</strong> 版本</li></ul><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>如果 HA 集群中的 <code>kube-apiserver</code> 实例之间存在版本偏差，
+并且这些组件可以与集群中的任何 <code>kube-apiserver</code>
+实例通信（例如，通过负载均衡器），这会缩小这些组件所允许的版本范围。</p></div><p>例如：</p><ul><li><code>kube-apiserver</code> 实例处于
+<strong>1.37</strong> 和 <strong>1.36</strong> 版本</li><li><code>kube-controller-manager</code>、<code>kube-scheduler</code> 和 <code>cloud-controller-manager</code>
+与可以路由到任何 <code>kube-apiserver</code> 实例的负载均衡器通信</li><li><code>kube-controller-manager</code>、<code>kube-scheduler</code> 和 <code>cloud-controller-manager</code>
+支持 <strong>1.36</strong> 版本（不支持 <strong>1.37</strong>
+版本，因为它比 <strong>1.36</strong> 版本的 <code>kube-apiserver</code> 实例新）</li></ul><h3 id=kubectl>kubectl <a class=td-heading-self-link href=#kubectl aria-label="Heading self-link"></a></h3><p><code>kubectl</code> 在 <code>kube-apiserver</code> 的一个次要版本（较旧或较新）中支持。</p><p>例如：</p><ul><li><code>kube-apiserver</code> 处于 <strong>1.37</strong> 版本</li><li><code>kubectl</code> 支持 <strong>1.38</strong>、<strong>1.37</strong>
+和 <strong>1.36</strong> 版本</li></ul><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>如果 HA 集群中的 <code>kube-apiserver</code> 实例之间存在版本偏差，这会缩小支持的 <code>kubectl</code> 版本范围。</p></div><p>例如：</p><ul><li><code>kube-apiserver</code> 实例处于
+<strong>1.37</strong> 和 <strong>1.36</strong> 版本</li><li><code>kubectl</code> 支持 <strong>1.37</strong> 和 <strong>1.36</strong>
+版本（其他版本将与 <code>kube-apiserver</code> 组件之一相差不止一个的次要版本）</li></ul><h2 id=supported-component-upgrade-order>支持的组件升级顺序 <a class=td-heading-self-link href=#supported-component-upgrade-order aria-label="Heading self-link"></a></h2><p>组件之间支持的版本偏差会影响必须升级组件的顺序。
+本节介绍了将现有集群从 <strong>1.36</strong>
+版本转换到 <strong>1.37</strong> 版本时必须升级组件的顺序。</p><p>作为一种可选方案，在准备升级时，Kubernetes 项目建议你执行以下操作，
+有利于升级时包含尽可能多的回归和错误修复：</p><ul><li>确保组件是当前次要版本的最新补丁版本。</li><li>将组件升级到目标次要版本的最新补丁版本。</li></ul><p>例如，如果你正在运行版本 1.36，
+请确保你使用的是最新的补丁版本。
+然后，升级到 1.37 的最新补丁版本。</p><h3 id=kube-apiserver-1>kube-apiserver <a class=td-heading-self-link href=#kube-apiserver-1 aria-label="Heading self-link"></a></h3><p>先决条件：</p><ul><li>在单实例集群中，现有的 <code>kube-apiserver</code> 实例处于 <strong>1.36</strong> 版本</li><li>在 HA 集群中，所有 <code>kube-apiserver</code> 实例都处于
+<strong>1.36</strong> 或 <strong>1.37</strong> 版本
+（这确保了最老和最新的 <code>kube-apiserver</code> 实例之间的 1 个次要版本的最大偏差）</li><li>与此服务器通信的 <code>kube-controller-manager</code>、<code>kube-scheduler</code> 和 <code>cloud-controller-manager</code>
+实例的版本为 <strong>1.36</strong>
+（这确保它们是不比现有 API 服务器版本还要新，并且在新 API 服务器版本的 1 个次要版本内）</li><li>所有节点上的 <code>kubelet</code> 实例都是
+<strong>1.36</strong> 或 <strong>1.35</strong>
+版本（这确保它们不比现有 API 服务器版本新，并且在新 API 服务器版本的 2 个次要版本内）</li><li>已注册的 admission webhook 能够处理新的 <code>kube-apiserver</code> 实例将发送给他们的数据：<ul><li><code>ValidatingWebhookConfiguration</code> 和 <code>MutatingWebhookConfiguration</code>
+对象已更新以包含 <strong>1.37</strong> 中添加的任何新版本的 REST 资源
+（或使用 v1.15+ 中可用的 <a href=/zh-cn/docs/reference/access-authn-authz/extensible-admission-controllers/#matching-requests-matchpolicy><code>matchPolicy: Equivalent</code> 选项</a>）</li><li>webhook 能够处理将发送给它们的任何新版本的 REST 资源，
+以及添加到 <strong>1.37</strong> 中现有版本的任何新字段</li></ul></li></ul><p>将 <code>kube-apiserver</code> 升级到 <strong>1.37</strong> 版本</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p><a href=/zh-cn/docs/reference/using-api/deprecation-policy/>API 弃用</a>和
+<a href=https://github.com/kubernetes/community/blob/main/contributors/devel/sig-architecture/api_changes.md>API 变更指南</a>
+的项目策略要求 <code>kube-apiserver</code> 在升级时不跳过次要版本，即使在单实例集群中也是如此。</p></div><h3 id=kube-controller-manager-kube-scheduler-and-cloud-controller-manager-1>kube-controller-manager、kube-scheduler 和 cloud-controller-manager <a class=td-heading-self-link href=#kube-controller-manager-kube-scheduler-and-cloud-controller-manager-1 aria-label="Heading self-link"></a></h3><p>先决条件：</p><ul><li>与这些组件通信的 <code>kube-apiserver</code> 实例处于 <strong>1.37</strong> 版本
+（在 HA 集群中，这些控制平面组件可以与集群中的任何 <code>kube-apiserver</code> 实例通信，
+所有 <code>kube-apiserver</code> 实例必须在升级这些组件之前升级）</li></ul><p>将 <code>kube-controller-manager</code>、<code>kube-scheduler</code> 和 <code>cloud-controller-manager</code>
+升级到 <strong>1.37</strong> 版本。
+<code>kube-controller-manager</code>、<code>kube-scheduler</code> 和 <code>cloud-controller-manager</code> 的升级顺序没有要求。
+你可以按任意顺序升级这些组件，甚至可以同时升级这些组件。</p><h3 id=kubelet-1>kubelet <a class=td-heading-self-link href=#kubelet-1 aria-label="Heading self-link"></a></h3><p>先决条件：</p><ul><li>与 <code>kubelet</code> 通信的 <code>kube-apiserver</code> 实例处于 <strong>1.37</strong> 版本</li></ul><p>可选择将 <code>kubelet</code> 实例升级到 <strong></strong> 版本
+（或者它们可以留在 <strong>1.36</strong> 或 <strong>1.35</strong> 或 <strong>1.34</strong> 版本）</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>在执行次要版本 <code>kubelet</code> 升级之前，<a href=/zh-cn/docs/tasks/administer-cluster/safely-drain-node/>排空</a>该节点的 Pod。
+<code>kubelet</code> 不支持原地次要版本升级。</p></div><div class="alert alert-danger" role=note><h4 class=alert-heading>警告：</h4><p>在一个集群中运行持续比 <code>kube-apiserver</code> 落后两个次版本的 <code>kubelet</code> 实例意味着在升级控制平面之前必须先升级它们。</p></div><h3 id=kube-proxy>kube-proxy <a class=td-heading-self-link href=#kube-proxy aria-label="Heading self-link"></a></h3><p>前提条件：</p><ul><li>与 kube-proxy 通信的 kube-apiserver 实例的版本是 <strong>1.37</strong>。
+可以选择升级 kube-proxy 实例到 <strong>1.37</strong>
+（或者它们可以保持在 <strong>1.36</strong> 或 <strong>1.35</strong>）</li></ul><div class="alert alert-danger" role=note><h4 class=alert-heading>警告：</h4><p>在一个集群中运行持续比 <code>kube-apiserver</code> 落后三个次版本的 <code>kube-proxy</code> 实例意味着在升级控制平面之前必须先升级它们。</p></div></div>
+</body>
+</html>

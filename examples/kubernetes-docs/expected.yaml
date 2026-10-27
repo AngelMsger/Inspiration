@@ -1,0 +1,145 @@
+# The answers to the Kubernetes corpus, page by page, in the shape of examples/control:
+# - values: every value and the documents that state it, grouped by independent source. A page
+#   and its translations are one source: [[x.html, x.ja.html, x.zh-cn.html]].
+# - proposed: the value governance should propose.
+# - cases: what becomes of every other value. The answers have none: the pages state each
+#   fact with one value, and their translations state the same one.
+#
+# engine: where the engine, with the extraction stand-in, gets a slot otherwise today, and
+# why. Each field given replaces the answer's; null means the engine has none. The control
+# test holds the run to these entries, so a change that closes a gap must delete its entry,
+# and one that opens a gap must add one. See README.md.
+
+cases:
+  - case: cluster-limits
+    group: setup/best-practices/cluster-large
+    question: Does each limit of a large cluster have one value and one source in three languages?
+    slots:
+      cluster_max_nodes:
+        values:
+          5000 node: &large [[docs/setup/best-practices/cluster-large.html, docs/setup/best-practices/cluster-large.ja.html, docs/setup/best-practices/cluster-large.zh-cn.html]]
+        proposed: 5000 node
+      pods_per_node_max:
+        values: {110 pod: *large}
+        proposed: 110 pod
+      cluster_max_pods:
+        values: {150000 pod: *large}
+        proposed: 150000 pod
+      cluster_max_containers:
+        values: {300000 container: *large}
+        proposed: 300000 container
+    engine:
+      why: >-
+        The stand-in fits "nodes" to any passage that names nodes and takes its last number:
+        "memory.available<100Mi (Linux nodes)" puts 100 in the slot, "imagefs.inodesFree<5%
+        (Linux nodes)" 5 in three languages, "kubelet instances on all nodes are at version
+        1.36 or 1.35" 1.35 (the stand-in). Each is one source, as the limit is, so the limit
+        leads on statements: six, two per page. The Japanese "Kubernetes v1.37 では、" is a
+        clause of its own with 1.37 in it; only the translation states it, and its original
+        states 5000, so the original holds without a person.
+      slots:
+        cluster_max_nodes:
+          values:
+            5000 node: *large
+            1.35 node: [[docs/releases/version-skew-policy.html]]
+            1.37 node: [[docs/setup/best-practices/cluster-large.ja.html]]
+            100 node: [[docs/concepts/scheduling-eviction/node-pressure-eviction.html]]
+            2 node: [[docs/releases/version-skew-policy.html]]
+            3 node: [[docs/concepts/scheduling-eviction/node-pressure-eviction.ja.html]]
+            5 node: [[docs/concepts/scheduling-eviction/node-pressure-eviction.html, docs/concepts/scheduling-eviction/node-pressure-eviction.ja.html, docs/concepts/scheduling-eviction/node-pressure-eviction.zh-cn.html]]
+            500 node: [[docs/concepts/scheduling-eviction/node-pressure-eviction.html]]
+          cases:
+            1.35 node: open contradiction
+            1.37 node: auto_resolved supersession
+            100 node: open contradiction
+            2 node: open contradiction
+            3 node: open contradiction
+            5 node: open contradiction
+            500 node: open contradiction
+
+  - case: version-skew
+    group: releases/version-skew-policy
+    question: Is the kubelet's allowed skew read as one value in three languages?
+    slots:
+      kubelet_version_skew:
+        values:
+          3 minor_version: [[docs/releases/version-skew-policy.html, docs/releases/version-skew-policy.ja.html, docs/releases/version-skew-policy.zh-cn.html]]
+        proposed: 3 minor_version
+    engine:
+      why: >-
+        "kubelet may be up to three minor versions older than kube-apiserver (kubelet < 1.25
+        may only be up to two minor versions older)" spells its numbers, and the stand-in reads
+        digits only: in English it takes the 1 of "1.25", in Chinese the 1.25 itself, and in
+        Japanese, which writes "3つ前", the 2 of the condition that follows (the stand-in). A
+        model is expected to read 3 and keep the condition for kubelets before 1.25 out of the
+        value. The translations' values are out of date against the original's, so the
+        original's 1 holds without a person.
+      slots:
+        kubelet_version_skew:
+          values:
+            1 minor_version: [[docs/releases/version-skew-policy.html]]
+            1.25 minor_version: [[docs/releases/version-skew-policy.zh-cn.html]]
+            2 minor_version: [[docs/releases/version-skew-policy.ja.html]]
+          proposed: 1 minor_version
+          cases:
+            1.25 minor_version: auto_resolved supersession
+            2 minor_version: auto_resolved supersession
+
+  - case: eviction-defaults
+    group: concepts/scheduling-eviction/node-pressure-eviction
+    question: Are the default hard eviction thresholds one value and one source each?
+    slots:
+      hard_eviction_nodefs_available:
+        values:
+          10 %: &eviction [[docs/concepts/scheduling-eviction/node-pressure-eviction.html, docs/concepts/scheduling-eviction/node-pressure-eviction.ja.html, docs/concepts/scheduling-eviction/node-pressure-eviction.zh-cn.html]]
+        proposed: 10 %
+      hard_eviction_imagefs_available:
+        values: {15 %: *eviction}
+        proposed: 15 %
+      hard_eviction_nodefs_inodes_free:
+        values: {5 %: *eviction}
+        proposed: 5 %
+
+  - case: pod-lifecycle
+    group: concepts/workloads/pods/pod-lifecycle
+    question: Does a Japanese translation two years older than its original agree with it on each fact?
+    slots:
+      pod_termination_grace_period:
+        values:
+          30 second: &lifecycle [[docs/concepts/workloads/pods/pod-lifecycle.html, docs/concepts/workloads/pods/pod-lifecycle.ja.html, docs/concepts/workloads/pods/pod-lifecycle.zh-cn.html]]
+        proposed: 30 second
+      container_restart_backoff_cap:
+        values: {300 second: *lifecycle}
+        proposed: 300 second
+      restart_backoff_reset_after:
+        values: {10 minute: *lifecycle}
+        proposed: 10 minute
+    engine:
+      why: >-
+        The Japanese "猶予期間" names any grace period, so the stand-in also puts the 0 seconds
+        of a hard eviction and the 2 seconds a preStop hook is given in the slot (the
+        stand-in); the 2 seconds come from the translation of the page that states 30, so the
+        original holds without a person. The Japanese page writes the restart delay as "5分を
+        上限とする" (at most 5 minutes) and then lists "10秒、20秒、40秒": the stand-in takes
+        seconds only and reads each of them, where a model gives the catalogue's unit, 300
+        seconds. The Chinese page lists the same delays before its 300 and gives 40 too. Only
+        translations state 10, 20 and 40, so the original's 300 holds without a person.
+      slots:
+        pod_termination_grace_period:
+          values:
+            30 second: *lifecycle
+            0 second: [[docs/concepts/scheduling-eviction/node-pressure-eviction.ja.html]]
+            2 second: [[docs/concepts/workloads/pods/pod-lifecycle.ja.html]]
+          cases:
+            0 second: open contradiction
+            2 second: auto_resolved supersession
+        container_restart_backoff_cap:
+          values:
+            300 second: [[docs/concepts/workloads/pods/pod-lifecycle.html, docs/concepts/workloads/pods/pod-lifecycle.zh-cn.html]]
+            10 second: [[docs/concepts/workloads/pods/pod-lifecycle.ja.html]]
+            20 second: [[docs/concepts/workloads/pods/pod-lifecycle.ja.html]]
+            40 second: [[docs/concepts/workloads/pods/pod-lifecycle.ja.html, docs/concepts/workloads/pods/pod-lifecycle.zh-cn.html]]
+          cases:
+            10 second: auto_resolved supersession
+            20 second: auto_resolved supersession
+            40 second: auto_resolved supersession

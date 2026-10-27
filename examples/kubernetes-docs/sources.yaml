@@ -1,0 +1,111 @@
+# Where each file in docs/ comes from: the page kubernetes.io served on 2026-10-27, its
+# kubernetes/website commit and the date the page footer gives, and the SHA-256 of the page as
+# served. Each file is the page's content element (class td-content), unchanged, up to the
+# feedback block that ends it, in a minimal document with the page's title and language.
+# The pages are (c) The Kubernetes Authors, licensed under CC BY 4.0.
+files:
+  - file: setup/best-practices/cluster-large.html
+    url: https://kubernetes.io/docs/setup/best-practices/cluster-large/
+    language: en
+    revision: dc6687c0860580ff34f01daaccd4e78580dc9460
+    last_modified: 2026-02-08
+    fetched_at: 2026-10-27T04:25:05Z
+    page_sha256: a3ea53ebb1e7ca394e64b1b2ffa5686a44d460a025f3e488885b88615f20fef3
+  - file: setup/best-practices/cluster-large.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/setup/best-practices/cluster-large/
+    language: zh-cn
+    revision: 38a0981a2c2f7e665595bbf8b035ebea0f7fa259
+    last_modified: 2026-05-06
+    fetched_at: 2026-10-27T04:25:06Z
+    page_sha256: a68b4a48cab2b28c9d4b019362278e0296e9564e0cb22f985b36c0d56629bd9f
+  - file: setup/best-practices/cluster-large.ja.html
+    url: https://kubernetes.io/ja/docs/setup/best-practices/cluster-large/
+    language: ja
+    revision: 50312b1848ad533a2817f916f62f0630053c0330
+    last_modified: 2023-03-10
+    fetched_at: 2026-10-27T04:25:07Z
+    page_sha256: c56cc9afb3a105a0501f8012837ee4376cf609f816c5d66635949207d5803136
+  - file: releases/version-skew-policy.html
+    url: https://kubernetes.io/releases/version-skew-policy/
+    language: en
+    revision: 03c191bcc446f9c15a9e68d6cd1154b53bde4291
+    last_modified: 2026-04-14
+    fetched_at: 2026-10-27T04:25:20Z
+    page_sha256: 2757ac123c3f5e6df5731f85bacd92cd4c26a28f8ac9446fb6ab1e567f2ca7f9
+  - file: releases/version-skew-policy.zh-cn.html
+    url: https://kubernetes.io/zh-cn/releases/version-skew-policy/
+    language: zh-cn
+    revision: 62751a25ed16e333691e94095edaf0f9be95948e
+    last_modified: 2026-07-06
+    fetched_at: 2026-10-27T04:25:21Z
+    page_sha256: be8b8665af737e569d3e79a889090064d7adc0740642c57d7e12f2348289a33f
+  - file: releases/version-skew-policy.ja.html
+    url: https://kubernetes.io/ja/releases/version-skew-policy/
+    language: ja
+    revision: 5c0fe168a4f24b362c638f8d06a4788aa6bc858b
+    last_modified: 2026-04-14
+    fetched_at: 2026-10-27T04:25:22Z
+    page_sha256: 25736f456cc23d5915b6c65c8528af1ac50fa19a559a92e64f42624c6fb99591
+  - file: concepts/scheduling-eviction/node-pressure-eviction.html
+    url: https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/
+    language: en
+    revision: 404e07f176f06c88cbe79c5dccb9fdb1fee12945
+    last_modified: 2026-07-21
+    fetched_at: 2026-10-27T04:25:17Z
+    page_sha256: 6195868ca84545e708eb1f312145c2669accb4e25818c4c69d6c260764ac0658
+  - file: concepts/scheduling-eviction/node-pressure-eviction.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/scheduling-eviction/node-pressure-eviction/
+    language: zh-cn
+    revision: de354e3366dfd75e57c6a76bad1bc3c5091f9089
+    last_modified: 2026-09-05
+    fetched_at: 2026-10-27T04:25:18Z
+    page_sha256: 065d8098c63f077ef8c5d519b0b318aa797e1e41edba5d15af977d70ed1d44a6
+  - file: concepts/scheduling-eviction/node-pressure-eviction.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/scheduling-eviction/node-pressure-eviction/
+    language: ja
+    revision: b7d565b5916f80e312d3163f153d693fd16eb247
+    last_modified: 2026-06-08
+    fetched_at: 2026-10-27T04:25:20Z
+    page_sha256: fcea5c04b1d50edc269fcbfc6bfa0cdbdb19e5e11eac1b470c238ee8498eca56
+  - file: concepts/workloads/pods/pod-lifecycle.html
+    url: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/
+    language: en
+    revision: b4811b23fdc1a199b0d9754edf90579aa93b45de
+    last_modified: 2026-07-27
+    fetched_at: 2026-10-27T04:25:10Z
+    page_sha256: 89d260eb151b501eca880bf434b85ed5be90e632ce6e6de96964d195b909e4ae
+  - file: concepts/workloads/pods/pod-lifecycle.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/workloads/pods/pod-lifecycle/
+    language: zh-cn
+    revision: cdac5a754872f89d3db88ac759a9fc8394be2e46
+    last_modified: 2026-10-10
+    fetched_at: 2026-10-27T04:25:11Z
+    page_sha256: e6a18d6911b5c0e831120ad1931b9e1f20c2c83b83e14b3400d4a5193ef3587a
+  - file: concepts/workloads/pods/pod-lifecycle.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/workloads/pods/pod-lifecycle/
+    language: ja
+    revision: adada78799d09303426a8761fc05d2b43d55f98a
+    last_modified: 2024-02-06
+    fetched_at: 2026-10-27T04:25:14Z
+    page_sha256: 2ecc84064ce7540f8584e8bd3e4daea2fe5a118a849bc77ce5a14a9bd1590b40
+  - file: concepts/architecture/garbage-collection.html
+    url: https://kubernetes.io/docs/concepts/architecture/garbage-collection/
+    language: en
+    revision: c6459d7dcab632d3818faf30524d7c1ad28724d5
+    last_modified: 2025-10-20
+    fetched_at: 2026-10-27T04:25:15Z
+    page_sha256: a43a4fac273937c4d60b59570330e9266b308a0cf877735ca6b3ae53253672d9
+  - file: concepts/architecture/garbage-collection.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/architecture/garbage-collection/
+    language: zh-cn
+    revision: af0d75fe2da8aea6d4e52bd2ac7a9b6f86b94db3
+    last_modified: 2025-12-18
+    fetched_at: 2026-10-27T04:25:16Z
+    page_sha256: b7c2b26477db047c1729c4c93182a180f8c1530310e39296750c69bce95dda1a
+  - file: concepts/architecture/garbage-collection.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/architecture/garbage-collection/
+    language: ja
+    revision: e45190fba22dc5fc5ce9513173fa64722832b8d3
+    last_modified: 2023-08-16
+    fetched_at: 2026-10-27T04:25:17Z
+    page_sha256: fe2d3af4113b287c4c2a4a30936f28c4a2955274b4c73c7d826912c3b891a43b

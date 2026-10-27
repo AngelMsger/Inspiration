@@ -11,7 +11,8 @@
       "!libs/contracts/dist",
       "!libs/contracts/src/generated.ts",
       "!libs/contracts/src/events.ts",
-      "!docs/design/screens"
+      "!docs/design/screens",
+      "!examples/kubernetes-docs/docs"
     ]
   },
   "formatter": {

@@ -69,6 +69,7 @@ pnpm engine ingest examples/corpus --stack    # Postgres and Valkey from INSPIRA
 pnpm engine synthesize /tmp/synth --documents 2000 && pnpm engine ingest /tmp/synth --stack
 pnpm engine ingest examples/control           # the control corpus, checked case by case
 pnpm engine replay examples/gitlab-expenses   # a real policy through 21 versions of its history
+pnpm engine ingest examples/kubernetes-docs   # real pages in English, Chinese and Japanese
 ```
 
 [`examples/control`](examples/control/README.md) is a small corpus in which every case has one
@@ -80,6 +81,11 @@ lands in, each value's independent sources, the proposed value and what becomes 
 changes: GitLab's public expense policy at 21 versions from 2020 to 2026. The replay ingests
 each version on the day it was published and checks what governance would tell a reader about
 14 facts against a timeline read by hand.
+
+[`examples/kubernetes-docs`](examples/kubernetes-docs/README.md) is real knowledge in three
+languages: five pages of the Kubernetes documentation with their official Chinese and Japanese
+translations, checked like the control corpus. A page and its translations should give each
+fact one value and one source, and the original holds over a translation that says otherwise.
 
 To try the model gateway without a model server, run it with the fake providers:
 
@@ -101,6 +107,7 @@ apps/engine               the engine process: wires components to the store and 
 examples/corpus           a demo tenant (Chinese enterprise documents, folder ACLs, Feishu fixtures)
 examples/control          a control corpus with one right answer per case, and the engine's known gaps
 examples/gitlab-expenses  a real policy's edit history, replayed version by version against a timeline
+examples/kubernetes-docs  real pages in English with their Chinese and Japanese translations, checked like the control corpus
 infra/                    docker compose for the prototype stack
 config/                   example configuration
 docs/                     overview, design, architecture, contracts, PageSpec and views, licensing

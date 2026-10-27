@@ -1,0 +1,22 @@
+# Five pages of the Kubernetes documentation, each in English and in its official Chinese and
+# Japanese translations: the content of each page as kubernetes.io served it on 2026-10-27.
+# The translations state the same facts as the English pages, some from older revisions, so
+# every fact should have one value and one source however many languages state it.
+# expected.yaml holds the answers and README.md explains them.
+
+tenant:
+  id: ten_01KUBERNETESDOCS000000001
+  name: Kubernetes documentation
+
+spaces:
+  - id: spc_01KUBERNETESDOCS000000DOCS
+    name: Kubernetes
+
+sources:
+  - id: src_01KUBERNETESDOCS00WEBSITE
+    type: folder
+    space: spc_01KUBERNETESDOCS000000DOCS
+    name: kubernetes.io
+    root: docs
+    default_authority: 0.9
+    governance_level: governed

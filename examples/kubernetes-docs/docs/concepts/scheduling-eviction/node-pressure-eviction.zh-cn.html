@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>节点压力驱逐</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>节点压力驱逐</h1><header class=article-meta></header><p>节点压力驱逐是 <a class=glossary-tooltip title='一个在集群中每个节点上运行的代理。它保证容器都运行在 Pod 中。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/reference/command-line-tools-reference/kubelet target=_blank aria-label=kubelet>kubelet</a> 主动终止 Pod 以回收节点上资源的过程。</br></p><p><a class=glossary-tooltip title='一个在集群中每个节点上运行的代理。它保证容器都运行在 Pod 中。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/reference/command-line-tools-reference/kubelet target=_blank aria-label=kubelet>kubelet</a>
+监控集群节点的内存、磁盘空间和文件系统的 inode 等资源。
+当这些资源中的一个或者多个达到特定的消耗水平，
+kubelet 可以主动地使节点上一个或者多个 Pod 失效，以回收资源防止饥饿。</p><p>在节点压力驱逐期间，kubelet 将所选 Pod
+的<a href=/zh-cn/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase>阶段</a>设置为
+<code>Failed</code> 并终止 Pod。</p><p>节点压力驱逐不同于 <a href=/zh-cn/docs/concepts/scheduling-eviction/api-eviction/>API 发起的驱逐</a>。</p><p>kubelet 并不理会你配置的 <a class=glossary-tooltip title='PDB 是这样一种对象：它保证在出现主动干扰时，多实例应用的 Pod 不会少于一定的数量。' data-bs-toggle=tooltip data-bs-placement=top href='/zh-cn/docs/reference/glossary/?all=true#term-pod-disruption-budget' target=_blank aria-label=PodDisruptionBudget>PodDisruptionBudget</a>
+或者是 Pod 的 <code>terminationGracePeriodSeconds</code>。
+如果你使用了<a href=#soft-eviction-thresholds>软驱逐条件</a>，kubelet 会考虑你所配置的
+<code>eviction-max-pod-grace-period</code>。
+如果你使用了<a href=#hard-eviction-thresholds>硬驱逐条件</a>，kubelet 使用 <code>0s</code>
+宽限期（立即关闭）来终止 Pod。</p><h2 id=self-healing-behavior>自我修复行为 <a class=td-heading-self-link href=#self-healing-behavior aria-label="Heading self-link"></a></h2><p>kubelet 在终止最终用户 Pod 之前会尝试<a href=#reclaim-node-resources>回收节点级资源</a>。
+例如，它会在磁盘资源不足时删除未使用的容器镜像。</p><p>如果 Pod 是由替换失败 Pod 的<a class=glossary-tooltip title='工作负载是在 Kubernetes 上运行的应用。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/ target=_blank aria-label=工作负载>工作负载</a>资源
+（例如 <a class=glossary-tooltip title='StatefulSet 用来管理某 Pod 集合的部署和扩缩，并为这些 Pod 提供持久存储和持久标识符。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/controllers/statefulset/ target=_blank aria-label=StatefulSet>StatefulSet</a>
+或者 <a class=glossary-tooltip title=管理集群上的多副本应用。 data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/controllers/deployment/ target=_blank aria-label=Deployment>Deployment</a>）管理，
+则控制平面或 <code>kube-controller-manager</code> 会创建新的 Pod 来代替被驱逐的 Pod。</p><h3 id=self-healing-for-static-pods>静态 Pod 的自我修复 <a class=td-heading-self-link href=#self-healing-for-static-pods aria-label="Heading self-link"></a></h3><p>如果你在面临资源压力的节点上运行静态 Pod，则 kubelet 可能会驱逐该静态 Pod。
+由于静态 Pod 始终表示在该节点上运行 Pod 的意图，kubelet 会尝试创建替代 Pod。</p><p>创建替代 Pod 时，kubelet 会考虑静态 Pod 的<strong>优先级</strong>。如果静态 Pod 清单指定了低优先级，
+并且集群的控制平面内定义了优先级更高的 Pod，并且节点面临资源压力，则 kubelet
+可能无法为该静态 Pod 腾出空间。
+即使节点上存在资源压力，kubelet 也会继续尝试运行所有静态 Pod。</p><h2 id=eviction-signals-and-thresholds>驱逐信号和阈值 <a class=td-heading-self-link href=#eviction-signals-and-thresholds aria-label="Heading self-link"></a></h2><p>kubelet 使用各种参数来做出驱逐决定，如下所示：</p><ul><li>驱逐信号</li><li>驱逐条件</li><li>监控间隔</li></ul><h3 id=eviction-signals>驱逐信号<a class=td-heading-self-link href=#eviction-signals aria-label="Heading self-link"></a></h3><p>驱逐信号是特定资源在特定时间点的当前状态。
+kubelet 使用驱逐信号，通过将信号与驱逐条件进行比较来做出驱逐决定，
+驱逐条件是节点上应该可用资源的最小量。</p><p>kubelet 使用以下驱逐信号：</p><table><thead><tr><th>驱逐信号</th><th>描述</th><th>仅限于 Linux</th></tr></thead><tbody><tr><td><code>memory.available</code></td><td><code>memory.available</code> := <code>node.status.capacity[memory]</code> - <code>node.stats.memory.workingSet</code></td><td></td></tr><tr><td><code>nodefs.available</code></td><td><code>nodefs.available</code> := <code>node.stats.fs.available</code></td><td></td></tr><tr><td><code>nodefs.inodesFree</code></td><td><code>nodefs.inodesFree</code> := <code>node.stats.fs.inodesFree</code></td><td>•</td></tr><tr><td><code>imagefs.available</code></td><td><code>imagefs.available</code> := <code>node.stats.runtime.imagefs.available</code></td><td></td></tr><tr><td><code>imagefs.inodesFree</code></td><td><code>imagefs.inodesFree</code> := <code>node.stats.runtime.imagefs.inodesFree</code></td><td>•</td></tr><tr><td><code>containerfs.available</code></td><td><code>containerfs.available</code> := <code>node.stats.runtime.containerfs.available</code></td><td></td></tr><tr><td><code>containerfs.inodesFree</code></td><td><code>containerfs.inodesFree</code> := <code>node.stats.runtime.containerfs.inodesFree</code></td><td>•</td></tr><tr><td><code>pid.available</code></td><td><code>pid.available</code> := <code>node.stats.rlimit.maxpid</code> - <code>node.stats.rlimit.curproc</code></td><td>•</td></tr></tbody></table><p>在上表中，<strong>描述</strong>列显示了 kubelet 如何获取信号的值。每个信号支持百分比值或者是字面值。
+kubelet 计算相对于与信号有关的总量的百分比值。</p><h4 id=memory-signals>内存信号<a class=td-heading-self-link href=#memory-signals aria-label="Heading self-link"></a></h4><p>在 Linux 节点上，<code>memory.available</code> 的值来自 CGroupFs，而不是像 <code>free -m</code> 这样的工具。
+这很重要，因为 <code>free -m</code> 在容器中不起作用，
+如果用户使用<a href=/zh-cn/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable>节点可分配资源</a>这一功能特性，
+资源不足的判定是基于 CGroup 层次结构中的用户 Pod 所处的局部及 CGroup 根节点作出的。
+这个<a href=/zh-cn/examples/admin/resource/memory-available.sh>脚本</a>或者
+<a href=/zh-cn/examples/admin/resource/memory-available-cgroupv2.sh>CGroupv2 脚本</a>重现了
+kubelet 为计算 <code>memory.available</code> 而执行的相同步骤。
+kubelet 在其计算中排除了 inactive_file（非活动 LRU 列表上基于文件来虚拟的内存的字节数），
+因为它假定在压力下内存是可回收的。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><div class="feature-state-notice feature-beta" title="特性门控： HugepageAwareEviction"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Beta</span> since Kubernetes v1.37; （默认启用）</span></div><div class=feature-beta></div><p>在配置了 <a href=/zh-cn/docs/tasks/manage-hugepages/scheduling-hugepages/>HugePage</a>
+的节点上，kubelet 会从驱逐管理器所使用的 <code>memory.available</code> 中减去该节点的
+HugePage 总容量。如果不做此调整，由于内存 CGroup 控制器不会将 hugetlb 分配计入其工作集，
+被 HugePage 预留的内存会虚增 <code>AvailableBytes</code>。这会延迟驱逐并导致 OOM 终止。
+要恢复原先行为，可以禁用 <code>HugepageAwareEviction</code>
+<a href=/zh-cn/docs/reference/command-line-tools-reference/feature-gates/>特性门控</a>。</p></div><p>在 Windows 节点上，<code>memory.available</code> 的值来自节点的全局内存提交级别
+（通过 <a href=https://learn.microsoft.com/windows/win32/api/psapi/nf-psapi-getperformanceinfo><code>GetPerformanceInfo()</code></a>
+系统调用查询），方法是从节点的
+<a href=https://learn.microsoft.com/windows/win32/api/psapi/ns-psapi-performance_information><code>CommitLimit</code></a>
+减去节点的全局 <a href=https://learn.microsoft.com/windows/win32/api/psapi/ns-psapi-performance_information><code>CommitTotal</code></a>。
+请注意，如果节点的页面文件大小发生变化，<code>CommitLimit</code> 也会发生变化！</p><h4 id=filesystem-signals>文件系统信号<a class=td-heading-self-link href=#filesystem-signals aria-label="Heading self-link"></a></h4><p>kubelet 可识别三个可与驱逐信号一起使用的特定文件系统标识符（<code>&lt;identifier>.inodesFree</code> 或
+<code>&lt;identifier>.available</code>）：</p><ol><li><code>nodefs</code>：节点的主文件系统，用于本地磁盘卷、
+非内存介质的 <code>emptyDir</code> 卷、日志存储、临时存储等。
+例如，<code>nodefs</code> 包含 <code>/var/lib/kubelet</code>。</li></ol><ol start=2><li><p><code>imagefs</code>：可供容器运行时存储容器镜像（只读层）。如果没有单独的
+<code>containerfs</code>，镜像文件系统也会存储容器可写层。</p></li><li><p><code>containerfs</code>：可供容器运行时存储可写层的可选文件系统。
+使用 <code>containerfs</code> 时，可以将 <code>imagefs</code> 文件系统拆分为仅存储镜像（只读层），
+而不存储其他任何内容。</p></li></ol><p>这些标识符描述了 kubelet 观察到的文件系统。
+它们并不总是代表三个不同的挂载点：在常见的布局中，
+两个或全部三个标识符可能指向同一个底层文件系统。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p><strong>分割镜像文件系统</strong>特性增加了新的驱逐信号、阈值和 <code>containerfs</code> 的指标。
+要使用 <code>containerfs</code>，Kubernetes 发行版 v1.37
+需要启用 <code>KubeletSeparateDiskGC</code>
+<a href=/zh-cn/docs/reference/command-line-tools-reference/feature-gates/>特性门控</a>。
+对于 Kubernetes v1.37，
+只有 CRI-O（v1.29 或更高版本）提供 <code>containerfs</code> 文件系统支持。</p></div><p>kubelet 支持三种常见的容器文件系统布局：</p><ul><li><p>所有内容都位于单个 <code>nodefs</code> 上，也称为 <code>rootfs</code> 或简称为 <code>root</code>。
+在这种布局中，<code>nodefs</code>、<code>imagefs</code> 和 <code>containerfs</code> 都指向同一个底层文件系统。</p></li><li><p>容器运行时存储位于专用磁盘上，与根文件系统分离。在这种布局中，<code>imagefs</code> 和 <code>containerfs</code>
+指向相同的底层文件系统，该文件系统同时存储镜像层和容器可写层。
+这通常被称为“分割磁盘”（或“独立磁盘”）文件系统。</p></li><li><p>容器可写层位于 <code>nodefs</code> 上，而容器镜像（只读层）则存储在独立的 <code>imagefs</code> 上。在这种布局中，
+<code>containerfs</code> 和 <code>nodefs</code> 指向相同的底层文件系统。这通常被称为“分割镜像”文件系统。</p></li></ul><p>kubelet 将尝试直接从底层容器运行时自动发现这些文件系统及其当前配置，
+并忽略其他本地节点文件系统。</p><p>kubelet 不支持其他容器文件系统或存储配置，并且目前不支持为镜像和容器提供多个文件系统。</p><h3 id=deprecated-kubelet-garbage-collection-features>弃用的 kubelet 垃圾收集功能<a class=td-heading-self-link href=#deprecated-kubelet-garbage-collection-features aria-label="Heading self-link"></a></h3><p>一些 kubelet 垃圾收集功能已被弃用，以鼓励使用驱逐机制。</p><table><thead><tr><th>现有标志</th><th>原因</th></tr></thead><tbody><tr><td><code>--maximum-dead-containers</code></td><td>一旦旧的日志存储在容器的上下文之外就会被弃用</td></tr><tr><td><code>--maximum-dead-containers-per-container</code></td><td>一旦旧的日志存储在容器的上下文之外就会被弃用</td></tr><tr><td><code>--minimum-container-ttl-duration</code></td><td>一旦旧的日志存储在容器的上下文之外就会被弃用</td></tr></tbody></table><h3 id=eviction-thresholds>驱逐条件<a class=td-heading-self-link href=#eviction-thresholds aria-label="Heading self-link"></a></h3><p>你可以为 kubelet 指定自定义驱逐条件，以便在作出驱逐决定时使用。
+你可以设置<a href=#soft-eviction-thresholds>软性的</a>和<a href=#hard-eviction-thresholds>硬性的</a>驱逐阈值。</p><p>驱逐条件的形式为 <code>[eviction-signal][operator][quantity]</code>，其中：</p><ul><li><code>eviction-signal</code> 是要使用的<a href=#eviction-signals>驱逐信号</a>。</li><li><code>operator</code> 是你想要的<a href=https://en.wikipedia.org/wiki/Relational_operator#Standard_relational_operators>关系运算符</a>，
+比如 <code>&lt;</code>（小于）。</li><li><code>quantity</code> 是驱逐条件数量，例如 <code>1Gi</code>。
+<code>quantity</code> 的值必须与 Kubernetes 使用的数量表示相匹配。
+你可以使用文字值或百分比（<code>%</code>）。</li></ul><p>例如，如果一个节点的总内存为 10GiB 并且你希望在可用内存低于 1GiB 时触发驱逐，
+则可以将驱逐条件定义为 <code>memory.available&lt;10%</code> 或
+<code>memory.available&lt;1Gi</code>（你不能同时使用二者）。</p><p>你可以配置软和硬驱逐条件。</p><h4 id=soft-eviction-thresholds>软驱逐条件<a class=td-heading-self-link href=#soft-eviction-thresholds aria-label="Heading self-link"></a></h4><p>软驱逐条件将驱逐条件与管理员所必须指定的宽限期配对。
+在超过宽限期之前，kubelet 不会驱逐 Pod。
+如果没有指定的宽限期，kubelet 会在启动时返回错误。</p><p>你可以既指定软驱逐条件宽限期，又指定 Pod 终止宽限期的上限，给 kubelet 在驱逐期间使用。
+如果你指定了宽限期的上限并且 Pod 满足软驱逐阈条件，则 kubelet 将使用两个宽限期中的较小者。
+如果你没有指定宽限期上限，kubelet 会立即杀死被驱逐的 Pod，不允许其体面终止。</p><p>你可以使用以下标志来配置软驱逐条件：</p><ul><li><code>eviction-soft</code>：一组驱逐条件，如 <code>memory.available&lt;1.5Gi</code>，
+如果驱逐条件持续时长超过指定的宽限期，可以触发 Pod 驱逐。</li><li><code>eviction-soft-grace-period</code>：一组驱逐宽限期，
+如 <code>memory.available=1m30s</code>，定义软驱逐条件在触发 Pod 驱逐之前必须保持多长时间。</li><li><code>eviction-max-pod-grace-period</code>：在满足软驱逐条件而终止 Pod
+时使用的最大允许宽限期（以秒为单位）。</li></ul><h4 id=hard-eviction-thresholds>硬驱逐条件<a class=td-heading-self-link href=#hard-eviction-thresholds aria-label="Heading self-link"></a></h4><p>硬驱逐条件没有宽限期。当达到硬驱逐条件时，
+kubelet 会立即杀死 Pod，而不会正常终止以回收紧缺的资源。</p><p>你可以使用 <code>eviction-hard</code> 标志来配置一组硬驱逐条件，
+例如 <code>memory.available&lt;1Gi</code>。</p><p>kubelet 具有以下默认硬驱逐条件：</p><ul><li><code>memory.available&lt;100Mi</code>（Linux 节点）</li><li><code>nodefs.available&lt;10%</code>（Windows 节点）</li><li><code>imagefs.available&lt;15%</code></li><li><code>nodefs.inodesFree&lt;5%</code>（Linux 节点）</li><li><code>imagefs.inodesFree&lt;5%</code> (Linux 节点)</li></ul><p>只有在没有更改任何参数的情况下，硬驱逐阈值才会被设置成这些默认值。
+如果你更改了任何参数的值，则其他参数的取值不会继承其默认值设置，而将被设置为零。
+为了提供自定义值，你应该分别设置所有阈值。
+你也可以在 kubelet 配置文件中设置 <code>mergeDefaultEvictionSettings</code> 为 <code>true</code>。
+如果该值设为 <code>true</code>，并且某个参数被修改，则其他参数将继承其默认值，而不是被设为 0。</p><p><code>containerfs.available</code> 和 <code>containerfs.inodesFree</code>（Linux 节点）默认驱逐阈值将被设置如下：</p><ul><li><p>如果 <code>containerfs</code> 和 <code>nodefs</code> 指的是同一个底层文件系统，那么
+<code>containerfs</code> 的阈值设置与 <code>nodefs</code> 相同。</p></li><li><p>如果 <code>containerfs</code> 和 <code>imagefs</code> 指的是同一个底层文件系统，那么
+<code>containerfs</code> 的阈值设置与 <code>imagefs</code> 相同。</p></li></ul><p>不支持为与 <code>containerfs</code> 相关的阈值设置自定义覆盖值，如果尝试这样做，将会发出警告；
+任何提供的自定义值都将被忽略。</p><h2 id=eviction-monitoring-interval>驱逐监测间隔 <a class=td-heading-self-link href=#eviction-monitoring-interval aria-label="Heading self-link"></a></h2><p>kubelet 根据其配置的 <code>housekeeping-interval</code>（默认为 <code>10s</code>）评估驱逐条件。</p><h2 id=node-conditions>节点状况<a class=td-heading-self-link href=#node-conditions aria-label="Heading self-link"></a></h2><p>kubelet 报告<a href=/zh-cn/docs/concepts/architecture/nodes/#condition>节点状况</a>以反映节点处于压力之下，
+原因是满足硬性的或软性的驱逐条件，与配置的宽限期无关。</p><p>kubelet 根据下表将驱逐信号映射为节点状况：</p><table><thead><tr><th>节点状况</th><th>驱逐信号</th><th>描述</th></tr></thead><tbody><tr><td><code>MemoryPressure</code></td><td><code>memory.available</code></td><td>节点上的可用内存已满足驱逐条件</td></tr><tr><td><code>DiskPressure</code></td><td><code>nodefs.available</code>、<code>nodefs.inodesFree</code>、<code>imagefs.available</code>、<code>imagefs.inodesFree</code>、<code>containerfs.available</code> 或 <code>containerfs.inodesFree</code></td><td>节点的根文件系统、镜像文件系统或容器文件系统上的可用磁盘空间和 inode 已满足驱逐阈值</td></tr><tr><td><code>PIDPressure</code></td><td><code>pid.available</code></td><td>（Linux）节点上的可用进程标识符已低于驱逐条件</td></tr></tbody></table><p>控制平面还将这些节点状况<a href=/zh-cn/docs/concepts/scheduling-eviction/taint-and-toleration/#taint-nodes-by-condition>映射</a>为其污点。</p><p>kubelet 根据配置的 <code>--node-status-update-frequency</code> 更新节点状况，默认为 <code>10s</code>。</p><h3 id=node-condition-oscillation>节点状况波动 <a class=td-heading-self-link href=#node-condition-oscillation aria-label="Heading self-link"></a></h3><p>在某些情况下，节点在软驱逐条件上下振荡，而没有保持定义的宽限期。
+这会导致报告的节点状况在 <code>true</code> 和 <code>false</code> 之间不断切换，从而导致错误的驱逐决策。</p><p>为了防止振荡，你可以使用 <code>eviction-pressure-transition-period</code> 标志，
+该标志控制 kubelet 在将节点状况转换为不同状态之前必须等待的时间。
+过渡期的默认值为 <code>5m</code>。</p><h3 id=reclaim-node-resources>回收节点级资源<a class=td-heading-self-link href=#reclaim-node-resources aria-label="Heading self-link"></a></h3><p>kubelet 在驱逐最终用户 Pod 之前会先尝试回收节点级资源。</p><p>当报告 <code>DiskPressure</code> 节点状况时，kubelet 会根据节点上的文件系统回收节点级资源。</p><h4 id=without-imagefs-or-containerfs>没有 <code>imagefs</code> 或 <code>containerfs</code><a class=td-heading-self-link href=#without-imagefs-or-containerfs aria-label="Heading self-link"></a></h4><p>如果节点只有一个 <code>nodefs</code> 文件系统且该文件系统达到驱逐阈值，
+kubelet 将按以下顺序释放磁盘空间：</p><ol><li><p>对已死亡的 Pod 和容器执行垃圾收集操作。</p></li><li><p>删除未使用的镜像。</p></li></ol><h4 id=有-imagefs>有 <code>imagefs</code><a class=td-heading-self-link href=#%e6%9c%89-imagefs aria-label="Heading self-link"></a></h4><p>如果节点有一个专用的 <code>imagefs</code> 文件系统供容器运行时使用，kubelet 会执行以下操作：</p><ul><li>如果 <code>nodefs</code> 文件系统满足驱逐条件，kubelet 垃圾收集死亡 Pod 和容器。</li><li>如果 <code>imagefs</code> 文件系统满足驱逐条件，kubelet 将删除所有未使用的镜像。</li></ul><h4 id=with-imagefs-and-containerfs>有 <code>imagefs</code> 和 <code>containerfs</code><a class=td-heading-self-link href=#with-imagefs-and-containerfs aria-label="Heading self-link"></a></h4><p>如果节点除了 <code>imagefs</code> 文件系统之外还配置了专用的 <code>containerfs</code> 以供容器运行时使用，
+则 kubelet 将尝试按如下方式回收资源：</p><ul><li><p>如果 <code>containerfs</code> 文件系统满足驱逐阈值，则 kubelet 将垃圾收集死机的 Pod 和容器。</p></li><li><p>如果 <code>imagefs</code> 文件系统满足驱逐阈值，则 kubelet 将删除所有未使用的镜像。</p></li></ul><h3 id=kubelet-驱逐时-pod-的选择>kubelet 驱逐时 Pod 的选择<a class=td-heading-self-link href=#kubelet-%e9%a9%b1%e9%80%90%e6%97%b6-pod-%e7%9a%84%e9%80%89%e6%8b%a9 aria-label="Heading self-link"></a></h3><p>如果 kubelet 回收节点级资源的尝试没有使驱逐信号低于条件，
+则 kubelet 开始驱逐最终用户 Pod。</p><p>kubelet 使用以下参数来确定 Pod 驱逐顺序：</p><ol><li>Pod 的资源使用是否超过其请求</li><li><a href=/zh-cn/docs/concepts/scheduling-eviction/pod-priority-preemption/>Pod 优先级</a></li><li>Pod 相对于请求的资源使用情况</li></ol><p>因此，kubelet 按以下顺序排列和驱逐 Pod：</p><ol><li>首先考虑资源使用量超过其请求的 <code>BestEffort</code> 或 <code>Burstable</code> Pod。
+这些 Pod 会根据它们的优先级以及它们的资源使用级别超过其请求的程度被逐出。</li><li>资源使用量少于请求量的 <code>Guaranteed</code> Pod 和 <code>Burstable</code> Pod 根据其优先级被最后驱逐。</li></ol><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>kubelet 不使用 Pod 的 <a href=/zh-cn/docs/concepts/workloads/pods/pod-qos/>QoS 类</a>来确定驱逐顺序。
+在回收内存等资源时，你可以使用 QoS 类来估计最可能的 Pod 驱逐顺序。
+QoS 分类不适用于临时存储（EphemeralStorage）请求，
+因此如果节点在 <code>DiskPressure</code> 下，则上述场景将不适用。</p></div><p>仅当 <code>Guaranteed</code> Pod 中所有容器都被指定了请求和限制并且二者相等时，才保证 Pod 不被驱逐。
+这些 Pod 永远不会因为另一个 Pod 的资源消耗而被驱逐。
+如果系统守护进程（例如 <code>kubelet</code> 和 <code>journald</code>）
+消耗的资源比通过 <code>system-reserved</code> 或 <code>kube-reserved</code> 分配保留的资源多，
+并且该节点只有 <code>Guaranteed</code> 或 <code>Burstable</code> Pod 使用的资源少于其上剩余的请求，
+那么 kubelet 必须选择驱逐这些 Pod 中的一个以保持节点稳定性并减少资源匮乏对其他 Pod 的影响。
+在这种情况下，它会选择首先驱逐最低优先级的 Pod。</p><p>如果你正在运行<a href=/zh-cn/docs/concepts/workloads/pods/#static-pods>静态 Pod</a>
+并且希望避免其在资源压力下被驱逐，请直接为该 Pod 设置 <code>priority</code> 字段。
+静态 Pod 不支持 <code>priorityClassName</code> 字段。</p><p>当 kubelet 因 inode 或 进程 ID 不足而驱逐 Pod 时，
+它使用 Pod 的相对优先级来确定驱逐顺序，因为 inode 和 PID 没有对应的请求字段。</p><p>kubelet 根据节点是否具有专用的 <code>imagefs</code> 文件系统或者 <code>containerfs</code>
+文件系统对 Pod 进行不同的排序：</p><h4 id=without-imagefs>没有 <code>imagefs</code> 或 <code>containerfs</code>（<code>nodefs</code> 和 <code>imagefs</code> 使用相同的文件系统）<a class=td-heading-self-link href=#without-imagefs aria-label="Heading self-link"></a></h4><ul><li>如果 <code>nodefs</code> 触发驱逐，kubelet 将根据 Pod
+的总磁盘使用量（<code>本地卷 + 日志和所有容器的可写层</code>）对 Pod 进行排序。</li></ul><h4 id=with-imagefs>有 <code>imagefs</code>（<code>nodefs</code> 和 <code>imagefs</code> 文件系统是独立的）<a class=td-heading-self-link href=#with-imagefs aria-label="Heading self-link"></a></h4><ul><li><p>如果 <code>nodefs</code> 触发驱逐，kubelet 将根据 <code>nodefs</code>
+使用量（<code>本地卷 + 所有容器的日志</code>）对 Pod 进行排序。</p></li><li><p>如果 <code>imagefs</code> 触发驱逐，kubelet 将根据所有容器的可写层用量对 Pod 进行排序。</p></li></ul><h4 id=with-containersfs>有 <code>imagefs</code> 和 <code>containerfs</code>（<code>imagefs</code> 和 <code>containerfs</code> 已拆分）<a class=td-heading-self-link href=#with-containersfs aria-label="Heading self-link"></a></h4><ul><li><p>如果 <code>containerfs</code> 触发驱逐，kubelet 将根据
+<code>containerfs</code> 使用情况（<code>本地卷 + 日志和所有容器的可写层</code>）对 Pod 进行排序。</p></li><li><p>如果 <code>imagefs</code> 触发驱逐，kubelet
+将根据<code>镜像存储</code>用量对 Pod 进行排序，该用量表示给定镜像的磁盘使用情况。</p></li></ul><h3 id=minimum-eviction-reclaim>最小驱逐回收<a class=td-heading-self-link href=#minimum-eviction-reclaim aria-label="Heading self-link"></a></h3><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>在 Kubernetes v1.37 中，你无法为
+<code>containerfs.available</code> 指标设置自定义值。
+此特定指标的配置将自动设置为反映为 <code>nodefs</code> 或 <code>imagefs</code> 设置的值，具体取决于配置。</p></div><p>在某些情况下，驱逐 Pod 只会回收少量的紧俏资源。
+这可能导致 kubelet 反复达到配置的驱逐条件并触发多次驱逐。</p><p>你可以使用 <code>--eviction-minimum-reclaim</code> 标志或
+<a href=/zh-cn/docs/tasks/administer-cluster/kubelet-config-file/>kubelet 配置文件</a>为每个资源配置最小回收量。
+当 kubelet 注意到某个资源耗尽时，它会继续回收该资源，直到回收到你所指定的数量为止。</p><p>例如，以下配置设置最小回收量：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>kubelet.config.k8s.io/v1beta1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>KubeletConfiguration</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>evictionHard</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>memory.available</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;500Mi&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>nodefs.available</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;1Gi&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>imagefs.available</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;100Gi&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>evictionMinimumReclaim</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>memory.available</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;0Mi&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>nodefs.available</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;500Mi&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>imagefs.available</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;2Gi&#34;</span><span class=w>
+</span></span></span></code></pre></div><p>在这个例子中，如果 <code>nodefs.available</code> 信号满足驱逐条件，
+kubelet 会回收资源，直到信号达到 1GiB 的条件，
+然后继续回收至少 500MiB 直到信号达到 1.5GiB。</p><p>类似地，kubelet 尝试回收 <code>imagefs</code> 资源，直到 <code>imagefs.available</code> 值达到 <code>102Gi</code>，
+即 102 GiB 的可用容器镜像存储。如果 kubelet 可以回收的存储量小于 2GiB，
+则 kubelet 不会回收任何内容。</p><p>对于所有资源，默认的 <code>eviction-minimum-reclaim</code> 为 <code>0</code>。</p><h2 id=node-out-of-memory-behavior>节点内存不足行为 <a class=td-heading-self-link href=#node-out-of-memory-behavior aria-label="Heading self-link"></a></h2><p>如果节点在 kubelet 能够回收内存之前遇到<strong>内存不足</strong>（OOM）事件，
+则节点依赖 <a href=https://lwn.net/Articles/391222/>oom_killer</a> 来响应。</p><p>kubelet 根据 Pod 的服务质量（QoS）为每个容器设置一个 <code>oom_score_adj</code> 值。</p><table><thead><tr><th>服务质量</th><th><code>oom_score_adj</code></th></tr></thead><tbody><tr><td><code>Guaranteed</code></td><td>-997</td></tr><tr><td><code>BestEffort</code></td><td>1000</td></tr><tr><td><code>Burstable</code></td><td><strong>min(max(2, 1000 - (1000 * memoryRequestBytes) / machineMemoryCapacityBytes), 999)</strong></td></tr></tbody></table><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>kubelet 还将具有 <code>system-node-critical</code>
+<a class=glossary-tooltip title='Pod 优先级表示一个 Pod 相对于其他 Pod 的重要性。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/scheduling-eviction/pod-priority-preemption/#pod-priority target=_blank aria-label=优先级>优先级</a>的任何
+Pod 中的容器 <code>oom_score_adj</code> 值设为 <code>-997</code>。</p></div><p>如果 kubelet 在节点遇到 OOM 之前无法回收内存，
+则 <code>oom_killer</code> 根据它在节点上使用的内存百分比计算 <code>oom_score</code>，
+然后加上 <code>oom_score_adj</code> 得到每个容器有效的 <code>oom_score</code>。
+然后它会杀死得分最高的容器。</p><p>这意味着低 QoS Pod 中相对于其调度请求消耗内存较多的容器，将首先被杀死。</p><p>与 Pod 驱逐不同，如果容器被 OOM 杀死，
+kubelet 可以根据其 <code>restartPolicy</code> 重新启动它。</p><h2 id=node-pressure-eviction-good-practices>良好实践<a class=td-heading-self-link href=#node-pressure-eviction-good-practices aria-label="Heading self-link"></a></h2><p>以下各小节阐述驱逐配置的好的做法。</p><h4 id=可调度的资源和驱逐策略>可调度的资源和驱逐策略<a class=td-heading-self-link href=#%e5%8f%af%e8%b0%83%e5%ba%a6%e7%9a%84%e8%b5%84%e6%ba%90%e5%92%8c%e9%a9%b1%e9%80%90%e7%ad%96%e7%95%a5 aria-label="Heading self-link"></a></h4><p>当你为 kubelet 配置驱逐策略时，
+你应该确保调度程序不会在 Pod 触发驱逐时对其进行调度，因为这类 Pod 会立即引起内存压力。</p><p>考虑以下场景：</p><ul><li>节点内存容量：10GiB</li><li>操作员希望为系统守护进程（内核、<code>kubelet</code> 等）保留 10% 的内存容量</li><li>操作员希望在节点内存利用率达到 95% 以上时驱逐 Pod，以减少系统 OOM 的概率。</li></ul><p>为此，kubelet 启动设置如下：</p><pre tabindex=0><code class=language-none data-lang=none>--eviction-hard=memory.available&lt;500Mi
+--system-reserved=memory=1.5Gi
+</code></pre><p>在此配置中，<code>--system-reserved</code> 标志为系统预留了 1GiB 的内存，
+即 <code>总内存的 10% + 驱逐条件量</code>。</p><p>如果 Pod 使用的内存超过其请求值或者系统使用的内存超过 <code>1Gi</code>，
+则节点可以达到驱逐条件，这使得 <code>memory.available</code> 信号低于 500MiB 并触发条件。</p><h3 id=daemonset>DaemonSet 和节点压力驱逐 <a class=td-heading-self-link href=#daemonset aria-label="Heading self-link"></a></h3><p>Pod 优先级是做出驱逐决定的主要因素。
+如果你不希望 kubelet 驱逐属于 DaemonSet 的 Pod，
+请在 Pod 规约中通过指定合适的 <code>priorityClassName</code> 为这些 Pod
+提供足够高的 <code>priorityClass</code>。
+你还可以使用较低优先级或默认优先级，以便仅在有足够资源时才运行 <code>DaemonSet</code> Pod。</p><h2 id=known-issues>已知问题 <a class=td-heading-self-link href=#known-issues aria-label="Heading self-link"></a></h2><p>以下部分描述了与资源不足处理相关的已知问题。</p><h4 id=kubelet-可能不会立即观察到内存压力>kubelet 可能不会立即观察到内存压力<a class=td-heading-self-link href=#kubelet-%e5%8f%af%e8%83%bd%e4%b8%8d%e4%bc%9a%e7%ab%8b%e5%8d%b3%e8%a7%82%e5%af%9f%e5%88%b0%e5%86%85%e5%ad%98%e5%8e%8b%e5%8a%9b aria-label="Heading self-link"></a></h4><p>默认情况下，kubelet 轮询 cAdvisor 以定期收集内存使用情况统计信息。
+如果该轮询时间窗口内内存使用量迅速增加，kubelet 可能无法足够快地观察到 <code>MemoryPressure</code>，
+但是 OOM killer 仍将被调用。</p><p>你可以使用 <code>--kernel-memcg-notification</code>
+标志在 kubelet 上启用 <code>memcg</code> 通知 API，以便在超过条件时立即收到通知。</p><p>如果你不是追求极端利用率，而是要采取合理的过量使用措施，
+则解决此问题的可行方法是使用 <code>--kube-reserved</code> 和 <code>--system-reserved</code> 标志为系统分配内存。</p><h3 id=active-file-内存未被视为可用内存>active_file 内存未被视为可用内存<a class=td-heading-self-link href=#active-file-%e5%86%85%e5%ad%98%e6%9c%aa%e8%a2%ab%e8%a7%86%e4%b8%ba%e5%8f%af%e7%94%a8%e5%86%85%e5%ad%98 aria-label="Heading self-link"></a></h3><p>在 Linux 上，内核跟踪活动最近最少使用（LRU）列表上的基于文件所虚拟的内存字节数作为 <code>active_file</code> 统计信息。
+kubelet 将 <code>active_file</code> 内存区域视为不可回收。
+对于大量使用块设备形式的本地存储（包括临时本地存储）的工作负载，
+文件和块数据的内核级缓存意味着许多最近访问的缓存页面可能被计为 <code>active_file</code>。
+如果这些内核块缓冲区中在活动 LRU 列表上有足够多，
+kubelet 很容易将其视为资源用量过量并为节点设置内存压力污点，从而触发 Pod 驱逐。</p><p>更多细节请参见
+<a href=https://github.com/kubernetes/kubernetes/issues/43916>https://github.com/kubernetes/kubernetes/issues/43916</a>。</p><p>你可以通过为可能执行 I/O 密集型活动的容器设置相同的内存限制和内存请求来应对该行为。
+你将需要估计或测量该容器的最佳内存限制值。</p><h2 id=接下来>接下来<a class=td-heading-self-link href=#%e6%8e%a5%e4%b8%8b%e6%9d%a5 aria-label="Heading self-link"></a></h2><ul><li>了解 <a href=/zh-cn/docs/concepts/scheduling-eviction/api-eviction/>API 发起的驱逐</a></li><li>了解 <a href=/zh-cn/docs/concepts/scheduling-eviction/pod-priority-preemption/>Pod 优先级和抢占</a></li><li>了解 <a href=/zh-cn/docs/tasks/run-application/configure-pdb/>PodDisruptionBudget</a></li><li>了解<a href=/zh-cn/docs/tasks/configure-pod-container/quality-service-pod/>服务质量</a>（QoS）</li><li>查看<a href=/docs/reference/generated/kubernetes-api/v1.37/#create-eviction-pod-v1-core>驱逐 API</a></li></ul></div>
+</body>
+</html>
