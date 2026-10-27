@@ -88,7 +88,10 @@ export interface BudgetConfig {
   /** budget_key glob. */
   match: string;
   period: BudgetPeriod;
-  /** Absent means unlimited, still metered. */
+  /**
+   * Absent means unlimited, still metered. A soft stop: calls are refused once the spend and
+   * the holds of calls in flight reach it, but a call let in below it may cost more than it held.
+   */
   limit?: number;
   /** The limit holds for every key the glob matches together, not for each key on its own. */
   pooled?: boolean;
