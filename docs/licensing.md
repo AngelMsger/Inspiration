@@ -47,3 +47,12 @@ on which one runs.
 **Model weights** are not part of this repository. Each model a deployment configures in
 the gateway (Qwen, DeepSeek, bge, PaddleOCR-VL and others) has its own licence, which the
 deployment must check, especially for commercial use and for fine-tuned variants.
+
+## Test data
+
+Sample data in `examples/` is ours except where its README names a source.
+[`examples/gitlab-expenses`](../examples/gitlab-expenses/README.md) holds 21 versions of
+GitLab's public travel and expense policy, © GitLab Inc. and contributors, under CC BY-SA
+4.0. They are copied unchanged with a link to each commit, which is the attribution the
+licence asks for; a changed copy would have to carry the same licence. Test data stays out
+of what we ship to customers.

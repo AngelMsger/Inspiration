@@ -20,7 +20,10 @@
  * runs the daily tick over simulated days. A corpus with an expected.yaml gets the control
  * check (controlReport): per case, which slot each statement lands in, each value's
  * independent sources with copies counted once, the proposed value and what becomes of the
- * others, against the answers and the engine's recorded gaps (examples/control).
+ * others, against the answers and the engine's recorded gaps (examples/control). A corpus
+ * with a history.yaml can be replayed (replay, `pnpm engine replay`): the real versions of a
+ * document, one at a time on their own dates, with what governance led with after each,
+ * against timeline.yaml's answers and recorded gaps (examples/gitlab-expenses).
  *
  * Apps are composition roots: they may depend on any component; nothing depends on them.
  */
@@ -40,6 +43,22 @@ export {
 export { Corpus, CorpusError, type CorpusManifest } from "./corpus.ts";
 export { Engine, type EngineOptions } from "./engine.ts";
 export { type DaysReport, days, type FreshnessReport, SimulatedClock } from "./freshness.ts";
+export {
+  type History,
+  HistoryError,
+  type HistoryStep,
+  inEffect,
+  loadHistory,
+  loadTimeline,
+  type ReplayReport,
+  replay,
+  replayLines,
+  type SlotCheck,
+  type SlotState,
+  type StepResult,
+  type Timeline,
+  type TimelineEntry,
+} from "./history.ts";
 export { type InboxReport, inboxReport } from "./inbox.ts";
 export { daysSummary, type IngestReport, ingest, plantedDuplicates, type Spread, summary } from "./ingest.ts";
 export { type OutlineReport, type OutlineRun, outlineReport } from "./outline.ts";

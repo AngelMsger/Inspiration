@@ -1,0 +1,152 @@
+# What a reader should have been told after each version, by slot: the value from a day until
+# the next entry. Read from the versions in history/ by hand. Where a version stops stating a
+# value, the value stays: knowledge never disappears silently (docs/design/source-changes.md,
+# rule 1), and in this replay nobody retires it. README.md explains each change.
+slots:
+  hotel_cap_per_night:
+    - {from: 2023-08-29, value: 300 USD/night}
+  meal_allowance_per_day:
+    - {from: 2023-08-29, value: 100 USD/day}
+    - {from: 2026-06-19, value: 120 USD/day}
+  internet_while_traveling_per_day:
+    - {from: 2023-08-29, value: 50 USD/day}
+  # "Itemized receipts are required for all expenses" is a threshold of 0.
+  receipt_threshold:
+    - {from: 2020-11-17, value: 0 USD}
+    - {from: 2022-01-20, value: 75 USD}
+    - {from: 2023-02-08, value: 0 USD}
+  receipt_threshold|us:
+    - {from: 2023-08-29, value: 50 USD}
+  # "Expenses should be submitted within 30 days", later "Expense claims over 90 days ... will
+  # not be reimbursed".
+  expense_claim_deadline_days:
+    - {from: 2020-11-17, value: 30 day}
+    - {from: 2022-01-27, value: 90 day}
+  monthly_reimbursement_limit:
+    - {from: 2023-02-08, value: 5000 USD/month}
+    - {from: 2023-08-29, value: 10000 USD/month}
+  monthly_reimbursement_limit|e_group:
+    - {from: 2023-08-29, value: 20000 USD/month}
+  home_office_stipend|new_hire:
+    - {from: 2023-02-08, value: 1500 USD}
+  home_office_stipend|yearly_refresh:
+    - {from: 2023-02-08, value: 500 USD}
+  # Not stated from 2023-08-29 on; the 50 stays.
+  phone_service_monthly_cap:
+    - {from: 2022-01-27, value: 200 USD/month}
+    - {from: 2023-02-08, value: 50 USD/month}
+  # The hardware table left the page on 2021-12-03; its values stay.
+  external_monitor_cap:
+    - {from: 2020-11-17, value: 380 USD}
+    - {from: 2021-05-10, value: 400 USD}
+    - {from: 2021-06-23, value: 500 USD}
+  external_monitor_cap|ultra_wide:
+    - {from: 2021-06-23, value: 1000 USD}
+  external_monitor_cap|portable:
+    - {from: 2020-11-17, value: 200 USD}
+
+
+# Where the engine leads with something else today, slot by slot, and why. The history test
+# holds the replay to these; a fix that closes a gap deletes its entry.
+engine:
+  hotel_cap_per_night:
+    why: &moved >-
+      On 2026-03-18 the page was replaced by a "moved to the internal handbook" notice. That
+      version states none of the policy's values, and extraction retracts every statement of
+      the version before it, so the knowledge disappears silently until the page comes back on
+      2026-05-14. Rule 1 of the source-change design keeps it, marked, and reviews the change
+      as one.
+    timeline:
+      - {from: 2023-08-29, value: 300 USD/night}
+      - {from: 2026-03-18, value: null}
+      - {from: 2026-05-14, value: 300 USD/night}
+  meal_allowance_per_day:
+    why: *moved
+    timeline:
+      - {from: 2023-08-29, value: 100 USD/day}
+      - {from: 2026-03-18, value: null}
+      - {from: 2026-05-14, value: 100 USD/day}
+      - {from: 2026-06-19, value: 120 USD/day}
+  internet_while_traveling_per_day:
+    why: *moved
+    timeline:
+      - {from: 2023-08-29, value: 50 USD/day}
+      - {from: 2026-03-18, value: null}
+      - {from: 2026-05-14, value: 50 USD/day}
+  receipt_threshold|us:
+    why: *moved
+    timeline:
+      - {from: 2023-08-29, value: 50 USD}
+      - {from: 2026-03-18, value: null}
+      - {from: 2026-05-14, value: 50 USD}
+  receipt_threshold:
+    why: >-
+      "Itemized receipts are required for all expenses" states no number, which the stand-in
+      needs (the stand-in). On 2021-12-03 and 2022-01-20 the policy summary is indented four
+      spaces, so it is one code block, and the stand-in takes the "$5,000 USD" of the line
+      above (the stand-in). From 2023-02-08 nothing it reads states an amount, and the 75 is
+      retracted silently (the engine, as for the moved notice of the hotel cap).
+    timeline:
+      - {from: 2021-12-03, value: 5000 USD}
+      - {from: 2021-12-13, value: null}
+      - {from: 2022-01-20, value: 5000 USD}
+      - {from: 2022-01-27, value: 75 USD}
+      - {from: 2023-02-08, value: null}
+  expense_claim_deadline_days:
+    why: >-
+      The version of 2023-02-08 states no deadline, and the 90 days are retracted silently
+      until 2023-05-17 states them again; the moved notice of 2026-03-18 does the same (the
+      engine, as for the hotel cap).
+    timeline:
+      - {from: 2020-11-17, value: 30 day}
+      - {from: 2022-01-27, value: 90 day}
+      - {from: 2023-02-08, value: null}
+      - {from: 2023-05-17, value: 90 day}
+      - {from: 2026-03-18, value: null}
+      - {from: 2026-05-14, value: 90 day}
+  monthly_reimbursement_limit:
+    why: &thousands >-
+      Written as "$5K USD" and "$10K USD": the stand-in reads amounts only in digits, so it
+      fits no value (the stand-in).
+    timeline: []
+  monthly_reimbursement_limit|e_group:
+    why: *thousands
+    timeline: []
+  home_office_stipend|new_hire:
+    why: &stipend >-
+      Until 2023-08-29 the stipend is only in a table cell ("For Year 1 ($1,500.00) Stipend",
+      "Year 2 onwards ($500.00)"), which the stand-in does not read (the stand-in). On
+      2026-03-18, the moved notice (the engine, as for the hotel cap).
+    timeline:
+      - {from: 2023-08-29, value: 1500 USD}
+      - {from: 2026-03-18, value: null}
+      - {from: 2026-05-14, value: 1500 USD}
+  home_office_stipend|yearly_refresh:
+    why: *stipend
+    timeline:
+      - {from: 2023-08-29, value: 500 USD}
+      - {from: 2026-03-18, value: null}
+      - {from: 2026-05-14, value: 500 USD}
+  phone_service_monthly_cap:
+    why: >-
+      On 2022-01-27 the row reads "**Phone** | $200 monthly threshold", without the catalogue's
+      "cell phone service" (the stand-in). From 2023-05-17 the cap sits in an HTML table cell
+      ("Policy is set at $50"), which the stand-in does not read, and from 2023-08-29 no
+      version states one; either way the 50 is retracted silently (the engine).
+    timeline:
+      - {from: 2022-05-31, value: 200 USD/month}
+      - {from: 2023-02-08, value: 50 USD/month}
+      - {from: 2023-05-17, value: null}
+  external_monitor_cap:
+    why: &table >-
+      The caps are in a Markdown table whose header names the unit ("Average Price in USD"),
+      but its cells read "$380", and the stand-in takes a cell only when it holds a bare
+      number (the stand-in). From 2021-12-03 the table is gone from the page, which would
+      retract the values silently (the engine).
+    timeline: []
+  external_monitor_cap|ultra_wide:
+    why: *table
+    timeline: []
+  external_monitor_cap|portable:
+    why: *table
+    timeline: []

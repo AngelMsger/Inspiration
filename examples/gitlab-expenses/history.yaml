@@ -1,0 +1,113 @@
+# The real edit history of GitLab's travel and expense policy, replayed in order by
+# `pnpm engine replay examples/gitlab-expenses`. Each step writes one version, verbatim, to the
+# document's place in the corpus, dated by its commit. Until October 2023 the page lived in
+# www-gitlab-com; from then on in the handbook repository. README.md says what each step changed.
+
+document: handbook/finance/expenses.md
+
+steps:
+  - at: 2020-11-17T16:30:01.000+01:00
+    from: history/2020-11-17-3631ae6e05.md
+    commit: 3631ae6e05742fce06e7cbb46a311e064b759669
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/3631ae6e05742fce06e7cbb46a311e064b759669/sites/handbook/source/handbook/finance/expenses/index.html.md
+    title: "Add Reimbursable Amount column to hardware table"
+  - at: 2021-05-10T18:02:14.000+00:00
+    from: history/2021-05-10-280aed44ca.md
+    commit: 280aed44caa6e7580b5407b35cae8c92fda7de42
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/280aed44caa6e7580b5407b35cae8c92fda7de42/sites/handbook/source/handbook/finance/expenses/index.html.md
+    title: "Update sites/handbook/source/handbook/finance/expenses/index.html.md"
+  - at: 2021-06-23T12:57:30.000+00:00
+    from: history/2021-06-23-c9f780f753.md
+    commit: c9f780f753fee8a7a3b447cd0d8661cdd4cdfa69
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/c9f780f753fee8a7a3b447cd0d8661cdd4cdfa69/sites/handbook/source/handbook/finance/expenses/index.html.md
+    title: "Update handbook expense limit for monitors"
+  - at: 2021-12-03T15:48:30.000+00:00
+    from: history/2021-12-03-41f8191db6.md
+    commit: 41f8191db631ae074ce1bf10673295d182d8515b
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/41f8191db631ae074ce1bf10673295d182d8515b/sites/handbook/source/handbook/finance/expenses/index.html.md
+    title: "Updated the flow of the page - and some spelling"
+  - at: 2021-12-13T23:21:12.000+00:00
+    from: history/2021-12-13-aa5eee6a49.md
+    commit: aa5eee6a49f68d4c6d7b01e5943e0456f930de53
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/aa5eee6a49f68d4c6d7b01e5943e0456f930de53/sites/handbook/source/handbook/finance/expenses/index.html.md
+    title: "Update Year-End holiday budget"
+  - at: 2022-01-20T16:22:41.000+00:00
+    from: history/2022-01-20-fda3f13a61.md
+    commit: fda3f13a619d02922bb528b940436329016dbb21
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/fda3f13a619d02922bb528b940436329016dbb21/sites/handbook/source/handbook/finance/expenses/index.html.md
+    title: "Expense Policy add-on"
+  - at: 2022-01-27T23:55:50.000+00:00
+    from: history/2022-01-27-894d190264.md
+    commit: 894d190264aba55ec61aced6407c26b2d661e1ab
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/894d190264aba55ec61aced6407c26b2d661e1ab/sites/handbook/source/handbook/finance/expenses/index.html.md
+    title: "Update sites/handbook/source/handbook/finance/expenses/index.html.md"
+  - at: 2022-05-31T14:48:12.000+00:00
+    from: history/2022-05-31-e066141449.md
+    commit: e066141449e1d919c1f649ba0566a1a7d767404e
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/e066141449e1d919c1f649ba0566a1a7d767404e/sites/handbook/source/handbook/finance/expenses/index.html.md
+    title: "Updating the Expense Handbook Page"
+  - at: 2023-02-08T14:00:26.000+00:00
+    from: history/2023-02-08-c82dc1e19e.md
+    commit: c82dc1e19ea36ccaf06243302a603885647912ff
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/c82dc1e19ea36ccaf06243302a603885647912ff/sites/handbook/source/handbook/finance/expenses/index.html.md
+    title: "Updating Expense Handbook Page"
+  - at: 2023-05-17T16:51:11.000+00:00
+    from: history/2023-05-17-136e59053a.md
+    commit: 136e59053a7ad2470344518d3e36b001d68337cf
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/136e59053a7ad2470344518d3e36b001d68337cf/sites/handbook/source/handbook/finance/expenses/index.html.md
+    title: "Expense Handbook Update"
+  - at: 2023-08-29T10:49:39.000+00:00
+    from: history/2023-08-29-a002ae5e84.md
+    commit: a002ae5e846b8040fffa08beef5eb6c2004e61e5
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/a002ae5e846b8040fffa08beef5eb6c2004e61e5/sites/handbook/source/handbook/finance/expenses/index.html.md
+    title: "Global Travel and Expense Policy: Expenses"
+  - at: 2023-10-05T13:04:39.000+00:00
+    from: history/2023-10-05-06564b5a85.md
+    commit: 06564b5a8555c45df694538e5b78e6cf1c6918a1
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/06564b5a8555c45df694538e5b78e6cf1c6918a1/sites/handbook/source/handbook/finance/expenses/index.html.md
+    title: "Highlight email addresses on the page"
+  - at: 2023-10-16T14:54:16.000+01:00
+    from: history/2023-10-16-e68484b5d4.md
+    commit: e68484b5d4a58de9d58fc7a25b2847f70906ac1b
+    url: https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/e68484b5d4a58de9d58fc7a25b2847f70906ac1b/content/handbook/finance/expenses.md
+    title: "Move finance files in to place"
+  - at: 2024-01-22T09:51:34.000+00:00
+    from: history/2024-01-22-2ff3260c98.md
+    commit: 2ff3260c988501795e7c8b12b693e6f78a9f400e
+    url: https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/2ff3260c988501795e7c8b12b693e6f78a9f400e/content/handbook/finance/expenses.md
+    title: "Update file expenses.md"
+  - at: 2024-02-06T22:24:27.000+00:00
+    from: history/2024-02-06-de7f089440.md
+    commit: de7f0894402a4fb31092fbcab69d1d9e6a68b422
+    url: https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/de7f0894402a4fb31092fbcab69d1d9e6a68b422/content/handbook/finance/expenses.md
+    title: "Archive domains-dns.md"
+  - at: 2024-02-08T07:54:58.000+00:00
+    from: history/2024-02-08-1c4339e028.md
+    commit: 1c4339e028d965e69e6d41b5d41b3e3d6d43701d
+    url: https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/1c4339e028d965e69e6d41b5d41b3e3d6d43701d/content/handbook/finance/expenses.md
+    title: "Update file expenses.md"
+  - at: 2026-02-17T15:20:11.000+01:00
+    from: history/2026-02-17-5d56f521e3.md
+    commit: 5d56f521e3aa53cd5891402da2c03e876cf51629
+    url: https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/5d56f521e3aa53cd5891402da2c03e876cf51629/content/handbook/finance/expenses.md
+    title: "Update payroll cutoff dates for PEO's (iiPay and CXC Global) .md"
+  - at: 2026-03-18T15:39:47.000+00:00
+    from: history/2026-03-18-c2934665d9.md
+    commit: c2934665d9bf31e43caf3c44fe4d782d8b348a16
+    url: https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/c2934665d9bf31e43caf3c44fe4d782d8b348a16/content/handbook/finance/expenses.md
+    title: "Remove Expenses Public Handbook Page"
+  - at: 2026-05-14T09:57:29.000-07:00
+    from: history/2026-05-14-a47f8fb619.md
+    commit: a47f8fb61931b2dbddd43b19bd6fb2106dc57a00
+    url: https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/a47f8fb61931b2dbddd43b19bd6fb2106dc57a00/content/handbook/finance/expenses.md
+    title: "Update Handbook Page for Global Travel and Expense policy.md"
+  - at: 2026-06-19T07:42:25.000-07:00
+    from: history/2026-06-19-6eb1a977ed.md
+    commit: 6eb1a977ed006bf256e5fdeb7422d06ff14d1cf3
+    url: https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/6eb1a977ed006bf256e5fdeb7422d06ff14d1cf3/content/handbook/finance/expenses.md
+    title: "Mirror Navan Policy Updates from internal-handbook!8603"
+  - at: 2026-09-13T04:09:59.000-04:00
+    from: history/2026-09-13-bee431b547.md
+    commit: bee431b54775ce83dd5a319a8b20301a728127e9
+    url: https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/bee431b54775ce83dd5a319a8b20301a728127e9/content/handbook/finance/expenses.md
+    title: "Rename HelpLab to Compass across handbook content"

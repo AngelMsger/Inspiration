@@ -1,0 +1,73 @@
+# The facts of GitLab's travel and expense policy that the replay follows, named as the policy
+# words them. Each one changed, appeared or went away at least once in the history, except the
+# hotel cap, which serves as the steady reference. The amounts are in US dollars.
+predicates:
+  - predicate: hotel_cap_per_night
+    label: Hotel cap per night
+    knowledge_class: policy
+    aliases: [hotel stays]
+    value: {kind: money, unit: USD/night, currency: USD, words: [USD]}
+
+  - predicate: meal_allowance_per_day
+    label: Meals while traveling, per day
+    knowledge_class: policy
+    aliases: [meals while traveling]
+    value: {kind: money, unit: USD/day, currency: USD, words: [USD]}
+
+  - predicate: internet_while_traveling_per_day
+    label: Internet while traveling, per day
+    knowledge_class: policy
+    aliases: [internet while traveling]
+    value: {kind: money, unit: USD/day, currency: USD, words: [USD]}
+
+  - predicate: receipt_threshold
+    label: Receipts required above
+    knowledge_class: policy
+    aliases: [receipts are required, submit receipts]
+    qualifiers:
+      - name: us
+        aliases: [US Team Members]
+    value: {kind: money, unit: USD, currency: USD, words: [USD]}
+
+  - predicate: expense_claim_deadline_days
+    label: Expenses are submitted within
+    knowledge_class: policy
+    aliases: [submitted within, expense claims over]
+    value: {kind: duration, unit: day, words: [days]}
+
+  - predicate: monthly_reimbursement_limit
+    label: Monthly reimbursement limit
+    knowledge_class: policy
+    aliases: [maximum monthly limit]
+    qualifiers:
+      - name: e_group
+        aliases: [E-Group]
+    value: {kind: money, unit: USD/month, currency: USD, words: [USD]}
+
+  - predicate: home_office_stipend
+    label: Home office stipend
+    knowledge_class: policy
+    aliases: [stipend, yearly refresh]
+    qualifiers:
+      - name: new_hire
+        aliases: [new hires]
+      - name: yearly_refresh
+        aliases: [yearly refresh]
+    value: {kind: money, unit: USD, currency: USD, words: [USD]}
+
+  - predicate: phone_service_monthly_cap
+    label: Cell phone service, per month
+    knowledge_class: policy
+    aliases: [cell phone service]
+    value: {kind: money, unit: USD/month, currency: USD, words: [monthly]}
+
+  - predicate: external_monitor_cap
+    label: External monitor
+    knowledge_class: policy
+    aliases: [external monitor]
+    qualifiers:
+      - name: ultra_wide
+        aliases: [ultra-wide]
+      - name: portable
+        aliases: [portable]
+    value: {kind: money, unit: USD, currency: USD, words: [USD]}
