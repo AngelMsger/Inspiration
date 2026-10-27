@@ -17,10 +17,12 @@ import {
   parseGatewayConfig,
   periodStart,
   preferredModels,
+  standIn,
 } from "../src/index.ts";
 import { completionRequest, makeGateway } from "./fixtures.ts";
 
 const DEV_CONFIG = fileURLToPath(new URL("../../../config/gateway.dev.yaml", import.meta.url));
+const DEEPSEEK_CONFIG = fileURLToPath(new URL("../../../config/gateway.deepseek.yaml", import.meta.url));
 
 /** A client whose requests go straight to the app, without a socket. */
 function clientFor(gateway: Gateway): HttpModelGateway {
@@ -116,6 +118,30 @@ describe("config", () => {
     expect(() => parseGatewayConfig({ providers: [], routes: [{ match: "x.*", prefer: ["nowhere/model"] }] })).toThrow(
       /unknown model nowhere\/model/,
     );
+  });
+
+  test("a dry run of the DeepSeek config prices stand-in replies, served from a prefix cache, and shares no cache", async () => {
+    const config = loadGatewayConfig(DEEPSEEK_CONFIG);
+    expect(config.currency).toBe("USD");
+    expect(budgetFor(config, "tenant:ten_x/extraction")).toMatchObject({ period: "day", limit: 5 });
+    expect(config.cache.backend).toBe("valkey");
+    const dry = standIn(config);
+    expect(dry.providers.map((p) => [p.name, p.kind, p.options.mocks])).toEqual([
+      ["deepseek", "fake", true],
+      ["local", "fake", true],
+    ]);
+    expect(dry.cache.backend).toBe("memory");
+    const gateway = await Gateway.create(dry);
+    const corpus = "A passage of the drive. ".repeat(2000);
+    const ask = (question: string) =>
+      gateway.complete(completionRequest(`${corpus}\n${question}`, { task: "retrieval.answer_question" }));
+    const first = await ask("What is the hotel cap?");
+    const second = await ask("What is the meal allowance?");
+    expect([first.provider, first.cost.currency]).toEqual(["deepseek", "USD"]);
+    expect(first.usage.cached_input_tokens ?? 0).toBe(0);
+    expect(second.usage.cached_input_tokens).toBeGreaterThan(0.9 * second.usage.input_tokens);
+    expect(second.cost.amount).toBeLessThan(first.cost.amount / 10);
+    await expect(gateway.complete(completionRequest("x", { sensitivity: "confidential" }))).rejects.toThrow(/no_route/);
   });
 
   test("globs match like a shell", () => {

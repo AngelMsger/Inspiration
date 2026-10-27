@@ -2,11 +2,24 @@
 
 import type { BudgetPeriod, UsageRecord } from "@inspiration/contracts";
 import type { Pool } from "@inspiration/kernel";
+import { type BudgetConfig, globMatch } from "./config.ts";
 
 export interface UsageSink {
   record(rec: UsageRecord): Promise<void>;
   /** Total cost charged to the key since the given instant (or ever). */
   spent(budgetKey: string, since: Date | undefined): Promise<number>;
+  /** Total cost charged to every key the glob matches since the given instant (or ever). */
+  spentMatching(match: string, since: Date | undefined): Promise<number>;
+}
+
+/** What counts against a key's budget: the key's own spend, or a pooled budget's whole spend. */
+export function budgetSpent(
+  usage: UsageSink,
+  budget: BudgetConfig | undefined,
+  budgetKey: string,
+  since: Date | undefined,
+): Promise<number> {
+  return budget?.pooled ? usage.spentMatching(budget.match, since) : usage.spent(budgetKey, since);
 }
 
 /** Milliseconds the zone's wall clock is ahead of UTC at the given instant. */
@@ -46,8 +59,16 @@ export class MemoryUsage implements UsageSink {
   }
 
   async spent(budgetKey: string, since: Date | undefined): Promise<number> {
+    return this.spentWhere((key) => key === budgetKey, since);
+  }
+
+  async spentMatching(match: string, since: Date | undefined): Promise<number> {
+    return this.spentWhere((key) => globMatch(match, key), since);
+  }
+
+  spentWhere(counts: (budgetKey: string) => boolean, since: Date | undefined): number {
     return this.records
-      .filter((r) => r.budget_key === budgetKey && (since === undefined || new Date(r.at) >= since))
+      .filter((r) => counts(r.budget_key) && (since === undefined || new Date(r.at) >= since))
       .reduce((sum, r) => sum + r.cost.amount, 0);
   }
 }
@@ -95,5 +116,14 @@ export class PostgresUsage implements UsageSink {
       [budgetKey, since ?? null],
     );
     return Number(rows[0]?.spent ?? 0);
+  }
+
+  async spentMatching(match: string, since: Date | undefined): Promise<number> {
+    // Keys are few (a tenant's components), and a glob is no LIKE pattern: match them here.
+    const { rows } = await this.pool.query<{ budget_key: string; spent: string }>(
+      "SELECT budget_key, sum(cost) AS spent FROM gateway.usage WHERE $1::timestamptz IS NULL OR at >= $1 GROUP BY budget_key",
+      [since ?? null],
+    );
+    return rows.filter((r) => globMatch(match, r.budget_key)).reduce((sum, r) => sum + Number(r.spent), 0);
   }
 }

@@ -27,7 +27,7 @@ import { type Context, Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { budgetFor } from "./config.ts";
 import type { Gateway } from "./gateway.ts";
-import { periodStart } from "./metering.ts";
+import { budgetSpent, periodStart } from "./metering.ts";
 
 export const ERROR_STATUS: Readonly<Record<GatewayErrorCode, ContentfulStatusCode>> = {
   budget_exceeded: 429,
@@ -66,7 +66,12 @@ export function createApp(gateway: Gateway): Hono {
     const budgetKey = decodeURIComponent(c.req.param("key"));
     const budget = budgetFor(gateway.config, budgetKey);
     const period = budget?.period ?? "total";
-    const spent = await gateway.usage.spent(budgetKey, periodStart(period, new Date(), gateway.timeZone));
+    const spent = await budgetSpent(
+      gateway.usage,
+      budget,
+      budgetKey,
+      periodStart(period, new Date(), gateway.timeZone),
+    );
     const status: BudgetStatus = { budget_key: budgetKey, period, spent, currency: gateway.config.currency };
     if (budget?.limit !== undefined) status.limit = budget.limit;
     return c.json(status);

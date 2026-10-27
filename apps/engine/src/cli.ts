@@ -2,6 +2,7 @@
 /**
  * inspiration-engine ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
  *                    [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>] [--context <tokens>]
+ *                    [--gateway <file> [--dry-run]] [--questions <n>]
  * inspiration-engine synthesize <dir> --documents <n> [--seed <n>]
  * inspiration-engine replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
  * inspiration-engine ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]
@@ -15,12 +16,22 @@
  * it again, reporting the second round on its own. --days then runs the daily tick for n
  * days from today and reports the inbox at the end: every owner's cards and notes per week.
  * --context sets how many tokens the long-context rival of the question check reads at most.
+ * --questions asks only n of them, spread over the list (sampleQuestions).
+ *
+ * --gateway runs every command on the model gateway that file configures (for real models,
+ * config/gateway.deepseek.yaml) instead of the development stand-ins, and reports what the
+ * calls cost by task and by answering path. A Valkey response cache in it uses --valkey or
+ * the stack's. --dry-run keeps that config's models, prices and routes but answers with the
+ * stand-ins (standIn), so the cost reported is an estimate of the run, made before paying
+ * for it. A real run with --stack or --database also meters into the database, so the
+ * config's day budget counts the day's earlier runs.
  *
  * synthesize writes a synthetic corpus of about n documents, with truth.json listing every
  * fact it states, for scale runs.
  *
  * A corpus with an expected.yaml (examples/control) also gets the control check, case by case
- * (see control.ts), and one with a questions.yaml the question check (see questions.ts).
+ * (see control.ts), one with a questions.yaml the question check (see questions.ts), and one
+ * with a keys.yaml the reading check (see reading.ts).
  *
  * ask ingests the corpus and answers one question as the corpus's reader, with the answer's
  * citations and notes.
@@ -34,22 +45,26 @@ import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { loadSettings } from "@inspiration/kernel";
+import { loadSettings, openPool, type Pool } from "@inspiration/kernel";
+import { Gateway, loadGatewayConfig, PostgresUsage, standIn, ValkeyCache } from "@inspiration/model-gateway";
 import type { Truth } from "./claims.ts";
 import { controlLines, controlReport, loadControl } from "./control.ts";
 import { Corpus } from "./corpus.ts";
+import { costLines, costReport, RunUsage } from "./cost.ts";
 import { Engine, type EngineOptions } from "./engine.ts";
 import { days, SimulatedClock } from "./freshness.ts";
 import { loadHistory, loadTimeline, replay, replayLines } from "./history.ts";
 import { inboxLines, inboxReport } from "./inbox.ts";
 import { daysSummary, ingest, plantedDuplicates, summary } from "./ingest.ts";
 import { onUse, onUseSummary } from "./onuse.ts";
-import { loadQuestions, questionLines, questionsReport } from "./questions.ts";
+import { loadKeys, loadQuestions, questionLines, questionsReport, sampleQuestions } from "./questions.ts";
+import { readingLines, readingReport } from "./reading.ts";
 import { edit, synthesize } from "./synthesize.ts";
 
 const USAGE = [
   "usage: inspiration-engine ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
   "                          [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>] [--context <tokens>]",
+  "                          [--gateway <file> [--dry-run]] [--questions <n>]",
   "       inspiration-engine synthesize <dir> --documents <n> [--seed <n>]",
   "       inspiration-engine replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
   "       inspiration-engine ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]",
@@ -72,6 +87,9 @@ async function main(argv: string[]): Promise<number> {
       edit: { type: "string" },
       days: { type: "string" },
       context: { type: "string" },
+      gateway: { type: "string" },
+      "dry-run": { type: "boolean" },
+      questions: { type: "string" },
     },
   });
   const [command, dir, ...rest] = positionals;
@@ -102,6 +120,32 @@ async function main(argv: string[]): Promise<number> {
   if (databaseUrl) options.databaseUrl = databaseUrl;
   if (valkeyUrl && databaseUrl) options.valkeyUrl = valkeyUrl;
   if (settings) options.streamPrefix = settings.streamPrefix;
+  if (values["dry-run"] && !values.gateway) {
+    console.error("--dry-run prices the run a --gateway config would make");
+    return 2;
+  }
+  let cache: ValkeyCache | undefined;
+  let gateway: Gateway | undefined;
+  let usagePool: Pool | undefined;
+  if (values.gateway) {
+    const loaded = loadGatewayConfig(values.gateway);
+    const config = values["dry-run"] ? standIn(loaded) : loaded;
+    if (config.cache.backend === "valkey") {
+      if (!valkeyUrl) {
+        console.error(`${values.gateway} keeps its response cache in Valkey: give --valkey or --stack`);
+        return 2;
+      }
+      cache = ValkeyCache.fromUrl(valkeyUrl);
+    }
+    // A real run on a database meters into gateway.usage, so budgets count the day's earlier
+    // runs; a dry run's stand-in costs never count against them.
+    if (databaseUrl && !values["dry-run"]) usagePool = await openPool(databaseUrl);
+    gateway = await Gateway.create(config, {
+      ...(cache && { cache }),
+      ...(usagePool && { usage: new RunUsage(new PostgresUsage(usagePool)) }),
+    });
+    options.models = gateway;
+  }
   const engine = await Engine.open(options);
   try {
     if (command === "replay") {
@@ -142,7 +186,14 @@ async function main(argv: string[]): Promise<number> {
       console.log(`\n${controlLines(checked).join("\n")}`);
       out.control = checked;
     }
-    const questions = await loadQuestions(dir);
+    const keys = await loadKeys(dir);
+    if (keys) {
+      const read = await readingReport(engine, corpus, keys);
+      console.log(`\n${readingLines(read).join("\n")}`);
+      out.reading = read;
+    }
+    const listed = await loadQuestions(dir);
+    const questions = listed && values.questions ? sampleQuestions(listed, Number(values.questions)) : listed;
     if (questions) {
       const asked = await questionsReport(engine, corpus, questions);
       console.log(`\n${questionLines(asked).join("\n")}`);
@@ -172,10 +223,18 @@ async function main(argv: string[]): Promise<number> {
       console.log(`\n${daysSummary(simulated)}\n${inboxLines(inbox).join("\n")}`);
       out.days = { ...simulated, inbox };
     }
+    const cost = gateway && costReport(engine);
+    if (cost) {
+      console.log(`\n${costLines(cost, values["dry-run"] === true).join("\n")}`);
+      out.cost = cost;
+    }
     if (values.json) await writeFile(values.json, `${JSON.stringify(out, null, 2)}\n`);
     return deadLetters ? 1 : 0;
   } finally {
     await engine.close();
+    await gateway?.close();
+    await cache?.close();
+    await usagePool?.end();
   }
 }
 

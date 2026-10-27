@@ -25,15 +25,21 @@
  *
  * Like the control check, each question may record where the engine answers it otherwise
  * today and why (`engine`), and the test holds the run to it.
+ *
+ * What the model calls of each path cost is reported too (`cost`), and sampleQuestions picks
+ * a spread of the questions for a quick run.
  */
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { type GroundedAnswer, schemaErrors } from "@inspiration/contracts";
+import { type GroundedAnswer, schemaErrors, type UsageRecord } from "@inspiration/contracts";
 import { languageOf } from "@inspiration/kernel";
+import { Gateway } from "@inspiration/model-gateway";
 import { ContextTooLong, type Retrieval } from "@inspiration/retrieval";
 import { parse } from "yaml";
+import { usageMark } from "./claims.ts";
 import type { Corpus } from "./corpus.ts";
+import { type Spend, spendLine, spendOf, usageSince } from "./cost.ts";
 import type { Engine } from "./engine.ts";
 
 /**
@@ -320,6 +326,17 @@ export interface QuestionsReport {
     by_kind: Partial<Record<Kind, Tally>>;
     by_language: Partial<Record<Language, Tally>>;
   };
+  /** What each path's model calls cost, in the gateway's currency; absent without an in-process gateway. */
+  cost?: { currency: string; engine: Spend; passages: Spend; long_context: Spend };
+}
+
+/**
+ * n questions spread evenly over the list, which questions.yaml orders by fact and language,
+ * so a sample keeps their mix; all of them when n is not smaller.
+ */
+export function sampleQuestions(questions: readonly Question[], n: number): Question[] {
+  if (n >= questions.length) return [...questions];
+  return Array.from({ length: n }, (_, i) => questions[Math.floor((i * questions.length) / n)] as Question);
 }
 
 /** The path without its language suffix and extension: docs/a.zh-cn.html is docs/a. */
@@ -372,16 +389,25 @@ export async function questionsReport(
     );
     return [...new Set(a.citations.map((c) => pathOf.get(c.source_version_id) ?? c.source_title))];
   };
+  const spent = { engine: [] as UsageRecord[], passages: [] as UsageRecord[], long_context: [] as UsageRecord[] };
+  const metered = async <T>(path: keyof typeof spent, call: () => Promise<T>): Promise<T> => {
+    const from = usageMark(engine);
+    try {
+      return await call();
+    } finally {
+      spent[path].push(...usageSince(engine, from));
+    }
+  };
   for (const q of questions) {
-    const a = await engine.retrieval.answer({ question: q.question }, corpus.reader);
+    const a = await metered("engine", () => engine.retrieval.answer({ question: q.question }, corpus.reader));
     const sources = await engine.retrieval.sources({ question: q.question }, corpus.reader);
     const expected = q.answer;
     // The same reading of a text as the answer's, so "5000" in a source is "5,000" found.
     const found = expected && sources.some((h) => says(h.snippet, expected));
     const cited = await pathsOf(a);
-    const rival = async (retrieval: Retrieval): Promise<Rival | null> => {
+    const rival = async (path: "passages" | "long_context", retrieval: Retrieval): Promise<Rival | null> => {
       try {
-        const answer = await retrieval.answer({ question: q.question }, corpus.reader);
+        const answer = await metered(path, () => retrieval.answer({ question: q.question }, corpus.reader));
         const paths = await pathsOf(answer);
         return { outcome: outcomeOf(q, answer, paths), answer: answer.answer, cited: paths };
       } catch (e) {
@@ -389,8 +415,8 @@ export async function questionsReport(
         throw e;
       }
     };
-    const passages = (await rival(engine.baselines.passages)) as Rival;
-    const longContext = await rival(engine.baselines.long_context);
+    const passages = (await rival("passages", engine.baselines.passages)) as Rival;
+    const longContext = await rival("long_context", engine.baselines.long_context);
     results.push({
       question: q.question,
       ...(q.fact && { fact: q.fact }),
@@ -425,6 +451,14 @@ export async function questionsReport(
       by_kind: tallies(results, (r) => r.kind),
       by_language: tallies(results, (r) => r.language),
     },
+    ...(engine.models instanceof Gateway && {
+      cost: {
+        currency: engine.models.config.currency,
+        engine: spendOf(spent.engine),
+        passages: spendOf(spent.passages),
+        long_context: spendOf(spent.long_context),
+      },
+    }),
   };
 }
 
@@ -455,6 +489,13 @@ export function questionLines(r: QuestionsReport): string[] {
     `questions: ${t.questions}, ${t.right} answered right, ${t.stale} with a value no longer in effect, ${t.as_recorded - t.right} otherwise as recorded, ${t.questions - t.as_recorded} otherwise`,
     `  search found an expected text for ${t.found} of ${answerable} questions with an answer`,
     `  over the same documents and model, plain retrieval answers ${t.baselines.passages} right, a model reading every document ${t.baselines.long_context ?? "(they do not fit)"}`,
+    ...(r.cost
+      ? [
+          `  answering cost: engine ${spendLine(r.cost.engine, r.cost.currency)}`,
+          `    plain retrieval ${spendLine(r.cost.passages, r.cost.currency)}`,
+          `    reading everything ${spendLine(r.cost.long_context, r.cost.currency)}`,
+        ]
+      : []),
   ];
   const tally = (name: string, n: Tally) => {
     const part = (s: Score | null) => (s ? `${s.right} right, ${s.stale} stale` : "(they do not fit)");

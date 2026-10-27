@@ -39,7 +39,7 @@ export const CONTEXT_SCHEMA: Record<string, unknown> = {
 };
 
 export const ANSWER_TASK = "retrieval.answer_question";
-export const ANSWER_PROMPT_VERSION = "answer_question@1";
+export const ANSWER_PROMPT_VERSION = "answer_question@2";
 
 export interface AnswerSource {
   /** "1", "2", ...: what a sentence cites. */
@@ -54,12 +54,16 @@ export interface AnswerSource {
   held_ref?: string;
 }
 
+/**
+ * In this order, sources first: a prompt that gives every question the same sources (the
+ * long-context rival) then starts the same, so a provider's prefix cache serves them.
+ */
 export interface AnswerInput {
-  question: string;
+  sources: AnswerSource[];
   /** The language to answer in. */
   language: string;
   context?: string;
-  sources: AnswerSource[];
+  question: string;
 }
 
 export interface AnswerOutput {

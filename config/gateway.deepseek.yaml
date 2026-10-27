@@ -1,0 +1,52 @@
+# Model gateway config for validation runs on DeepSeek V4.1 Flash (docs/design/validation.md,
+# "Cost, and how it stays low"). Run with `pnpm engine ingest <corpus> --gateway
+# config/gateway.deepseek.yaml`, and first with --dry-run: the same config with stand-ins for
+# every provider, which meters what the run would send and prices it here, without a key.
+#
+# To confirm before the first paid run (api-docs.deepseek.com is unreachable from the build
+# container): the model ID below, and the prices, which come from third-party reports of
+# September and October 2026. DeepSeek charges half of them off-peak; peak is reported as
+# weekdays 01-04 and 06-10 UTC, so full runs go off-peak.
+currency: USD
+
+providers:
+  - name: deepseek
+    kind: openai_compatible
+    base_url: https://api.deepseek.com/v1
+    api_key_env: DEEPSEEK_API_KEY
+    # A cloud API: never sees confidential or secret content.
+    max_sensitivity: internal
+    timeout_s: 300
+    models:
+      - name: deepseek-v4.1-flash
+        operations: [complete]
+        tiers: [flash, standard, flagship]
+        # JSON mode only: the gateway puts the schema in the prompt and checks the reply.
+        json_schema: false
+        price: {input: 0.30, output: 1.20, cached_input: 0.006}
+
+  # DeepSeek has no embedding, rerank or OCR models, and none is reachable from the build
+  # container yet (an open one such as Qwen3-Embedding needs huggingface.co). Until then these
+  # are the development stand-ins: hashed words for vectors, word overlap for reranking, so
+  # retrieval's vector side measures the pipeline, not a model. No chat model here: a
+  # confidential completion fails rather than being answered by a stand-in.
+  - name: local
+    kind: fake
+    max_sensitivity: secret
+    models:
+      - {name: fake-embedding, operations: [embed], dimensions: 1024}
+      - {name: fake-reranker, operations: [rerank]}
+      - {name: fake-ocr, operations: [ocr]}
+
+budgets:
+  # Inside the prepaid balance, which is the hard cap: no more than this a day for all the
+  # run's calls together. A run on a database (--stack) counts the day's earlier runs too.
+  - match: "*"
+    period: day
+    limit: 5
+    pooled: true
+
+cache:
+  # Shared by runs, so a change to answering alone does not read the corpus again.
+  backend: valkey
+  ttl_s: 2592000

@@ -25,6 +25,12 @@
  * document, one at a time on their own dates, with what governance led with after each,
  * against timeline.yaml's answers and recorded gaps (examples/gitlab-expenses).
  *
+ * With --gateway the CLI runs on real models (config/gateway.deepseek.yaml) and reports what
+ * the calls cost by task and by answering path (costReport); --dry-run prices the same run
+ * with stand-ins first. A corpus with a keys.yaml also gets the reading check
+ * (readingReport): which keyed statements extraction put in their slot, and which values it
+ * put there that no key gives.
+ *
  * Apps are composition roots: they may depend on any component; nothing depends on them.
  */
 
@@ -41,6 +47,7 @@ export {
   type ValueCounts,
 } from "./control.ts";
 export { Corpus, CorpusError, type CorpusManifest } from "./corpus.ts";
+export { type CostReport, costLines, costReport, RunUsage, type Spend, spendOf, usageSince } from "./cost.ts";
 export { Engine, type EngineOptions } from "./engine.ts";
 export { type DaysReport, days, type FreshnessReport, SimulatedClock } from "./freshness.ts";
 export {
@@ -78,10 +85,12 @@ export {
   questionLines,
   questionsReport,
   type Score,
+  sampleQuestions,
   says,
   type Tally,
   valueOn,
 } from "./questions.ts";
+export { type FactReading, type ReadingReport, readingLines, readingReport } from "./reading.ts";
 export {
   type EditOptions,
   type Edits,

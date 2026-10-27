@@ -24,6 +24,10 @@
  * on the prompt version, what the claim says (statement, subject, predicate, value,
  * qualifiers, type and class) and the cited spans, so extracting the same text again gives
  * the same claims, and a block edit leaves the claims of its unchanged sentences alone. A
+ * model's fit to the catalogue is held to it first (fitToCatalogue): a value is written the
+ * one way governance compares ("300 USD/night"), a qualifier may be named by one of its
+ * words, and a fit the catalogue does not allow (another unit, an unknown qualifier, an
+ * unlisted enum value) is dropped and counted as unfit, the claim kept without a slot. A
  * claim with a predicate gets its slot_key (subject entity, predicate and qualifiers). A
  * claim that was closed and is stated again (a value changed back, a document restored) is
  * a new occurrence with an ID from the version, so the earlier interval stays as it was. A

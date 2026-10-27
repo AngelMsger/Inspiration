@@ -31,7 +31,11 @@
  *     budgets:
  *       - match: "tenant:*"                     # budget_key glob; first match wins
  *         period: month
- *         limit: 5000
+ *         limit: 5000                           # for each key it matches
+ *       - match: "*"
+ *         period: day
+ *         limit: 5
+ *         pooled: true                          # for all the keys it matches together
  */
 
 import { readFileSync } from "node:fs";
@@ -86,6 +90,8 @@ export interface BudgetConfig {
   period: BudgetPeriod;
   /** Absent means unlimited, still metered. */
   limit?: number;
+  /** The limit holds for every key the glob matches together, not for each key on its own. */
+  pooled?: boolean;
 }
 
 export interface CacheConfig {
@@ -173,6 +179,7 @@ const SCHEMA = {
           match: { type: "string" },
           period: { enum: ["day", "month", "total"] },
           limit: { type: "number", minimum: 0 },
+          pooled: { type: "boolean" },
         },
       },
     },
@@ -230,6 +237,25 @@ export function parseGatewayConfig(value: unknown): GatewayConfig {
 
 export function loadGatewayConfig(path: string): GatewayConfig {
   return parseGatewayConfig(parse(readFileSync(path, "utf8")));
+}
+
+/**
+ * The same gateway with every provider replaced by the fake one answering with the
+ * model_mocks stand-ins: models, prices, clearances, routes and budgets stay, so a dry run
+ * meters what a real run would send and prices it, without a model server or a key. Its
+ * prefix cache reports what a provider's would serve. The response cache stays in memory,
+ * so stand-in replies never reach a cache that real runs share.
+ */
+export function standIn(config: GatewayConfig): GatewayConfig {
+  return {
+    ...config,
+    providers: config.providers.map((p) => ({
+      ...p,
+      kind: "fake",
+      options: { ...p.options, mocks: true, prefix_cache: true },
+    })),
+    cache: { ...config.cache, backend: config.cache.backend === "none" ? "none" : "memory" },
+  };
 }
 
 /** Cost of one call in the gateway currency. Cached input tokens are a subset of input tokens. */

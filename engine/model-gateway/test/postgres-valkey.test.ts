@@ -28,6 +28,8 @@ describe.skipIf(!hasStack())("gateway on the stack", () => {
       expect(await usage.spent(key, undefined)).toBeCloseTo(first.cost.amount, 8);
       expect(await usage.spent(key, new Date(Date.now() + 60_000))).toBe(0);
       expect(await usage.spent("tenant:other", undefined)).toBe(0);
+      expect(await usage.spentMatching("tenant:*", undefined)).toBeCloseTo(first.cost.amount, 8);
+      expect(await usage.spentMatching("tenant:other*", undefined)).toBe(0);
     } finally {
       await pool.end();
     }

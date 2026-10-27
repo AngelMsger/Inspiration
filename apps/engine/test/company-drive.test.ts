@@ -14,6 +14,7 @@ import {
   loadQuestions,
   type Question,
   questionsReport,
+  readingReport,
   SimulatedClock,
 } from "../src/index.ts";
 
@@ -114,6 +115,16 @@ describe("the company drive", () => {
       expect(verdicts.map((v) => v.values.map((x) => `${x.value} ${x.standing}`))).toEqual([
         ["90 day holds", "30 day outdated"],
         ["120 USD/day holds", "100 USD/day outdated"],
+      ]);
+
+      // How the stand-in read the drive against the key: README.md gives the numbers.
+      const read = await readingReport(engine, corpus, (await loadKeys(corpus.dir)) as Keys);
+      expect(read.totals).toEqual({ stated: 77, found: 42, misread: 21, missed: 14, extra: 262 });
+      expect(Object.values(read.uncatalogued)).toHaveLength(12);
+      expect(read.facts.cluster_max_nodes?.found).toEqual([
+        "../kubernetes-docs/docs/setup/best-practices/cluster-large.html: 5000 node",
+        "../kubernetes-docs/docs/setup/best-practices/cluster-large.ja.html: 5000 node",
+        "../kubernetes-docs/docs/setup/best-practices/cluster-large.zh-cn.html: 5000 node",
       ]);
 
       const questions = (await loadQuestions(corpus.dir)) as Question[];
