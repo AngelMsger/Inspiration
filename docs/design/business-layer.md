@@ -404,8 +404,8 @@ The UI says "company" for a tenant, "member" for a member and "account" for a us
 | Personal space in a company | My space | 我的空间 | マイスペース | Private to the member. The super admin cannot see into it |
 | Team or org space | Space | 空间 | スペース |  |
 | Claim | Statement | 陈述 | 記述 | "Claim" stays an engine word |
-| Tenant connection | Company connection | 企业连接 | 企業の接続 |  |
-| Member connection | Personal connection | 个人连接 | 個人の接続 |  |
+| Tenant connection | Source connection: company | 来源连接：企业 | ソース接続：企業 | Where knowledge comes from. "Connection" alone always means a source connection; "company connection" is the short form |
+| Member connection | Source connection: personal | 来源连接：个人 | ソース接続：個人 | Short form: personal connection |
 | Freshness by tenant connection | Keep fresh with the company connection | 通过企业连接保持更新 | 企業の接続で最新に保つ | Default when one exists |
 | Freshness by member connection | Keep fresh with my connection | 通过我的连接保持更新 | 自分の接続で最新に保つ | Needs the publisher's consent |
 | Snapshot | Publish a snapshot | 发布快照 | スナップショットを公開 | Needs a review date |
@@ -418,8 +418,8 @@ The UI says "company" for a tenant, "member" for a member and "account" for a us
 | Approval modes | Single, Any one, Everyone, At least n | 单人、或签、会签、至少 n 人 | 単独承認、いずれか承認、全員承認、n名以上 |  |
 | Disputed value | Disputed | 有争议 | 異論あり |  |
 | Precedence rule | Rule | 裁决规则 | 裁定ルール |  |
-| The company's own Feishu or Lark organization | Verified Feishu organization | 已认证飞书企业 | 認証済みの Lark 組織 | Used for SSO, contacts and the company connection; never blocks a personal connection. Shows Lark instead of Feishu for Lark tenants |
-| Agent grant | Connected apps | 已授权应用 | 連携済みアプリ |  |
+| The company's own Feishu or Lark organization | Company Feishu organization | 企业飞书组织 | 企業の Lark 組織 | Shown beside Source connections. Used for SSO, contacts and the company connection; never blocks a personal connection. Shows Lark instead of Feishu for Lark tenants |
+| Agent grant | Apps with access | 使用知识的应用 | アクセスを許可したアプリ | Proposed. The apps and agents that use knowledge, such as Claude, Cursor, the CLI and access tokens; never "connected apps" |
 
 | Screen | Main objects | States and actions |
 | --- | --- | --- |
@@ -427,19 +427,19 @@ The UI says "company" for a tenant, "member" for a member and "account" for a us
 | Company switcher | Personal library and companies | Hidden until the person joins or creates a company. A badge when entering needs a fresh sign-in |
 | First run | Empty personal library, no company shown | Connect a source, upload, ask a question; later, invite someone or create a company |
 | Account settings | Profile, login identities, language, time zone | Choose English, 中文 or 日本語; link or unlink a login identity; sign out everywhere |
-| Invite and join | Invitations, join requests, verified domains | Pending, accepted, expired; approve or decline a request |
-| Connections | Company and personal connections | Pending consent, active, needs re-authorization, suspended, revoked, blocked by a company setting |
+| Invite and join | Invitations, join requests, and in Members the email domain whose people may join automatically | Pending, accepted, expired; approve or decline a request |
+| Source connections | Company and personal source connections, with the company's Feishu or Lark organization beside them | Pending consent, active, needs re-authorization, suspended, revoked, blocked by a company setting |
 | Publish wizard | Units, target space, sources | Pick the target space, choose how each source stays fresh (with the coverage difference), see the space's audience and any audience-gap warning, consent when using my connection, submit. Request states: draft, in review, published, retired |
 | Inbox | Todos by kind | Open, in progress, done, dismissed; group by batch; approve from the card |
 | Conflict resolution | Both statements with evidence, affected pages, options | Participants and their votes, mode, deadline, who decides after it; what readers see meanwhile; "make this a rule". Approval states: open, agreed, split, escalated, decided, withdrawn, expired |
 | Why this value? | Resolution record, rule | Who agreed, when, and which rule applied |
-| Admin console (super admin) | Members, spaces tree with audiences and owners, publish queue, ownership by topic, policies, company default language, verified domains and Feishu or Lark organizations, connected apps, audit log, usage per member and per kind of work | Never shows a My space, or what anyone asked, read or researched |
+| Admin console (super admin) | Members (with the email domain for joining automatically), spaces tree with audiences and owners, publish queue, ownership by topic, policies, company default language, source connections with the company's Feishu or Lark organization, apps with access, audit log, usage per member and per kind of work | Never shows a My space, or what anyone asked, read or researched |
 | Handover | A leaving member's scopes, published pages and connections. Never their My space | Reassign each item, or accept the space owner default |
-| Connected apps | A member's agent grants and tokens | Revoke, see last use |
+| Apps with access | A member's agent grants and tokens | Revoke, see last use |
 
 ## Decisions
 
-Decisions 1 to 10 were made on 2026-10-24, and 11 to 14 on 2026-10-26. Decision 13 replaced decision 6.
+Decisions 1 to 10 were made on 2026-10-24, 11 to 14 on 2026-10-26 and 15 on 2026-10-27. Decision 13 replaced decision 6.
 
 | # | Question | Decision |
 | --- | --- | --- |
@@ -457,6 +457,7 @@ Decisions 1 to 10 were made on 2026-10-24, and 11 to 14 on 2026-10-26. Decision 
 | 12 | How usage reaches members | As in mainstream AI products: seats fill a company pool, members have a default cap the super admin can raise, and the super admin sees usage but never content. Credits per seat and what happens when the pool runs out come with billing |
 | 13 | Personal connections to a company's sources | Anyone who holds a credential to a source may import from it; no blocking by email domain or Feishu organization. Verified domains only for joining |
 | 14 | When an agent may change knowledge | On its own it only reads or proposes. A member's explicit request is the approval for an edit within that member's rights (`knowledge.write`), recorded under the member's name, marked as made by the agent and undoable |
+| 15 | Names for connections | Connections that bring knowledge in are Source connections (来源连接, ソース接続), so people can tell them from the apps and agents that use knowledge, which are Apps with access (使用知识的应用, アクセスを許可したアプリ; the name is proposed). There is no Verified domains page: the email domain for joining sits in Members, and the company's Feishu or Lark organization beside Source connections |
 
 The product supports English, Chinese and Japanese; Languages and regions lists what that adds and the two questions still open there.
 
