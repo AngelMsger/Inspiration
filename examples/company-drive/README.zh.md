@@ -3,10 +3,10 @@
 一家公司实际存放的文档，全部用真实的公开文本搭成，用来检验：当旧副本、旧修订版和滞后的译文就放在现行文档旁边时，引擎回答的是不是现在有效的内容。150 个问题，中、英、日文各三分之一，同时交给引擎和两个对手回答，用的是同样的文档和模型：一个是在同样的切块上做普通检索，另一个是把所有文档都读一遍的模型。英文版见 [README.md](README.md)；两者不一致时以英文版为准。
 
 ```bash
-pnpm engine ingest examples/company-drive --today 2026-10-27 --context 1000000   # 在内存中运行，约 50 秒
+pnpm bench ingest examples/company-drive --today 2026-10-27 --context 1000000   # 在内存中运行，约 50 秒
 ```
 
-`--context` 给长上下文对手一百万 token 的窗口：这个网盘有 311,106 个 token，超过默认的 150,000。`apps/engine/test/company-drive.test.ts` 逐条核对答案键与文件，并把运行结果固定为下面的数字。
+`--context` 给长上下文对手一百万 token 的窗口：这个网盘有 311,106 个 token，超过默认的 150,000。`apps/bench/test/company-drive.test.ts` 逐条核对答案键与文件，并把运行结果固定为下面的数字。
 
 ## 网盘里有什么
 
@@ -66,8 +66,8 @@ pnpm engine ingest examples/company-drive --today 2026-10-27 --context 1000000  
 ## 用真实模型
 
 ```
-pnpm engine ingest examples/company-drive --gateway config/gateway.deepseek.yaml --dry-run
-pnpm engine ingest examples/company-drive --gateway config/gateway.deepseek.yaml --valkey <url>
+pnpm bench ingest examples/company-drive --gateway config/gateway.deepseek.yaml --dry-run
+pnpm bench ingest examples/company-drive --gateway config/gateway.deepseek.yaml --valkey <url>
 ```
 
 试运行用替身回答，但按配置里的价格计量每次调用，并模拟与服务商相同的前缀缓存。对全部 150 个问题，它估计全价为 1.04 美元：抽取 339 个窗口 0.36，回答 0.58，其中全部读一遍的模型占 0.43。这个模型读入 4800 万个输入 token，除了 40 万个以外都由前缀缓存提供，因为语料放在每个问题之前。`--questions 30` 均匀挑出 30 个问题，估计 0.66 美元。输出长度是替身的，嵌入和重排仍然用替身。真实运行把每个回复在 Valkey 里保存 30 天，所以文档和提示词不变时再跑一次，只为变化的部分付费；配置里的预算让所有调用合计到每天 5 美元时停止；在数据库上运行（`--stack`）时，它也计入当天之前几次运行的花费。

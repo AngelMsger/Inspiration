@@ -39,8 +39,8 @@ Both layers are built in this repository, as one pnpm workspace, and each has it
 libs/<name>       shared libraries both layers use: contracts, kernel, eventbus, testkit
 engine/<name>     engine components, one package each
 business/<name>   business-layer components, one package each
-apps/<name>       composition roots: the engine process and CLI today; the business backend
-                  and the web app later
+apps/<name>       composition roots: the engine process and its measurement harness today;
+                  the business backend and the web app later
 ```
 
 Package names stay `@inspiration/<name>`.
@@ -56,7 +56,8 @@ One repository makes boundaries a matter of checks rather than of repository wal
   components, the backend that wires them and serves the web app, and the web app, which talks
   only to that backend.
 - **Apps wire, packages don't.** An app may wire components of both layers, for example a
-  single-process development server, and no package depends on an app.
+  single-process development server, and no package depends on an app. The one exception is
+  the measurement harness (`apps/bench`), which runs the engine process it measures.
 - **One manifest and one check.** Each section of [`components.yaml`](../components.yaml)
   maps to one folder: `components` to `engine/`, `libraries` to `libs/`, `apps` to `apps/`,
   and a `business` section to `business/` once the first business component exists. An

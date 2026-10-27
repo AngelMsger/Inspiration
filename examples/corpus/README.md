@@ -9,7 +9,7 @@ single-valued facts (hotel caps, deadlines, leave days ...) that extraction puts
 so governance can compare values across documents. A Chinese copy is in
 [README.zh.md](README.zh.md); if the two differ, this English version wins.
 
-Run it through the engine with `pnpm engine ingest examples/corpus` (see `apps/engine`).
+Run it through the engine with `pnpm bench ingest examples/corpus` (see `apps/bench`).
 With the mocked extraction model it gives about 120 claims, 58 of them in 15 slots, and
 finds the four planted value conflicts below (hotel cap, meal allowance, first-year leave,
 budget deadline). Reference documents are read only where they name a catalogue fact, so 8

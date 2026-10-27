@@ -1,5 +1,5 @@
 # The real edit history of GitLab's travel and expense policy, replayed in order by
-# `pnpm engine replay examples/gitlab-expenses`. Each step writes one version, verbatim, to the
+# `pnpm bench replay examples/gitlab-expenses`. Each step writes one version, verbatim, to the
 # document's place in the corpus, dated by its commit. Until October 2023 the page lived in
 # www-gitlab-com; from then on in the handbook repository. README.md says what each step changed.
 

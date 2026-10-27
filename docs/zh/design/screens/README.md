@@ -55,26 +55,18 @@
 
 ## 选定的系统（D 行，英文）
 
-墨与纸，加上方向 B 的命令面板和方向 C 的提问栏。
+墨与纸，加上方向 B 的命令面板和方向 C 的提问栏。这里只保留第二版没有对应界面的几张。
 
 | 文件 | 界面 |
 | --- | --- |
 | [D-system](../../../design/screens/D-system.dc.html) | 设计令牌与组件 |
-| [D-home](../../../design/screens/D-home.dc.html) | 带提问栏的首页 |
-| [D-steward](../../../design/screens/D-steward.dc.html) | 紧凑模式与命令面板 |
 | [D-signin](../../../design/screens/D-signin.dc.html) | 登录并选择企业 |
-| [D-inbox](../../../design/screens/D-inbox.dc.html) | 待办 |
-| [D-search](../../../design/screens/D-search.dc.html) | 搜索与提问结果 |
-| [D-connections](../../../design/screens/D-connections.dc.html) | 管理：来源连接 |
 | [D-apps](../../../design/screens/D-apps.dc.html) | 使用知识的应用与授权页 |
-| [D-space](../../../design/screens/D-space.dc.html) | 空间设置：角色、按领域排列的主题与维护人、本周的主题变更 |
-| [D-review](../../../design/screens/D-review.dc.html) | 发布申请审阅（紧凑模式） |
-| [D-conflicts](../../../design/screens/D-conflicts.dc.html) | 冲突队列（紧凑模式），由空间负责人裁决 |
 
 ## 演示故事（E 行，中文）
 
 文档先出现，保留原来的形式，知识再一步步叠加上来；各级负责人在追溯里看结构。画布用中文讲演示故事，但中文只是产品支持的三种语言之一，
-不是默认语言（见 [UI 原则](../ui-principles.md) 的“国际化”一节）。
+不是默认语言（见 [UI 原则](../ui-principles.md) 的“国际化”一节）。这里只保留第二版没有对应界面的几张。
 
 | 文件 | 界面 |
 | --- | --- |
@@ -83,25 +75,37 @@
 | [E-doc-knowledge](../../../design/screens/E-doc-knowledge.dc.html) | 文档的知识视图：每一节整理出了什么、用在哪里、和其他文档的关系 |
 | [E-model](../../../design/screens/E-model.dc.html) | 知识模型（说明图，不是产品界面） |
 | [E-topic](../../../design/screens/E-topic.dc.html) | 主题页（读者） |
-| [E-page](../../../design/screens/E-page.dc.html) | 知识页（读者，点开引用） |
 | [E-procedure](../../../design/screens/E-procedure.dc.html) | 流程（读者） |
-| [E-trace](../../../design/screens/E-trace.dc.html) | 追溯：按大纲分组（主题负责人，规模化的陈述中的方案 C） |
-| [E-sources](../../../design/screens/E-sources.dc.html) | 文档与治理级别（方案 C） |
-| [E-inbox](../../../design/screens/E-inbox.dc.html) | 待办：来源更新、原文已删除、支持计数 |
-| [E-mobile](../../../design/screens/E-mobile.dc.html) | 手机 |
 | [E-dark](../../../design/screens/E-dark.dc.html) | 深色主题：保留其令牌，但不在首个版本中 |
-| [E-solo](../../../design/screens/E-solo.dc.html) | 一个人用：没有企业 |
-| [E-publish](../../../design/screens/E-publish.dc.html) | 发布到空间（可见范围由空间决定） |
-| [E-admin](../../../design/screens/E-admin.dc.html) | 管理：可见范围、发布队列（紧凑） |
-| [E-trace-topic](../../../design/screens/E-trace-topic.dc.html) | 追溯：主题总览（上千条陈述） |
 | [E-i18n](../../../design/screens/E-i18n.dc.html) | 三语对照：界面跟随个人，内容保持空间语言 |
-| [E-changes](../../../design/screens/E-changes.dc.html) | 批量变更审阅（紧凑） |
 
 ## 没有复制的内容
 
+- **已被第二版取代的第一版界面。** 2026-10-27 从 `docs/design/screens` 中删除；它们仍留在画布上，git 历史也保留了副本。下表列出每张界面由哪张取代。
 - **A、B、C 三行。** 这是 2026-10-23 比较过的三个方向：A 墨与纸，B 石墨工作台，C 荧光笔工作室。D 以 A 为基础，
   保留了 B 的命令面板、检查器和紧凑模式，以及 C 的提问栏。这三行留在画布上，仅作参考。
 - **更多日文界面。** V2-ja 画了一张日文的知识页；其余关键界面的日文版等日文用词审阅后再画。E-i18n 展示三语对照。
+
+| 已删除 | 由此取代 |
+| --- | --- |
+| D-home | [V2-home](../../../design/screens/V2-home.dc.html) |
+| D-steward | [V2-review](../../../design/screens/V2-review.dc.html), [V2-conflicts](../../../design/screens/V2-conflicts.dc.html) |
+| D-inbox | [V2-inbox](../../../design/screens/V2-inbox.dc.html) |
+| D-search | [V2-search](../../../design/screens/V2-search.dc.html) |
+| D-connections | [V2-sources](../../../design/screens/V2-sources.dc.html) |
+| D-space | [V2-space](../../../design/screens/V2-space.dc.html) |
+| D-review | [V2-review](../../../design/screens/V2-review.dc.html) |
+| D-conflicts | [V2-conflicts](../../../design/screens/V2-conflicts.dc.html) |
+| E-page | [V2-page](../../../design/screens/V2-page.dc.html) |
+| E-trace | [V2-trace](../../../design/screens/V2-trace.dc.html) |
+| E-trace-topic | [V2-trace](../../../design/screens/V2-trace.dc.html) |
+| E-sources | [V2-documents](../../../design/screens/V2-documents.dc.html) |
+| E-inbox | [V2-inbox](../../../design/screens/V2-inbox.dc.html) |
+| E-mobile | [V2-phone](../../../design/screens/V2-phone.dc.html) |
+| E-solo | [V2-switcher](../../../design/screens/V2-switcher.dc.html) |
+| E-publish | [V2-publish](../../../design/screens/V2-publish.dc.html) |
+| E-admin | [V2-admin](../../../design/screens/V2-admin.dc.html) |
+| E-changes | [V2-changes](../../../design/screens/V2-changes.dc.html) |
 
 ## 快照中的用语
 

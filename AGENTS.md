@@ -57,7 +57,9 @@ producer name, its consumer group and the first part of its model task names.
   when a side effect cannot be repeated.
 - Composition roots live in `apps/<name>` and are listed under `apps` in `components.yaml`.
   An app wires components to the store, the bus and the blob store and may depend on any of
-  them; no package depends on an app.
+  them; no package depends on an app. The one exception is a harness that measures an app:
+  `apps/bench` runs the engine process over corpora and lists it under `uses`. Benchmarks,
+  reports and checks against hand-written answers go there, not in `apps/engine`.
 - The engine has no accounts, sign-in or UI concerns. Every API takes the tenant and the
   principal it acts for; people, tenants and policy are provisioned by the business layer
   (see `docs/architecture.md`).
@@ -126,7 +128,34 @@ producer name, its consumer group and the first part of its model task names.
 - `components.yaml` is updated (status, plugins, events, calls), and `test/manifest.test.ts`
   passes.
 - Public behaviour is described in the doc comment of `src/index.ts` or in `docs/`.
+- Whatever the change replaces or leaves unused is gone or marked (see below).
 - The change lands through a pull request.
+
+## Keeping the repo small
+
+The repo is read by people and agents who were not in the discussion, so what is in it must
+be current. `test/docs.test.ts` checks the mechanical part; the rest is on every pull request.
+
+- **One home for each kind of file.** Engine components in `engine/`, libraries in `libs/`,
+  business packages in `business/`, the engine process in `apps/engine`, benchmarks, reports
+  and checks against answers in `apps/bench`, each corpus in `examples/<name>` with a README
+  and a row in `examples/README.md`, docs in `docs/` with a Chinese copy and a row in
+  `docs/README.md`. A new top-level folder or root file gets a line in the README's layout.
+- **Replace, don't pile up.** The pull request that replaces a doc, a screen, a corpus or
+  code deletes the old one; git history keeps it. When its history still matters to readers,
+  mark it instead: its status line says `Status: superseded by <link>`, and so does its row in
+  the docs index. Code a change leaves unused is deleted in that change.
+- **Status lines stay true.** A design doc opens with `Status: adopted`, `proposed` or
+  `superseded`. When the product owner decides, or a pull request it cites as open is merged,
+  the next change to that doc updates the line, in both languages.
+- **Link, don't copy.** Material from outside is copied only into `examples/`, with its
+  source and date, so runs repeat without the network. Elsewhere, link to the source.
+- **Merged branches are deleted.**
+
+Once a week, and after each large stack of pull requests lands, a hygiene pass looks for
+what these rules miss: merged branches, status lines that lag, superseded material still
+unmarked, files over 500 KB, folders the README's layout does not list. It fixes the
+mechanical part in one small pull request and lists the rest for the product owner.
 
 ## Languages
 

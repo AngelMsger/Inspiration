@@ -8,7 +8,7 @@ reference documents with authority 0.5. All are in English except one Chinese tr
 puts into slots. A Chinese copy is in [README.zh.md](README.zh.md); if the two differ, this
 English version wins.
 
-Run it with `pnpm engine ingest examples/control`. After the usual report, the control check
+Run it with `pnpm bench ingest examples/control`. After the usual report, the control check
 prints each case as **right**, **known gap** (it differs the way `expected.yaml` records) or
 **differs**. For every value of a slot it shows four things:
 
@@ -19,7 +19,7 @@ prints each case as **right**, **known gap** (it differs the way `expected.yaml`
 - what governance counts: statements, the governed ones in effect, and documents;
 - whether it is proposed, and if not, what became of it.
 
-`apps/engine/test/control.test.ts` runs it in memory and on Postgres. With the stand-in
+`apps/bench/test/control.test.ts` runs it in memory and on Postgres. With the stand-in
 model, the extraction results measure the pipeline and the stand-in, not a model. The same
 corpus is meant to be run again once a real model is configured.
 

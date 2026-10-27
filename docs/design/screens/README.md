@@ -61,27 +61,21 @@ Working:
 ## The chosen system (row D, in English)
 
 Ink and paper, with the command palette from direction B and the ask bar from direction C.
+Only the screens the second version has no counterpart for are kept here.
 
 | File | Screen |
 | --- | --- |
 | [D-system](D-system.dc.html) | Design tokens and components |
-| [D-home](D-home.dc.html) | Home with the ask bar |
-| [D-steward](D-steward.dc.html) | Compact mode with the command palette |
 | [D-signin](D-signin.dc.html) | Sign in and choose a company |
-| [D-inbox](D-inbox.dc.html) | Inbox |
-| [D-search](D-search.dc.html) | Search and ask results |
-| [D-connections](D-connections.dc.html) | Admin: source connections |
 | [D-apps](D-apps.dc.html) | Apps with access and the consent screen |
-| [D-space](D-space.dc.html) | Space settings: roles, topics and owners by area, the week's topic changes |
-| [D-review](D-review.dc.html) | Publish request review, in compact mode |
-| [D-conflicts](D-conflicts.dc.html) | Conflict queue in compact mode, where the space owner decides |
 
 ## The demo story (row E, in Chinese)
 
 Documents come first, in their original form, and knowledge appears on top of them step by
 step. Owners at every level see the structure in the Trace view. The canvas tells its demo
 story in Chinese, but Chinese is one of the three languages the product serves, not the default
-(see Internationalisation in [UI principles](../ui-principles.md)).
+(see Internationalisation in [UI principles](../ui-principles.md)). Only the screens the second
+version has no counterpart for are kept here.
 
 | File | Screen |
 | --- | --- |
@@ -90,28 +84,42 @@ story in Chinese, but Chinese is one of the three languages the product serves, 
 | [E-doc-knowledge](E-doc-knowledge.dc.html) | The Knowledge view of a document: what each section became, where it is used, and how it relates to other documents |
 | [E-model](E-model.dc.html) | The knowledge model: an explanatory diagram, not a product screen |
 | [E-topic](E-topic.dc.html) | Topic page, as a reader sees it |
-| [E-page](E-page.dc.html) | Knowledge page, as a reader sees it, with a citation open |
 | [E-procedure](E-procedure.dc.html) | Procedure, as a reader sees it |
-| [E-trace](E-trace.dc.html) | Trace view grouped by outline, for the topic owner (option C in Statements at scale) |
-| [E-sources](E-sources.dc.html) | Documents and their governance levels (option C) |
-| [E-inbox](E-inbox.dc.html) | Inbox: source updates, deleted originals, support counts |
-| [E-mobile](E-mobile.dc.html) | Phone |
 | [E-dark](E-dark.dc.html) | Dark theme: its tokens are kept, but it is not in the first release |
-| [E-solo](E-solo.dc.html) | Working alone, with no company |
-| [E-publish](E-publish.dc.html) | Publish to a space, where the space decides who can read |
-| [E-admin](E-admin.dc.html) | Admin: who can read, and the publish queue, in compact mode |
-| [E-trace-topic](E-trace-topic.dc.html) | Trace view, topic overview, with thousands of statements |
 | [E-i18n](E-i18n.dc.html) | The three languages side by side: the interface follows the person, and content keeps the space's language |
-| [E-changes](E-changes.dc.html) | Change-set review, in compact mode |
 
 ## What is not copied
 
+- **First-version screens the second version replaces.** Removed from this folder on
+  2026-10-27; they stay on the canvas, and git history keeps the copies. The table below
+  names the screen that replaces each.
 - **Rows A, B and C.** These are the three directions compared on 2026-10-23: A is ink and
   paper, B the graphite workbench, C the highlighter studio. D was built on A, keeping B's
   command palette, inspector and compact mode and C's ask bar. The three rows stay on the
   canvas, for reference only.
 - **More Japanese screens.** V2-ja shows a knowledge page in Japanese. The other key screens in
   Japanese wait until the Japanese terms are reviewed; E-i18n shows the three languages side by side.
+
+| Removed | Replaced by |
+| --- | --- |
+| D-home | [V2-home](V2-home.dc.html) |
+| D-steward | [V2-review](V2-review.dc.html), [V2-conflicts](V2-conflicts.dc.html) |
+| D-inbox | [V2-inbox](V2-inbox.dc.html) |
+| D-search | [V2-search](V2-search.dc.html) |
+| D-connections | [V2-sources](V2-sources.dc.html) |
+| D-space | [V2-space](V2-space.dc.html) |
+| D-review | [V2-review](V2-review.dc.html) |
+| D-conflicts | [V2-conflicts](V2-conflicts.dc.html) |
+| E-page | [V2-page](V2-page.dc.html) |
+| E-trace | [V2-trace](V2-trace.dc.html) |
+| E-trace-topic | [V2-trace](V2-trace.dc.html) |
+| E-sources | [V2-documents](V2-documents.dc.html) |
+| E-inbox | [V2-inbox](V2-inbox.dc.html) |
+| E-mobile | [V2-phone](V2-phone.dc.html) |
+| E-solo | [V2-switcher](V2-switcher.dc.html) |
+| E-publish | [V2-publish](V2-publish.dc.html) |
+| E-admin | [V2-admin](V2-admin.dc.html) |
+| E-changes | [V2-changes](V2-changes.dc.html) |
 
 ## Terms as of this snapshot
 

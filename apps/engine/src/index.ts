@@ -7,96 +7,14 @@
  * the transactional outbox, relayed to Valkey Streams when a Valkey URL is given; without
  * one, everything stays in memory.
  *
- * Corpus and ingest are the prototype's batch entry: a corpus.yaml declares a tenant, its
- * spaces, sources and a stand-in directory; ingest syncs every source once, delivers all
- * events and reports the volumes (documents, blocks and spans by kind, parse outcomes,
- * duplicates, unmapped ACL entries, claims, conflicts, review clocks, the topic outline, the
- * inbox). Topic owners stand in for the business layer's: each topic gets the member who owns
- * most of its documents (assignOwners).
- * The CLI runs it:
- * `pnpm engine ingest examples/corpus`. synthesize writes a larger synthetic tenant with a
- * ground-truth list of the facts its documents state, current, stale or wrong, for scale
- * runs and for measuring later stages; edit changes a share of it in place, and days()
- * runs the daily tick over simulated days. A corpus with an expected.yaml gets the control
- * check (controlReport): per case, which slot each statement lands in, each value's
- * independent sources with copies counted once, the proposed value and what becomes of the
- * others, against the answers and the engine's recorded gaps (examples/control). A corpus
- * with a history.yaml can be replayed (replay, `pnpm engine replay`): the real versions of a
- * document, one at a time on their own dates, with what governance led with after each,
- * against timeline.yaml's answers and recorded gaps (examples/gitlab-expenses).
+ * Corpus is the prototype's provisioning, standing in for the business layer: a corpus.yaml
+ * declares a tenant, its spaces, sources and a stand-in directory. Runs over a corpus, their
+ * reports and the checks against hand-written answers are the measurement harness's
+ * (apps/bench).
  *
- * With --gateway the CLI runs on real models (config/gateway.deepseek.yaml) and reports what
- * the calls cost by task and by answering path (costReport); --dry-run prices the same run
- * with stand-ins first. A corpus with a keys.yaml also gets the reading check
- * (readingReport): which keyed statements extraction put in their slot, and which values it
- * put there that no key gives.
- *
- * Apps are composition roots: they may depend on any component; nothing depends on them.
+ * Apps are composition roots: they may depend on any component; nothing depends on them but
+ * the harness that measures this one.
  */
 
-export {
-  type CaseResult,
-  type Control,
-  type ControlCase,
-  ControlError,
-  type ControlReport,
-  controlLines,
-  controlReport,
-  loadControl,
-  type SlotOutcome,
-  type ValueCounts,
-} from "./control.ts";
 export { Corpus, CorpusError, type CorpusManifest } from "./corpus.ts";
-export { type CostReport, costLines, costReport, RunUsage, type Spend, spendOf, usageSince } from "./cost.ts";
 export { Engine, type EngineOptions } from "./engine.ts";
-export { type DaysReport, days, type FreshnessReport, SimulatedClock } from "./freshness.ts";
-export {
-  type History,
-  HistoryError,
-  type HistoryStep,
-  inEffect,
-  loadHistory,
-  loadTimeline,
-  type ReplayReport,
-  replay,
-  replayLines,
-  type SlotCheck,
-  type SlotState,
-  type StepResult,
-  type Timeline,
-  type TimelineEntry,
-} from "./history.ts";
-export { type InboxReport, inboxReport } from "./inbox.ts";
-export { daysSummary, type IngestReport, ingest, plantedDuplicates, type Spread, summary } from "./ingest.ts";
-export { type OutlineReport, type OutlineRun, outlineReport } from "./outline.ts";
-export { assignOwners, type OwnersReport } from "./owners.ts";
-export {
-  type FactKey,
-  type Keys,
-  type KeyValue,
-  type Kind,
-  loadKeys,
-  loadQuestions,
-  type Outcome,
-  type Question,
-  type QuestionResult,
-  QuestionsError,
-  type QuestionsReport,
-  questionLines,
-  questionsReport,
-  type Score,
-  sampleQuestions,
-  says,
-  type Tally,
-  valueOn,
-} from "./questions.ts";
-export { type FactReading, type ReadingReport, readingLines, readingReport } from "./reading.ts";
-export {
-  type EditOptions,
-  type Edits,
-  edit,
-  type Stated,
-  type Synthesis,
-  type SynthesisOptions,
-  synthesize,
-} from "./synthesize.ts";

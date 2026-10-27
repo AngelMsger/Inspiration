@@ -1,7 +1,7 @@
 # Questions to the Kubernetes pages in English, Chinese and Japanese, asked as the corpus's
 # reader. answer: texts one of which a right answer contains (null: nothing here answers
 # it); cites: pages a right answer cites, in any of their languages. engine: where the
-# engine answers otherwise today, and why. See questions.ts in apps/engine.
+# engine answers otherwise today, and why. See questions.ts in apps/bench.
 
 questions:
   - question: How many nodes can a Kubernetes cluster have at most?

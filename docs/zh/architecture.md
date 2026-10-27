@@ -30,7 +30,7 @@ Inspiration 是围绕一个知识存储的一组组件。每个组件只负责�
 libs/<name>       两层共用的共享库：contracts、kernel、eventbus、testkit
 engine/<name>     引擎组件，每个组件一个包
 business/<name>   业务层组件，每个组件一个包
-apps/<name>       组装根：现在是引擎进程和 CLI；以后加上业务后端和 Web 应用
+apps/<name>       组装根：现在是引擎进程及其测量工具；以后加上业务后端和 Web 应用
 ```
 
 包名仍是 `@inspiration/<name>`。
@@ -41,7 +41,7 @@ apps/<name>       组装根：现在是引擎进程和 CLI；以后加上业务�
   API 客户端）使用引擎，从不直接引用引擎组件。这样引擎仍能单独运行，任何一方也都能对着另一方的替身测试。
 - **层内只用声明过的依赖。** 一个包只依赖共享库和 `calls` 中列出的组件，和现在一样。业务层也有自己的层级：业务组件、
   组装这些组件并为 Web 应用提供服务的后端，以及只与这个后端通信的 Web 应用。
-- **应用负责组装，包不负责。** 一个应用可以组装两层的组件，例如单进程的开发服务器；任何包都不依赖应用。
+- **应用负责组装，包不负责。** 一个应用可以组装两层的组件，例如单进程的开发服务器；任何包都不依赖应用。唯一的例外是测量工具（`apps/bench`），它运行它所测量的引擎进程。
 - **一份清单，一个检查。** [`components.yaml`](../../components.yaml) 的每一节对应一个目录：`components` 对应
   `engine/`，`libraries` 对应 `libs/`，`apps` 对应 `apps/`，第一个业务组件出现后再加一节 `business` 对应 `business/`。
   引擎组件的 `layer` 字段仍表示它所在的阶段（ingest、compile、store、serve、control）。`test/manifest.test.ts`
