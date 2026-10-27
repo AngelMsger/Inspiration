@@ -113,7 +113,7 @@ Tokens and seconds are what the agent runtime reported for each run.
 
 | Where | What appears |
 | --- | --- |
-| Sources tree | The repository with its folders of documents, Pull requests and Issues |
+| Documents tree | The repository with its folders of documents, Pull requests and Issues |
 | Knowledge view | Topic pages with saved code answers, each conclusion cited to code at a commit and to the discussion |
 | Citation popover | File, lines, commit, "Open in GitHub", and "code changed since" when it did; or "code in repository X" without a quote |
 | Assistant | "Read the code for this?" when knowledge is thin, with the commit the answer read |

@@ -54,7 +54,7 @@ story in Chinese, but Chinese is one of the three languages the product serves, 
 | [E-page](E-page.dc.html) | Knowledge page, as a reader sees it, with a citation open |
 | [E-procedure](E-procedure.dc.html) | Procedure, as a reader sees it |
 | [E-trace](E-trace.dc.html) | Trace view grouped by outline, for the topic owner (option C in Statements at scale) |
-| [E-sources](E-sources.dc.html) | Sources and their governance levels (option C) |
+| [E-sources](E-sources.dc.html) | Documents and their governance levels (option C) |
 | [E-inbox](E-inbox.dc.html) | Inbox: source updates, deleted originals, support counts |
 | [E-mobile](E-mobile.dc.html) | Phone |
 | [E-dark](E-dark.dc.html) | Dark theme: its tokens are kept, but it is not in the first release |

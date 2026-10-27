@@ -44,15 +44,15 @@ Topics come from clustering. A topic made by clustering is proposed until its ow
 
 ## Part 2: governance levels
 
-Most of what a company imports is reference material. Governing it statement by statement is where the volume comes from, so the governance level (`GovernanceLevel`) is set per source, and folders inherit it down the Sources tree.
+Most of what a company imports is reference material. Governing it statement by statement is where the volume comes from, so the governance level (`GovernanceLevel`) is set per source, and folders inherit it down the Documents tree.
 
 | Level | Typical sources | What is extracted | Owner, review, conflicts | What readers see |
 | --- | --- | --- | --- | --- |
 | Governed (`governed`) | Policies, price lists, SOPs, approval flows, official specifications | Rules, facts, metrics, definitions, procedure steps | Topic owner, review clock, conflict todos | Knowledge pages, procedures, cards |
 | Reference (`reference`) | Papers, articles, research reports, meeting minutes, vendor documents | Only on use: when a page cites a passage, an answer uses it, or it touches a known fact slot | No owner and no review. A value that differs from a governed one becomes a note to that owner, never a conflict todo | Original and Annotated views; citations in answers are marked Reference |
-| Search only (`search_only`) | Chats, drafts, personal notes, large archives | Nothing. Passages are indexed for search and answers | None | Sources tree and search |
+| Search only (`search_only`) | Chats, drafts, personal notes, large archives | Nothing. Passages are indexed for search and answers | None | Documents tree and search |
 
-- **Defaults.** Uploads and web pages start as Reference. The super admin picks the level of each connected source, such as a Feishu wiki space, when connecting it. The space owner can change the level of any folder in the Sources tree.
+- **Defaults.** Uploads and web pages start as Reference. The super admin picks the level of each connected source, such as a Feishu wiki space, when connecting it. The space owner can change the level of any folder in the Documents tree.
 - **Promotion is one action.** When an owner adopts a reference statement into a page, the statement becomes governed and gets a fact slot and an owner.
 - **Statement type matters too.** Opinions, conclusions, assumptions and plans never get review todos of their own, even in a governed source. They follow the page that uses them.
 - **A reference document still reads well.** Its Original view, its outline and cited answers all work without a single governed statement.

@@ -61,7 +61,7 @@ The look is "ink and paper": a warm paper ground, serif type for reading, one in
 ## Layout
 
 - **Header:** company and space switcher (hidden for someone working alone), ask or search, account menu (including interface language).
-- **Left:** the Sources tree (connected apps and their folders, with an icon per source app), then the Knowledge tree (spaces, topics, pages). Sources come first because people know their documents before they know the knowledge built from them.
+- **Left:** the Documents tree (connected apps and their folders, with an icon per source app), then the Knowledge tree (spaces, topics, pages). Documents come first because people know their documents before they know the knowledge built from them. The Documents tree also holds chats and sheets, but Documents is the word people use for their material.
 - **Centre:** the document. A source opens in its Original view: rendered from its blocks without a model, it keeps the headings, paragraphs, lists and tables of the source. It is close to the source app's page but not a copy of it, and a block that cannot be rendered, such as a flowchart, shows a placeholder that opens the source. The Annotated view adds marks: a dotted underline on passages that became knowledge, and the Outdated and Disputed marks. The Knowledge view lists what was built from the document. A knowledge page cites its sources inline.
 - **Right panel:** What this says, Comments, Sources, Related, History. Selecting a passage in the Annotated view opens What this says; clicking a citation opens the source beside the page.
 - **Selection menu:** Comment, Highlight, This is outdated, Propose a correction, Ask about this.
@@ -83,7 +83,7 @@ The drawn screens are in [screens](screens/README.md), a snapshot of the design 
 | Conflict, joint approval | Both sides with evidence, options with counts, votes, approval mode, deadline, who decides after it, what readers see meanwhile, "Make this a rule", the record | Owners |
 | Trace view, page | The page's statements grouped by page section, with lineage from source to passage to statement to page | Owners |
 | Trace view, topic overview | Fact slots first, then the pages that use them, then everything else folded by source document with counts; an inspector with topic status, owner, this week's todos and CLI lines | Owners |
-| Sources | The Sources tree with each folder's governance level, which the space owner can change | Space owners |
+| Documents | The Documents tree with each folder's governance level, which the space owner can change | Space owners |
 | Publish to a space | The items to publish, the target space and who can read it (set by its owner), one freshness question per source, checks, the "Some readers can't open the original" warning, approver and request state | Members publishing from My space |
 | Admin: spaces and publishing | Spaces with who can read them, sensitivity label and owner; the publish queue; "Source permissions tightened" todos; usage per member | Super admin |
 | Admin: connections | Company connections to source apps; the consent screen for connecting a personal account | Super admin, members |
@@ -98,7 +98,7 @@ Readers never see the structure behind a page. A knowledge page, procedure or to
 
 Behind the page, knowledge has layers:
 
-- **Sources** stay as written, in the Sources tree. The Original view renders them from their blocks; nothing is copied or cleaned per document.
+- **Sources** stay as written, in the Documents tree. The Original view renders them from their blocks; nothing is copied or cleaned per document.
 - **Passages** are the spans the engine cuts out of a source. Every later layer points back to them.
 - **Statements** are the smallest governed unit: one fact with its status, owner, effective date and the passages behind it. Reviews, disputes and rules act on statements. Statements about the same fact share a fact slot.
 - **Knowledge forms** are built only from statements: knowledge pages, procedures, and cards for things such as a city, a supplier or a role. One statement can appear in several forms, so it is governed once.
@@ -155,7 +155,7 @@ The Chinese terms are adopted. The Japanese terms are proposed and wait for the 
 | Company connection, Personal connection | 企业连接, 个人连接 | 企業の接続, 個人の接続 | Never "credential" or "token" |
 | Source, Passage, Statement | 来源, 段落, 陈述 | ソース, 段落, 記述 | |
 | Topic, Knowledge page, Procedure, Card | 主题, 知识页, 流程, 卡片 | トピック, ナレッジページ, 手順, カード | |
-| Knowledge tree, Sources tree | 知识树, 来源树 | ナレッジツリー, ソースツリー | |
+| Knowledge tree, Documents tree | 知识树, 文档树 | ナレッジツリー, ドキュメントツリー | The Documents tree also holds chats and sheets |
 | Original, Annotated, Knowledge views | 原文, 批注, 知识 | 原文, 注釈, ナレッジ | |
 | What this says | 这段讲了什么 | この段落の要点 | The panel for a selected passage |
 | Trace view | 追溯 | 追跡 | Owners only |
@@ -191,10 +191,10 @@ Adopted on 2026-10-26:
 Direction from the product owner on 2026-10-27:
 
 - Concrete before abstract (principle 1). After importing, people first see their documents in their original form, and knowledge appears on top of them step by step, rather than starting from knowledge cards. The knowledge-first path stays for people who already know what they want. The canvas shows it in E-doc and E-doc-layers.
+- The Sources tree is called Documents (文档, ドキュメント), the word people use for their material, although it also holds chats and sheets. A source is still a source wherever a page cites it.
 
 ## Still open
 
 - Review the Japanese terms in the glossary.
 - Confirm the translation rules: cited passages are translated only on request and labelled as machine translation, and knowledge pages stay in their space's content language for now.
-- Whether the Sources tree should say Documents (文档, ドキュメント), the word people use for their material. Sources also covers chats and sheets, which is why it says Sources today.
 - Still to draw: the Knowledge view of a source, and Japanese versions of the key screens. Publish and conflict in compact mode are drawn (D-review and D-conflicts).

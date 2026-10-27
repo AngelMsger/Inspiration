@@ -49,7 +49,7 @@
 | [E-page](../../../design/screens/E-page.dc.html) | 知识页（读者，点开引用） |
 | [E-procedure](../../../design/screens/E-procedure.dc.html) | 流程（读者） |
 | [E-trace](../../../design/screens/E-trace.dc.html) | 追溯：按大纲分组（主题负责人，规模化的陈述中的方案 C） |
-| [E-sources](../../../design/screens/E-sources.dc.html) | 来源与治理级别（方案 C） |
+| [E-sources](../../../design/screens/E-sources.dc.html) | 文档与治理级别（方案 C） |
 | [E-inbox](../../../design/screens/E-inbox.dc.html) | 待办：来源更新、原文已删除、支持计数 |
 | [E-mobile](../../../design/screens/E-mobile.dc.html) | 手机 |
 | [E-dark](../../../design/screens/E-dark.dc.html) | 深色主题：保留其令牌，但不在首个版本中 |
