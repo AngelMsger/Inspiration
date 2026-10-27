@@ -64,6 +64,22 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
     expect(open.map((i) => i.todo.title)).toEqual(["Global Travel and Expense Policy: 1 statement no longer stated"]);
     const [phone] = await engine.store.getClaims(open[0]?.todo.unit_ids ?? []);
     expect(phone).toMatchObject({ slot_key: "phone_service_monthly_cap", value: { normalized: "50 USD/month" } });
+    // What people were asked, against what changed; README.md says which asks were worth it.
+    expect(report.review).toEqual({
+      versions: 20,
+      changed_facts: 18,
+      todos: 2,
+      todos_by_kind: { conflict: 1, unstated: 1 },
+      more: 2,
+      withdrawn: 1,
+      notes: 0,
+      asks_per_changed_fact: 0.22,
+      cases: 1,
+      settled: 0,
+      first: { todos: {}, more: {}, withdrawn: 0, notes: 0, cases: 0, settled: 0 },
+    });
+    const asked = report.steps.filter((s) => Object.keys(s.asks.todos).length || Object.keys(s.asks.more).length);
+    expect(asked.map((s) => s.at.slice(0, 10))).toEqual(["2022-01-20", "2023-02-08", "2023-05-17", "2026-03-18"]);
   } finally {
     await engine.close();
     await rm(blobDir, { recursive: true, force: true });

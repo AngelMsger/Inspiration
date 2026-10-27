@@ -125,3 +125,31 @@ Two more findings from real text:
 `timeline.yaml` gives each fact's reason in full. When a change closes one of these gaps, the
 history test fails until its entry there is deleted, so every improvement shows up as a diff
 of that file.
+
+## What it asks of people
+
+The replay also counts what each version asks a person to decide (`review` in the report and
+the `review:` line). After the first read, the 20 versions change 18 facts: a value appears,
+changes or stops being stated. They raise 2 todos and give the open todo more to decide twice,
+so people are asked 4 times, 0.22 per changed fact. One of the todos is withdrawn a week later
+without a person. The first read asks nothing.
+
+One of the four asks is worth a person's time, and the other three are the stand-in's:
+
+- **2026-03-18, worth asking:** the page becomes a moved notice, and the open todo lists the
+  nine facts it no longer states.
+- **2022-01-20, the stand-in's:** a conflict between 5,000 and 75 for the receipt threshold,
+  where 5,000 is the stand-in's misreading of the indented summary. The next version ends the
+  conflict and withdraws the todo.
+- **2023-02-08, the stand-in's:** "Items over 90 days from purchase date will not be
+  reimbursed" is the claim deadline in other words, which the stand-in does not read, so the
+  two statements of 90 days are listed as no longer stated.
+- **2023-05-17, the stand-in's:** the phone cap moves into an HTML table as "Policy is set at
+  $50", which the stand-in does not read. When the page really stops stating the cap, on
+  2023-08-29, the todo already lists it.
+
+Counting found one gap of the engine's own, now fixed. On 2022-01-20 the page dropped the
+second of its two copies of the policy summary, and the 30-day deadline stated there was
+listed as no longer stated, though the page still states it elsewhere. A statement whose
+place goes is now superseded by a current statement of the same fact that the version still
+makes, so a fact stated twice asks nothing when one place goes.
