@@ -252,6 +252,9 @@
       "ConflictClass",
       "ConflictTier",
       "ConflictStatus",
+      "SlotStanding",
+      "SlotValueStanding",
+      "SlotVerdict",
       "ConflictCase"
     ],
     "page": [
@@ -345,6 +348,8 @@
       "SearchResult",
       "AnswerQuery",
       "GroundedAnswer",
+      "AnswerNoteKind",
+      "AnswerNote",
       "IndexHit",
       "FeedbackKind",
       "Feedback"
@@ -775,6 +780,38 @@
           "$ref": "#/$defs/TextQuote"
         }
       }
+    },
+    "AnswerNote": {
+      "type": "object",
+      "required": [
+        "kind",
+        "text",
+        "unit_ids"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/AnswerNoteKind"
+        },
+        "text": {
+          "type": "string"
+        },
+        "unit_ids": {
+          "description": "The units the note is about.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/UnitId"
+          }
+        }
+      }
+    },
+    "AnswerNoteKind": {
+      "description": "conflict: sources state different values and a person has yet to decide; the answer gives the value that holds meanwhile. outdated: a source the question found states a value governance replaced, and the answer gives the value that holds. thin_evidence: one source, read with low confidence.\n",
+      "type": "string",
+      "enum": [
+        "conflict",
+        "outdated",
+        "thin_evidence"
+      ]
     },
     "AnswerQuery": {
       "type": "object",
@@ -3899,6 +3936,13 @@
         "token_estimate": {
           "type": "integer",
           "minimum": 0
+        },
+        "notes": {
+          "description": "What the reader should know about the answer's sources, in the question's language.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AnswerNote"
+          }
         }
       }
     },
@@ -5968,6 +6012,24 @@
         "token_estimate": {
           "type": "integer",
           "minimum": 0
+        },
+        "space_id": {
+          "$ref": "#/$defs/SpaceId"
+        },
+        "language": {
+          "$ref": "#/$defs/Locale"
+        },
+        "slot_key": {
+          "description": "The fact slot a claim fills.",
+          "type": "string"
+        },
+        "standing": {
+          "description": "Where the claim's value stands with governance, for a claim that fills a fact slot.",
+          "$ref": "#/$defs/SlotStanding"
+        },
+        "held_unit_id": {
+          "description": "For an outdated or disputed value, the claim that states the value that holds.",
+          "$ref": "#/$defs/UnitId"
         }
       }
     },
@@ -6075,6 +6137,45 @@
         "connective"
       ]
     },
+    "SlotStanding": {
+      "description": "Where one value of a fact slot stands with governance today. holds: the value governance proposes. outdated: a supersession puts the held value in its place (an older edition, a translation behind its original). disputed: an open contradiction with the held value, for a person to decide. differs: another difference, such as a scope, a plan or a value only reference documents state.\n",
+      "type": "string",
+      "enum": [
+        "holds",
+        "outdated",
+        "disputed",
+        "differs"
+      ]
+    },
+    "SlotValueStanding": {
+      "type": "object",
+      "required": [
+        "value",
+        "standing",
+        "claim_ids"
+      ],
+      "properties": {
+        "value": {
+          "description": "The value key, as in SlotVariant.",
+          "type": "string"
+        },
+        "standing": {
+          "$ref": "#/$defs/SlotStanding"
+        },
+        "claim_ids": {
+          "description": "Representatives, the best first.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/ClaimId"
+          }
+        },
+        "rationale": {
+          "description": "Why the value stands so, when a conflict case says.",
+          "type": "string"
+        }
+      }
+    },
     "SlotVariant": {
       "description": "A value current claims of a slot state, and how many claims and documents state it.",
       "type": "object",
@@ -6114,6 +6215,46 @@
         "valid_from": {
           "description": "The earliest day a claim says the value holds from.",
           "$ref": "#/$defs/Instant"
+        }
+      }
+    },
+    "SlotVerdict": {
+      "description": "What governance says about one fact slot today, for whoever shows its values: the value that holds, whether an open contradiction stands against it, and where every other current value stands. Retrieval marks hits and answers with it.\n",
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "slot_key",
+        "held_value",
+        "disputed",
+        "values"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        },
+        "slot_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "held_value": {
+          "type": "string"
+        },
+        "disputed": {
+          "description": "An open contradiction stands against the held value.",
+          "type": "boolean"
+        },
+        "values": {
+          "description": "Every current value, the held one first.",
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/SlotValueStanding"
+          }
+        },
+        "decided_on": {
+          "description": "The day governance decided as of.",
+          "type": "string",
+          "format": "date"
         }
       }
     },

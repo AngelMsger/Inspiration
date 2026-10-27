@@ -1,0 +1,32 @@
+{
+  "name": "@inspiration/retrieval",
+  "version": "0.1.0",
+  "description": "Retrieval: chunks with contextual headers and embeddings, hybrid search behind the permission filter, and grounded answers that give the value governance holds",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "inspiration": {
+    "plugins": {
+      "migrations": {
+        "retrieval": "./src/migrations.ts#MIGRATIONS"
+      },
+      "model_mocks": {
+        "retrieval.write_context": "./src/mock.ts#mockWriteContext",
+        "retrieval.answer_question": "./src/mock.ts#mockAnswerQuestion"
+      }
+    }
+  },
+  "dependencies": {
+    "@inspiration/access-control": "workspace:*",
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/eventbus": "workspace:*",
+    "@inspiration/kernel": "workspace:*",
+    "@inspiration/knowledge-store": "workspace:*",
+    "@inspiration/model-gateway": "workspace:*"
+  },
+  "devDependencies": {
+    "@inspiration/testkit": "workspace:*"
+  }
+}

@@ -504,6 +504,39 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect(decision?.cases.map((c) => [c.classification, c.status])).toEqual([["contradiction", "open"]]);
     });
 
+    test("verdicts say where each value stands, for readers", async ({ world }) => {
+      const policy = await world.state({ ...POLICY, external_id: "travel-policy.md" }, [
+        { text: "The hotel cap is 650 yuan a night.", value: 650 },
+        { text: "Meals are paid at 100 yuan a day.", value: 100, slot: "meal_allowance_per_day" },
+      ]);
+      const translation = await world.state(
+        { ...POLICY, external_id: "travel-policy.zh.md", translation_of: "travel-policy.md" },
+        [{ text: "Hotel cap 600 yuan per night.", value: 600 }],
+      );
+      const guide = await world.state(GUIDE, [
+        { text: "Meals: 120 yuan a day.", value: 120, slot: "meal_allowance_per_day" },
+      ]);
+      const verdicts = await world.governance.verdicts(TENANT, [HOTEL, "meal_allowance_per_day", HOTEL, "unknown"]);
+      expect(verdicts.map((v) => v.slot_key)).toEqual([HOTEL, "meal_allowance_per_day"].sort());
+      expect(verdicts.find((v) => v.slot_key === HOTEL)).toMatchObject({
+        held_value: "650 CNY/night",
+        disputed: false,
+        values: [
+          { value: "650 CNY/night", standing: "holds", claim_ids: [policy.claims[0]?.id] },
+          { value: "600 CNY/night", standing: "outdated", claim_ids: [translation.claims[0]?.id] },
+        ],
+        decided_on: "2026-10-23",
+      });
+      expect(verdicts.find((v) => v.slot_key === "meal_allowance_per_day")).toMatchObject({
+        held_value: "100 CNY/night",
+        disputed: true,
+        values: [
+          { value: "100 CNY/night", standing: "holds" },
+          { value: "120 CNY/night", standing: "disputed", claim_ids: [guide.claims[0]?.id] },
+        ],
+      });
+    });
+
     test("a reference document does not break a tie between governed values", async ({ world }) => {
       const { leader, other } = await tied(world);
       await world.state({ title: "Travel FAQ", authority: 0.5, level: "reference" }, [

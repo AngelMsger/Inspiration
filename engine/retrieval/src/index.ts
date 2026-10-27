@@ -1,0 +1,59 @@
+/**
+ * Retrieval: search and grounded answers over what a member may read.
+ *
+ * Indexing (consumer group "retrieval"):
+ * - On blocks.changed, the document's latest version is cut into chunks (chunks.ts): its
+ *   blocks in reading order with the headings above them, about 400 to 800 tokens each.
+ *   A new chunk gets a contextual header from the model (retrieval.write_context) and an
+ *   embedding of its header, heading path and text, both through the model gateway with the
+ *   version's sensitivity and the budget key tenant:<id>/retrieval. A chunk an edit left
+ *   unchanged keeps its ID, header and embedding; chunks of the previous version that are
+ *   gone are removed, and a deleted document's chunks with them. A late event of an older
+ *   version changes nothing.
+ * - Each chunk carries the principal tokens of its document's latest captured ACL
+ *   (access-control's aclTokens), and an acl.changed rewrites them.
+ *
+ * search(query, principal):
+ * - The vector and keyword indexes each return their best rows under the principal's
+ *   permission filter (spaces, ACL tokens, clearance), and reciprocal rank fusion merges
+ *   them. Every chunk is checked again against the document's permission before it is used.
+ * - The current statements those chunks quote join them, when the principal may read the
+ *   statement (access control's derived-knowledge rule). A statement cites only evidence in
+ *   documents the principal can read now; hidden support is never cited or named.
+ * - The reranker orders statements and passages together, in a request labelled as the
+ *   most sensitive of them, so the gateway sends it only to a provider cleared for that;
+ *   with none cleared the fused order stands. A statement that fills a fact slot is marked
+ *   with where its value stands with governance (holds, outdated, disputed, differs) and,
+ *   when it is not the value that holds, the statement that is. The principal sees a
+ *   verdict only as far as they may read its values: a value with no statement they may
+ *   read is left out, a contradiction stands only between values left, and without the
+ *   value that holds the slot is unmarked, so a hidden value shows through no mark, note
+ *   or ID. Outdated values rank lower. Hits carry freshness from the freshness engine, a snippet of about
+ *   80 tokens and a token estimate of the whole item; token_budget cuts the list.
+ *
+ * answer(query, principal) searches with the question and asks the model
+ * (retrieval.answer_question) to answer from those sources only, every sentence citing
+ * them; passages are given sentence by sentence. A statement found whose value does not
+ * hold brings the statement of the one that does, which the model is pointed to, in
+ * whatever language it is written, when it passes the question's filters, with its own
+ * freshness. So does a passage's sentence that states such a value,
+ * through its statement, which joins marked; a sentence that only states replaced values
+ * is left out of its passage. A sentence of the answer that cites nothing given is dropped, and one that quotes some of
+ * a passage's sentences cites those. Notes in the question's language, on the values the
+ * answer gives, say when sources differ and a person has yet to decide, and when a source
+ * found states a replaced value; another says when a statement rests on one weakly read
+ * source.
+ *
+ * Not built yet: indexes of pages, procedures and entities (hits are statements and
+ * passages), a full-text index per language, FAQ precompute, the semantic cache, values in
+ * notes written the question's way (they are the catalogue's: "5000 node"), and saying an
+ * answer may be incomplete because material the asker cannot read would change it
+ * (docs/design/compiled-knowledge-permissions.md).
+ */
+
+export * from "./chunks.ts";
+export * from "./migrations.ts";
+export * from "./mock.ts";
+export * from "./protocol.ts";
+export * from "./retrieval.ts";
+export { overlap, terms } from "./text.ts";

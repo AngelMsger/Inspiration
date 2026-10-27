@@ -9,11 +9,14 @@ is in [README.zh.md](README.zh.md); if the two differ, this English version wins
 
 ```bash
 pnpm engine ingest examples/kubernetes-docs   # in memory, about 3 seconds
+pnpm engine ask examples/kubernetes-docs "How many nodes can a Kubernetes cluster have at most?"
 ```
 
 After the usual report, the control check (as in [examples/control](../control/README.md))
 prints each page as **right**, **known gap** (it differs the way `expected.yaml` records) or
-**differs**. `apps/engine/test/kubernetes.test.ts` runs it in memory and on Postgres.
+**differs**, and the question check does the same for each question of `questions.yaml`.
+`apps/engine/test/kubernetes.test.ts` runs both in memory and on Postgres. `ask` answers one
+question as the corpus's reader, with its citations and notes.
 
 ## Files
 
@@ -23,6 +26,7 @@ prints each page as **right**, **known gap** (it differs the way `expected.yaml`
 | `sources.yaml` | for each file, the URL, the kubernetes/website commit, the date the page footer gives and the SHA-256 of the page as served |
 | `vocabulary.yaml` | the 11 facts followed, each named as the English, Chinese and Japanese pages word it |
 | `expected.yaml` | the answers, and where the engine gives others today and why |
+| `questions.yaml` | 12 questions in the three languages, with the texts a right answer contains and the pages it cites, and where the engine answers otherwise today and why |
 | `corpus.yaml` | one governed folder source |
 
 ## Source and licence
@@ -86,6 +90,36 @@ The stand-in's misses, which a model is expected not to make:
 eviction page leaves out the line for Windows nodes' memory default and attaches "(Windows
 节点)" to the line after it, so a model reading it would put the node filesystem threshold
 under Windows only. Nothing here follows that qualifier yet.
+
+## Questions
+
+The questions ask for the facts followed, in English, Chinese and Japanese, plus one that
+nothing here answers. An answer is right when it contains an expected text and cites one of
+the expected pages, in any of its languages. With stand-ins for the models (an answer made
+of the source sentences sharing most of the question's words, and a reranker that counts
+shared words), 7 of the 12 are right. The check also says whether the search the answer rests
+on found an expected text at all: it did for 9 of the 11 questions with an answer, so most
+misses are the stand-in answer's, not the search's.
+
+What the engine does right throughout:
+
+- **The value that holds, whatever the language.** After the English page raises its node
+  limit to 6,000, the question in Chinese is answered with the English 6,000, and a note says
+  the Chinese page still states 5,000. The Chinese sentence that states 5,000 is not given to
+  the answer: its statement is, marked as replaced, with the statement of the value that holds.
+- **Notes only on the values an answer gives.** A conflict note comes with the node limit,
+  which the stand-in extraction gives seven values, and not with answers about thresholds.
+- **A question with no answer is a gap.** The passport question cites nothing and says so.
+
+The misses, each recorded in `questions.yaml` with its reason:
+
+- **Different words for the same thing:** "at most" against "no more than", and the Japanese
+  上限 (upper limit) against 最大 (maximum).
+- **Inflections:** the stand-in reranker does not meet "capped", "containers" and "restarts"
+  with "cap", "container" and "restart", so the restart delay cap is not found.
+- **A list under its lead-in:** "The kubelet has the following default hard eviction
+  thresholds:" shares more words with the question than the item "nodefs.available<10%".
+- **Kana and kanji:** the Japanese question writes しきい値 and the page 閾値.
 
 The same corpus is meant to run again once a real model is configured. Then the stand-in's
 misses measure extraction quality, and the engine's part should stay as it is.

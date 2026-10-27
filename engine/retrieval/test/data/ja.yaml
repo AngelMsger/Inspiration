@@ -1,0 +1,8 @@
+# Answers in Japanese. See en.yaml.
+answers:
+  question: 一級都市のホテル宿泊費の上限はいくらですか？
+  policy: 一級都市のホテル宿泊費は1泊650元までとする。
+  copy: 一級都市のホテル宿泊費は1泊600元までとする。
+  outdated: Copy にはまだ 600 CNY/night
+  nothing: ナレッジベースには、この質問に答える内容がありません。
+  unrelated: 会議室はどうやって予約しますか？

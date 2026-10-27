@@ -1,0 +1,73 @@
+# Questions to the Kubernetes pages in English, Chinese and Japanese, asked as the corpus's
+# reader. answer: texts one of which a right answer contains (null: nothing here answers
+# it); cites: pages a right answer cites, in any of their languages. engine: where the
+# engine answers otherwise today, and why. See questions.ts in apps/engine.
+
+questions:
+  - question: How many nodes can a Kubernetes cluster have at most?
+    answer: ["5,000", "5000"]
+    cites: [docs/setup/best-practices/cluster-large]
+  - question: Kubernetes 集群最多可以有多少个节点？
+    answer: ["5,000", "5000"]
+    cites: [docs/setup/best-practices/cluster-large]
+  - question: Kubernetes クラスターのノード数の上限はいくつですか？
+    answer: ["5,000", "5000"]
+    cites: [docs/setup/best-practices/cluster-large]
+    engine:
+      outcome: wrong_answer
+      why: The page writes 最大5000ノード (at most 5000 nodes) and the question asks for the
+        上限 (upper limit) of the ノード数 (number of nodes). The statement is among the
+        answer's sources, but the stand-in answer counts shared characters, and the
+        autoscaler's sentence, which has ノード数 itself, shares more of them (the stand-in).
+  - question: How many pods can run on one node at most?
+    answer: ["110"]
+    cites: [docs/setup/best-practices/cluster-large]
+    engine:
+      outcome: wrong
+      why: '"At most" and "no more than" share no word. "No more than 110 pods per node" is
+        among the answer''s sources and shares pod and node with the question; the sentences
+        on static Pods that run on a node share three of its four words, and the stand-in
+        answer writes three of those (the stand-in).'
+  - question: How many minor versions older than kube-apiserver may the kubelet be?
+    answer: ["three minor versions", "3"]
+    cites: [docs/releases/version-skew-policy]
+  - question: What is the default termination grace period of a pod?
+    answer: ["30 seconds", "30"]
+    cites: [docs/concepts/workloads/pods/pod-lifecycle]
+  - question: Pod 默认的终止宽限期是多少秒？
+    answer: ["30"]
+    cites: [docs/concepts/workloads/pods/pod-lifecycle]
+  - question: What is the cap of a container's restart backoff delay?
+    answer: ["300 seconds", "300s", "five minutes"]
+    cites: [docs/concepts/workloads/pods/pod-lifecycle]
+    engine:
+      outcome: wrong_answer
+      why: 'The page says the kubelet "restarts" "containers" with a delay "capped at 300
+        seconds". The stand-in reranker compares exact words over all that either text has,
+        so "capped", "containers" and "restarts" do not meet the question''s "cap",
+        "container" and "restart", and the long sentence loses to short ones of the same
+        page: it does not reach the answer''s sources (the stand-in).'
+  - question: After how long does the kubelet reset a container's restart backoff timer?
+    answer: ["10 minutes"]
+    cites: [docs/concepts/workloads/pods/pod-lifecycle]
+  - question: What is the default hard eviction threshold for nodefs.available?
+    answer: ["nodefs.available<10%", "10%"]
+    cites: [docs/concepts/scheduling-eviction/node-pressure-eviction]
+    engine:
+      outcome: wrong_answer
+      why: 'The page lists the thresholds under "The kubelet has the following default hard
+        eviction thresholds:". The lead-in shares four of the question''s five words and the
+        item "nodefs.available<10%" one, so the stand-in answer writes the lead-in, where a
+        model reads the item under it; the item is among the answer''s sources (the
+        stand-in).'
+  - question: imagefs.available のデフォルトのハード退避しきい値は？
+    answer: ["imagefs.available<15%", "15%"]
+    cites: [docs/concepts/scheduling-eviction/node-pressure-eviction]
+    engine:
+      outcome: wrong_answer
+      why: The question writes しきい値 (threshold) in kana and the page 閾値 in kanji, so the
+        item "imagefs.available<15%" shares only its name with the question, and the stand-in
+        reranker puts other defaults of the page first; it does not reach the answer's
+        sources (the stand-in).
+  - question: How do I renew a passport?
+    answer: null

@@ -210,7 +210,8 @@ export class PgTx implements StoreTx {
          SELECT * FROM jsonb_to_recordset($1::jsonb)
            AS r(id text, tenant_id text, source_version_id text, space_id text, ordinal integer, search_text text,
                 sensitivity_rank smallint, acl_tokens text[], doc jsonb)
-         ON CONFLICT (id) DO UPDATE SET space_id = excluded.space_id, ordinal = excluded.ordinal,
+         ON CONFLICT (id) DO UPDATE SET source_version_id = excluded.source_version_id,
+           space_id = excluded.space_id, ordinal = excluded.ordinal,
            search_text = excluded.search_text, sensitivity_rank = excluded.sensitivity_rank,
            acl_tokens = excluded.acl_tokens, doc = excluded.doc`,
         [JSON.stringify(rows)],

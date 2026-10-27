@@ -33,6 +33,7 @@
     "@inspiration/model-gateway": "workspace:*",
     "@inspiration/normalization": "workspace:*",
     "@inspiration/page-compiler": "workspace:*",
+    "@inspiration/retrieval": "workspace:*",
     "@inspiration/source-sync": "workspace:*",
     "@inspiration/testkit": "workspace:*"
   },

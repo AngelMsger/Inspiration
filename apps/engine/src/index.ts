@@ -64,6 +64,16 @@ export { daysSummary, type IngestReport, ingest, plantedDuplicates, type Spread,
 export { type OutlineReport, type OutlineRun, outlineReport } from "./outline.ts";
 export { assignOwners, type OwnersReport } from "./owners.ts";
 export {
+  loadQuestions,
+  type Outcome,
+  type Question,
+  type QuestionResult,
+  QuestionsError,
+  type QuestionsReport,
+  questionLines,
+  questionsReport,
+} from "./questions.ts";
+export {
   type EditOptions,
   type Edits,
   edit,
