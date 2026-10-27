@@ -94,7 +94,7 @@ These words are used throughout. The engine uses a few more precise ones, which 
 | --- | --- |
 | Company | One business or team using Inspiration. It is the unit of isolation and billing. Someone working alone has a personal library instead and never sees a company |
 | Space, My space | A space is an area of a company with an audience, such as Finance or Procurement. Each member also has a private My space in every company |
-| Source | A connected app or folder, such as one Feishu wiki space, an upload folder or a research report |
+| Source | A place material comes from, such as one Feishu wiki space, an upload folder or a research report |
 | Passage | An exact piece of a source: a sentence, a table cell, a form field. Every citation points at one |
 | Statement | One fact with its verbatim evidence, the time it holds, a status and a knowledge class (policy, pricing, process and so on) |
 | Fact slot | All statements about one single-valued fact ("hotel cap, tier-1 city, managers and below"). Conflicts live inside one slot |
@@ -109,7 +109,7 @@ These words are used throughout. The engine uses a few more precise ones, which 
 flowchart TB
   C[Company] --> SP["Shared spaces<br/>such as Finance, HR, Sales"]
   C --> MY["My space<br/>one per member, private"]
-  SP --> SRC["Sources<br/>connected apps, folders, uploads"]
+  SP --> SRC["Sources<br/>source apps, folders, uploads"]
   SRC --> ST["Statements<br/>with evidence"]
   ST --> SL["Fact slots<br/>one row per fact"]
   ST --> TP["Topics<br/>the knowledge outline"]
@@ -128,8 +128,8 @@ Most people only read. The product is built so that readers see a normal documen
 | --- | --- | --- |
 | Member | Read, ask, comment, keep material in My space, publish from it | Pages with small citation numbers. Only two marks appear in the text: Outdated and Disputed |
 | Owner of a space, topic, page or procedure | Approve what is published into the scope, keep it current, decide its conflicts, release statements to wider audiences. A space owner also sets who reads the space and its governance levels | Their inbox, and the Trace view of statements, sources and lineage. A space owner also sees the space's backlog and first-review campaigns |
-| Super admin | Members and seats, connections, company settings, sensitivity labels and clearances, audit, agents, plan and usage. Creates spaces and names their owners | The admin console, with usage per member. Never anyone's My space, and never what anyone asked, read or researched |
-| Agent developer (a member) | Connect agents through MCP or REST | Connected apps, scopes and audit |
+| Super admin | Members and seats, source connections, company settings, sensitivity labels and clearances, audit, agents, plan and usage. Creates spaces and names their owners | The admin console, with usage per member. Never anyone's My space, and never what anyone asked, read or researched |
+| Agent developer (a member) | Connect agents through MCP or REST | Apps with access, scopes and audit |
 | Someone working alone | Everything above for their own library | No company, spaces, members or publishing |
 | An agent | Acts for one member, with that member's rights cut down to its scopes | The same knowledge the member could read, through tools |
 
@@ -1014,7 +1014,7 @@ The contracts for pages and views are in place; the compilers, the view host and
 
 ## 21. Feasibility: what is proven, what is not, and how we will find out
 
-The prototype runs on mocked models on purpose: it proves the pipeline, the volumes and the boundaries, not model quality. Each hard part below says what the evidence is today and what will settle it.
+The prototype runs on mocked models on purpose: it proves the pipeline, the volumes and the boundaries, not model quality. Each hard part below says what the evidence is today and what will settle it. How the knowledge core is validated on real documents, with pass bars, a plain-RAG baseline and the results that would change the design, is in [Validating the knowledge core](design/validation.md).
 
 | Hard part | Evidence today | Not yet proven | How we find out | If it falls short |
 | --- | --- | --- | --- | --- |
@@ -1173,6 +1173,7 @@ After that, pilot and product-v1 work for Artifact-level editing (templates, Wor
 | 2026-10-26 | One integration per vendor serves both sync and agent tools; tools act as the member; only code we did not write runs in the sandbox |
 | 2026-10-27 | Concrete before abstract: an imported source opens as a document in its own shape, and knowledge is revealed from it step by step, concrete to abstract; someone new starts in their documents, not in knowledge cards |
 | 2026-10-27 | The Sources tree is called the Documents tree (文档树, ドキュメントツリー), the word people use for their material, although it also holds chats and sheets; a source is still a source wherever a page cites it |
+| 2026-10-27 | Connections that bring knowledge in are Source connections (来源连接, ソース接続), and "connection" alone always means one; the apps and agents that use knowledge are Apps with access (proposed: 使用知识的应用, アクセスを許可したアプリ), never connected apps. There is no Verified domains page: the email domain for joining sits in Members, and the company's Feishu organization beside Source connections |
 
 ## 27. Open questions
 
@@ -1184,6 +1185,7 @@ After that, pilot and product-v1 work for Artifact-level editing (templates, Wor
 6. **Which connectors come second and third outside China** (for example Confluence, Notion, Google Drive, SharePoint), and which first design partner and industry the pilot targets.
 7. **The order of the remaining prototype stages,** and whether a small, capped probe with a real model on real documents should run before every stage is mocked.
 8. **Two details of the agent tools:** whether `search` ranks blocks and statements together by default, and whose budget pays for the model call inside `ask`.
+9. **Whether a standing "Decide for me" delegation counts as the member's approval** under AG-4 (section 6.7). Pressing Decide for me once is an explicit request, so it already fits AG-4. A standing delegation is a request made in advance, scoped to kinds of decision and pausable; the UI design proposes adding it to AG-4, and asks whether every vote in a joint approval may be delegated. Not decided ([Decide for me](design/decide-for-me.md), PR #25).
 
 ## Appendix A. Glossary in three languages
 
@@ -1196,7 +1198,8 @@ One glossary feeds every status, button and empty state. The Chinese column is a
 | Company | 企业 | 企業 |
 | Space, My space | 空间, 我的空间 | スペース, マイスペース |
 | Member | 成员 | メンバー |
-| Company connection, Personal connection | 企业连接, 个人连接 | 企業の接続, 個人の接続 |
+| Source connection: company, personal | 来源连接：企业、个人 | ソース接続：企業、個人 |
+| Apps with access (proposed) | 使用知识的应用 | アクセスを許可したアプリ |
 | Source, Passage, Statement | 来源, 段落, 陈述 | ソース, 段落, 記述 |
 | Topic, Knowledge page, Procedure, Card | 主题, 知识页, 流程, 卡片 | トピック, ナレッジページ, 手順, カード |
 | Knowledge tree, Documents tree | 知识树, 文档树 | ナレッジツリー, ドキュメントツリー |
@@ -1225,6 +1228,7 @@ One glossary feeds every status, button and empty state. The Chinese column is a
 - [Source changes](design/source-changes.md): what happens when a source corrects itself, is deleted or changes at scale.
 - [Knowledge and language](design/knowledge-and-language.md): translations, cross-language merge and pages in another language.
 - [Permissions in compiled knowledge](design/compiled-knowledge-permissions.md): writing for an audience, omissions that change the meaning, releases, abuse cases and trade-offs.
+- [Validating the knowledge core](design/validation.md): the claims of core value, pass bars, real corpora, answer keys, a plain-RAG baseline and the results that would change the design.
 - [Architecture](architecture.md): components, how they talk, storage and security as built.
 - [Contracts](contracts.md): changing schemas, IDs, events, versioning.
 - [PageSpec and views](pagespec.md): pages compared with Claude Artifacts, and the view sandbox.
