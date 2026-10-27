@@ -194,7 +194,7 @@ Direction from the product owner on 2026-10-27:
 
 - Concrete before abstract (principle 1). After importing, people first see their documents in their original form, and knowledge appears on top of them step by step, rather than starting from knowledge cards. The knowledge-first path stays for people who already know what they want. The canvas shows it in E-doc and E-doc-layers.
 - The Sources tree is called Documents (文档, ドキュメント), the word people use for their material, although it also holds chats and sheets. A source is still a source wherever a page cites it.
-- Connections that bring knowledge in are Source connections (来源连接, ソース接続), so people can tell them from the apps that use knowledge, which are Apps with access (使用知识的应用, アクセスを許可したアプリ; proposed) and are never called connected apps. Verified domains is not a separate admin page: the email domain sits in Members, under who can join automatically, and the company's own Feishu organization sits beside Source connections. Neither blocks a personal connection.
+- Connections that bring knowledge in are Source connections (来源连接, ソース接続), so people can tell them from the apps that use knowledge, which are Apps with access (使用知识的应用, アクセスを許可したアプリ; proposed) and are never called connected apps. Verified domains is not a separate admin page: the verified email domains and the company's own Feishu organization sit together in Admin › People › Sign-in and joining, because what they answer is who can come in (product owner's comment, 2026-10-27). Neither blocks a personal connection.
 
 ## Still open
 
