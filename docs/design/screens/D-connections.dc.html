@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Admin · Connections</title>
+<title>Admin · Source connections</title>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -29,9 +29,8 @@ a{color:#2E3F8F}a:hover{color:#1F2C6B}
       <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Spaces and roles</a>
       <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Topic owners</a>
       <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Company settings</a>
-      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Verified domains</a>
-      <a href="#" aria-current="page" style="color: #1C1E23; text-decoration: none; font-weight: 600; padding: 8px 10px; border-radius: 4px; background: #FBFAF7">Connections</a>
-      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Connected apps</a>
+      <a href="#" aria-current="page" style="color: #1C1E23; text-decoration: none; font-weight: 600; padding: 8px 10px; border-radius: 4px; background: #FBFAF7">Source connections</a>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Apps with access</a>
       <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Audit log</a>
       <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Usage</a>
     </nav>
@@ -39,8 +38,8 @@ a{color:#2E3F8F}a:hover{color:#1F2C6B}
     <main style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 26px">
       <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px">
         <div style="display: flex; flex-direction: column; gap: 4px">
-          <h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 36px">Connections</h1>
-          <p style="margin: 0; color: #545964; max-width: 62ch">A connection decides what Inspiration can fetch and keep fresh. It never decides who reads: the space owner or the super admin sets that.</p>
+          <h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 36px">Source connections</h1>
+          <p style="margin: 0; color: #545964; max-width: 62ch">Where knowledge comes from. A source connection decides what Inspiration can fetch and keep fresh. It never decides who reads: the space owner does. Apps that use knowledge are under Apps with access.</p>
         </div>
         <button type="button" style="font: inherit; font-weight: 500; background: #2E3F8F; color: #FFFFFF; border: 0; border-radius: 4px; padding: 10px 16px; min-height: 44px">Install a company app</button>
       </div>
@@ -64,26 +63,21 @@ a{color:#2E3F8F}a:hover{color:#1F2C6B}
         <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 22px">Members' personal connections</h2>
         <p style="margin: 0; color: #545964">These belong to each member and are never shared. You see how many there are, not what they contain.</p>
         <ul style="list-style: none; margin: 0; padding: 0; border-top: 1px solid #DCDAD2">
-          <li style="display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding: 12px 0; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 220px"><b style="font-weight: 600">Lin Xiao</b> <span style="color: #545964">· 1 to Hengyuan's Feishu</span></span><span style="color: #8A5A00">Must move to the company app by 11-22</span><a href="#">Remind</a></li>
+          <li style="display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding: 12px 0; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 220px"><b style="font-weight: 600">Lin Xiao</b> <span style="color: #545964">· 1 to Hengyuan's Feishu, keeps Payment terms fresh in Procurement</span></span><span style="color: #545964">The Hengyuan Feishu app can take this over</span><a href="#">Switch</a></li>
           <li style="display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding: 12px 0; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 220px"><b style="font-weight: 600">Chen Jie</b> <span style="color: #545964">· 1 to Notion, keeps Shenzhen office fresh</span></span><span style="color: #545964">Chen Jie consented 09-21 · stops if Chen Jie leaves</span><a href="#">Review</a></li>
           <li style="display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding: 12px 0; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 220px"><b style="font-weight: 600">Gao Yan</b> <span style="color: #545964">· 1 to DingTalk</span></span><span style="color: #8A5A00">Pauses when Gao Yan leaves on 10-31</span><a href="#">Handover</a></li>
         </ul>
       </section>
     </main>
 
-    <aside aria-label="Company claims and settings" style="flex: 1 1 280px; background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
-      <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 20px">What Hengyuan claims</h2>
+    <aside aria-label="Linked to Hengyuan" style="flex: 1 1 280px; background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+      <h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 20px">Linked to Hengyuan</h2>
       <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
         <li style="display: flex; justify-content: space-between; gap: 10px"><span>Feishu organization "恒远机械"</span><span style="color: #2D6A4F; font-size: 13px">Verified</span></li>
-        <li style="display: flex; justify-content: space-between; gap: 10px"><span>Email domain hengyuan.com</span><span style="color: #2D6A4F; font-size: 13px">Verified by DNS</span></li>
       </ul>
-      <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
-        <legend style="font-weight: 600; padding: 0 0 8px">When someone connects these from outside Hengyuan</legend>
-        <label style="display: flex; gap: 10px; align-items: flex-start; min-height: 32px"><input type="radio" name="claim" style="width: 18px; height: 18px; margin: 2px 0 0; accent-color: #2E3F8F">Allow it</label>
-        <label style="display: flex; gap: 10px; align-items: flex-start; min-height: 32px"><input type="radio" name="claim" checked style="width: 18px; height: 18px; margin: 2px 0 0; accent-color: #2E3F8F">Only inside Hengyuan</label>
-        <label style="display: flex; gap: 10px; align-items: flex-start; min-height: 32px"><input type="radio" name="claim" style="width: 18px; height: 18px; margin: 2px 0 0; accent-color: #2E3F8F">Ask the super admin first</label>
-      </fieldset>
-      <p style="margin: 0; font-size: 13px; color: #545964">Checked when the connection is made, before anything is fetched. Personal libraries that already connect to these get 30 days to move.</p>
+      <p style="margin: 0; color: #545964">Used for signing in with Feishu, the member list and the Hengyuan Feishu app.</p>
+      <p style="margin: 0; font-size: 13px; color: #545964">Anyone who can open a document in Feishu may also import it with their own connection. Inspiration does not block that: Feishu already lets them read it. To keep something inside Hengyuan, set its permissions in Feishu.</p>
+      <p style="margin: 0; font-size: 13px; color: #545964">Who joins Hengyuan automatically, such as everyone with a hengyuan.com email, is set in Members.</p>
     </aside>
   </div>
 </div>

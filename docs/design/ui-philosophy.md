@@ -1,0 +1,148 @@
+# Inspiration UI: design philosophy
+
+Status: proposed, 2026-10-27, after the product owner asked for one clear philosophy that every screen follows, instead of fixes one comment at a time. It goes from the general to the specific: the stance, the beliefs, one structure for every screen, where settings live, how big each list really is, how the assistant shows up, and what this changes on the design canvas. The [UI principles](ui-principles.md) and the drawn screens follow from this document; where they differ, this document wins until they are redone. A Chinese copy is in [docs/zh/design/ui-philosophy.md](../zh/design/ui-philosophy.md).
+
+## 1. The stance: a quiet surface over complete depth
+
+Minimal or comprehensive? Minimal on the surface, complete underneath. Each screen shows what one person needs for the job in front of them, at the size that job really has. Everything else is one step away, in a panel, a link or the command palette (⌘K), and is not on the screen until someone asks for it. Nothing the product can do is hidden for good; it is only out of the way.
+
+Every screen has to pass three tests:
+
+1. **Who is it for, and what is their one job here?** A screen has one main action. Other actions go into a menu or ⌘K.
+2. **What does it look like with the real number of items?** Section 6 gives the sizes. A list drawn with three rows that really holds three hundred is a wrong drawing.
+3. **What does the assistant already know that the person would otherwise have to read?** Say it at the top, and let the person act on it with one press.
+
+## 2. Five beliefs
+
+1. **People come for their work, not for our model.** People know documents, answers and decisions. Statements, fact slots and lineage are how we keep those right. Screens speak in the first; the second stays in the Trace view for owners. This is why imported documents come first and readers never see the knowledge machinery.
+2. **The assistant does the reading; people own the decisions.** The assistant reads everything, sums up the piles, fills in its suggestion and, when asked, decides. Every decision still belongs to a named person, who can see why and undo it.
+3. **Attention is the scarcest thing we handle.** A screen that makes someone read forty rows to find the three that matter has failed. Summaries come before lists, groups before items, exceptions before routine.
+4. **Everything has one place, where the person who answers for it looks.** Navigation follows where you are. Settings follow who is responsible for them. A setting lives in one place, and other places link to it.
+5. **Trust is shown, not claimed.** Why, from where, by whom and since when are one step away on everything. Anything the assistant did can be undone.
+
+## 3. One structure for every screen
+
+| Region | Answers | Holds | Never holds |
+| --- | --- | --- | --- |
+| Top bar | Which company am I in? Find anything. Who am I? | The company switcher (the person's companies and their personal library), search and ask (⌘K), the account menu | Spaces, page titles, filters, or the screen's own actions |
+| Left column | Where am I in this company, and what is here? | The navigation of the area you are in | Actions on the selected item, or a list's filters |
+| Centre | The thing itself | One document, page, list or decision | |
+| Right panel | What about the selected thing? | What this says, comments, history, or the inspector of a selected row | Navigation |
+| Command palette | Everything, by name | Every place and action, with its shortcut and CLI command | |
+
+The left column shows one of four areas:
+
+| Area | For | Entered from | Its left column |
+| --- | --- | --- | --- |
+| Knowledge, the default | Everyone | Signing in, Home | Home, Inbox, My space, then each space the person can read, with its Documents and Knowledge |
+| Managing a space | That space's owners | "Manage" on the space, or a card in the inbox | Overview, Work (reviews, conflicts, publish requests, batch changes), Topics and owners, Documents and governance levels, Readers, Rules, Settings |
+| Admin | The super admin | The account menu | Grouped by concern, as in section 5 |
+| Account | Everyone | The account menu | You (profile and language, sign-in, companies, notifications), then the current company (your source connections, apps with access, Decide for me, your usage) |
+
+Rules:
+
+- **The top bar never changes,** in Admin and Account included. It switches companies, never spaces.
+- **The left column has at most two levels of headings.** Trees, such as Documents and Knowledge, can go deeper, but open one branch at a time.
+- **A screen's filters and views sit above its content,** never in the left column. The inbox's kinds are chips above the list, not a second menu.
+- **Reading folds the left column away** to give the text room. Breadcrumbs above the text only say where you are; they never replace the left column.
+- **Compact is a density setting** (⌘.), not a place. It never changes what the navigation holds.
+
+## 4. Two speeds: reading and working
+
+The same structure serves two very different uses, and only the density changes:
+
+- **Reading** is calm. A page or document fills the centre, the left column folds away, and only the Outdated and Disputed marks show in the text. Most members only ever read.
+- **Working** is dense. Owners and the super admin clear queues, so compact mode shows tables, keyboard shortcuts and an inspector on the right. A queue is still introduced by its overview (section 7).
+
+## 5. Settings follow who answers for them
+
+| Who answers for it | Settings | Where |
+| --- | --- | --- |
+| You, everywhere | Name, interface language, sign-in methods, the companies you belong to, notifications | Account, under You |
+| You, in one company | Your source connections, apps with access, what the assistant may decide for you, your usage | Account, under the company |
+| A space owner | Who reads the space, owners of areas and topics, governance levels of its documents, approval and conflict settings (modes, deadlines, kinds of decision kept for people), content language, rules | Managing the space |
+| The super admin: the company | Name, default languages, data region | Admin › Company |
+| The super admin: people | Members and seats, invitations, sign-in and joining (verified email domains, the company's Feishu organization, single sign-on, directory sync) | Admin › People |
+| The super admin: spaces | Spaces, their owners and readers, the publish queue | Admin › Spaces |
+| The super admin: sources and apps | Company source connections, company agents, which apps members may allow | Admin › Sources and apps |
+| The super admin: security | Sensitivity labels and which model providers may see them, the audit log, turning Decide for me off for the company | Admin › Security |
+| The super admin: usage | Usage per member and kind of work, plan, seats | Admin › Usage and billing |
+
+The super admin decides who and how, never what knowledge says. That is why owners of topics are a space owner's setting, not an admin page.
+
+## 6. Every list at its real size
+
+Measured numbers come from the prototype's synthetic company of 10,000 documents (see [Statements at scale](statements-at-scale.md)); the rest are estimates to check with a design partner.
+
+| List | Typical | Large | How it is shown |
+| --- | --- | --- | --- |
+| Companies in the switcher | 1 to 2 | 5 | A plain menu |
+| Spaces in a company | 5 to 15 | 100 or more | The spaces you use first, then All spaces with search |
+| Documents in a space | 300 to 3,000 | 50,000 | A tree by source app and folder, opened lazily, with counts on folders and search inside |
+| Topics in a space | 10 to 40, in 3 to 8 areas | 300 | Folded by area, with search. Sizes come from clustering: a topic splits at about 100 statements |
+| Statements in a topic | about 1,000 (measured median 1,143) | 6,000 (measured max 6,206) | Never listed. Fact slots first, then the pages that use them, then the rest folded by document with counts |
+| Pages, procedures and cards in a topic | 5 to 15 | 50 | A list |
+| Todos per owner per week | 2 (p90 5) on one card | 26 on 4 cards; 605 on 44 campaign cards on day one | An overview first, then cards of at most 20, at most 10 cards a week |
+| Open conflicts in a space | 0 to 5 | 30 | A list by deadline |
+| Publish requests in a space | 0 to 3 a week | 20 | A list by deadline |
+| Members of a company | 10 to 200 | 5,000 | Search first, filters and bulk actions; never a full table without search |
+| Readers of a space | Groups and a count, "All 18 Procurement members" | Thousands | Groups, never a list of people |
+| Owners in a space | 3 to 10 | 40 | By area, inherited downwards |
+| Source connections | 2 to 8 for the company, 0 to 3 per member | 30 | A list |
+| Apps with access, per member | 1 to 5 | 20 | A list |
+| Rules in a space | 0 to 20 | 200 | By kind, with search |
+| Decided for you, per week | 0 to 40 | 300 | One line of totals, grouped by kind, Undo per group |
+| Comments on a page | 0 to 10 | 100 | Threads by block, resolved ones folded |
+| Search hits | 10 | 50 a page | The answer first, then hits |
+| Audit log | thousands a day | millions | A query with filters, never a feed |
+
+The rule of thumb: up to 10 items, show them all. From 10 to 100, group or sort by what needs attention and fold the rest. Above 100, search or filter first and show a summary with the exceptions. When there is no end, it is a query, not a list.
+
+## 7. The assistant in the interface, quietly
+
+Inspiration is an AI-native product, so the assistant is in almost every screen. It should feel like a colleague who has already done the reading, not like a feature asking for attention.
+
+1. **An overview before every pile.** The inbox, a queue, a batch change, a topic, search results and an imported folder each open with two or three sentences the assistant writes from the engine's numbers: what happened, what needs you, and what it can settle. For example: "9 things this week. 6 can be settled the way you usually decide. 3 need you: a split vote on lead times, a permission change on Supplier contracts, and a price."
+2. **The suggestion is the default.** Where a person chooses, the assistant's choice is already selected and marked Suggested, with a one-line reason. Enter confirms it; another option is one click away. There is no chat bubble and no "the AI says" panel: the suggestion lives in the state of the controls, in what is selected, what comes first and what is folded.
+3. **Decide for me sits on piles.** One action on an overview or a card settles everything the assistant may settle, and leaves the rest marked Left for you. A single item is decided by accepting its suggestion, so there is no Decide for me button on every item. The `d` key and ⌘K reach it anywhere. After someone accepts the suggestion for one kind of decision five times in a row, the assistant asks once, in a line under the decision, whether to always decide that kind.
+4. **Left for you, with its reason.** When the assistant may not or should not decide (people disagree, it changes who can read, it cannot be undone, it is unsure, or the space keeps that kind for people), it says why in one line and still fills in its suggestion.
+5. **Results, not process.** The assistant's work shows as outcomes: a filled-in choice, a sorted list, "Decided 34 for you this week, 2 undone". It does not narrate progress or open windows nobody asked for.
+6. **Why and Undo on everything it did.** "Why?" shows the reason and the passages it read; Undo restores the earlier state and gives the item back.
+7. **No styling of its own.** The assistant has no avatar, sparkle or colour. Its marks are words (Suggested, Decided for you, Left for you), small and muted, never louder than the person's own content.
+8. **Asking is always there and never in the way.** The ask box on Home, ⌘K everywhere, and Ask about this on any selection. Answers appear in place, in a panel or a popover, with citations.
+
+Left out on purpose: a chat sidebar on every screen, an AI button on every item, AI badges, changes applied without a record, and summaries of things nobody asked about. The rules for delegation are in [Decide for me](decide-for-me.md).
+
+## 8. What this changes on the canvas
+
+An audit of the design canvas (version 72) against this document:
+
+| Found on the canvas | Rule | Next version |
+| --- | --- | --- |
+| Six different top bars: account and admin screens drop the switcher or search, and some show Compact as if it were a place | Section 3 | One top bar on every screen; Compact is a setting |
+| Nine shapes of left column: an area menu, inbox filters, owner tools, an admin list, an account list, a document tree, a Trace outline, or none | Section 3 | The left column always shows one of the four areas; filters and outlines move into the screen |
+| Admin is one flat list mixing people, spaces, sources and security, and holds Topic owners, which belongs to space owners | Section 5 | Admin grouped by concern; owners of topics live in the space |
+| Lists drawn with three to five rows and no search where the real list holds hundreds (members, topics, spaces) | Section 6 | Each list drawn at its typical size, with how it behaves when large |
+| The assistant shows up in six ways: a Suggested chip, "the system suggests", comment replies, plain text, nothing at all, and draft Decide for me buttons on every item | Section 7 | One pattern: overview, suggestion as the default, Decide for me on piles |
+| Two demo stories with different people: Procurement in English, Finance travel in Chinese | | One story and one cast on every screen |
+| 负责人 on the canvas, 维护人 in the documents | Waiting for the product owner | Follow the decision; until then, the documents' 维护人 |
+| The early explorations A, B and C share the canvas with the chosen design | | Moved to an archive area |
+
+The second version (canvas version 73, row V2 in [screens](screens/README.md)) applies these rules to eight screens: the structure map, a member's home, the inbox, one decision, managing a space, a publish request, admin and Decide for me in the account. The other screens are redrawn the same way next.
+
+## 9. What the UI needs from the engine
+
+Checked against the engine on 2026-10-27 (`main` after pull request #24, and the engine thread's validation work):
+
+- **Overviews.** Collaboration already groups todos by owner, topic, fact slot and week. The overview needs one summary read per person: counts by kind and cause, and which ones the assistant may settle. This is additive.
+- **Suggestion as the default.** Governance already proposes the most authoritative value with a reason (GV-1), and a todo already offers one-click resolutions (`TodoResolution`). A resolution needs to say that it is the suggested one and why. This is additive.
+- **Decide for me.** The delegation contract and the change to AG-4 are in [Decide for me](decide-for-me.md), and need agreement before they are built.
+- **Left for you.** A todo needs the reason it was left for a person. This is additive.
+- **Undo.** Decisions are records (GV-7) and knowledge is never deleted, so an undo is a new decision that restores the earlier state.
+- **What the engine decides, said in words.** The engine now orders documents without a date by when they last changed, and holds an original over its translations. What this says and the Documents tree say so in words, such as "newer than" and "translation of".
+
+## Still open
+
+- Whether owners are 维护人 or 负责人 in Chinese.
+- The overview's wording rules: how many sentences, and which numbers are always shown.
+- The Japanese terms for Suggested, Decided for you and Left for you.

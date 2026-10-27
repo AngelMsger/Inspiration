@@ -138,7 +138,7 @@ Changes in unmapped areas trigger nothing. They are counted on the coverage list
 
 | Where | What appears |
 | --- | --- |
-| Sources tree | The repository with its documents, Pull requests and Issues, and its code areas with their topics |
+| Documents tree | The repository with its documents, Pull requests and Issues, and its code areas with their topics |
 | Knowledge view | Topic pages whose "How it works today" and "History" sections cite code at a commit and the discussion behind it |
 | Citation popover | File, lines, commit, "Open in GitHub", and "code changed since" when it did; or "code in repository X" without a quote |
 | Inbox | Drift todos, changed conclusions, change reviews for large releases, and the coverage list on the notes card |
