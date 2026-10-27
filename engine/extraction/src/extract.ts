@@ -21,6 +21,9 @@ import {
   type Span,
   slotOf,
   stableId,
+  type TodoKind,
+  type TodoRequested,
+  valueKeyOf,
 } from "@inspiration/contracts";
 import { defineTable, type Records } from "@inspiration/eventbus";
 import { logger } from "@inspiration/kernel";
@@ -65,7 +68,12 @@ export interface ExtractionResult {
   failed_windows: number;
   added: string[];
   superseded: string[];
+  /** Statements without a slot the version stopped stating, closed: it rewrote or dropped them. */
   retracted: string[];
+  /** Facts the version stopped stating, or every claim of a deleted document, kept current and marked. */
+  unstated: string[];
+  /** Claims marked unstated that the version states again. */
+  restored: string[];
   /** Claims the model returned without a verbatim quote from a span it was given. */
   rejected: number;
   /**
@@ -84,6 +92,10 @@ export interface DocumentMark {
   external_id: string;
   source_version_id: string;
   fetched_at: string;
+  /** The document's claims marked unstated, written after a version's claims commit. */
+  unstated?: string[];
+  /** The kind of the todo open about them, if one is. */
+  asked?: TodoKind;
 }
 
 export const DOCUMENTS = defineTable<DocumentMark>("extraction.documents", {
@@ -234,9 +246,12 @@ export class Extraction {
       added: [],
       superseded: [],
       retracted: [],
+      unstated: [],
+      restored: [],
       rejected: 0,
     };
-    if (await this.#outdated(version)) {
+    const mark = await this.#mark(version);
+    if (!mark) {
       log.debug("skipped an older version", { source_version: version.id });
       return { ...result, outdated: true };
     }
@@ -280,25 +295,53 @@ export class Extraction {
     const lost = await this.#lost(change.removed_span_ids, [...byId.values()]);
     const restated = await this.#restated(fresh, new Set(byId.keys()));
     const closing = [...new Map([...lost, ...restated].map((c) => [c.claim.id, c])).values()];
+    const before = await this.#unstated(mark, byId, closing);
     const now = this.clock().toISOString();
-    for (const { claim, by } of closing) (by ? result.superseded : result.retracted).push(claim.id);
+    // Knowledge never disappears silently: a fact the version stops stating without a new
+    // value, and everything a deleted document said, stays current, marked, until a person
+    // retires it or the document states it again. Prose the version rewrote or dropped closes;
+    // its pages follow the document.
+    const marker = { since: now, source_version_id: version.id, ...(change.deleted && { deleted: true }) };
+    const unreplaced = closing.filter((c) => !c.by).map((c) => c.claim);
+    const holding = unreplaced.filter(
+      (c) => change.deleted || (slotOf(c) !== undefined && valueKeyOf(c) !== undefined),
+    );
+    const retracting = unreplaced.filter((c) => !holding.includes(c));
+    const marking = holding.filter((c) => c.unstated?.source_version_id !== version.id);
+    const superseding = [...closing, ...before.replaced].flatMap((c) => (c.by ? [{ claim: c.claim, by: c.by }] : []));
     result.added = fresh.map((e) => e.claim.id);
-    if (!fresh.length && !closing.length) return result;
+    result.superseded = superseding.map((c) => c.claim.id);
+    result.retracted = retracting.map((c) => c.id);
+    result.unstated = holding.map((c) => c.id);
+    result.restored = before.restored.map((c) => c.id);
+    const held = [...before.kept, ...holding.map((c) => ({ ...c, unstated: c.unstated ?? marker }))];
+    const asked = this.#ask(version, mark, held);
+    const { unstated: _, asked: __, ...unmarked } = mark;
+    const next: DocumentMark = {
+      ...unmarked,
+      ...(held.length && { unstated: held.map((c) => c.id).sort() }),
+      ...(asked.kind && { asked: asked.kind }),
+    };
+    const changed = [fresh, superseding, retracting, marking, before.restored, asked.requests].some((l) => l.length);
+    if (!changed) {
+      await this.#remember(mark, next);
+      return result;
+    }
 
     const payload: ClaimsUpdated = {
       origin: "extracted",
       added: result.added,
-      updated: [],
+      updated: [...marking, ...before.restored].map((c) => c.id).sort(),
       superseded: [...result.superseded, ...result.retracted].sort(),
       source_version_id: version.id,
     };
-    const event = newEvent("claims.updated", payload, {
+    const meta = {
       tenantId: version.tenant_id,
       producer: COMPONENT,
       subject: `${version.source_id}:${version.external_id}`,
       ...(cause && { causation: cause }),
       occurredAt: this.clock(),
-    });
+    };
     await this.store.transaction(async (tx) => {
       if (fresh.length) {
         await tx.upsertClaims(
@@ -306,24 +349,117 @@ export class Extraction {
           fresh.flatMap((e) => e.evidence),
         );
       }
-      for (const { claim, by } of closing) {
-        if (by) {
-          await tx.supersede(claim.id, by, `evidence removed in ${version.id}`);
-        } else {
-          await tx.upsertClaims([{ ...claim, status: "retracted", superseded_at: now, updated_at: now }], []);
-        }
+      for (const { claim, by } of superseding) await tx.supersede(claim.id, by, `evidence removed in ${version.id}`);
+      const marked = [
+        ...retracting.map((c) => ({ ...c, status: "retracted" as const, superseded_at: now, updated_at: now })),
+        ...marking.map((c) => ({ ...c, unstated: marker, updated_at: now })),
+        ...before.restored.map(({ unstated: _, ...c }) => ({ ...c, updated_at: now })),
+      ];
+      if (marked.length) await tx.upsertClaims(marked, []);
+      if (payload.added.length || payload.updated.length || payload.superseded.length) {
+        await tx.publish(newEvent("claims.updated", payload, meta));
       }
-      await tx.publish(event);
+      for (const request of asked.requests) await tx.publish(newEvent("todo.requested", request, meta));
     });
+    await this.#remember(mark, next);
     log.debug("extracted claims", {
       source_version: version.id,
       windows: result.windows,
       added: result.added.length,
       superseded: result.superseded.length,
       retracted: result.retracted.length,
+      unstated: result.unstated.length,
+      restored: result.restored.length,
       rejected: result.rejected,
     });
     return result;
+  }
+
+  /**
+   * The document's claims marked unstated before this version, by what the version does with
+   * them: one it states again is restored; one whose slot it fills with another claim is
+   * superseded by that claim, as a value the document changed; the rest stay marked.
+   */
+  async #unstated(
+    mark: DocumentMark,
+    extracted: ReadonlyMap<string, Built>,
+    closing: readonly { claim: Claim }[],
+  ): Promise<{ restored: Claim[]; replaced: { claim: Claim; by: string }[]; kept: Claim[] }> {
+    const out = { restored: [] as Claim[], replaced: [] as { claim: Claim; by: string }[], kept: [] as Claim[] };
+    const closed = new Set(closing.map((c) => c.claim.id));
+    const ids = (mark.unstated ?? []).filter((id) => !closed.has(id));
+    for (const claim of await this.store.getClaims(ids)) {
+      if (claim.superseded_at !== undefined || !claim.unstated) continue;
+      if (extracted.has(claim.id)) {
+        out.restored.push(claim);
+        continue;
+      }
+      const slot = slotOf(claim);
+      const by = slot ? [...extracted.values()].find((e) => slotOf(e.claim) === slot)?.claim.id : undefined;
+      if (by) out.replaced.push({ claim, by });
+      else out.kept.push(claim);
+    }
+    return out;
+  }
+
+  /**
+   * The todo requests for the document's unstated claims: one todo per document lists them all
+   * (unstated, or source_deleted once the document is deleted), and is withdrawn when none
+   * are left. Nothing is asked when the list and the kind are as they were.
+   */
+  #ask(
+    version: SourceVersion,
+    mark: DocumentMark,
+    held: readonly Claim[],
+  ): { kind?: TodoKind; requests: TodoRequested[] } {
+    const kind: TodoKind | undefined = held.length ? (version.deleted ? "source_deleted" : "unstated") : undefined;
+    const ids = held.map((c) => c.id).sort();
+    if (kind === mark.asked && JSON.stringify(ids) === JSON.stringify(mark.unstated ?? [])) {
+      return { ...(kind && { kind }), requests: [] };
+    }
+    const title = version.title ?? version.external_id;
+    const request = (k: TodoKind, [first, ...more]: readonly string[], statements: readonly string[] = []) => {
+      if (first === undefined) return [];
+      const n = more.length ? `${more.length + 1} statements` : "1 statement";
+      const listed = statements.slice(0, 5).map((s) => `- ${s}`);
+      if (statements.length > 5) listed.push(`- and ${statements.length - 5} more`);
+      const deleted = k === "source_deleted";
+      const r: TodoRequested = {
+        kind: k,
+        space_id: version.space_id,
+        title: deleted ? `${title} was deleted: ${n} kept` : `${title}: ${n} no longer stated`,
+        detail: [
+          deleted
+            ? "The document was deleted. Its statements are kept, marked, until you keep or retire them."
+            : "The latest version no longer states these. They are kept, marked, until you keep or retire them.",
+          ...listed,
+        ].join("\n"),
+        priority: levelOf(version) === "governed" ? "normal" : "low",
+        unit_ids: [first, ...more],
+        dedupe_key: `${COMPONENT}:${k}:${version.source_id}:${version.external_id}`,
+        batch_key: `${COMPONENT}:unstated:${version.source_id}`,
+      };
+      return [r];
+    };
+    const requests = [
+      ...(mark.asked && mark.asked !== kind
+        ? request(mark.asked, mark.unstated ?? []).map((r) => ({ ...r, withdrawn: true }))
+        : []),
+      ...(kind
+        ? request(
+            kind,
+            ids,
+            held.map((c) => c.statement),
+          )
+        : []),
+    ];
+    return { ...(kind && { kind }), requests };
+  }
+
+  /** Keeps the document's unstated claims and open todo with its mark, once they changed. */
+  async #remember(mark: DocumentMark, next: DocumentMark): Promise<void> {
+    if (JSON.stringify(mark) !== JSON.stringify(next))
+      await this.records.transaction((tx) => tx.put(DOCUMENTS, [next]));
   }
 
   /**
@@ -499,11 +635,12 @@ export class Extraction {
   }
 
   /**
-   * True when a later version of the document was extracted already. Otherwise the version
-   * becomes the document's latest, before its claims are written: a crash in between leaves
-   * the mark on this version, whose redelivery is then extracted again.
+   * The document's mark, or undefined when a later version of the document was extracted
+   * already. Otherwise the version becomes the document's latest, before its claims are
+   * written: a crash in between leaves the mark on this version, whose redelivery is then
+   * extracted again.
    */
-  async #outdated(version: SourceVersion): Promise<boolean> {
+  async #mark(version: SourceVersion): Promise<DocumentMark | undefined> {
     const mark: DocumentMark = {
       tenant_id: version.tenant_id,
       source_id: version.source_id,
@@ -512,10 +649,12 @@ export class Extraction {
       fetched_at: version.fetched_at,
     };
     const latest = await this.records.get(DOCUMENTS, DOCUMENTS.key(mark));
-    if (latest?.source_version_id === version.id) return false;
-    if (latest && version.fetched_at < latest.fetched_at) return true;
-    await this.records.transaction((tx) => tx.put(DOCUMENTS, [mark]));
-    return false;
+    if (latest?.source_version_id === version.id) return latest;
+    if (latest && version.fetched_at < latest.fetched_at) return undefined;
+    const { unstated, asked } = latest ?? {};
+    const moved: DocumentMark = { ...mark, ...(unstated && { unstated }), ...(asked && { asked }) };
+    await this.records.transaction((tx) => tx.put(DOCUMENTS, [moved]));
+    return moved;
   }
 
   /**

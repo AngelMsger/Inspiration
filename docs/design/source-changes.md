@@ -29,6 +29,8 @@ Built: source versions, block anchors and the knowledge layer. Comments, correct
 
 When a source changes its own value (A becomes B), the engine treats it as the source's own fix. The new statement supersedes the old one in the same fact slot, the slot keeps a single value, and nobody is asked. The Trace view keeps both, with the dates each was true. This is built: extraction supersedes the closed statement with the new one, and governance asks for nothing when a slot has one value.
 
+When a new version stops stating a fact without giving it another value (a paragraph dropped, a page replaced by a "This page has moved" notice), the fact stays current, marked "No longer stated in the source", and the document's owner gets one todo for the document that lists everything it stopped stating: keep it or retire it. A later version that states the fact again removes the mark, one that gives it another value supersedes it as above, and the todo follows the list until it is empty. Prose that states no fact and that a version rewrote or dropped is closed, and pages follow the document. Built: the mark (`Claim.unstated`), the todo (`TodoKind.unstated`), restoring and superseding; what keeping or retiring does is not built yet. [examples/gitlab-expenses](../../examples/gitlab-expenses/README.md) replays a real policy through six years of such changes.
+
 The one exception is a person's work on that value. If someone corrected it or decided a conflict about it, that person gets one todo: keep their correction or follow the source.
 
 ## Disagreement between sources
@@ -43,9 +45,9 @@ Support counts distinct documents. A copy of a document counts once, using the e
 
 ### What the engine does today
 
-Source sync notices the deletion (webhook, a poll every 15 minutes, or the nightly reconcile) and writes a deletion marker version; earlier versions stay in history. Normalization marks the document deleted and its passages leave search. Extraction retracts the statements whose only evidence was that document (closed, never deleted). Governance decides each affected slot again: other sources keep their values, conflicts only that document caused are withdrawn, and a slot with no support left has no current value. Freshness forgets the document's review clock.
+Source sync notices the deletion (webhook, a poll every 15 minutes, or the nightly reconcile) and writes a deletion marker version; earlier versions stay in history. Normalization marks the document deleted and its passages leave search. Extraction keeps the statements whose only evidence was that document current, marked (`Claim.unstated` with `deleted`), and gives the document's owner one `source_deleted` todo that lists them; if the document comes back, the marks go and the todo is withdrawn. Freshness forgets the document's review clock.
 
-The gap: nobody is told. Long-governed knowledge can vanish from pages without anyone deciding it, which breaks rule 1.
+What is missing is the rest of the design below: the check for lost access, moves, the choices and their records, and the default after 30 days.
 
 ### The design
 
@@ -110,7 +112,8 @@ The engine work is done when these fixtures pass, against the in-memory doubles 
 
 All additive; see [docs/contracts.md](../contracts.md) for the process.
 
-- `TodoKind` adds `source_deleted` and `change_set`.
+- `TodoKind` adds `source_deleted` (built), `unstated` (built: facts a new version stopped stating) and `change_set`.
+- `Claim` gains `unstated { since, source_version_id, deleted? }` (built).
 - New `ChangeSet { id, tenant_id, cause { kind: sync | folder_deleted | folder_moved | connection_lost | new_version | level_changed | first_connection | rebuild, source_id?, correlation_id }, counts { by_kind, by_topic }, todo_ids, assignee_id, status: open | decided | split, decision_id? }`.
 - `SourceVersion` gains optional `deletion_reason: deleted | no_access | moved` and `moved_to?: SourceRef`; `moved` is set only for a move that passed the permission check.
 - Decision resolutions for `source_deleted`: `keep_snapshot`, `replace` (with a `SourceRef`) and `retire`. A `replace` that fails the permission check opens a publish request instead of carrying people's work over.
@@ -122,7 +125,7 @@ All additive; see [docs/contracts.md](../contracts.md) for the process.
 | Component | Change | Person-weeks |
 | --- | --- | --- |
 | source-sync | The mass-disappearance check, move detection with normalization's duplicates and the permission check (reusing the publish audience-gap check), the deletion reason | 0.5 |
-| extraction | Hold retraction on deletion; retract on "retire"; carry statements over on a move or a replacement | 0.5 |
+| extraction | Hold retraction on deletion (built); retract on "retire"; carry statements over on a move or a replacement | 0.5 |
 | freshness, collaboration | The `source_deleted` todo per document or folder and owner, the 30-day default, restore | 0.5 |
 | governance | Support counts on conflict todos | 0.25 |
 | contracts and tests | The changes above and the acceptance fixtures, against the in-memory doubles and the stack | 0.25 |

@@ -29,6 +29,8 @@
 
 一个来源改了自己的值（A 变成 B），引擎把它当作来源自己的修正。新陈述在同一个事实槽里取代旧陈述，槽里只有一个值，不问任何人。追溯视图保留两者，以及各自成立的日期。这已经实现：抽取用新陈述取代被关闭的陈述，事实槽只有一个值时治理什么都不问。
 
+新版本不再写某个事实、也没有给出别的值时（删掉了一段，或者页面被替换成“This page has moved”通知），这个事实继续有效，标记为“来源中已不再写明”，文档的维护人收到这篇文档的一条待办，列出它不再写明的所有内容：保留或不保留。之后的版本重新写明这个事实，标记就去掉；给出别的值，就按上面的方式取代它；待办随清单更新，清单为空时撤回。不写事实、被某个版本改写或删掉的行文会被关闭，页面跟随文档。已实现：标记（`Claim.unstated`）、待办（`TodoKind.unstated`）、恢复和取代；选择保留或不保留之后做什么，还没有实现。[examples/gitlab-expenses](../../../examples/gitlab-expenses/README.zh.md) 用一份真实制度六年间的这类变化做了回放。
+
 唯一的例外是人在这个值上做过的工作。如果有人更正过它，或裁决过关于它的冲突，这个人会收到一条待办：保留自己的更正，还是跟随来源。
 
 ## 来源之间的分歧
@@ -43,9 +45,9 @@
 
 ### 引擎现在怎么做
 
-来源同步发现删除（Webhook、每 15 分钟一次的轮询或每晚的全量对账），写入一个删除标记版本；之前的版本留在历史里。规范化把文档标为已删除，它的段落退出搜索。抽取撤回只以这篇文档为证据的陈述（关闭，从不删除）。治理重新决定每个受影响的事实槽：其他来源的值保留，只因这篇文档而起的冲突撤回，没有任何支撑的槽没有当前值。保鲜忘掉这篇文档的复核时钟。
+来源同步发现删除（Webhook、每 15 分钟一次的轮询或每晚的全量对账），写入一个删除标记版本；之前的版本留在历史里。规范化把文档标为已删除，它的段落退出搜索。抽取让只以这篇文档为证据的陈述继续有效，加上标记（带 `deleted` 的 `Claim.unstated`），并给文档的维护人一条 `source_deleted` 待办，列出这些陈述；文档恢复后，标记去掉，待办撤回。保鲜忘掉这篇文档的复核时钟。
 
-缺口在于：没有通知任何人。长期治理的知识可能在没人决定的情况下从页面上消失，违背了第 1 条规则。
+还缺的是下面设计的其余部分：失去访问权限的检查、移动、各项选择及其记录，以及 30 天后的默认处理。
 
 ### 设计
 
@@ -110,7 +112,8 @@
 
 都是新增，流程见 [docs/contracts.md](../../contracts.md)。
 
-- `TodoKind` 新增 `source_deleted` 和 `change_set`。
+- `TodoKind` 新增 `source_deleted`（已实现）、`unstated`（已实现：新版本不再写明的事实）和 `change_set`。
+- `Claim` 新增 `unstated { since, source_version_id, deleted? }`（已实现）。
 - 新增 `ChangeSet { id, tenant_id, cause { kind: sync | folder_deleted | folder_moved | connection_lost | new_version | level_changed | first_connection | rebuild, source_id?, correlation_id }, counts { by_kind, by_topic }, todo_ids, assignee_id, status: open | decided | split, decision_id? }`。
 - `SourceVersion` 新增可选的 `deletion_reason: deleted | no_access | moved` 和 `moved_to?: SourceRef`；只有通过权限检查的移动才记为 `moved`。
 - `source_deleted` 的决定方案：`keep_snapshot`、`replace`（带一个 `SourceRef`）和 `retire`。没通过权限检查的 `replace` 会发起一次发布申请，而不是直接迁移人的工作。
@@ -122,7 +125,7 @@
 | 组件 | 变化 | 人周 |
 | --- | --- | --- |
 | source-sync | 大量消失的检查、借助规范化的重复检测识别移动、权限检查（复用发布时的受众差距检查）、删除原因 | 0.5 |
-| extraction | 删除时暂不撤回；选“不保留”时撤回；移动或替代时迁移陈述 | 0.5 |
+| extraction | 删除时暂不撤回（已实现）；选“不保留”时撤回；移动或替代时迁移陈述 | 0.5 |
 | freshness、collaboration | 按文档或文件夹、按维护人的 `source_deleted` 待办，30 天默认，恢复 | 0.5 |
 | governance | 冲突待办上的支持计数 | 0.25 |
 | 契约和测试 | 上述变化和验收用例，针对内存替身和真实服务栈 | 0.25 |

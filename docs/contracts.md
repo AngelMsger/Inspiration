@@ -91,7 +91,7 @@ chain.
 | `claims.updated` | extraction, governance, collaboration | freshness, governance, page-compiler, retrieval |
 | `artifact.dirty` | freshness | extraction, page-compiler, retrieval |
 | `review.due` | freshness | collaboration, research |
-| `todo.requested` | governance, views | collaboration |
+| `todo.requested` | extraction, governance, views | collaboration |
 | `todo.created` | collaboration | collaboration |
 | `page.rendered` | page-compiler | collaboration, retrieval, views |
 | `comment.created` | collaboration | extraction, collaboration |

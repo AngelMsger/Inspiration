@@ -29,7 +29,7 @@ The foundations are built and tested. The remaining components are specified in
 | Connectors: local folders, Feishu documents and approvals (recorded fixtures) | `engine/connectors` | built |
 | Source sync: versions, tombstones, ACL snapshots, principal mapping | `engine/source-sync` | built |
 | Normalization: parsers, source blocks and spans with stable IDs, block diff, duplicates | `engine/normalization` | built |
-| Extraction: claims with verbatim evidence, predicate catalogue and slots, supersede on edits (mocked model) | `engine/extraction` | built |
+| Extraction: claims with verbatim evidence, predicate catalogue and slots, supersede on edits, keep facts a version stops stating (mocked model) | `engine/extraction` | built |
 | Engine process and CLI: ingest runs, reports, synthetic corpora | `apps/engine` | built |
 | Governance: fact slots and their values, conflict cases with a proposed value, one todo request per conflicting slot, rechecks when a dated change takes effect | `engine/governance` | built |
 | Freshness: review clocks per document, plan days, copies an edit left behind, staleness scores, review.due | `engine/freshness` | built |

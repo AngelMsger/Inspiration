@@ -42,14 +42,28 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
       for (const row of slot.rows) expect(row.observed, `${slot.slot} on ${row.at}`).toBe(row.recorded);
     }
     // The numbers README.md gives.
-    expect(check.totals).toEqual({ steps: 294, right: 165, as_recorded: 294 });
+    expect(check.totals).toEqual({ steps: 294, right: 185, as_recorded: 294 });
     expect(check.unexpected).toEqual(["home_office_stipend"]);
-    // The moved notice: a version that states nothing leaves no knowledge.
-    const moved = report.steps.find((s) => s.at.startsWith("2026-03-18"));
-    expect(moved?.slots).toEqual({});
+    // The moved notice states nothing: every fact is kept, marked, until the page comes back.
+    const at = (day: string) => report.steps.find((s) => s.at.startsWith(day));
+    expect(at("2026-03-18")?.slots.hotel_cap_per_night).toEqual({
+      leads: "300 USD/night",
+      values: ["300 USD/night"],
+      unstated: true,
+    });
+    const unstated = (day: string) => Object.keys(at(day)?.slots ?? {}).filter((k) => at(day)?.slots[k]?.unstated);
+    expect(unstated("2026-03-18")).toEqual(Object.keys(at("2026-03-18")?.slots ?? {}));
+    expect(unstated("2026-05-14")).toEqual(["phone_service_monthly_cap"]);
+    // A cap the page stopped stating in 2023 stays, marked.
+    expect(at("2026-09-13")?.slots.phone_service_monthly_cap).toMatchObject({ leads: "50 USD/month", unstated: true });
     // The one change of the last year, a new version superseding the old value.
     const last = report.steps.at(-1);
     expect(last?.slots.meal_allowance_per_day).toEqual({ leads: "120 USD/day", values: ["120 USD/day"] });
+    // The owner has one todo for the document, about the one fact it no longer states.
+    const open = (await engine.inbox.items(corpus.tenantId, { open: true })).filter((i) => i.todo.kind === "unstated");
+    expect(open.map((i) => i.todo.title)).toEqual(["Global Travel and Expense Policy: 1 statement no longer stated"]);
+    const [phone] = await engine.store.getClaims(open[0]?.todo.unit_ids ?? []);
+    expect(phone).toMatchObject({ slot_key: "phone_service_monthly_cap", value: { normalized: "50 USD/month" } });
   } finally {
     await engine.close();
     await rm(blobDir, { recursive: true, force: true });

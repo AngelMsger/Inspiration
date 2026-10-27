@@ -27,15 +27,24 @@
  * claim with a predicate gets its slot_key (subject entity, predicate and qualifiers). A
  * claim that was closed and is stated again (a value changed back, a document restored) is
  * a new occurrence with an ID from the version, so the earlier interval stays as it was. A
- * claim whose every supporting span the version removed is closed:
+ * claim whose every supporting span the version removed is:
  * - superseded by a new claim of the same slot (predicate and qualifiers);
  * - else superseded by the most similar new statement cut from the same block, at
  *   SAME_CLAIM or above;
- * - else retracted.
+ * - else, when it states a fact (a slot and a value) or the version deletes the document,
+ *   kept current and marked unstated (Claim.unstated), because knowledge never disappears
+ *   silently (docs/design/source-changes.md, rules 1 and 3);
+ * - else retracted: prose the version rewrote or dropped, which its pages follow.
+ * A claim marked unstated is restored (the mark is removed) when a later version states it
+ * again, and superseded when a later version fills its slot with another claim. One todo per
+ * document lists the claims marked unstated, for its owner to keep or retire them: kind
+ * unstated, or source_deleted once the document is deleted (dedupe_key
+ * "extraction:<kind>:<source>:<document>"); it is updated as the list changes and withdrawn
+ * when the list is empty.
  * A new claim that cites exactly the spans of a current one restates it (a changed table
- * header re-reads its rows, a renamed heading changes the subject) and supersedes it. New
- * and closed claims commit with one claims.updated (origin "extracted"); superseded lists
- * the retracted ones too.
+ * header re-reads its rows, a renamed heading changes the subject) and supersedes it. New,
+ * closed, marked and restored claims commit with one claims.updated (origin "extracted"):
+ * superseded lists the retracted ones too, and updated the marked and restored ones.
  *
  * Extraction keeps the latest version of each document it has worked on (the
  * extraction.documents table). A version older than that, delivered again late, changes
@@ -45,8 +54,8 @@
  * mock.ts, a model_mocks plugin.
  *
  * Not yet built: entity resolution, SOPs from documents and approval mining, the
- * artifact.dirty and comment.created subscriptions, and reading a document again when its
- * level changes without a new version.
+ * artifact.dirty and comment.created subscriptions, reading a document again when its level
+ * changes without a new version, and what keeping or retiring unstated claims does.
  */
 
 export * from "./extract.ts";

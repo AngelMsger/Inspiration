@@ -73,7 +73,7 @@ components:
     runtime: node
     owns: Claims with evidence, entity resolution, SOPs from documents and approval mining, knowledge models
     plugins: [migrations, model_mocks]
-    publishes: [claims.updated]
+    publishes: [claims.updated, todo.requested]
     subscribes: [blocks.changed, artifact.dirty, comment.created]
     calls: [knowledge-store, model-gateway]
 

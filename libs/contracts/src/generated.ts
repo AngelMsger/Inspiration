@@ -386,7 +386,7 @@ export type SpaceKind = "personal" | "team" | "org" | "source_mirror";
  */
 export type TopicStatus = "proposed" | "confirmed" | "retired";
 /**
- * note: a value only reference documents state disagrees with the governed one. It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget.
+ * note: a value only reference documents state disagrees with the governed one. It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget. unstated: a new version of a document stopped stating claims, which are kept, marked, until the owner keeps or retires them; source_deleted: the same for a deleted document (docs/design/source-changes.md).
  *
  */
 export type TodoKind =
@@ -400,7 +400,9 @@ export type TodoKind =
   | "coverage_gap"
   | "extraction_review"
   | "feedback"
-  | "note";
+  | "note"
+  | "unstated"
+  | "source_deleted";
 export type TodoStatus = "open" | "in_progress" | "done" | "dismissed";
 /**
  * read = no side effects; propose = creates a proposal or a todo that a person accepts in collaboration.
@@ -1301,6 +1303,7 @@ export interface Claim {
   producer?: ProducerInfo;
   inputs_hash: ContentHash;
   review_due?: Instant;
+  unstated?: Unstated;
   created_at?: Instant;
   updated_at?: Instant;
 }
@@ -1332,6 +1335,18 @@ export interface ClaimValue {
 export interface Interval {
   start?: Instant;
   end?: Instant;
+}
+/**
+ * The source stopped stating a claim: a later version of its document no longer has the passage, or the document was deleted. The claim stays current, marked, until a person retires it or the document states it again; knowledge never disappears silently (docs/design/source-changes.md, rule 1).
+ *
+ */
+export interface Unstated {
+  since: Instant;
+  source_version_id: SourceVersionId;
+  /**
+   * That version is the document's deletion.
+   */
+  deleted?: boolean;
 }
 export interface ChangedParts {
   content: boolean;
