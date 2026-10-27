@@ -3,10 +3,11 @@
 # config/gateway.deepseek.yaml`, and first with --dry-run: the same config with stand-ins for
 # every provider, which meters what the run would send and prices it here, without a key.
 #
-# To confirm before the first paid run (api-docs.deepseek.com is unreachable from the build
-# container): the model ID below, and the prices, which come from third-party reports of
-# September and October 2026. DeepSeek charges half of them off-peak; peak is reported as
-# weekdays 01-04 and 06-10 UTC, so full runs go off-peak.
+# The model ID is the one GET /v1/models lists. The prices are peak prices from third-party
+# reports; the first run (apps/bench/runs/2026-10-27-deepseek.md) measured about half of them
+# off-peak, from the account's balance: CNY 1 per million input tokens, 4 per million output
+# and about 0.02 per million cached input. Peak is reported as weekdays 01-04 and 06-10 UTC,
+# so full runs go off-peak.
 currency: USD
 
 providers:
@@ -24,7 +25,7 @@ providers:
         # JSON mode only: the gateway puts the schema in the prompt and checks the reply.
         json_schema: false
         # The model thinks by default, which bills its reasoning as output and slows each call.
-        # Every task here asks for a short structured reply, so thinking stays off.
+        # Off, as in the dry run's estimate; a reading run with thinking on is a separate test.
         request: {thinking: {type: disabled}}
         price: {input: 0.30, output: 1.20, cached_input: 0.006}
 
