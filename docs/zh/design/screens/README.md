@@ -31,7 +31,7 @@
 | [D-search](../../../design/screens/D-search.dc.html) | 搜索与提问结果 |
 | [D-connections](../../../design/screens/D-connections.dc.html) | 管理：来源连接 |
 | [D-apps](../../../design/screens/D-apps.dc.html) | 使用知识的应用与授权页 |
-| [D-space](../../../design/screens/D-space.dc.html) | 空间设置与角色 |
+| [D-space](../../../design/screens/D-space.dc.html) | 空间设置：角色、按领域排列的主题与维护人、本周的主题变更 |
 | [D-review](../../../design/screens/D-review.dc.html) | 发布申请审阅（紧凑模式） |
 | [D-conflicts](../../../design/screens/D-conflicts.dc.html) | 冲突队列（紧凑模式），由空间负责人裁决 |
 

@@ -17,13 +17,22 @@ a{color:#2E3F8F}a:hover{color:#1F2C6B}
 <div style="min-height: 100vh; background: #EFEEE9; color: #1C1E23; font-family: 'Instrument Sans', 'Noto Sans SC', system-ui, sans-serif; font-size: 14px; line-height: 1.5">
   <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 14px 28px; border-bottom: 1px solid #DCDAD2">
     <div style="font-family: Newsreader, Georgia, serif; font-size: 24px; font-weight: 500">Inspiration</div>
-    <nav aria-label="Breadcrumb" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: #545964"><a href="#" style="color: #545964; text-decoration: none">Hengyuan Machinery</a><span aria-hidden="true">/</span><a href="#" style="color: #545964; text-decoration: none">Procurement</a><span aria-hidden="true">/</span><span style="color: #1C1E23">Settings</span></nav>
-    <span style="flex: 1"></span>
+    <button type="button" style="font: inherit; display: inline-flex; align-items: center; gap: 8px; background: transparent; border: 1px solid #DCDAD2; border-radius: 4px; padding: 6px 10px; min-height: 36px; color: #1C1E23">Hengyuan Machinery / Procurement<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
+    <button type="button" style="font: inherit; flex: 1 1 260px; display: flex; align-items: center; gap: 8px; background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 0 12px; min-height: 38px; color: #636874; text-align: left"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="m9.5 9.5 3 3" stroke="currentColor" stroke-width="1.4"/></svg><span style="flex: 1">Search, jump to, or run a command</span><span style="font-family: 'Geist Mono', monospace; font-size: 12px; border: 1px solid #DCDAD2; border-radius: 3px; padding: 0 5px; color: #545964">⌘K</span></button>
     <button type="button" aria-label="Account, Zhou Min" style="font: inherit; width: 36px; height: 36px; border-radius: 50%; border: 0; background: #DCDAD2; font-size: 12px; font-weight: 600; color: #1C1E23">ZM</button>
   </header>
 
   <div style="max-width: 1240px; margin: 0 auto; padding: 28px; display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start">
-    <main style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 26px">
+    <nav aria-label="Space owner" style="flex: 1 1 190px; display: flex; flex-direction: column; gap: 2px">
+      <div style="font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: #636874; font-weight: 600; padding: 0 10px 6px">Procurement</div>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px; display: flex; justify-content: space-between">Freshness queue<span style="font-variant-numeric: tabular-nums">12</span></a>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px; display: flex; justify-content: space-between">Conflicts<span style="font-variant-numeric: tabular-nums">4</span></a>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px; display: flex; justify-content: space-between">Publish requests<span style="font-variant-numeric: tabular-nums">3</span></a>
+      <a href="#" style="color: #545964; text-decoration: none; padding: 8px 10px">Rules</a>
+      <a href="#" aria-current="page" style="color: #1C1E23; text-decoration: none; font-weight: 600; padding: 8px 10px; border-radius: 4px; background: #FBFAF7">Space settings</a>
+    </nav>
+
+    <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 26px">
       <div style="display: flex; flex-direction: column; gap: 4px">
         <h1 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 36px">Procurement settings</h1>
         <p style="margin: 0; color: #545964">Who can read this: the Feishu department 采购部, 18 members · set by the space owner, not by the sources</p>
@@ -35,23 +44,33 @@ a{color:#2E3F8F}a:hover{color:#1F2C6B}
           <table style="width: 100%; border-collapse: collapse; min-width: 600px">
             <thead><tr style="text-align: left; font-size: 12.5px; color: #545964"><th style="font-weight: 500; padding: 10px 14px; border-bottom: 1px solid #DCDAD2">Role</th><th style="font-weight: 500; padding: 10px 14px; border-bottom: 1px solid #DCDAD2">Who</th><th style="font-weight: 500; padding: 10px 14px; border-bottom: 1px solid #DCDAD2">What they do here</th><th style="font-weight: 500; padding: 10px 14px; border-bottom: 1px solid #DCDAD2"><span style="position: absolute; left: -9999px">Action</span></th></tr></thead>
             <tbody>
-              <tr><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2; font-weight: 600">Space owner</td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2">Zhou Min</td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2; color: #545964">Approves what is published here, sets who reads it, covers topics without a topic owner and decides conflicts after their deadline</td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2"><a href="#">Change</a></td></tr>
-                            <tr><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2; font-weight: 600">Members</td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2">采购部 · 18</td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2; color: #545964">Read, comment, and publish from their My space</td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2"><a href="#">View</a></td></tr>
+              <tr><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2; font-weight: 600">Space owner</td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2">Zhou Min</td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2; color: #545964">Approves what is published here, sets who reads it, covers any topic with no owner of its own and decides conflicts after their deadline</td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2"><a href="#">Change</a></td></tr>
+                            <tr><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2; font-weight: 600">Members</td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2">采购部 · 18</td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2; color: #545964">Read, comment, and publish from their My space</td><td style="padding: 12px 14px; border-bottom: 1px solid #DCDAD2"><a href="#">Change</a></td></tr>
                           </tbody>
           </table>
         </div>
       </section>
 
       <section style="display: flex; flex-direction: column; gap: 10px">
-        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 10px"><h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 22px">Topic owners</h2><span style="color: #545964; font-size: 13px">No topic owner falls back to the space owner, then the super admin</span></div>
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px"><h2 style="margin: 0; font-family: Newsreader, Georgia, serif; font-weight: 500; font-size: 22px">Topics and owners</h2><input type="search" placeholder="Find a topic or an owner" aria-label="Find a topic or an owner" style="font: inherit; background: #FFFFFF; border: 1px solid #DCDAD2; border-radius: 4px; padding: 6px 10px; min-height: 36px; width: 240px"></div>
+        <p style="margin: 0; color: #545964">4 areas, 31 topics. Name an owner for an area or a topic; every topic below follows that owner until you name someone else. A topic with no owner above it goes to the space owner.</p>
         <ul style="list-style: none; margin: 0; padding: 0; background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px">
-          <li style="display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 11px 14px; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 240px; font-weight: 600">Suppliers</span><span>Lin Xiao</span><a href="#">Change</a></li>
+          <li style="display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 11px 14px; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 240px; font-weight: 600">Suppliers <span style="color: #545964; font-size: 13px; font-weight: 400">· area · 11 topics</span></span><span>Lin Xiao</span><a href="#">Change</a></li>
           <li style="display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 11px 14px 11px 34px; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 220px">Supplier onboarding</span><span style="color: #545964">Lin Xiao, from Suppliers</span><a href="#">Change</a></li>
-          <li style="display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 11px 14px 11px 34px; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 220px">Vietnam bearing suppliers</span><span style="color: #8A5A00">No topic owner · Zhou Min covers it</span><button type="button" style="font: inherit; font-weight: 500; background: transparent; color: #1C1E23; border: 1px solid #1C1E23; border-radius: 4px; padding: 5px 12px; min-height: 36px">Assign</button></li>
-          <li style="display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 11px 14px; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 240px; font-weight: 600">Payment terms</span><span>Zhou Min</span><a href="#">Change</a></li>
-          <li style="display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 11px 14px; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 240px; font-weight: 600">Purchasing rules</span><span style="color: #8A5A00">Gao Yan · leaves 10-31</span><a href="#">Hand over</a></li>
-          <li style="display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 11px 14px"><span style="flex: 1 1 240px; font-weight: 600">Supplier contracts</span><span>Zhou Min</span><a href="#">Change</a></li>
+          <li style="display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 11px 14px 11px 34px; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 220px">Vietnam bearing suppliers <span style="font-size: 12px; font-weight: 500; color: #2E3F8F; background: #E7E9F4; padding: 2px 7px; border-radius: 3px">New</span> <span style="color: #545964; font-size: 13px; font-weight: 400">from 14 statements</span></span><span style="color: #545964">Lin Xiao, from Suppliers</span><button type="button" style="font: inherit; font-weight: 500; background: transparent; color: #1C1E23; border: 1px solid #1C1E23; border-radius: 4px; padding: 6px 12px; min-height: 36px">Confirm</button></li>
+          <li style="display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 11px 14px 11px 34px; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 220px; color: #545964">9 more topics follow Lin Xiao</span><a href="#">Show</a></li>
+          <li style="display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 11px 14px; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 240px; font-weight: 600">Payment terms <span style="color: #545964; font-size: 13px; font-weight: 400">· area · 6 topics</span></span><span>Zhou Min</span><a href="#">Change</a></li>
+          <li style="display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 11px 14px; border-bottom: 1px solid #DCDAD2"><span style="flex: 1 1 240px; font-weight: 600">Purchasing rules <span style="color: #545964; font-size: 13px; font-weight: 400">· area · 8 topics</span></span><span style="color: #8A5A00">Gao Yan · leaves 10-31</span><a href="#">Hand over</a></li>
+          <li style="display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; padding: 11px 14px"><span style="flex: 1 1 240px; font-weight: 600">Supplier contracts <span style="color: #545964; font-size: 13px; font-weight: 400">· area · 6 topics</span></span><span>Zhou Min</span><a href="#">Change</a></li>
         </ul>
+        <div style="background: #FBFAF7; border: 1px solid #DCDAD2; border-radius: 4px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px">
+          <div style="display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline"><b style="font-weight: 600">Topic changes this week</b><span style="color: #545964; font-size: 13px">proposed as knowledge grew; nothing moves until the owner agrees</span></div>
+          <ul style="margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px">
+            <li>Split <b style="font-weight: 600">Supplier onboarding</b> (132 statements) into 3 subtopics. They follow Lin Xiao.</li>
+            <li>Move <b style="font-weight: 600">Freight insurance</b> (6 statements) under Supplier contracts. It keeps Wang Lei as its owner.</li>
+          </ul>
+          <div><button type="button" style="font: inherit; font-weight: 500; background: transparent; color: #1C1E23; border: 1px solid #1C1E23; border-radius: 4px; padding: 6px 12px; min-height: 36px">Review the changes</button></div>
+        </div>
       </section>
 
       <section style="display: flex; flex-direction: column; gap: 10px">
@@ -94,7 +113,7 @@ a{color:#2E3F8F}a:hover{color:#1F2C6B}
   </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1240}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1340}}'>
 class Component extends DCLogic {
   renderVals() {
     return {};

@@ -62,6 +62,7 @@ The look is "ink and paper": a warm paper ground, serif type for reading, one in
 
 - **Header:** company and space switcher (hidden for someone working alone), ask or search, account menu (including interface language).
 - **Left:** the Documents tree (source apps and their folders, with an icon per source app), then the Knowledge tree (spaces, topics, pages). Documents come first because people know their documents before they know the knowledge built from them. The Documents tree also holds chats and sheets, but Documents is the word people use for their material.
+- **One navigation everywhere.** The header is the same on every screen. The left column always navigates the area you are in: everyday use (Home, Inbox, My space, the spaces, the Documents and Knowledge trees), a space's owner tools (Freshness queue, Conflicts, Publish requests, Rules, Space settings), Admin, or your account. Reading a page or a document folds the left column away to give the text room; a button brings it back, and breadcrumbs above the text say where you are. Breadcrumbs never replace the header or the left column.
 - **Centre:** the document. A source opens in its Original view: rendered from its blocks without a model, it keeps the headings, paragraphs, lists and tables of the source. It is close to the source app's page but not a copy of it, and a block that cannot be rendered, such as a flowchart, shows a placeholder that opens the source. The Annotated view adds marks: a dotted underline on passages that became knowledge, and the Outdated and Disputed marks. The Knowledge view lists what was built from the document. A knowledge page cites its sources inline.
 - **Right panel:** What this says, Comments, Sources, Related, History. Selecting a passage in the Annotated view opens What this says; clicking a citation opens the source beside the page.
 - **Selection menu:** Comment, Highlight, This is outdated, Propose a correction, Ask about this.
@@ -87,7 +88,7 @@ The drawn screens are in [screens](screens/README.md), a snapshot of the design 
 | Publish to a space | The items to publish, the target space and who can read it (set by its owner), one freshness question per source, checks, the "Some readers can't open the original" warning, approver and request state | Members publishing from My space |
 | Admin: spaces and publishing | Spaces with who can read them, sensitivity label and owner; the publish queue; "Source permissions tightened" todos; usage per member | Super admin |
 | Source connections, Apps with access | The company's and members' connections to source apps, and what keeps each source fresh; the apps and agents that use knowledge, with the consent screen an app shows first | Super admin, members |
-| Space settings | Owner, who can read it, default governance level, content language | Space owner; the super admin creates spaces and names their owners |
+| Space settings | Owner, who can read it, topics and their owners by area with the week's proposed topic changes, approval and conflict settings, default governance level, content language | Space owner; the super admin creates spaces and names their owners |
 | Phone | Reading, joint approval and the inbox | Everyone |
 
 ## How knowledge appears

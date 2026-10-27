@@ -34,7 +34,7 @@ Ink and paper, with the command palette from direction B and the ask bar from di
 | [D-search](D-search.dc.html) | Search and ask results |
 | [D-connections](D-connections.dc.html) | Admin: source connections |
 | [D-apps](D-apps.dc.html) | Apps with access and the consent screen |
-| [D-space](D-space.dc.html) | Space settings and roles |
+| [D-space](D-space.dc.html) | Space settings: roles, topics and owners by area, the week's topic changes |
 | [D-review](D-review.dc.html) | Publish request review, in compact mode |
 | [D-conflicts](D-conflicts.dc.html) | Conflict queue in compact mode, where the space owner decides |
 

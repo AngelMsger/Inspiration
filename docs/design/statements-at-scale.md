@@ -42,6 +42,8 @@ Example from the demo corpus: the slot "Shenzhen · hotel cap per night · manag
 
 Topics come from clustering. A topic made by clustering is proposed until its owner confirms it, and readers never see a proposed topic. Topic keys stay stable across re-clustering and are never reused. A statement from a governed document that has no topic yet is **unfiled**: it shows under its source section, with a suggested topic and a closeness score, until an owner files it.
 
+**How many topics, and who owns them.** A topic's size comes from its content, not from a plan made in advance. A topic with more than about 100 statements splits into subtopics, and an unconfirmed topic with fewer than 5 dissolves back to unfiled, so a small library starts with few, broad topics and grows downwards into subtopics rather than sideways into many topics. Topics are grouped into areas by similarity, and the space settings list them by area. Each clustering run moves at most 5% of the placed statements, and never a confirmed topic or placement. Owners are named for an area or a topic, and everything below follows them until someone else is named, so the number of owners does not grow with the number of topics. Where no owner is named above, the space owner covers it. Proposed: a confirmed topic is never merged automatically. Clustering proposes moving it under another topic, where it becomes a subtopic and keeps its owner, and splits and moves reach the owners as one weekly review of topic changes.
+
 ## Part 2: governance levels
 
 Most of what a company imports is reference material. Governing it statement by statement is where the volume comes from, so the governance level (`GovernanceLevel`) is set per source, and folders inherit it down the Documents tree.
