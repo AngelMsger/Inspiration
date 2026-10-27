@@ -11,12 +11,13 @@
  *   nothing before its day.
  *   Between equally authoritative values, the one more independent governed sources in effect
  *   today state is proposed, then the one from the newer document (a 2026 policy against a
- *   2025 handbook), then the one more governed statements state. A source counts once however
- *   often it is copied: the statements of one document, a document and its translations
- *   (DocumentMetadata.translation_of, such as the folder's "x.zh.md" beside "x.md"), and
- *   documents that share the passage, block or whole text a statement rests on (MIN_COPY
- *   letters and digits at least, compared without case, spaces or punctuation) are one
- *   source.
+ *   2025 handbook; by effective date, else by the day each was last changed, so a backup of
+ *   last year's policy loses to the policy), then the one more governed statements state.
+ *   A source counts once however often it is copied: the statements of one document, a
+ *   document and its translations (DocumentMetadata.translation_of, such as the folder's
+ *   "x.zh.md" beside "x.md"), and documents that share the passage, block or whole text a
+ *   statement rests on (MIN_COPY letters and digits at least, compared without case, spaces
+ *   or punctuation) are one source.
  * - Every other value gets a ConflictCase from the deterministic tier: a supersession
  *   (auto-resolved when only archived documents state it), plan versus fact, or a
  *   contradiction, with the proposed value's best claim in effect as proposed_winner_id.
@@ -25,7 +26,9 @@
  *   the case names that change, so the owner learns of it. Governance publishes a note for
  *   such a value (todo.requested of kind note, dedupe_key "governance:note:<slot>:<value>")
  *   naming the reference document, the date it gives and both values, and again only when
- *   one of those or the statements it points to change. A note asks for no decision.
+ *   one of those or the statements it points to change. A note asks for no decision. A value
+ *   only reference documents older than the governed one state is out of date instead (an
+ *   auto-resolved supersession, no note): an old copy of a policy says nothing new.
  * - A case whose value is no longer stated, or is now the proposed one, is auto-resolved.
  * - When a slot's open cases or proposed value change, governance publishes one
  *   todo.requested for the slot (dedupe_key "governance:conflict:<slot>"); a new statement

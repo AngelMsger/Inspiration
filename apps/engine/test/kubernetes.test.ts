@@ -58,14 +58,25 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
     const questions = (await loadQuestions(work)) as Question[];
     const asked = await questionsReport(engine, corpus, questions);
     for (const q of asked.questions) expect(q.outcome, q.question).toBe(q.expected);
+    const score = (right: number) => ({ right, stale: 0 });
     expect(asked.totals).toEqual({
       questions: 12,
       right: 8,
+      stale: 0,
       as_recorded: 12,
       cited_right: 11,
       found: 10,
       notes: 3,
       baselines: { passages: 8, long_context: 8 },
+      by_kind: {
+        unchanged: { questions: 11, engine: score(7), passages: score(7), long_context: score(7) },
+        not_stated: { questions: 1, engine: score(1), passages: score(1), long_context: score(1) },
+      },
+      by_language: {
+        en: { questions: 8, engine: score(6), passages: score(6), long_context: score(7) },
+        ja: { questions: 2, engine: score(0), passages: score(0), long_context: score(0) },
+        zh: { questions: 2, engine: score(2), passages: score(2), long_context: score(1) },
+      },
     });
 
     const page = join(work, "docs/setup/best-practices/cluster-large.html");

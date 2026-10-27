@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * inspiration-engine ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
- *                    [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>]
+ *                    [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>] [--context <tokens>]
  * inspiration-engine synthesize <dir> --documents <n> [--seed <n>]
  * inspiration-engine replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
  * inspiration-engine ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]
@@ -14,6 +14,7 @@
  * edits that share of a synthesized corpus in place (see edit in synthesize.ts) and ingests
  * it again, reporting the second round on its own. --days then runs the daily tick for n
  * days from today and reports the inbox at the end: every owner's cards and notes per week.
+ * --context sets how many tokens the long-context rival of the question check reads at most.
  *
  * synthesize writes a synthetic corpus of about n documents, with truth.json listing every
  * fact it states, for scale runs.
@@ -48,7 +49,7 @@ import { edit, synthesize } from "./synthesize.ts";
 
 const USAGE = [
   "usage: inspiration-engine ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
-  "                          [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>]",
+  "                          [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>] [--context <tokens>]",
   "       inspiration-engine synthesize <dir> --documents <n> [--seed <n>]",
   "       inspiration-engine replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
   "       inspiration-engine ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]",
@@ -70,6 +71,7 @@ async function main(argv: string[]): Promise<number> {
       "on-use": { type: "string" },
       edit: { type: "string" },
       days: { type: "string" },
+      context: { type: "string" },
     },
   });
   const [command, dir, ...rest] = positionals;
@@ -93,6 +95,7 @@ async function main(argv: string[]): Promise<number> {
     resolvePrincipal: corpus.resolvePrincipal,
     vocabulary: () => corpus.vocabulary,
     clock: clock.now,
+    ...(values.context && { contextTokens: Number(values.context) }),
   };
   const databaseUrl = values.database ?? settings?.databaseUrl;
   const valkeyUrl = values.valkey ?? settings?.valkeyUrl;

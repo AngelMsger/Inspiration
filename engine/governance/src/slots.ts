@@ -15,7 +15,8 @@
  *   in force by its governed members' dates alone. A value only reference documents state,
  *   whether as a fact or a plan, is a note against it, settled without a person, and a change
  *   a reference document states moves nothing. The case names that change, so the owner
- *   learns of it.
+ *   learns of it. When every such document is older than the governed one that holds (an
+ *   old copy of the policy kept on a drive), the value is simply out of date: no note.
  * - The leader is the in-force group whose best member in effect today is the most
  *   authoritative; between equally authoritative ones, the value more independent governed
  *   sources in effect today state, then the one from the newer document, then the one more
@@ -59,6 +60,11 @@ export interface Member {
   stated_from?: string;
   /** The effective date of its document (front matter effective_from). */
   document_from?: string;
+  /**
+   * The day its document was last changed, as its source reports it; "" when it does not.
+   * Members stored before it was kept are given it when their group is counted again.
+   */
+  modified?: string;
   /** Its source version is archived or retired. */
   archived: boolean;
   /** Its source version is a reference document, not a governed one. */
@@ -113,6 +119,8 @@ export interface ValueGroup {
    * are counted again from their members (storedGroups).
    */
   sources?: Record<string, number>;
+  /** The newest of its members' document dates (dateOf); "" when one of them has none. */
+  newest?: string;
   /** The earliest day a live member takes effect; "" when one is in effect from the start. */
   earliest_live_from?: string;
   /** The same for live members from governed documents. */
@@ -264,11 +272,20 @@ function leads(a: ValueGroup, b: ValueGroup, today: string): boolean {
 
 /**
  * True when a and b are as authoritative and as well supported, and a's best statement is
- * from a document that took effect later: the newer policy replaces the older one.
+ * from a document that took effect later: the newer policy replaces the older one. Without
+ * an effective date on both, the document changed later is the newer: a copy of last year's
+ * policy saved on a drive against the policy as it is now.
  */
 function newer(a: ValueGroup, b: ValueGroup, today: string): boolean {
   if (rank(a.best, b.best) || independentAsOf(a, today) !== independentAsOf(b, today)) return false;
-  return (a.best.document_from ?? "") > (b.best.document_from ?? "");
+  const [x, y] = [a.best, b.best];
+  if (x.document_from && y.document_from) return x.document_from > y.document_from;
+  return dateOf(x) > dateOf(y);
+}
+
+/** A document's own date: the day it takes effect, else the day it was last changed. */
+function dateOf(m: Member): string {
+  return m.document_from ?? m.modified ?? "";
 }
 
 /** The group with one more member. */
@@ -292,6 +309,8 @@ export function withMember(group: ValueGroup | undefined, m: Member): ValueGroup
         sources: {},
       };
   g.count++;
+  const dated = dateOf(m);
+  g.newest = g.count === 1 ? dated : g.newest && dated && (dated > g.newest ? dated : g.newest);
   const entry = sourceEntry(m);
   g.sources = { ...g.sources, [entry]: (g.sources?.[entry] ?? 0) + 1 };
   if (m.reference) g.reference = (g.reference ?? 0) + 1;
@@ -476,6 +495,17 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
         };
       }
       if (governedSlot && governedIn(g) === 0 && g.live > 0) {
+        const held = dateOf(proposed.best);
+        if (!said && g.newest && held && g.newest < held) {
+          return {
+            ...base,
+            classification: "supersession",
+            status: "auto_resolved",
+            priority: "low",
+            confidence: 0.8,
+            rationale: `Only reference documents state ${g.value}, the newest from ${g.newest}; the governed ${proposed.value} from ${held} holds, and an older document that says otherwise is out of date.`,
+          };
+        }
         return {
           ...base,
           classification: "contradiction",
@@ -536,7 +566,7 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
           status: "open",
           priority: "normal",
           confidence: 0.7,
-          rationale: `${g.value} (${documents(g)}, the most authoritative ${g.best.document}, from ${g.best.document_from ?? "an earlier date"}) is older than ${proposed.value} in ${proposed.best.document}, from ${proposed.best.document_from}, which is as authoritative and has as many independent sources.`,
+          rationale: `${g.value} (${documents(g)}, the most authoritative ${g.best.document}, from ${dateOf(g.best) || "an earlier date"}) is older than ${proposed.value} in ${proposed.best.document}, from ${dateOf(proposed.best)}, which is as authoritative and has as many independent sources.`,
         };
       }
       const governed = g.best.authority >= GOVERNED && proposed.best.authority >= GOVERNED;

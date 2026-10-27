@@ -168,6 +168,7 @@ export async function ingest(engine: Engine, corpus: Corpus, options: { truth?: 
   const started = performance.now();
   const runs: { source: (typeof corpus.sources)[number]; report: SyncReport }[] = [];
   await corpus.provision(engine.authz);
+  await corpus.stamp();
   for (const source of corpus.sources) {
     await engine.sync.addSource(source);
     runs.push({ source, report: await engine.sync.sync(source.id, { via: "reconcile" }) });

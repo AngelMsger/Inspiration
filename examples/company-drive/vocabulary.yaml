@@ -1,0 +1,171 @@
+# The facts the company drive's questions follow: those of the expense policy, as
+# examples/gitlab-expenses names them; those of the Kubernetes pages, as
+# examples/kubernetes-docs names them in English, Chinese and Japanese; and those of the
+# Shinkansen articles, named the way the English, Chinese and Japanese articles word them.
+# Keys and units are language-neutral, so the three languages put a fact in one slot.
+predicates:
+  - predicate: hotel_cap_per_night
+    label: Hotel cap per night
+    knowledge_class: policy
+    aliases: [hotel stays]
+    value: {kind: money, unit: USD/night, currency: USD, words: [USD]}
+
+  - predicate: meal_allowance_per_day
+    label: Meals while traveling, per day
+    knowledge_class: policy
+    aliases: [meals while traveling]
+    value: {kind: money, unit: USD/day, currency: USD, words: [USD]}
+
+  - predicate: internet_while_traveling_per_day
+    label: Internet while traveling, per day
+    knowledge_class: policy
+    aliases: [internet while traveling]
+    value: {kind: money, unit: USD/day, currency: USD, words: [USD]}
+
+  - predicate: receipt_threshold
+    label: Receipts required above
+    knowledge_class: policy
+    aliases: [receipts are required, submit receipts]
+    qualifiers:
+      - name: us
+        aliases: [US Team Members]
+    value: {kind: money, unit: USD, currency: USD, words: [USD]}
+
+  - predicate: expense_claim_deadline_days
+    label: Expenses are submitted within
+    knowledge_class: policy
+    aliases: [submitted within, expense claims over]
+    value: {kind: duration, unit: day, words: [days]}
+
+  - predicate: monthly_reimbursement_limit
+    label: Monthly reimbursement limit
+    knowledge_class: policy
+    aliases: [maximum monthly limit]
+    qualifiers:
+      - name: e_group
+        aliases: [E-Group]
+    value: {kind: money, unit: USD/month, currency: USD, words: [USD]}
+
+  - predicate: home_office_stipend
+    label: Home office stipend
+    knowledge_class: policy
+    aliases: [stipend, yearly refresh]
+    qualifiers:
+      - name: new_hire
+        aliases: [new hires]
+      - name: yearly_refresh
+        aliases: [yearly refresh]
+    value: {kind: money, unit: USD, currency: USD, words: [USD]}
+
+  - predicate: phone_service_monthly_cap
+    label: Cell phone service, per month
+    knowledge_class: policy
+    aliases: [cell phone service]
+    value: {kind: money, unit: USD/month, currency: USD, words: [monthly]}
+
+  - predicate: external_monitor_cap
+    label: External monitor
+    knowledge_class: policy
+    aliases: [external monitor]
+    qualifiers:
+      - name: ultra_wide
+        aliases: [ultra-wide]
+      - name: portable
+        aliases: [portable]
+    value: {kind: money, unit: USD, currency: USD, words: [USD]}
+
+  - predicate: cluster_max_nodes
+    label: Nodes in a cluster, at most
+    knowledge_class: reference
+    aliases: [nodes, 节点数, ノードから構成されるクラスター, ノード以上存在しない]
+    value: {kind: number, unit: node}
+
+  - predicate: pods_per_node_max
+    label: Pods per node, at most
+    knowledge_class: reference
+    aliases: [pods per node, 每个节点的 Pod 数量, 1ノードにつきPod]
+    value: {kind: number, unit: pod}
+
+  - predicate: cluster_max_pods
+    label: Pods in a cluster, at most
+    knowledge_class: reference
+    aliases: [total pods, Pod 总数, Podの総数]
+    value: {kind: number, unit: pod}
+
+  - predicate: cluster_max_containers
+    label: Containers in a cluster, at most
+    knowledge_class: reference
+    aliases: [total containers, 容器总数, コンテナの総数]
+    value: {kind: number, unit: container}
+
+  - predicate: kubelet_version_skew
+    label: Minor versions a kubelet may be older than kube-apiserver
+    knowledge_class: reference
+    aliases: [kubelet may be up to, kubelet 可以比 kube-apiserver 低, kubeletはkube-apiserverより最大で]
+    value: {kind: number, unit: minor_version}
+
+  - predicate: pod_termination_grace_period
+    label: Default grace period for a pod to terminate
+    knowledge_class: reference
+    aliases: [terminate gracefully, 体面终止, 猶予期間]
+    value: {kind: duration, unit: second, words: [seconds, 秒]}
+
+  - predicate: container_restart_backoff_cap
+    label: Longest delay between container restarts
+    knowledge_class: reference
+    aliases: [capped at, 上限为, を上限とする]
+    value: {kind: duration, unit: second, words: [seconds, 秒]}
+
+  - predicate: restart_backoff_reset_after
+    label: Running time after which the restart backoff resets
+    knowledge_class: reference
+    aliases: [restart backoff timer, 重启延迟计时器, 再起動バックオフタイマー]
+    value: {kind: duration, unit: minute, words: [minutes, 分钟, 分間]}
+
+  - predicate: hard_eviction_nodefs_available
+    label: Default hard eviction threshold for free node filesystem space
+    knowledge_class: reference
+    aliases: [nodefs.available<]
+    value: {kind: percent, unit: "%", words: ["%"]}
+
+  - predicate: hard_eviction_imagefs_available
+    label: Default hard eviction threshold for free image filesystem space
+    knowledge_class: reference
+    aliases: [imagefs.available<]
+    value: {kind: percent, unit: "%", words: ["%"]}
+
+  - predicate: hard_eviction_nodefs_inodes_free
+    label: Default hard eviction threshold for free node filesystem inodes
+    knowledge_class: reference
+    aliases: [nodefs.inodesFree<]
+    value: {kind: percent, unit: "%", words: ["%"]}
+
+  - predicate: sapporo_extension_opening
+    label: Year the Hokkaido Shinkansen is to reach Sapporo
+    knowledge_class: reference
+    aliases: [Sapporo, 札幌]
+    value: {kind: number, unit: year}
+
+  - predicate: shinkansen_max_operating_speed
+    label: Highest operating speed on the Shinkansen network
+    knowledge_class: reference
+    aliases: [maximum operating speed, 最高营运速度, 最高速度]
+    value: {kind: number, unit: km/h}
+
+  - predicate: shinkansen_conventional_speed_record
+    label: Highest speed reached by a conventional Shinkansen train in tests
+    knowledge_class: reference
+    aliases: [conventional rail, 最高纪录, 非浮上式鉄道の最高記録]
+    value: {kind: number, unit: km/h}
+
+  - predicate: shinkansen_full_gauge_length
+    label: Length of the full-gauge Shinkansen lines
+    knowledge_class: reference
+    aliases: [kilometres (1, フル規格]
+    value: {kind: number, unit: km}
+
+  - predicate: tokaido_annual_passengers
+    label: Passengers the Tokaido Shinkansen carries a year
+    knowledge_class: reference
+    aliases: [million passengers]
+    value: {kind: number, unit: million_passengers}

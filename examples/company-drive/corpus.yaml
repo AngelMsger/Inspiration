@@ -1,0 +1,40 @@
+# A company's documents as they really are, built only from real public text: the handbook,
+# with a backup of an older version of the expense policy beside the current one; the
+# engineering docs, whose Japanese translations lag years behind; and the shared drive, where
+# people saved older copies of the policy and web articles from two years ago next to the
+# current ones. Every sentence is as its author wrote it; only the arrangement is staged, and
+# files.yaml records where each file comes from and what it stands for. README.md explains.
+
+tenant:
+  id: ten_01COMPANYDRIVE0000000001
+  name: Company drive
+
+spaces:
+  - id: spc_01COMPANYDRIVE000000HANDBOOK
+    name: Handbook
+  - id: spc_01COMPANYDRIVE000000DRIVE
+    name: Shared drive
+
+sources:
+  - id: src_01COMPANYDRIVE00HANDBOOK
+    type: folder
+    space: spc_01COMPANYDRIVE000000HANDBOOK
+    name: Handbook
+    root: handbook
+    default_authority: 0.9
+    governance_level: governed
+  # The Kubernetes pages of examples/kubernetes-docs, as the engineering team's docs.
+  - id: src_01COMPANYDRIVE00ENGINEERING
+    type: folder
+    space: spc_01COMPANYDRIVE000000HANDBOOK
+    name: Engineering docs
+    root: ../kubernetes-docs/docs
+    default_authority: 0.9
+    governance_level: governed
+  - id: src_01COMPANYDRIVE00SHAREDDRIVE
+    type: folder
+    space: spc_01COMPANYDRIVE000000DRIVE
+    name: Shared drive
+    root: drive
+    default_authority: 0.5
+    governance_level: reference

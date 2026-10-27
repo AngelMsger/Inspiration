@@ -12,20 +12,23 @@ const files = (documents: string[]) => documents.map((d) => d.slice(d.indexOf(":
 /**
  * The slot's state as an older governance stored it: its groups without the fields named (the
  * day counts came first, then the best by day, then the sources, when members also began to
- * keep their document and copy keys), and no recheck for the day a statement takes effect.
+ * keep their document and copy keys, then the newest date, when they began to keep their
+ * document's date), and no recheck for the day a statement takes effect.
  */
 async function storedWithout(
   world: World,
-  fields: readonly ("governed_from" | "best_from" | "sources")[],
+  fields: readonly ("governed_from" | "best_from" | "sources" | "newest")[],
 ): Promise<void> {
   const without = <T extends object>(row: T, names: readonly string[]) =>
     Object.fromEntries(Object.entries(row).filter(([k]) => !names.includes(k))) as T;
   const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
   const legacy = stored.map((g) => without(g, fields));
-  const members = fields.includes("sources")
-    ? (await world.records.find(MEMBERS, { tenant_id: TENANT, slot: HOTEL })).map((m) =>
-        without(m, ["document_key", "copy_keys"]),
-      )
+  const memberFields = [
+    ...(fields.includes("sources") ? ["document_key", "copy_keys"] : []),
+    ...(fields.includes("newest") ? ["modified"] : []),
+  ];
+  const members = memberFields.length
+    ? (await world.records.find(MEMBERS, { tenant_id: TENANT, slot: HOTEL })).map((m) => without(m, memberFields))
     : [];
   await world.records.transaction(async (tx) => {
     await tx.put(VALUE_GROUPS, legacy);
@@ -225,6 +228,63 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       ]);
     });
 
+    test("an old copy of the policy on a drive is out of date, and nobody hears of it", async ({ world }) => {
+      const policy = await world.state(POLICY, [{ text: "Hotels are capped at 650 yuan a night.", value: 650 }]);
+      const copy = await world.state(
+        { title: "Travel policy (download)", authority: 0.5, level: "reference", modified_at: "2021-06-23T12:00:00Z" },
+        [{ text: "Hotels are capped at 500 yuan a night.", value: 500 }],
+      );
+      expect(copy.result).toEqual({ slots: [HOTEL], requests: [], notes: [], withdrawn: [] });
+      const { decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.proposed.best.claim_id).toBe(policy.claims[0]?.id);
+      expect(decision?.cases).toEqual([
+        {
+          value: "500 CNY/night",
+          classification: "supersession",
+          status: "auto_resolved",
+          priority: "low",
+          confidence: 0.8,
+          rationale:
+            "Only reference documents state 500 CNY/night, the newest from 2021-06-23; the governed 650 CNY/night from 2026-01-01 holds, and an older document that says otherwise is out of date.",
+        },
+      ]);
+      const [verdict] = await world.governance.verdicts(TENANT, [HOTEL]);
+      expect(verdict?.values.map((v) => [v.value, v.standing])).toEqual([
+        ["650 CNY/night", "holds"],
+        ["500 CNY/night", "outdated"],
+      ]);
+
+      // A reference document newer than the policy may know something it does not: a note.
+      const tips = await world.state(
+        { title: "Travel tips", authority: 0.5, level: "reference", modified_at: "2026-10-20T12:00:00Z" },
+        [{ text: "Hotels are capped at 700 yuan a night.", value: 700 }],
+      );
+      expect(tips.result.notes.map((n) => n.title)).toEqual([
+        "hotel_cap_per_night (tier-1 city): 700 CNY/night in Travel tips, 650 CNY/night holds",
+      ]);
+    });
+
+    test("groups stored before their newest date are counted again, each member dated by its source version", async ({
+      world,
+    }) => {
+      await world.state(POLICY, [{ text: "Hotels are capped at 650 yuan a night.", value: 650 }]);
+      await world.state(
+        { title: "Travel policy (download)", authority: 0.5, level: "reference", modified_at: "2021-06-23T12:00:00Z" },
+        [{ text: "Hotels are capped at 500 yuan a night.", value: 500 }],
+      );
+      await storedWithout(world, ["newest"]);
+      // A recheck decides the slot again: the old copy is still out of date, and nobody is told.
+      await world.records.transaction((tx) => tx.put(RECHECKS, [{ tenant_id: TENANT, slot: HOTEL, day: "" }]));
+      const rechecked = await world.governance.recheck(TENANT);
+      expect(rechecked).toMatchObject({ slots: [HOTEL], requests: [], notes: [] });
+      const { decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.cases.map((c) => [c.value, c.classification, c.status])).toEqual([
+        ["500 CNY/night", "supersession", "auto_resolved"],
+      ]);
+      const members = await world.records.find(MEMBERS, { tenant_id: TENANT, slot: HOTEL });
+      expect(members.map((m) => m.modified).sort()).toEqual(["", "2021-06-23"]);
+    });
+
     test("a note is said again when its date changes, not when another document states the governed value", async ({
       world,
     }) => {
@@ -394,6 +454,31 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect(groups.map((g) => [g.value, g.count, sourcesOf(g).length])).toEqual([
         ["600 CNY/night", 2, 1],
         ["650 CNY/night", 2, 2],
+      ]);
+    });
+
+    test("without effective dates, the copy of the policy changed later is the newer one", async ({ world }) => {
+      const current = await world.state(
+        { title: "Travel policy", authority: 0.9, external_id: "travel.md", modified_at: "2026-09-13T08:00:00Z" },
+        [{ text: "Hotels are capped at 650 yuan a night.", value: 650 }],
+      );
+      await world.state(
+        {
+          title: "Travel policy",
+          authority: 0.9,
+          external_id: "travel-backup.md",
+          modified_at: "2024-02-08T08:00:00Z",
+        },
+        [{ text: "Hotels are capped at 600 yuan a night.", value: 600 }],
+      );
+      const { decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.proposed.best.claim_id).toBe(current.claims[0]?.id);
+      expect(decision?.cases.map((c) => [c.value, c.classification, c.rationale])).toEqual([
+        [
+          "600 CNY/night",
+          "supersession",
+          "600 CNY/night (1 document, the most authoritative Travel policy, from 2024-02-08) is older than 650 CNY/night in Travel policy, from 2026-09-13, which is as authoritative and has as many independent sources.",
+        ],
       ]);
     });
 
@@ -795,6 +880,22 @@ describe.skipIf(BACKENDS[1]?.skip)("postgres backend", () => {
     const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
     expect(stored.every((g) => g.sources)).toBe(true);
     expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("650 CNY/night");
+  });
+
+  test("migration 0006 rechecks slots whose groups were stored before their newest date", async ({ world }) => {
+    await world.state(POLICY, [{ text: "Hotels are capped at 650 yuan a night.", value: 650 }]);
+    await world.state(
+      { title: "Travel policy (download)", authority: 0.5, level: "reference", modified_at: "2021-06-23T12:00:00Z" },
+      [{ text: "Hotels are capped at 500 yuan a night.", value: 500 }],
+    );
+    await storedWithout(world, ["newest"]);
+
+    await world.sql?.(readFileSync(new URL("../migrations/0006_newest.sql", import.meta.url), "utf8"));
+    expect((await world.governance.recheck(TENANT)).notes).toEqual([]);
+    const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
+    expect(stored.every((g) => g.newest !== undefined)).toBe(true);
+    const { decision } = await world.governance.slot(TENANT, HOTEL);
+    expect(decision?.cases.map((c) => c.classification)).toEqual(["supersession"]);
   });
 
   test("migration 0004 rechecks slots whose groups were stored before the best by day", async ({ world }) => {

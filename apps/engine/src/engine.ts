@@ -58,6 +58,8 @@ export interface EngineOptions {
   clock?: () => Date;
   /** The permission graph; in memory unless given (a SpiceDBGraph in a deployment). */
   graph?: Graph;
+  /** The most the long-context rival reads for one answer, in tokens; LONG_CONTEXT_TOKENS unless given. */
+  contextTokens?: number;
 }
 
 /** A component as the engine runs it: event handlers by type, under the component's consumer group. */
@@ -108,6 +110,7 @@ export class Engine {
     vocabulary?: ExtractionOptions["vocabulary"];
     clock?: () => Date;
     graph?: Graph;
+    contextTokens?: number;
   }) {
     this.store = parts.store;
     this.records = parts.records;
@@ -155,7 +158,11 @@ export class Engine {
     this.retrieval = new Retrieval({ ...indexes, verdicts: this.governance, staleness: this.freshness });
     this.baselines = {
       passages: new Retrieval({ ...indexes, baseline: "passages" }),
-      long_context: new Retrieval({ ...indexes, baseline: "long_context" }),
+      long_context: new Retrieval({
+        ...indexes,
+        baseline: "long_context",
+        ...(parts.contextTokens && { contextTokens: parts.contextTokens }),
+      }),
     };
     const components: Running[] = [
       { group: "source-sync", handlers: () => this.sync.handlers() },
@@ -195,6 +202,7 @@ export class Engine {
       ...(options.vocabulary && { vocabulary: options.vocabulary }),
       ...(options.clock && { clock: options.clock }),
       ...(options.graph && { graph: options.graph }),
+      ...(options.contextTokens && { contextTokens: options.contextTokens }),
     };
 
     let engine: Engine;

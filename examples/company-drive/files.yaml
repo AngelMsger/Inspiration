@@ -1,0 +1,85 @@
+# Where each file of the drive comes from, when it was last changed, and what it is to the
+# company: the document in use (current), a copy of an older version someone kept
+# (stale_copy, with the file whose older version it is), or an older revision saved next to
+# the current one (old_revision). The loader gives each file its modified time, as a drive
+# reports it. The Engineering docs are examples/kubernetes-docs/docs, listed in its
+# sources.yaml.
+#
+# GitLab's expense policy is (c) GitLab Inc. and contributors, CC BY-SA 4.0; each file is the
+# page's source at the commit named, unchanged. The Shinkansen articles are by Wikipedia
+# contributors, CC BY-SA 4.0; each file is the revision named, trimmed to its text (README.md
+# says how).
+files:
+  - path: handbook/finance/expenses.md
+    modified: 2026-09-13T08:09:59Z
+    kind: current
+    url: https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/bee431b54775ce83dd5a319a8b20301a728127e9/content/handbook/finance/expenses.md
+    revision: bee431b54775ce83dd5a319a8b20301a728127e9
+    license: CC BY-SA 4.0
+  - path: handbook/finance/expenses-backup-2024.md
+    modified: 2024-02-08T07:54:58Z
+    kind: stale_copy
+    of: handbook/finance/expenses.md
+    url: https://gitlab.com/gitlab-com/content-sites/handbook/-/blob/1c4339e028d965e69e6d41b5d41b3e3d6d43701d/content/handbook/finance/expenses.md
+    revision: 1c4339e028d965e69e6d41b5d41b3e3d6d43701d
+    license: CC BY-SA 4.0
+  - path: drive/finance/expense-policy-2023.md
+    modified: 2023-02-08T14:00:26Z
+    kind: stale_copy
+    of: handbook/finance/expenses.md
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/c82dc1e19ea36ccaf06243302a603885647912ff/sites/handbook/source/handbook/finance/expenses/index.html.md
+    revision: c82dc1e19ea36ccaf06243302a603885647912ff
+    license: CC BY-SA 4.0
+  - path: drive/finance/expenses-2022.md
+    modified: 2022-05-31T14:48:12Z
+    kind: stale_copy
+    of: handbook/finance/expenses.md
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/e066141449e1d919c1f649ba0566a1a7d767404e/sites/handbook/source/handbook/finance/expenses/index.html.md
+    revision: e066141449e1d919c1f649ba0566a1a7d767404e
+    license: CC BY-SA 4.0
+  - path: drive/downloads/expenses.md
+    modified: 2021-06-23T12:57:30Z
+    kind: stale_copy
+    of: handbook/finance/expenses.md
+    url: https://gitlab.com/gitlab-com/www-gitlab-com/-/blob/c9f780f753fee8a7a3b447cd0d8661cdd4cdfa69/sites/handbook/source/handbook/finance/expenses/index.html.md
+    revision: c9f780f753fee8a7a3b447cd0d8661cdd4cdfa69
+    license: CC BY-SA 4.0
+  - path: drive/research/en/shinkansen.html
+    modified: 2026-10-12T04:05:32Z
+    kind: current
+    url: https://en.wikipedia.org/w/index.php?title=Shinkansen&oldid=1379829340
+    revision: "1379829340"
+    license: CC BY-SA 4.0
+  - path: drive/research/en/shinkansen-2024.html
+    modified: 2024-10-23T02:31:09Z
+    kind: old_revision
+    of: drive/research/en/shinkansen.html
+    url: https://en.wikipedia.org/w/index.php?title=Shinkansen&oldid=1252821730
+    revision: "1252821730"
+    license: CC BY-SA 4.0
+  - path: drive/research/ja/shinkansen.html
+    modified: 2026-09-24T23:22:19Z
+    kind: current
+    url: https://ja.wikipedia.org/w/index.php?title=%E6%96%B0%E5%B9%B9%E7%B7%9A&oldid=111141496
+    revision: "111141496"
+    license: CC BY-SA 4.0
+  - path: drive/research/ja/shinkansen-2024.html
+    modified: 2024-10-24T04:53:32Z
+    kind: old_revision
+    of: drive/research/ja/shinkansen.html
+    url: https://ja.wikipedia.org/w/index.php?title=%E6%96%B0%E5%B9%B9%E7%B7%9A&oldid=102321214
+    revision: "102321214"
+    license: CC BY-SA 4.0
+  - path: drive/research/zh/shinkansen.html
+    modified: 2026-09-02T14:03:40Z
+    kind: current
+    url: https://zh.wikipedia.org/w/index.php?title=%E6%96%B0%E5%B9%B9%E7%B7%9A&oldid=94159827&variant=zh-cn
+    revision: "94159827"
+    license: CC BY-SA 4.0
+  - path: drive/research/zh/shinkansen-2024.html
+    modified: 2024-10-19T13:08:38Z
+    kind: old_revision
+    of: drive/research/zh/shinkansen.html
+    url: https://zh.wikipedia.org/w/index.php?title=%E6%96%B0%E5%B9%B9%E7%B7%9A&oldid=84643934&variant=zh-cn
+    revision: "84643934"
+    license: CC BY-SA 4.0

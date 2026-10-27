@@ -12,7 +12,8 @@
       "!libs/contracts/src/generated.ts",
       "!libs/contracts/src/events.ts",
       "!docs/design/screens",
-      "!examples/kubernetes-docs/docs"
+      "!examples/kubernetes-docs/docs",
+      "!examples/company-drive/drive/research"
     ]
   },
   "formatter": {
