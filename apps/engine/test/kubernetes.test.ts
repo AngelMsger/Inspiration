@@ -25,7 +25,8 @@ const KUBERNETES = fileURLToPath(new URL("../../../examples/kubernetes-docs/", i
  * of questions.yaml as it answers it, or as their engine entries record. Then, were the
  * English page to raise its node limit, the translations would fall behind: the original's
  * new value holds without a person, freshness asks for both translations to be brought up
- * to date, and a question in Chinese gets the new value, with a note that its page is behind.
+ * to date, and a question in Chinese gets the new value, with a note that its page is behind,
+ * where plain retrieval over the same chunks still gives the old one.
  */
 async function check(stack?: { databaseUrl: string; streamPrefix: string }): Promise<void> {
   const work = await mkdtemp(join(tmpdir(), "inspiration-kubernetes-"));
@@ -57,7 +58,15 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
     const questions = (await loadQuestions(work)) as Question[];
     const asked = await questionsReport(engine, corpus, questions);
     for (const q of asked.questions) expect(q.outcome, q.question).toBe(q.expected);
-    expect(asked.totals).toEqual({ questions: 12, right: 7, as_recorded: 12, cited_right: 11, found: 9, notes: 3 });
+    expect(asked.totals).toEqual({
+      questions: 12,
+      right: 8,
+      as_recorded: 12,
+      cited_right: 11,
+      found: 10,
+      notes: 3,
+      baselines: { passages: 8, long_context: 8 },
+    });
 
     const page = join(work, "docs/setup/best-practices/cluster-large.html");
     await writeFile(page, (await readFile(page, "utf8")).replaceAll("5,000 nodes", "6,000 nodes"));
@@ -82,6 +91,10 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
     expect(answer.answer).toContain("6,000");
     expect(answer.answer).not.toContain("5,000");
     expect(answer.notes?.find((n) => n.kind === "outdated")?.text).toContain("5000 node");
+    // Plain retrieval over the same chunks still answers with the translation's old value.
+    const plain = await engine.baselines.passages.answer({ question: limit.question }, corpus.reader);
+    expect(plain.answer).toContain("5,000");
+    expect(plain.answer).not.toContain("6,000");
   } finally {
     await engine.close();
     await rm(work, { recursive: true, force: true });

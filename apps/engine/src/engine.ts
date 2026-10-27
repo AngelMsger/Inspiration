@@ -85,6 +85,11 @@ export class Engine {
   readonly inbox: Inbox;
   readonly authz: AuthzService;
   readonly retrieval: Retrieval;
+  /**
+   * The rivals answers are measured against, over the same documents and model: plain
+   * retrieval over the same chunks, and a model that reads every document (small corpora).
+   */
+  readonly baselines: { passages: Retrieval; long_context: Retrieval };
   readonly consumer: Consumer;
   readonly transport: Transport;
   readonly #relay: OutboxRelay | undefined;
@@ -138,17 +143,20 @@ export class Engine {
     this.inbox = new Inbox({ store: this.store, records: this.records, ...clock });
     this.authz = new AuthzService(parts.graph ?? new MemoryGraph(), this.store);
     const memory = this.store instanceof MemoryStore ? this.store : undefined;
-    this.retrieval = new Retrieval({
+    const indexes = {
       store: this.store,
       records: this.records,
       models: this.models,
       authz: this.authz,
       vectors: memory ? new MemoryVectorIndex(memory) : new PgVectorIndex(parts.pool as Pool),
       keywords: memory ? new MemoryKeywordIndex(memory) : new PgSearchIndex(parts.pool as Pool),
-      verdicts: this.governance,
-      staleness: this.freshness,
       ...clock,
-    });
+    };
+    this.retrieval = new Retrieval({ ...indexes, verdicts: this.governance, staleness: this.freshness });
+    this.baselines = {
+      passages: new Retrieval({ ...indexes, baseline: "passages" }),
+      long_context: new Retrieval({ ...indexes, baseline: "long_context" }),
+    };
     const components: Running[] = [
       { group: "source-sync", handlers: () => this.sync.handlers() },
       { group: "normalization", handlers: () => this.normalization.handlers() },

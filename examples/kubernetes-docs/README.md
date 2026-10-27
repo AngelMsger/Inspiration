@@ -97,9 +97,15 @@ The questions ask for the facts followed, in English, Chinese and Japanese, plus
 nothing here answers. An answer is right when it contains an expected text and cites one of
 the expected pages, in any of its languages. With stand-ins for the models (an answer made
 of the source sentences sharing most of the question's words, and a reranker that counts
-shared words), 7 of the 12 are right. The check also says whether the search the answer rests
-on found an expected text at all: it did for 9 of the 11 questions with an answer, so most
+shared words), 8 of the 12 are right. The check also says whether the search the answer rests
+on found an expected text at all: it did for 10 of the 11 questions with an answer, so most
 misses are the stand-in answer's, not the search's.
+
+Each question is also put to two rivals with the same documents and stand-in model: plain
+retrieval over the same chunks, without statements or governance, and a model that reads all
+15 pages at once (about 77,000 tokens by the engine's estimate). Both get 8 of the 12 right too. On pages that agree
+with each other the knowledge layer is not expected to win; it is expected to win when a
+fact changes, as below.
 
 What the engine does right throughout:
 
@@ -107,6 +113,7 @@ What the engine does right throughout:
   limit to 6,000, the question in Chinese is answered with the English 6,000, and a note says
   the Chinese page still states 5,000. The Chinese sentence that states 5,000 is not given to
   the answer: its statement is, marked as replaced, with the statement of the value that holds.
+  Plain retrieval over the same chunks still answers 5,000.
 - **Notes only on the values an answer gives.** A conflict note comes with the node limit,
   which the stand-in extraction gives seven values, and not with answers about thresholds.
 - **A question with no answer is a gap.** The passport question cites nothing and says so.
@@ -115,8 +122,6 @@ The misses, each recorded in `questions.yaml` with its reason:
 
 - **Different words for the same thing:** "at most" against "no more than", and the Japanese
   上限 (upper limit) against 最大 (maximum).
-- **Inflections:** the stand-in reranker does not meet "capped", "containers" and "restarts"
-  with "cap", "container" and "restart", so the restart delay cap is not found.
 - **A list under its lead-in:** "The kubelet has the following default hard eviction
   thresholds:" shares more words with the question than the item "nodefs.available<10%".
 - **Kana and kanji:** the Japanese question writes しきい値 and the page 閾値.
