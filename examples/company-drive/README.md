@@ -65,6 +65,18 @@ in its file, with runs of spaces as one space and HTML tags removed, and that th
 matches `files.yaml` or `examples/kubernetes-docs/sources.yaml`; whether the quote says what
 the key says is a reader's check.
 
+### Corrections
+
+The key is frozen before a run and never edited to match a result. When a run shows the key
+missed what a file says, the key is corrected from the file, the correction is listed here,
+and the run's own numbers stand as scored.
+
+- 2026-10-27, found by the [second DeepSeek run](../../apps/bench/runs/2026-10-27-whole.md):
+  the Japanese article writes the Tōkaidō opening as "1964年（昭和39年）10月1日", with the era
+  year inside the date, and the Chinese article states the Chūō opening between Shinagawa
+  and Nagoya as 2034 ("兴建中，预计2034年开业"). The first is now one of the value's texts,
+  the second one of the places that state it.
+
 ## The questions
 
 `questions.yaml` asks each unchanged fact once per language, each changed fact twice, worded
@@ -88,12 +100,12 @@ the stand-in quotes more of each passage, older values included.
 
 | Questions | Engine right, stale | Plain retrieval | Reading everything |
 | --- | --- | --- | --- |
-| All 150 | 46, 6 | 41, 7 | 49, 8 |
+| All 150 | 47, 6 | 42, 7 | 49, 8 |
 | Unchanged, 69 | 30, 0 | 30, 0 | 34, 0 |
-| Changed, 66 | 14, 6 | 9, 6 | 13, 6 |
+| Changed, 66 | 15, 6 | 10, 6 | 13, 6 |
 | Not answered by the drive, 15 | 2, 0 | 2, 1 | 2, 2 |
 | In English, 50 | 28, 4 | 24, 6 | 31, 7 |
-| In Chinese, 50 | 12, 1 | 10, 0 | 10, 0 |
+| In Chinese, 50 | 13, 1 | 11, 0 | 10, 0 |
 | In Japanese, 50 | 6, 1 | 7, 1 | 8, 1 |
 
 - In English, where the stand-ins can read the documents, the engine answers 10 of 22
