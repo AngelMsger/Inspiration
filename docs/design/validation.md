@@ -38,7 +38,7 @@ Those documents repeat each other, contradict each other, lag in translation and
 
 ## Five claims, and how each is tested
 
-The core value breaks into five claims. Each needs its own test, because a miss in one hides behind the others: a right answer can come from luck in reading and a wrong one from a bug in deciding. The pass bars are proposals until the product owner agrees them; the first real run's numbers are now beside them.
+The core value breaks into five claims. Each needs its own test, because a miss in one hides behind the others: a right answer can come from luck in reading and a wrong one from a bug in deciding. The pass bars are proposals until the product owner agrees them; the real runs' numbers are now beside them.
 
 | Claim | What it means | Measured as | Proposed pass bar | Today |
 | --- | --- | --- | --- | --- |
