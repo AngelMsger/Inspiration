@@ -42,7 +42,7 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
       for (const row of slot.rows) expect(row.observed, `${slot.slot} on ${row.at}`).toBe(row.recorded);
     }
     // The numbers README.md gives.
-    expect(check.totals).toEqual({ steps: 294, right: 185, as_recorded: 294 });
+    expect(check.totals).toEqual({ steps: 294, right: 174, as_recorded: 294 });
     expect(check.unexpected).toEqual(["home_office_stipend"]);
     // The moved notice states nothing: every fact is kept, marked, until the page comes back.
     const at = (day: string) => report.steps.find((s) => s.at.startsWith(day));
@@ -54,12 +54,12 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
     const unstated = (day: string) => Object.keys(at(day)?.slots ?? {}).filter((k) => at(day)?.slots[k]?.unstated);
     expect(unstated("2026-03-18")).toEqual(Object.keys(at("2026-03-18")?.slots ?? {}));
     expect(unstated("2026-05-14")).toEqual(["phone_service_monthly_cap"]);
-    // A cap the page stopped stating in 2023 stays, marked.
+    // A cap the stand-in stopped reading in 2023 stays, marked.
     expect(at("2026-09-13")?.slots.phone_service_monthly_cap).toMatchObject({ leads: "50 USD/month", unstated: true });
     // The one change of the last year, a new version superseding the old value.
     const last = report.steps.at(-1);
     expect(last?.slots.meal_allowance_per_day).toEqual({ leads: "120 USD/day", values: ["120 USD/day"] });
-    // The owner has one todo for the document, about the one fact it no longer states.
+    // The owner has one todo for the document, about the one fact the stand-in no longer reads.
     const open = (await engine.inbox.items(corpus.tenantId, { open: true })).filter((i) => i.todo.kind === "unstated");
     expect(open.map((i) => i.todo.title)).toEqual(["Global Travel and Expense Policy: 1 statement no longer stated"]);
     const [phone] = await engine.store.getClaims(open[0]?.todo.unit_ids ?? []);
@@ -67,13 +67,13 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
     // What people were asked, against what changed; README.md says which asks were worth it.
     expect(report.review).toEqual({
       versions: 20,
-      changed_facts: 18,
+      changed_facts: 20,
       todos: 2,
       todos_by_kind: { conflict: 1, unstated: 1 },
       more: 2,
       withdrawn: 1,
       notes: 0,
-      asks_per_changed_fact: 0.22,
+      asks_per_changed_fact: 0.2,
       cases: 1,
       settled: 0,
       first: { todos: {}, more: {}, withdrawn: 0, notes: 0, cases: 0, settled: 0 },
