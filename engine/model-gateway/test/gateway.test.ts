@@ -322,6 +322,70 @@ describe("embed, rerank, ocr", () => {
     expect(usageOf(gateway).records.at(-1)?.operation).toBe("rerank");
   });
 
+  function cachingGateway(operations: ("complete" | "embed" | "rerank")[]) {
+    const config = gatewayConfig();
+    const providers = Object.fromEntries(config.providers.map((p) => [p.name, new FakeProvider(p)]));
+    const sent: string[][] = [];
+    for (const provider of Object.values(providers)) {
+      const embed = provider.embed.bind(provider);
+      provider.embed = (model, texts, inputType) => {
+        sent.push([...texts]);
+        return embed(model, texts, inputType);
+      };
+      const rerank = provider.rerank.bind(provider);
+      provider.rerank = (model, query, documents) => {
+        sent.push([...documents]);
+        return rerank(model, query, documents);
+      };
+    }
+    return { gateway: new Gateway({ ...config, cache: { ...config.cache, operations } }, { providers }), sent };
+  }
+
+  test("embeddings are cached per text when the config says, and only the texts it misses are sent", async () => {
+    const { gateway, sent } = cachingGateway(["complete", "embed"]);
+    const req = { input_type: "document" as const, sensitivity: "internal" as const, budget_key: "k" };
+    const first = await gateway.embed({ ...req, texts: ["alpha", "beta"] });
+    const second = await gateway.embed({ ...req, texts: ["beta", "gamma", "alpha"] });
+    expect(sent).toEqual([["alpha", "beta"], ["gamma"]]);
+    expect(second.vectors[0]).toEqual(first.vectors[1]);
+    expect(second.vectors[2]).toEqual(first.vectors[0]);
+    expect(second.dimensions).toBe(64);
+    // A query is embedded apart from a document, and a call the cache answers whole costs nothing.
+    await gateway.embed({ ...req, input_type: "query", texts: ["alpha"] });
+    const third = await gateway.embed({ ...req, texts: ["gamma", "alpha"] });
+    expect(sent).toEqual([["alpha", "beta"], ["gamma"], ["alpha"]]);
+    expect(third.cost.amount).toBe(0);
+    expect(usageOf(gateway).records.map((r) => r.status)).toEqual(["ok", "ok", "ok", "cached"]);
+  });
+
+  test("rerank scores are cached per document, unless top_n leaves some out", async () => {
+    const { gateway, sent } = cachingGateway(["rerank"]);
+    const req = { query: "travel hotel cap", sensitivity: "confidential" as const, budget_key: "k" };
+    const first = await gateway.rerank({ ...req, documents: ["hotel cap for travel", "quarterly revenue"] });
+    const second = await gateway.rerank({ ...req, documents: ["quarterly revenue", "travel hotel cap per night"] });
+    expect(sent).toEqual([["hotel cap for travel", "quarterly revenue"], ["travel hotel cap per night"]]);
+    expect(second.scores[0]).toBe(first.scores[1]);
+    await gateway.rerank({ ...req, query: "revenue", documents: ["quarterly revenue"] });
+    await gateway.rerank({ ...req, documents: ["quarterly revenue"], top_n: 1 });
+    expect(sent.slice(2)).toEqual([["quarterly revenue"], ["quarterly revenue"]]);
+    // Completions are cached only when the config lists them.
+    await gateway.complete(completionRequest("same prompt", { sensitivity: "confidential" }));
+    const again = await gateway.complete(completionRequest("same prompt", { sensitivity: "confidential" }));
+    expect(again.cached).toBe(false);
+  });
+
+  test("by default only completions are cached", async () => {
+    const gateway = makeGateway();
+    expect(gateway.config.cache.operations).toEqual(["complete"]);
+    const req = { texts: ["alpha"] as [string], input_type: "document" as const, sensitivity: "internal" as const };
+    await gateway.embed({ ...req, budget_key: "k" });
+    await gateway.embed({ ...req, budget_key: "k" });
+    expect(gateway.provider<FakeProvider>("cloud").calls).toEqual([
+      ["embed", undefined],
+      ["embed", undefined],
+    ]);
+  });
+
   test("ocr reads the image from the blob store", async () => {
     const blobs = new MemoryBlobStore();
     const gateway = makeGateway({ blobs });

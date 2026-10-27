@@ -3,11 +3,11 @@
  *
  * For every request it checks the budget, counting what calls still in flight in this process
  * hold against it (their input and output limit at the first candidate's price), picks
- * candidate models that serve the operation
- * and tier and are cleared for the request's sensitivity label, tries them in order (route
- * preferences first, falling back on retryable errors), validates structured output (one
- * corrective retry), caches deterministic completions, and meters every call, including
- * failures.
+ * candidate models that serve the operation and tier and are cleared for the request's
+ * sensitivity label, tries them in order (route preferences first, falling back on retryable
+ * errors), validates structured output (one corrective retry), caches deterministic
+ * completions (and, when the config says, embeddings per text and rerank scores per
+ * document), and meters every call, including failures.
  */
 
 import { createHash } from "node:crypto";
@@ -389,7 +389,12 @@ export class Gateway implements ModelGateway {
 
   /** The response cache key, or undefined when this request must not be cached. */
   cacheKey(candidate: Candidate, req: CompletionRequest): string | undefined {
-    if (!this.cache || req.use_cache === false || (req.temperature !== undefined && req.temperature !== 0)) {
+    if (
+      !this.cache ||
+      !this.config.cache.operations.includes("complete") ||
+      req.use_cache === false ||
+      (req.temperature !== undefined && req.temperature !== 0)
+    ) {
       return undefined;
     }
     const material = canonicalJson([
@@ -479,15 +484,51 @@ export class Gateway implements ModelGateway {
 
   // ------------------------------------------------------------ embed, rerank, ocr
 
+  /**
+   * The values the cache holds for each item, the provider's for the rest: only the items the
+   * cache misses are sent, and the call counts as cached when it misses none.
+   */
+  async #perItem<T>(
+    operation: "embed" | "rerank",
+    keys: (string | undefined)[],
+    fetch: (missing: number[]) => Promise<{ values: T[]; usage: TokenUsage }>,
+  ): Promise<{ values: T[]; usage: TokenUsage; status: "ok" | "cached" }> {
+    const cache = this.cache && this.config.cache.operations.includes(operation) ? this.cache : undefined;
+    const hits = await Promise.all(keys.map((k) => (cache && k !== undefined ? cache.get(k) : undefined)));
+    const values = hits.map((h) => (h === undefined ? undefined : (JSON.parse(h) as T)));
+    const missing = values.flatMap((v, i) => (v === undefined ? [i] : []));
+    if (!missing.length) return { values: values as T[], usage: ZERO, status: "cached" };
+    const out = await fetch(missing);
+    await Promise.all(
+      missing.map(async (i, j) => {
+        values[i] = out.values[j] as T;
+        const key = keys[i];
+        if (cache && key !== undefined) await cache.set(key, JSON.stringify(out.values[j]), this.config.cache.ttl_s);
+      }),
+    );
+    return { values: values as T[], usage: out.usage, status: "ok" };
+  }
+
+  #itemKey(candidate: Candidate, ...material: unknown[]): string {
+    return createHash("sha256")
+      .update(canonicalJson([candidate.ref, ...material]))
+      .digest("hex");
+  }
+
   async embed(req: EmbedRequest): Promise<EmbedResult> {
     this.#validated("EmbedRequest", req);
     return this.#guarded(
       "embed",
       req,
       async (candidate) => {
-        const out = await this.provider(candidate.provider.name).embed(candidate.model, req.texts, req.input_type);
-        const dimensions = out.vectors[0]?.length ?? candidate.model.dimensions ?? 0;
-        return { fields: { vectors: out.vectors, dimensions }, usage: out.usage, status: "ok" };
+        const keys = req.texts.map((t) => this.#itemKey(candidate, "embed", req.input_type, t));
+        const { values, usage, status } = await this.#perItem<number[]>("embed", keys, async (missing) => {
+          const texts = missing.map((i) => req.texts[i] as string);
+          const out = await this.provider(candidate.provider.name).embed(candidate.model, texts, req.input_type);
+          return { values: out.vectors, usage: out.usage };
+        });
+        const dimensions = values[0]?.length ?? candidate.model.dimensions ?? 0;
+        return { fields: { vectors: values, dimensions }, usage, status };
       },
       { tokens: () => ({ input: estimateTokens(req.texts.join("\n")), output: 0 }) },
     );
@@ -499,13 +540,21 @@ export class Gateway implements ModelGateway {
       "rerank",
       req,
       async (candidate) => {
-        const out = await this.provider(candidate.provider.name).rerank(
-          candidate.model,
-          req.query,
-          req.documents,
-          req.top_n,
+        // A score is the query's and one document's alone, unless top_n leaves some out.
+        const keys = req.documents.map((d) =>
+          req.top_n === undefined ? this.#itemKey(candidate, "rerank", req.query, d) : undefined,
         );
-        return { fields: { scores: out.scores }, usage: out.usage, status: "ok" };
+        const { values, usage, status } = await this.#perItem<number>("rerank", keys, async (missing) => {
+          const documents = missing.map((i) => req.documents[i] as string);
+          const out = await this.provider(candidate.provider.name).rerank(
+            candidate.model,
+            req.query,
+            documents,
+            req.top_n,
+          );
+          return { values: out.scores, usage: out.usage };
+        });
+        return { fields: { scores: values }, usage, status };
       },
       { tokens: () => ({ input: estimateTokens([req.query, ...req.documents].join("\n")), output: 0 }) },
     );

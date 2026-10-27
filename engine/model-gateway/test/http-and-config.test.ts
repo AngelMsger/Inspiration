@@ -113,7 +113,7 @@ describe("config", () => {
       json_schema: false,
       price: { input: 0, output: 0 },
     });
-    expect(config.cache).toEqual({ backend: "memory", ttl_s: 604800, max_entries: 10000 });
+    expect(config.cache).toEqual({ backend: "memory", ttl_s: 604800, max_entries: 10000, operations: ["complete"] });
     expect(() => parseGatewayConfig({ providers: [{ name: "p" }] })).toThrow(/must have required property 'kind'/);
     expect(() => parseGatewayConfig({ providers: [], routes: [{ match: "x.*", prefer: ["nowhere/model"] }] })).toThrow(
       /unknown model nowhere\/model/,
