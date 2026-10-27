@@ -1,0 +1,36 @@
+# The control corpus: a handful of English documents (and one Chinese translation) built so
+# that each case has one right answer. expected.yaml holds the answers and README.md explains
+# the cases. Every document is readable by the whole tenant.
+
+tenant:
+  id: ten_01CONTROLCORPUS0000000001
+  name: Control corpus
+
+spaces:
+  - id: spc_01CONTROLCORPUS000POLICY
+    name: Policies
+  - id: spc_01CONTROLCORPUS00000TEAM
+    name: Teams
+
+sources:
+  - id: src_01CONTROLCORPUS00POLICIES
+    type: folder
+    space: spc_01CONTROLCORPUS000POLICY
+    name: Policy library
+    root: policies
+    default_authority: 0.9
+    governance_level: governed
+  - id: src_01CONTROLCORPUS0HANDBOOKS
+    type: folder
+    space: spc_01CONTROLCORPUS00000TEAM
+    name: Team handbooks
+    root: handbooks
+    default_authority: 0.9
+    governance_level: governed
+  - id: src_01CONTROLCORPUS000000WIKI
+    type: folder
+    space: spc_01CONTROLCORPUS00000TEAM
+    name: Team wiki
+    root: wiki
+    default_authority: 0.5
+    governance_level: reference

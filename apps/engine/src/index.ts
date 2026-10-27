@@ -17,11 +17,26 @@
  * `pnpm engine ingest examples/corpus`. synthesize writes a larger synthetic tenant with a
  * ground-truth list of the facts its documents state, current, stale or wrong, for scale
  * runs and for measuring later stages; edit changes a share of it in place, and days()
- * runs the daily tick over simulated days.
+ * runs the daily tick over simulated days. A corpus with an expected.yaml gets the control
+ * check (controlReport): per case, which slot each statement lands in, each value's
+ * independent sources with copies counted once, the proposed value and what becomes of the
+ * others, against the answers and the engine's recorded gaps (examples/control).
  *
  * Apps are composition roots: they may depend on any component; nothing depends on them.
  */
 
+export {
+  type CaseResult,
+  type Control,
+  type ControlCase,
+  ControlError,
+  type ControlReport,
+  controlLines,
+  controlReport,
+  loadControl,
+  type SlotOutcome,
+  type ValueCounts,
+} from "./control.ts";
 export { Corpus, CorpusError, type CorpusManifest } from "./corpus.ts";
 export { Engine, type EngineOptions } from "./engine.ts";
 export { type DaysReport, days, type FreshnessReport, SimulatedClock } from "./freshness.ts";

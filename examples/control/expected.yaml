@@ -1,0 +1,149 @@
+# The answers to the control corpus, case by case. For each slot a case looks at:
+# - values: every value and the documents that state it, grouped by independent source. Each
+#   inner list is one source: the original first, then its copies (a repost, a pasted
+#   paragraph, a translation). So [[a, b], [c]] is three documents and two sources.
+# - proposed: the value a careful reviewer would have governance propose.
+# - cases: what becomes of every other value: "note" (a value only reference documents state,
+#   left for the owner), or the case's status and class ("open contradiction").
+#
+# engine: where the engine, with the extraction stand-in, gets a slot otherwise today, and
+# why. Each field given replaces the answer's; null means the engine has none. The control
+# test holds the run to these entries, so a change that closes a gap must delete its entry,
+# and one that opens a gap must add one. See README.md.
+
+cases:
+  - case: copied-faq
+    group: one rule, a wrong value copied
+    question: Do three copies of an outdated FAQ outvote the travel policy?
+    slots:
+      hotel_cap_per_night:
+        values:
+          200 USD/night: [[policies/travel-policy.md]]
+          180 USD/night: [[wiki/travel-faq.md, wiki/sales/travel-faq.md, wiki/support/travel-faq.md]]
+        proposed: 200 USD/night
+        cases: {180 USD/night: note}
+
+  - case: pasted-paragraph
+    group: one rule, a wrong value copied
+    question: Do three handbooks that paste one outdated paragraph outvote the newer travel policy?
+    slots:
+      meal_allowance_per_day:
+        values:
+          60 USD/day: [[policies/travel-policy.md]]
+          50 USD/day: [[handbooks/sales.md, handbooks/support.md, handbooks/engineering.md]]
+        proposed: 60 USD/day
+        cases: {50 USD/day: open supersession}
+    engine:
+      why: >-
+        All four statements are governed and equally authoritative, so governance counts them:
+        three for 50, one for 60. Normalization finds copies of whole documents, not of a
+        paragraph, and a later effective date (2026 against 2025) is not a tie-break. Had the
+        policy said "from 1 January 2026", that dated change would win.
+      slots:
+        meal_allowance_per_day:
+          values:
+            60 USD/day: [[policies/travel-policy.md]]
+            50 USD/day: [[handbooks/sales.md], [handbooks/support.md], [handbooks/engineering.md]]
+          proposed: 50 USD/day
+          cases: {60 USD/day: open contradiction}
+
+  - case: two-named-deadlines
+    group: two deadlines in one passage
+    question: Does each deadline land in its own slot when the catalogue names both?
+    slots:
+      refund_payment_days:
+        values: {14 day: [[policies/customer-policy.md]]}
+        proposed: 14 day
+      objection_days:
+        values: {30 day: [[policies/customer-policy.md]]}
+        proposed: 30 day
+
+  - case: unnamed-deadline
+    group: two deadlines in one passage
+    question: Does a second deadline that the catalogue does not name stay out of the first one's slot?
+    slots:
+      return_window_days:
+        values: {30 day: [[policies/customer-policy.md]]}
+        proposed: 30 day
+    engine:
+      why: >-
+        When a clause names no catalogue fact, the extraction stand-in gives it the fact its
+        passage names, so the 7 days to report damage land in the return window. The two values
+        then come from one document and tie on everything, so claim IDs decide, and they pick 7.
+        A model is expected to keep the two apart.
+      slots:
+        return_window_days:
+          values:
+            30 day: [[policies/customer-policy.md]]
+            7 day: [[policies/customer-policy.md]]
+          proposed: 7 day
+          cases: {30 day: open contradiction}
+
+  - case: qualified-deadlines
+    group: two deadlines in one passage
+    question: Do the travel and the other-expense deadlines of one sentence stay in separate slots?
+    slots:
+      claim_deadline_days|travel:
+        values: {30 day: [[policies/travel-policy.md]]}
+        proposed: 30 day
+      claim_deadline_days|other:
+        values: {60 day: [[policies/travel-policy.md]]}
+        proposed: 60 day
+
+  - case: elliptical-deadline
+    group: two deadlines in one passage
+    question: Is a deadline after a semicolon that leaves out what it is about still read?
+    slots:
+      shipping_days|standard:
+        values: {3 day: [[policies/customer-policy.md]]}
+        proposed: 3 day
+      shipping_days|express:
+        values: {1 day: [[policies/customer-policy.md]]}
+        proposed: 1 day
+    engine:
+      why: >-
+        Normalization ends an English passage at a semicolon, and the extraction stand-in reads
+        each passage alone, so "express orders within 1 day" names no catalogue fact and is
+        not read into a slot. A model sees the whole paragraph in its window.
+      slots:
+        shipping_days|express:
+          values: {}
+          proposed: null
+
+  - case: reposted-notice
+    group: reposts and independent sources
+    question: Does a notice copied into two folders count as three sources against two independent ones?
+    slots:
+      taxi_cap_per_day:
+        values:
+          40 USD/day: [[policies/taxi-notice.md, handbooks/sales/taxi-notice.md, handbooks/support/taxi-notice.md]]
+          45 USD/day: [[handbooks/sales.md], [handbooks/engineering.md]]
+        proposed: 45 USD/day
+        cases: {40 USD/day: open contradiction}
+    engine:
+      why: >-
+        Normalization reports both copies as exact duplicates of the notice, but governance
+        counts statements, not sources: three for 40 against two for 45.
+      slots:
+        taxi_cap_per_day:
+          proposed: 40 USD/day
+          cases: {45 USD/day: open contradiction}
+
+  - case: translated-policy
+    group: reposts and independent sources
+    question: Does a translation of the leave policy count as a second source?
+    slots:
+      annual_leave_days:
+        values:
+          20 day: [[policies/leave-policy.md, policies/leave-policy.zh.md], [wiki/onboarding.md]]
+        proposed: 20 day
+    engine:
+      why: >-
+        Knowledge does not depend on the language it is written in, so a translation is a copy.
+        Normalization compares texts and does not see the Chinese translation as a copy of the
+        English policy, so the value has three sources. With one value nothing is decided here,
+        but governance would count both statements against another value.
+      slots:
+        annual_leave_days:
+          values:
+            20 day: [[policies/leave-policy.md], [policies/leave-policy.zh.md], [wiki/onboarding.md]]

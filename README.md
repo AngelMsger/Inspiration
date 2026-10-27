@@ -67,7 +67,13 @@ a fictional company with planted duplicates and conflicts) and print what it pro
 pnpm engine ingest examples/corpus            # in memory
 pnpm engine ingest examples/corpus --stack    # Postgres and Valkey from INSPIRATION_* settings
 pnpm engine synthesize /tmp/synth --documents 2000 && pnpm engine ingest /tmp/synth --stack
+pnpm engine ingest examples/control           # the control corpus, checked case by case
 ```
+
+[`examples/control`](examples/control/README.md) is a small corpus in which every case has one
+right answer: a correct rule against a copied wrong value, two deadlines in one passage, and
+reposts against independent sources. Its run reports, for each case, the slot each statement
+lands in, each value's independent sources, the proposed value and what becomes of the others.
 
 To try the model gateway without a model server, run it with the fake providers:
 
@@ -87,6 +93,7 @@ engine/<component>        one package per engine component (see components.yaml)
 business/                 business-layer packages (none yet); engine/ and libs/ never depend on them
 apps/engine               the engine process: wires components to the store and the bus; ingest CLI
 examples/corpus           a demo tenant (Chinese enterprise documents, folder ACLs, Feishu fixtures)
+examples/control          a control corpus with one right answer per case, and the engine's known gaps
 infra/                    docker compose for the prototype stack
 config/                   example configuration
 docs/                     overview, design, architecture, contracts, PageSpec and views, licensing

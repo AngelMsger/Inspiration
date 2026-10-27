@@ -15,6 +15,9 @@
  *
  * synthesize writes a synthetic corpus of about n documents, with truth.json listing every
  * fact it states, for scale runs.
+ *
+ * A corpus with an expected.yaml (examples/control) also gets the control check, case by case
+ * (see control.ts).
  */
 
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
@@ -23,6 +26,7 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { loadSettings } from "@inspiration/kernel";
 import type { Truth } from "./claims.ts";
+import { controlLines, controlReport, loadControl } from "./control.ts";
 import { Corpus } from "./corpus.ts";
 import { Engine, type EngineOptions } from "./engine.ts";
 import { days, SimulatedClock } from "./freshness.ts";
@@ -89,6 +93,12 @@ async function main(argv: string[]): Promise<number> {
     if (truth) report.planted = plantedDuplicates(report.duplicates, truth.duplicates);
     console.log(summary(report));
     const out: Record<string, unknown> = { ...report };
+    const control = await loadControl(dir);
+    if (control) {
+      const checked = await controlReport(engine, corpus, control, report.duplicates);
+      console.log(`\n${controlLines(checked).join("\n")}`);
+      out.control = checked;
+    }
     let deadLetters = report.dead_letters;
     if (values["on-use"]) {
       const used = await onUse(engine, corpus, Number(values["on-use"]));
