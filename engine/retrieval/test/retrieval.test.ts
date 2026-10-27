@@ -1,8 +1,8 @@
 // Retrieval against the in-memory doubles and Postgres (pgvector, pg_search).
 
-import type { SlotVerdict } from "@inspiration/contracts";
+import { GatewayException, type SlotVerdict } from "@inspiration/contracts";
 import { testData } from "@inspiration/testkit";
-import { describe, expect } from "vitest";
+import { describe, expect, vi } from "vitest";
 import { ContextTooLong, chunk, MAX_TOKENS } from "../src/index.ts";
 import { ALICE, BACKENDS, BOB, CAROL, cap, HOTEL, retrievalTest, SPACE, TENANT } from "./fixtures.ts";
 
@@ -232,6 +232,90 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       expect((await world.retrieval.search({ text: "grade 7 salaries" }, CAROL)).hits[0]?.title).toBe("Salary bands");
     });
 
+    test("a rerank is labelled as the most sensitive text it sends; with no reranker cleared for it the fused order stands", async ({
+      world,
+    }) => {
+      await world.document("salaries.md", [{ id: "p1", text: "Grade 7 salaries start at 314159 yuan a month." }], {
+        title: "Salary bands",
+        sensitivity: "confidential",
+      });
+      await world.document("travel.md", POLICY, { title: "Travel policy" });
+      const rerank = vi.spyOn(world.gateway, "rerank");
+      await world.retrieval.search({ text: "grade 7 salaries" }, CAROL);
+      await world.retrieval.search({ text: "grade 7 salaries" }, BOB);
+      expect(rerank.mock.calls.map(([req]) => req.sensitivity)).toEqual(["confidential", "internal"]);
+
+      rerank.mockRejectedValueOnce(
+        new GatewayException("no_route", "no rerank model allowed for sensitivity confidential"),
+      );
+      const fused = await world.retrieval.search({ text: "grade 7 salaries" }, CAROL);
+      expect(fused.hits.map((h) => h.title)).toContain("Salary bands");
+    });
+
+    test("a contradiction with a value the asker cannot read is not shown to them", async ({ world }) => {
+      const policy = await world.document("travel.md", POLICY, { title: "Travel policy" });
+      const rule = "Directors' hotels in tier-1 cities cost at most 987654 yuan a night.";
+      const board = await world.document("board.md", [{ id: "p1", text: rule }], {
+        title: "Board rules",
+        readers: [ALICE],
+      });
+      const held = await world.claim(POLICY[1]?.text as string, policy.spansOf("p1")[0] as never, {
+        ...cap(650),
+        quote: "Hotels in tier-1 cities cost at most 650 yuan a night.",
+      });
+      const hidden = await world.claim(rule, board.spansOf("p1")[0] as never, cap(987654));
+      world.verdicts.set(HOTEL, {
+        tenant_id: TENANT,
+        slot_key: HOTEL,
+        held_value: "650 CNY/night",
+        disputed: true,
+        values: [
+          { value: "650 CNY/night", standing: "holds", claim_ids: [held.id] },
+          { value: "987654 CNY/night", standing: "disputed", claim_ids: [hidden.id] },
+        ],
+        decided_on: "2026-10-01",
+      });
+      const question = "How much can a hotel in a tier-1 city cost a night?";
+
+      const bob = await world.retrieval.answer({ question }, BOB);
+      expect(bob.answer).toContain("650");
+      expect(JSON.stringify(bob)).not.toMatch(new RegExp(`987654|${hidden.id}`));
+      const seen = (await world.retrieval.search({ text: question }, BOB)).hits.find((h) => h.unit_id === held.id);
+      expect(seen).toMatchObject({ standing: "holds", review_status: "unreviewed" });
+
+      const alice = await world.retrieval.answer({ question }, ALICE);
+      expect(alice.notes?.find((n) => n.kind === "conflict")?.text).toContain("987654");
+    });
+
+    test("the value that holds joins an answer as the search's filters allow, with its freshness", async ({
+      world,
+    }) => {
+      const text = "Old handbook: hotels in tier-1 cities cost at most 600 yuan a night.";
+      const copy = await world.document("copy.md", [{ id: "p1", text }], { title: "Old handbook" });
+      const rule = "Hotels cost at most 650 yuan a night.";
+      const policy = await world.document("policy.md", [{ id: "p1", text: rule }], { title: "Policy", indexed: false });
+      const old = await world.claim(text, copy.spansOf("p1")[0] as never, { ...cap(600), confidence: 0.99 });
+      const held = await world.claim(rule, policy.spansOf("p1")[0] as never, { ...cap(650), confidence: 0.9 });
+      world.verdicts.set(
+        HOTEL,
+        verdict({ value: "650 CNY/night", claim: held.id }, { value: "600 CNY/night", claim: old.id }),
+      );
+      world.staleness.set(held.id, {
+        unit_id: held.id,
+        score: 0.99,
+        state: "stale",
+        computed_at: "2026-10-20T00:00:00Z",
+      });
+      const question = "How much can a hotel in a tier-1 city cost a night?";
+
+      const answer = await world.retrieval.answer({ question }, ALICE);
+      expect(answer.used_unit_ids).toContain(held.id);
+      expect(answer.freshness?.state).toBe("stale");
+      const strict = await world.retrieval.answer({ question, filters: { min_confidence: 0.95 } }, ALICE);
+      expect(strict.used_unit_ids ?? []).not.toContain(held.id);
+      expect(strict.notes?.some((n) => n.kind === "thin_evidence")).toBeFalsy();
+    });
+
     test("a deleted document leaves the index, and a late older version changes nothing", async ({ world }) => {
       const first = await world.document("travel.md", POLICY, { title: "Travel policy" });
       await world.document("travel.md", [], { title: "Travel policy", deleted: true });
@@ -303,6 +387,34 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
 
         const none = await world.retrieval.answer({ question: c.unrelated }, ALICE);
         expect(none).toMatchObject({ answer: c.nothing, citations: [], confidence: 0, gaps: [c.unrelated] });
+      });
+
+      test("a value held in a document the asker cannot read neither answers nor shows through a mark or a note", async ({
+        world,
+      }) => {
+        const { answers: c } = cases;
+        const original = LANGUAGES[0]?.cases.answers as Cases["answers"];
+        const policy = await world.document("policy.md", [{ id: "p1", text: original.policy }], {
+          title: "Policy",
+          readers: [ALICE],
+        });
+        const copy = await world.document("copy.md", [{ id: "p1", text: c.copy }], { title: "Copy" });
+        const held = await world.claim(original.policy, policy.spansOf("p1")[0] as never, cap(650));
+        const old = await world.claim(c.copy, copy.spansOf("p1")[0] as never, cap(600));
+        world.verdicts.set(
+          HOTEL,
+          verdict({ value: "650 CNY/night", claim: held.id }, { value: "600 CNY/night", claim: old.id }),
+        );
+
+        const hits = (await world.retrieval.search({ text: c.question }, BOB)).hits;
+        const found = hits.find((h) => h.unit_id === old.id);
+        expect(found).toBeDefined();
+        expect(found?.standing).toBeUndefined();
+        expect(found?.held_unit_id).toBeUndefined();
+        const answer = await world.retrieval.answer({ question: c.question }, BOB);
+        expect(JSON.stringify(answer)).not.toMatch(new RegExp(`650|${held.id}`));
+        expect(answer.notes).toBeUndefined();
+        expect((await world.retrieval.answer({ question: c.question }, ALICE)).answer).toContain("650");
       });
 
       test("a translation behind its original answers with the original's value", async ({ world }) => {
