@@ -376,7 +376,8 @@ export async function questionsReport(
     const a = await engine.retrieval.answer({ question: q.question }, corpus.reader);
     const sources = await engine.retrieval.sources({ question: q.question }, corpus.reader);
     const expected = q.answer;
-    const found = expected && sources.some((h) => expected.some((t) => h.snippet.includes(t)));
+    // The same reading of a text as the answer's, so "5000" in a source is "5,000" found.
+    const found = expected && sources.some((h) => says(h.snippet, expected));
     const cited = await pathsOf(a);
     const rival = async (retrieval: Retrieval): Promise<Rival | null> => {
       try {

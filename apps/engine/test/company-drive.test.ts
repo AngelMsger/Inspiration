@@ -126,7 +126,7 @@ describe("the company drive", () => {
         stale: 3,
         as_recorded: 47,
         cited_right: 91,
-        found: 62,
+        found: 63,
         notes: 57,
         baselines: { passages: 44, long_context: 49 },
         by_kind: {

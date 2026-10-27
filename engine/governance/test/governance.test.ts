@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { type Claim, type ClaimsUpdated, newEvent } from "@inspiration/contracts";
 import { describe, expect } from "vitest";
-import { RECHECKS, sourcesOf, VALUE_GROUPS, type ValueGroup } from "../src/index.ts";
+import { MEMBERS, RECHECKS, sourcesOf, VALUE_GROUPS, type ValueGroup } from "../src/index.ts";
 import { BACKENDS, governanceTest, HOTEL, SPACE, TENANT, type World } from "./fixtures.ts";
 
 const POLICY = { title: "Travel policy", authority: 0.9, effective_from: "2026-01-01" };
@@ -11,17 +11,28 @@ const files = (documents: string[]) => documents.map((d) => d.slice(d.indexOf(":
 
 /**
  * The slot's state as an older governance stored it: its groups without the fields named (the
- * day counts came first, then the best by day, then the sources), and no recheck for the day
- * a statement takes effect.
+ * day counts came first, then the best by day, then the sources, when members also began to
+ * keep their document and copy keys, then the newest date, when they began to keep their
+ * document's date), and no recheck for the day a statement takes effect.
  */
 async function storedWithout(
   world: World,
-  fields: readonly ("governed_from" | "best_from" | "sources")[],
+  fields: readonly ("governed_from" | "best_from" | "sources" | "newest")[],
 ): Promise<void> {
+  const without = <T extends object>(row: T, names: readonly string[]) =>
+    Object.fromEntries(Object.entries(row).filter(([k]) => !names.includes(k))) as T;
   const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
-  const legacy = stored.map((g) => Object.fromEntries(Object.entries(g).filter(([k]) => !fields.includes(k as never))));
+  const legacy = stored.map((g) => without(g, fields));
+  const memberFields = [
+    ...(fields.includes("sources") ? ["document_key", "copy_keys"] : []),
+    ...(fields.includes("newest") ? ["modified"] : []),
+  ];
+  const members = memberFields.length
+    ? (await world.records.find(MEMBERS, { tenant_id: TENANT, slot: HOTEL })).map((m) => without(m, memberFields))
+    : [];
   await world.records.transaction(async (tx) => {
-    await tx.put(VALUE_GROUPS, legacy as typeof stored);
+    await tx.put(VALUE_GROUPS, legacy);
+    if (members.length) await tx.put(MEMBERS, members);
     await tx.delete(
       RECHECKS,
       (await tx.find(RECHECKS, { tenant_id: TENANT })).map((r) => `${r.tenant_id}\x1f${r.slot}`),
@@ -253,6 +264,27 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       ]);
     });
 
+    test("groups stored before their newest date are counted again, each member dated by its source version", async ({
+      world,
+    }) => {
+      await world.state(POLICY, [{ text: "Hotels are capped at 650 yuan a night.", value: 650 }]);
+      await world.state(
+        { title: "Travel policy (download)", authority: 0.5, level: "reference", modified_at: "2021-06-23T12:00:00Z" },
+        [{ text: "Hotels are capped at 500 yuan a night.", value: 500 }],
+      );
+      await storedWithout(world, ["newest"]);
+      // A recheck decides the slot again: the old copy is still out of date, and nobody is told.
+      await world.records.transaction((tx) => tx.put(RECHECKS, [{ tenant_id: TENANT, slot: HOTEL, day: "" }]));
+      const rechecked = await world.governance.recheck(TENANT);
+      expect(rechecked).toMatchObject({ slots: [HOTEL], requests: [], notes: [] });
+      const { decision } = await world.governance.slot(TENANT, HOTEL);
+      expect(decision?.cases.map((c) => [c.value, c.classification, c.status])).toEqual([
+        ["500 CNY/night", "supersession", "auto_resolved"],
+      ]);
+      const members = await world.records.find(MEMBERS, { tenant_id: TENANT, slot: HOTEL });
+      expect(members.map((m) => m.modified).sort()).toEqual(["", "2021-06-23"]);
+    });
+
     test("a note is said again when its date changes, not when another document states the governed value", async ({
       world,
     }) => {
@@ -380,6 +412,32 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       await reposted(world);
       await storedWithout(world, ["sources"]);
       expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("650 CNY/night");
+    });
+
+    test("members stored before their document was kept count by their document when their group is counted again", async ({
+      world,
+    }) => {
+      await world.state(POLICY, [
+        { text: "Hotels: 600 yuan a night.", value: 600 },
+        { text: "Article 9 Hotels are capped at 600 yuan.", value: 600 },
+        { text: "In short, 600 yuan a night for hotels.", value: 600 },
+      ]);
+      await world.state({ ...POLICY, title: "Sales handbook" }, [{ text: "Hotels: 700 yuan a night.", value: 700 }]);
+      await world.state({ ...POLICY, title: "Support handbook" }, [
+        { text: "We pay up to 700 yuan a night for hotels.", value: 700 },
+      ]);
+      await storedWithout(world, ["sources"]);
+      // A new statement makes the stored group be counted again, and its members be stored with their keys.
+      await world.state({ ...POLICY, title: "Engineering handbook" }, [
+        { text: "Hotels cost at most 600 yuan a night.", value: 600 },
+      ]);
+      const { groups } = await world.governance.slot(TENANT, HOTEL);
+      expect(groups.map((g) => [g.value, g.count, sourcesOf(g).length])).toEqual([
+        ["600 CNY/night", 4, 2],
+        ["700 CNY/night", 2, 2],
+      ]);
+      const members = await world.records.find(MEMBERS, { tenant_id: TENANT, slot: HOTEL });
+      expect(members.every((m) => m.document_key && m.copy_keys)).toBe(true);
     });
 
     test("a short rule worded alike in two documents is two sources; one document stating it twice is one", async ({
@@ -822,6 +880,22 @@ describe.skipIf(BACKENDS[1]?.skip)("postgres backend", () => {
     const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
     expect(stored.every((g) => g.sources)).toBe(true);
     expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.value).toBe("650 CNY/night");
+  });
+
+  test("migration 0006 rechecks slots whose groups were stored before their newest date", async ({ world }) => {
+    await world.state(POLICY, [{ text: "Hotels are capped at 650 yuan a night.", value: 650 }]);
+    await world.state(
+      { title: "Travel policy (download)", authority: 0.5, level: "reference", modified_at: "2021-06-23T12:00:00Z" },
+      [{ text: "Hotels are capped at 500 yuan a night.", value: 500 }],
+    );
+    await storedWithout(world, ["newest"]);
+
+    await world.sql?.(readFileSync(new URL("../migrations/0006_newest.sql", import.meta.url), "utf8"));
+    expect((await world.governance.recheck(TENANT)).notes).toEqual([]);
+    const stored = await world.records.find(VALUE_GROUPS, { tenant_id: TENANT, slot: HOTEL });
+    expect(stored.every((g) => g.newest !== undefined)).toBe(true);
+    const { decision } = await world.governance.slot(TENANT, HOTEL);
+    expect(decision?.cases.map((c) => c.classification)).toEqual(["supersession"]);
   });
 
   test("migration 0004 rechecks slots whose groups were stored before the best by day", async ({ world }) => {
