@@ -2,6 +2,7 @@
 # "Cost, and how it stays low"). Run with `pnpm bench ingest <corpus> --gateway
 # config/gateway.deepseek.yaml`, and first with --dry-run: the same config with stand-ins for
 # every provider, which meters what the run would send and prices it here, without a key.
+# A real run needs the local embedding server (infra/local-embeddings) running.
 #
 # The model ID is the one GET /v1/models lists. The prices are peak prices from third-party
 # reports; the first run (apps/bench/runs/2026-10-27-deepseek.md) measured about half of them
@@ -29,17 +30,31 @@ providers:
         request: {thinking: {type: disabled}}
         price: {input: 0.30, output: 1.20, cached_input: 0.006}
 
-  # DeepSeek has no embedding, rerank or OCR models, and none is reachable from the build
-  # container yet (an open one such as Qwen3-Embedding needs huggingface.co). Until then these
-  # are the development stand-ins: hashed words for vectors, word overlap for reranking, so
-  # retrieval's vector side measures the pipeline, not a model. No chat model here: a
-  # confidential completion fails rather than being answered by a stand-in.
+  # DeepSeek has no embedding, rerank or OCR models. Vectors come from an open multilingual
+  # model on this machine (infra/local-embeddings: start it first), because the stand-in's
+  # hashed words cannot match a Chinese question with an English sentence. Runs here see
+  # everything, so this provider may too.
+  - name: embeddings
+    kind: openai_compatible
+    base_url: http://127.0.0.1:8090/v1
+    max_sensitivity: secret
+    timeout_s: 900
+    max_retries: 0
+    models:
+      - name: qwen3-embedding-0.6b
+        operations: [embed]
+        dimensions: 1024
+        query_instruction: Given a question, retrieve passages that answer it
+
+  # No reranker until a real one runs: the stand-in's word overlap put passages that answer a
+  # question in another language below ones that only share its words (apps/bench/runs/
+  # 2026-10-27-search.md), and without a reranker the fused order of the vector and keyword
+  # indexes stands. No chat model here: a confidential completion fails rather than being
+  # answered by a stand-in.
   - name: local
     kind: fake
     max_sensitivity: secret
     models:
-      - {name: fake-embedding, operations: [embed], dimensions: 1024}
-      - {name: fake-reranker, operations: [rerank]}
       - {name: fake-ocr, operations: [ocr]}
 
 budgets:
@@ -58,7 +73,6 @@ cache:
   # Shared by runs, so a change to answering alone does not read the corpus again.
   backend: valkey
   ttl_s: 2592000
-  # Completions only, while the stand-ins answer embeddings and reranks for free. With a real
-  # embedding or rerank model, list them too (operations: [complete, embed, rerank]): each text
-  # and each query-document score is cached on its own, and a local model on CPU takes hours to
-  # redo a corpus.
+  # Embeddings too: each text is cached on its own, and the local model on CPU takes about half
+  # an hour to embed the company drive. With a real reranker, add rerank.
+  operations: [complete, embed]

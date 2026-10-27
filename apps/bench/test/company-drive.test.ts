@@ -132,22 +132,22 @@ describe("the company drive", () => {
       const score = (right: number, stale: number) => ({ right, stale });
       expect(asked.totals).toEqual({
         questions: 150,
-        right: 47,
-        stale: 3,
-        as_recorded: 47,
-        cited_right: 91,
-        found: 63,
-        notes: 57,
-        baselines: { passages: 44, long_context: 49 },
+        right: 46,
+        stale: 6,
+        as_recorded: 46,
+        cited_right: 86,
+        found: 79,
+        notes: 55,
+        baselines: { passages: 41, long_context: 49 },
         by_kind: {
-          changed: { questions: 66, engine: score(13, 3), passages: score(10, 5), long_context: score(13, 6) },
+          changed: { questions: 66, engine: score(14, 6), passages: score(9, 6), long_context: score(13, 6) },
           not_stated: { questions: 15, engine: score(2, 0), passages: score(2, 1), long_context: score(2, 2) },
-          unchanged: { questions: 69, engine: score(32, 0), passages: score(32, 0), long_context: score(34, 0) },
+          unchanged: { questions: 69, engine: score(30, 0), passages: score(30, 0), long_context: score(34, 0) },
         },
         by_language: {
-          en: { questions: 50, engine: score(28, 2), passages: score(26, 5), long_context: score(31, 7) },
-          ja: { questions: 50, engine: score(6, 0), passages: score(8, 0), long_context: score(8, 1) },
-          zh: { questions: 50, engine: score(13, 1), passages: score(10, 1), long_context: score(10, 0) },
+          en: { questions: 50, engine: score(28, 4), passages: score(24, 6), long_context: score(31, 7) },
+          ja: { questions: 50, engine: score(6, 1), passages: score(7, 1), long_context: score(8, 1) },
+          zh: { questions: 50, engine: score(12, 1), passages: score(10, 0), long_context: score(10, 0) },
         },
       });
       const answerTo = (start: string) =>

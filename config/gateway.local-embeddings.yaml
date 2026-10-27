@@ -1,22 +1,32 @@
-# Model gateway config for measuring search with a real multilingual embedding at no cost: the
-# development stand-ins answer every completion, rerank and OCR, and the local embedding server
-# (infra/local-embeddings, Qwen3-Embedding-0.6B on CPU) embeds. Start the server first, then run
-# `pnpm bench ingest <corpus> --gateway config/gateway.local-embeddings.yaml`. The question
-# check's `found` then says whether search finds the passage a question needs, in any language.
-currency: CNY
+# Model gateway config for measuring search at no cost over the replies of an earlier real run
+# (pnpm bench cache import). Start the local embedding server (infra/local-embeddings), set
+# DEEPSEEK_SEARCH_ONLY_KEY to anything but a key, and run
+#
+#   pnpm bench ingest <corpus> --gateway config/gateway.local-embeddings.yaml --stack --search-only
+#
+# DeepSeek is listed so that completions find the replies they had: the same provider, model and
+# request options as config/gateway.deepseek.yaml. A completion with no saved reply goes to
+# DeepSeek with that non-key and fails, so the run never pays. Topics are clustered by vector, so
+# new vectors make topics whose names were never paid for: the stand-in names them, and search
+# does not read topic names.
+currency: USD
 
 providers:
-  - name: cloud
-    kind: fake
+  - name: deepseek
+    kind: openai_compatible
+    base_url: https://api.deepseek.com/v1
+    api_key_env: DEEPSEEK_SEARCH_ONLY_KEY
     max_sensitivity: internal
-    options: {mocks: true}
+    timeout_s: 300
+    max_retries: 0
     models:
-      - name: fake-flash
+      - name: deepseek-flash
         operations: [complete]
         tiers: [flash, standard, flagship]
-        price: {input: 1.0, output: 2.0, cached_input: 0.2}
+        json_schema: false
+        request: {thinking: {type: disabled}}
+        price: {input: 0.30, output: 1.20, cached_input: 0.006}
 
-  # Runs on this machine, so it may see everything. A corpus takes minutes to embed on CPU.
   - name: embeddings
     kind: openai_compatible
     base_url: http://127.0.0.1:8090/v1
@@ -38,13 +48,19 @@ providers:
         operations: [complete]
         tiers: [flash, standard, flagship]
         json_schema: true
-      - {name: fake-reranker, operations: [rerank]}
       - {name: fake-ocr, operations: [ocr]}
+
+routes:
+  - match: "page-compiler.name_topics"
+    prefer: [local/fake-local-chat]
 
 budgets:
   - match: "*"
-    period: month
+    period: day
+    limit: 0.01
+    pooled: true
 
 cache:
-  backend: memory
+  backend: valkey
+  ttl_s: 2592000
   operations: [complete, embed]

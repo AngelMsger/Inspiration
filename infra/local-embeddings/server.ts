@@ -10,6 +10,10 @@
  *   npm ci --prefix infra/local-embeddings
  *   node infra/local-embeddings/server.ts            # http://127.0.0.1:8090/v1
  *
+ * Behind an HTTPS proxy, Node's fetch uses it only with NODE_USE_ENV_PROXY=1, and trusts its
+ * certificate authority only with NODE_EXTRA_CA_CERTS. On the build container's 4 CPUs the
+ * 8-bit model embeds the company drive (542 passages) in about half an hour.
+ *
  * LOCAL_EMBEDDINGS_MODEL (default onnx-community/Qwen3-Embedding-0.6B-ONNX), LOCAL_EMBEDDINGS_DTYPE
  * (q8, the 8-bit weights) and LOCAL_EMBEDDINGS_PORT (8090) change it. The model is downloaded
  * from huggingface.co once, into .data/models.

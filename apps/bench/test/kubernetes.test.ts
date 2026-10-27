@@ -15,6 +15,7 @@ import {
   type Question,
   questionsReport,
   SimulatedClock,
+  searchReport,
 } from "../src/index.ts";
 
 const KUBERNETES = fileURLToPath(new URL("../../../examples/kubernetes-docs/", import.meta.url));
@@ -60,23 +61,28 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
     const score = (right: number) => ({ right, stale: 0 });
     expect(asked.totals).toEqual({
       questions: 12,
-      right: 8,
+      right: 9,
       stale: 0,
       as_recorded: 12,
-      cited_right: 11,
-      found: 10,
+      cited_right: 12,
+      found: 11,
       notes: 3,
       baselines: { passages: 8, long_context: 8 },
       by_kind: {
-        unchanged: { questions: 11, engine: score(7), passages: score(7), long_context: score(7) },
+        unchanged: { questions: 11, engine: score(8), passages: score(7), long_context: score(7) },
         not_stated: { questions: 1, engine: score(1), passages: score(1), long_context: score(1) },
       },
       by_language: {
-        en: { questions: 8, engine: score(6), passages: score(6), long_context: score(7) },
+        en: { questions: 8, engine: score(7), passages: score(6), long_context: score(7) },
         ja: { questions: 2, engine: score(0), passages: score(0), long_context: score(0) },
         zh: { questions: 2, engine: score(2), passages: score(2), long_context: score(1) },
       },
     });
+    // Search alone, as --search-only runs it, with no answers.
+    const searched = await searchReport(engine, corpus, questions);
+    expect(searched.totals).toMatchObject({ questions: 11, found: 11, found_whole: 11, found_by_passages: 11 });
+    expect(searched.totals.within).toEqual({ 8: 10, 16: 11, 30: 11, 60: 11, 100: 11 });
+    expect(searched.totals.within_documents).toEqual({ 1: 10, 3: 11, 5: 11, 10: 11, 20: 11 });
 
     const page = join(work, "docs/setup/best-practices/cluster-large.html");
     await writeFile(page, (await readFile(page, "utf8")).replaceAll("5,000 nodes", "6,000 nodes"));

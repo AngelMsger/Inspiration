@@ -74,7 +74,7 @@ business/           business-layer packages (none yet); engine/ and libs/ never 
 apps/engine         the engine process: wires the components to the store, the bus and the blob store
 apps/bench          the measurement harness (pnpm bench): runs the engine over a corpus, reports, checks answers
 examples/<corpus>   corpora with the answers runs are checked against (see examples/README.md)
-infra/              docker compose for the prototype stack
+infra/              docker compose for the prototype stack, and a local embedding server for runs
 config/             example configuration of the model gateway
 docs/               overview, engine reference and design docs, indexed in docs/README.md
 docs/zh/            Chinese copies of every doc

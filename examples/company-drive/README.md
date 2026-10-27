@@ -83,20 +83,22 @@ to tell "90 days (an old copy says 30)" from an answer that hedges.
 ## Results with the stand-ins
 
 Stand-ins answer every model task, so these numbers measure the pipeline, not model quality.
+The answer is given each passage it reads whole, where a search hit shows only a snippet, so
+the stand-in quotes more of each passage, older values included.
 
 | Questions | Engine right, stale | Plain retrieval | Reading everything |
 | --- | --- | --- | --- |
-| All 150 | 47, 3 | 44, 6 | 49, 8 |
-| Unchanged, 69 | 32, 0 | 32, 0 | 34, 0 |
-| Changed, 66 | 13, 3 | 10, 5 | 13, 6 |
+| All 150 | 46, 6 | 41, 7 | 49, 8 |
+| Unchanged, 69 | 30, 0 | 30, 0 | 34, 0 |
+| Changed, 66 | 14, 6 | 9, 6 | 13, 6 |
 | Not answered by the drive, 15 | 2, 0 | 2, 1 | 2, 2 |
-| In English, 50 | 28, 2 | 26, 5 | 31, 7 |
-| In Chinese, 50 | 13, 1 | 10, 1 | 10, 0 |
-| In Japanese, 50 | 6, 0 | 8, 0 | 8, 1 |
+| In English, 50 | 28, 4 | 24, 6 | 31, 7 |
+| In Chinese, 50 | 12, 1 | 10, 0 | 10, 0 |
+| In Japanese, 50 | 6, 1 | 7, 1 | 8, 1 |
 
-- In English, where the stand-ins can read the documents, the engine answers 9 of 22
-  questions on changed facts right and 2 stale, plain retrieval 8 and 4, the model reading
-  everything 11 and 5; on unchanged facts 19, 18 and 20 of 23.
+- In English, where the stand-ins can read the documents, the engine answers 10 of 22
+  questions on changed facts right and 4 stale, plain retrieval 8 and 5, the model reading
+  everything 11 and 5; on unchanged facts 18, 16 and 20 of 23.
 - The engine answers from the latest edition of a document. Normalization pairs the
   documents that are editions of one text: the policy and its backup, the three copies on
   the drive, which share a fifth to two fifths of their sentences under the title they kept
@@ -112,16 +114,17 @@ Stand-ins answer every model task, so these numbers measure the pipeline, not mo
   needed to measure this.
 - The stand-in answer writes whatever shares a quarter of the question's words, so it says
   "not stated" for 2 of the 15 questions nothing in force answers.
-- The engine's 3 stale answers: the phone cap twice, because the stand-in does not read the
-  policy's current one ("Policy is set at $100" under "Phone Service") and the 2023 copy is
-  the latest edition of Expenses, since a renamed document is not paired with its old
-  editions; and the Sapporo opening in Chinese, where the current article itself keeps
-  "预计2031年开通" in a table row the stand-in quotes.
+- The engine's 6 stale answers: the phone cap twice and the home internet cap, because the
+  stand-in does not read the policy's current caps ("Policy is set at $100" under "Phone
+  Service") and the 2023 copy is the latest edition of Expenses, since a renamed document is
+  not paired with its old editions; the Sapporo opening in Chinese, where the current
+  article itself keeps "预计2031年开通" in a table row the stand-in quotes; the Chūō opening,
+  where the current English article still says JR Central "originally aimed" at 2027; and the
+  daily meal allowance in Japanese, answered with an unrelated sentence whose "100" is the
+  allowance's older value.
 - What editions cost here: a statement the stand-in read only from the 2024 revision of the
-  English article leaves with it, though the current revision says the same, so three
-  answers on unchanged or changed Shinkansen facts that were right through such statements
-  are not. The Chūō opening is no longer answered from the 2024 revision (2027), though the
-  stand-in does not find the current one's 2034 either.
+  English article leaves with it, though the current revision says the same, so some
+  answers on Shinkansen facts that were right through such statements are not.
 
 The reading check scores extraction against the key. Each place the key gives a value is
 found when governance holds that value in the fact's slot from that file, misread when the

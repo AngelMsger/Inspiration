@@ -2,7 +2,7 @@
 /**
  * inspiration-bench ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
  *                    [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>] [--context <tokens>]
- *                    [--gateway <file> [--dry-run]] [--questions <n>]
+ *                    [--gateway <file> [--dry-run]] [--questions <n>] [--search-only]
  * inspiration-bench synthesize <dir> --documents <n> [--seed <n>]
  * inspiration-bench replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
  * inspiration-bench ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]
@@ -17,7 +17,8 @@
  * it again, reporting the second round on its own. --days then runs the daily tick for n
  * days from today and reports the inbox at the end: every owner's cards and notes per week.
  * --context sets how many tokens the long-context rival of the question check reads at most.
- * --questions asks only n of them, spread over the list (sampleQuestions).
+ * --questions asks only n of them, spread over the list (sampleQuestions). --search-only asks
+ * search alone, where each answer would be found, and pays for no answers (searchReport).
  *
  * --gateway runs every command on the model gateway that file configures (for real models,
  * config/gateway.deepseek.yaml) instead of the development stand-ins, and reports what the
@@ -62,7 +63,15 @@ import { loadHistory, loadTimeline, replay, replayLines } from "./history.ts";
 import { inboxLines, inboxReport } from "./inbox.ts";
 import { daysSummary, ingest, plantedDuplicates, summary } from "./ingest.ts";
 import { onUse, onUseSummary } from "./onuse.ts";
-import { loadKeys, loadQuestions, questionLines, questionsReport, sampleQuestions } from "./questions.ts";
+import {
+  loadKeys,
+  loadQuestions,
+  questionLines,
+  questionsReport,
+  sampleQuestions,
+  searchLines,
+  searchReport,
+} from "./questions.ts";
 import { readingLines, readingReport } from "./reading.ts";
 import { exportReplies, importReplies } from "./replies.ts";
 import { edit, synthesize } from "./synthesize.ts";
@@ -70,7 +79,7 @@ import { edit, synthesize } from "./synthesize.ts";
 const USAGE = [
   "usage: inspiration-bench ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
   "                          [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>] [--context <tokens>]",
-  "                          [--gateway <file> [--dry-run]] [--questions <n>]",
+  "                          [--gateway <file> [--dry-run]] [--questions <n>] [--search-only]",
   "       inspiration-bench synthesize <dir> --documents <n> [--seed <n>]",
   "       inspiration-bench replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
   "       inspiration-bench ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]",
@@ -97,6 +106,7 @@ async function main(argv: string[]): Promise<number> {
       gateway: { type: "string" },
       "dry-run": { type: "boolean" },
       questions: { type: "string" },
+      "search-only": { type: "boolean" },
     },
   });
   const [command, dir, ...rest] = positionals;
@@ -220,7 +230,11 @@ async function main(argv: string[]): Promise<number> {
     }
     const listed = await loadQuestions(dir);
     const questions = listed && values.questions ? sampleQuestions(listed, Number(values.questions)) : listed;
-    if (questions) {
+    if (questions && values["search-only"]) {
+      const searched = await searchReport(engine, corpus, questions);
+      console.log(`\n${searchLines(searched).join("\n")}`);
+      out.search = searched;
+    } else if (questions) {
       const asked = await questionsReport(engine, corpus, questions);
       console.log(`\n${questionLines(asked).join("\n")}`);
       out.questions = asked;
