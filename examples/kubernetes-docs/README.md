@@ -102,9 +102,10 @@ on found an expected text at all: it did for all 11 questions with an answer, so
 are the stand-in answer's, not the search's. The answer reads each passage it is given
 whole, so the item under a list's lead-in reaches it.
 
-Each question is also put to two rivals with the same documents and stand-in model: plain
-retrieval over the same chunks, without statements or governance, and a model that reads all
-15 pages at once (about 77,000 tokens by the engine's estimate). Both get 8 of the 12 right. On pages that agree
+Each question is also put to two rivals with the same documents and stand-in model: a mature
+RAG over the same chunks and search, without statements or governance, and a model that reads
+all 15 pages at once (about 77,000 tokens by the engine's estimate); and to the engine reading
+all 15 after governance. Each gets 8 of the 12 right. On pages that agree
 with each other the knowledge layer is not expected to win; it is expected to win when a
 fact changes, as below.
 
@@ -114,7 +115,8 @@ What the engine does right throughout:
   limit to 6,000, the question in Chinese is answered with the English 6,000, and a note says
   the Chinese page still states 5,000. The Chinese sentence that states 5,000 is not given to
   the answer: its statement is, marked as replaced, with the statement of the value that holds.
-  Plain retrieval over the same chunks still answers 5,000.
+  The mature RAG over the same chunks still answers 5,000: its stand-in does not weigh the
+  pages' dates, as a model told to would.
 - **Notes only on the values an answer gives.** A conflict note comes with the node limit,
   which the stand-in extraction gives seven values, and not with answers about thresholds.
 - **A question with no answer is a gap.** The passport question cites nothing and says so.

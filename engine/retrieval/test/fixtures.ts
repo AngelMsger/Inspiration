@@ -93,6 +93,8 @@ export interface World {
   retrieval: Retrieval;
   /** A rival over the same chunks, indexes and model. */
   baseline: (kind: Baseline, options?: Partial<RetrievalOptions>) => Retrieval;
+  /** The knowledge base as retrieval is, with other options: readAll, contextTokens, models. */
+  knowledgeBase: (options: Partial<RetrievalOptions>) => Retrieval;
   /** The verdicts the governance double gives, by slot. */
   verdicts: Map<string, SlotVerdict>;
   /** What the freshness double says of units, by ID; fresh when not here. */
@@ -182,12 +184,18 @@ export const retrievalTest = (backend: Backend) =>
     const verdicts = new Map<string, SlotVerdict>();
     const staleness = new Map<string, Staleness>();
     const indexes = { store, records, models: gateway, authz, vectors, keywords };
-    const retrieval = new Retrieval({
+    const governed = {
       ...indexes,
-      verdicts: { verdicts: async (_tenant, slots) => slots.flatMap((s) => verdicts.get(s) ?? []) },
-      staleness: { staleness: async (_tenant, ids) => ids.flatMap((id) => staleness.get(id) ?? []) },
-    });
+      verdicts: {
+        verdicts: async (_tenant: string, slots: readonly string[]) => slots.flatMap((s) => verdicts.get(s) ?? []),
+      },
+      staleness: {
+        staleness: async (_tenant: string, ids: readonly string[]) => ids.flatMap((id) => staleness.get(id) ?? []),
+      },
+    };
+    const retrieval = new Retrieval(governed);
     const baseline: World["baseline"] = (kind, options) => new Retrieval({ ...indexes, ...options, baseline: kind });
+    const knowledgeBase: World["knowledgeBase"] = (options) => new Retrieval({ ...governed, ...options });
     const last = new Map<string, SourceVersion>();
     let tick = 0;
 
@@ -353,5 +361,18 @@ export const retrievalTest = (backend: Backend) =>
       return c;
     };
 
-    return { store, records, authz, gateway, retrieval, baseline, verdicts, staleness, document, share, claim };
+    return {
+      store,
+      records,
+      authz,
+      gateway,
+      retrieval,
+      baseline,
+      knowledgeBase,
+      verdicts,
+      staleness,
+      document,
+      share,
+      claim,
+    };
   });

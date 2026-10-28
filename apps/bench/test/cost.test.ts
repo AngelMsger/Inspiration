@@ -37,7 +37,7 @@ test("a dry run on the DeepSeek config prices each task and answering path, long
     const asked = await questionsReport(engine, corpus, sample);
     const cost = asked.cost;
     expect(cost?.currency).toBe("USD");
-    for (const path of ["engine", "passages", "long_context"] as const) {
+    for (const path of ["engine", "mature", "long_context", "governed_long_context"] as const) {
       expect(cost?.[path].calls, path).toBeGreaterThan(0);
       expect(cost?.[path].cost, path).toBeGreaterThan(0);
     }

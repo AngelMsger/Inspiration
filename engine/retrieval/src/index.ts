@@ -19,8 +19,11 @@
  *
  * search(query, principal):
  * - The vector and keyword indexes each return their best rows under the principal's
- *   permission filter (spaces, ACL tokens, clearance), and reciprocal rank fusion merges
- *   them. Every chunk is checked again against the document's permission before it is used.
+ *   permission filter (spaces, ACL tokens, clearance), for the question and for its
+ *   translations into the other languages retrieval has packs for (retrieval.translate_question,
+ *   asked while the question itself is searched), and reciprocal rank fusion merges them all.
+ *   Without a model to translate it, the question searches alone. Every chunk is checked
+ *   again against the document's permission before it is used.
  * - The current statements those chunks quote join them, when the principal may read the
  *   statement (access control's derived-knowledge rule). A statement cites only evidence in
  *   documents the principal can read now; hidden support is never cited or named.
@@ -40,7 +43,10 @@
  * statements only (ANSWER_SOURCES of each, so a statement never takes a passage's place),
  * every sentence citing them. A passage is given whole, sentence by sentence, where a search
  * hit shows only its snippet: a snippet is picked by the words it shares with the question,
- * so it misses the answer when the two are in different languages or say it differently. A statement found
+ * so it misses the answer when the two are in different languages or say it differently. It
+ * comes with its document's governance level and the day the document last changed, so that
+ * where passages disagree and no statement settles it, the model answers with the governed
+ * source, then the most recent, and says that sources differ. A statement found
  * whose value does not hold brings the statement of the one that does, which the model is
  * pointed to, in whatever language it is written, when it passes the question's filters,
  * with its own freshness. So does a passage's sentence that states
@@ -62,11 +68,19 @@
  * statement still joins. search() still lists every edition.
  *
  * Baselines, to measure the knowledge base against over the same documents and model
- * (RetrievalOptions.baseline): "passages" answers from passages alone, without statements
- * or governance, as plain retrieval over chunks does; "long_context" gives the model every
- * passage the asker may read in the spaces asked for, document by document, and refuses
- * with ContextTooLong when they come to more than contextTokens. The query's filters are on
- * statements, so neither baseline applies them.
+ * (RetrievalOptions.baseline): "mature" answers from passages alone, without statements or
+ * governance, as a carefully built RAG does: the same search (hybrid, translated, reranked),
+ * MATURE_SOURCES passages, each with its document's level and date; "long_context" gives
+ * the model every passage the asker may read in the spaces asked for, document by document,
+ * and refuses with ContextTooLong when they come to more than contextTokens. The query's
+ * filters are on statements, so neither baseline applies them.
+ *
+ * readAll answers the way the long-context baseline reads, after governance: every passage
+ * the asker may read, without replaced editions and without the sentences that state only
+ * values that no longer hold, each such value marked with the one that holds beside it, as
+ * an answer from search reads what it found; ContextTooLong when that comes to more than
+ * contextTokens. It is measured against the long-context baseline: governance must never
+ * leave an answer worse than the raw documents. It works it all out again for each question.
  *
  * Not built yet: indexes of pages, procedures and entities (hits are statements and
  * passages), a full-text index per language, FAQ precompute, the semantic cache, values in

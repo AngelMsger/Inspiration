@@ -127,12 +127,15 @@ describe("config", () => {
     const config = loadGatewayConfig(SEARCH_ONLY_CONFIG);
     const providers = Object.fromEntries(config.providers.map((p) => [p.name, new FakeProvider(p)]));
     const gateway = new Gateway(config, { providers, cache: new MemoryCache(10) });
-    const refs = (operation: "complete" | "embed", task?: string) =>
+    const refs = (operation: "complete" | "embed" | "rerank", task?: string) =>
       gateway.candidates(operation, "internal", { tier: "flash", ...(task ? { task } : {}) }).map((c) => c.ref);
     expect(refs("complete", "extraction.extract_claims")).toEqual(["deepseek/deepseek-flash"]);
     expect(refs("complete", "retrieval.write_context")).toEqual(["deepseek/deepseek-flash"]);
     expect(refs("complete", "page-compiler.name_topics")).toEqual(["local/fake-local-chat"]);
+    // Translating every question would be paid for; the stand-in translates none.
+    expect(refs("complete", "retrieval.translate_question")).toEqual(["local/fake-local-chat"]);
     expect(refs("embed")).toEqual(["embeddings/qwen3-embedding-0.6b"]);
+    expect(refs("rerank")).toEqual(["reranker/bge-reranker-v2-m3"]);
   });
 
   test("a dry run of the DeepSeek config prices stand-in replies, served from a prefix cache, and shares no cache", async () => {
@@ -144,6 +147,7 @@ describe("config", () => {
     expect(dry.providers.map((p) => [p.name, p.kind, p.options.mocks])).toEqual([
       ["deepseek", "fake", true],
       ["embeddings", "fake", true],
+      ["reranker", "fake", true],
       ["local", "fake", true],
     ]);
     expect(dry.cache.backend).toBe("memory");

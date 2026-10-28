@@ -2,7 +2,7 @@
 # "Cost, and how it stays low"). Run with `pnpm bench ingest <corpus> --gateway
 # config/gateway.deepseek.yaml`, and first with --dry-run: the same config with stand-ins for
 # every provider, which meters what the run would send and prices it here, without a key.
-# A real run needs the local embedding server (infra/local-embeddings) running.
+# A real run needs the local model server (infra/local-embeddings) running.
 #
 # The model ID is the one GET /v1/models lists. The prices are peak prices from third-party
 # reports; the first run (apps/bench/runs/2026-10-27-deepseek.md) measured about half of them
@@ -30,10 +30,10 @@ providers:
         request: {thinking: {type: disabled}}
         price: {input: 0.30, output: 1.20, cached_input: 0.006}
 
-  # DeepSeek has no embedding, rerank or OCR models. Vectors come from an open multilingual
-  # model on this machine (infra/local-embeddings: start it first), because the stand-in's
-  # hashed words cannot match a Chinese question with an English sentence. Runs here see
-  # everything, so this provider may too.
+  # DeepSeek has no embedding, rerank or OCR models. Vectors and rerank scores come from open
+  # multilingual models on this machine (infra/local-embeddings: start it first), because the
+  # stand-ins' hashed words cannot match a Chinese question with an English sentence. Runs
+  # here see everything, so these providers may too.
   - name: embeddings
     kind: openai_compatible
     base_url: http://127.0.0.1:8090/v1
@@ -46,11 +46,23 @@ providers:
         dimensions: 1024
         query_instruction: Given a question, retrieve passages that answer it
 
-  # No reranker until a real one runs: the stand-in's word overlap put passages that answer a
-  # question in another language below ones that only share its words (apps/bench/runs/
-  # 2026-10-27-search.md), and without a reranker the fused order of the vector and keyword
-  # indexes stands. No chat model here: a confidential completion fails rather than being
-  # answered by a stand-in.
+  # A cross-encoder that reads the question with each passage, in any of the languages; the
+  # stand-in's word overlap put passages that answer a question in another language below ones
+  # that only share its words (apps/bench/runs/2026-10-27-search.md). On this machine's 4 CPUs it
+  # reads about 1,000 tokens a second, some 12 seconds for one question's candidates
+  # (apps/bench/runs/2026-10-28-rerank.md); a GPU server should take well under a second.
+  - name: reranker
+    kind: openai_compatible
+    base_url: http://127.0.0.1:8090/v1
+    max_sensitivity: secret
+    timeout_s: 900
+    max_retries: 2
+    models:
+      - name: bge-reranker-v2-m3
+        operations: [rerank]
+
+  # No chat model here: a confidential completion fails rather than being answered by a
+  # stand-in.
   - name: local
     kind: fake
     max_sensitivity: secret
@@ -73,6 +85,7 @@ cache:
   # Shared by runs, so a change to answering alone does not read the corpus again.
   backend: valkey
   ttl_s: 2592000
-  # Embeddings too: each text is cached on its own, and the local model on CPU takes about half
-  # an hour to embed the company drive. With a real reranker, add rerank.
-  operations: [complete, embed]
+  # Embeddings and rerank scores too: each text is cached on its own, and the local models on
+  # CPU take about half an hour to embed the company drive and as long to rerank the passages
+  # of its 150 questions.
+  operations: [complete, embed, rerank]

@@ -78,7 +78,7 @@ describe("the company drive", () => {
 
   // In memory only: this measures the pipeline on 311,000 tokens, and kubernetes.test.ts runs
   // the question check on the stack.
-  test("the engine, plain retrieval and a model reading everything answer the same questions", {
+  test("the engine, a mature RAG and a model reading everything, raw and governed, answer the same questions", {
     timeout: 300_000,
   }, async () => {
     const work = await mkdtemp(join(tmpdir(), "inspiration-drive-"));
@@ -129,8 +129,18 @@ describe("the company drive", () => {
       const questions = (await loadQuestions(corpus.dir)) as Question[];
       const asked = await questionsReport(engine, corpus, questions);
       // The numbers README.md gives.
-      const score = (right: number, stale: number) => ({ right, stale });
-      expect(asked.totals).toEqual({
+      const score = ([right, stale]: [number, number]) => ({ right, stale });
+      // Right and stale answers of the engine, the mature RAG, reading everything, and reading it after governance.
+      type Pair = [number, number];
+      const paths = (engine: Pair, mature: Pair, raw: Pair, governed: Pair) => ({
+        engine: score(engine),
+        mature: score(mature),
+        long_context: score(raw),
+        governed_long_context: score(governed),
+      });
+      const { latency, ...totals } = asked.totals;
+      expect(Object.keys(latency).sort()).toEqual(["engine", "governed_long_context", "long_context", "mature"]);
+      expect(totals).toEqual({
         questions: 150,
         right: 47,
         stale: 6,
@@ -138,29 +148,29 @@ describe("the company drive", () => {
         cited_right: 87,
         found: 79,
         notes: 55,
-        baselines: { passages: 42, long_context: 49 },
+        baselines: { mature: 44, long_context: 49, governed_long_context: 48 },
         by_kind: {
-          changed: { questions: 66, engine: score(15, 6), passages: score(10, 6), long_context: score(13, 6) },
-          not_stated: { questions: 15, engine: score(2, 0), passages: score(2, 1), long_context: score(2, 2) },
-          unchanged: { questions: 69, engine: score(30, 0), passages: score(30, 0), long_context: score(34, 0) },
+          changed: { questions: 66, ...paths([15, 6], [10, 6], [13, 6], [16, 5]) },
+          not_stated: { questions: 15, ...paths([2, 0], [2, 1], [2, 2], [2, 0]) },
+          unchanged: { questions: 69, ...paths([30, 0], [32, 0], [34, 0], [30, 0]) },
         },
         by_language: {
-          en: { questions: 50, engine: score(28, 4), passages: score(24, 6), long_context: score(31, 7) },
-          ja: { questions: 50, engine: score(6, 1), passages: score(7, 1), long_context: score(8, 1) },
-          zh: { questions: 50, engine: score(13, 1), passages: score(11, 0), long_context: score(10, 0) },
+          en: { questions: 50, ...paths([28, 4], [25, 6], [31, 7], [29, 3]) },
+          ja: { questions: 50, ...paths([6, 1], [8, 1], [8, 1], [7, 1]) },
+          zh: { questions: 50, ...paths([13, 1], [11, 0], [10, 0], [12, 1]) },
         },
       });
       const answerTo = (start: string) =>
         asked.questions.find((q) => q.question.startsWith(start)) as (typeof asked.questions)[number];
-      // A copy of the policy from 2021 says 30 days: plain retrieval answers with it. The engine
-      // answers with the policy's 90: the copy is an older edition of the copies saved since.
+      // A copy of the policy from 2021 says 30 days: the mature RAG's stand-in answers with it. The
+      // engine answers with the policy's 90: the copy is an older edition of the copies saved since.
       const deadline = answerTo("Within how many days");
-      expect(deadline).toMatchObject({ outcome: "right", baselines: { passages: { outcome: "stale" } } });
+      expect(deadline).toMatchObject({ outcome: "right", baselines: { mature: { outcome: "stale" } } });
       expect(deadline.cited).not.toContain("drive/downloads/expenses.md");
       // The monitor caps left the policy in December 2021; only that copy still states them.
       expect(answerTo("How much can I expense for an external 16:9 monitor")).toMatchObject({
         outcome: "wrong_answer",
-        baselines: { passages: { outcome: "stale" } },
+        baselines: { mature: { outcome: "stale" } },
       });
     } finally {
       await engine.close();
