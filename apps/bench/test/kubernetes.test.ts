@@ -60,7 +60,13 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
     for (const q of asked.questions) expect(q.outcome, q.question).toBe(q.expected);
     const score = (right: number) => ({ right, stale: 0 });
     const { latency, ...totals } = asked.totals;
-    expect(Object.keys(latency).sort()).toEqual(["engine", "governed_long_context", "long_context", "mature"]);
+    expect(Object.keys(latency).sort()).toEqual([
+      "engine",
+      "governed_long_context",
+      "long_context",
+      "mature",
+      "search",
+    ]);
     // Right answers of the engine, the mature RAG, reading everything, and reading it after governance.
     const paths = (engine: number, mature: number, raw: number, governed: number) => ({
       engine: score(engine),
@@ -77,6 +83,7 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
       found: 11,
       notes: 3,
       baselines: { mature: 8, long_context: 8, governed_long_context: 8 },
+      retention: { kept: 11, dropped: 0, absent: 0, not_audited: 1, beyond_raw: [] },
       by_kind: {
         unchanged: { questions: 11, ...paths(8, 7, 7, 7) },
         not_stated: { questions: 1, ...paths(1, 1, 1, 1) },

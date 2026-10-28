@@ -112,6 +112,11 @@ the stand-in quotes more of each passage, older values included.
   told each passage's level and date, which the stand-in answer does not weigh. Reading
   everything after governance leaves out the replaced editions and the sentences that state
   only replaced values, and marks those values beside the ones that hold.
+- The evidence audit, which reads what each long context gives its model and no answer,
+  finds the right value in what governance keeps for all 135 questions with one, from a
+  document the key cites, and no document beyond what the reader may read. So reading
+  everything after governance answering 48 against the raw drive's 49 is the stand-in's
+  reading, not lost evidence.
 - In English, where the stand-ins can read the documents, the engine answers 10 of 22
   questions on changed facts right and 4 stale, the mature RAG 8 and 5, the model reading
   everything 11 and 5, and reading it after governance 10 and 3; on unchanged facts 18, 17,

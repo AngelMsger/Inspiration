@@ -25,21 +25,45 @@
  * governance, when they fit. How long each answer took is kept beside it (`latency`): the
  * whole call, the answering model's share and the reranker's.
  *
+ * Every path finds the same caches. The search the engine and the mature RAG share runs once
+ * for each question before any path answers, so both read its rerank scores and translations
+ * from the cache alike; its own time is kept apart (`search_latency`), and a path that
+ * searches takes about that much longer in a product. A time whose reply came from the
+ * response cache is the cache's, not a model's: it is marked (`cached`), and the medians
+ * leave it out.
+ *
+ * Apart from the answers, an offline audit checks what governance keeps (`retention`, bar 1
+ * of docs/design/validation.md): for each question with an answer key, whether what the
+ * governed long context gives its model still states the right value, from a document the
+ * key cites, and not as a value that no longer holds. It is `kept` when it does, `dropped`
+ * when only the raw long context's input states it, and `absent` when neither does. An answer
+ * that differs over kept evidence is the model's reading, not a loss, and a right answer
+ * over dropped evidence is still a loss; the audit reads inputs, never answers. Both inputs
+ * are read as the corpus's reader, so the totals also list any document the governed input
+ * cites that the raw one, everything the reader may read, does not (`beyond_raw`). The keys
+ * name no conditions yet, so the audit checks values and their documents only.
+ *
  * Like the control check, each question may record where the engine answers it otherwise
  * today and why (`engine`), and the test holds the run to it.
  *
- * What the model calls of each path cost is reported too (`cost`), and the latencies' median
- * and 90th percentile (`latency`); sampleQuestions picks a spread of the questions for a
- * quick run.
+ * What the model calls of each path cost is reported too (`cost`), the shared search's apart,
+ * and the latencies' median and 90th percentile (`latency`); sampleQuestions picks a spread
+ * of the questions for a quick run.
  */
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { type GroundedAnswer, type SearchHit, schemaErrors, type UsageRecord } from "@inspiration/contracts";
+import {
+  type Citation,
+  type GroundedAnswer,
+  type SearchHit,
+  schemaErrors,
+  type UsageRecord,
+} from "@inspiration/contracts";
 import type { Corpus, Engine } from "@inspiration/engine";
 import { languageOf } from "@inspiration/kernel";
 import { Gateway } from "@inspiration/model-gateway";
-import { ANSWER_TASK, ContextTooLong, type Retrieval } from "@inspiration/retrieval";
+import { ANSWER_TASK, ContextTooLong, type Retrieval, TRANSLATE_TASK } from "@inspiration/retrieval";
 import { parse } from "yaml";
 import { usageMark } from "./claims.ts";
 import { type Spend, spendLine, spendOf, usageSince } from "./cost.ts";
@@ -290,6 +314,26 @@ export interface QuestionResult {
   notes: string[];
   confidence: number;
   latency: Latency;
+  /** The search the engine and the mature RAG share, run once before either answers. */
+  search_latency: Latency;
+  /** Whether governance kept the right value in what its model reads; null when not audited. */
+  retention: Retention | null;
+}
+
+/**
+ * What the evidence audit found for a question with an answer key, and the documents whose
+ * sources state the right value: the governed input's when kept, the raw input's when dropped.
+ */
+export interface Retention {
+  status: "kept" | "dropped" | "absent";
+  documents: string[];
+}
+
+/** A source a long context gives its model: the text it reads, the documents it cites, and where its value stands. */
+export interface InputSource {
+  text: string;
+  documents: string[];
+  standing?: SearchHit["standing"];
 }
 
 export interface Rival {
@@ -299,13 +343,18 @@ export interface Rival {
   latency: Latency;
 }
 
-/** How long an answer took, in milliseconds: the whole call, and what its model calls took. */
+/** How long an answer or a search took, in milliseconds: the whole call, and what its model calls took. */
 export interface Latency {
   ms: number;
-  /** The answering model's calls. */
+  /** The answering model's calls; for a search, the translating model's. */
   model_ms: number;
   /** The reranker's calls; a reranker on this machine's CPU is far slower than one on a GPU. */
   rerank_ms: number;
+  /**
+   * Whether a timed reply came from the response cache, which makes the time the cache's: the
+   * answering model's for an answer, the translating model's or the reranker's for a search.
+   */
+  cached: boolean;
 }
 
 /** The ways of answering a question, the engine's first. */
@@ -318,9 +367,11 @@ const NAMES: Record<Path, string> = {
   governed_long_context: "reading everything after governance",
 };
 
-/** The median and 90th percentile of a path's latencies, in milliseconds. */
+/** The median and 90th percentile of a path's latencies, in milliseconds, of the calls no cache answered. */
 export interface LatencySummary {
   answers: number;
+  /** Answers left out because a timed reply came from the response cache. */
+  cached: number;
   median_ms: number;
   p90_ms: number;
   model_median_ms: number;
@@ -359,11 +410,26 @@ export interface QuestionsReport {
     baselines: { mature: number; long_context: number | null; governed_long_context: number | null };
     by_kind: Partial<Record<Kind, Tally>>;
     by_language: Partial<Record<Language, Tally>>;
-    /** Each path's latencies, of the questions it answered. */
-    latency: Partial<Record<Path, LatencySummary>>;
+    /** Each path's latencies, of the questions it answered, and the shared search's. */
+    latency: Partial<Record<Path | "search", LatencySummary>>;
+    retention: RetentionTotals;
   };
-  /** What each path's model calls cost, in the gateway's currency; absent without an in-process gateway. */
-  cost?: { currency: string } & Record<Path, Spend>;
+  /**
+   * What each path's model calls cost, in the gateway's currency, and the shared search's,
+   * which the engine and the mature RAG would each pay; absent without an in-process gateway.
+   */
+  cost?: { currency: string } & Record<Path | "search", Spend>;
+}
+
+/** The evidence audit's questions by what it found, apart from the answers. */
+export interface RetentionTotals {
+  kept: number;
+  dropped: number;
+  absent: number;
+  /** Questions without an answer key, or whose governed input does not fit one context. */
+  not_audited: number;
+  /** Documents the governed input cites that the raw input does not; null when the raw input does not fit. */
+  beyond_raw: string[] | null;
 }
 
 /**
@@ -399,24 +465,75 @@ export function says(text: string, texts: readonly string[] | undefined): boolea
   });
 }
 
+/** Whether one of the documents is one the question expects cited; any is when it names none. */
+const citesExpected = (q: Question, documents: readonly string[]) =>
+  !q.cites?.length || documents.some((p) => q.cites?.some((c) => stem(p) === stem(c) || p === c));
+
 function outcomeOf(q: Question, a: GroundedAnswer, cited: readonly string[]): Outcome {
   const said = says(a.answer, q.answer ?? []);
   if (!said && says(a.answer, q.stale)) return "stale";
   if (q.answer === null) return a.citations.length === 0 && a.gaps.length > 0 ? "right" : "wrong_answer";
   if (!a.citations.length) return "unanswered";
-  const cites = !q.cites?.length || cited.some((p) => q.cites?.some((c) => stem(p) === stem(c) || p === c));
+  const cites = citesExpected(q, cited);
   if (said && cites) return "right";
   if (said) return "wrong_citations";
   return cites ? "wrong_answer" : "wrong";
 }
 
-/** What the answering model's and the reranker's calls took, of the calls an answer made. */
-function modelLatency(used: readonly UsageRecord[]): Omit<Latency, "ms"> {
+/**
+ * Whether the governed input keeps the right value that the raw one states: the audit reads
+ * only what each long context gives its model, never an answer. A source keeps it when it
+ * states an expected text, cites an expected document and does not mark the value as one that
+ * no longer holds. Null without an answer key, or without a governed input, or when the
+ * governed input lacks it and the raw input does not fit to tell dropped from absent.
+ */
+export function retentionOf(
+  q: Question,
+  raw: readonly InputSource[] | null,
+  governed: readonly InputSource[] | null,
+): Retention | null {
+  const expected = q.answer;
+  if (!expected || !governed) return null;
+  const stating = (sources: readonly InputSource[]) => [
+    ...new Set(
+      sources
+        .filter((s) => s.standing !== "outdated" && says(s.text, expected) && citesExpected(q, s.documents))
+        .flatMap((s) => s.documents),
+    ),
+  ];
+  const kept = stating(governed);
+  if (kept.length) return { status: "kept", documents: kept };
+  if (!raw) return null;
+  const dropped = stating(raw);
+  return dropped.length ? { status: "dropped", documents: dropped } : { status: "absent", documents: [] };
+}
+
+/** The documents governed sources cite that no raw source does, in order; null without a raw input. */
+export function beyondRaw(
+  raw: readonly InputSource[] | null,
+  governed: readonly InputSource[] | null,
+): string[] | null {
+  if (!raw) return null;
+  const read = new Set(raw.flatMap((s) => s.documents));
+  return [...new Set((governed ?? []).flatMap((s) => s.documents))].filter((d) => !read.has(d));
+}
+
+/** What the model calls an answer made took, and whether its answering model's reply was cached. */
+function answerLatency(used: readonly UsageRecord[]): Omit<Latency, "ms"> {
+  const model = (u: UsageRecord) => u.operation === "complete" && u.task === ANSWER_TASK;
+  return { ...took(used, model), cached: used.some((u) => model(u) && u.status === "cached") };
+}
+
+/** What the model calls a search made took, and whether its translation or rerank scores were cached. */
+function searchLatency(used: readonly UsageRecord[]): Omit<Latency, "ms"> {
+  const model = (u: UsageRecord) => u.operation === "complete" && u.task === TRANSLATE_TASK;
+  const timed = (u: UsageRecord) => model(u) || u.operation === "rerank";
+  return { ...took(used, model), cached: used.some((u) => timed(u) && u.status === "cached") };
+}
+
+function took(used: readonly UsageRecord[], model: (u: UsageRecord) => boolean) {
   const sum = (keep: (u: UsageRecord) => boolean) => used.filter(keep).reduce((n, u) => n + u.latency_ms, 0);
-  return {
-    model_ms: sum((u) => u.operation === "complete" && u.task === ANSWER_TASK),
-    rerank_ms: sum((u) => u.operation === "rerank"),
-  };
+  return { model_ms: sum(model), rerank_ms: sum((u) => u.operation === "rerank") };
 }
 
 const percentile = (values: readonly number[], p: number) => {
@@ -424,9 +541,11 @@ const percentile = (values: readonly number[], p: number) => {
   return sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)] ?? 0;
 };
 
-function latencyOf(of: readonly Latency[]): LatencySummary {
+function latencyOf(all: readonly Latency[]): LatencySummary {
+  const of = all.filter((l) => !l.cached);
   return {
     answers: of.length,
+    cached: all.length - of.length,
     median_ms: percentile(
       of.map((l) => l.ms),
       50,
@@ -460,43 +579,75 @@ export async function questionsReport(
   questions: readonly Question[],
 ): Promise<QuestionsReport> {
   const results: QuestionResult[] = [];
-  const pathsOf = async (a: GroundedAnswer): Promise<string[]> => {
-    const versions = await Promise.all(
-      [...new Set(a.citations.map((c) => c.source_version_id))].map((id) => engine.store.getSourceVersion(id)),
+  const paths = new Map<string, Promise<string | undefined>>();
+  /** The documents the citations are in, as corpus paths. */
+  const pathsOf = async (citations: readonly Citation[]): Promise<string[]> => {
+    const of = await Promise.all(
+      citations.map((c) => {
+        const id = c.source_version_id;
+        const path =
+          paths.get(id) ??
+          engine.store.getSourceVersion(id).then((v) => v && corpus.pathOf(v.source_id, v.external_id));
+        paths.set(id, path);
+        return path.then((p) => p ?? c.source_title);
+      }),
     );
-    const pathOf = new Map(
-      versions.flatMap((v) => (v ? [[v.id, corpus.pathOf(v.source_id, v.external_id)] as const] : [])),
-    );
-    return [...new Set(a.citations.map((c) => pathOf.get(c.source_version_id) ?? c.source_title))];
+    return [...new Set(of)];
   };
-  const spent = Object.fromEntries(PATHS.map((p) => [p, [] as UsageRecord[]])) as Record<Path, UsageRecord[]>;
+  /** What a long context gives its model; null when the documents do not fit. */
+  const inputOf = async (retrieval: Retrieval, question: string): Promise<InputSource[] | null> => {
+    try {
+      const hits = await retrieval.sources({ question }, corpus.reader);
+      return await Promise.all(
+        hits.map(async (h) => ({
+          text: h.snippet,
+          documents: await pathsOf(h.citations),
+          ...(h.standing && { standing: h.standing }),
+        })),
+      );
+    } catch (e) {
+      if (e instanceof ContextTooLong) return null;
+      throw e;
+    }
+  };
+  // Every document the reader may read, so the same for each question: read once.
+  const first = questions[0]?.question;
+  const raw = first === undefined ? null : await inputOf(engine.baselines.long_context, first);
+  const governed = first === undefined ? null : await inputOf(engine.governedLongContext, first);
+  const spent = Object.fromEntries([...PATHS, "search"].map((p) => [p, [] as UsageRecord[]])) as Record<
+    Path | "search",
+    UsageRecord[]
+  >;
   /** The call, its usage counted against the path, and how long it and its model calls took. */
-  const metered = async <T>(path: Path, call: () => Promise<T>): Promise<{ value: T; latency: Latency }> => {
+  const metered = async <T>(path: Path | "search", call: () => Promise<T>): Promise<{ value: T; latency: Latency }> => {
     const from = usageMark(engine);
     const started = performance.now();
     try {
       const value = await call();
       const ms = Math.round(performance.now() - started);
-      return { value, latency: { ms, ...modelLatency(usageSince(engine, from)) } };
+      const used = usageSince(engine, from);
+      return { value, latency: { ms, ...(path === "search" ? searchLatency(used) : answerLatency(used)) } };
     } finally {
       spent[path].push(...usageSince(engine, from));
     }
   };
   for (const q of questions) {
+    // First, so that no path pays for the search another path then reads from the cache.
+    const searched = await metered("search", () => engine.retrieval.sources({ question: q.question }, corpus.reader));
+    const sources = searched.value;
     const own = await metered("engine", () => engine.retrieval.answer({ question: q.question }, corpus.reader));
     const a = own.value;
-    const sources = await engine.retrieval.sources({ question: q.question }, corpus.reader);
     const expected = q.answer;
     // The same reading of a text as the answer's, so "5000" in a source is "5,000" found.
     const found = expected && sources.some((h) => says(h.snippet, expected));
-    const cited = await pathsOf(a);
+    const cited = await pathsOf(a.citations);
     const rival = async (path: Exclude<Path, "engine">, retrieval: Retrieval): Promise<Rival | null> => {
       try {
         const { value: answer, latency } = await metered(path, () =>
           retrieval.answer({ question: q.question }, corpus.reader),
         );
-        const paths = await pathsOf(answer);
-        return { outcome: outcomeOf(q, answer, paths), answer: answer.answer, cited: paths, latency };
+        const cited = await pathsOf(answer.citations);
+        return { outcome: outcomeOf(q, answer, cited), answer: answer.answer, cited, latency };
       } catch (e) {
         if (e instanceof ContextTooLong) return null;
         throw e;
@@ -519,6 +670,8 @@ export async function questionsReport(
       notes: (a.notes ?? []).map((n) => `${n.kind}: ${n.text}`),
       confidence: a.confidence,
       latency: own.latency,
+      search_latency: searched.latency,
+      retention: retentionOf(q, raw, governed),
     });
   }
   return {
@@ -539,19 +692,29 @@ export async function questionsReport(
       by_kind: tallies(results, (r) => r.kind),
       by_language: tallies(results, (r) => r.language),
       latency: Object.fromEntries(
-        PATHS.flatMap((p) => {
+        [...PATHS, "search" as const].flatMap((p) => {
           const of = results.flatMap((r) => {
-            const latency = p === "engine" ? r.latency : r.baselines[p]?.latency;
+            const latency = p === "search" ? r.search_latency : p === "engine" ? r.latency : r.baselines[p]?.latency;
             return latency ? [latency] : [];
           });
           return of.length ? [[p, latencyOf(of)]] : [];
         }),
       ),
+      retention: {
+        kept: results.filter((r) => r.retention?.status === "kept").length,
+        dropped: results.filter((r) => r.retention?.status === "dropped").length,
+        absent: results.filter((r) => r.retention?.status === "absent").length,
+        not_audited: results.filter((r) => !r.retention).length,
+        beyond_raw: beyondRaw(raw, governed),
+      },
     },
     ...(engine.models instanceof Gateway && {
       cost: {
         currency: engine.models.config.currency,
-        ...(Object.fromEntries(PATHS.map((p) => [p, spendOf(spent[p])])) as Record<Path, Spend>),
+        ...(Object.fromEntries([...PATHS, "search"].map((p) => [p, spendOf(spent[p as Path | "search"])])) as Record<
+          Path | "search",
+          Spend
+        >),
       },
     }),
   };
@@ -759,19 +922,28 @@ export function questionLines(r: QuestionsReport): string[] {
     `questions: ${t.questions}, ${t.right} answered right, ${t.stale} with a value no longer in effect, ${t.as_recorded - t.right} otherwise as recorded, ${t.questions - t.as_recorded} otherwise`,
     `  search found an expected text for ${t.found} of ${answerable} questions with an answer`,
     `  over the same documents and model, a mature RAG answers ${t.baselines.mature} right, a model reading every document ${t.baselines.long_context ?? "(they do not fit)"}, reading every document after governance ${t.baselines.governed_long_context ?? "(they do not fit)"}`,
-    ...PATHS.flatMap((p) => {
+    `  evidence audit, apart from the answers: what governance gives its model keeps the right value for ${t.retention.kept} questions, drops one the raw documents state for ${t.retention.dropped}, and neither states it for ${t.retention.absent}; ${t.retention.not_audited} not audited`,
+    ...(t.retention.beyond_raw?.length
+      ? [
+          `  governance cites ${t.retention.beyond_raw.length} documents the raw input does not read, each to check the reader may: ${t.retention.beyond_raw.join(", ")}`,
+        ]
+      : []),
+    ...[...PATHS, "search" as const].flatMap((p) => {
       const l = t.latency[p];
+      const name = p === "search" ? "the shared search" : NAMES[p];
+      const model = p === "search" ? "translating model" : "answering model";
       return l
         ? [
-            `  latency of ${NAMES[p]}: median ${l.median_ms} ms, p90 ${l.p90_ms} ms; answering model median ${l.model_median_ms} ms, p90 ${l.model_p90_ms} ms; reranker median ${l.rerank_median_ms} ms`,
+            `  latency of ${name}, ${l.answers} timed, ${l.cached} from the cache left out: median ${l.median_ms} ms, p90 ${l.p90_ms} ms; ${model} median ${l.model_median_ms} ms, p90 ${l.model_p90_ms} ms; reranker median ${l.rerank_median_ms} ms`,
           ]
         : [];
     }),
     ...(r.cost
       ? [
           "  answering cost:",
-          ...PATHS.map(
-            (p) => `    ${NAMES[p]} ${spendLine((r.cost as Record<Path, Spend>)[p], r.cost?.currency ?? "")}`,
+          ...[...PATHS, "search" as const].map(
+            (p) =>
+              `    ${p === "search" ? "the shared search, which the engine and the mature RAG each pay" : NAMES[p]} ${spendLine((r.cost as Record<Path | "search", Spend>)[p], r.cost?.currency ?? "")}`,
           ),
         ]
       : []),
@@ -788,6 +960,9 @@ export function questionLines(r: QuestionsReport): string[] {
     const mark = q.outcome === q.expected ? (q.outcome === "right" ? "right" : "known gap") : "differs";
     const remarks = [
       ...(q.found === false ? ["not found by search"] : []),
+      ...(q.retention?.status === "dropped"
+        ? [`governance dropped the right value ${q.retention.documents.join(", ")} states`]
+        : []),
       ...(["mature", "long_context", "governed_long_context"] as const).flatMap((p) => {
         const other = q.baselines[p];
         return other && other.outcome !== q.outcome ? [`${NAMES[p]}: ${other.outcome}`] : [];

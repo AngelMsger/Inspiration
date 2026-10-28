@@ -139,7 +139,13 @@ describe("the company drive", () => {
         governed_long_context: score(governed),
       });
       const { latency, ...totals } = asked.totals;
-      expect(Object.keys(latency).sort()).toEqual(["engine", "governed_long_context", "long_context", "mature"]);
+      expect(Object.keys(latency).sort()).toEqual([
+        "engine",
+        "governed_long_context",
+        "long_context",
+        "mature",
+        "search",
+      ]);
       expect(totals).toEqual({
         questions: 150,
         right: 47,
@@ -149,6 +155,9 @@ describe("the company drive", () => {
         found: 79,
         notes: 55,
         baselines: { mature: 44, long_context: 49, governed_long_context: 48 },
+        // What governance gives its model keeps every right value the drive states: reading it
+        // after governance answers one fewer right than reading it raw, but loses no evidence.
+        retention: { kept: 135, dropped: 0, absent: 0, not_audited: 15, beyond_raw: [] },
         by_kind: {
           changed: { questions: 66, ...paths([15, 6], [10, 6], [13, 6], [16, 5]) },
           not_stated: { questions: 15, ...paths([2, 0], [2, 1], [2, 2], [2, 0]) },
