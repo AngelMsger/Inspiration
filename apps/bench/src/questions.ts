@@ -476,10 +476,14 @@ export interface SearchResult {
   language: Language;
   /**
    * Whether the hits the engine's answer reads state an expected text as the model is given
-   * them: a statement whole, a passage as its snippet. Null for a question with no answer.
+   * them: a statement whole, and a passage whole too, since answers read passages whole. Null
+   * for a question with no answer.
    */
   found: boolean | null;
-  /** The same hits, with each passage read whole. */
+  /**
+   * The same hits, each passage's text read from the store. Equal to `found` now that answers
+   * read passages whole; it measured what whole passages would add when answers read snippets.
+   */
   found_whole: boolean | null;
   /** Plain retrieval's hits as its model is given them. */
   found_by_passages: boolean | null;
@@ -512,8 +516,8 @@ export interface SearchReport {
 /**
  * The question check's search alone, for a change to search that should not pay for answers.
  * For each question with an answer: whether the hits the engine's answer reads state an
- * expected text as its model is given them (a passage as its snippet, which is what `found`
- * checks in questionsReport), and with each passage read whole; the same for plain
+ * expected text as its model is given them (each passage whole, which is what `found` checks
+ * in questionsReport), and with each passage's text read from the store; the same for plain
  * retrieval; how deep in one wide search the first hit stating it is; and how many documents
  * of that search's hits, taken in order and read whole, come before one that states it, as
  * for an answer that reads the documents search finds.
@@ -612,7 +616,7 @@ export function searchLines(r: SearchReport): string[] {
       .map(([d, n]) => `${d}: ${n}`)
       .join(", ");
   const line = (name: string, t: SearchTally) => [
-    `  ${name}: ${t.questions} with an answer; the engine's answer is given it for ${t.found}, would be with whole passages for ${t.found_whole}; plain retrieval's for ${t.found_by_passages}`,
+    `  ${name}: ${t.questions} with an answer; the engine's answer is given it for ${t.found} (${t.found_whole} with each passage read from the store); plain retrieval's for ${t.found_by_passages}`,
     `    first hit stating it within ${depths(t.within)}; first document within ${depths(t.within_documents)}`,
   ];
   const lines = ["search only, no answers:", ...line("all", r.totals)];

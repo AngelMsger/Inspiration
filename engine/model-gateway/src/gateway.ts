@@ -3,7 +3,8 @@
  *
  * For every request it checks the budget, picks candidate models that serve the operation and
  * tier and are cleared for the request's sensitivity label, tries them in order (route
- * preferences first, falling back on retryable errors), validates structured output (one
+ * preferences first, falling back on retryable errors unless the route allows only its own
+ * models), validates structured output (one
  * corrective retry), caches deterministic completions (and, when the config says, embeddings
  * per text and rerank scores per document), and meters every call, including failures.
  *
@@ -49,7 +50,7 @@ import {
   type GatewayConfig,
   type ModelConfig,
   type ProviderConfig,
-  preferredModels,
+  routeFor,
 } from "./config.ts";
 import { ProviderError } from "./errors.ts";
 import { budgetSpent, MemoryUsage, periodStart, type UsageSink } from "./metering.ts";
@@ -196,12 +197,14 @@ export class Gateway implements ModelGateway {
         out.push({ provider, model, ref: `${provider.name}/${model.name}` });
       }
     }
-    const preferred = preferredModels(this.config, options.task);
+    const route = routeFor(this.config, options.task);
+    const preferred = route?.prefer ?? [];
     const rank = (c: Candidate) => {
       const i = preferred.indexOf(c.ref);
       return i < 0 ? preferred.length : i;
     };
-    return out.sort((a, b) => rank(a) - rank(b));
+    const allowed = route?.only ? out.filter((c) => preferred.includes(c.ref)) : out;
+    return allowed.sort((a, b) => rank(a) - rank(b));
   }
 
   // ------------------------------------------------------------ metering
