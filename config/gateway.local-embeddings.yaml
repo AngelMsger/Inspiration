@@ -8,7 +8,9 @@
 # request options as config/gateway.deepseek.yaml. A completion with no saved reply goes to
 # DeepSeek with that non-key and fails, so the run never pays. Topics are clustered by vector, so
 # new vectors make topics whose names were never paid for: the stand-in names them, and search
-# does not read topic names.
+# does not read topic names. The routes allow each task only its model, so a failed DeepSeek call
+# (a refused key, a 429 or a dropped connection) fails the run instead of falling back to the
+# stand-in; embeddings carry no task and are not routed.
 currency: USD
 
 providers:
@@ -53,6 +55,10 @@ providers:
 routes:
   - match: "page-compiler.name_topics"
     prefer: [local/fake-local-chat]
+    only: true
+  - match: "*"
+    prefer: [deepseek/deepseek-flash]
+    only: true
 
 budgets:
   - match: "*"

@@ -28,6 +28,9 @@
  *     routes:
  *       - match: "governance.*"                 # task glob
  *         prefer: [local/qwen3-30b-a3b]         # provider/model, tried first
+ *       - match: "freshness.*"
+ *         prefer: [local/qwen3-30b-a3b]
+ *         only: true                            # never another model, not even on retryable errors
  *     budgets:
  *       - match: "tenant:*"                     # budget_key glob; first match wins
  *         period: month
@@ -84,6 +87,8 @@ export interface RouteConfig {
   match: string;
   /** "provider/model" references, tried first. */
   prefer: string[];
+  /** Only the preferred models serve the task: no fallback to others, not even on retryable errors. */
+  only?: boolean;
 }
 
 export interface BudgetConfig {
@@ -177,7 +182,11 @@ const SCHEMA = {
         type: "object",
         required: ["match", "prefer"],
         additionalProperties: false,
-        properties: { match: { type: "string" }, prefer: { type: "array", items: { type: "string" } } },
+        properties: {
+          match: { type: "string" },
+          prefer: { type: "array", items: { type: "string" } },
+          only: { type: "boolean" },
+        },
       },
     },
     budgets: {
@@ -299,8 +308,13 @@ export function budgetFor(config: GatewayConfig, budgetKey: string): BudgetConfi
   return config.budgets.find((b) => globMatch(b.match, budgetKey));
 }
 
+/** The first route whose glob matches the task. */
+export function routeFor(config: GatewayConfig, task: string | undefined): RouteConfig | undefined {
+  if (task === undefined) return undefined;
+  return config.routes.find((r) => globMatch(r.match, task));
+}
+
 /** Models to try first for a task, from the first matching route. */
 export function preferredModels(config: GatewayConfig, task: string | undefined): string[] {
-  if (task === undefined) return [];
-  return config.routes.find((r) => globMatch(r.match, task))?.prefer ?? [];
+  return routeFor(config, task)?.prefer ?? [];
 }

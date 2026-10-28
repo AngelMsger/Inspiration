@@ -8,10 +8,12 @@ import { describe, expect, test } from "vitest";
 import {
   budgetFor,
   createApp,
+  FakeProvider,
   Gateway,
   globMatch,
   HttpModelGateway,
   loadGatewayConfig,
+  MemoryCache,
   Prompt,
   PromptRegistry,
   parseGatewayConfig,
@@ -23,6 +25,7 @@ import { completionRequest, makeGateway } from "./fixtures.ts";
 
 const DEV_CONFIG = fileURLToPath(new URL("../../../config/gateway.dev.yaml", import.meta.url));
 const DEEPSEEK_CONFIG = fileURLToPath(new URL("../../../config/gateway.deepseek.yaml", import.meta.url));
+const SEARCH_ONLY_CONFIG = fileURLToPath(new URL("../../../config/gateway.local-embeddings.yaml", import.meta.url));
 
 /** A client whose requests go straight to the app, without a socket. */
 function clientFor(gateway: Gateway): HttpModelGateway {
@@ -118,6 +121,18 @@ describe("config", () => {
     expect(() => parseGatewayConfig({ providers: [], routes: [{ match: "x.*", prefer: ["nowhere/model"] }] })).toThrow(
       /unknown model nowhere\/model/,
     );
+  });
+
+  test("the search-only config gives each task one model, so a failed DeepSeek call never reaches the stand-in", () => {
+    const config = loadGatewayConfig(SEARCH_ONLY_CONFIG);
+    const providers = Object.fromEntries(config.providers.map((p) => [p.name, new FakeProvider(p)]));
+    const gateway = new Gateway(config, { providers, cache: new MemoryCache(10) });
+    const refs = (operation: "complete" | "embed", task?: string) =>
+      gateway.candidates(operation, "internal", { tier: "flash", ...(task ? { task } : {}) }).map((c) => c.ref);
+    expect(refs("complete", "extraction.extract_claims")).toEqual(["deepseek/deepseek-flash"]);
+    expect(refs("complete", "retrieval.write_context")).toEqual(["deepseek/deepseek-flash"]);
+    expect(refs("complete", "page-compiler.name_topics")).toEqual(["local/fake-local-chat"]);
+    expect(refs("embed")).toEqual(["embeddings/qwen3-embedding-0.6b"]);
   });
 
   test("a dry run of the DeepSeek config prices stand-in replies, served from a prefix cache, and shares no cache", async () => {

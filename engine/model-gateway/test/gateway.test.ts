@@ -82,6 +82,25 @@ describe("routing", () => {
     expect(gateway.provider<FakeProvider>("cloud").calls).toEqual([["complete", "extraction.extract_claims"]]);
   });
 
+  test("a route that allows only its own models does not fall back, even on a retryable error", async () => {
+    const config = gatewayConfig();
+    config.routes = [{ match: "extraction.*", prefer: ["cloud/cloud-flash"], only: true }];
+    const local = new FakeProvider(config.providers[1] as never);
+    const gateway = new Gateway(config, {
+      blobs: new MemoryBlobStore(),
+      providers: { cloud: failingCloud({ retryable: true }), local },
+    });
+    expect(
+      gateway.candidates("complete", "internal", { tier: "flash", task: "extraction.extract_claims" }),
+    ).toHaveLength(1);
+    const e = await rejection(gateway.complete(completionRequest()));
+    expect(e.code).toBe("provider_error");
+    expect(local.calls).toEqual([]);
+    // Other tasks still fall back.
+    const out = await gateway.complete(completionRequest("x", { task: "freshness.score_units" }));
+    expect(out.provider).toBe("local");
+  });
+
   test("non-retryable provider errors do not fall back", async () => {
     const gateway = makeGateway({ providers: { cloud: failingCloud({ retryable: false, status: 400 }) } });
     const e = await rejection(gateway.complete(completionRequest()));
