@@ -599,8 +599,9 @@ export class Retrieval implements Retriever {
     const own = languageOf(question);
     const languages = PACKS.map((p) => p.tag).filter((t) => t !== own);
     if (!languages.length) return [];
+    let output: TranslateOutput | undefined;
     try {
-      const output = await this.#complete<TranslateOutput>({
+      output = await this.#complete<TranslateOutput>({
         task: TRANSLATE_TASK,
         version: TRANSLATE_PROMPT_VERSION,
         input: { question, languages } satisfies TranslateInput,
@@ -608,18 +609,21 @@ export class Retrieval implements Retriever {
         sensitivity: "internal",
         tenantId,
       });
-      const asked = new Set(languages);
-      const texts = (output?.translations ?? [])
-        .filter((t) => asked.has(t.language))
-        .map((t) => t.text.trim())
-        .filter((t) => t && t !== question);
-      return [...new Set(texts)];
     } catch (e) {
       if (!(e instanceof GatewayException)) throw e;
-      this.totals.untranslated++;
       log.warn("question not translated; searching with it alone", { code: e.code, error: e.message });
+    }
+    // No valid reply (#complete logs it) is no translation either.
+    if (!output) {
+      this.totals.untranslated++;
       return [];
     }
+    const asked = new Set(languages);
+    const texts = output.translations
+      .filter((t) => asked.has(t.language))
+      .map((t) => t.text.trim())
+      .filter((t) => t && t !== question);
+    return [...new Set(texts)];
   }
 
   /** The fused chunks of documents the asker may read now, the check the index filter cannot make. */
