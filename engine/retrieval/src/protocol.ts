@@ -1,5 +1,5 @@
 /**
- * What retrieval sends the model and what it expects back, on its two tasks. The mocks
+ * What retrieval sends the model and what it expects back, on its three tasks. The mocks
  * read the same inputs, so both sides of each prompt share these types.
  */
 
@@ -39,7 +39,7 @@ export const CONTEXT_SCHEMA: Record<string, unknown> = {
 };
 
 export const ANSWER_TASK = "retrieval.answer_question";
-export const ANSWER_PROMPT_VERSION = "answer_question@2";
+export const ANSWER_PROMPT_VERSION = "answer_question@3";
 
 export interface AnswerSource {
   /** "1", "2", ...: what a sentence cites. */
@@ -52,6 +52,10 @@ export interface AnswerSource {
   standing?: "holds" | "outdated" | "disputed" | "differs";
   /** For a value that does not hold: the source with the value that holds instead. */
   held_ref?: string;
+  /** For a passage: its document's governance level, by which sources that disagree are weighed. */
+  level?: "governed" | "reference" | "search_only";
+  /** For a passage: the day its document last changed, by the date its source gives. */
+  changed?: string;
 }
 
 /**
@@ -91,6 +95,36 @@ export const ANSWER_SCHEMA: Record<string, unknown> = {
     },
     gaps: { type: "array", items: { type: "string" } },
     confidence: { type: "number", minimum: 0, maximum: 1 },
+  },
+};
+
+export const TRANSLATE_TASK = "retrieval.translate_question";
+export const TRANSLATE_PROMPT_VERSION = "translate_question@1";
+
+export interface TranslateInput {
+  question: string;
+  /** BCP 47 tags of the languages to write it in. */
+  languages: string[];
+}
+
+export interface TranslateOutput {
+  translations: { language: string; text: string }[];
+}
+
+export const TRANSLATE_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  required: ["translations"],
+  additionalProperties: false,
+  properties: {
+    translations: {
+      type: "array",
+      items: {
+        type: "object",
+        required: ["language", "text"],
+        additionalProperties: false,
+        properties: { language: { type: "string" }, text: { type: "string", minLength: 1, maxLength: 2000 } },
+      },
+    },
   },
 };
 

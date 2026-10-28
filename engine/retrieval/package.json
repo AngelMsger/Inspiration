@@ -14,7 +14,8 @@
       },
       "model_mocks": {
         "retrieval.write_context": "./src/mock.ts#mockWriteContext",
-        "retrieval.answer_question": "./src/mock.ts#mockAnswerQuestion"
+        "retrieval.answer_question": "./src/mock.ts#mockAnswerQuestion",
+        "retrieval.translate_question": "./src/mock.ts#mockTranslateQuestion"
       }
     }
   },

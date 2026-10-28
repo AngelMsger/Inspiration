@@ -62,8 +62,13 @@ import {
   CONTEXTS_PER_CALL,
   type ContextInput,
   type ContextOutput,
+  TRANSLATE_PROMPT_VERSION,
+  TRANSLATE_SCHEMA,
+  TRANSLATE_TASK,
+  type TranslateInput,
+  type TranslateOutput,
 } from "./protocol.ts";
-import { fill, overlap, packFor, terms } from "./text.ts";
+import { fill, overlap, PACKS, packFor, terms } from "./text.ts";
 
 const log = logger(COMPONENT);
 const PROMPTS_DIR = fileURLToPath(new URL("../prompts/", import.meta.url));
@@ -82,6 +87,8 @@ export const SNIPPET_TOKENS = 80;
 export const EMBED_BATCH = 64;
 /** Passages an answer reads, and statements beside them. */
 export const ANSWER_SOURCES = 8;
+/** Passages the mature-RAG baseline reads, where it has no statements beside them. */
+export const MATURE_SOURCES = 16;
 /** Below this confidence, a statement only one document states is thin evidence. */
 export const THIN = 0.6;
 /** An outdated value ranks as if it scored this share of its score. */
@@ -96,7 +103,7 @@ export const LONG_CONTEXT_TOKENS = 150_000;
 const CLOSED = new Set(["superseded", "retracted"]);
 const SEVERITY: readonly FreshnessState[] = ["fresh", "aging", "stale", "at_risk"];
 
-export type Baseline = "passages" | "long_context";
+export type Baseline = "mature" | "long_context";
 
 /** The documents a long-context baseline would read do not fit one context. */
 export class ContextTooLong extends Error {
@@ -151,11 +158,18 @@ export interface RetrievalOptions {
   /** How stale units are; without it every hit is fresh as of now. */
   staleness?: StalenessReader;
   /**
-   * Answer the way a rival does, to measure the knowledge base against: "passages" is plain
-   * retrieval over the same chunks, without statements or governance; "long_context" is a
-   * model that reads every document the asker may read, for corpora that fit.
+   * Answer the way a rival does, to measure the knowledge base against: "mature" is a
+   * carefully built retrieval over the same chunks and search, without statements or
+   * governance, reading MATURE_SOURCES passages with their documents' levels and dates;
+   * "long_context" is a model that reads every document the asker may read, for corpora that
+   * fit.
    */
   baseline?: Baseline;
+  /**
+   * Answer from everything the asker may read in the spaces asked for, after governance, as
+   * the long-context rival reads it raw; for corpora that fit contextTokens.
+   */
+  readAll?: boolean;
   /** The most the long-context baseline reads for one answer; LONG_CONTEXT_TOKENS by default. */
   contextTokens?: number;
   prompts?: PromptRegistry;
@@ -200,10 +214,11 @@ export class Retrieval implements Retriever {
   readonly verdicts: SlotVerdicts | undefined;
   readonly staleness: StalenessReader | undefined;
   readonly baseline: Baseline | undefined;
+  readonly readAll: boolean;
   readonly contextTokens: number;
   readonly prompts: PromptRegistry;
   readonly clock: () => Date;
-  readonly totals = { indexed: 0, chunks: 0, embedded: 0, searches: 0, answers: 0 };
+  readonly totals = { indexed: 0, chunks: 0, embedded: 0, searches: 0, answers: 0, untranslated: 0 };
   /** Index writes of one tenant run one at a time: they read and replace a document's record. */
   readonly #running = new Map<string, Promise<unknown>>();
 
@@ -217,6 +232,7 @@ export class Retrieval implements Retriever {
     this.verdicts = options.verdicts;
     this.staleness = options.staleness;
     this.baseline = options.baseline;
+    this.readAll = options.readAll ?? false;
     this.contextTokens = options.contextTokens ?? LONG_CONTEXT_TOKENS;
     this.clock = options.clock ?? (() => new Date());
     if (options.prompts) this.prompts = options.prompts;
@@ -537,27 +553,73 @@ export class Retrieval implements Retriever {
     return filter;
   }
 
-  /** Chunk IDs by reciprocal rank fusion of the vector and keyword indexes, best first. */
+  /**
+   * Chunk IDs by reciprocal rank fusion of the vector and keyword indexes, searched with the
+   * text and with its translations, best first. The text is searched while it is translated.
+   */
   async #fused(text: string, tenantId: string, filter: IndexFilter): Promise<[string, number][]> {
+    const [own, translated] = await Promise.all([
+      this.#ranked([text], tenantId, filter),
+      this.#translations(text, tenantId).then((texts) => this.#ranked(texts, tenantId, filter)),
+    ]);
+    const fused = new Map<string, number>();
+    for (const list of [...own, ...translated]) {
+      list.forEach((h, i) => {
+        fused.set(h.chunk_id, (fused.get(h.chunk_id) ?? 0) + 1 / (RRF_K + (h.rank ?? i + 1)));
+      });
+    }
+    return [...fused].sort(([a, x], [b, y]) => y - x || (a < b ? -1 : 1)).slice(0, RERANK_POOL);
+  }
+
+  /** The vector and keyword indexes' rows for each text. */
+  async #ranked(texts: readonly string[], tenantId: string, filter: IndexFilter) {
+    if (!texts.length) return [];
     const embedded = await this.models.embed({
-      texts: [text],
+      texts: [...texts] as [string, ...string[]],
       input_type: "query",
       // A question is the asker's own words, labelled as anything a member writes in the tenant.
       sensitivity: "internal",
       budget_key: `tenant:${tenantId}/${COMPONENT}`,
       tenant_id: tenantId,
     });
-    const [vector, words] = await Promise.all([
-      this.vectors.search(embedded.vectors[0] ?? [], POOL, filter),
-      this.keywords.search(text, POOL, filter),
-    ]);
-    const fused = new Map<string, number>();
-    for (const list of [vector, words]) {
-      list.forEach((h, i) => {
-        fused.set(h.chunk_id, (fused.get(h.chunk_id) ?? 0) + 1 / (RRF_K + (h.rank ?? i + 1)));
+    return Promise.all(
+      texts.flatMap((t, i) => [
+        this.vectors.search(embedded.vectors[i] ?? [], POOL, filter),
+        this.keywords.search(t, POOL, filter),
+      ]),
+    );
+  }
+
+  /**
+   * The question in the other languages retrieval has packs for, so it finds documents
+   * written in them by their words too. Without a model to translate it, none: the question
+   * alone still searches.
+   */
+  async #translations(question: string, tenantId: string): Promise<string[]> {
+    const own = languageOf(question);
+    const languages = PACKS.map((p) => p.tag).filter((t) => t !== own);
+    if (!languages.length) return [];
+    try {
+      const output = await this.#complete<TranslateOutput>({
+        task: TRANSLATE_TASK,
+        version: TRANSLATE_PROMPT_VERSION,
+        input: { question, languages } satisfies TranslateInput,
+        schema: TRANSLATE_SCHEMA,
+        sensitivity: "internal",
+        tenantId,
       });
+      const asked = new Set(languages);
+      const texts = (output?.translations ?? [])
+        .filter((t) => asked.has(t.language))
+        .map((t) => t.text.trim())
+        .filter((t) => t && t !== question);
+      return [...new Set(texts)];
+    } catch (e) {
+      if (!(e instanceof GatewayException)) throw e;
+      this.totals.untranslated++;
+      log.warn("question not translated; searching with it alone", { code: e.code, error: e.message });
+      return [];
     }
-    return [...fused].sort(([a, x], [b, y]) => y - x || (a < b ? -1 : 1)).slice(0, RERANK_POOL);
   }
 
   /** The fused chunks of documents the asker may read now, the check the index filter cannot make. */
@@ -603,12 +665,15 @@ export class Retrieval implements Retriever {
     words: ReadonlySet<string>,
     who: Principal,
     filter: IndexFilter,
-    query: SearchQuery,
+    query: Pick<SearchQuery, "filters">,
+    options: { limit?: number; slotted?: boolean } = {},
   ): Promise<Map<string, Statement>> {
     const spanScore = new Map<string, number>();
     for (const f of found) for (const s of f.spans) spanScore.set(s.id, Math.max(spanScore.get(s.id) ?? 0, f.fused));
     const ids = await this.store.claimsCiting([...spanScore.keys()]);
-    const claims = (await this.store.getClaims(ids)).filter(asked(filter, query.filters));
+    const claims = (await this.store.getClaims(ids))
+      .filter(asked(filter, query.filters))
+      .filter((c) => !options.slotted || slotOf(c) !== undefined);
     const evidence = await this.store.evidenceOf(claims.map((c) => c.id));
     const supports = new Map<string, ClaimEvidence[]>();
     for (const e of evidence)
@@ -620,7 +685,7 @@ export class Retrieval implements Retriever {
       })
       .filter((x) => x.base > 0)
       .sort((a, b) => b.near - a.near || b.base - a.base || (a.c.id < b.c.id ? -1 : 1))
-      .slice(0, STATEMENT_POOL);
+      .slice(0, options.limit ?? STATEMENT_POOL);
     const decisions = await this.authz.checkMany(
       who,
       "read",
@@ -747,6 +812,7 @@ export class Retrieval implements Retriever {
    */
   async #sources(query: AnswerQuery, who: Principal): Promise<{ hits: SearchHit[]; searched: Searched }> {
     if (this.baseline === "long_context") return this.#everything(query, who);
+    if (this.readAll) return this.#governedEverything(query, who);
     const found = await this.#search(
       {
         text: query.question,
@@ -758,10 +824,10 @@ export class Retrieval implements Retriever {
       who,
       true,
     );
-    // Plain retrieval knows nothing of editions; the knowledge base answers from the latest.
+    // A rival knows nothing of editions; the knowledge base answers from the latest.
     const replaced = this.baseline ? new Set<string>() : await this.#replaced(found.hits, who);
     const latest = latestEditions(found.hits, replaced);
-    const searched = { ...found, hits: bestOfEachKind(latest) };
+    const searched = { ...found, hits: bestOfEachKind(latest, this.baseline ? MATURE_SOURCES : ANSWER_SOURCES) };
     const hits = passagesWithoutReplaced(searched);
     // A replaced edition's statement leaves, and the value that holds in its place still joins.
     const kept = new Set(latest.map((h) => h.unit_id));
@@ -817,18 +883,10 @@ export class Retrieval implements Retriever {
   /**
    * Every passage the asker may read in the spaces asked for, document by document in
    * reading order. The query's filters are on statements, which a passage is not, as for the
-   * passages baseline.
+   * mature baseline.
    */
   async #everything(query: AnswerQuery, who: Principal): Promise<{ hits: SearchHit[]; searched: Searched }> {
-    const filter = await this.#scope(who, query.space_ids);
-    const spaces = new Set(filter.space_ids);
-    const ids = spaces.size ? (await this.documents(who.tenant_id)).flatMap((d) => d.chunk_ids) : [];
-    const found = (
-      await this.#readable(
-        ids.map((id): [string, number] => [id, 0]),
-        who,
-      )
-    ).filter((f) => spaces.has(f.chunk.space_id) && allows(filter.max_sensitivity, f.chunk.sensitivity));
+    const { filter, found } = await this.#all(query, who);
     const tokens = found.reduce((n, f) => n + f.chunk.token_count, 0);
     if (tokens > this.contextTokens) {
       throw new ContextTooLong(`${tokens} tokens in ${found.length} passages, more than ${this.contextTokens}`);
@@ -839,6 +897,71 @@ export class Retrieval implements Retriever {
     return { hits, searched: { hits, statements: new Map(), verdicts: new Map(), filter, labels } };
   }
 
+  /**
+   * Everything the asker may read, after governance, as an answer from search reads what it
+   * found: the latest editions only, without the sentences that state only values that no
+   * longer hold, each value that does not hold marked and the one that does beside it.
+   */
+  async #governedEverything(query: AnswerQuery, who: Principal): Promise<{ hits: SearchHit[]; searched: Searched }> {
+    const { filter, found } = await this.#all(query, who);
+    const statements = await this.#statements(found, new Set(), who, filter, query, {
+      limit: Number.POSITIVE_INFINITY,
+      slotted: true,
+    });
+    const verdicts = await this.#visibleVerdicts(
+      who,
+      await this.#verdictsOf(
+        who.tenant_id,
+        [...statements.values()].map((s) => s.claim),
+      ),
+      statements.values(),
+    );
+    for (const s of statements.values()) {
+      const slot = slotOf(s.claim);
+      if (slot) s.verdict = verdicts.get(slot);
+    }
+    const now = this.clock().toISOString();
+    const passages = found.map((f) => passageHit(f, f.spans, 0, { state: "fresh", as_of: now }));
+    const labels = new Map<string, SensitivityLabel>([
+      ...found.map((f): [string, SensitivityLabel] => [f.chunk.id, f.chunk.sensitivity]),
+      ...[...statements.values()].map((s): [string, SensitivityLabel] => [s.claim.id, s.claim.sensitivity]),
+    ]);
+    const replaced = await this.#replaced(passages, who);
+    const searched: Searched = {
+      hits: latestEditions(passages, replaced),
+      statements,
+      verdicts,
+      filter,
+      ...(query.filters && { filters: query.filters }),
+      labels,
+    };
+    const hits = passagesWithoutReplaced(searched);
+    await this.#addHeld(hits, searched, who);
+    const out = latestEditions(hits, replaced);
+    const tokens = out.reduce((n, h) => n + h.token_estimate, 0);
+    if (tokens > this.contextTokens) {
+      throw new ContextTooLong(
+        `${tokens} tokens in ${out.length} sources after governance, more than ${this.contextTokens}`,
+      );
+    }
+    return { hits: out, searched };
+  }
+
+  /** Every passage the asker may read in the spaces asked for, document by document in reading order. */
+  async #all(query: AnswerQuery, who: Principal): Promise<{ filter: IndexFilter; found: Found[] }> {
+    const filter = await this.#scope(who, query.space_ids);
+    const spaces = new Set(filter.space_ids);
+    const ids = spaces.size ? (await this.documents(who.tenant_id)).flatMap((d) => d.chunk_ids) : [];
+    // Every passage counts as found alike, so each statement it states counts as found.
+    const found = (
+      await this.#readable(
+        ids.map((id): [string, number] => [id, 0.01]),
+        who,
+      )
+    ).filter((f) => spaces.has(f.chunk.space_id) && allows(filter.max_sensitivity, f.chunk.sensitivity));
+    return { filter, found };
+  }
+
   async answer(q: AnswerQuery, who: Principal): Promise<GroundedAnswer> {
     const query = parseAs<AnswerQuery>("AnswerQuery", q);
     this.totals.answers++;
@@ -846,8 +969,13 @@ export class Retrieval implements Retriever {
     const pack = packFor(language);
     const { hits, searched } = await this.#sources(query, who);
     const refOf = new Map(hits.map((h, i) => [h.unit_id, String(i + 1)]));
+    const versions = await this.#versions(
+      hits.flatMap((h) => (h.kind === "chunk" ? h.citations.slice(0, 1).map((c) => c.source_version_id) : [])),
+    );
     const sources: AnswerSource[] = hits.map((h, i) => {
       const held = h.held_unit_id && refOf.get(h.held_unit_id);
+      const version = h.kind === "chunk" ? versions.get(h.citations[0]?.source_version_id ?? "") : undefined;
+      const changed = version?.version.modified_at?.slice(0, 10);
       return {
         ref: String(i + 1),
         kind: h.kind === "claim" ? "statement" : "passage",
@@ -855,6 +983,8 @@ export class Retrieval implements Retriever {
         text: h.kind === "claim" ? h.snippet : h.citations.map((c) => c.quote).join("\n"),
         ...(h.standing && { standing: h.standing }),
         ...(held && { held_ref: held }),
+        ...(version && { level: version.governance_level ?? "governed" }),
+        ...(changed && { changed }),
       };
     });
     const now = this.clock().toISOString();
@@ -1052,13 +1182,13 @@ export class Retrieval implements Retriever {
 
 const documentOf = (v: { source_id: string; external_id: string }) => `${v.source_id}:${v.external_id}`;
 
-/** The first ANSWER_SOURCES hits of each kind, in order: a statement never takes a passage's place. */
-function bestOfEachKind(hits: readonly SearchHit[]): SearchHit[] {
+/** The first n hits of each kind, in order: a statement never takes a passage's place. */
+function bestOfEachKind(hits: readonly SearchHit[], n = ANSWER_SOURCES): SearchHit[] {
   const taken = new Map<string, number>();
   return hits.filter((h) => {
-    const n = taken.get(h.kind) ?? 0;
-    taken.set(h.kind, n + 1);
-    return n < ANSWER_SOURCES;
+    const k = taken.get(h.kind) ?? 0;
+    taken.set(h.kind, k + 1);
+    return k < n;
   });
 }
 

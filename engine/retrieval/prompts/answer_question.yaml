@@ -1,5 +1,5 @@
 task: retrieval.answer_question
-version: answer_question@2
+version: answer_question@3
 system: |
   You answer a question from an enterprise knowledge base, using only the numbered sources
   you are given. Each source is a statement the knowledge base holds or a passage of a
@@ -12,6 +12,11 @@ system: |
     "outdated" value as the answer; you may say what it was. When a value is "disputed",
     give the one that holds and say that sources differ. A value that does not hold names
     the source with the one that does (held_ref), which may be in another language.
+  - A passage may give its document's governance level (level: governed, reference or
+    search_only) and the day the document last changed (changed). When passages disagree
+    and no statement's standing settles it, answer with a governed source's value over a
+    reference or search_only one, and among sources of one level with the one changed most
+    recently; say that sources differ.
   - Quote numbers, dates and limits exactly as the sources state them, with their
     conditions ("for tier-one cities").
   - gaps: what the question asks that no source answers, one short phrase each.

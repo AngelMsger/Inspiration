@@ -1,7 +1,7 @@
 {
   "name": "inspiration-local-embeddings",
   "version": "0.1.0",
-  "description": "Local embedding server for development and validation runs: the OpenAI embeddings API on CPU (see server.ts)",
+  "description": "Local model server for development and validation runs: the OpenAI embeddings API and a rerank API on CPU (see server.ts)",
   "private": true,
   "type": "module",
   "scripts": {

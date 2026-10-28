@@ -1,9 +1,21 @@
 // Retrieval against the in-memory doubles and Postgres (pgvector, pg_search).
 
 import { GatewayException, type SlotVerdict } from "@inspiration/contracts";
+import { languageOf } from "@inspiration/kernel";
 import { testData } from "@inspiration/testkit";
 import { describe, expect, vi } from "vitest";
-import { ContextTooLong, chunk, MAX_TOKENS } from "../src/index.ts";
+import {
+  ANSWER_SOURCES,
+  ANSWER_TASK,
+  type AnswerInput,
+  ContextTooLong,
+  chunk,
+  inputOf,
+  MATURE_SOURCES,
+  MAX_TOKENS,
+  TRANSLATE_TASK,
+  type TranslateInput,
+} from "../src/index.ts";
 import { ALICE, BACKENDS, BOB, CAROL, cap, EMPTY_SPACE, HOTEL, retrievalTest, SPACE, TENANT } from "./fixtures.ts";
 
 interface Cases {
@@ -325,10 +337,13 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       expect(await world.retrieval.documents(TENANT)).toMatchObject([{ deleted: true, chunk_ids: [] }]);
     });
 
-    test("the rivals: plain retrieval reads passages alone, and long context every readable document", async ({
+    test("the rivals: a mature retrieval reads passages alone, and long context every readable document", async ({
       world,
     }) => {
-      const policy = await world.document("travel.md", POLICY, { title: "Travel policy" });
+      const policy = await world.document("travel.md", POLICY, {
+        title: "Travel policy",
+        modified: "2026-09-13T08:00:00Z",
+      });
       await world.document("salaries.md", [{ id: "p1", text: "Grade 7 salaries start at 30,000 yuan a month." }], {
         title: "Salary bands",
         sensitivity: "confidential",
@@ -344,12 +359,17 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       const question = { question: "What is the hotel cap a night in tier-1 cities?" };
 
       expect((await world.retrieval.sources(question, ALICE)).map((h) => h.unit_id)).toContain(held.id);
-      const passages = await world.baseline("passages").sources(question, ALICE);
+      const passages = await world.baseline("mature").sources(question, ALICE);
       expect(passages.length).toBeGreaterThan(0);
       expect(passages.every((h) => h.kind === "chunk")).toBe(true);
-      const plain = await world.baseline("passages").answer(question, ALICE);
-      expect(plain.answer).toContain("650");
-      expect(plain.used_unit_ids).not.toContain(held.id);
+      const complete = vi.spyOn(world.gateway, "complete");
+      const mature = await world.baseline("mature").answer(question, ALICE);
+      expect(mature.answer).toContain("650");
+      expect(mature.used_unit_ids).not.toContain(held.id);
+      // Each passage names its document's level and the day it last changed, to weigh sources that disagree.
+      const asked = complete.mock.calls.find(([req]) => req.task === ANSWER_TASK)?.[0];
+      const input = inputOf<AnswerInput>(asked?.messages.map((m) => m.content).join("\n") ?? "");
+      expect(input?.sources[0]).toMatchObject({ kind: "passage", level: "governed", changed: "2026-09-13" });
 
       // Every passage of the travel policy, in reading order; the salaries are not Alice's to read.
       const everything = await world.baseline("long_context").sources(question, ALICE);
@@ -361,7 +381,7 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       );
 
       // Both baselines read only the spaces asked for: here one Alice reads with nothing in it.
-      for (const kind of ["passages", "long_context"] as const) {
+      for (const kind of ["mature", "long_context"] as const) {
         const scoped = (space: string) => world.baseline(kind).sources({ ...question, space_ids: [space] }, ALICE);
         expect(await scoped(EMPTY_SPACE), kind).toEqual([]);
         expect((await scoped(SPACE)).length, kind).toBeGreaterThan(0);
@@ -372,6 +392,80 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       await expect(
         world.baseline("long_context", { contextTokens: 5 }).answer({ ...question, space_ids: [EMPTY_SPACE] }, ALICE),
       ).resolves.toMatchObject({ citations: [], confidence: 0 });
+    });
+
+    test("the mature rival reads more passages than the knowledge base, which reads statements beside them", async ({
+      world,
+    }) => {
+      for (let i = 0; i < 24; i++) {
+        await world.document(`notes/${i}.md`, [{ id: "p1", text: `Note ${i} on hotels in tier-1 cities.` }]);
+      }
+      const question = { question: "What do the notes say about hotels in tier-1 cities?" };
+      expect(await world.baseline("mature").sources(question, ALICE)).toHaveLength(MATURE_SOURCES);
+      const own = await world.retrieval.sources(question, ALICE);
+      expect(own.filter((h) => h.kind === "chunk")).toHaveLength(ANSWER_SOURCES);
+    });
+
+    test("a question that cannot be translated is searched alone", async ({ world }) => {
+      await world.document("travel.md", POLICY, { title: "Travel policy" });
+      const question = "What is the hotel cap a night in tier-1 cities?";
+      const complete = vi.spyOn(world.gateway, "complete");
+      complete.mockRejectedValue(new GatewayException("provider_error", "all 1 candidates failed"));
+      const before = world.retrieval.totals.untranslated;
+      const { hits } = await world.retrieval.search({ text: question, kinds: ["chunk"] }, ALICE);
+      expect(hits[0]?.snippet).toContain("650 yuan");
+      expect(world.retrieval.totals.untranslated).toBe(before + 1);
+    });
+
+    test("governed long context reads every latest edition, without what no longer holds, the value that holds beside it", async ({
+      world,
+    }) => {
+      const before = await world.document("travel-2024.md", POLICY, {
+        title: "Travel policy",
+        modified: "2024-02-08T00:00:00Z",
+      });
+      const policy = await world.document("travel.md", POLICY, {
+        title: "Travel policy",
+        modified: "2026-09-13T00:00:00Z",
+        editions: [before],
+      });
+      const handbook = await world.document(
+        "handbook.md",
+        [{ id: "p1", text: "Hotels in tier-1 cities cost at most 600 yuan a night." }],
+        { title: "Old handbook", level: "reference", authority: 0.5 },
+      );
+      const held = await world.claim(
+        "Hotels in tier-1 cities cost at most 650 yuan a night.",
+        policy.spansOf("p1")[0] as never,
+        { ...cap(650), quote: "Hotels in tier-1 cities cost at most 650 yuan a night." },
+      );
+      const old = await world.claim(
+        "Hotels in tier-1 cities cost at most 600 yuan a night.",
+        handbook.spansOf("p1")[0] as never,
+        cap(600),
+      );
+      world.verdicts.set(
+        HOTEL,
+        verdict({ value: "650 CNY/night", claim: held.id }, { value: "600 CNY/night", claim: old.id }),
+      );
+      const question = { question: "What is the hotel cap a night in tier-1 cities?" };
+      const all = world.knowledgeBase({ readAll: true });
+
+      const hits = await all.sources(question, ALICE);
+      const versions = new Set(hits.flatMap((h) => h.citations.map((c) => c.source_version_id)));
+      // The replaced edition and the handbook's only, outdated sentence are left out.
+      expect(versions.has(before.version.id)).toBe(false);
+      const passages = hits.filter((h) => h.kind === "chunk");
+      expect(passages.flatMap((h) => h.citations.map((c) => c.quote))).toEqual(policy.spans.map((s) => s.text));
+      // The outdated value is marked, with the value that holds beside it.
+      expect(hits.filter((h) => h.kind === "claim").map((h) => [h.unit_id, h.standing])).toEqual([
+        [old.id, "outdated"],
+        [held.id, "holds"],
+      ]);
+      expect((await all.answer(question, ALICE)).answer).toContain("650");
+      await expect(world.knowledgeBase({ readAll: true, contextTokens: 5 }).answer(question, ALICE)).rejects.toThrow(
+        ContextTooLong,
+      );
     });
 
     test("an answer reads the latest edition the asker can read, and an older one is left out", async ({ world }) => {
@@ -398,8 +492,8 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       expect(answer.answer).not.toContain("2027");
       expect(answer.used_unit_ids).not.toContain(said.id);
       expect(new Set(answer.citations.map((c) => c.source_version_id))).toEqual(new Set([current.version.id]));
-      // Plain retrieval knows nothing of editions.
-      const plain = await world.baseline("passages").sources(question, ALICE);
+      // A rival knows nothing of editions.
+      const plain = await world.baseline("mature").sources(question, ALICE);
       expect(plain.flatMap((h) => h.citations.map((c) => c.source_version_id))).toContain(old.version.id);
       // Bob cannot read the latest edition, so for him the older one is the latest he has.
       expect((await world.retrieval.answer(question, BOB)).answer).toContain("2027");
@@ -471,6 +565,44 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
         expect(JSON.stringify(answer)).not.toMatch(new RegExp(`\\b650\\b|${held.id}`));
         expect(answer.notes).toBeUndefined();
         expect((await world.retrieval.answer({ question: c.question }, ALICE)).answer).toContain("650");
+      });
+
+      test("a question finds documents in another language through its translations", async ({ world }) => {
+        const { answers: c } = cases;
+        const original = LANGUAGES[0]?.cases.answers as Cases["answers"];
+        await world.document("policy.md", [{ id: "p1", text: original.policy }], { title: "Policy" });
+        for (let i = 0; i < 12; i++) {
+          await world.document(`notes/${i}.md`, [{ id: "p1", text: `Note ${i} on the office plants.` }]);
+        }
+        const complete = vi.spyOn(world.gateway, "complete");
+        complete.mockImplementation(async (req) => {
+          const input = inputOf<TranslateInput>(req.messages.map((m) => m.content).join("\n"));
+          const translations = (input?.languages ?? []).map((language) => ({
+            language,
+            text: LANGUAGES.find((l) => l.tag === language)?.cases.answers.question ?? "",
+          }));
+          return {
+            request_id: "req_01JC000000000000000000000001",
+            text: JSON.stringify({ translations }),
+            json: { translations },
+            provider: "fake",
+            model: "fake-chat",
+            finish_reason: "stop",
+            usage: { input_tokens: 1, output_tokens: 1 },
+            cost: { amount: 0, currency: "USD" },
+            cached: false,
+            latency_ms: 1,
+          };
+        });
+        const { hits } = await world.retrieval.search({ text: c.question, kinds: ["chunk"] }, ALICE);
+        expect(hits[0]?.title).toBe("Policy");
+        const asked = complete.mock.calls.find(([req]) => req.task === TRANSLATE_TASK)?.[0];
+        const input = inputOf<TranslateInput>(asked?.messages.map((m) => m.content).join("\n") ?? "");
+        expect(input?.languages).toEqual(
+          LANGUAGES.map((l) => l.tag)
+            .filter((t) => t !== languageOf(c.question))
+            .sort(),
+        );
       });
 
       test("a translation behind its original answers with the original's value", async ({ world }) => {

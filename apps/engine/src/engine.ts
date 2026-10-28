@@ -58,7 +58,7 @@ export interface EngineOptions {
   clock?: () => Date;
   /** The permission graph; in memory unless given (a SpiceDBGraph in a deployment). */
   graph?: Graph;
-  /** The most the long-context rival reads for one answer, in tokens; LONG_CONTEXT_TOKENS unless given. */
+  /** The most a long-context answer reads, raw or governed, in tokens; LONG_CONTEXT_TOKENS unless given. */
   contextTokens?: number;
 }
 
@@ -88,10 +88,13 @@ export class Engine {
   readonly authz: AuthzService;
   readonly retrieval: Retrieval;
   /**
-   * The rivals answers are measured against, over the same documents and model: plain
-   * retrieval over the same chunks, and a model that reads every document (small corpora).
+   * The rivals answers are measured against, over the same documents and model: a mature
+   * retrieval over the same chunks and search, without statements or governance, and a model
+   * that reads every document (corpora that fit).
    */
-  readonly baselines: { passages: Retrieval; long_context: Retrieval };
+  readonly baselines: { mature: Retrieval; long_context: Retrieval };
+  /** The knowledge base answering from everything the asker may read, after governance (corpora that fit). */
+  readonly governedLongContext: Retrieval;
   readonly consumer: Consumer;
   readonly transport: Transport;
   readonly #relay: OutboxRelay | undefined;
@@ -155,15 +158,14 @@ export class Engine {
       keywords: memory ? new MemoryKeywordIndex(memory) : new PgSearchIndex(parts.pool as Pool),
       ...clock,
     };
-    this.retrieval = new Retrieval({ ...indexes, verdicts: this.governance, staleness: this.freshness });
+    const governed = { ...indexes, verdicts: this.governance, staleness: this.freshness };
+    const context = parts.contextTokens && { contextTokens: parts.contextTokens };
+    this.retrieval = new Retrieval(governed);
     this.baselines = {
-      passages: new Retrieval({ ...indexes, baseline: "passages" }),
-      long_context: new Retrieval({
-        ...indexes,
-        baseline: "long_context",
-        ...(parts.contextTokens && { contextTokens: parts.contextTokens }),
-      }),
+      mature: new Retrieval({ ...indexes, baseline: "mature" }),
+      long_context: new Retrieval({ ...indexes, baseline: "long_context", ...context }),
     };
+    this.governedLongContext = new Retrieval({ ...governed, readAll: true, ...context });
     const components: Running[] = [
       { group: "source-sync", handlers: () => this.sync.handlers() },
       { group: "normalization", handlers: () => this.normalization.handlers() },

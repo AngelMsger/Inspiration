@@ -1,5 +1,5 @@
 /**
- * Stand-ins for a model on retrieval's two tasks, registered as model_mocks plugins so the
+ * Stand-ins for a model on retrieval's three tasks, registered as model_mocks plugins so the
  * fake provider answers them deterministically.
  *
  * retrieval.write_context names the document and the headings above each part ("Travel
@@ -15,12 +15,22 @@
  * answer in the question's language, combines sources and reads what a sentence leaves to
  * the next ("the following thresholds:"); the stand-in only shows which sources an answer
  * would rest on.
+ *
+ * retrieval.translate_question translates nothing, so search runs on the question alone, as
+ * it does when no model can translate it.
  */
 
 import type { ChatMessage } from "@inspiration/contracts";
 import { languageOf } from "@inspiration/kernel";
 import type { MockResponder } from "@inspiration/model-gateway";
-import { type AnswerInput, type AnswerOutput, type ContextInput, type ContextOutput, inputOf } from "./protocol.ts";
+import {
+  type AnswerInput,
+  type AnswerOutput,
+  type ContextInput,
+  type ContextOutput,
+  inputOf,
+  type TranslateOutput,
+} from "./protocol.ts";
 import { fill, overlap, packFor, terms } from "./text.ts";
 
 const textOf = (messages: readonly ChatMessage[]) => messages.map((m) => m.content).join("\n");
@@ -79,3 +89,6 @@ export const mockAnswerQuestion: MockResponder = (messages) => {
   };
   return JSON.stringify(output);
 };
+
+export const mockTranslateQuestion: MockResponder = () =>
+  JSON.stringify({ translations: [] } satisfies TranslateOutput);

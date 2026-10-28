@@ -1,5 +1,5 @@
 # Model gateway config for measuring search at no cost over the replies of an earlier real run
-# (pnpm bench cache import). Start the local embedding server (infra/local-embeddings), set
+# (pnpm bench cache import). Start the local model server (infra/local-embeddings), set
 # DEEPSEEK_SEARCH_ONLY_KEY to anything but a key, and run
 #
 #   pnpm bench ingest <corpus> --gateway config/gateway.local-embeddings.yaml --stack --search-only
@@ -41,6 +41,18 @@ providers:
         dimensions: 1024
         query_instruction: Given a question, retrieve passages that answer it
 
+  # The reranker, on the same local server. Its scores are cached per question and text, so a
+  # rerun reranks nothing again.
+  - name: reranker
+    kind: openai_compatible
+    base_url: http://127.0.0.1:8090/v1
+    max_sensitivity: secret
+    timeout_s: 900
+    max_retries: 2
+    models:
+      - name: bge-reranker-v2-m3
+        operations: [rerank]
+
   - name: local
     kind: fake
     max_sensitivity: secret
@@ -56,6 +68,11 @@ routes:
   - match: "page-compiler.name_topics"
     prefer: [local/fake-local-chat]
     only: true
+  # A model would charge for translating each question, so the stand-in translates none, and
+  # search runs on the question alone.
+  - match: "retrieval.translate_question"
+    prefer: [local/fake-local-chat]
+    only: true
   - match: "*"
     prefer: [deepseek/deepseek-flash]
     only: true
@@ -69,4 +86,4 @@ budgets:
 cache:
   backend: valkey
   ttl_s: 2592000
-  operations: [complete, embed]
+  operations: [complete, embed, rerank]

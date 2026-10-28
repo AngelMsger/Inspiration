@@ -4,15 +4,15 @@ A company's documents as they are found in practice, built only from real public
 measuring whether the engine answers with what is in force when older copies, older
 revisions and lagging translations sit beside the current documents. 150 questions, a third
 each in English, Chinese and Japanese, are put to the engine and to two rivals over the same
-documents and model: plain retrieval over the same chunks, and a model that reads every
-document. A Chinese copy is in [README.zh.md](README.zh.md); if the two differ, this English
-version wins.
+documents and model: a mature RAG over the same chunks and search, and a model that reads
+every document; and to the engine reading every document after governance. A Chinese copy is
+in [README.zh.md](README.zh.md); if the two differ, this English version wins.
 
 ```bash
 pnpm bench ingest examples/company-drive --today 2026-10-27 --context 1000000   # in memory, about 50 seconds
 ```
 
-`--context` gives the long-context rival a window of a million tokens: the drive is 311,106
+`--context` gives both long contexts a window of a million tokens: the drive is 311,106
 tokens, more than the default 150,000. `apps/bench/test/company-drive.test.ts` checks every
 key entry against its file and holds the run to the numbers below.
 
@@ -98,25 +98,30 @@ Stand-ins answer every model task, so these numbers measure the pipeline, not mo
 The answer is given each passage it reads whole, where a search hit shows only a snippet, so
 the stand-in quotes more of each passage, older values included.
 
-| Questions | Engine right, stale | Plain retrieval | Reading everything |
-| --- | --- | --- | --- |
-| All 150 | 47, 6 | 42, 7 | 49, 8 |
-| Unchanged, 69 | 30, 0 | 30, 0 | 34, 0 |
-| Changed, 66 | 15, 6 | 10, 6 | 13, 6 |
-| Not answered by the drive, 15 | 2, 0 | 2, 1 | 2, 2 |
-| In English, 50 | 28, 4 | 24, 6 | 31, 7 |
-| In Chinese, 50 | 13, 1 | 11, 0 | 10, 0 |
-| In Japanese, 50 | 6, 1 | 7, 1 | 8, 1 |
+| Questions | Engine right, stale | Mature RAG | Reading everything | Reading everything after governance |
+| --- | --- | --- | --- | --- |
+| All 150 | 47, 6 | 44, 7 | 49, 8 | 48, 5 |
+| Unchanged, 69 | 30, 0 | 32, 0 | 34, 0 | 30, 0 |
+| Changed, 66 | 15, 6 | 10, 6 | 13, 6 | 16, 5 |
+| Not answered by the drive, 15 | 2, 0 | 2, 1 | 2, 2 | 2, 0 |
+| In English, 50 | 28, 4 | 25, 6 | 31, 7 | 29, 3 |
+| In Chinese, 50 | 13, 1 | 11, 0 | 10, 0 | 12, 1 |
+| In Japanese, 50 | 6, 1 | 8, 1 | 8, 1 | 7, 1 |
 
+- The mature RAG reads 16 passages where the engine reads 8 beside its statements, and is
+  told each passage's level and date, which the stand-in answer does not weigh. Reading
+  everything after governance leaves out the replaced editions and the sentences that state
+  only replaced values, and marks those values beside the ones that hold.
 - In English, where the stand-ins can read the documents, the engine answers 10 of 22
-  questions on changed facts right and 4 stale, plain retrieval 8 and 5, the model reading
-  everything 11 and 5; on unchanged facts 18, 16 and 20 of 23.
+  questions on changed facts right and 4 stale, the mature RAG 8 and 5, the model reading
+  everything 11 and 5, and reading it after governance 10 and 3; on unchanged facts 18, 17,
+  20 and 19 of 23.
 - The engine answers from the latest edition of a document. Normalization pairs the
   documents that are editions of one text: the policy and its backup, the three copies on
   the drive, which share a fifth to two fifths of their sentences under the title they kept
   (Expenses), and the two revisions of each article. The 2021 download is an older edition
   of the copies saved since, so its "within 30 days" and its monitor caps, which left the
-  policy that December, no longer answer; plain retrieval and the model reading everything
+  policy that December, no longer answer; the mature RAG and the model reading everything
   still give both.
 - Governance settles the rest without a person: the policy's 90 days and $120 hold over the
   backup and the copies.

@@ -26,7 +26,7 @@ const KUBERNETES = fileURLToPath(new URL("../../../examples/kubernetes-docs/", i
  * English page to raise its node limit, the translations would fall behind: the original's
  * new value holds without a person, freshness asks for both translations to be brought up
  * to date, and a question in Chinese gets the new value, with a note that its page is behind,
- * where plain retrieval over the same chunks still gives the old one.
+ * where the mature RAG over the same chunks still gives the old one.
  */
 async function check(stack?: { databaseUrl: string; streamPrefix: string }): Promise<void> {
   const work = await mkdtemp(join(tmpdir(), "inspiration-kubernetes-"));
@@ -59,7 +59,16 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
     const asked = await questionsReport(engine, corpus, questions);
     for (const q of asked.questions) expect(q.outcome, q.question).toBe(q.expected);
     const score = (right: number) => ({ right, stale: 0 });
-    expect(asked.totals).toEqual({
+    const { latency, ...totals } = asked.totals;
+    expect(Object.keys(latency).sort()).toEqual(["engine", "governed_long_context", "long_context", "mature"]);
+    // Right answers of the engine, the mature RAG, reading everything, and reading it after governance.
+    const paths = (engine: number, mature: number, raw: number, governed: number) => ({
+      engine: score(engine),
+      mature: score(mature),
+      long_context: score(raw),
+      governed_long_context: score(governed),
+    });
+    expect(totals).toEqual({
       questions: 12,
       right: 9,
       stale: 0,
@@ -67,20 +76,20 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
       cited_right: 12,
       found: 11,
       notes: 3,
-      baselines: { passages: 8, long_context: 8 },
+      baselines: { mature: 8, long_context: 8, governed_long_context: 8 },
       by_kind: {
-        unchanged: { questions: 11, engine: score(8), passages: score(7), long_context: score(7) },
-        not_stated: { questions: 1, engine: score(1), passages: score(1), long_context: score(1) },
+        unchanged: { questions: 11, ...paths(8, 7, 7, 7) },
+        not_stated: { questions: 1, ...paths(1, 1, 1, 1) },
       },
       by_language: {
-        en: { questions: 8, engine: score(7), passages: score(6), long_context: score(7) },
-        ja: { questions: 2, engine: score(0), passages: score(0), long_context: score(0) },
-        zh: { questions: 2, engine: score(2), passages: score(2), long_context: score(1) },
+        en: { questions: 8, ...paths(7, 6, 7, 7) },
+        ja: { questions: 2, ...paths(0, 0, 0, 0) },
+        zh: { questions: 2, ...paths(2, 2, 1, 1) },
       },
     });
     // Search alone, as --search-only runs it, with no answers.
     const searched = await searchReport(engine, corpus, questions);
-    expect(searched.totals).toMatchObject({ questions: 11, found: 11, found_whole: 11, found_by_passages: 11 });
+    expect(searched.totals).toMatchObject({ questions: 11, found: 11, found_whole: 11, found_by_mature: 11 });
     expect(searched.totals.within).toEqual({ 8: 10, 16: 11, 30: 11, 60: 11, 100: 11 });
     expect(searched.totals.within_documents).toEqual({ 1: 10, 3: 11, 5: 11, 10: 11, 20: 11 });
 
@@ -107,10 +116,11 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
     expect(answer.answer).toContain("6,000");
     expect(answer.answer).not.toContain("5,000");
     expect(answer.notes?.find((n) => n.kind === "outdated")?.text).toContain("5000 node");
-    // Plain retrieval over the same chunks still answers with the translation's old value.
-    const plain = await engine.baselines.passages.answer({ question: limit.question }, corpus.reader);
-    expect(plain.answer).toContain("5,000");
-    expect(plain.answer).not.toContain("6,000");
+    // The mature RAG over the same chunks still answers with the translation's old value: the
+    // stand-in answer does not weigh the documents' dates, as a model told to would.
+    const mature = await engine.baselines.mature.answer({ question: limit.question }, corpus.reader);
+    expect(mature.answer).toContain("5,000");
+    expect(mature.answer).not.toContain("6,000");
   } finally {
     await engine.close();
     await rm(work, { recursive: true, force: true });
