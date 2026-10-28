@@ -14,8 +14,11 @@ import {
   HttpModelGateway,
   loadGatewayConfig,
   MemoryCache,
+  MemoryUsage,
+  OpenAICompatibleProvider,
   Prompt,
   PromptRegistry,
+  type ProviderConfig,
   parseGatewayConfig,
   periodStart,
   preferredModels,
@@ -137,6 +140,52 @@ describe("config", () => {
     expect(refs("embed")).toEqual(["embeddings/qwen3-embedding-0.6b"]);
     expect(refs("rerank")).toEqual(["reranker/bge-reranker-v2-m3"]);
   });
+
+  test.each([401, 429, 503, "transport"] as const)(
+    "the search-only config replays saved replies and refuses the rest before the network (DeepSeek would give %s)",
+    async (outcome) => {
+      process.env.DEEPSEEK_SEARCH_ONLY_KEY = "not-a-key";
+      try {
+        const config = loadGatewayConfig(SEARCH_ONLY_CONFIG);
+        let sent = 0;
+        const fetch = async () => {
+          sent++;
+          if (outcome === "transport") throw new TypeError("fetch failed");
+          return new Response("{}", { status: outcome });
+        };
+        const deepseek = config.providers.find((p) => p.name === "deepseek") as ProviderConfig;
+        const providers = {
+          ...Object.fromEntries(config.providers.map((p) => [p.name, new FakeProvider(p)])),
+          deepseek: new OpenAICompatibleProvider(deepseek, undefined, {
+            fetch: fetch as typeof globalThis.fetch,
+            backoffMs: () => 0,
+          }),
+        };
+        const cache = new MemoryCache(10);
+        const usage = new MemoryUsage();
+        const gateway = new Gateway(config, { providers, cache, usage });
+        const saved = completionRequest("a window an earlier run read");
+        const [candidate] = gateway.candidates("complete", saved.sensitivity, { task: saved.task });
+        const key = candidate && gateway.cacheKey(candidate, saved);
+        const reply = { text: "saved reply", finish_reason: "stop", provider: "deepseek", model: "deepseek-flash" };
+        await cache.set(key as string, JSON.stringify(reply));
+        expect((await gateway.complete(saved)).text).toBe("saved reply");
+        await expect(gateway.complete(completionRequest("a window no run read"))).rejects.toMatchObject({
+          code: "cache_miss",
+        });
+        const named = await gateway.complete(completionRequest("topics", { task: "page-compiler.name_topics" }));
+        expect(named.provider).toBe("local");
+        expect(sent).toBe(0);
+        expect(usage.records.map((r) => [r.task, r.provider, r.status])).toEqual([
+          ["extraction.extract_claims", "deepseek", "cached"],
+          ["extraction.extract_claims", "deepseek", "cache_miss"],
+          ["page-compiler.name_topics", "local", "ok"],
+        ]);
+      } finally {
+        delete process.env.DEEPSEEK_SEARCH_ONLY_KEY;
+      }
+    },
+  );
 
   test("a dry run of the DeepSeek config prices stand-in replies, served from a prefix cache, and shares no cache", async () => {
     const config = loadGatewayConfig(DEEPSEEK_CONFIG);
