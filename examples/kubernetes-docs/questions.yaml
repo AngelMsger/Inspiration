@@ -23,11 +23,11 @@ questions:
     answer: ["110"]
     cites: [docs/setup/best-practices/cluster-large]
     engine:
-      outcome: wrong
-      why: '"At most" and "no more than" share no word. "No more than 110 pods per node" is
-        among the answer''s sources and shares pod and node with the question; the sentences
-        on static Pods that run on a node share three of its four words, and the stand-in
-        answer writes three of those (the stand-in).'
+      outcome: wrong_answer
+      why: '"At most" and "no more than" share no word. The answer reads the page whole and
+        cites it, "No more than 110 pods per node" among its sentences, but sentences on Pods
+        that run on nodes share more of the question''s words, and the stand-in answer writes
+        those (the stand-in).'
   - question: How many minor versions older than kube-apiserver may the kubelet be?
     answer: ["three minor versions", "3"]
     cites: [docs/releases/version-skew-policy]
@@ -46,13 +46,6 @@ questions:
   - question: What is the default hard eviction threshold for nodefs.available?
     answer: ["nodefs.available<10%", "10%"]
     cites: [docs/concepts/scheduling-eviction/node-pressure-eviction]
-    engine:
-      outcome: wrong_answer
-      why: 'The page lists the thresholds under "The kubelet has the following default hard
-        eviction thresholds:". The lead-in shares four of the question''s five words and the
-        item "nodefs.available<10%" one, so the stand-in answer writes the lead-in, where a
-        model reads the item under it; the item is among the answer''s sources (the
-        stand-in).'
   - question: imagefs.available のデフォルトのハード退避しきい値は？
     answer: ["imagefs.available<15%", "15%"]
     cites: [docs/concepts/scheduling-eviction/node-pressure-eviction]

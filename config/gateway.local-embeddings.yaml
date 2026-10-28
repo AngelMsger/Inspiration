@@ -1,0 +1,66 @@
+# Model gateway config for measuring search at no cost over the replies of an earlier real run
+# (pnpm bench cache import). Start the local embedding server (infra/local-embeddings), set
+# DEEPSEEK_SEARCH_ONLY_KEY to anything but a key, and run
+#
+#   pnpm bench ingest <corpus> --gateway config/gateway.local-embeddings.yaml --stack --search-only
+#
+# DeepSeek is listed so that completions find the replies they had: the same provider, model and
+# request options as config/gateway.deepseek.yaml. A completion with no saved reply goes to
+# DeepSeek with that non-key and fails, so the run never pays. Topics are clustered by vector, so
+# new vectors make topics whose names were never paid for: the stand-in names them, and search
+# does not read topic names.
+currency: USD
+
+providers:
+  - name: deepseek
+    kind: openai_compatible
+    base_url: https://api.deepseek.com/v1
+    api_key_env: DEEPSEEK_SEARCH_ONLY_KEY
+    max_sensitivity: internal
+    timeout_s: 300
+    max_retries: 0
+    models:
+      - name: deepseek-flash
+        operations: [complete]
+        tiers: [flash, standard, flagship]
+        json_schema: false
+        request: {thinking: {type: disabled}}
+        price: {input: 0.30, output: 1.20, cached_input: 0.006}
+
+  - name: embeddings
+    kind: openai_compatible
+    base_url: http://127.0.0.1:8090/v1
+    max_sensitivity: secret
+    timeout_s: 900
+    max_retries: 0
+    models:
+      - name: qwen3-embedding-0.6b
+        operations: [embed]
+        dimensions: 1024
+        query_instruction: Given a question, retrieve passages that answer it
+
+  - name: local
+    kind: fake
+    max_sensitivity: secret
+    options: {mocks: true}
+    models:
+      - name: fake-local-chat
+        operations: [complete]
+        tiers: [flash, standard, flagship]
+        json_schema: true
+      - {name: fake-ocr, operations: [ocr]}
+
+routes:
+  - match: "page-compiler.name_topics"
+    prefer: [local/fake-local-chat]
+
+budgets:
+  - match: "*"
+    period: day
+    limit: 0.01
+    pooled: true
+
+cache:
+  backend: valkey
+  ttl_s: 2592000
+  operations: [complete, embed]

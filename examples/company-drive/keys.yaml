@@ -540,7 +540,7 @@ facts:
     values:
       - from: 1964-10-01
         value: "1964-10-01"
-        texts: ["1 October 1964", "October 1, 1964", "1964年10月1日", "1964-10-01"]
+        texts: ["1 October 1964", "October 1, 1964", "1964年10月1日", "1964年（昭和39年）10月1日", "1964-10-01"]
         stated:
           - file: drive/research/en/shinkansen-2024.html
             revision: "1252821730"
@@ -656,3 +656,6 @@ facts:
           - file: drive/research/en/shinkansen.html
             revision: "1379829340"
             quote: "it is not expected to open until at least 2034"
+          - file: drive/research/zh/shinkansen.html
+            revision: "94159827"
+            quote: "兴建中，预计2034年开业"

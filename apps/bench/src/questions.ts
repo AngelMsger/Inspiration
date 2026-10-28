@@ -32,7 +32,7 @@
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { type GroundedAnswer, schemaErrors, type UsageRecord } from "@inspiration/contracts";
+import { type GroundedAnswer, type SearchHit, schemaErrors, type UsageRecord } from "@inspiration/contracts";
 import type { Corpus, Engine } from "@inspiration/engine";
 import { languageOf } from "@inspiration/kernel";
 import { Gateway } from "@inspiration/model-gateway";
@@ -459,6 +459,173 @@ export async function questionsReport(
       },
     }),
   };
+}
+
+/** How deep search goes for --search-only: the most hits a search returns. */
+export const SEARCH_DEPTH = 100;
+/** The depths searchReport counts the first hit that states an expected text within. */
+export const DEPTHS = [8, 16, 30, 60, SEARCH_DEPTH] as const;
+/** The numbers of documents searchReport counts the first one that states it within. */
+export const DOCUMENT_DEPTHS = [1, 3, 5, 10, 20] as const;
+
+/** Where search put a question's answer, without asking any model to answer it. */
+export interface SearchResult {
+  question: string;
+  fact?: string;
+  kind: Kind;
+  language: Language;
+  /**
+   * Whether the hits the engine's answer reads state an expected text as the model is given
+   * them: a statement whole, a passage as its snippet. Null for a question with no answer.
+   */
+  found: boolean | null;
+  /** The same hits, with each passage read whole. */
+  found_whole: boolean | null;
+  /** Plain retrieval's hits as its model is given them. */
+  found_by_passages: boolean | null;
+  /** The place, from 1, of the first hit of one wide search that states it, read whole; null when none does. */
+  rank: number | null;
+  /** The place, from 1, of the first document of that search's hits, in their order, whose text states it. */
+  document_rank: number | null;
+}
+
+export interface SearchTally {
+  /** Questions with an answer. */
+  questions: number;
+  found: number;
+  found_whole: number;
+  found_by_passages: number;
+  /** Questions whose first hit with an expected text is within each of DEPTHS. */
+  within: Record<string, number>;
+  /** Questions whose first document with an expected text is within each of DOCUMENT_DEPTHS. */
+  within_documents: Record<string, number>;
+}
+
+export interface SearchReport {
+  questions: SearchResult[];
+  totals: SearchTally & {
+    by_kind: Partial<Record<Kind, SearchTally>>;
+    by_language: Partial<Record<Language, SearchTally>>;
+  };
+}
+
+/**
+ * The question check's search alone, for a change to search that should not pay for answers.
+ * For each question with an answer: whether the hits the engine's answer reads state an
+ * expected text as its model is given them (a passage as its snippet, which is what `found`
+ * checks in questionsReport), and with each passage read whole; the same for plain
+ * retrieval; how deep in one wide search the first hit stating it is; and how many documents
+ * of that search's hits, taken in order and read whole, come before one that states it, as
+ * for an answer that reads the documents search finds.
+ */
+export async function searchReport(
+  engine: Engine,
+  corpus: Corpus,
+  questions: readonly Question[],
+): Promise<SearchReport> {
+  const tenantId = corpus.reader.tenant_id;
+  const indexed = (await engine.retrieval.documents(tenantId)).filter((d) => !d.deleted);
+  const documentOf = new Map<string, string>();
+  const documentText = new Map<string, string>();
+  for (const d of indexed) {
+    const chunks = await engine.store.getChunks(d.chunk_ids);
+    for (const c of chunks) documentOf.set(c.id, d.document);
+    documentText.set(d.document, chunks.map((c) => c.text).join("\n"));
+  }
+  const passageText = new Map<string, string>();
+  const wholeText = async (hits: readonly SearchHit[]): Promise<string[]> => {
+    const missing = hits.filter((h) => h.kind === "chunk" && !passageText.has(h.unit_id)).map((h) => h.unit_id);
+    for (const c of missing.length ? await engine.store.getChunks(missing) : []) passageText.set(c.id, c.text);
+    return hits.map((h) => (h.kind === "chunk" ? (passageText.get(h.unit_id) ?? h.snippet) : h.snippet));
+  };
+  const versionDocument = async (h: SearchHit): Promise<string | undefined> => {
+    if (h.kind === "chunk") return documentOf.get(h.unit_id);
+    const id = h.citations[0]?.source_version_id;
+    const v = id ? await engine.store.getSourceVersion(id) : undefined;
+    return v && `${v.source_id}:${v.external_id}`;
+  };
+  const results: SearchResult[] = [];
+  for (const q of questions) {
+    const expected = q.answer;
+    const [sources, passages, wide] = await Promise.all([
+      engine.retrieval.sources({ question: q.question }, corpus.reader),
+      engine.baselines.passages.sources({ question: q.question }, corpus.reader),
+      engine.retrieval.search({ text: q.question, top_k: SEARCH_DEPTH, kinds: ["claim", "chunk"] }, corpus.reader),
+    ]);
+    const any = (texts: readonly string[]) => (expected ? texts.some((t) => says(t, expected)) : null);
+    const wideText = await wholeText(wide.hits);
+    const at = expected ? wideText.findIndex((t) => says(t, expected)) : -1;
+    let documentRank: number | null = null;
+    if (expected) {
+      const seen: string[] = [];
+      for (const h of wide.hits) {
+        const d = await versionDocument(h);
+        if (!d || seen.includes(d)) continue;
+        seen.push(d);
+        if (says(documentText.get(d) ?? "", expected)) {
+          documentRank = seen.length;
+          break;
+        }
+      }
+    }
+    results.push({
+      question: q.question,
+      ...(q.fact && { fact: q.fact }),
+      kind: q.kind,
+      language: languageOf(q.question),
+      found: any(sources.map((h) => h.snippet)),
+      found_whole: any(await wholeText(sources)),
+      found_by_passages: any(passages.map((h) => h.snippet)),
+      rank: at < 0 ? null : at + 1,
+      document_rank: documentRank,
+    });
+  }
+  const tally = (of: readonly SearchResult[]): SearchTally => {
+    const answered = of.filter((r) => r.found !== null);
+    const within = (depths: readonly number[], rank: (r: SearchResult) => number | null) =>
+      Object.fromEntries(
+        depths.map((d) => [String(d), answered.filter((r) => (rank(r) ?? Number.POSITIVE_INFINITY) <= d).length]),
+      );
+    return {
+      questions: answered.length,
+      found: answered.filter((r) => r.found).length,
+      found_whole: answered.filter((r) => r.found_whole).length,
+      found_by_passages: answered.filter((r) => r.found_by_passages).length,
+      within: within(DEPTHS, (r) => r.rank),
+      within_documents: within(DOCUMENT_DEPTHS, (r) => r.document_rank),
+    };
+  };
+  const by = <K extends string>(keyOf: (r: SearchResult) => K) => {
+    const out: Partial<Record<K, SearchTally>> = {};
+    for (const k of [...new Set(results.map(keyOf))].sort()) out[k] = tally(results.filter((r) => keyOf(r) === k));
+    return out;
+  };
+  return {
+    questions: results,
+    totals: { ...tally(results), by_kind: by((r) => r.kind), by_language: by((r) => r.language) },
+  };
+}
+
+export function searchLines(r: SearchReport): string[] {
+  const depths = (counts: Record<string, number>) =>
+    Object.entries(counts)
+      .map(([d, n]) => `${d}: ${n}`)
+      .join(", ");
+  const line = (name: string, t: SearchTally) => [
+    `  ${name}: ${t.questions} with an answer; the engine's answer is given it for ${t.found}, would be with whole passages for ${t.found_whole}; plain retrieval's for ${t.found_by_passages}`,
+    `    first hit stating it within ${depths(t.within)}; first document within ${depths(t.within_documents)}`,
+  ];
+  const lines = ["search only, no answers:", ...line("all", r.totals)];
+  for (const [k, t] of Object.entries(r.totals.by_kind)) lines.push(...line(k.replace("_", " "), t as SearchTally));
+  for (const [l, t] of Object.entries(r.totals.by_language)) lines.push(...line(`in ${l}`, t as SearchTally));
+  for (const q of r.questions) {
+    if (q.found === null) continue;
+    const mark = q.found ? "given" : q.found_whole ? "in passage" : "missed";
+    const where = q.rank === null ? `no hit in the first ${SEARCH_DEPTH}` : `first hit ${q.rank}`;
+    const document = q.document_rank === null ? "no document" : `document ${q.document_rank}`;
+    lines.push(`  ${mark.padEnd(10)} ${q.question} (${where}, ${document})`);
+  }
+  return lines;
 }
 
 function tallies<K extends string>(results: readonly QuestionResult[], keyOf: (r: QuestionResult) => K) {

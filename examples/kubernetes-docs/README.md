@@ -97,13 +97,14 @@ The questions ask for the facts followed, in English, Chinese and Japanese, plus
 nothing here answers. An answer is right when it contains an expected text and cites one of
 the expected pages, in any of its languages. With stand-ins for the models (an answer made
 of the source sentences sharing most of the question's words, and a reranker that counts
-shared words), 8 of the 12 are right. The check also says whether the search the answer rests
-on found an expected text at all: it did for 10 of the 11 questions with an answer, so most
-misses are the stand-in answer's, not the search's.
+shared words), 9 of the 12 are right. The check also says whether the search the answer rests
+on found an expected text at all: it did for all 11 questions with an answer, so the misses
+are the stand-in answer's, not the search's. The answer reads each passage it is given
+whole, so the item under a list's lead-in reaches it.
 
 Each question is also put to two rivals with the same documents and stand-in model: plain
 retrieval over the same chunks, without statements or governance, and a model that reads all
-15 pages at once (about 77,000 tokens by the engine's estimate). Both get 8 of the 12 right too. On pages that agree
+15 pages at once (about 77,000 tokens by the engine's estimate). Both get 8 of the 12 right. On pages that agree
 with each other the knowledge layer is not expected to win; it is expected to win when a
 fact changes, as below.
 
@@ -122,8 +123,6 @@ The misses, each recorded in `questions.yaml` with its reason:
 
 - **Different words for the same thing:** "at most" against "no more than", and the Japanese
   上限 (upper limit) against 最大 (maximum).
-- **A list under its lead-in:** "The kubelet has the following default hard eviction
-  thresholds:" shares more words with the question than the item "nodefs.available<10%".
 - **Kana and kanji:** the Japanese question writes しきい値 and the page 閾値.
 
 The same corpus is meant to run again once a real model is configured. Then the stand-in's

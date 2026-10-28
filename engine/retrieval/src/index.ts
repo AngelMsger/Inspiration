@@ -38,7 +38,9 @@
  * answer(query, principal) searches with the question and asks the model
  * (retrieval.answer_question) to answer from the best passages and, beside them, the best
  * statements only (ANSWER_SOURCES of each, so a statement never takes a passage's place),
- * every sentence citing them; passages are given sentence by sentence. A statement found
+ * every sentence citing them. A passage is given whole, sentence by sentence, where a search
+ * hit shows only its snippet: a snippet is picked by the words it shares with the question,
+ * so it misses the answer when the two are in different languages or say it differently. A statement found
  * whose value does not hold brings the statement of the one that does, which the model is
  * pointed to, in whatever language it is written, when it passes the question's filters,
  * with its own freshness. So does a passage's sentence that states

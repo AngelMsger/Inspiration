@@ -128,6 +128,7 @@ describe("config", () => {
     const dry = standIn(config);
     expect(dry.providers.map((p) => [p.name, p.kind, p.options.mocks])).toEqual([
       ["deepseek", "fake", true],
+      ["embeddings", "fake", true],
       ["local", "fake", true],
     ]);
     expect(dry.cache.backend).toBe("memory");

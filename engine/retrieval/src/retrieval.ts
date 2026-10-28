@@ -450,7 +450,8 @@ export class Retrieval implements Retriever {
     };
   }
 
-  async #search(query: SearchQuery, who: Principal): Promise<Searched> {
+  /** With whole, a passage hit quotes all its spans, as an answer reads it; else a snippet of them. */
+  async #search(query: SearchQuery, who: Principal, whole = false): Promise<Searched> {
     const topK = query.top_k ?? 10;
     const kinds = new Set(query.kinds?.length ? query.kinds : ["claim", "chunk"]);
     if (this.baseline) kinds.delete("claim");
@@ -484,7 +485,9 @@ export class Retrieval implements Retriever {
 
     // The reranker orders statements and passages together.
     const passages = kinds.has("chunk") ? found : [];
-    const snippets = passages.map((f) => snippetOf(f, words));
+    const snippets = passages.map((f) =>
+      whole ? { text: f.spans.map((s) => s.text).join(" "), spans: f.spans } : snippetOf(f, words),
+    );
     const listed = [...statements.values()];
     const texts = [...listed.map((s) => s.claim.statement), ...snippets.map((s) => s.text)];
     const sensitivity = maxLabel(
@@ -753,6 +756,7 @@ export class Retrieval implements Retriever {
         ...(query.filters && { filters: query.filters }),
       },
       who,
+      true,
     );
     // Plain retrieval knows nothing of editions; the knowledge base answers from the latest.
     const replaced = this.baseline ? new Set<string>() : await this.#replaced(found.hits, who);

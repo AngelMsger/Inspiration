@@ -83,8 +83,13 @@ export {
   questionLines,
   questionsReport,
   type Score,
+  type SearchReport,
+  type SearchResult,
+  type SearchTally,
   sampleQuestions,
   says,
+  searchLines,
+  searchReport,
   type Tally,
   valueOn,
 } from "./questions.ts";
