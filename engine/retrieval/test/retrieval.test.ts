@@ -406,15 +406,18 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       expect(own.filter((h) => h.kind === "chunk")).toHaveLength(ANSWER_SOURCES);
     });
 
-    test("a question that cannot be translated is searched alone", async ({ world }) => {
+    test("a question that cannot be translated is searched alone, and counted", async ({ world }) => {
       await world.document("travel.md", POLICY, { title: "Travel policy" });
       const question = "What is the hotel cap a night in tier-1 cities?";
       const complete = vi.spyOn(world.gateway, "complete");
-      complete.mockRejectedValue(new GatewayException("provider_error", "all 1 candidates failed"));
       const before = world.retrieval.totals.untranslated;
-      const { hits } = await world.retrieval.search({ text: question, kinds: ["chunk"] }, ALICE);
-      expect(hits[0]?.snippet).toContain("650 yuan");
-      expect(world.retrieval.totals.untranslated).toBe(before + 1);
+      // A call that fails, and a reply that is no valid translation.
+      for (const code of ["provider_error", "invalid_output"] as const) {
+        complete.mockRejectedValueOnce(new GatewayException(code, "no translation"));
+        const { hits } = await world.retrieval.search({ text: question, kinds: ["chunk"] }, ALICE);
+        expect(hits[0]?.snippet, code).toContain("650 yuan");
+      }
+      expect(world.retrieval.totals.untranslated).toBe(before + 2);
     });
 
     test("governed long context reads every latest edition, without what no longer holds, the value that holds beside it", async ({

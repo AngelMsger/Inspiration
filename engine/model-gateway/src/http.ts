@@ -32,6 +32,7 @@ import { budgetSpent, periodStart } from "./metering.ts";
 export const ERROR_STATUS: Readonly<Record<GatewayErrorCode, ContentfulStatusCode>> = {
   budget_exceeded: 429,
   no_route: 422,
+  cache_miss: 422,
   bad_request: 400,
   invalid_output: 502,
   provider_error: 502,

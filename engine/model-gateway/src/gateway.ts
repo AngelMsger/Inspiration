@@ -6,7 +6,9 @@
  * preferences first, falling back on retryable errors unless the route allows only its own
  * models), validates structured output (one
  * corrective retry), caches deterministic completions (and, when the config says, embeddings
- * per text and rerank scores per document), and meters every call, including failures.
+ * per text and rerank scores per document), and meters every call, including failures. A
+ * cache-only route answers its tasks from the response cache alone and refuses a miss
+ * (cache_miss) before any provider is called.
  *
  * A budget is a soft stop. A call is refused once the period's spend, with what calls still in
  * flight in this process hold (their input and output limit at the first candidate's price),
@@ -352,7 +354,7 @@ export class Gateway implements ModelGateway {
             candidate,
             usage: spent,
             cost: cost(candidate.model.price, spent.input_tokens, spent.output_tokens),
-            status: e.code === "invalid_output" ? "invalid_output" : "error",
+            status: e.code === "invalid_output" || e.code === "cache_miss" ? e.code : "error",
             error: e.error.message,
           });
           e.error.request_id = requestId;
@@ -426,6 +428,12 @@ export class Gateway implements ModelGateway {
       if (hit !== undefined) {
         const { provider, model, ...fields } = JSON.parse(hit) as Fields & { provider: string; model: string };
         return { fields: { ...fields, cached: true }, usage: ZERO, status: "cached", provider, model };
+      }
+      if (routeFor(this.config, req.task)?.cache_only) {
+        throw new GatewayException(
+          "cache_miss",
+          `no saved reply for ${req.task} from ${candidate.ref}, and its route allows only the cache`,
+        );
       }
 
       let messages: ChatMessage[] = [...req.messages];

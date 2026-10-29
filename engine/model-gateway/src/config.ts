@@ -31,6 +31,10 @@
  *       - match: "freshness.*"
  *         prefer: [local/qwen3-30b-a3b]
  *         only: true                            # never another model, not even on retryable errors
+ *       - match: "extraction.*"
+ *         prefer: [deepseek/deepseek-v4.1-flash]
+ *         only: true
+ *         cache_only: true                      # replay saved replies; refuse a miss before any network
  *     budgets:
  *       - match: "tenant:*"                     # budget_key glob; first match wins
  *         period: month
@@ -89,6 +93,12 @@ export interface RouteConfig {
   prefer: string[];
   /** Only the preferred models serve the task: no fallback to others, not even on retryable errors. */
   only?: boolean;
+  /**
+   * Only the response cache serves the task: a request whose reply is not saved under the
+   * first candidate is refused (cache_miss) before any provider is called. For runs that
+   * replay an earlier run's replies and must pay for nothing.
+   */
+  cache_only?: boolean;
 }
 
 export interface BudgetConfig {
@@ -186,6 +196,7 @@ const SCHEMA = {
           match: { type: "string" },
           prefer: { type: "array", items: { type: "string" } },
           only: { type: "boolean" },
+          cache_only: { type: "boolean" },
         },
       },
     },

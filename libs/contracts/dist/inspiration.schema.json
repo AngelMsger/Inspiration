@@ -3825,7 +3825,8 @@
         "provider_error",
         "invalid_output",
         "timeout",
-        "bad_request"
+        "bad_request",
+        "cache_miss"
       ]
     },
     "GatewayOperation": {
@@ -7735,7 +7736,8 @@
         "error",
         "budget_exceeded",
         "no_route",
-        "invalid_output"
+        "invalid_output",
+        "cache_miss"
       ]
     },
     "Version": {

@@ -41,6 +41,8 @@ export interface Spend {
   calls: number;
   /** Calls the response cache answered, at no cost. */
   cached_calls: number;
+  /** Calls a cache-only route refused, because no reply was saved for them. */
+  missed_calls: number;
   input_tokens: number;
   /** Input tokens a provider's prefix cache served, at its cached price. */
   cached_input_tokens: number;
@@ -51,6 +53,8 @@ export interface Spend {
 export interface CostReport extends Spend {
   currency: string;
   by_task: Record<string, Spend>;
+  /** Calls by the provider that served or refused them; a stand-in's are its own. */
+  by_provider: Record<string, number>;
 }
 
 /** The metered calls from the from-th on, or none when the engine's gateway is not in process. */
@@ -64,6 +68,7 @@ export function spendOf(records: readonly UsageRecord[]): Spend {
   return {
     calls: records.length,
     cached_calls: records.filter((r) => r.status === "cached").length,
+    missed_calls: records.filter((r) => r.status === "cache_miss").length,
     input_tokens: sum((r) => r.usage.input_tokens),
     cached_input_tokens: sum((r) => r.usage.cached_input_tokens ?? 0),
     output_tokens: sum((r) => r.usage.output_tokens),
@@ -80,16 +85,27 @@ export function costReport(engine: Engine, from = 0): CostReport | undefined {
     currency: models.config.currency,
     ...spendOf(records),
     by_task: Object.fromEntries(tasks.map((t) => [t, spendOf(records.filter((r) => (r.task ?? r.operation) === t))])),
+    by_provider: count(records.map((r) => r.provider ?? "none")),
   };
 }
 
+function count(values: readonly string[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const v of values) out[v] = (out[v] ?? 0) + 1;
+  return out;
+}
+
 export function spendLine(s: Spend, currency: string): string {
-  return `${s.cost} ${currency}: ${s.calls} calls (${s.cached_calls} from the response cache), ${s.input_tokens} input tokens (${s.cached_input_tokens} from a prefix cache), ${s.output_tokens} output`;
+  const missed = s.missed_calls ? `, ${s.missed_calls} refused with no saved reply` : "";
+  return `${s.cost} ${currency}: ${s.calls} calls (${s.cached_calls} from the response cache${missed}), ${s.input_tokens} input tokens (${s.cached_input_tokens} from a prefix cache), ${s.output_tokens} output`;
 }
 
 export function costLines(r: CostReport, estimate: boolean): string[] {
   return [
     `model cost${estimate ? ", estimated from stand-ins" : ""}: ${spendLine(r, r.currency)}`,
     ...Object.entries(r.by_task).map(([task, s]) => `  ${task}: ${spendLine(s, r.currency)}`),
+    `  calls by provider: ${Object.entries(r.by_provider)
+      .map(([p, n]) => `${p} ${n}`)
+      .join(", ")}`,
   ];
 }

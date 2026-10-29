@@ -5,12 +5,13 @@
 #   pnpm bench ingest <corpus> --gateway config/gateway.local-embeddings.yaml --stack --search-only
 #
 # DeepSeek is listed so that completions find the replies they had: the same provider, model and
-# request options as config/gateway.deepseek.yaml. A completion with no saved reply goes to
-# DeepSeek with that non-key and fails, so the run never pays. Topics are clustered by vector, so
-# new vectors make topics whose names were never paid for: the stand-in names them, and search
-# does not read topic names. The routes allow each task only its model, so a failed DeepSeek call
-# (a refused key, a 429 or a dropped connection) fails the run instead of falling back to the
-# stand-in; embeddings carry no task and are not routed.
+# request options as config/gateway.deepseek.yaml. Its route is cache-only: a completion with no
+# saved reply is refused (cache_miss) before any request leaves the machine, so the run never
+# pays, and the run's cost report counts the replies replayed and the calls refused. Topics are
+# clustered by vector, so new vectors make topics whose names were never paid for: the stand-in
+# names them, and search does not read topic names. The routes allow each task only its model,
+# so nothing falls back to the stand-in; embeddings and rerank scores carry no task and are not
+# routed.
 currency: USD
 
 providers:
@@ -76,6 +77,7 @@ routes:
   - match: "*"
     prefer: [deepseek/deepseek-flash]
     only: true
+    cache_only: true
 
 budgets:
   - match: "*"

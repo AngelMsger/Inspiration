@@ -278,7 +278,7 @@ $defs:
 
   UsageStatus:
     type: string
-    enum: [ok, cached, error, budget_exceeded, no_route, invalid_output]
+    enum: [ok, cached, error, budget_exceeded, no_route, invalid_output, cache_miss]
 
   UsageRecord:
     description: One metered call, written for every request including failures. Feeds the cost dashboard.
@@ -342,7 +342,7 @@ $defs:
 
   GatewayErrorCode:
     type: string
-    enum: [budget_exceeded, no_route, provider_error, invalid_output, timeout, bad_request]
+    enum: [budget_exceeded, no_route, provider_error, invalid_output, timeout, bad_request, cache_miss]
 
   GatewayError:
     type: object

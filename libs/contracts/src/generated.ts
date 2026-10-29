@@ -311,7 +311,13 @@ export type EventType = string;
 export type FeedbackKind = "wrong" | "outdated" | "missing" | "unclear" | "helpful";
 export type FreshnessState = "fresh" | "aging" | "stale" | "at_risk";
 export type GatewayErrorCode =
-  "budget_exceeded" | "no_route" | "provider_error" | "invalid_output" | "timeout" | "bad_request";
+  | "budget_exceeded"
+  | "no_route"
+  | "provider_error"
+  | "invalid_output"
+  | "timeout"
+  | "bad_request"
+  | "cache_miss";
 export type GatewayOperation = "complete" | "embed" | "rerank" | "ocr";
 /**
  * How much of a source the engine governs. governed: fully extracted, and its claims get owners, review clocks and conflict todos. reference: extracted only on use (a passage that touches a catalogue slot, or one a page or an answer cites), with no owners, reviews or todos; a value that differs from a governed one is a note, never a conflict todo. search_only: never extracted, only searched.
@@ -419,7 +425,7 @@ export type TodoStatus = "open" | "in_progress" | "done" | "dismissed";
  */
 export type ToolEffect = "read" | "propose";
 export type UsageStatus =
-  "ok" | "cached" | "error" | "budget_exceeded" | "no_route" | "invalid_output";
+  "ok" | "cached" | "error" | "budget_exceeded" | "no_route" | "invalid_output" | "cache_miss";
 /**
  * What a view may ask its host to do through postMessage. navigate = open a unit; ask = ask a grounded question answered with the viewer's permissions; comment = start a comment on the page; download = offer a file the view built; fullscreen. A view never gets network access.
  *
