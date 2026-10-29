@@ -114,9 +114,11 @@ the stand-in quotes more of each passage, older values included.
   only replaced values, and marks those values beside the ones that hold.
 - The evidence audit, which reads what each long context gives its model and no answer,
   finds the right value in what governance keeps for all 135 questions with one, from a
-  document the key cites, and no document beyond what the reader may read. So reading
-  everything after governance answering 48 against the raw drive's 49 is the stand-in's
-  reading, not lost evidence.
+  document the key cites, and no document beyond what the reader may read. So the gap
+  between reading everything after governance (48) and the raw drive (49) is no value or
+  document the audit sees lost. The audit matches a value and its document only: it does
+  not yet tell a sentence that negates the value or narrows it to a condition
+  ([#68](https://github.com/AngelMsger/Inspiration/issues/68)).
 - In English, where the stand-ins can read the documents, the engine answers 10 of 22
   questions on changed facts right and 4 stale, the mature RAG 8 and 5, the model reading
   everything 11 and 5, and reading it after governance 10 and 3; on unchanged facts 18, 17,

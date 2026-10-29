@@ -36,12 +36,13 @@
  * of docs/design/validation.md): for each question with an answer key, whether what the
  * governed long context gives its model still states the right value, from a document the
  * key cites, and not as a value that no longer holds. It is `kept` when it does, `dropped`
- * when only the raw long context's input states it, and `absent` when neither does. An answer
- * that differs over kept evidence is the model's reading, not a loss, and a right answer
- * over dropped evidence is still a loss; the audit reads inputs, never answers. Both inputs
- * are read as the corpus's reader, so the totals also list any document the governed input
- * cites that the raw one, everything the reader may read, does not (`beyond_raw`). The keys
- * name no conditions yet, so the audit checks values and their documents only.
+ * when only the raw long context's input states it, and `absent` when neither does. The audit
+ * reads inputs, never answers: an answer that differs over kept evidence is no loss it can
+ * see, and a right answer over dropped evidence is still a loss. Both inputs are read as the
+ * corpus's reader, so the totals also list any document the governed input cites that the
+ * raw one, everything the reader may read, does not (`beyond_raw`). It matches a value and
+ * its document only: a sentence that negates the value or narrows it to a condition still
+ * counts as kept, and the keys name no conditions yet (issue #68).
  *
  * Like the control check, each question may record where the engine answers it otherwise
  * today and why (`engine`), and the test holds the run to it.
