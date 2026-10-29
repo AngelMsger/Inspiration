@@ -156,7 +156,8 @@ describe("the company drive", () => {
         notes: 55,
         baselines: { mature: 44, long_context: 49, governed_long_context: 48 },
         // What governance gives its model keeps every right value the drive states: reading it
-        // after governance answers one fewer right than reading it raw, but loses no evidence.
+        // after governance answers one fewer right than reading it raw, with no value or document
+        // the audit sees lost (it does not yet read negation or conditions, issue #68).
         retention: { kept: 135, dropped: 0, absent: 0, not_audited: 15, beyond_raw: [] },
         by_kind: {
           changed: { questions: 66, ...paths([15, 6], [10, 6], [13, 6], [16, 5]) },
