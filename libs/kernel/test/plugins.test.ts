@@ -70,6 +70,6 @@ describe("plugin registry", () => {
       "sync",
     ]);
     expect(registry("event_transports").names()).toEqual(["memory", "valkey"]);
-    expect(registry("model_providers").names()).toEqual(["fake", "openai_compatible"]);
+    expect(registry("model_providers").names()).toEqual(["anthropic", "fake", "openai_compatible"]);
   });
 });
