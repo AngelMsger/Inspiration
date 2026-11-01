@@ -21,7 +21,8 @@
  * --compact sets how many passages and statements the engine's compact answer reads
  * (COMPACT_SOURCES unless given), to measure smaller inputs before paying for their answers.
  * --questions asks only n of them, spread over the list (sampleQuestions). --search-only asks
- * search alone, where each answer would be found, and pays for no answers (searchReport).
+ * search alone, where each answer would be found, with the evidence audit, and pays for no
+ * answers (searchReport).
  *
  * --gateway runs every command on the model gateway that file configures (for real models,
  * config/gateway.deepseek.yaml) instead of the development stand-ins, and reports what the
