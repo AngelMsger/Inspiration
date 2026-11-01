@@ -130,16 +130,19 @@ describe("the company drive", () => {
       const asked = await questionsReport(engine, corpus, questions);
       // The numbers README.md gives.
       const score = ([right, stale]: [number, number]) => ({ right, stale });
-      // Right and stale answers of the engine, the mature RAG, reading everything, and reading it after governance.
+      // Right and stale answers of the engine, its compact answer, the mature RAG, reading everything, and reading it
+      // after governance.
       type Pair = [number, number];
-      const paths = (engine: Pair, mature: Pair, raw: Pair, governed: Pair) => ({
+      const paths = (engine: Pair, compact: Pair, mature: Pair, raw: Pair, governed: Pair) => ({
         engine: score(engine),
+        compact: score(compact),
         mature: score(mature),
         long_context: score(raw),
         governed_long_context: score(governed),
       });
       const { latency, ...totals } = asked.totals;
       expect(Object.keys(latency).sort()).toEqual([
+        "compact",
         "engine",
         "governed_long_context",
         "long_context",
@@ -154,20 +157,20 @@ describe("the company drive", () => {
         cited_right: 87,
         found: 79,
         notes: 55,
-        baselines: { mature: 44, long_context: 49, governed_long_context: 48 },
+        baselines: { compact: 47, mature: 44, long_context: 49, governed_long_context: 48 },
         // What governance gives its model keeps every right value the drive states: reading it
         // after governance answers one fewer right than reading it raw, with no value or document
         // the audit sees lost (it does not yet read negation or conditions, issue #68).
         retention: { kept: 135, dropped: 0, absent: 0, not_audited: 15, beyond_raw: [] },
         by_kind: {
-          changed: { questions: 66, ...paths([15, 6], [10, 6], [13, 6], [16, 5]) },
-          not_stated: { questions: 15, ...paths([2, 0], [2, 1], [2, 2], [2, 0]) },
-          unchanged: { questions: 69, ...paths([30, 0], [32, 0], [34, 0], [30, 0]) },
+          changed: { questions: 66, ...paths([15, 6], [15, 5], [10, 6], [13, 6], [16, 5]) },
+          not_stated: { questions: 15, ...paths([2, 0], [3, 0], [2, 1], [2, 2], [2, 0]) },
+          unchanged: { questions: 69, ...paths([30, 0], [29, 0], [32, 0], [34, 0], [30, 0]) },
         },
         by_language: {
-          en: { questions: 50, ...paths([28, 4], [25, 6], [31, 7], [29, 3]) },
-          ja: { questions: 50, ...paths([6, 1], [8, 1], [8, 1], [7, 1]) },
-          zh: { questions: 50, ...paths([13, 1], [11, 0], [10, 0], [12, 1]) },
+          en: { questions: 50, ...paths([28, 4], [27, 4], [25, 6], [31, 7], [29, 3]) },
+          ja: { questions: 50, ...paths([6, 1], [7, 0], [8, 1], [8, 1], [7, 1]) },
+          zh: { questions: 50, ...paths([13, 1], [13, 1], [11, 0], [10, 0], [12, 1]) },
         },
       });
       const answerTo = (start: string) =>

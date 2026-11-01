@@ -19,10 +19,11 @@
  * Each question is also checked for whether the search the answer rests on found an expected
  * text at all (`found`): with stand-ins for the models, a right source the stand-in answer
  * leaves out is the stand-in's miss, a source never found is retrieval's. And each is asked
- * the other ways over the same documents and model (`baselines`): a mature RAG over the same
- * chunks and search, without statements or governance; a model that reads every document,
- * when they fit one context; and the knowledge base reading every document after
- * governance, when they fit. How long each answer took is kept beside it (`latency`): the
+ * the other ways over the same documents and model (`baselines`): the knowledge base's compact
+ * answer, which reads mostly statements and a few passages (Engine.compact); a mature RAG
+ * over the same chunks and search, without statements or governance; a model that reads
+ * every document, when they fit one context; and the knowledge base reading every document
+ * after governance, when they fit. How long each answer took is kept beside it (`latency`): the
  * whole call, the answering model's share and the reranker's.
  *
  * Every path finds the same caches. The search the engine and the mature RAG share runs once
@@ -310,7 +311,7 @@ export interface QuestionResult {
   /** Whether a source the answer was given states an expected text; null for no answer. */
   found: boolean | null;
   /** How the other ways answer it; a long context is null when the documents do not fit. */
-  baselines: { mature: Rival; long_context: Rival | null; governed_long_context: Rival | null };
+  baselines: { compact: Rival; mature: Rival; long_context: Rival | null; governed_long_context: Rival | null };
   cited: string[];
   notes: string[];
   confidence: number;
@@ -359,10 +360,11 @@ export interface Latency {
 }
 
 /** The ways of answering a question, the engine's first. */
-export const PATHS = ["engine", "mature", "long_context", "governed_long_context"] as const;
+export const PATHS = ["engine", "compact", "mature", "long_context", "governed_long_context"] as const;
 export type Path = (typeof PATHS)[number];
 const NAMES: Record<Path, string> = {
   engine: "engine",
+  compact: "engine, compact",
   mature: "mature RAG",
   long_context: "reading everything",
   governed_long_context: "reading everything after governance",
@@ -386,6 +388,7 @@ export type Language = ReturnType<typeof languageOf>;
 export interface Tally {
   questions: number;
   engine: Score;
+  compact: Score;
   mature: Score;
   long_context: Score | null;
   governed_long_context: Score | null;
@@ -408,7 +411,7 @@ export interface QuestionsReport {
     found: number;
     notes: number;
     /** Questions each other way answers right; null when it could not run. */
-    baselines: { mature: number; long_context: number | null; governed_long_context: number | null };
+    baselines: { compact: number; mature: number; long_context: number | null; governed_long_context: number | null };
     by_kind: Partial<Record<Kind, Tally>>;
     by_language: Partial<Record<Language, Tally>>;
     /** Each path's latencies, of the questions it answered, and the shared search's. */
@@ -654,6 +657,7 @@ export async function questionsReport(
         throw e;
       }
     };
+    const compact = (await rival("compact", engine.compact)) as Rival;
     const mature = (await rival("mature", engine.baselines.mature)) as Rival;
     const longContext = await rival("long_context", engine.baselines.long_context);
     const governedLongContext = await rival("governed_long_context", engine.governedLongContext);
@@ -666,7 +670,7 @@ export async function questionsReport(
       expected: q.engine?.outcome ?? "right",
       answer: a.answer,
       found: expected ? Boolean(found) : null,
-      baselines: { mature, long_context: longContext, governed_long_context: governedLongContext },
+      baselines: { compact, mature, long_context: longContext, governed_long_context: governedLongContext },
       cited,
       notes: (a.notes ?? []).map((n) => `${n.kind}: ${n.text}`),
       confidence: a.confidence,
@@ -686,6 +690,7 @@ export async function questionsReport(
       found: results.filter((r) => r.found).length,
       notes: results.reduce((n, r) => n + r.notes.length, 0),
       baselines: {
+        compact: results.filter((r) => r.baselines.compact.outcome === "right").length,
         mature: results.filter((r) => r.baselines.mature.outcome === "right").length,
         long_context: rightOrNull(results.map((r) => r.baselines.long_context)),
         governed_long_context: rightOrNull(results.map((r) => r.baselines.governed_long_context)),
@@ -721,6 +726,8 @@ export async function questionsReport(
   };
 }
 
+const tokensOf = (hits: readonly SearchHit[]) => hits.reduce((n, h) => n + h.token_estimate, 0);
+
 /** How deep search goes for --search-only: the most hits a search returns. */
 export const SEARCH_DEPTH = 100;
 /** The depths searchReport counts the first hit that states an expected text within. */
@@ -747,6 +754,12 @@ export interface SearchResult {
   found_whole: boolean | null;
   /** The mature RAG's hits as its model is given them. */
   found_by_mature: boolean | null;
+  /** The compact answer's hits (Engine.compact) as its model is given them. */
+  found_compact: boolean | null;
+  /** The statements alone among the compact answer's hits: whether the conclusions hold the answer without a passage. */
+  found_in_statements: boolean | null;
+  /** About how many tokens of sources each answer's model reads: the sum of its hits' estimates. */
+  tokens: { engine: number; compact: number; mature: number };
   /** The place, from 1, of the first hit of one wide search that states it, read whole; null when none does. */
   rank: number | null;
   /** The place, from 1, of the first document of that search's hits, in their order, whose text states it. */
@@ -759,6 +772,10 @@ export interface SearchTally {
   found: number;
   found_whole: number;
   found_by_mature: number;
+  found_compact: number;
+  found_in_statements: number;
+  /** The median tokens of sources each answer's model reads, of every question. */
+  median_tokens: { engine: number; compact: number; mature: number };
   /** Questions whose first hit with an expected text is within each of DEPTHS. */
   within: Record<string, number>;
   /** Questions whose first document with an expected text is within each of DOCUMENT_DEPTHS. */
@@ -815,6 +832,7 @@ export async function searchReport(
     // instead of a CPU reranker scoring the same passages three times at once.
     const sources = await engine.retrieval.sources({ question: q.question }, corpus.reader);
     const mature = await engine.baselines.mature.sources({ question: q.question }, corpus.reader);
+    const compact = await engine.compact.sources({ question: q.question }, corpus.reader);
     const wide = await engine.retrieval.search(
       { text: q.question, top_k: SEARCH_DEPTH, kinds: ["claim", "chunk"] },
       corpus.reader,
@@ -843,6 +861,9 @@ export async function searchReport(
       found: any(sources.map((h) => h.snippet)),
       found_whole: any(await wholeText(sources)),
       found_by_mature: any(mature.map((h) => h.snippet)),
+      found_compact: any(await wholeText(compact)),
+      found_in_statements: any(compact.filter((h) => h.kind !== "chunk").map((h) => h.snippet)),
+      tokens: { engine: tokensOf(sources), compact: tokensOf(compact), mature: tokensOf(mature) },
       rank: at < 0 ? null : at + 1,
       document_rank: documentRank,
     });
@@ -858,6 +879,22 @@ export async function searchReport(
       found: answered.filter((r) => r.found).length,
       found_whole: answered.filter((r) => r.found_whole).length,
       found_by_mature: answered.filter((r) => r.found_by_mature).length,
+      found_compact: answered.filter((r) => r.found_compact).length,
+      found_in_statements: answered.filter((r) => r.found_in_statements).length,
+      median_tokens: {
+        engine: percentile(
+          of.map((r) => r.tokens.engine),
+          50,
+        ),
+        compact: percentile(
+          of.map((r) => r.tokens.compact),
+          50,
+        ),
+        mature: percentile(
+          of.map((r) => r.tokens.mature),
+          50,
+        ),
+      },
       within: within(DEPTHS, (r) => r.rank),
       within_documents: within(DOCUMENT_DEPTHS, (r) => r.document_rank),
     };
@@ -879,7 +916,8 @@ export function searchLines(r: SearchReport): string[] {
       .map(([d, n]) => `${d}: ${n}`)
       .join(", ");
   const line = (name: string, t: SearchTally) => [
-    `  ${name}: ${t.questions} with an answer; the engine's answer is given it for ${t.found} (${t.found_whole} with each passage read from the store); the mature RAG's for ${t.found_by_mature}`,
+    `  ${name}: ${t.questions} with an answer; the engine's answer is given it for ${t.found} (${t.found_whole} with each passage read from the store); the compact answer's for ${t.found_compact} (its statements alone for ${t.found_in_statements}); the mature RAG's for ${t.found_by_mature}`,
+    `    sources read, median tokens: engine ${t.median_tokens.engine}, compact ${t.median_tokens.compact}, mature RAG ${t.median_tokens.mature}`,
     `    first hit stating it within ${depths(t.within)}; first document within ${depths(t.within_documents)}`,
   ];
   const lines = ["search only, no answers:", ...line("all", r.totals)];
@@ -908,6 +946,7 @@ function tallies<K extends string>(results: readonly QuestionResult[], keyOf: (r
     by[k] = {
       questions: of.length,
       engine: score(of.map((r) => r.outcome)),
+      compact: score(of.map((r) => r.baselines.compact.outcome)),
       mature: score(of.map((r) => r.baselines.mature.outcome)),
       long_context: fit("long_context"),
       governed_long_context: fit("governed_long_context"),
@@ -922,7 +961,7 @@ export function questionLines(r: QuestionsReport): string[] {
   const lines = [
     `questions: ${t.questions}, ${t.right} answered right, ${t.stale} with a value no longer in effect, ${t.as_recorded - t.right} otherwise as recorded, ${t.questions - t.as_recorded} otherwise`,
     `  search found an expected text for ${t.found} of ${answerable} questions with an answer`,
-    `  over the same documents and model, a mature RAG answers ${t.baselines.mature} right, a model reading every document ${t.baselines.long_context ?? "(they do not fit)"}, reading every document after governance ${t.baselines.governed_long_context ?? "(they do not fit)"}`,
+    `  over the same documents and model, the engine's compact answer answers ${t.baselines.compact} right, a mature RAG ${t.baselines.mature}, a model reading every document ${t.baselines.long_context ?? "(they do not fit)"}, reading every document after governance ${t.baselines.governed_long_context ?? "(they do not fit)"}`,
     `  evidence audit, apart from the answers: what governance gives its model keeps the right value for ${t.retention.kept} questions, drops one the raw documents state for ${t.retention.dropped}, and neither states it for ${t.retention.absent}; ${t.retention.not_audited} not audited`,
     ...(t.retention.beyond_raw?.length
       ? [
@@ -964,7 +1003,7 @@ export function questionLines(r: QuestionsReport): string[] {
       ...(q.retention?.status === "dropped"
         ? [`governance dropped the right value ${q.retention.documents.join(", ")} states`]
         : []),
-      ...(["mature", "long_context", "governed_long_context"] as const).flatMap((p) => {
+      ...(["compact", "mature", "long_context", "governed_long_context"] as const).flatMap((p) => {
         const other = q.baselines[p];
         return other && other.outcome !== q.outcome ? [`${NAMES[p]}: ${other.outcome}`] : [];
       }),

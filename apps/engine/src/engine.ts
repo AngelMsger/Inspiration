@@ -35,7 +35,7 @@ import {
 import { Gateway, loadGatewayConfig } from "@inspiration/model-gateway";
 import { Normalization } from "@inspiration/normalization";
 import { Topics } from "@inspiration/page-compiler";
-import { Retrieval } from "@inspiration/retrieval";
+import { type AnswerSources, COMPACT_SOURCES, Retrieval } from "@inspiration/retrieval";
 import { type PrincipalResolver, SourceSync } from "@inspiration/source-sync";
 
 const log = logger("engine");
@@ -60,6 +60,8 @@ export interface EngineOptions {
   graph?: Graph;
   /** The most a long-context answer reads, raw or governed, in tokens; LONG_CONTEXT_TOKENS unless given. */
   contextTokens?: number;
+  /** How many passages and statements a compact answer reads (Engine.compact); COMPACT_SOURCES unless given. */
+  compactSources?: AnswerSources;
 }
 
 /** A component as the engine runs it: event handlers by type, under the component's consumer group. */
@@ -95,6 +97,11 @@ export class Engine {
   readonly baselines: { mature: Retrieval; long_context: Retrieval };
   /** The knowledge base answering from everything the asker may read, after governance (corpora that fit). */
   readonly governedLongContext: Retrieval;
+  /**
+   * The knowledge base answering from fewer sources: mostly statements, the conclusions
+   * governance kept, and a few passages, a short input that a smaller model answers fast.
+   */
+  readonly compact: Retrieval;
   readonly consumer: Consumer;
   readonly transport: Transport;
   readonly #relay: OutboxRelay | undefined;
@@ -114,6 +121,7 @@ export class Engine {
     clock?: () => Date;
     graph?: Graph;
     contextTokens?: number;
+    compactSources?: AnswerSources;
   }) {
     this.store = parts.store;
     this.records = parts.records;
@@ -166,6 +174,7 @@ export class Engine {
       long_context: new Retrieval({ ...indexes, baseline: "long_context", ...context }),
     };
     this.governedLongContext = new Retrieval({ ...governed, readAll: true, ...context });
+    this.compact = new Retrieval({ ...governed, answerSources: parts.compactSources ?? COMPACT_SOURCES });
     const components: Running[] = [
       { group: "source-sync", handlers: () => this.sync.handlers() },
       { group: "normalization", handlers: () => this.normalization.handlers() },
@@ -205,6 +214,7 @@ export class Engine {
       ...(options.clock && { clock: options.clock }),
       ...(options.graph && { graph: options.graph }),
       ...(options.contextTokens && { contextTokens: options.contextTokens }),
+      ...(options.compactSources && { compactSources: options.compactSources }),
     };
 
     let engine: Engine;
