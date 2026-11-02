@@ -33,6 +33,11 @@ export interface ReadingReport {
   totals: { stated: number; found: number; misread: number; missed: number; extra: number };
 }
 
+/** A keyed fact names a slot, "<subject>/<predicate>|<qualifier>...", the subject and qualifiers optional. */
+export function predicateOfFact(fact: string): string {
+  return fact.slice(fact.indexOf("/") + 1).split("|")[0] as string;
+}
+
 export async function readingReport(engine: Engine, corpus: Corpus, keys: Keys): Promise<ReadingReport> {
   // Governance names a document "<source>:<external ID>".
   const pathOf = (document: string) => {
@@ -47,8 +52,7 @@ export async function readingReport(engine: Engine, corpus: Corpus, keys: Keys):
     const stated = new Set(
       key.values.flatMap((v) => (v.value === null ? [] : v.stated.map((s) => `${s.file}: ${v.value}`))),
     );
-    // A slot is "<subject>/<predicate>|<qualifier>...", the subject and qualifiers optional.
-    if (!catalogued.has(fact.slice(fact.indexOf("/") + 1).split("|")[0] as string)) {
+    if (!catalogued.has(predicateOfFact(fact))) {
       uncatalogued[fact] = stated.size;
       continue;
     }
