@@ -33,7 +33,8 @@ providers:
   # with thinking off: the arm asks whether a fast model answers from governed sources as
   # well, not how well a model reasons.
   # The cloud sessions that run the bench do not see ANTHROPIC_API_KEY (the environment seems to
-  # keep that name for Claude Code itself), so the key is stored under its own name.
+  # keep that name for Claude Code itself), so every provider key there carries an INSPIRATION_
+  # prefix.
   - name: anthropic
     kind: anthropic
     api_key_env: INSPIRATION_ANTHROPIC_API_KEY

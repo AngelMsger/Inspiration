@@ -35,7 +35,8 @@ providers:
   - name: openai
     kind: openai_compatible
     base_url: https://api.openai.com/v1
-    api_key_env: OPENAI_API_KEY
+    # Provider keys carry an INSPIRATION_ prefix in the environment that runs the bench.
+    api_key_env: INSPIRATION_OPENAI_API_KEY
     max_sensitivity: internal
     timeout_s: 120
     max_retries: 2
