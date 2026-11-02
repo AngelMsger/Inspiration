@@ -90,4 +90,9 @@ describe("corpus sources that keep some of their files", () => {
     expect((await Corpus.load(dir, { sample: 0 })).sources.map((s) => s.name)).toEqual(["Topic"]);
     await expect(Corpus.load(dir, { sample: 1.5 })).rejects.toThrow(/sample/);
   });
+
+  test("an include written empty, with no sample, still means every file and keeps the source", async () => {
+    await corpus({ include: [] });
+    expect((await Corpus.load(dir)).sources.map((s) => s.name)).toEqual(["Topic", "Haystack"]);
+  });
 });

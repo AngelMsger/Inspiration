@@ -153,6 +153,7 @@ export class Corpus {
   static async load(dir: string, options: { sample?: number } = {}): Promise<Corpus> {
     const text = await readFile(join(dir, "corpus.yaml"), "utf8");
     const manifest = parse(text) as CorpusManifest;
+    const empty = new Set<string>();
     for (const s of manifest.sources) {
       if (options.sample !== undefined && s.governance_level === "search_only") s.sample = options.sample;
       if (s.sample === undefined) continue;
@@ -161,9 +162,11 @@ export class Corpus {
       }
       s.include = await sampled(join(dir, s.root), s);
       delete s.exclude;
+      if (!s.include.length) empty.add(s.id);
     }
     // A sampled source that keeps no file is left out, since an empty include means every file.
-    manifest.sources = manifest.sources.filter((s) => s.include?.length !== 0);
+    // An include written empty in corpus.yaml keeps that meaning.
+    manifest.sources = manifest.sources.filter((s) => !empty.has(s.id));
     const exists = (file: string) =>
       access(file).then(
         () => true,
