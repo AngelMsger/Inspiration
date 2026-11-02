@@ -80,6 +80,16 @@ summary's), and not the value in effect is stale. For a fact whose governed page
 `topics` names each topic's spaces. `questions.yaml` asks each fact once in each language.
 A Kubernetes value took effect on the day its release came out.
 
+## The fact catalogue
+
+`vocabulary.yaml` names the 92 facts the key follows, with the words the topics' documents use
+for them in English, Chinese and Japanese, so that extraction can put a statement of one in its
+slot and governance can compare values across documents, as the company drive's catalogue does.
+It was added on 2026-11-02, after the first paid reading found that the corpus had none: no
+statement had a slot, and governance had nothing to decide. It was written from the key, so each
+fact's words come from the places the key cites; a team that governs a topic would write it from
+its own policies, which is part of the human cost the cost model counts.
+
 ## Limits
 
 - The Kubernetes feature states are in the models' training data: a model may know the newer
