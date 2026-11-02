@@ -2,7 +2,10 @@
  * A corpus on disk: a corpus.yaml that declares a tenant, its spaces, its sources (folders
  * and recorded Feishu fixtures, relative to the corpus) and a directory that maps each
  * source's principals to engine principals, standing in for the business layer. An
- * optional vocabulary.yaml is the tenant's predicate catalogue for extraction. An optional
+ * optional vocabulary.yaml is the tenant's predicate catalogue for extraction. A folder source
+ * may keep only some of its files: include and exclude are globs on the relative path, and
+ * sample keeps that share of what is left by a stable hash of each path, so a smaller share
+ * keeps a subset of a larger one (corpora of growing size around the same cases). An optional
  * files.yaml says where each file comes from and when it was last changed: stamp() gives
  * every file listed that modified time, as the drive the corpus stands for would report it,
  * where a checkout dates every file the day it was made.
@@ -13,9 +16,11 @@
  * are asked as the reader.
  */
 
-import { access, readFile, utimes } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { createHash } from "node:crypto";
+import { access, readdir, readFile, utimes } from "node:fs/promises";
+import { join, posix, relative, resolve, sep } from "node:path";
 import type { AuthzService } from "@inspiration/access-control";
+import { globToRegExp } from "@inspiration/connectors";
 import { type AclEntry, type Principal, parseAs, type Source, schemaErrors } from "@inspiration/contracts";
 import { loadVocabulary, type Vocabulary } from "@inspiration/extraction";
 import type { PrincipalResolver } from "@inspiration/source-sync";
@@ -34,6 +39,11 @@ interface SourceSpec {
   default_sensitivity?: Source["default_sensitivity"];
   /** What the admin picked when connecting it; folders and items may set their own. */
   governance_level?: Source["governance_level"];
+  /** Globs on a folder source's relative paths: only these files, then none of these. */
+  include?: string[];
+  exclude?: string[];
+  /** The share of a folder source's files kept, 0 to 1, by a stable hash of each path. */
+  sample?: number;
 }
 
 export interface CorpusManifest {
@@ -125,6 +135,8 @@ export class Corpus {
       if (s.default_authority !== undefined) source.default_authority = s.default_authority;
       if (s.default_sensitivity) source.default_sensitivity = s.default_sensitivity;
       if (s.governance_level) source.governance_level = s.governance_level;
+      if (s.include) source.scope.include = s.include;
+      if (s.exclude) source.scope.exclude = s.exclude;
       if (s.directory) {
         const section = manifest.directory?.[s.directory];
         if (!section) throw new CorpusError(`source ${s.id}: no directory section ${s.directory}`);
@@ -134,8 +146,27 @@ export class Corpus {
     });
   }
 
-  static async load(dir: string): Promise<Corpus> {
+  /**
+   * Reads corpus.yaml and what lies beside it. sample, when given, replaces the sample of
+   * every search_only source, so one corpus runs at several sizes of what is only searched.
+   */
+  static async load(dir: string, options: { sample?: number } = {}): Promise<Corpus> {
     const text = await readFile(join(dir, "corpus.yaml"), "utf8");
+    const manifest = parse(text) as CorpusManifest;
+    const empty = new Set<string>();
+    for (const s of manifest.sources) {
+      if (options.sample !== undefined && s.governance_level === "search_only") s.sample = options.sample;
+      if (s.sample === undefined) continue;
+      if (s.type !== "folder" || !(s.sample >= 0 && s.sample <= 1)) {
+        throw new CorpusError(`source ${s.id}: sample is a share from 0 to 1 of a folder's files`);
+      }
+      s.include = await sampled(join(dir, s.root), s);
+      delete s.exclude;
+      if (!s.include.length) empty.add(s.id);
+    }
+    // A sampled source that keeps no file is left out, since an empty include means every file.
+    // An include written empty in corpus.yaml keeps that meaning.
+    manifest.sources = manifest.sources.filter((s) => !empty.has(s.id));
     const exists = (file: string) =>
       access(file).then(
         () => true,
@@ -143,7 +174,7 @@ export class Corpus {
       );
     const vocabulary = join(dir, "vocabulary.yaml");
     const files = join(dir, "files.yaml");
-    return new Corpus(dir, parse(text) as CorpusManifest, {
+    return new Corpus(dir, manifest, {
       ...((await exists(vocabulary)) && { vocabulary: await loadVocabulary(vocabulary) }),
       ...((await exists(files)) && { files: await loadFiles(files) }),
     });
@@ -201,6 +232,34 @@ export class Corpus {
     entry.external_id === undefined
       ? undefined
       : this.#directoryOf.get(source.id)?.[`${entry.principal_kind}:${entry.external_id}`];
+}
+
+/**
+ * The relative paths of a folder source's files that its include and exclude allow and its
+ * sample keeps. A path is kept when the first four bytes of its SHA-256, as a share of 2^32,
+ * fall below the sample, which does not depend on the other files. The paths become the
+ * source's include globs; a path with * or ? in it would match more than itself, which no
+ * corpus here has.
+ */
+async function sampled(root: string, spec: SourceSpec): Promise<string[]> {
+  const include = (spec.include ?? []).map(globToRegExp);
+  const exclude = (spec.exclude ?? []).map(globToRegExp);
+  const kept: string[] = [];
+  const walk = async (folder: string): Promise<void> => {
+    for (const e of await readdir(folder, { withFileTypes: true })) {
+      if (e.name.startsWith(".")) continue;
+      const path = join(folder, e.name);
+      if (e.isDirectory()) await walk(path);
+      else if (e.isFile()) {
+        const rel = relative(root, path).split(sep).join(posix.sep);
+        if (include.length && !include.some((r) => r.test(rel))) continue;
+        if (exclude.some((r) => r.test(rel))) continue;
+        if (createHash("sha256").update(rel).digest().readUInt32BE(0) / 2 ** 32 < (spec.sample ?? 1)) kept.push(rel);
+      }
+    }
+  };
+  await walk(root);
+  return kept.sort();
 }
 
 async function loadFiles(file: string): Promise<CorpusFile[]> {

@@ -45,6 +45,12 @@ const RERANK_MODEL = process.env.LOCAL_RERANK_MODEL ?? "onnx-community/bge-reran
 const RERANK_TOKENS = Number(process.env.LOCAL_RERANK_TOKENS ?? 1024);
 // Texts of a batch are padded to the longest, so a batch holds texts of similar length.
 const BATCH = 8;
+// A batch's attention takes memory in proportion to its size times its longest length squared:
+// ONNX Runtime refuses a mask over 4 GiB, which a batch of 8 reaches at about 2,900 tokens, and
+// one 4,096-token text ran the container out of memory. So a batch of long texts is smaller,
+// and a text is cut to its first LOCAL_EMBEDDINGS_TOKENS tokens, as embedding services truncate.
+const EMBED_TOKENS = Number(process.env.LOCAL_EMBEDDINGS_TOKENS ?? 2048);
+const BATCH_AREA = BATCH * 1024 * 1024;
 
 env.cacheDir = fileURLToPath(new URL("../../.data/models/", import.meta.url));
 const started = Date.now();
@@ -52,14 +58,31 @@ const extract = await pipeline("feature-extraction", MODEL, { dtype: DTYPE });
 console.log(`${MODEL} (${DTYPE}) loaded in ${((Date.now() - started) / 1000).toFixed(1)} s`);
 
 async function embed(texts: string[]): Promise<{ vectors: number[][]; tokens: number }> {
-  const lengths = texts.map((t) => extract.tokenizer.encode(t).length);
+  const inputs = texts.map((t) => {
+    const ids = extract.tokenizer.encode(t);
+    return ids.length > EMBED_TOKENS
+      ? {
+          text: extract.tokenizer.decode(ids.slice(0, EMBED_TOKENS), { skip_special_tokens: true }),
+          tokens: EMBED_TOKENS,
+        }
+      : { text: t, tokens: ids.length };
+  });
+  const lengths = inputs.map((i) => i.tokens);
   const order = texts.map((_, i) => i).sort((a, b) => (lengths[a] ?? 0) - (lengths[b] ?? 0));
   const vectors = new Array<number[]>(texts.length);
-  for (let at = 0; at < order.length; at += BATCH) {
-    const batch = order.slice(at, at + BATCH);
+  for (let at = 0; at < order.length; ) {
+    // Sorted by length, so the batch's last text is its longest.
+    let size = 1;
+    while (size < BATCH && at + size < order.length) {
+      const longest = lengths[order[at + size] as number] ?? 0;
+      if ((size + 1) * longest * longest > BATCH_AREA) break;
+      size++;
+    }
+    const batch = order.slice(at, at + size);
+    at += size;
     // Qwen3-Embedding reads the last token's state, normalized for cosine similarity.
     const out = await extract(
-      batch.map((i) => texts[i] as string),
+      batch.map((i) => inputs[i]?.text as string),
       { pooling: "last_token", normalize: true },
     );
     const rows = out.tolist() as number[][];
