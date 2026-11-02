@@ -2,7 +2,7 @@
 /**
  * inspiration-bench ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
  *                    [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>] [--context <tokens>]
- *                    [--gateway <file> [--dry-run]] [--questions <n>] [--search-only]
+ *                    [--gateway <file> [--dry-run]] [--questions <n>] [--search-only] [--sample <share>]
  * inspiration-bench synthesize <dir> --documents <n> [--seed <n>]
  * inspiration-bench replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]
  * inspiration-bench ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]
@@ -19,6 +19,8 @@
  * --context sets how many tokens the long-context rival of the question check reads at most.
  * --questions asks only n of them, spread over the list (sampleQuestions). --search-only asks
  * search alone, where each answer would be found, and pays for no answers (searchReport).
+ * --sample keeps that share, 0 to 1, of every search_only source's files (Corpus.load), so the
+ * same cases run among more or less of what is only searched.
  *
  * --gateway runs every command on the model gateway that file configures (for real models,
  * config/gateway.deepseek.yaml) instead of the development stand-ins, and reports what the
@@ -79,7 +81,7 @@ import { edit, synthesize } from "./synthesize.ts";
 const USAGE = [
   "usage: inspiration-bench ingest <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
   "                          [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>] [--context <tokens>]",
-  "                          [--gateway <file> [--dry-run]] [--questions <n>] [--search-only]",
+  "                          [--gateway <file> [--dry-run]] [--questions <n>] [--search-only] [--sample <share>]",
   "       inspiration-bench synthesize <dir> --documents <n> [--seed <n>]",
   "       inspiration-bench replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
   "       inspiration-bench ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]",
@@ -107,6 +109,7 @@ async function main(argv: string[]): Promise<number> {
       "dry-run": { type: "boolean" },
       questions: { type: "string" },
       "search-only": { type: "boolean" },
+      sample: { type: "string" },
     },
   });
   const [command, dir, ...rest] = positionals;
@@ -141,7 +144,12 @@ async function main(argv: string[]): Promise<number> {
     console.error(USAGE);
     return 2;
   }
-  const corpus = await Corpus.load(dir);
+  const sample = values.sample === undefined ? undefined : Number(values.sample);
+  if (sample !== undefined && !(sample >= 0 && sample <= 1)) {
+    console.error("--sample takes the share of search-only files to keep, from 0 to 1");
+    return 2;
+  }
+  const corpus = await Corpus.load(dir, sample === undefined ? {} : { sample });
   const settings = values.stack ? loadSettings() : undefined;
   const clock = new SimulatedClock(values.today ? new Date(`${values.today}T09:00:00Z`) : new Date());
   const options: EngineOptions = {
