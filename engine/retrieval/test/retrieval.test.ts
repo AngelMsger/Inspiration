@@ -8,6 +8,7 @@ import {
   ANSWER_SOURCES,
   ANSWER_TASK,
   type AnswerInput,
+  COMPACT_SOURCES,
   ContextTooLong,
   chunk,
   inputOf,
@@ -404,6 +405,41 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       expect(await world.baseline("mature").sources(question, ALICE)).toHaveLength(MATURE_SOURCES);
       const own = await world.retrieval.sources(question, ALICE);
       expect(own.filter((h) => h.kind === "chunk")).toHaveLength(ANSWER_SOURCES);
+    });
+
+    test("a compact answer reads the statements found and only a few passages", async ({ world }) => {
+      for (let i = 0; i < 12; i++) {
+        const doc = await world.document(`policies/${i}.md`, [
+          { id: "p1", text: `Policy ${i}: the hotel cap is ${600 + i} yuan.` },
+        ]);
+        await world.claim(`The hotel cap in policy ${i} is ${600 + i} yuan.`, doc.spansOf("p1")[0] as never);
+      }
+      const question = { question: "What is the hotel cap in the policies?" };
+      const kinds = (hits: { kind: string }[]) => ({
+        passages: hits.filter((h) => h.kind === "chunk").length,
+        statements: hits.filter((h) => h.kind === "claim").length,
+      });
+      const full = kinds(await world.retrieval.sources(question, ALICE));
+      expect(full).toEqual({ passages: ANSWER_SOURCES, statements: ANSWER_SOURCES });
+      const compact = kinds(await world.knowledgeBase({ answerSources: COMPACT_SOURCES }).sources(question, ALICE));
+      expect(compact).toEqual(COMPACT_SOURCES);
+      // Statements only: the conclusions with their quotes, no passage beside them.
+      const only = await world.knowledgeBase({ answerSources: { passages: 0, statements: 4 } }).answer(question, ALICE);
+      expect(only.citations.length).toBeGreaterThan(0);
+      expect(
+        kinds(await world.knowledgeBase({ answerSources: { passages: 0, statements: 4 } }).sources(question, ALICE)),
+      ).toEqual({ passages: 0, statements: 4 });
+      // The mature rival reads its own passages whatever it is told.
+      expect(await world.baseline("mature", { answerSources: COMPACT_SOURCES }).sources(question, ALICE)).toHaveLength(
+        12,
+      );
+      for (const sources of [
+        { passages: 0, statements: 0 },
+        { passages: -1, statements: 2 },
+        { passages: 1.5, statements: 2 },
+      ]) {
+        expect(() => world.knowledgeBase({ answerSources: sources }), JSON.stringify(sources)).toThrow(RangeError);
+      }
     });
 
     test("a question that cannot be translated is searched alone, and counted", async ({ world }) => {

@@ -105,7 +105,8 @@ whole, so the item under a list's lead-in reaches it.
 Each question is also put to two rivals with the same documents and stand-in model: a mature
 RAG over the same chunks and search, without statements or governance, and a model that reads
 all 15 pages at once (about 77,000 tokens by the engine's estimate); and to the engine reading
-all 15 after governance. Each gets 8 of the 12 right. On pages that agree
+all 15 after governance. Each gets 8 of the 12 right. The engine's compact answer, which
+reads its statements and only 2 passages, gets 10. On pages that agree
 with each other the knowledge layer is not expected to win; it is expected to win when a
 fact changes, as below.
 

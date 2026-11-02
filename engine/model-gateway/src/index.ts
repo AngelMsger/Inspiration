@@ -14,6 +14,7 @@ export * from "./http.ts";
 export * from "./metering.ts";
 export * from "./migrations.ts";
 export * from "./prompts.ts";
+export * from "./providers/anthropic.ts";
 export type * from "./providers/base.ts";
 export * from "./providers/fake.ts";
 export * from "./providers/markdown.ts";
