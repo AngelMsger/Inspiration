@@ -1,0 +1,300 @@
+# Questions to the decisive test's two topics, each fact asked once in English, Chinese and
+# Japanese, as the topic's reader. keys.yaml gives each fact's answer, the stale values and the
+# documents to cite. See questions.ts in apps/bench.
+
+questions:
+  - fact: "monthly_reimbursement_limit"
+    ask:
+      - "What is the maximum amount a team member can be reimbursed per month before extra approval is needed?"
+      - "团队成员每月最多可以报销多少，超过后需要额外审批？"
+      - "チームメンバーが追加の承認なしで精算できる月間の上限額はいくらですか？"
+  - fact: "business_cards_limit"
+    ask:
+      - "How much can I expense for business cards per quarter?"
+      - "每季度印制名片最多可以报销多少？"
+      - "名刺の作成費は四半期あたりいくらまで経費にできますか？"
+  - fact: "office_supplies_limit"
+    ask:
+      - "What is the monthly limit for office supplies and consumables?"
+      - "办公用品和耗材每月的报销上限是多少？"
+      - "事務用品・消耗品の月間の上限はいくらですか？"
+  - fact: "marketing_navan_limit"
+    ask:
+      - "Up to what amount can a small marketing event purchase be expensed in Navan instead of going through Zip?"
+      - "营销活动的小额采购，多少金额以内可以直接在 Navan 报销而不走 Zip 采购流程？"
+      - "マーケティングイベントの少額購入は、Zip を通さずに Navan でいくらまで経費精算できますか？"
+  - fact: "ground_transport_round_trip"
+    ask:
+      - "What is the limit for taxis or Uber per round trip on a business trip?"
+      - "出差时出租车或网约车往返一次的报销上限是多少？"
+      - "出張時のタクシーや配車サービスの往復の上限額はいくらですか？"
+  - fact: "fuel_limit"
+    ask:
+      - "How much fuel can I expense per day when I drive for work?"
+      - "因公开车时，每天的燃油费最多可以报销多少？"
+      - "業務で車を運転する場合、燃料費は1日いくらまで精算できますか？"
+  - fact: "parking_tolls_limit"
+    ask:
+      - "What is the daily limit for parking and tolls?"
+      - "停车费和过路费每天的报销上限是多少？"
+      - "駐車場代と通行料の1日あたりの上限はいくらですか？"
+  - fact: "dry_cleaning_min_stay"
+    ask:
+      - "How long does a hotel stay have to be before I can expense dry cleaning?"
+      - "住酒店要超过几天才能报销干洗费？"
+      - "ホテルに何日を超えて滞在すればドライクリーニング代を精算できますか？"
+  - fact: "client_meal_limit"
+    ask:
+      - "What is the per-person limit when I take a client out for dinner?"
+      - "请客户吃晚饭，每人的报销上限是多少？"
+      - "顧客と夕食をとる場合、1人あたりの上限はいくらですか？"
+  - fact: "phone_service_monthly"
+    ask:
+      - "What is the monthly limit for reimbursing my cell phone service?"
+      - "手机通信费每月最多可以报销多少？"
+      - "携帯電話の月額料金はいくらまで精算できますか？"
+  - fact: "home_internet_monthly"
+    ask:
+      - "How much of my home internet bill can I expense each month?"
+      - "家里的宽带费每月可以报销多少？"
+      - "自宅のインターネット料金は毎月いくらまで精算できますか？"
+  - fact: "meals_per_day_traveling"
+    ask:
+      - "How much can I spend on meals per day while traveling for work?"
+      - "出差期间每天的餐费最多可以报销多少？"
+      - "出張中の食事代は1日いくらまで精算できますか？"
+  - fact: "lost_baggage_cover"
+    ask:
+      - "How much does the business travel insurance pay if my luggage is lost on a business trip?"
+      - "出差时行李丢失，商务差旅保险最多赔付多少？"
+      - "出張中に荷物を紛失した場合、出張保険はいくらまで補償しますか？"
+  - fact: "coworking_monthly_limit"
+    ask:
+      - "Is there a monthly limit for a co-working space membership, and if so, how much?"
+      - "联合办公空间的月费有报销上限吗？上限是多少？"
+      - "コワーキングスペースの月額利用料に上限はありますか？あればいくらですか？"
+  - fact: "expense_claim_deadline"
+    ask:
+      - "How long after a purchase do I have to submit the expense claim?"
+      - "购买后多长时间内必须提交报销？"
+      - "購入後、何日以内に経費精算を提出する必要がありますか？"
+  - fact: "host_gift_limit"
+    ask:
+      - "If I stay with friends instead of a hotel on a business trip, how much can I spend on a gift for my host?"
+      - "出差时住在朋友家而不是酒店，给主人的礼物最多可以报销多少？"
+      - "出張でホテルの代わりに友人宅に泊まる場合、ホストへの手土産はいくらまで精算できますか？"
+  - fact: "internet_while_traveling"
+    ask:
+      - "How much can I expense for internet access per day while traveling?"
+      - "出差期间每天的上网费最多能报销多少？"
+      - "出張中のインターネット接続料は1日いくらまで精算できますか？"
+  - fact: "rental_car_class"
+    ask:
+      - "Up to which car class can I rent a car on a business trip?"
+      - "出差租车最高可以租哪个级别的车？"
+      - "出張でレンタカーを借りる場合、どのクラスまで認められますか？"
+  - fact: "tips_limit"
+    ask:
+      - "What percentage tip can I include on a meal expense?"
+      - "餐费报销中，小费最多可以占多少比例？"
+      - "食事の経費精算で、チップは何パーセントまで認められますか？"
+  - fact: "train_booking_lead"
+    ask:
+      - "How far in advance do I have to book train tickets for a business trip?"
+      - "出差的火车票需要提前多少天预订？"
+      - "出張の列車は何日前までに予約する必要がありますか？"
+  - fact: "hotel_cap_per_night"
+    ask:
+      - "What is the most I can spend on a hotel per night on a business trip?"
+      - "出差住酒店，每晚最多可以报销多少？"
+      - "出張時のホテル代は1泊いくらまで精算できますか？"
+  - fact: "coworking_day_pass"
+    ask:
+      - "How much can I expense for a co-working day pass?"
+      - "联合办公空间的日票每天可以报销多少？"
+      - "コワーキングスペースの1日利用券はいくらまで精算できますか？"
+  - fact: "coworking_distance"
+    ask:
+      - "How far from my home can a reimbursed co-working space be?"
+      - "可报销的联合办公空间离我家最远可以多远？"
+      - "精算対象のコワーキングスペースは自宅からどのくらいの距離まで認められますか？"
+  - fact: "books_limit"
+    ask:
+      - "How much can I spend on work books per year?"
+      - "每年购买工作用书最多可以报销多少？"
+      - "仕事用の書籍は年間いくらまで精算できますか？"
+  - fact: "postage_limit"
+    ask:
+      - "What is the limit per transaction for postage and shipping before it needs approval?"
+      - "邮寄和运费每笔超过多少需要审批？"
+      - "郵送・配送料は1件あたりいくらを超えると承認が必要になりますか？"
+  - fact: "home_office_new_hire"
+    ask:
+      - "How much is the home office stipend for new hires?"
+      - "新员工的居家办公补贴是多少？"
+      - "新入社員のホームオフィス手当はいくらですか？"
+  - fact: "single_item_navan_limit"
+    ask:
+      - "What is the largest single item I can expense in Navan before it has to go through procurement?"
+      - "单件物品最多多少钱可以直接在 Navan 报销，超过就要走采购流程？"
+      - "1品目いくらまでなら調達プロセスを通さずに Navan で精算できますか？"
+  - fact: "team_meal_per_person"
+    ask:
+      - "What is the per-person limit for a team meal?"
+      - "团队聚餐每人的上限是多少？"
+      - "チームでの食事は1人あたりいくらまでですか？"
+  - fact: "travel_insurance_trip_duration"
+    ask:
+      - "How long can a business trip be and still be covered by the business travel insurance?"
+      - "出差多长时间以内仍在商务差旅保险的保障范围内？"
+      - "出張保険は何日間までの出張を補償しますか？"
+  - fact: "travel_insurance_emergency_medical"
+    ask:
+      - "How much does the business travel insurance cover for emergency medical expenses?"
+      - "商务差旅保险对紧急医疗费用的保额是多少？"
+      - "出張保険の緊急医療費の補償額はいくらですか？"
+  - fact: "travel_insurance_personal_deviation"
+    ask:
+      - "If I add personal days to a business trip, how much of that personal travel does the business travel insurance cover?"
+      - "在出差行程中加上私人旅行的天数，商务差旅保险能覆盖多长的私人行程？"
+      - "出張に私的な旅行日程を追加した場合、出張保険はその私的な期間をどこまで補償しますか？"
+  - fact: "life_event_gift_limit"
+    ask:
+      - "How much can I spend on a gift for a teammate's significant life event, such as a new baby?"
+      - "同事有重大人生事件（比如生孩子）时，送礼最多可以花多少？"
+      - "同僚の出産などの大きなライフイベントに贈り物をする場合、いくらまで使えますか？"
+  - fact: "rental_car_lead_time"
+    ask:
+      - "How far in advance must a rental car be booked?"
+      - "租车需要提前多少天预订？"
+      - "レンタカーは何日前までに予約する必要がありますか？"
+  - fact: "auto_accept_hours"
+    ask:
+      - "If my manager does not act on an out-of-policy flight booking, after how long is it accepted automatically?"
+      - "超出政策的机票预订如果经理一直不处理，多长时间后会被自动通过？"
+      - "規定外の航空券の予約に承認者が何も対応しない場合、何時間後に自動で承認されますか？"
+  - fact: "frequent_traveler_trips"
+    ask:
+      - "How many international trips per quarter on flights of 8 hours or more do I need before I can book business class?"
+      - "每季度要乘坐几次 8 小时以上的国际航班出差，才能订商务舱？"
+      - "8時間以上の国際線の出張が四半期に何回以上あれば、ビジネスクラスを予約できますか？"
+  - fact: "coworking_approval_days"
+    ask:
+      - "How many co-working day-pass days can I book in a month before I need manager and Finance approval?"
+      - "一个月内预订联合办公日票超过几天就需要经理和财务审批？"
+      - "コワーキングの1日利用を月に何日を超えて予約すると、マネージャーと財務の承認が必要ですか？"
+  - fact: "domestic_flight_advance"
+    ask:
+      - "How many days in advance do I need to book a domestic flight?"
+      - "国内航班需要提前几天预订？"
+      - "国内線は何日前までに予約する必要がありますか？"
+  - fact: "flight_upgrade_hours"
+    ask:
+      - "How long does a flight have to be before I can book the next class up?"
+      - "航班飞行时间超过多久才可以升一个舱位预订？"
+      - "フライトが何時間を超えると、一つ上のクラスを予約できますか？"
+  - fact: "hotel_booking_lead"
+    ask:
+      - "How far in advance do I need to book a hotel for a business trip?"
+      - "出差的酒店需要提前多少天预订？"
+      - "出張のホテルは何日前までに予約する必要がありますか？"
+  - fact: "home_office_yearly_refresh"
+    ask:
+      - "After my first year, how much can I spend on my home office each year?"
+      - "入职第一年之后，每年的居家办公预算是多少？"
+      - "入社2年目以降、ホームオフィスの予算は毎年いくらですか？"
+  - fact: "receipts_non_us"
+    ask:
+      - "I work in Germany. Above what amount do I need a receipt for an expense?"
+      - "我在德国工作，多少金额以上的费用需要提供收据？"
+      - "ドイツ在住のチームメンバーです。いくら以上の経費に領収書が必要ですか？"
+  - fact: "monthly_limit_e_group"
+    ask:
+      - "What is the monthly reimbursement limit for E-Group members?"
+      - "E-Group 成员每月的报销上限是多少？"
+      - "E-Group のメンバーの月間精算上限はいくらですか？"
+  - fact: "ground_transport_single_trip"
+    ask:
+      - "What is the limit for a one-way taxi ride on a business trip?"
+      - "出差时单程打车的报销上限是多少？"
+      - "出張中の片道のタクシー代の上限はいくらですか？"
+  - fact: "international_flight_advance"
+    ask:
+      - "How many days in advance do I need to book an international flight?"
+      - "国际航班需要提前几天预订？"
+      - "国際線は何日前までに予約する必要がありますか？"
+  - fact: "gift_us_government_official"
+    ask:
+      - "What is the most I can spend on gifts or entertainment for a US government official per event?"
+      - "给美国政府官员的礼品或招待，每次活动每人最多多少钱？"
+      - "米国の政府職員への贈答や接待は、1回のイベントで1人あたりいくらまでですか？"
+  - fact: "receipts_us"
+    ask:
+      - "Above what amount do US team members need to submit a receipt?"
+      - "美国的团队成员超过多少金额的费用需要提交收据？"
+      - "米国のチームメンバーは、いくらを超える経費に領収書が必要ですか？"
+  - fact: "us_cash_tip_receipt"
+    ask:
+      - "As a US team member, up to what amount can a cash tip be claimed without a receipt?"
+      - "美国团队成员的现金小费在多少金额以下可以不提供收据？"
+      - "米国のチームメンバーは、いくら未満の現金のチップなら領収書なしで精算できますか？"
+  - fact: "train_upgrade_trips"
+    ask:
+      - "How many long train trips per quarter do I need to take before I may upgrade one class?"
+      - "每季度乘坐多少次长途火车出差后，才可以升一个座位等级？"
+      - "四半期に何回の長距離の列車出張をすれば、1クラス上に変更できますか？"
+  - fact: "travel_accidental_death"
+    ask:
+      - "What is the maximum accidental death benefit of the business travel insurance?"
+      - "商务差旅保险的意外身故保额最高是多少？"
+      - "出張保険の傷害死亡補償の上限はいくらですか？"
+  - fact: "life_insurance_cover"
+    ask:
+      - "How much life insurance does the company provide where no local life insurance benefit is available?"
+      - "在没有当地人寿保险福利的地方，公司提供多少人寿保险？"
+      - "現地の生命保険の福利厚生がない場合、会社はいくらの生命保険を提供しますか？"
+  - fact: "growth_development_budget"
+    ask:
+      - "How much does the company provide each year for my career development?"
+      - "公司每年为职业发展提供多少预算？"
+      - "キャリア開発のために会社から毎年いくら支給されますか？"
+  - fact: "security_evacuation"
+    ask:
+      - "What is the maximum the business travel insurance pays for a security evacuation?"
+      - "商务差旅保险的安全撤离保额最高是多少？"
+      - "出張保険のセキュリティ上の退避の補償上限はいくらですか？"
+  - fact: "gift_foreign_government_official"
+    ask:
+      - "What is the most I can spend on gifts or entertainment for a foreign government official per event without pre-approval?"
+      - "未经事先批准，给外国政府官员的礼品或招待每次活动每人最多多少钱？"
+      - "事前承認なしで、外国の政府職員への贈答や接待は1回のイベントで1人あたりいくらまでですか？"
+  - fact: "promo_incentive_standard"
+    ask:
+      - "What is the maximum value of a promotional incentive for a standard prospect?"
+      - "给普通潜在客户的推广激励，每次最高多少钱？"
+      - "標準的な見込み顧客へのプロモーションのインセンティブは、1回あたり最大いくらですか？"
+  - fact: "po_required_over"
+    ask:
+      - "Above what total contract value is a purchase order required?"
+      - "合同总金额超过多少必须有采购订单？"
+      - "契約総額がいくらを超えると発注書が必要ですか？"
+  - fact: "po_invoice_tolerance"
+    ask:
+      - "If an invoice exceeds its purchase order, up to what extra amount can AP still review it instead of requiring a PO change?"
+      - "发票金额超出采购订单时，超出多少以内可由 AP 审核而无需变更采购订单？"
+      - "請求書の金額が発注書を超えた場合、超過額がいくらまでなら発注書の変更なしで AP が確認しますか？"
+  - fact: "card_receipt_upload"
+    ask:
+      - "Within how many days must I upload receipts for corporate card purchases?"
+      - "公司卡消费的收据必须在多少天内上传？"
+      - "コーポレートカードで購入した場合、領収書は何日以内にアップロードする必要がありますか？"
+  - fact: "capitalization_threshold"
+    ask:
+      - "What is the minimum cost for an item to be capitalized as an asset?"
+      - "物品成本至少多少才会作为资产资本化？"
+      - "資産として資本化される品目の最低金額はいくらですか？"
+  - fact: "card_transaction_limit"
+    ask:
+      - "What is the most a single purchase on a corporate card may be?"
+      - "公司卡单笔消费最高可以是多少？"
+      - "コーポレートカードでの1回の購入は最大いくらまでですか？"

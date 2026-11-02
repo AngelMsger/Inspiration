@@ -1,0 +1,1094 @@
+# The answer key of the decisive test, written by reading the files (README.md says how):
+# for each fact, its values by the day each took effect and where the corpus states each,
+# verbatim, with the file's revision. The value in effect on asked_on answers a question; the
+# others are stale. `misleading` lists values the corpus states that never held (a draft, a
+# summary that drops a condition); an answer giving one and not the value in effect is stale.
+# `conflicting` lists values that current governed pages state beside the one in `values`:
+# a right answer names them all. `pattern` and `case` say how the case was built.
+
+asked_on: 2026-11-02
+
+facts:
+  "monthly_reimbursement_limit":
+    about: "Monthly reimbursement limit for a team member"
+    pattern: "renamed_or_moved"
+    case: "natural"
+    values:
+      - from: "2023-02-08"
+        value: "5000 USD/month"
+        texts: ["5K", "5000", "5千"]
+        stated:
+          - file: "gitlab/legacy/sites/handbook/source/handbook/finance/expenses/index.html.md"
+            revision: "136e59053a7ad2470344518d3e36b001d68337cf"
+            quote: "The maximum monthly limit to be reimbursed is $5K USD (or local currency equivalent)."
+      - from: "2023-08-29"
+        value: "10000 USD/month"
+        texts: ["10K", "10000", "1万"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "The maximum monthly limit to be reimbursed is $10K USD (or local currency equivalent)."
+  "business_cards_limit":
+    about: "Business cards limit"
+    pattern: "renamed_or_moved"
+    case: "natural"
+    values:
+      - from: "2023-02-08"
+        value: "15 USD/quarter"
+        texts: ["15"]
+        stated:
+          - file: "gitlab/legacy/sites/handbook/source/handbook/finance/expenses/index.html.md"
+            revision: "136e59053a7ad2470344518d3e36b001d68337cf"
+            quote: "Ordering Business Cards</span></a>.<br> -  $15 per quarter."
+      - from: "2023-08-29"
+        value: "150 USD/quarter"
+        texts: ["150"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Limit is set at $150 per quarter."
+  "office_supplies_limit":
+    about: "Office supplies and consumables, per month"
+    pattern: "renamed_or_moved"
+    case: "natural"
+    values:
+      - from: "2023-02-08"
+        value: "15 USD/month"
+        texts: ["15"]
+        stated:
+          - file: "gitlab/legacy/sites/handbook/source/handbook/finance/expenses/index.html.md"
+            revision: "136e59053a7ad2470344518d3e36b001d68337cf"
+            quote: "$15.00 per month."
+      - from: "2023-08-29"
+        value: "50 USD/month"
+        texts: ["50"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Limit is set at $50.00 per month."
+  "marketing_navan_limit":
+    about: "Marketing event purchases that can be expensed in Navan"
+    pattern: "renamed_or_moved"
+    case: "natural"
+    values:
+      - from: "2022-05-31"
+        value: "2500 USD"
+        texts: ["2500"]
+        stated:
+          - file: "gitlab/drive/downloads/expense-policy.md"
+            revision: "e066141449e1d919c1f649ba0566a1a7d767404e"
+            quote: "Small purchases for marketing events which are under $2,500 USD"
+          - file: "gitlab/legacy/sites/handbook/source/handbook/finance/expenses/index.html.md"
+            revision: "136e59053a7ad2470344518d3e36b001d68337cf"
+            quote: "Up to $2500 can be expensed via Navan."
+      - from: "2023-08-29"
+        value: "5000 USD"
+        texts: ["5000"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Up to $5,000 can be expensed via Navan."
+  "ground_transport_round_trip":
+    about: "Taxis and ride-hailing, per round trip"
+    pattern: "renamed_or_moved"
+    case: "natural"
+    values:
+      - from: "2023-02-08"
+        value: "100 USD/round trip"
+        texts: ["100"]
+        stated:
+          - file: "gitlab/legacy/sites/handbook/source/handbook/finance/expenses/index.html.md"
+            revision: "136e59053a7ad2470344518d3e36b001d68337cf"
+            quote: "Ground Transportation (taxis, ubers) at $100 per round trip."
+      - from: "2023-08-29"
+        value: "300 USD/round trip"
+        texts: ["300"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Ground Transportation (taxis, ubers) at $300 limit per round trip and $150 limit for single trip."
+  "fuel_limit":
+    about: "Fuel, per day"
+    pattern: "renamed_or_moved"
+    case: "natural"
+    values:
+      - from: "2023-02-08"
+        value: "75 USD/day"
+        texts: ["75"]
+        stated:
+          - file: "gitlab/legacy/sites/handbook/source/handbook/finance/expenses/index.html.md"
+            revision: "136e59053a7ad2470344518d3e36b001d68337cf"
+            quote: "Fuel, mileage, parking, tolls at $75 limit per day."
+      - from: "2023-08-29"
+        value: "300 USD/day"
+        texts: ["300"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Fuel at $300 limit per day."
+  "parking_tolls_limit":
+    about: "Parking and tolls, per day"
+    pattern: "renamed_or_moved"
+    case: "natural"
+    values:
+      - from: "2023-02-08"
+        value: "75 USD/day"
+        texts: ["75"]
+        stated:
+          - file: "gitlab/legacy/sites/handbook/source/handbook/finance/expenses/index.html.md"
+            revision: "136e59053a7ad2470344518d3e36b001d68337cf"
+            quote: "Fuel, mileage, parking, tolls at $75 limit per day."
+      - from: "2023-08-29"
+        value: "150 USD/day"
+        texts: ["150"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Parking and tolls  at $150 limit per day."
+  "dry_cleaning_min_stay":
+    about: "Hotel stay after which dry cleaning is allowable"
+    pattern: "renamed_or_moved"
+    case: "natural"
+    values:
+      - from: "2022-05-31"
+        value: "over 3 days"
+        texts: ["3"]
+        stated:
+          - file: "gitlab/drive/downloads/expense-policy.md"
+            revision: "e066141449e1d919c1f649ba0566a1a7d767404e"
+            quote: "Dry cleaning is allowable if the stay is over 3 days."
+      - from: "2023-08-29"
+        value: "over 5 days"
+        texts: ["5"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Dry cleaning is allowable if the stay is over 5 days."
+  "client_meal_limit":
+    about: "Meals with clients and partners, per person"
+    pattern: "renamed_or_moved"
+    case: "natural"
+    values:
+      - from: "2023-02-08"
+        value: "50 USD lunch, 100 USD dinner per person"
+        texts: ["100"]
+        stated:
+          - file: "gitlab/legacy/sites/handbook/source/handbook/finance/expenses/index.html.md"
+            revision: "136e59053a7ad2470344518d3e36b001d68337cf"
+            quote: "$50 limit per person for lunch and $100 limit per person for dinner."
+      - from: "2023-08-29"
+        value: "80 USD/person/meal"
+        texts: ["80"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "### Meals with Clients and Partners"
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "$80 limit per person per meal."
+  "phone_service_monthly":
+    about: "Cell phone service, per month"
+    pattern: "lagging_translation"
+    case: "constructed"
+    values:
+      - from: "2023-02-08"
+        value: "50 USD/month, more considered"
+        texts: ["50"]
+        stated:
+          - file: "gitlab/legacy/sites/handbook/source/handbook/finance/expenses/index.html.md"
+            revision: "136e59053a7ad2470344518d3e36b001d68337cf"
+            quote: "Policy is set at $50, anything over"
+      - from: "2023-08-29"
+        value: "80 USD/month, more considered"
+        texts: ["80"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.ja.md"
+            revision: "constructed"
+            quote: "上限は 80 米ドルです。"
+      - from: "2026-06-19"
+        value: "100 USD/month"
+        texts: ["100"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Policy is set at $100 - claims above this amount will not be reimbursed."
+  "home_internet_monthly":
+    about: "Home internet, per month"
+    pattern: "lagging_translation"
+    case: "constructed"
+    values:
+      - from: "2023-02-08"
+        value: "80 USD/month, more considered"
+        texts: ["80"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.ja.md"
+            revision: "constructed"
+            quote: "上限は 80 米ドルです。"
+          - file: "gitlab/legacy/sites/handbook/source/handbook/finance/expenses/index.html.md"
+            revision: "136e59053a7ad2470344518d3e36b001d68337cf"
+            quote: "Policy is set at $80, anything over"
+      - from: "2026-06-19"
+        value: "100 USD/month"
+        texts: ["100"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Policy is set at $100 - claims above this amount will not be reimbursed. The limit has been reviewed and set to cover standard costs across all markets"
+  "meals_per_day_traveling":
+    about: "Meals while traveling, per day"
+    pattern: "lagging_translation"
+    case: "constructed"
+    values:
+      - from: "2022-05-31"
+        value: "100 USD/day"
+        texts: ["100"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.ja.md"
+            revision: "constructed"
+            quote: "会社の業務で出張中の食事は、1 日 100 米ドル（または現地通貨の相当額）まで精算できます。"
+          - file: "gitlab/legacy/sites/handbook/source/handbook/finance/expenses/index.html.md"
+            revision: "136e59053a7ad2470344518d3e36b001d68337cf"
+            quote: "$100 per day."
+          - file: "gitlab/drive/downloads/expense-policy.md"
+            revision: "e066141449e1d919c1f649ba0566a1a7d767404e"
+            quote: "$100 USD per day cap during travel."
+      - from: "2026-06-19"
+        value: "120 USD/day"
+        texts: ["120"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "are reimbursable, up to $120 USD (or local equivalent currency) per day."
+  "lost_baggage_cover":
+    about: "Business travel insurance for lost baggage"
+    pattern: "restated_lagging"
+    case: "constructed"
+    values:
+      - from: "2023-09-20"
+        value: "500 USD per bag, up to 5 bags"
+        texts: ["500"]
+        stated:
+          - file: "gitlab/teams/engineering/offsites-and-conference-travel.md"
+            revision: "constructed"
+            quote: "the baggage protection is $500 per bag, up to 5 bags."
+      - from: "2026-07-10"
+        value: "2500 USD per trip, 1250 per item, max 2 bags"
+        texts: ["2500"]
+        stated:
+          - file: "gitlab/handbook/total-rewards/benefits/general-and-entity-benefits/_index.md"
+            revision: "f96a52e1999a607c5a21c464ad44b7dcf3f8a350"
+            quote: "lost baggage up to $2,500 per trip, subject to $1,250 per item/set and max 2 bags."
+  "coworking_monthly_limit":
+    about: "Co-working space membership, per month"
+    pattern: "restated_lagging"
+    case: "constructed"
+    values:
+      - from: "2021-12-03"
+        value: "no set limit"
+        texts: ["no set limit", "no limit", "没有上限", "没有固定上限", "不设上限", "上限はありません", "上限なし", "上限は設けられていません"]
+        stated:
+          - file: "gitlab/teams/people/new-hire-expenses-faq.md"
+            revision: "constructed"
+            quote: "There is no set limit for co-working space fees"
+      - from: "2022-01-27"
+        value: "700 USD/month"
+        texts: ["700"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "$700.00 Limit per month."
+  "expense_claim_deadline":
+    about: "How long after purchase an expense can be claimed"
+    pattern: "restated_lagging"
+    case: "constructed"
+    values:
+      - from: "2020-11-17"
+        value: "30 days"
+        texts: ["30"]
+        stated:
+          - file: "gitlab/teams/sales/travel-expense-quick-reference.md"
+            revision: "constructed"
+            quote: "Expenses should be submitted within 30 days of purchase, spend, or invoice due date."
+      - from: "2022-01-27"
+        value: "90 days"
+        texts: ["90"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Expense claims over 90 days from purchase date will not be reimbursed unless approved by the Manager."
+  "host_gift_limit":
+    about: "Host gift when staying with friends instead of a hotel"
+    pattern: "restated_lagging"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "50 USD"
+        texts: ["50"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "you may expense up to a $50 appropriate host/hostess gift."
+    misleading:
+      - value: "25 USD"
+        texts: ["25"]
+        why: "a team page restates a lower amount"
+        stated:
+          - file: "gitlab/teams/people/new-hire-expenses-faq.md"
+            revision: "constructed"
+            quote: "you may expense a host gift of up to\n  $25."
+  "internet_while_traveling":
+    about: "Internet while traveling, per day"
+    pattern: "restated_lagging"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "50 USD/day"
+        texts: ["50"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Internet while traveling is reimbursable for up to $50 USD (or local equivalent currency) per day."
+    misleading:
+      - value: "30 USD/day"
+        texts: ["30"]
+        why: "a team page restates a lower amount"
+        stated:
+          - file: "gitlab/teams/people/new-hire-expenses-faq.md"
+            revision: "constructed"
+            quote: "Internet while traveling, up to $30 USD per day."
+  "rental_car_class":
+    about: "Highest rental car class allowed"
+    pattern: "restated_lagging"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "intermediate"
+        texts: ["intermediate", "中级", "中型", "インターミディエイト", "中型車"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "up to the intermediate car class, with a 7 day booking lead time."
+    misleading:
+      - value: "compact"
+        texts: ["compact", "紧凑", "小型", "コンパクト"]
+        why: "a team page restates a lower class"
+        stated:
+          - file: "gitlab/teams/engineering/offsites-and-conference-travel.md"
+            revision: "constructed"
+            quote: "Rental cars are reimbursable up to the compact car class."
+  "tips_limit":
+    about: "Tips on meals"
+    pattern: "restated_lagging"
+    case: "constructed"
+    values:
+      - from: "2023-11-21"
+        value: "20%"
+        texts: ["20"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Tips are acceptable up to 20% and should be detailed accordingly in the description box."
+    misleading:
+      - value: "15%"
+        texts: ["15"]
+        why: "a team page restates a lower share"
+        stated:
+          - file: "gitlab/teams/sales/travel-expense-quick-reference.md"
+            revision: "constructed"
+            quote: "Tips are acceptable up to 15% and should be detailed in the description box."
+  "train_booking_lead":
+    about: "Booking lead time for trains"
+    pattern: "restated_lagging"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "14 days"
+        texts: ["14"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Train rides must be standard cabin class with a 14 day booking lead time."
+    misleading:
+      - value: "7 days"
+        texts: ["7"]
+        why: "a team page restates a shorter lead time"
+        stated:
+          - file: "gitlab/teams/engineering/offsites-and-conference-travel.md"
+            revision: "constructed"
+            quote: "Train rides are standard class with a 7 day booking\n  lead time."
+  "hotel_cap_per_night":
+    about: "Hotel cap per night"
+    pattern: "newer_not_authoritative"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "300 USD/night"
+        texts: ["300"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Hotel stays are reimbursable up to $300 USD (or equivalent local currency) inclusive of tax per night for standard rooms"
+    misleading:
+      - value: "350 USD/night"
+        texts: ["350"]
+        why: "a draft for the FY28 review, not approved"
+        stated:
+          - file: "gitlab/teams/finance/drafts/te-policy-refresh-fy28.md"
+            revision: "constructed"
+            quote: "Hotel stays are reimbursable up to $350 USD (or equivalent local currency) inclusive of tax\n  per night for standard rooms"
+  "coworking_day_pass":
+    about: "Co-working daily office pass"
+    pattern: "newer_not_authoritative"
+    case: "constructed"
+    values:
+      - from: "2026-06-19"
+        value: "100 USD/day"
+        texts: ["100"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "$100.00 Limit per day"
+    misleading:
+      - value: "75 USD/day"
+        texts: ["75"]
+        why: "a draft for the FY28 review, not approved"
+        stated:
+          - file: "gitlab/teams/finance/drafts/te-policy-refresh-fy28.md"
+            revision: "constructed"
+            quote: "Daily office passes: $75.00 limit per day."
+  "coworking_distance":
+    about: "How far from home a co-working space may be"
+    pattern: "newer_not_authoritative"
+    case: "constructed"
+    values:
+      - from: "2025-08-04"
+        value: "within 50 km"
+        texts: ["50"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "The space should be located within a commutable distance (+-50km) of the Team Member's primary residence"
+    misleading:
+      - value: "within 80 km"
+        texts: ["80"]
+        why: "a draft for the FY28 review, not approved"
+        stated:
+          - file: "gitlab/teams/finance/drafts/te-policy-refresh-fy28.md"
+            revision: "constructed"
+            quote: "commutable distance (+-80km)"
+  "books_limit":
+    about: "Books, per year"
+    pattern: "newer_not_authoritative"
+    case: "constructed"
+    values:
+      - from: "2023-02-08"
+        value: "15 USD/quarter"
+        texts: ["15"]
+        stated:
+          - file: "gitlab/legacy/sites/handbook/source/handbook/finance/expenses/index.html.md"
+            revision: "136e59053a7ad2470344518d3e36b001d68337cf"
+            quote: "Approval required by AP Admin for Navan for all purchases to ensure reasonableness of expense.<br> -  $15 per quarter."
+      - from: "2023-08-29"
+        value: "60 USD/year"
+        texts: ["60"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Limit is set to $60/year."
+    misleading:
+      - value: "100 USD/year"
+        texts: ["100"]
+        why: "a team member's suggested change, not sent"
+        stated:
+          - file: "gitlab/drive/personal/m.okafor/expense-policy-suggestions.md"
+            revision: "constructed"
+            quote: "Limit is set to $100/year."
+  "postage_limit":
+    about: "Postage and shipping, per transaction before approval"
+    pattern: "newer_not_authoritative"
+    case: "constructed"
+    values:
+      - from: "2023-02-08"
+        value: "100 USD/transaction"
+        texts: ["100"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Limit is set at $100.00 per transaction before being flagged for approval."
+    misleading:
+      - value: "150 USD/transaction"
+        texts: ["150"]
+        why: "a team member's suggested change, not sent"
+        stated:
+          - file: "gitlab/drive/personal/m.okafor/expense-policy-suggestions.md"
+            revision: "constructed"
+            quote: "Limit is set at $150.00 per transaction before being flagged for approval."
+  "home_office_new_hire":
+    about: "Home office stipend for new hires, first year"
+    pattern: "newer_not_authoritative"
+    case: "constructed"
+    values:
+      - from: "2023-02-08"
+        value: "1500 USD"
+        texts: ["1500"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "new hires will receive a 1,500 USD (or equivalent local currency) stipend to help you towards setting up your home office in your first year."
+    misleading:
+      - value: "2000 USD"
+        texts: ["2000"]
+        why: "an AP proposal for FY28, not approved"
+        stated:
+          - file: "gitlab/drive/finance/proposals/home-office-and-navan-limits-fy28.md"
+            revision: "constructed"
+            quote: "new hires will receive a 2,000 USD (or equivalent local currency) stipend"
+  "single_item_navan_limit":
+    about: "Largest single item that can be expensed in Navan"
+    pattern: "newer_not_authoritative"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "5000 USD"
+        texts: ["5000"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Expense claims for a single item up to $5,000 can be expensed via Navan."
+    misleading:
+      - value: "7500 USD"
+        texts: ["7500"]
+        why: "an AP proposal for FY28, not approved"
+        stated:
+          - file: "gitlab/drive/finance/proposals/home-office-and-navan-limits-fy28.md"
+            revision: "constructed"
+            quote: "expense claims for a single item up to $7,500 can be expensed via Navan"
+  "team_meal_per_person":
+    about: "Team meals, per person"
+    pattern: "governed_disagree"
+    case: "natural"
+    values:
+      - from: "2023-08-29"
+        value: "80 USD/person/meal"
+        texts: ["80"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "### Traveling: Team Events and Meals"
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "$80 limit per person per meal."
+    conflicting:
+      - value: "100 USD/person"
+        texts: ["100"]
+        stated:
+          - file: "gitlab/handbook/finance/accounts-payable/corp-credit-cards.md"
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "Team meals of up to 20 people which should not exceed $100 per person"
+  "travel_insurance_trip_duration":
+    about: "Longest trip the business travel insurance covers"
+    pattern: "governed_disagree"
+    case: "natural"
+    values:
+      - from: "2026-07-10"
+        value: "up to 365 days"
+        texts: ["365"]
+        stated:
+          - file: "gitlab/handbook/total-rewards/benefits/general-and-entity-benefits/_index.md"
+            revision: "f96a52e1999a607c5a21c464ad44b7dcf3f8a350"
+            quote: "**Trip Duration:** Coverage for trips up to 365 days"
+    conflicting:
+      - value: "less than 180 days"
+        texts: ["180"]
+        stated:
+          - file: "gitlab/handbook/finance/travel/_index.md"
+            revision: "092b3395d88dc5a5eaf7122264e1ddc8b061e0c6"
+            quote: "| Trip Duration | Covered for trips less than 180 days |"
+  "travel_insurance_emergency_medical":
+    about: "Emergency medical cover on business travel"
+    pattern: "governed_disagree"
+    case: "natural"
+    values:
+      - from: "2026-07-10"
+        value: "10000 USD emergency medical benefit"
+        texts: ["10000", "1万"]
+        stated:
+          - file: "gitlab/handbook/total-rewards/benefits/general-and-entity-benefits/_index.md"
+            revision: "f96a52e1999a607c5a21c464ad44b7dcf3f8a350"
+            quote: "Emergency medical benefit: up to $10,000"
+    conflicting:
+      - value: "250000 USD per occurrence"
+        texts: ["250000", "25万"]
+        stated:
+          - file: "gitlab/handbook/finance/travel/_index.md"
+            revision: "092b3395d88dc5a5eaf7122264e1ddc8b061e0c6"
+            quote: "| Emergency Medical | Up to $250,000 per occurrence |"
+  "travel_insurance_personal_deviation":
+    about: "Personal travel added to a business trip that the insurance covers"
+    pattern: "governed_disagree"
+    case: "natural"
+    values:
+      - from: "2026-07-10"
+        value: "up to 14 days"
+        texts: ["14"]
+        stated:
+          - file: "gitlab/handbook/total-rewards/benefits/general-and-entity-benefits/_index.md"
+            revision: "f96a52e1999a607c5a21c464ad44b7dcf3f8a350"
+            quote: "Limited Personal deviation coverage: up to 14 days"
+    conflicting:
+      - value: "25% of the business trip length"
+        texts: ["25"]
+        stated:
+          - file: "gitlab/handbook/finance/travel/_index.md"
+            revision: "092b3395d88dc5a5eaf7122264e1ddc8b061e0c6"
+            quote: "| Personal Deviation | Extended coverage for personal travel (25% of business trip length) |"
+  "life_event_gift_limit":
+    about: "Gift for a team member's significant life event"
+    pattern: "governed_disagree"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "125 USD incl. shipping"
+        texts: ["125"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "The allowable cost for gifts is up to $125 USD (including shipping) per gift."
+    conflicting:
+      - value: "100 USD per event incl. shipping and tax"
+        texts: ["100"]
+        stated:
+          - file: "gitlab/teams/people/significant-life-events.md"
+            revision: "constructed"
+            quote: "Gifts and flowers for a significant life event are capped at $100 USD per event"
+  "rental_car_lead_time":
+    about: "Booking lead time for rental cars"
+    pattern: "governed_disagree"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "7 days"
+        texts: ["7"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "should be booked through Navan, up to the intermediate car class, with a 7 day booking lead time."
+    conflicting:
+      - value: "14 days"
+        texts: ["14"]
+        stated:
+          - file: "gitlab/teams/travel/booking-guidelines.md"
+            revision: "constructed"
+            quote: "Rental cars must be booked in Navan at least 14 days before pick-up."
+  "auto_accept_hours":
+    about: "Hours after which Navan auto-accepts an out-of-policy flight"
+    pattern: "changed_elsewhere"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "24 hours"
+        texts: ["24"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "After 24 hours without any manual action (approved/denied) the booking will automatically be accepted."
+      - from: "2026-10-01"
+        value: "48 hours"
+        texts: ["48"]
+        stated:
+          - file: "gitlab/drive/announcements/finance-announcements-2026-10.md"
+            revision: "constructed"
+            quote: "Navan auto-approves an out-of-policy flight booking after\n48 hours without a manual action from the approver"
+  "frequent_traveler_trips":
+    about: "International trips per quarter that qualify for business class on 8h+ flights"
+    pattern: "changed_elsewhere"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "3 or more trips per quarter"
+        texts: ["3"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "defined as 3 or more trips per quarter internationally on flights of 8 hrs+ continuous flight time"
+      - from: "2026-10-05"
+        value: "2 or more trips per quarter"
+        texts: ["2"]
+        stated:
+          - file: "gitlab/drive/announcements/finance-announcements-2026-10.md"
+            revision: "constructed"
+            quote: "once you take 2 or more such trips per quarter"
+  "coworking_approval_days":
+    about: "Co-working days in a month above which approval is needed"
+    pattern: "changed_elsewhere"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "more than 5 days"
+        texts: ["5"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "If more than 5 days are booked in the month, then Manager and Finance approval"
+      - from: "2026-10-12"
+        value: "more than 3 days"
+        texts: ["3"]
+        stated:
+          - file: "gitlab/drive/announcements/finance-announcements-2026-10.md"
+            revision: "constructed"
+            quote: "more than 3 day-pass days in a month needs\nmanager and Finance approval"
+  "domestic_flight_advance":
+    about: "How far ahead domestic flights must be booked"
+    pattern: "changed_elsewhere"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "14 days"
+        texts: ["14"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Domestic: At least 14 days in advance"
+      - from: "2026-10-15"
+        value: "10 days"
+        texts: ["10"]
+        stated:
+          - file: "gitlab/drive/announcements/finance-announcements-2026-10.md"
+            revision: "constructed"
+            quote: "Domestic flights now need to be booked at least 10 days in\nadvance"
+  "flight_upgrade_hours":
+    about: "Flight length from which the next class up may be booked"
+    pattern: "changed_elsewhere"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "over 5 hours per segment"
+        texts: ["5"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "For domestic flights with a duration greater than 5 hours of consecutive flight time (each segment must be 5+ hours)"
+      - from: "2026-10-20"
+        value: "over 6 hours per segment"
+        texts: ["6"]
+        stated:
+          - file: "gitlab/drive/announcements/finance-announcements-2026-10.md"
+            revision: "constructed"
+            quote: "the next class up may be booked on\nflights over 6 hours of consecutive flight time (each segment 6+ hours)"
+  "hotel_booking_lead":
+    about: "Booking lead time for hotels"
+    pattern: "changed_elsewhere"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "7 days"
+        texts: ["7"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "inclusive of tax per night for standard rooms, with a 7 day booking lead time."
+      - from: "2026-11-01"
+        value: "10 days"
+        texts: ["10"]
+        stated:
+          - file: "gitlab/drive/announcements/finance-announcements-2026-10.md"
+            revision: "constructed"
+            quote: "Hotels must now be booked with at least a 10 day booking lead\ntime (was 7 days), effective 2026-11-01"
+  "home_office_yearly_refresh":
+    about: "Home office budget for existing team members, per year"
+    pattern: "distorted"
+    case: "constructed"
+    values:
+      - from: "2023-02-08"
+        value: "500 USD/year"
+        texts: ["500"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Existing Team Members will get a yearly refresh of 500 USD (or equivalent local currency)"
+    misleading:
+      - value: "1500 USD/year"
+        texts: ["1500"]
+        why: "a summary drops the condition that 1,500 is for the first year only"
+        stated:
+          - file: "gitlab/teams/people/new-hire-expenses-faq.md"
+            revision: "constructed"
+            quote: "You get a home office budget of $1,500 per year"
+  "receipts_non_us":
+    about: "Which expenses need receipts for team members outside the US"
+    pattern: "distorted"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "all expenses"
+        texts: ["all expenses", "every expense", "every business expense", "any amount", "all business", "regardless", "所有费用", "所有的费用", "全部费用", "任何金额", "无论金额", "不论金额", "すべての経費", "全ての経費", "金額にかかわらず", "金額に関係なく", "金額を問わず"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "For Non-US Team Members, receipts are required for all expenses."
+    misleading:
+      - value: "only over 50 USD"
+        texts: ["50"]
+        why: "a summary drops the condition that the 50 USD threshold is for US team members"
+        stated:
+          - file: "gitlab/teams/sales/travel-expense-quick-reference.md"
+            revision: "constructed"
+            quote: "receipts are only needed for expenses over $50."
+      - value: "over 75 USD"
+        texts: ["75"]
+        why: "an old copy of the policy"
+        stated:
+          - file: "gitlab/drive/downloads/expense-policy.md"
+            revision: "e066141449e1d919c1f649ba0566a1a7d767404e"
+            quote: "Itemized receipts are required for all business related expenses that are greater than $75 USD"
+  "monthly_limit_e_group":
+    about: "Monthly reimbursement limit for E-Group members"
+    pattern: "distorted"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "20000 USD/month"
+        texts: ["20K", "20000", "2万"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "E-Group members have a maximum monthly limit to be reimbursed of $20K USD before additional approvals are required."
+    misleading:
+      - value: "10000 USD/month"
+        texts: ["10K", "10000", "1万"]
+        why: "a summary says the general limit applies to executives too"
+        stated:
+          - file: "gitlab/teams/sales/travel-expense-quick-reference.md"
+            revision: "constructed"
+            quote: "The maximum monthly limit to be reimbursed is $10K USD for every team member, including\n  executives."
+  "ground_transport_single_trip":
+    about: "Taxis and ride-hailing, single trip"
+    pattern: "distorted"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "150 USD/single trip"
+        texts: ["150"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "Ground Transportation (taxis, ubers) at $300 limit per round trip and $150 limit for single trip."
+    misleading:
+      - value: "300 USD/trip"
+        texts: ["300"]
+        why: "a summary drops the difference between a single and a round trip"
+        stated:
+          - file: "gitlab/teams/engineering/offsites-and-conference-travel.md"
+            revision: "constructed"
+            quote: "Taxis and ride-hailing: up to $300 per trip."
+  "international_flight_advance":
+    about: "How far ahead international flights must be booked"
+    pattern: "distorted"
+    case: "constructed"
+    values:
+      - from: "2023-08-29"
+        value: "21 days"
+        texts: ["21"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "International: At least 21 days in advance"
+    misleading:
+      - value: "14 days"
+        texts: ["14"]
+        why: "a summary gives the domestic lead time for all flights"
+        stated:
+          - file: "gitlab/teams/sales/travel-expense-quick-reference.md"
+            revision: "constructed"
+            quote: "Book all flights at least 14 days in advance."
+  "gift_us_government_official":
+    about: "Gifts or entertainment for a US government official, per event"
+    pattern: "distorted"
+    case: "constructed"
+    values:
+      - from: "2025-10-14"
+        value: "20 USD per person per event"
+        texts: ["20"]
+        stated:
+          - file: "gitlab/handbook/legal/policies/gifts-contributions.md"
+            revision: "3643eb9e2a76b6b43e2cd19ce4ff6e0c89afa639"
+            quote: "The total value of gifts or entertainment provided to a U.S. government official cannot exceed $20 USD (or the equivalent in local currency) per person per event."
+    misleading:
+      - value: "80 USD per person per event"
+        texts: ["80"]
+        why: "a summary gives the foreign-official limit for all officials"
+        stated:
+          - file: "gitlab/teams/sales/travel-expense-quick-reference.md"
+            revision: "constructed"
+            quote: "Gifts and entertainment for government officials: up to $80 USD per person per event"
+  "receipts_us":
+    about: "Receipt threshold for US team members"
+    pattern: "control"
+    case: "natural"
+    values:
+      - from: "2023-08-29"
+        value: "50 USD"
+        texts: ["50"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "US Team Members are required to only submit receipts for any expenses over $50 USD."
+  "us_cash_tip_receipt":
+    about: "Cash tips a US team member may claim without a receipt"
+    pattern: "control"
+    case: "natural"
+    values:
+      - from: "2023-11-21"
+        value: "under 50 USD"
+        texts: ["50"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "For US team members, cash tips under $50 do not need a receipt."
+  "train_upgrade_trips":
+    about: "Train trips per quarter after which one class up is allowed"
+    pattern: "control"
+    case: "natural"
+    values:
+      - from: "2023-08-29"
+        value: "more than 3 trips (6 segments) over 5 hours"
+        texts: ["3"]
+        stated:
+          - file: "gitlab/handbook/finance/expenses.md"
+            revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
+            quote: "If you travel more than 3 train trips (6 segments) per quarter, and they are over 5 hours in duration; we will allow you to upgrade one class on the train."
+  "travel_accidental_death":
+    about: "Accidental death cover on business travel"
+    pattern: "control"
+    case: "natural"
+    values:
+      - from: "2024-08-22"
+        value: "5x annual salary up to 500000 USD"
+        texts: ["500000", "50万"]
+        stated:
+          - file: "gitlab/handbook/total-rewards/benefits/general-and-entity-benefits/_index.md"
+            revision: "f96a52e1999a607c5a21c464ad44b7dcf3f8a350"
+            quote: "Accidental Death: 5x annual salary up to $500,000"
+          - file: "gitlab/handbook/finance/travel/_index.md"
+            revision: "092b3395d88dc5a5eaf7122264e1ddc8b061e0c6"
+            quote: "| Accidental Death | 5× Annual Salary (up to USD 500,000) |"
+  "life_insurance_cover":
+    about: "Life insurance where no local benefit exists"
+    pattern: "control"
+    case: "natural"
+    values:
+      - from: "2025-09-24"
+        value: "20000 USD"
+        texts: ["20000", "2万"]
+        stated:
+          - file: "gitlab/handbook/total-rewards/benefits/general-and-entity-benefits/_index.md"
+            revision: "f96a52e1999a607c5a21c464ad44b7dcf3f8a350"
+            quote: "GitLab provides $20,000 in life insurance coverage"
+  "growth_development_budget":
+    about: "Growth and development budget, per year"
+    pattern: "control"
+    case: "natural"
+    values:
+      - from: "2025-09-24"
+        value: "10000 USD/year"
+        texts: ["10000", "1万"]
+        stated:
+          - file: "gitlab/handbook/total-rewards/benefits/general-and-entity-benefits/_index.md"
+            revision: "f96a52e1999a607c5a21c464ad44b7dcf3f8a350"
+            quote: "we provide up to $10,000 each year specifically for your career development."
+  "security_evacuation":
+    about: "Security evacuation cover on business travel"
+    pattern: "control"
+    case: "natural"
+    values:
+      - from: "2026-07-10"
+        value: "100000 USD"
+        texts: ["100000", "10万"]
+        stated:
+          - file: "gitlab/handbook/total-rewards/benefits/general-and-entity-benefits/_index.md"
+            revision: "f96a52e1999a607c5a21c464ad44b7dcf3f8a350"
+            quote: "Security evacuation: Maximum $100,000."
+  "gift_foreign_government_official":
+    about: "Gifts or entertainment for a foreign government official, per event"
+    pattern: "control"
+    case: "natural"
+    values:
+      - from: "2025-10-14"
+        value: "80 USD per person per event"
+        texts: ["80"]
+        stated:
+          - file: "gitlab/handbook/legal/policies/gifts-contributions.md"
+            revision: "3643eb9e2a76b6b43e2cd19ce4ff6e0c89afa639"
+            quote: "The total value of gifts or entertainment provided to a foreign government official cannot exceed $80 USD (or the equivalent in local currency) per person per event"
+  "promo_incentive_standard":
+    about: "Promotional incentive for a standard prospect"
+    pattern: "control"
+    case: "natural"
+    values:
+      - from: "2025-10-14"
+        value: "25 USD per incentive"
+        texts: ["25"]
+        stated:
+          - file: "gitlab/handbook/legal/policies/gifts-contributions.md"
+            revision: "3643eb9e2a76b6b43e2cd19ce4ff6e0c89afa639"
+            quote: "Maximum $25 USD per incentive"
+  "po_required_over":
+    about: "Contract value above which a purchase order is required"
+    pattern: "control"
+    case: "natural"
+    values:
+      - from: "2024-05-30"
+        value: "5000 USD"
+        texts: ["5000"]
+        stated:
+          - file: "gitlab/handbook/finance/accounts-payable/_index.md"
+            revision: "7d63f0c2f3bf4c8ec0bea2c653d99fb197c738e7"
+            quote: "All purchases/services with a total contract value over $5000 are **required** to have a purchase order"
+  "po_invoice_tolerance":
+    about: "Invoice amount over a PO that AP may still process"
+    pattern: "control"
+    case: "natural"
+    values:
+      - from: "2026-05-06"
+        value: "1000 USD"
+        texts: ["1000"]
+        stated:
+          - file: "gitlab/handbook/finance/accounts-payable/_index.md"
+            revision: "7d63f0c2f3bf4c8ec0bea2c653d99fb197c738e7"
+            quote: "Amounts up to $1,000 USD (or local currency equivalent) will be reviewed by the AP Team and routed to FP&A for approval."
+  "card_receipt_upload":
+    about: "Days to upload a corporate card receipt"
+    pattern: "control"
+    case: "natural"
+    values:
+      - from: "2023-10-16"
+        value: "30 days"
+        texts: ["30"]
+        stated:
+          - file: "gitlab/handbook/finance/accounts-payable/corp-credit-cards.md"
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "Receipts must be uploaded into Navan within 30 days of the transaction date."
+  "capitalization_threshold":
+    about: "Minimum cost for capitalizing an asset"
+    pattern: "control"
+    case: "natural"
+    values:
+      - from: "2023-10-16"
+        value: "5000 USD"
+        texts: ["5000"]
+        stated:
+          - file: "gitlab/handbook/finance/accounting/_index.md"
+            revision: "c2934665d9bf31e43caf3c44fe4d782d8b348a16"
+            quote: "as the minimum amount required for capitalization."
+  "card_transaction_limit":
+    about: "Most a single corporate card purchase may be"
+    pattern: "control"
+    case: "natural"
+    values:
+      - from: "2023-10-16"
+        value: "5000 USD"
+        texts: ["5000"]
+        stated:
+          - file: "gitlab/handbook/finance/accounts-payable/corp-credit-cards.md"
+            revision: "bee431b54775ce83dd5a319a8b20301a728127e9"
+            quote: "Purchases on your card should not exceed $5,000 USD for each transaction annually."
