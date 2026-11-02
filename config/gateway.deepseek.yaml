@@ -15,7 +15,8 @@ providers:
   - name: deepseek
     kind: openai_compatible
     base_url: https://api.deepseek.com/v1
-    api_key_env: DEEPSEEK_API_KEY
+    # Provider keys carry an INSPIRATION_ prefix in the environment that runs the bench.
+    api_key_env: INSPIRATION_DEEPSEEK_API_KEY
     # A cloud API: never sees confidential or secret content.
     max_sensitivity: internal
     timeout_s: 300
