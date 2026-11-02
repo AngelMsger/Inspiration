@@ -16,6 +16,17 @@
  * match without case or thousands separators, and a number only whole: "30" is not in "300".
  * Totals are given by kind and by the question's language, for the engine and the rivals.
  *
+ * A key may also say how its case was built: the fact's `topic`, its `pattern` (how the
+ * corpus misleads about it) and its `case` (found in the documents or written for the test).
+ * Values the corpus states that never held, from a draft or a summary that drops a condition,
+ * are `misleading`: an answer giving one of them without the value in effect is stale too.
+ * Values that other governed documents in use state beside the one in effect are
+ * `conflicting`: a right answer names every one, and one that names some but not all is
+ * `one_sided`. Totals are then also given by topic, pattern and case. A key's `topics` name
+ * the spaces each topic is in, and the long contexts read only the question's topic: a model
+ * reading every document of a large drive is no rival anyone would run, while search and the
+ * mature RAG still look through everything.
+ *
  * Each question is also checked for whether the search the answer rests on found an expected
  * text at all (`found`): with stand-ins for the models, a right source the stand-in answer
  * leaves out is the stand-in's miss, a source never found is retrieval's. And each is asked
@@ -73,12 +84,40 @@ import { type Spend, spendLine, spendOf, usageSince } from "./cost.ts";
  * How an answer turned out: right, a value no longer in effect, a wrong text, wrong
  * citations, both, or nothing answered.
  */
-export type Outcome = "right" | "stale" | "wrong_answer" | "wrong_citations" | "wrong" | "unanswered";
-const OUTCOMES: readonly Outcome[] = ["right", "stale", "wrong_answer", "wrong_citations", "wrong", "unanswered"];
+export type Outcome = "right" | "stale" | "one_sided" | "wrong_answer" | "wrong_citations" | "wrong" | "unanswered";
+const OUTCOMES: readonly Outcome[] = [
+  "right",
+  "stale",
+  "one_sided",
+  "wrong_answer",
+  "wrong_citations",
+  "wrong",
+  "unanswered",
+];
 
 /** What a question asks about: a fact that has had one value, one that has had more, or one not stated. */
 export type Kind = "unchanged" | "changed" | "not_stated";
 const KINDS: readonly Kind[] = ["unchanged", "changed", "not_stated"];
+
+/**
+ * How the corpus misleads about a fact (docs/design/validation.md): an old copy under a path
+ * no longer in use, a translation behind its original, a page restating an older value, a
+ * newer draft or proposal that does not decide, governed pages that disagree, a change stated
+ * only elsewhere, a summary that drops a condition; or not at all, as a control.
+ */
+export const PATTERNS = [
+  "renamed_or_moved",
+  "lagging_translation",
+  "restated_lagging",
+  "newer_not_authoritative",
+  "governed_disagree",
+  "changed_elsewhere",
+  "distorted",
+  "control",
+] as const;
+export type Pattern = (typeof PATTERNS)[number];
+/** Whether a case is found in the documents as they are, or built for the test on real text. */
+export type Case = "natural" | "constructed";
 
 export interface Question {
   question: string;
@@ -88,9 +127,16 @@ export interface Question {
   stale?: string[];
   /** Documents (corpus paths, a language suffix optional) one of which a right answer cites. */
   cites?: string[];
+  /** Further texts a right answer contains one of each: the values other governed documents state. */
+  also?: string[][];
   /** The fact of keys.yaml it asks about. */
   fact?: string;
   kind: Kind;
+  topic?: string;
+  pattern?: Pattern;
+  case?: Case;
+  /** The spaces of the question's topic, which the long contexts read; every space when absent. */
+  spaces?: string[];
   /** Where the engine answers it otherwise today, and why. */
   engine?: { outcome: Outcome; why: string };
 }
@@ -99,14 +145,28 @@ export interface Question {
 export interface Keys {
   /** The day the questions are asked: the value in effect then is the answer. */
   asked_on: string;
+  /** Each topic's spaces, by their IDs in corpus.yaml. */
+  topics?: Record<string, string[]>;
   facts: Record<string, FactKey>;
 }
 
 export interface FactKey {
   /** What the fact is, in a few words. */
   about: string;
+  topic?: string;
+  pattern?: Pattern;
+  case?: Case;
   /** In order of the day each took effect. */
   values: KeyValue[];
+  /** Values the corpus states that never held, and why each misleads. */
+  misleading?: (Stated & { value: string; texts: string[]; why: string })[];
+  /** Values other governed documents in use state beside the one in effect. */
+  conflicting?: (Stated & { value: string; texts: string[] })[];
+}
+
+/** Where the corpus states a value: the file (a corpus path), its revision, and the words, verbatim. */
+interface Stated {
+  stated: { file: string; revision: string; quote: string }[];
 }
 
 export interface KeyValue {
@@ -180,6 +240,20 @@ const SCHEMA = {
 };
 
 const DAY = { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" };
+const TEXTS = { type: "array", items: { type: "string", minLength: 1 }, minItems: 1 };
+const STATED = {
+  type: "array",
+  items: {
+    type: "object",
+    required: ["file", "revision", "quote"],
+    additionalProperties: false,
+    properties: {
+      file: { type: "string", minLength: 1 },
+      revision: { type: "string", minLength: 1 },
+      quote: { type: "string", minLength: 1 },
+    },
+  },
+};
 
 const KEYS_SCHEMA = {
   type: "object",
@@ -187,6 +261,10 @@ const KEYS_SCHEMA = {
   additionalProperties: false,
   properties: {
     asked_on: DAY,
+    topics: {
+      type: "object",
+      additionalProperties: { type: "array", items: { type: "string", minLength: 1 }, minItems: 1 },
+    },
     facts: {
       type: "object",
       additionalProperties: {
@@ -195,6 +273,9 @@ const KEYS_SCHEMA = {
         additionalProperties: false,
         properties: {
           about: { type: "string", minLength: 1 },
+          topic: { type: "string", minLength: 1 },
+          pattern: { enum: PATTERNS },
+          case: { enum: ["natural", "constructed"] },
           values: {
             type: "array",
             minItems: 1,
@@ -202,24 +283,25 @@ const KEYS_SCHEMA = {
               type: "object",
               required: ["from", "value", "stated"],
               additionalProperties: false,
-              properties: {
-                from: DAY,
-                value: { type: ["string", "null"] },
-                texts: { type: "array", items: { type: "string", minLength: 1 }, minItems: 1 },
-                stated: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    required: ["file", "revision", "quote"],
-                    additionalProperties: false,
-                    properties: {
-                      file: { type: "string", minLength: 1 },
-                      revision: { type: "string", minLength: 1 },
-                      quote: { type: "string", minLength: 1 },
-                    },
-                  },
-                },
-              },
+              properties: { from: DAY, value: { type: ["string", "null"] }, texts: TEXTS, stated: STATED },
+            },
+          },
+          misleading: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["value", "texts", "why", "stated"],
+              additionalProperties: false,
+              properties: { value: { type: "string" }, texts: TEXTS, why: { type: "string" }, stated: STATED },
+            },
+          },
+          conflicting: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["value", "texts", "stated"],
+              additionalProperties: false,
+              properties: { value: { type: "string" }, texts: TEXTS, stated: STATED },
             },
           },
         },
@@ -247,6 +329,7 @@ export async function loadKeys(dir: string): Promise<Keys | undefined> {
   if (data === undefined) return undefined;
   const errors = schemaErrors(KEYS_SCHEMA, data);
   for (const [fact, key] of Object.entries(data.facts ?? {})) {
+    if (key.topic !== undefined && !data.topics?.[key.topic]) errors.push(`${fact}: no spaces for topic ${key.topic}`);
     key.values.forEach((v, i) => {
       if (i && v.from <= (key.values[i - 1] as KeyValue).from) errors.push(`${fact}: values out of order`);
       if (v.value !== null && (!v.texts || !v.stated.length)) errors.push(`${fact}: ${v.value} needs texts and stated`);
@@ -267,12 +350,22 @@ function expand(entry: Extract<Entry, { fact: string }>, keys: Keys | undefined)
   if (!keys || !key) throw new QuestionsError(`questions.yaml: no key for ${entry.fact} in keys.yaml`);
   const now = valueOn(key, keys.asked_on);
   const answer = now?.value != null ? (now.texts as string[]) : null;
-  const stale = [...new Set(key.values.filter((v) => v !== now).flatMap((v) => v.texts ?? []))].filter(
-    (t) => !answer?.includes(t),
-  );
+  const also = answer && key.conflicting?.length ? key.conflicting.map((c) => c.texts) : undefined;
+  const said = new Set([...(answer ?? []), ...(also ?? []).flat()]);
+  const stale = [
+    ...new Set([
+      ...key.values.filter((v) => v !== now).flatMap((v) => v.texts ?? []),
+      ...(key.misleading ?? []).flatMap((m) => m.texts),
+    ]),
+  ].filter((t) => !said.has(t));
   const kind: Kind =
     answer === null ? "not_stated" : new Set(key.values.map((v) => v.value)).size > 1 ? "changed" : "unchanged";
-  const cites = answer && [...new Set(now?.stated.map((s) => s.file))];
+  const cites = answer && [
+    ...new Set(
+      [...(now?.stated ?? []), ...(also ? (key.conflicting ?? []).flatMap((c) => c.stated) : [])].map((s) => s.file),
+    ),
+  ];
+  const spaces = key.topic === undefined ? undefined : keys.topics?.[key.topic];
   return entry.ask.map((a) => {
     const { question, engine } = typeof a === "string" ? { question: a, engine: undefined } : a;
     return {
@@ -280,8 +373,13 @@ function expand(entry: Extract<Entry, { fact: string }>, keys: Keys | undefined)
       answer,
       ...(stale.length && { stale }),
       ...(cites && { cites }),
+      ...(also && { also }),
       fact: entry.fact,
       kind,
+      ...(key.topic !== undefined && { topic: key.topic }),
+      ...(key.pattern && { pattern: key.pattern }),
+      ...(key.case && { case: key.case }),
+      ...(spaces && { spaces }),
       ...(engine && { engine }),
     };
   });
@@ -302,6 +400,9 @@ export interface QuestionResult {
   question: string;
   fact?: string;
   kind: Kind;
+  topic?: string;
+  pattern?: Pattern;
+  case?: Case;
   language: Language;
   outcome: Outcome;
   /** What the run's outcome should be: the engine entry's, else right. */
@@ -394,6 +495,8 @@ export interface Tally {
 export interface Score {
   right: number;
   stale: number;
+  /** Answers that give some of the values governed documents disagree on, not all; absent when none does. */
+  one_sided?: number;
 }
 
 export interface QuestionsReport {
@@ -411,6 +514,10 @@ export interface QuestionsReport {
     baselines: { mature: number; long_context: number | null; governed_long_context: number | null };
     by_kind: Partial<Record<Kind, Tally>>;
     by_language: Partial<Record<Language, Tally>>;
+    /** Only for questions whose keys say how their cases were built. */
+    by_topic?: Partial<Record<string, Tally>>;
+    by_pattern?: Partial<Record<Pattern, Tally>>;
+    by_case?: Partial<Record<Case, Tally>>;
     /** Each path's latencies, of the questions it answered, and the shared search's. */
     latency: Partial<Record<Path | "search", LatencySummary>>;
     retention: RetentionTotals;
@@ -470,11 +577,15 @@ export function says(text: string, texts: readonly string[] | undefined): boolea
 const citesExpected = (q: Question, documents: readonly string[]) =>
   !q.cites?.length || documents.some((p) => q.cites?.some((c) => stem(p) === stem(c) || p === c));
 
-function outcomeOf(q: Question, a: GroundedAnswer, cited: readonly string[]): Outcome {
-  const said = says(a.answer, q.answer ?? []);
-  if (!said && says(a.answer, q.stale)) return "stale";
+/** How an answer turned out, given the documents its citations are in. */
+export function outcomeOf(q: Question, a: GroundedAnswer, cited: readonly string[]): Outcome {
+  // The value in effect, and each value other governed documents state beside it.
+  const sides = [says(a.answer, q.answer ?? []), ...(q.also ?? []).map((texts) => says(a.answer, texts))];
+  const said = sides.every(Boolean);
+  if (!sides.some(Boolean) && says(a.answer, q.stale)) return "stale";
   if (q.answer === null) return a.citations.length === 0 && a.gaps.length > 0 ? "right" : "wrong_answer";
   if (!a.citations.length) return "unanswered";
+  if (!said && sides.some(Boolean)) return "one_sided";
   const cites = citesExpected(q, cited);
   if (said && cites) return "right";
   if (said) return "wrong_citations";
@@ -517,6 +628,17 @@ export function beyondRaw(
   if (!raw) return null;
   const read = new Set(raw.flatMap((s) => s.documents));
   return [...new Set((governed ?? []).flatMap((s) => s.documents))].filter((d) => !read.has(d));
+}
+
+/** beyondRaw over each topic's inputs: every document any of them cites beyond its raw input; null when one does not fit. */
+function beyondAll(inputs: readonly { raw: InputSource[] | null; governed: InputSource[] | null }[]): string[] | null {
+  const all = new Set<string>();
+  for (const { raw, governed } of inputs) {
+    const beyond = beyondRaw(raw, governed);
+    if (!beyond) return null;
+    for (const d of beyond) all.add(d);
+  }
+  return [...all];
 }
 
 /** What the model calls an answer made took, and whether its answering model's reply was cached. */
@@ -595,10 +717,10 @@ export async function questionsReport(
     );
     return [...new Set(of)];
   };
-  /** What a long context gives its model; null when the documents do not fit. */
-  const inputOf = async (retrieval: Retrieval, question: string): Promise<InputSource[] | null> => {
+  /** What a long context gives its model, of the spaces asked for or all; null when the documents do not fit. */
+  const inputOf = async (retrieval: Retrieval, question: string, spaces?: string[]): Promise<InputSource[] | null> => {
     try {
-      const hits = await retrieval.sources({ question }, corpus.reader);
+      const hits = await retrieval.sources({ question, ...(spaces && { space_ids: spaces }) }, corpus.reader);
       return await Promise.all(
         hits.map(async (h) => ({
           text: h.snippet,
@@ -611,10 +733,17 @@ export async function questionsReport(
       throw e;
     }
   };
-  // Every document the reader may read, so the same for each question: read once.
-  const first = questions[0]?.question;
-  const raw = first === undefined ? null : await inputOf(engine.baselines.long_context, first);
-  const governed = first === undefined ? null : await inputOf(engine.governedLongContext, first);
+  // Every document of the topic the reader may read, so the same for each question of it: read once.
+  type Inputs = { raw: InputSource[] | null; governed: InputSource[] | null };
+  const inputs = new Map<string, Inputs>();
+  const topicOf = (q: Question) => q.spaces?.join(" ") ?? "";
+  for (const q of questions) {
+    if (inputs.has(topicOf(q))) continue;
+    inputs.set(topicOf(q), {
+      raw: await inputOf(engine.baselines.long_context, q.question, q.spaces),
+      governed: await inputOf(engine.governedLongContext, q.question, q.spaces),
+    });
+  }
   const spent = Object.fromEntries([...PATHS, "search"].map((p) => [p, [] as UsageRecord[]])) as Record<
     Path | "search",
     UsageRecord[]
@@ -643,9 +772,11 @@ export async function questionsReport(
     const found = expected && sources.some((h) => says(h.snippet, expected));
     const cited = await pathsOf(a.citations);
     const rival = async (path: Exclude<Path, "engine">, retrieval: Retrieval): Promise<Rival | null> => {
+      // The long contexts read the question's topic; the mature RAG searches everything, as the engine does.
+      const spaces = path !== "mature" && q.spaces ? { space_ids: q.spaces } : {};
       try {
         const { value: answer, latency } = await metered(path, () =>
-          retrieval.answer({ question: q.question }, corpus.reader),
+          retrieval.answer({ question: q.question, ...spaces }, corpus.reader),
         );
         const cited = await pathsOf(answer.citations);
         return { outcome: outcomeOf(q, answer, cited), answer: answer.answer, cited, latency };
@@ -657,10 +788,14 @@ export async function questionsReport(
     const mature = (await rival("mature", engine.baselines.mature)) as Rival;
     const longContext = await rival("long_context", engine.baselines.long_context);
     const governedLongContext = await rival("governed_long_context", engine.governedLongContext);
+    const { raw, governed } = inputs.get(topicOf(q)) as Inputs;
     results.push({
       question: q.question,
       ...(q.fact && { fact: q.fact }),
       kind: q.kind,
+      ...(q.topic !== undefined && { topic: q.topic }),
+      ...(q.pattern && { pattern: q.pattern }),
+      ...(q.case && { case: q.case }),
       language: languageOf(q.question),
       outcome: outcomeOf(q, a, cited),
       expected: q.engine?.outcome ?? "right",
@@ -692,6 +827,11 @@ export async function questionsReport(
       },
       by_kind: tallies(results, (r) => r.kind),
       by_language: tallies(results, (r) => r.language),
+      ...(results.some((r) => r.pattern) && {
+        by_topic: tallies(results, (r) => r.topic ?? "(none)"),
+        by_pattern: tallies(results, (r) => r.pattern ?? "control"),
+        by_case: tallies(results, (r) => r.case ?? "natural"),
+      }),
       latency: Object.fromEntries(
         [...PATHS, "search" as const].flatMap((p) => {
           const of = results.flatMap((r) => {
@@ -706,7 +846,7 @@ export async function questionsReport(
         dropped: results.filter((r) => r.retention?.status === "dropped").length,
         absent: results.filter((r) => r.retention?.status === "absent").length,
         not_audited: results.filter((r) => !r.retention).length,
-        beyond_raw: beyondRaw(raw, governed),
+        beyond_raw: beyondAll([...inputs.values()]),
       },
     },
     ...(engine.models instanceof Gateway && {
@@ -896,10 +1036,14 @@ export function searchLines(r: SearchReport): string[] {
 }
 
 function tallies<K extends string>(results: readonly QuestionResult[], keyOf: (r: QuestionResult) => K) {
-  const score = (outcomes: (Outcome | undefined)[]): Score => ({
-    right: outcomes.filter((o) => o === "right").length,
-    stale: outcomes.filter((o) => o === "stale").length,
-  });
+  const score = (outcomes: (Outcome | undefined)[]): Score => {
+    const oneSided = outcomes.filter((o) => o === "one_sided").length;
+    return {
+      right: outcomes.filter((o) => o === "right").length,
+      stale: outcomes.filter((o) => o === "stale").length,
+      ...(oneSided && { one_sided: oneSided }),
+    };
+  };
   const by: Partial<Record<K, Tally>> = {};
   for (const k of [...new Set(results.map(keyOf))].sort()) {
     const of = results.filter((r) => keyOf(r) === k);
@@ -950,12 +1094,20 @@ export function questionLines(r: QuestionsReport): string[] {
       : []),
   ];
   const tally = (name: string, n: Tally) => {
-    const part = (s: Score | null) => (s ? `${s.right} right, ${s.stale} stale` : "(they do not fit)");
+    const part = (s: Score | null) =>
+      s ? `${s.right} right, ${s.stale} stale${s.one_sided ? `, ${s.one_sided} one-sided` : ""}` : "(they do not fit)";
     return `  ${name}: ${n.questions}; ${PATHS.map((p) => `${NAMES[p]} ${part(n[p])}`).join("; ")}`;
   };
   if (t.stale || r.questions.some((q) => q.kind === "changed")) {
     for (const k of KINDS) if (t.by_kind[k]) lines.push(tally(k.replace("_", " "), t.by_kind[k]));
     for (const [l, n] of Object.entries(t.by_language)) lines.push(tally(`in ${l}`, n as Tally));
+  }
+  for (const [name, by] of [
+    ["topic", t.by_topic],
+    ["pattern", t.by_pattern],
+    ["case", t.by_case],
+  ] as const) {
+    for (const [k, n] of Object.entries(by ?? {})) lines.push(tally(`${name} ${k.replaceAll("_", " ")}`, n as Tally));
   }
   for (const q of r.questions) {
     const mark = q.outcome === q.expected ? (q.outcome === "right" ? "right" : "known gap") : "differs";

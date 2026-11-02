@@ -8,9 +8,15 @@
 
 asked_on: 2026-11-02
 
+# The spaces of each topic in corpus.yaml: a long context reads only its question's topic.
+topics:
+  gitlab: [spc_01DECISIVETEST00GLHANDBOOK, spc_01DECISIVETEST0000GLLEGACY, spc_01DECISIVETEST00000GLTEAMS, spc_01DECISIVETEST00000GLDRIVE]
+  kubernetes: [spc_01DECISIVETEST000K8SDOCS00, spc_01DECISIVETEST0K8SLEGACY00, spc_01DECISIVETEST00PLATFORM00, spc_01DECISIVETEST0PLATDRIVE00]
+
 facts:
   "monthly_reimbursement_limit":
     about: "Monthly reimbursement limit for a team member"
+    topic: "gitlab"
     pattern: "renamed_or_moved"
     case: "natural"
     values:
@@ -30,6 +36,7 @@ facts:
             quote: "The maximum monthly limit to be reimbursed is $10K USD (or local currency equivalent)."
   "business_cards_limit":
     about: "Business cards limit"
+    topic: "gitlab"
     pattern: "renamed_or_moved"
     case: "natural"
     values:
@@ -49,6 +56,7 @@ facts:
             quote: "Limit is set at $150 per quarter."
   "office_supplies_limit":
     about: "Office supplies and consumables, per month"
+    topic: "gitlab"
     pattern: "renamed_or_moved"
     case: "natural"
     values:
@@ -68,6 +76,7 @@ facts:
             quote: "Limit is set at $50.00 per month."
   "marketing_navan_limit":
     about: "Marketing event purchases that can be expensed in Navan"
+    topic: "gitlab"
     pattern: "renamed_or_moved"
     case: "natural"
     values:
@@ -90,6 +99,7 @@ facts:
             quote: "Up to $5,000 can be expensed via Navan."
   "ground_transport_round_trip":
     about: "Taxis and ride-hailing, per round trip"
+    topic: "gitlab"
     pattern: "renamed_or_moved"
     case: "natural"
     values:
@@ -109,6 +119,7 @@ facts:
             quote: "Ground Transportation (taxis, ubers) at $300 limit per round trip and $150 limit for single trip."
   "fuel_limit":
     about: "Fuel, per day"
+    topic: "gitlab"
     pattern: "renamed_or_moved"
     case: "natural"
     values:
@@ -128,6 +139,7 @@ facts:
             quote: "Fuel at $300 limit per day."
   "parking_tolls_limit":
     about: "Parking and tolls, per day"
+    topic: "gitlab"
     pattern: "renamed_or_moved"
     case: "natural"
     values:
@@ -147,6 +159,7 @@ facts:
             quote: "Parking and tolls  at $150 limit per day."
   "dry_cleaning_min_stay":
     about: "Hotel stay after which dry cleaning is allowable"
+    topic: "gitlab"
     pattern: "renamed_or_moved"
     case: "natural"
     values:
@@ -166,6 +179,7 @@ facts:
             quote: "Dry cleaning is allowable if the stay is over 5 days."
   "client_meal_limit":
     about: "Meals with clients and partners, per person"
+    topic: "gitlab"
     pattern: "renamed_or_moved"
     case: "natural"
     values:
@@ -188,6 +202,7 @@ facts:
             quote: "$80 limit per person per meal."
   "phone_service_monthly":
     about: "Cell phone service, per month"
+    topic: "gitlab"
     pattern: "lagging_translation"
     case: "constructed"
     values:
@@ -214,6 +229,7 @@ facts:
             quote: "Policy is set at $100 - claims above this amount will not be reimbursed."
   "home_internet_monthly":
     about: "Home internet, per month"
+    topic: "gitlab"
     pattern: "lagging_translation"
     case: "constructed"
     values:
@@ -236,6 +252,7 @@ facts:
             quote: "Policy is set at $100 - claims above this amount will not be reimbursed. The limit has been reviewed and set to cover standard costs across all markets"
   "meals_per_day_traveling":
     about: "Meals while traveling, per day"
+    topic: "gitlab"
     pattern: "lagging_translation"
     case: "constructed"
     values:
@@ -261,6 +278,7 @@ facts:
             quote: "are reimbursable, up to $120 USD (or local equivalent currency) per day."
   "lost_baggage_cover":
     about: "Business travel insurance for lost baggage"
+    topic: "gitlab"
     pattern: "restated_lagging"
     case: "constructed"
     values:
@@ -280,6 +298,7 @@ facts:
             quote: "lost baggage up to $2,500 per trip, subject to $1,250 per item/set and max 2 bags."
   "coworking_monthly_limit":
     about: "Co-working space membership, per month"
+    topic: "gitlab"
     pattern: "restated_lagging"
     case: "constructed"
     values:
@@ -299,6 +318,7 @@ facts:
             quote: "$700.00 Limit per month."
   "expense_claim_deadline":
     about: "How long after purchase an expense can be claimed"
+    topic: "gitlab"
     pattern: "restated_lagging"
     case: "constructed"
     values:
@@ -318,6 +338,7 @@ facts:
             quote: "Expense claims over 90 days from purchase date will not be reimbursed unless approved by the Manager."
   "host_gift_limit":
     about: "Host gift when staying with friends instead of a hotel"
+    topic: "gitlab"
     pattern: "restated_lagging"
     case: "constructed"
     values:
@@ -338,6 +359,7 @@ facts:
             quote: "you may expense a host gift of up to\n  $25."
   "internet_while_traveling":
     about: "Internet while traveling, per day"
+    topic: "gitlab"
     pattern: "restated_lagging"
     case: "constructed"
     values:
@@ -358,6 +380,7 @@ facts:
             quote: "Internet while traveling, up to $30 USD per day."
   "rental_car_class":
     about: "Highest rental car class allowed"
+    topic: "gitlab"
     pattern: "restated_lagging"
     case: "constructed"
     values:
@@ -378,6 +401,7 @@ facts:
             quote: "Rental cars are reimbursable up to the compact car class."
   "tips_limit":
     about: "Tips on meals"
+    topic: "gitlab"
     pattern: "restated_lagging"
     case: "constructed"
     values:
@@ -398,6 +422,7 @@ facts:
             quote: "Tips are acceptable up to 15% and should be detailed in the description box."
   "train_booking_lead":
     about: "Booking lead time for trains"
+    topic: "gitlab"
     pattern: "restated_lagging"
     case: "constructed"
     values:
@@ -418,6 +443,7 @@ facts:
             quote: "Train rides are standard class with a 7 day booking\n  lead time."
   "hotel_cap_per_night":
     about: "Hotel cap per night"
+    topic: "gitlab"
     pattern: "newer_not_authoritative"
     case: "constructed"
     values:
@@ -438,6 +464,7 @@ facts:
             quote: "Hotel stays are reimbursable up to $350 USD (or equivalent local currency) inclusive of tax\n  per night for standard rooms"
   "coworking_day_pass":
     about: "Co-working daily office pass"
+    topic: "gitlab"
     pattern: "newer_not_authoritative"
     case: "constructed"
     values:
@@ -458,6 +485,7 @@ facts:
             quote: "Daily office passes: $75.00 limit per day."
   "coworking_distance":
     about: "How far from home a co-working space may be"
+    topic: "gitlab"
     pattern: "newer_not_authoritative"
     case: "constructed"
     values:
@@ -478,6 +506,7 @@ facts:
             quote: "commutable distance (+-80km)"
   "books_limit":
     about: "Books, per year"
+    topic: "gitlab"
     pattern: "newer_not_authoritative"
     case: "constructed"
     values:
@@ -505,6 +534,7 @@ facts:
             quote: "Limit is set to $100/year."
   "postage_limit":
     about: "Postage and shipping, per transaction before approval"
+    topic: "gitlab"
     pattern: "newer_not_authoritative"
     case: "constructed"
     values:
@@ -525,6 +555,7 @@ facts:
             quote: "Limit is set at $150.00 per transaction before being flagged for approval."
   "home_office_new_hire":
     about: "Home office stipend for new hires, first year"
+    topic: "gitlab"
     pattern: "newer_not_authoritative"
     case: "constructed"
     values:
@@ -545,6 +576,7 @@ facts:
             quote: "new hires will receive a 2,000 USD (or equivalent local currency) stipend"
   "single_item_navan_limit":
     about: "Largest single item that can be expensed in Navan"
+    topic: "gitlab"
     pattern: "newer_not_authoritative"
     case: "constructed"
     values:
@@ -565,6 +597,7 @@ facts:
             quote: "expense claims for a single item up to $7,500 can be expensed via Navan"
   "team_meal_per_person":
     about: "Team meals, per person"
+    topic: "gitlab"
     pattern: "governed_disagree"
     case: "natural"
     values:
@@ -587,6 +620,7 @@ facts:
             quote: "Team meals of up to 20 people which should not exceed $100 per person"
   "travel_insurance_trip_duration":
     about: "Longest trip the business travel insurance covers"
+    topic: "gitlab"
     pattern: "governed_disagree"
     case: "natural"
     values:
@@ -606,6 +640,7 @@ facts:
             quote: "| Trip Duration | Covered for trips less than 180 days |"
   "travel_insurance_emergency_medical":
     about: "Emergency medical cover on business travel"
+    topic: "gitlab"
     pattern: "governed_disagree"
     case: "natural"
     values:
@@ -625,6 +660,7 @@ facts:
             quote: "| Emergency Medical | Up to $250,000 per occurrence |"
   "travel_insurance_personal_deviation":
     about: "Personal travel added to a business trip that the insurance covers"
+    topic: "gitlab"
     pattern: "governed_disagree"
     case: "natural"
     values:
@@ -644,6 +680,7 @@ facts:
             quote: "| Personal Deviation | Extended coverage for personal travel (25% of business trip length) |"
   "life_event_gift_limit":
     about: "Gift for a team member's significant life event"
+    topic: "gitlab"
     pattern: "governed_disagree"
     case: "constructed"
     values:
@@ -663,6 +700,7 @@ facts:
             quote: "Gifts and flowers for a significant life event are capped at $100 USD per event"
   "rental_car_lead_time":
     about: "Booking lead time for rental cars"
+    topic: "gitlab"
     pattern: "governed_disagree"
     case: "constructed"
     values:
@@ -682,6 +720,7 @@ facts:
             quote: "Rental cars must be booked in Navan at least 14 days before pick-up."
   "auto_accept_hours":
     about: "Hours after which Navan auto-accepts an out-of-policy flight"
+    topic: "gitlab"
     pattern: "changed_elsewhere"
     case: "constructed"
     values:
@@ -701,6 +740,7 @@ facts:
             quote: "Navan auto-approves an out-of-policy flight booking after\n48 hours without a manual action from the approver"
   "frequent_traveler_trips":
     about: "International trips per quarter that qualify for business class on 8h+ flights"
+    topic: "gitlab"
     pattern: "changed_elsewhere"
     case: "constructed"
     values:
@@ -720,6 +760,7 @@ facts:
             quote: "once you take 2 or more such trips per quarter"
   "coworking_approval_days":
     about: "Co-working days in a month above which approval is needed"
+    topic: "gitlab"
     pattern: "changed_elsewhere"
     case: "constructed"
     values:
@@ -739,6 +780,7 @@ facts:
             quote: "more than 3 day-pass days in a month needs\nmanager and Finance approval"
   "domestic_flight_advance":
     about: "How far ahead domestic flights must be booked"
+    topic: "gitlab"
     pattern: "changed_elsewhere"
     case: "constructed"
     values:
@@ -758,6 +800,7 @@ facts:
             quote: "Domestic flights now need to be booked at least 10 days in\nadvance"
   "flight_upgrade_hours":
     about: "Flight length from which the next class up may be booked"
+    topic: "gitlab"
     pattern: "changed_elsewhere"
     case: "constructed"
     values:
@@ -777,6 +820,7 @@ facts:
             quote: "the next class up may be booked on\nflights over 6 hours of consecutive flight time (each segment 6+ hours)"
   "hotel_booking_lead":
     about: "Booking lead time for hotels"
+    topic: "gitlab"
     pattern: "changed_elsewhere"
     case: "constructed"
     values:
@@ -796,6 +840,7 @@ facts:
             quote: "Hotels must now be booked with at least a 10 day booking lead\ntime (was 7 days), effective 2026-11-01"
   "home_office_yearly_refresh":
     about: "Home office budget for existing team members, per year"
+    topic: "gitlab"
     pattern: "distorted"
     case: "constructed"
     values:
@@ -816,6 +861,7 @@ facts:
             quote: "You get a home office budget of $1,500 per year"
   "receipts_non_us":
     about: "Which expenses need receipts for team members outside the US"
+    topic: "gitlab"
     pattern: "distorted"
     case: "constructed"
     values:
@@ -843,6 +889,7 @@ facts:
             quote: "Itemized receipts are required for all business related expenses that are greater than $75 USD"
   "monthly_limit_e_group":
     about: "Monthly reimbursement limit for E-Group members"
+    topic: "gitlab"
     pattern: "distorted"
     case: "constructed"
     values:
@@ -863,6 +910,7 @@ facts:
             quote: "The maximum monthly limit to be reimbursed is $10K USD for every team member, including\n  executives."
   "ground_transport_single_trip":
     about: "Taxis and ride-hailing, single trip"
+    topic: "gitlab"
     pattern: "distorted"
     case: "constructed"
     values:
@@ -883,6 +931,7 @@ facts:
             quote: "Taxis and ride-hailing: up to $300 per trip."
   "international_flight_advance":
     about: "How far ahead international flights must be booked"
+    topic: "gitlab"
     pattern: "distorted"
     case: "constructed"
     values:
@@ -903,6 +952,7 @@ facts:
             quote: "Book all flights at least 14 days in advance."
   "gift_us_government_official":
     about: "Gifts or entertainment for a US government official, per event"
+    topic: "gitlab"
     pattern: "distorted"
     case: "constructed"
     values:
@@ -923,6 +973,7 @@ facts:
             quote: "Gifts and entertainment for government officials: up to $80 USD per person per event"
   "receipts_us":
     about: "Receipt threshold for US team members"
+    topic: "gitlab"
     pattern: "control"
     case: "natural"
     values:
@@ -935,6 +986,7 @@ facts:
             quote: "US Team Members are required to only submit receipts for any expenses over $50 USD."
   "us_cash_tip_receipt":
     about: "Cash tips a US team member may claim without a receipt"
+    topic: "gitlab"
     pattern: "control"
     case: "natural"
     values:
@@ -947,6 +999,7 @@ facts:
             quote: "For US team members, cash tips under $50 do not need a receipt."
   "train_upgrade_trips":
     about: "Train trips per quarter after which one class up is allowed"
+    topic: "gitlab"
     pattern: "control"
     case: "natural"
     values:
@@ -959,6 +1012,7 @@ facts:
             quote: "If you travel more than 3 train trips (6 segments) per quarter, and they are over 5 hours in duration; we will allow you to upgrade one class on the train."
   "travel_accidental_death":
     about: "Accidental death cover on business travel"
+    topic: "gitlab"
     pattern: "control"
     case: "natural"
     values:
@@ -974,6 +1028,7 @@ facts:
             quote: "| Accidental Death | 5× Annual Salary (up to USD 500,000) |"
   "life_insurance_cover":
     about: "Life insurance where no local benefit exists"
+    topic: "gitlab"
     pattern: "control"
     case: "natural"
     values:
@@ -986,6 +1041,7 @@ facts:
             quote: "GitLab provides $20,000 in life insurance coverage"
   "growth_development_budget":
     about: "Growth and development budget, per year"
+    topic: "gitlab"
     pattern: "control"
     case: "natural"
     values:
@@ -998,6 +1054,7 @@ facts:
             quote: "we provide up to $10,000 each year specifically for your career development."
   "security_evacuation":
     about: "Security evacuation cover on business travel"
+    topic: "gitlab"
     pattern: "control"
     case: "natural"
     values:
@@ -1010,6 +1067,7 @@ facts:
             quote: "Security evacuation: Maximum $100,000."
   "gift_foreign_government_official":
     about: "Gifts or entertainment for a foreign government official, per event"
+    topic: "gitlab"
     pattern: "control"
     case: "natural"
     values:
@@ -1022,6 +1080,7 @@ facts:
             quote: "The total value of gifts or entertainment provided to a foreign government official cannot exceed $80 USD (or the equivalent in local currency) per person per event"
   "promo_incentive_standard":
     about: "Promotional incentive for a standard prospect"
+    topic: "gitlab"
     pattern: "control"
     case: "natural"
     values:
@@ -1034,6 +1093,7 @@ facts:
             quote: "Maximum $25 USD per incentive"
   "po_required_over":
     about: "Contract value above which a purchase order is required"
+    topic: "gitlab"
     pattern: "control"
     case: "natural"
     values:
@@ -1046,6 +1106,7 @@ facts:
             quote: "All purchases/services with a total contract value over $5000 are **required** to have a purchase order"
   "po_invoice_tolerance":
     about: "Invoice amount over a PO that AP may still process"
+    topic: "gitlab"
     pattern: "control"
     case: "natural"
     values:
@@ -1058,6 +1119,7 @@ facts:
             quote: "Amounts up to $1,000 USD (or local currency equivalent) will be reviewed by the AP Team and routed to FP&A for approval."
   "card_receipt_upload":
     about: "Days to upload a corporate card receipt"
+    topic: "gitlab"
     pattern: "control"
     case: "natural"
     values:
@@ -1070,6 +1132,7 @@ facts:
             quote: "Receipts must be uploaded into Navan within 30 days of the transaction date."
   "capitalization_threshold":
     about: "Minimum cost for capitalizing an asset"
+    topic: "gitlab"
     pattern: "control"
     case: "natural"
     values:
@@ -1082,6 +1145,7 @@ facts:
             quote: "as the minimum amount required for capitalization."
   "card_transaction_limit":
     about: "Most a single corporate card purchase may be"
+    topic: "gitlab"
     pattern: "control"
     case: "natural"
     values:

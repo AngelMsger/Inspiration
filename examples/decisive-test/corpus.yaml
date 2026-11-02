@@ -1,0 +1,131 @@
+# The decisive test (docs/design/validation.md): two topics a company's people ask about, each
+# in the spaces it really lives in, inside a large searched corpus. The topics are GitLab's
+# travel and expenses policy, with its handbook pages, an old copy under the path the handbook
+# used before 2023, team pages and a shared drive; and Kubernetes networking and storage, with
+# the docs in English, Chinese and Japanese, an old docs mirror, the platform team's pages and
+# its drive. The rest of GitLab's handbook and of the Kubernetes docs is the searched corpus
+# (haystack): search_only, so it is searched but never governed, and not in the repository
+# (README.md says how to get it). keys.yaml names each topic's spaces: a long context reads
+# only those, while search and the mature RAG look through everything.
+
+tenant:
+  id: ten_01DECISIVETEST00000000001
+  name: Decisive test
+
+spaces:
+  - id: spc_01DECISIVETEST00GLHANDBOOK
+    name: Handbook
+  - id: spc_01DECISIVETEST0000GLLEGACY
+    name: Legacy handbook
+  - id: spc_01DECISIVETEST00000GLTEAMS
+    name: Team pages
+  - id: spc_01DECISIVETEST00000GLDRIVE
+    name: Shared drive
+  - id: spc_01DECISIVETEST000K8SDOCS00
+    name: Kubernetes docs
+  - id: spc_01DECISIVETEST0K8SLEGACY00
+    name: Kubernetes docs mirror
+  - id: spc_01DECISIVETEST00PLATFORM00
+    name: Platform team
+  - id: spc_01DECISIVETEST0PLATDRIVE00
+    name: Platform drive
+  - id: spc_01DECISIVETEST0HAYHANDBOOK
+    name: Handbook, other sections
+  - id: spc_01DECISIVETEST0000HAYK8S00
+    name: Kubernetes docs, other pages
+
+sources:
+  # Travel and expenses.
+  - id: src_01DECISIVETEST0GLHANDBOOK
+    type: folder
+    space: spc_01DECISIVETEST00GLHANDBOOK
+    name: Handbook
+    root: gitlab/handbook
+    default_authority: 0.9
+    governance_level: governed
+  - id: src_01DECISIVETEST000GLLEGACY
+    type: folder
+    space: spc_01DECISIVETEST0000GLLEGACY
+    name: Legacy handbook
+    root: gitlab/legacy
+    default_authority: 0.9
+    governance_level: governed
+  - id: src_01DECISIVETEST0000GLTEAMS
+    type: folder
+    space: spc_01DECISIVETEST00000GLTEAMS
+    name: Team pages
+    root: gitlab/teams
+    default_authority: 0.7
+    governance_level: governed
+  - id: src_01DECISIVETEST0000GLDRIVE
+    type: folder
+    space: spc_01DECISIVETEST00000GLDRIVE
+    name: Shared drive
+    root: gitlab/drive
+    default_authority: 0.5
+    governance_level: reference
+  # Kubernetes networking and storage.
+  - id: src_01DECISIVETEST00K8SDOCS00
+    type: folder
+    space: spc_01DECISIVETEST000K8SDOCS00
+    name: Kubernetes docs
+    root: kubernetes/docs
+    default_authority: 0.9
+    governance_level: governed
+  - id: src_01DECISIVETESTK8SLEGACY00
+    type: folder
+    space: spc_01DECISIVETEST0K8SLEGACY00
+    name: Kubernetes docs mirror
+    root: kubernetes/legacy
+    default_authority: 0.9
+    governance_level: governed
+  - id: src_01DECISIVETEST0PLATFORM00
+    type: folder
+    space: spc_01DECISIVETEST00PLATFORM00
+    name: Platform team
+    root: kubernetes/platform
+    default_authority: 0.7
+    governance_level: governed
+  - id: src_01DECISIVETESTPLATDRIVE00
+    type: folder
+    space: spc_01DECISIVETEST0PLATDRIVE00
+    name: Platform drive
+    root: kubernetes/drive
+    default_authority: 0.5
+    governance_level: reference
+  # The searched corpus, without the topics' pages. Its roots are outside the repository.
+  - id: src_01DECISIVETESTHAYHANDBOOK
+    type: folder
+    space: spc_01DECISIVETEST0HAYHANDBOOK
+    name: Handbook, other sections
+    root: ../../.data/decisive-test/handbook
+    default_authority: 0.9
+    governance_level: search_only
+    exclude:
+      - finance/**
+      - total-rewards/benefits/general-and-entity-benefits/_index.md
+      - legal/policies/gifts-contributions.md
+  - id: src_01DECISIVETESTHAYK8SEN000
+    type: folder
+    space: spc_01DECISIVETEST0000HAYK8S00
+    name: Kubernetes docs, other pages (en)
+    root: ../../.data/decisive-test/kubernetes/en
+    default_authority: 0.9
+    governance_level: search_only
+    exclude: [docs__concepts__services-networking*, docs__concepts__storage*]
+  - id: src_01DECISIVETESTHAYK8SZH000
+    type: folder
+    space: spc_01DECISIVETEST0000HAYK8S00
+    name: Kubernetes docs, other pages (zh-cn)
+    root: ../../.data/decisive-test/kubernetes/zh-cn
+    default_authority: 0.9
+    governance_level: search_only
+    exclude: [docs__concepts__services-networking*, docs__concepts__storage*]
+  - id: src_01DECISIVETESTHAYK8SJA000
+    type: folder
+    space: spc_01DECISIVETEST0000HAYK8S00
+    name: Kubernetes docs, other pages (ja)
+    root: ../../.data/decisive-test/kubernetes/ja
+    default_authority: 0.9
+    governance_level: search_only
+    exclude: [docs__concepts__services-networking*, docs__concepts__storage*]
