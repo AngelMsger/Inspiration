@@ -9,12 +9,17 @@
  * has no entry for is `uncatalogued`: extraction cannot put it in a slot, and only answers
  * find it.
  *
+ * A key says each value as its document does ("more than 3 days", "stable since v1.25");
+ * extraction writes it the one way the fact's catalogue entry does ("3 day", "stable"), so the
+ * check compares the key's value in that form (keyedForm).
+ *
  * It reads governance's value groups after an ingest and calls no model, so the run that
  * answers the questions also measures how a model read the corpus, and a run that reads every
  * document costs no more than one that reads only the keyed passages (see cost.ts).
  */
 
 import type { Corpus, Engine } from "@inspiration/engine";
+import type { PredicateEntry } from "@inspiration/extraction";
 import { sourcesOf } from "@inspiration/governance";
 import type { Keys } from "./questions.ts";
 
@@ -38,21 +43,49 @@ export function predicateOfFact(fact: string): string {
   return fact.slice(fact.indexOf("/") + 1).split("|")[0] as string;
 }
 
+const NUMBER = /(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)/;
+const NUMERIC = new Set(["number", "money", "percent", "duration"]);
+const fold = (s: string) => s.trim().toLowerCase();
+
+/**
+ * A key's value as extraction writes it for the entry: a numeric entry's first number with the
+ * entry's unit ("more than 3 days" is "3 day"), an enum's first listed value the key names as a
+ * word ("stable since v1.25" is "stable"). Any other value, or one without such a number or
+ * word, stays as the key says it.
+ */
+export function keyedForm(entry: Pick<PredicateEntry, "value"> | undefined, value: string): string {
+  const v = entry?.value;
+  if (v && NUMERIC.has(v.kind)) {
+    const n = value.match(NUMBER)?.[1];
+    if (n === undefined) return value;
+    const number = String(Number(n.replaceAll(",", "")));
+    return v.unit ? `${number} ${v.unit}` : number;
+  }
+  if (v?.kind === "enum" && v.values?.length) {
+    const words = fold(value).split(/[^\p{L}\p{N}]+/u);
+    return v.values.find((x) => fold(x) === fold(value)) ?? v.values.find((x) => words.includes(fold(x))) ?? value;
+  }
+  return value;
+}
+
 export async function readingReport(engine: Engine, corpus: Corpus, keys: Keys): Promise<ReadingReport> {
   // Governance names a document "<source>:<external ID>".
   const pathOf = (document: string) => {
     const at = document.indexOf(":");
     return at < 0 ? document : corpus.pathOf(document.slice(0, at), document.slice(at + 1));
   };
-  const catalogued = new Set(corpus.vocabulary?.predicates.map((e) => e.predicate));
+  const entries = new Map(corpus.vocabulary?.predicates.map((e) => [e.predicate, e]));
   const facts: Record<string, FactReading> = {};
   const uncatalogued: Record<string, number> = {};
   const totals = { stated: 0, found: 0, misread: 0, missed: 0, extra: 0 };
   for (const [fact, key] of Object.entries(keys.facts).sort(([a], [b]) => (a < b ? -1 : 1))) {
+    const entry = entries.get(predicateOfFact(fact));
     const stated = new Set(
-      key.values.flatMap((v) => (v.value === null ? [] : v.stated.map((s) => `${s.file}: ${v.value}`))),
+      key.values.flatMap(({ value, stated }) =>
+        value === null ? [] : stated.map((s) => `${s.file}: ${keyedForm(entry, value)}`),
+      ),
     );
-    if (!catalogued.has(predicateOfFact(fact))) {
+    if (!entry) {
       uncatalogued[fact] = stated.size;
       continue;
     }
