@@ -1,0 +1,98 @@
+# Model gateway config for the fast-model arm of the validation (docs/design/validation.md) on
+# OpenAI's GPT-6 Luna, the cheapest text model on OpenAI's price list on 2026-11-01. Luna
+# answers the questions, and everything else replays a DeepSeek run's saved replies, so the
+# search and the translations are the ones the DeepSeek answers were given. With that run's
+# replies in the response cache (the same stack, or `pnpm bench cache import`), the local model
+# server running (infra/local-embeddings) and DEEPSEEK_SEARCH_ONLY_KEY set to anything but a key:
+#
+#   pnpm bench ingest examples/company-drive --today 2026-10-27 --context 50000 \
+#     --gateway config/gateway.luna.yaml --stack
+#
+# --context 50000 leaves out both long-context paths, which the arm does not need: it asks
+# whether a small model answers from small, governed sources as well as from a mature RAG's.
+currency: USD
+providers:
+  # Replays only: the route below is cache-only, so no request reaches DeepSeek.
+  - name: deepseek
+    kind: openai_compatible
+    base_url: https://api.deepseek.com/v1
+    api_key_env: DEEPSEEK_SEARCH_ONLY_KEY
+    max_sensitivity: internal
+    timeout_s: 300
+    max_retries: 0
+    models:
+      - name: deepseek-flash
+        operations: [complete]
+        tiers: [flash, standard, flagship]
+        json_schema: false
+        request: {thinking: {type: disabled}}
+        price: {input: 0.30, output: 1.20, cached_input: 0.006}
+
+  # OpenAI's published standard-tier prices: US$0.10 per million input tokens, 0.01 cached,
+  # 0.50 output. Reasoning is off, as DeepSeek's thinking is. No max_output_tokens: the model
+  # refuses max_tokens and takes only max_completion_tokens, so none is sent. JSON mode, as for
+  # DeepSeek, so both models get the same prompt.
+  - name: openai
+    kind: openai_compatible
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    max_sensitivity: internal
+    timeout_s: 120
+    max_retries: 2
+    models:
+      - name: gpt-6-luna
+        operations: [complete]
+        tiers: [flash]
+        json_schema: false
+        request: {reasoning_effort: none}
+        price: {input: 0.10, output: 0.50, cached_input: 0.01}
+
+  - name: embeddings
+    kind: openai_compatible
+    base_url: http://127.0.0.1:8090/v1
+    max_sensitivity: secret
+    timeout_s: 900
+    max_retries: 0
+    models:
+      - name: qwen3-embedding-0.6b
+        operations: [embed]
+        dimensions: 1024
+        query_instruction: Given a question, retrieve passages that answer it
+
+  - name: reranker
+    kind: openai_compatible
+    base_url: http://127.0.0.1:8090/v1
+    max_sensitivity: secret
+    timeout_s: 900
+    max_retries: 2
+    models:
+      - name: bge-reranker-v2-m3
+        operations: [rerank]
+
+  - name: local
+    kind: fake
+    max_sensitivity: secret
+    models:
+      - {name: fake-ocr, operations: [ocr]}
+
+routes:
+  - match: "retrieval.answer_question"
+    prefer: [openai/gpt-6-luna]
+    only: true
+  - match: "*"
+    prefer: [deepseek/deepseek-flash]
+    only: true
+    cache_only: true
+
+budgets:
+  # Half a dollar for this arm; the estimate is about US$0.3. A soft stop, as in
+  # config/gateway.deepseek.yaml.
+  - match: "*"
+    period: day
+    limit: 0.5
+    pooled: true
+
+cache:
+  backend: valkey
+  ttl_s: 2592000
+  operations: [complete, embed, rerank]
