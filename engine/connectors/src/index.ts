@@ -7,7 +7,9 @@
  * - folder: a local or mounted directory. Files go to the parser router; front matter and
  *   .meta.yaml give title, approval state, sensitivity and other metadata, .acl.yaml gives
  *   permissions per folder, and a language in the file name ("leave.zh.md") makes a file a
- *   translation of the one without it (DocumentMetadata.translation_of).
+ *   translation of the one without it (DocumentMetadata.translation_of). A Markdown file whose
+ *   front matter is not valid YAML is listed, but fetching it fails (FrontMatterError) rather
+ *   than fall back to the folder's labels, so sync keeps its earlier version and reports it.
  * - feishu.docx: Feishu documents as blocks anchored by native block IDs, with members and
  *   link sharing as the ACL.
  * - feishu.approval: Feishu approval definitions and instance timelines, for SOP mining.
@@ -21,4 +23,12 @@ export { aclHash, aclSnapshot, normalizeEntries, parseEntry } from "./acl.ts";
 export * from "./feishu/api.ts";
 export { FeishuApprovalConnector, feishuApprovalConnector, processSnapshot } from "./feishu/approval.ts";
 export { docBlocks, FeishuDocxConnector, feishuDocxConnector, memberEntries, plainText } from "./feishu/docx.ts";
-export { FolderConnector, folderConnector, frontMatter, globToRegExp, MIME_TYPES, translationOf } from "./folder.ts";
+export {
+  FolderConnector,
+  FrontMatterError,
+  folderConnector,
+  frontMatter,
+  globToRegExp,
+  MIME_TYPES,
+  translationOf,
+} from "./folder.ts";

@@ -11,6 +11,7 @@ import {
   FeishuDocxConnector,
   FixtureFeishuApi,
   FolderConnector,
+  FrontMatterError,
   globToRegExp,
   parseEntry,
   translationOf,
@@ -133,6 +134,21 @@ describe("folder connector", () => {
       titles.push(asDocument(await connector.fetch(item.ref)).title);
     }
     expect(titles).toEqual(["Chapter 2 General provisions", "b", "Notice"]);
+  });
+
+  test("a file whose front matter is not valid YAML is listed, but fetching it fails", async () => {
+    // As in the GitLab handbook: a quoted description whose second paragraph is not indented.
+    await put(
+      "corpus/crm.md",
+      '---\nsensitivity: secret\ndescription: "We run the CRM.\n\nOur expertise is billing."\n---\n# Enterprise applications\n\nThe text',
+    );
+    await put("corpus/notice.md", "# Notice\n\nA company notice");
+    const { connector } = await folder();
+    const items = (await connector.list({ kind: "folder" })).items;
+    expect(items.map((i) => i.ref.external_id)).toEqual(["crm.md", "notice.md"]);
+    const [crm, notice] = items.map((i) => i.ref);
+    await expect(connector.fetch(crm ?? { source_id: "", external_id: "" })).rejects.toThrow(FrontMatterError);
+    expect(asDocument(await connector.fetch(notice ?? { source_id: "", external_id: "" })).title).toBe("Notice");
   });
 
   test("a file named for its language is in it and translates the file without it; front matter says otherwise", async () => {
