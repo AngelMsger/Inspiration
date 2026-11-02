@@ -464,6 +464,11 @@ export interface Latency {
 /** The ways of answering a question, the engine's first. */
 export const PATHS = ["engine", "compact", "mature", "long_context", "governed_long_context"] as const;
 export type Path = (typeof PATHS)[number];
+/**
+ * The paths that read only the question's topic, since a long context must fit the window. The
+ * others search everything, as the engine does, so a path added later searches everything too.
+ */
+const TOPIC_PATHS: ReadonlySet<Path> = new Set(["long_context", "governed_long_context"]);
 const NAMES: Record<Path, string> = {
   engine: "engine",
   compact: "engine, compact",
@@ -809,8 +814,7 @@ export async function questionsReport(
     const found = expected && sources.some((h) => says(h.snippet, expected));
     const cited = await pathsOf(a.citations);
     const rival = async (path: Exclude<Path, "engine">, retrieval: Retrieval): Promise<Rival | null> => {
-      // The long contexts read the question's topic; the mature RAG searches everything, as the engine does.
-      const spaces = path !== "mature" && q.spaces ? { space_ids: q.spaces } : {};
+      const spaces = TOPIC_PATHS.has(path) && q.spaces ? { space_ids: q.spaces } : {};
       try {
         const { value: answer, latency } = await metered(path, () =>
           retrieval.answer({ question: q.question, ...spaces }, corpus.reader),
