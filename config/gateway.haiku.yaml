@@ -32,9 +32,11 @@ providers:
   # older Claude models for the same text. Thinking is off and effort low, as DeepSeek runs
   # with thinking off: the arm asks whether a fast model answers from governed sources as
   # well, not how well a model reasons.
+  # The cloud sessions that run the bench do not see ANTHROPIC_API_KEY (the environment seems to
+  # keep that name for Claude Code itself), so the key is stored under its own name.
   - name: anthropic
     kind: anthropic
-    api_key_env: ANTHROPIC_API_KEY
+    api_key_env: INSPIRATION_ANTHROPIC_API_KEY
     max_sensitivity: internal
     timeout_s: 120
     max_retries: 2

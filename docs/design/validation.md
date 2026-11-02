@@ -42,7 +42,7 @@ Until reading and answering pass, we suggest still pausing engine work that does
 - **Whether to run the two topics** (the decisive test's step 4) at the size the free size check picks, at the price given with it. The estimate is CNY 18 at the topics' own size, plus about CNY 1 for each million tokens of searched corpus, for the chunk headers a model writes. The drive cannot show what governance adds over a mature RAG; only stale and conflicting cases can ([Where we stand](#where-we-stand)).
 - **Agreement on, or changes to,** the revised pass bars: accuracy, cost and speed weighed together (bars 2, 5 and 6), and numbers for bars 3 and 4.
 - **The ledger's modeled inputs** ([Governance against what answers save](#governance-against-what-answers-save)): minutes and hourly cost per ask, and a topic's edits and changed facts a month. Real numbers from a team that keeps documents would replace them.
-- **The Anthropic key where a run can read it**, only if Claude Haiku should back up GPT-6 Luna's result. The key is in the environment's settings, but this thread's sessions do not see `ANTHROPIC_API_KEY`.
+- **The Anthropic key where a run can read it**, only if Claude Haiku should back up GPT-6 Luna's result. The cloud sessions do not see `ANTHROPIC_API_KEY` (the environment seems to keep that name for Claude Code itself), so `config/gateway.haiku.yaml` reads `INSPIRATION_ANTHROPIC_API_KEY`; a session started after the key is stored under that name sees it.
 - **About 30 minutes** to check 20 random answer-key entries (rule 3). The second run showed why: it found two gaps a second reader would have caught.
 - Later, a design partner whose documents we may run ([How the work is done](#how-the-work-is-done), stage 4).
 
