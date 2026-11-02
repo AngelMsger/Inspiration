@@ -1,0 +1,867 @@
+# The facts the decisive test's questions follow, one entry per fact keys.yaml names, with the
+# words the topics' documents use for it in English, Chinese and Japanese. Written from the
+# key after the first paid reading (2026-11-02) found that the corpus had no catalogue, so no
+# statement had a slot and governance had nothing to decide. It does what the company drive's
+# catalogue does: a team that governs a topic names its high-value facts (amounts, limits,
+# deadlines, feature states). Writing it took about an hour from the key; a team writing it
+# from its own policies is the human cost the cost model counts.
+predicates:
+- predicate: monthly_reimbursement_limit
+  label: Monthly reimbursement limit for a team member
+  knowledge_class: policy
+  aliases:
+  - maximum monthly limit
+  value:
+    kind: money
+    unit: USD/month
+    currency: USD
+- predicate: business_cards_limit
+  label: Business cards limit
+  knowledge_class: policy
+  aliases:
+  - business cards
+  value:
+    kind: money
+    unit: USD/quarter
+    currency: USD
+- predicate: office_supplies_limit
+  label: Office supplies and consumables, per month
+  knowledge_class: policy
+  aliases:
+  - office supplies
+  - consumables
+  value:
+    kind: money
+    unit: USD/month
+    currency: USD
+- predicate: marketing_navan_limit
+  label: Marketing event purchases that can be expensed in Navan
+  knowledge_class: policy
+  aliases:
+  - marketing event
+  value:
+    kind: money
+    unit: USD
+    currency: USD
+- predicate: ground_transport_round_trip
+  label: Taxis and ride-hailing, per round trip
+  knowledge_class: policy
+  aliases:
+  - round trip
+  - ground transportation
+  value:
+    kind: money
+    unit: USD/round trip
+    currency: USD
+- predicate: fuel_limit
+  label: Fuel, per day
+  knowledge_class: policy
+  aliases:
+  - fuel
+  value:
+    kind: money
+    unit: USD/day
+    currency: USD
+- predicate: parking_tolls_limit
+  label: Parking and tolls, per day
+  knowledge_class: policy
+  aliases:
+  - parking
+  - tolls
+  value:
+    kind: money
+    unit: USD/day
+    currency: USD
+- predicate: dry_cleaning_min_stay
+  label: Hotel stay after which dry cleaning is allowable
+  knowledge_class: policy
+  aliases:
+  - dry cleaning
+  value:
+    kind: duration
+    unit: day
+- predicate: client_meal_limit
+  label: Meals with clients and partners, per person
+  knowledge_class: policy
+  aliases:
+  - clients
+  - client meal
+  - lunch
+  - dinner
+  value: &id001
+    kind: text
+- predicate: phone_service_monthly
+  label: Cell phone service, per month
+  knowledge_class: policy
+  aliases:
+  - cell phone
+  - phone service
+  - mobile phone
+  - 携帯電話
+  value:
+    kind: money
+    unit: USD/month
+    currency: USD
+- predicate: home_internet_monthly
+  label: Home internet, per month
+  knowledge_class: policy
+  aliases:
+  - home internet
+  - internet
+  - インターネット
+  value:
+    kind: money
+    unit: USD/month
+    currency: USD
+- predicate: meals_per_day_traveling
+  label: Meals while traveling, per day
+  knowledge_class: policy
+  aliases:
+  - meals
+  - 食事
+  value:
+    kind: money
+    unit: USD/day
+    currency: USD
+- predicate: lost_baggage_cover
+  label: Business travel insurance for lost baggage
+  knowledge_class: policy
+  aliases:
+  - baggage
+  value: *id001
+- predicate: coworking_monthly_limit
+  label: Co-working space membership, per month
+  knowledge_class: policy
+  aliases:
+  - co-working
+  - coworking
+  value:
+    kind: money
+    unit: USD/month
+    currency: USD
+- predicate: expense_claim_deadline
+  label: How long after purchase an expense can be claimed
+  knowledge_class: policy
+  aliases:
+  - submitted within
+  - from purchase date
+  - expense claims over
+  value:
+    kind: duration
+    unit: day
+- predicate: host_gift_limit
+  label: Host gift when staying with friends instead of a hotel
+  knowledge_class: policy
+  aliases:
+  - host gift
+  - hostess gift
+  - host/hostess
+  value:
+    kind: money
+    unit: USD
+    currency: USD
+- predicate: internet_while_traveling
+  label: Internet while traveling, per day
+  knowledge_class: policy
+  aliases:
+  - internet while traveling
+  value:
+    kind: money
+    unit: USD/day
+    currency: USD
+- predicate: rental_car_class
+  label: Highest rental car class allowed
+  knowledge_class: policy
+  aliases:
+  - car class
+  - rental car
+  value:
+    kind: enum
+    values:
+    - economy
+    - compact
+    - intermediate
+    - standard
+    - full-size
+    - premium
+    - luxury
+- predicate: tips_limit
+  label: Tips on meals
+  knowledge_class: policy
+  aliases:
+  - tips
+  value:
+    kind: percent
+    unit: '%'
+- predicate: train_booking_lead
+  label: Booking lead time for trains
+  knowledge_class: policy
+  aliases:
+  - train rides
+  - train
+  value:
+    kind: duration
+    unit: day
+- predicate: hotel_cap_per_night
+  label: Hotel cap per night
+  knowledge_class: policy
+  aliases:
+  - hotel stays
+  - per night
+  value:
+    kind: money
+    unit: USD/night
+    currency: USD
+- predicate: coworking_day_pass
+  label: Co-working daily office pass
+  knowledge_class: policy
+  aliases:
+  - day pass
+  - office pass
+  value:
+    kind: money
+    unit: USD/day
+    currency: USD
+- predicate: coworking_distance
+  label: How far from home a co-working space may be
+  knowledge_class: policy
+  aliases:
+  - commutable distance
+  value:
+    kind: number
+    unit: km
+- predicate: books_limit
+  label: Books, per year
+  knowledge_class: policy
+  aliases:
+  - books
+  value:
+    kind: money
+    unit: USD/year
+    currency: USD
+- predicate: postage_limit
+  label: Postage and shipping, per transaction before approval
+  knowledge_class: policy
+  aliases:
+  - postage
+  - shipping
+  value:
+    kind: money
+    unit: USD/transaction
+    currency: USD
+- predicate: home_office_new_hire
+  label: Home office stipend for new hires, first year
+  knowledge_class: policy
+  aliases:
+  - new hires
+  - new hire
+  value:
+    kind: money
+    unit: USD
+    currency: USD
+- predicate: single_item_navan_limit
+  label: Largest single item that can be expensed in Navan
+  knowledge_class: policy
+  aliases:
+  - single item
+  value:
+    kind: money
+    unit: USD
+    currency: USD
+- predicate: team_meal_per_person
+  label: Team meals, per person
+  knowledge_class: policy
+  aliases:
+  - team meals
+  - team events
+  - team event
+  value:
+    kind: money
+    unit: USD/person
+    currency: USD
+- predicate: travel_insurance_trip_duration
+  label: Longest trip the business travel insurance covers
+  knowledge_class: policy
+  aliases:
+  - trip duration
+  value:
+    kind: duration
+    unit: day
+- predicate: travel_insurance_emergency_medical
+  label: Emergency medical cover on business travel
+  knowledge_class: policy
+  aliases:
+  - emergency medical
+  value:
+    kind: money
+    unit: USD
+    currency: USD
+- predicate: travel_insurance_personal_deviation
+  label: Personal travel added to a business trip that the insurance covers
+  knowledge_class: policy
+  aliases:
+  - personal deviation
+  value: *id001
+- predicate: life_event_gift_limit
+  label: Gift for a team member's significant life event
+  knowledge_class: policy
+  aliases:
+  - life event
+  - gifts and flowers
+  value:
+    kind: money
+    unit: USD
+    currency: USD
+- predicate: rental_car_lead_time
+  label: Booking lead time for rental cars
+  knowledge_class: policy
+  aliases:
+  - rental car
+  value:
+    kind: duration
+    unit: day
+- predicate: auto_accept_hours
+  label: Hours after which Navan auto-accepts an out-of-policy flight
+  knowledge_class: policy
+  aliases:
+  - automatically be accepted
+  - auto-approve
+  - out-of-policy
+  value:
+    kind: duration
+    unit: hour
+- predicate: frequent_traveler_trips
+  label: International trips per quarter that qualify for business class on 8h+ flights
+  knowledge_class: policy
+  aliases:
+  - trips per quarter
+  - frequent traveler
+  value:
+    kind: number
+    unit: trip
+- predicate: coworking_approval_days
+  label: Co-working days in a month above which approval is needed
+  knowledge_class: policy
+  aliases:
+  - day-pass days
+  - days are booked
+  - co-working
+  value:
+    kind: number
+    unit: day
+- predicate: domestic_flight_advance
+  label: How far ahead domestic flights must be booked
+  knowledge_class: policy
+  aliases:
+  - domestic
+  value:
+    kind: duration
+    unit: day
+- predicate: flight_upgrade_hours
+  label: Flight length from which the next class up may be booked
+  knowledge_class: policy
+  aliases:
+  - consecutive flight time
+  - next class up
+  value:
+    kind: duration
+    unit: hour
+- predicate: hotel_booking_lead
+  label: Booking lead time for hotels
+  knowledge_class: policy
+  aliases:
+  - booking lead
+  - hotels must
+  value:
+    kind: duration
+    unit: day
+- predicate: home_office_yearly_refresh
+  label: Home office budget for existing team members, per year
+  knowledge_class: policy
+  aliases:
+  - yearly refresh
+  - home office budget
+  value:
+    kind: money
+    unit: USD/year
+    currency: USD
+- predicate: receipts_non_us
+  label: Which expenses need receipts for team members outside the US
+  description: The amount above which a receipt is required; required for all expenses means 0 USD.
+  knowledge_class: policy
+  aliases:
+  - non-us
+  - receipts
+  value:
+    kind: money
+    unit: USD
+    currency: USD
+- predicate: monthly_limit_e_group
+  label: Monthly reimbursement limit for E-Group members
+  knowledge_class: policy
+  aliases:
+  - E-Group
+  - executives
+  value:
+    kind: money
+    unit: USD/month
+    currency: USD
+- predicate: ground_transport_single_trip
+  label: Taxis and ride-hailing, single trip
+  knowledge_class: policy
+  aliases:
+  - single trip
+  - ride-hailing
+  - ground transportation
+  value:
+    kind: money
+    unit: USD/trip
+    currency: USD
+- predicate: international_flight_advance
+  label: How far ahead international flights must be booked
+  knowledge_class: policy
+  aliases:
+  - international
+  - in advance
+  value:
+    kind: duration
+    unit: day
+- predicate: gift_us_government_official
+  label: Gifts or entertainment for a US government official, per event
+  knowledge_class: policy
+  aliases:
+  - government official
+  value:
+    kind: money
+    unit: USD/person/event
+    currency: USD
+- predicate: receipts_us
+  label: Receipt threshold for US team members
+  description: The amount above which a receipt is required.
+  knowledge_class: policy
+  aliases:
+  - us team members
+  - receipts
+  value:
+    kind: money
+    unit: USD
+    currency: USD
+- predicate: us_cash_tip_receipt
+  label: Cash tips a US team member may claim without a receipt
+  description: Cash tips below this amount need no receipt.
+  knowledge_class: policy
+  aliases:
+  - cash tips
+  value:
+    kind: money
+    unit: USD
+    currency: USD
+- predicate: train_upgrade_trips
+  label: Train trips per quarter after which one class up is allowed
+  knowledge_class: policy
+  aliases:
+  - train trips
+  - upgrade one class
+  value:
+    kind: number
+    unit: trip
+- predicate: travel_accidental_death
+  label: Accidental death cover on business travel
+  knowledge_class: policy
+  aliases:
+  - accidental death
+  value: *id001
+- predicate: life_insurance_cover
+  label: Life insurance where no local benefit exists
+  knowledge_class: policy
+  aliases:
+  - life insurance
+  value:
+    kind: money
+    unit: USD
+    currency: USD
+- predicate: growth_development_budget
+  label: Growth and development budget, per year
+  knowledge_class: policy
+  aliases:
+  - career development
+  - growth and development
+  - growth & development
+  value:
+    kind: money
+    unit: USD/year
+    currency: USD
+- predicate: security_evacuation
+  label: Security evacuation cover on business travel
+  knowledge_class: policy
+  aliases:
+  - security evacuation
+  value:
+    kind: money
+    unit: USD
+    currency: USD
+- predicate: gift_foreign_government_official
+  label: Gifts or entertainment for a foreign government official, per event
+  knowledge_class: policy
+  aliases:
+  - government official
+  value:
+    kind: money
+    unit: USD/person/event
+    currency: USD
+- predicate: promo_incentive_standard
+  label: Promotional incentive for a standard prospect
+  knowledge_class: policy
+  aliases:
+  - per incentive
+  - incentive
+  value:
+    kind: money
+    unit: USD/incentive
+    currency: USD
+- predicate: po_required_over
+  label: Contract value above which a purchase order is required
+  knowledge_class: policy
+  aliases:
+  - purchase order
+  value:
+    kind: money
+    unit: USD
+    currency: USD
+- predicate: po_invoice_tolerance
+  label: Invoice amount over a PO that AP may still process
+  knowledge_class: policy
+  aliases:
+  - purchase order
+  - amounts up to
+  value:
+    kind: money
+    unit: USD
+    currency: USD
+- predicate: card_receipt_upload
+  label: Days to upload a corporate card receipt
+  knowledge_class: policy
+  aliases:
+  - uploaded into navan
+  - of the transaction date
+  value:
+    kind: duration
+    unit: day
+- predicate: capitalization_threshold
+  label: Minimum cost for capitalizing an asset
+  knowledge_class: policy
+  aliases:
+  - capitalization
+  value:
+    kind: money
+    unit: USD
+    currency: USD
+- predicate: card_transaction_limit
+  label: Most a single corporate card purchase may be
+  knowledge_class: policy
+  aliases:
+  - each transaction
+  - per transaction
+  - corporate card
+  value:
+    kind: money
+    unit: USD/transaction
+    currency: USD
+- predicate: dual_stack_state
+  label: Feature state of IPv4/IPv6 dual-stack networking
+  description: 'A feature state as the docs give it: alpha, beta or stable (GA means stable).'
+  knowledge_class: reference
+  aliases:
+  - dual-stack
+  - 双协议栈
+  - デュアルスタック
+  value: &id002
+    kind: enum
+    values:
+    - alpha
+    - beta
+    - stable
+- predicate: internal_traffic_policy_state
+  label: Feature state of Service internal traffic policy
+  description: 'A feature state as the docs give it: alpha, beta or stable (GA means stable).'
+  knowledge_class: reference
+  aliases:
+  - internal traffic policy
+  - 内部流量策略
+  - 内部トラフィックポリシー
+  value: *id002
+- predicate: storage_capacity_tracking_state
+  label: Feature state of storage capacity tracking
+  description: 'A feature state as the docs give it: alpha, beta or stable (GA means stable).'
+  knowledge_class: reference
+  aliases:
+  - storage capacity
+  - 存储容量
+  - ストレージ容量
+  value: *id002
+- predicate: volume_attributes_class_state
+  label: Feature state of VolumeAttributesClass
+  description: 'A feature state as the docs give it: alpha, beta or stable (GA means stable).'
+  knowledge_class: reference
+  aliases:
+  - VolumeAttributesClass
+  - volume attributes class
+  value: *id002
+- predicate: pvc_online_resize_state
+  label: Feature state of resizing a PersistentVolumeClaim in use by a Pod
+  description: 'A feature state as the docs give it: alpha, beta or stable (GA means stable).'
+  knowledge_class: reference
+  aliases:
+  - in-use PersistentVolumeClaim
+  - 使用中 PVC
+  - 使用中の永続ボリュームクレーム
+  value: *id002
+- predicate: volume_snapshot_state
+  label: Feature state of volume snapshots and restoring a volume from a snapshot
+  description: 'A feature state as the docs give it: alpha, beta or stable (GA means stable).'
+  knowledge_class: reference
+  aliases:
+  - volume snapshot
+  - 卷快照
+  - ボリュームのスナップショット
+  value: *id002
+- predicate: csi_ephemeral_volumes_state
+  label: Feature state of CSI ephemeral volumes
+  description: 'A feature state as the docs give it: alpha, beta or stable (GA means stable).'
+  knowledge_class: reference
+  aliases:
+  - CSI ephemeral
+  - CSI 临时卷
+  - CSIエフェメラル
+  value: *id002
+- predicate: csi_migration_state
+  label: Feature state of migrating in-tree volume plugins to CSI drivers
+  description: 'A feature state as the docs give it: alpha, beta or stable (GA means stable).'
+  knowledge_class: reference
+  aliases:
+  - in-tree plugins
+  - CSI migration
+  - 树内插件
+  - ツリー内プラグイン
+  value: *id002
+- predicate: topology_routing_annotation
+  label: Annotation that turns on topology aware routing for a Service
+  knowledge_class: reference
+  aliases:
+  - topology-mode
+  - topology-aware-hints
+  - topology aware
+  value: *id001
+- predicate: volume_populators_state
+  label: Feature state of volume populators
+  description: 'A feature state as the docs give it: alpha, beta or stable (GA means stable).'
+  knowledge_class: reference
+  aliases:
+  - volume populators
+  - 卷填充器
+  - ボリュームポピュレーター
+  value: *id002
+- predicate: network_policy_port_range_state
+  label: Feature state of targeting a range of ports in a NetworkPolicy (endPort)
+  description: 'A feature state as the docs give it: alpha, beta or stable (GA means stable).'
+  knowledge_class: reference
+  aliases:
+  - endPort
+  - range of ports
+  - 端口范围
+  - ポート範囲
+  value: *id002
+- predicate: endpoint_terminating_condition_state
+  label: Feature state of the terminating condition on EndpointSlice endpoints
+  description: 'A feature state as the docs give it: alpha, beta or stable (GA means stable).'
+  knowledge_class: reference
+  aliases:
+  - terminating condition
+  - Terminating
+  value: *id002
+- predicate: generic_ephemeral_volumes_state
+  label: Feature state of generic ephemeral volumes
+  description: 'A feature state as the docs give it: alpha, beta or stable (GA means stable).'
+  knowledge_class: reference
+  aliases:
+  - generic ephemeral
+  - 通用临时卷
+  - 汎用エフェメラル
+  value: *id002
+- predicate: mixed_protocol_lb_state
+  label: Feature state of LoadBalancer Services with mixed protocol types
+  description: 'A feature state as the docs give it: alpha, beta or stable (GA means stable).'
+  knowledge_class: reference
+  aliases:
+  - mixed protocol
+  - MixedProtocolLBService
+  - 混合协议
+  - 混合プロトコル
+  value: *id002
+- predicate: endpoints_per_slice_default
+  label: Endpoints per EndpointSlice by default
+  knowledge_class: reference
+  aliases:
+  - endpoints each
+  - 个端点
+  - エンドポイント数
+  value:
+    kind: number
+    unit: endpoint
+- predicate: ebs_volumes_m5_node
+  label: EBS volumes Kubernetes lets an M5, C5, R5, T3 or Z1D node attach
+  knowledge_class: reference
+  aliases:
+  - EBS
+  value:
+    kind: number
+    unit: volume
+- predicate: production_kubernetes_version
+  label: Kubernetes version of our production clusters
+  knowledge_class: policy
+  aliases:
+  - production clusters
+  value: *id001
+- predicate: default_storage_class
+  label: Default StorageClass on our production clusters
+  knowledge_class: policy
+  aliases:
+  - default StorageClass
+  - 默认 StorageClass
+  - デフォルトのStorageClass
+  value: *id001
+- predicate: snapshot_retention_days
+  label: How long scheduled VolumeSnapshots are kept
+  knowledge_class: policy
+  aliases:
+  - scheduled VolumeSnapshots
+  value:
+    kind: duration
+    unit: day
+- predicate: gold_class_iops
+  label: IOPS of the gold VolumeAttributesClass
+  knowledge_class: policy
+  aliases:
+  - gold
+  value:
+    kind: number
+    unit: IOPS
+- predicate: pvcs_per_namespace
+  label: PersistentVolumeClaims a namespace may hold
+  knowledge_class: policy
+  aliases:
+  - namespace may hold
+  value:
+    kind: number
+    unit: PersistentVolumeClaim
+- predicate: loadbalancer_services_per_namespace
+  label: Services of type LoadBalancer one namespace may have
+  knowledge_class: policy
+  aliases:
+  - Services of type LoadBalancer
+  - LoadBalancer Services
+  value:
+    kind: number
+    unit: Service
+- predicate: pvc_size_without_review
+  label: Largest PersistentVolumeClaim that needs no capacity review
+  knowledge_class: policy
+  aliases:
+  - without a review
+  - needs no review
+  value:
+    kind: number
+    unit: TiB
+- predicate: nodeport_default_range
+  label: Default NodePort range
+  knowledge_class: reference
+  aliases:
+  - service-node-port-range
+  - 30000-32767
+  value: *id001
+- predicate: nodeport_static_band
+  label: Static band of the default NodePort range
+  knowledge_class: reference
+  aliases:
+  - static band
+  - 静态端口段
+  - 静的帯域
+  value: *id001
+- predicate: dns_search_domains_max
+  label: Search domains Kubernetes allows in a Pod's DNS config
+  knowledge_class: reference
+  aliases:
+  - search domains
+  - 搜索域
+  - DNS検索
+  value:
+    kind: number
+    unit: domain
+- predicate: dns_search_total_length
+  label: Total length of all DNS search domains Kubernetes allows
+  knowledge_class: reference
+  aliases:
+  - search domains
+  - 搜索域
+  - DNS検索
+  value:
+    kind: number
+    unit: character
+- predicate: fqdn_hostname_limit
+  label: Longest FQDN a Pod with setHostnameAsFQDN can have on Linux
+  knowledge_class: reference
+  aliases:
+  - setHostnameAsFQDN
+  - 64 characters
+  - 64 个字符
+  - 64文字
+  value:
+    kind: number
+    unit: character
+- predicate: sa_token_default_expiry
+  label: Default validity of a projected service account token
+  knowledge_class: reference
+  aliases:
+  - expirationSeconds
+  - 1 hour
+  - 1 小时
+  - 1時間
+  value:
+    kind: duration
+    unit: hour
+- predicate: sa_token_min_expiry
+  label: Shortest validity a projected service account token may have
+  knowledge_class: reference
+  aliases:
+  - expirationSeconds
+  - 10 minutes
+  - 10 分钟
+  - 10分
+  value:
+    kind: duration
+    unit: minute
+- predicate: gce_dynamic_volume_limit
+  label: Volumes a Google Compute Engine node can attach at most
+  knowledge_class: reference
+  aliases:
+  - Google Compute Engine
+  value:
+    kind: number
+    unit: volume
+- predicate: clusterip_static_band_max
+  label: Largest the static band of a Service ClusterIP range can be
+  knowledge_class: reference
+  aliases:
+  - cidrSize
+  - static band
+  value:
+    kind: number
+    unit: address
+- predicate: endpoints_per_slice_max
+  label: Most endpoints per EndpointSlice the controller flag can set
+  knowledge_class: reference
+  aliases:
+  - max-endpoints-per-slice
+  value:
+    kind: number
+    unit: endpoint
