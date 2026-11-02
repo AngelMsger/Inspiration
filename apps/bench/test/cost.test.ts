@@ -37,13 +37,13 @@ test("a dry run on the DeepSeek config prices each task and answering path, long
     const asked = await questionsReport(engine, corpus, sample);
     const cost = asked.cost;
     expect(cost?.currency).toBe("USD");
-    for (const path of ["engine", "mature", "long_context", "governed_long_context", "search"] as const) {
+    for (const path of ["engine", "compact", "mature", "long_context", "governed_long_context", "search"] as const) {
       expect(cost?.[path].calls, path).toBeGreaterThan(0);
       expect(cost?.[path].cost, path).toBeGreaterThan(0);
     }
-    // The shared search runs first, so the engine and the mature RAG each find its translation,
-    // embeddings and rerank scores in the cache alike: each pays only for its 4 answers.
-    for (const path of ["engine", "mature"] as const) {
+    // The shared search runs first, so the engine, its compact answer and the mature RAG each find
+    // its translation, embeddings and rerank scores in the cache alike: each pays only for its 4 answers.
+    for (const path of ["engine", "compact", "mature"] as const) {
       expect((cost?.[path].calls ?? 0) - (cost?.[path].cached_calls ?? 0), path).toBe(4);
     }
     expect(cost?.search.cached_calls).toBe(0);

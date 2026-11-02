@@ -61,15 +61,18 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
     const score = (right: number) => ({ right, stale: 0 });
     const { latency, ...totals } = asked.totals;
     expect(Object.keys(latency).sort()).toEqual([
+      "compact",
       "engine",
       "governed_long_context",
       "long_context",
       "mature",
       "search",
     ]);
-    // Right answers of the engine, the mature RAG, reading everything, and reading it after governance.
-    const paths = (engine: number, mature: number, raw: number, governed: number) => ({
+    // Right answers of the engine, its compact answer, the mature RAG, reading everything, and reading it after
+    // governance.
+    const paths = (engine: number, compact: number, mature: number, raw: number, governed: number) => ({
       engine: score(engine),
+      compact: score(compact),
       mature: score(mature),
       long_context: score(raw),
       governed_long_context: score(governed),
@@ -82,16 +85,16 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
       cited_right: 12,
       found: 11,
       notes: 3,
-      baselines: { mature: 8, long_context: 8, governed_long_context: 8 },
+      baselines: { compact: 10, mature: 8, long_context: 8, governed_long_context: 8 },
       retention: { kept: 11, dropped: 0, absent: 0, not_audited: 1, beyond_raw: [] },
       by_kind: {
-        unchanged: { questions: 11, ...paths(8, 7, 7, 7) },
-        not_stated: { questions: 1, ...paths(1, 1, 1, 1) },
+        unchanged: { questions: 11, ...paths(8, 9, 7, 7, 7) },
+        not_stated: { questions: 1, ...paths(1, 1, 1, 1, 1) },
       },
       by_language: {
-        en: { questions: 8, ...paths(7, 6, 7, 7) },
-        ja: { questions: 2, ...paths(0, 0, 0, 0) },
-        zh: { questions: 2, ...paths(2, 2, 1, 1) },
+        en: { questions: 8, ...paths(7, 8, 6, 7, 7) },
+        ja: { questions: 2, ...paths(0, 0, 0, 0, 0) },
+        zh: { questions: 2, ...paths(2, 2, 2, 1, 1) },
       },
     });
     // Search alone, as --search-only runs it, with no answers.

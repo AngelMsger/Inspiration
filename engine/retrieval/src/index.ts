@@ -40,8 +40,10 @@
  *
  * answer(query, principal) searches with the question and asks the model
  * (retrieval.answer_question) to answer from the best passages and, beside them, the best
- * statements only (ANSWER_SOURCES of each, so a statement never takes a passage's place),
- * every sentence citing them. A passage is given whole, sentence by sentence, where a search
+ * statements only (ANSWER_SOURCES of each by default, so a statement never takes a passage's
+ * place), every sentence citing them. RetrievalOptions.answerSources sets how many of each: a
+ * compact answer (COMPACT_SOURCES) reads mostly statements, the conclusions governance kept,
+ * and two passages, about half the input, for a smaller, faster model. A passage is given whole, sentence by sentence, where a search
  * hit shows only its snippet: a snippet is picked by the words it shares with the question,
  * so it misses the answer when the two are in different languages or say it differently. It
  * comes with its document's governance level and the day the document last changed, so that

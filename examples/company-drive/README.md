@@ -98,18 +98,20 @@ Stand-ins answer every model task, so these numbers measure the pipeline, not mo
 The answer is given each passage it reads whole, where a search hit shows only a snippet, so
 the stand-in quotes more of each passage, older values included.
 
-| Questions | Engine right, stale | Mature RAG | Reading everything | Reading everything after governance |
-| --- | --- | --- | --- | --- |
-| All 150 | 47, 6 | 44, 7 | 49, 8 | 48, 5 |
-| Unchanged, 69 | 30, 0 | 32, 0 | 34, 0 | 30, 0 |
-| Changed, 66 | 15, 6 | 10, 6 | 13, 6 | 16, 5 |
-| Not answered by the drive, 15 | 2, 0 | 2, 1 | 2, 2 | 2, 0 |
-| In English, 50 | 28, 4 | 25, 6 | 31, 7 | 29, 3 |
-| In Chinese, 50 | 13, 1 | 11, 0 | 10, 0 | 12, 1 |
-| In Japanese, 50 | 6, 1 | 8, 1 | 8, 1 | 7, 1 |
+| Questions | Engine right, stale | Engine, compact | Mature RAG | Reading everything | Reading everything after governance |
+| --- | --- | --- | --- | --- | --- |
+| All 150 | 47, 6 | 47, 5 | 44, 7 | 49, 8 | 48, 5 |
+| Unchanged, 69 | 30, 0 | 29, 0 | 32, 0 | 34, 0 | 30, 0 |
+| Changed, 66 | 15, 6 | 15, 5 | 10, 6 | 13, 6 | 16, 5 |
+| Not answered by the drive, 15 | 2, 0 | 3, 0 | 2, 1 | 2, 2 | 2, 0 |
+| In English, 50 | 28, 4 | 27, 4 | 25, 6 | 31, 7 | 29, 3 |
+| In Chinese, 50 | 13, 1 | 13, 1 | 11, 0 | 10, 0 | 12, 1 |
+| In Japanese, 50 | 6, 1 | 7, 0 | 8, 1 | 8, 1 | 7, 1 |
 
 - The mature RAG reads 16 passages where the engine reads 8 beside its statements, and is
-  told each passage's level and date, which the stand-in answer does not weigh. Reading
+  told each passage's level and date, which the stand-in answer does not weigh. The engine's
+  compact answer reads 8 statements, the conclusions governance kept, and only 2 passages,
+  about half the input, to measure whether a smaller, faster model answers as well from it. Reading
   everything after governance leaves out the replaced editions and the sentences that state
   only replaced values, and marks those values beside the ones that hold.
 - The evidence audit, which reads what each long context gives its model and no answer,
