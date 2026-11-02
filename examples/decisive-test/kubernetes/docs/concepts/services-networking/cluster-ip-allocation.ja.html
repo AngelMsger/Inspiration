@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><title>ServiceのClusterIPの割り当て</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>ServiceのClusterIPの割り当て</h1><header class=article-meta></header><p>Kubernetesでは、<a href=/ja/docs/concepts/services-networking/service/>Service</a>はPodの集合上で実行しているアプリケーションを抽象的に公開する方法です。Serviceはクラスター内で仮想IPアドレス(type: ClusterIPのServiceを使用)を持つことができます。クライアントはその仮想IPアドレスを使用してServiceに接続することができます。そしてKubernetesは、そのServiceへのトラフィックを異なる背後のPod間で負荷分散します。</p><h2 id=どのようにserviceのclusteripが割り当てられるのか>どのようにServiceのClusterIPが割り当てられるのか？<a class=td-heading-self-link href=#%e3%81%a9%e3%81%ae%e3%82%88%e3%81%86%e3%81%abservice%e3%81%aeclusterip%e3%81%8c%e5%89%b2%e3%82%8a%e5%bd%93%e3%81%a6%e3%82%89%e3%82%8c%e3%82%8b%e3%81%ae%e3%81%8b aria-label="Heading self-link"></a></h2><p>KubernetesがServiceに仮想IPアドレスを割り当てる必要がある場合、2つの方法の内どちらかの方法で行われます:</p><dl><dt><em>動的割り当て</em></dt><dd>クラスターのコントロールプレーンは自動的に<code>type: ClusterIP</code>のServiceのために設定されたIP範囲の中から未割り当てのIPアドレスを選びます。</dd><dt><em>静的割り当て</em></dt><dd>Serviceのために設定されたIP範囲の中から自身でIPアドレスを選びます。</dd></dl><p>クラスター全体を通して、Serviceの<code>ClusterIP</code>はユニークでなければいけません。割り当て済みの<code>ClusterIP</code>を使用してServiceを作成しようとするとエラーが返ってきます。</p><h2 id=なぜserviceのclusteripを予約する必要があるのか>なぜServiceのClusterIPを予約する必要があるのか？<a class=td-heading-self-link href=#%e3%81%aa%e3%81%9cservice%e3%81%aeclusterip%e3%82%92%e4%ba%88%e7%b4%84%e3%81%99%e3%82%8b%e5%bf%85%e8%a6%81%e3%81%8c%e3%81%82%e3%82%8b%e3%81%ae%e3%81%8b aria-label="Heading self-link"></a></h2><p>時には、クラスター内の他のコンポーネントやユーザーが利用できるように、Serviceをよく知られたIPアドレスで実行したい場合があります。</p><p>その最たる例がクラスターのDNS Serviceです。慣習として、一部のKubernetesインストーラーはServiceのIP範囲の10番目のIPアドレスをDNS Serviceに割り当てます。ServiceのIP範囲を10.96.0.0/16とするクラスターを構成し、DNS ServiceのIPを10.96.0.10にするとします。この場合、下記のようなServiceを作成する必要があります。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>labels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>k8s-app</span><span class=p>:</span><span class=w> </span><span class=l>kube-dns</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kubernetes.io/cluster-service</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;true&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>CoreDNS</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>kube-dns</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>kube-system</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>clusterIP</span><span class=p>:</span><span class=w> </span><span class=m>10.96.0.10</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>dns</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>53</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>UDP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>53</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>dns-tcp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>53</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>53</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>k8s-app</span><span class=p>:</span><span class=w> </span><span class=l>kube-dns</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>ClusterIP</span><span class=w>
+</span></span></span></code></pre></div><p>しかし、前述したように10.96.0.10のIPアドレスは予約されていません。他のServiceが動的割り当てよりも前に、または同時に作成された場合、このIPアドレスがそのServiceに割り当てられる可能性があります。その場合、競合エラーで失敗しDNS Serviceを作成することができません。</p><h2 id=avoid-ClusterIP-conflict>どのようにServiceのClusterIPの競合を回避するのか？<a class=td-heading-self-link href=#avoid-ClusterIP-conflict aria-label="Heading self-link"></a></h2><p>Kubernetesで実装されているServiceへのClusterIPの割り当て戦略は、衝突リスクを軽減します。</p><p><code>ClusterIP</code>の範囲は、<code>min(max(16, cidrSize / 16), 256)</code>という式に基づいて分割されます。<em>最小で16、最大でも256で、その範囲内で段階的に変化する</em> ように表されます。</p><p>動的IP割り当てはデフォルトで上位の帯域を使用し、それが使い切られると下位の範囲を使用します。これにより、ユーザーは下位の帯域を使用して静的な割り当てを行うことができ、衝突のリスクを抑えることができます。</p><h2 id=allocation-examples>例<a class=td-heading-self-link href=#allocation-examples aria-label="Heading self-link"></a></h2><h3 id=allocation-example-1>例1<a class=td-heading-self-link href=#allocation-example-1 aria-label="Heading self-link"></a></h3><p>この例ではServiceのIPアドレスとして、10.96.0.0/24(CIDR表記法)のIPアドレスの範囲を使用します。</p><p>範囲の大きさ: 2<sup>8</sup> - 2 = 254
+帯域のオフセット(開始位置): <code>min(max(16, 256/16), 256)</code> = <code>min(16, 256)</code> = 16
+静的割り当ての帯域の開始: 10.96.0.1
+静的割り当ての帯域の終了: 10.96.0.16
+範囲の終了: 10.96.0.254</p><pre class=mermaid>
+pie showData
+    title 10.96.0.0/24
+    "静的割り当て" : 16
+    "動的割り当て" : 238
+</pre><h3 id=allocation-example-2>例2<a class=td-heading-self-link href=#allocation-example-2 aria-label="Heading self-link"></a></h3><p>この例では、ServiceのIPアドレスとして、10.96.0.0/20(CIDR表記法)のIPアドレスの範囲を使用します。</p><p>範囲の大きさ: 2<sup>12</sup> - 2 = 4094
+帯域のオフセット(開始位置): <code>min(max(16, 4096/16), 256)</code> = <code>min(256, 256)</code> = 256
+静的割り当ての帯域の開始: 10.96.0.1
+静的割り当ての帯域の終了: 10.96.1.0
+範囲の終了: 10.96.15.254</p><pre class=mermaid>
+pie showData
+    title 10.96.0.0/20
+    "静的割り当て" : 256
+    "動的割り当て" : 3838
+</pre><h3 id=allocation-example-3>例3<a class=td-heading-self-link href=#allocation-example-3 aria-label="Heading self-link"></a></h3><p>この例ではServiceのIPアドレスとして、10.96.0.0/16(CIDR表記法)のIPアドレスの範囲を使用します。</p><p>範囲の大きさ: 2<sup>16</sup> - 2 = 65534
+帯域のオフセット(開始位置): <code>min(max(16, 65536/16), 256)</code> = <code>min(4096, 256)</code> = 256
+静的割り当ての帯域の開始: 10.96.0.1
+静的割り当ての帯域の終了: 10.96.1.0
+範囲の終了: 10.96.255.254</p><pre class=mermaid>
+pie showData
+    title 10.96.0.0/16
+    "静的割り当て" : 256
+    "動的割り当て" : 65278
+</pre><h2 id=次の項目>次の項目<a class=td-heading-self-link href=#%e6%ac%a1%e3%81%ae%e9%a0%85%e7%9b%ae aria-label="Heading self-link"></a></h2><ul><li><a href=/ja/docs/tasks/access-application-cluster/create-external-load-balancer/#preserving-the-client-source-ip>Serviceの外部トラフィックのポリシー</a>を参照してください。</li><li><a href=/ja/docs/tutorials/services/connect-applications-service/>アプリケーションをServiceに接続する</a>を参照してください。</li><li><a href=/ja/docs/concepts/services-networking/service/>Service</a>を参照してください。</li></ul></div>
+</body>
+</html>

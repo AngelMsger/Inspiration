@@ -5,7 +5,8 @@
  *
  * - Markdown front matter: title, approval_state, sensitivity, authority,
  *   governance_level, owner, tags, language, translation_of (the external ID of the file
- *   it translates) and any other key (kept in metadata.extra).
+ *   it translates) and any other key (kept in metadata.extra). Front matter that is not
+ *   valid YAML gives no metadata, and the file syncs without it.
  * - Translations: a file named for its language ("leave-policy.zh.md", a two-letter
  *   language code with an optional script or region) is in that language, whatever its
  *   folder's .meta.yaml says, and translates the file without it ("leave-policy.md") when
@@ -92,11 +93,23 @@ export function globToRegExp(glob: string): RegExp {
   return new RegExp(`^${out}$`);
 }
 
-/** Front matter of a Markdown file, and the text after it. */
+/** A Markdown file whose front matter is not valid YAML, so its own labels cannot be read. */
+export class FrontMatterError extends Error {
+  override name = "FrontMatterError";
+}
+
+/** Front matter of a Markdown file, and the text after it; FrontMatterError when it is not valid YAML. */
 export function frontMatter(text: string): { meta: Meta; body: string } {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(text);
   if (!m) return { meta: {}, body: text };
-  const meta = parse(m[1] as string) as unknown;
+  let meta: unknown;
+  try {
+    meta = parse(m[1] as string);
+  } catch (e) {
+    throw new FrontMatterError(
+      `front matter is not valid YAML: ${(e instanceof Error ? e.message : String(e)).split("\n")[0]}`,
+    );
+  }
   return {
     meta: meta && typeof meta === "object" && !Array.isArray(meta) ? (meta as Meta) : {},
     body: text.slice(m[0].length),
@@ -205,7 +218,14 @@ export class FolderConnector implements Connector {
   async #describe(
     f: FileInfo,
     sidecars: Sidecars,
-  ): Promise<{ data: Uint8Array; meta: Meta; original?: string; version: Version; acl: AclEntry[] }> {
+  ): Promise<{
+    data: Uint8Array;
+    meta: Meta;
+    original?: string;
+    version: Version;
+    acl: AclEntry[];
+    unreadable?: FrontMatterError;
+  }> {
     const [data, info, folderMeta, acl] = await Promise.all([
       readFile(f.path),
       stat(f.path),
@@ -213,7 +233,16 @@ export class FolderConnector implements Connector {
       this.#aclEntries(f.folders, sidecars),
     ]);
     const ext = extname(f.path).toLowerCase();
-    const own = ext === ".md" || ext === ".markdown" ? frontMatter(data.toString("utf8")).meta : {};
+    let own: Meta = {};
+    let unreadable: FrontMatterError | undefined;
+    if (ext === ".md" || ext === ".markdown") {
+      try {
+        own = frontMatter(data.toString("utf8")).meta;
+      } catch (e) {
+        if (!(e instanceof FrontMatterError)) throw e;
+        unreadable = e;
+      }
+    }
     // The language a file is named for is more specific than its folder's and less than its own front matter.
     const translation = translationOf(f.rel);
     const meta: Meta = { ...folderMeta, ...(translation && { language: translation.language }), ...own };
@@ -232,7 +261,7 @@ export class FolderConnector implements Connector {
       modified_at: info.mtime.toISOString(),
       size_bytes: info.size,
     };
-    return { data, meta, ...(original && { original }), version, acl };
+    return { data, meta, ...(original && { original }), version, acl, ...(unreadable && { unreadable }) };
   }
 
   #ref(f: FileInfo, title?: string): SourceRef {
@@ -266,7 +295,12 @@ export class FolderConnector implements Connector {
 
   async fetch(ref: SourceRef, known?: Version): Promise<NormalizedDocument | Unchanged> {
     const f = this.#file(ref);
-    const { data, meta, original, version, acl } = await this.#describe(f, new Sidecars());
+    const { data, meta, original, version, acl, unreadable } = await this.#describe(f, new Sidecars());
+    // Front matter carries the file's own sensitivity, approval state and governance level. When it
+    // cannot be read, the folder's defaults would silently loosen them, so the file fails alone: a
+    // sync reports it, keeps the version stored before and goes on with the other files. Listing
+    // still works, so the file is not taken for deleted.
+    if (unreadable) throw unreadable;
     if (sameVersion(known, version)) return { unchanged: true };
     const ext = extname(f.path).toLowerCase();
     const mimeType = MIME_TYPES[ext] ?? "application/octet-stream";

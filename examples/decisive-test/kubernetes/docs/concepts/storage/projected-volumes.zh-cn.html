@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>投射卷</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>投射卷</h1><header class=article-meta></header><p>本文档描述 Kubernetes 中的<strong>投射卷（Projected Volume）</strong>。
+建议先熟悉<a href=/zh-cn/docs/concepts/storage/volumes/>卷</a>概念。</p><h2 id=introduction>介绍 <a class=td-heading-self-link href=#introduction aria-label="Heading self-link"></a></h2><p>一个 <code>projected</code> 卷可以将若干现有的卷源映射到同一个目录之上。</p><p>目前，以下类型的卷源可以被投射：</p><ul><li><a href=/zh-cn/docs/concepts/storage/volumes/#secret><code>secret</code></a></li><li><a href=/zh-cn/docs/concepts/storage/volumes/#downwardapi><code>downwardAPI</code></a></li><li><a href=/zh-cn/docs/concepts/storage/volumes/#configmap><code>configMap</code></a></li><li><a href=#serviceaccounttoken><code>serviceAccountToken</code></a></li><li><a href=#clustertrustbundle><code>clusterTrustBundle</code></a></li><li><a href=#podcertificate><code>podCertificate</code></a></li></ul><p>所有的卷源都要求处于 Pod 所在的同一个名字空间内。更多详细信息，
+可参考<a href=https://git.k8s.io/design-proposals-archive/node/all-in-one-volume.md>一体化卷</a>设计文档。</p><h3 id=example-configuration-secret-downwardapi-configmap>带有 Secret、DownwardAPI 和 ConfigMap 的配置示例<a class=td-heading-self-link href=#example-configuration-secret-downwardapi-configmap aria-label="Heading self-link"></a></h3><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/pods/storage/projected-secret-downwardapi-configmap.yaml download=pods/storage/projected-secret-downwardapi-configmap.yaml><code>pods/storage/projected-secret-downwardapi-configmap.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("pods-storage-projected-secret-downwardapi-configmap-yaml")' title="复制 pods/storage/projected-secret-downwardapi-configmap.yaml 到剪贴板"></img></div><div class=includecode id=pods-storage-projected-secret-downwardapi-configmap-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volume-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>container-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>busybox:1.28</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s2>&#34;sleep&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;3600&#34;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>all-in-one</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;/projected-volume&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>readOnly</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>all-in-one</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>projected</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>sources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>secret</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>mysecret</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>items</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>username</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>              </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>my-group/my-username</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>downwardAPI</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>items</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span>- <span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;labels&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>              </span><span class=nt>fieldRef</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                </span><span class=nt>fieldPath</span><span class=p>:</span><span class=w> </span><span class=l>metadata.labels</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span>- <span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;cpu_limit&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>              </span><span class=nt>resourceFieldRef</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                </span><span class=nt>containerName</span><span class=p>:</span><span class=w> </span><span class=l>container-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                </span><span class=nt>resource</span><span class=p>:</span><span class=w> </span><span class=l>limits.cpu</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>configMap</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>myconfigmap</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>items</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>config</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>              </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>my-group/my-config</span><span class=w>
+</span></span></span></code></pre></div></div></div><h3 id=example-configuration-secrets-nondefault-permission-mode>带有非默认权限模式设置的 Secret 的配置示例<a class=td-heading-self-link href=#example-configuration-secrets-nondefault-permission-mode aria-label="Heading self-link"></a></h3><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/pods/storage/projected-secrets-nondefault-permission-mode.yaml download=pods/storage/projected-secrets-nondefault-permission-mode.yaml><code>pods/storage/projected-secrets-nondefault-permission-mode.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("pods-storage-projected-secrets-nondefault-permission-mode-yaml")' title="复制 pods/storage/projected-secrets-nondefault-permission-mode.yaml 到剪贴板"></img></div><div class=includecode id=pods-storage-projected-secrets-nondefault-permission-mode-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volume-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>container-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>busybox:1.28</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s2>&#34;sleep&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;3600&#34;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>all-in-one</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;/projected-volume&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>readOnly</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>all-in-one</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>projected</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>sources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>secret</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>mysecret</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>items</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>username</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>              </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>my-group/my-username</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>secret</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>mysecret2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>items</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>password</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>              </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>my-group/my-password</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>              </span><span class=nt>mode</span><span class=p>:</span><span class=w> </span><span class=m>511</span><span class=w>
+</span></span></span></code></pre></div></div></div><p>每个被投射的卷源都列举在规约中的 <code>sources</code> 下面。参数几乎相同，只有两个例外：</p><ul><li>对于 Secret，<code>secretName</code> 字段被改为 <code>name</code> 以便于 ConfigMap 的命名一致；</li><li><code>defaultMode</code> 只能在投射层级设置，不能在卷源层级设置。不过，正如上面所展示的，
+你可以显式地为每个投射单独设置 <code>mode</code> 属性。</li></ul><h2 id=serviceaccounttoken>serviceAccountToken 投射卷<a class=td-heading-self-link href=#serviceaccounttoken aria-label="Heading self-link"></a></h2><p>你可以将当前<a href=/zh-cn/docs/reference/access-authn-authz/authentication/#service-account-tokens>服务账号</a>的令牌注入到
+Pod 中特定路径下。例如：</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/pods/storage/projected-service-account-token.yaml download=pods/storage/projected-service-account-token.yaml><code>pods/storage/projected-service-account-token.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("pods-storage-projected-service-account-token-yaml")' title="复制 pods/storage/projected-service-account-token.yaml 到剪贴板"></img></div><div class=includecode id=pods-storage-projected-service-account-token-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>sa-token-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>container-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>busybox:1.28</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s2>&#34;sleep&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;3600&#34;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>token-vol</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;/service-account&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>readOnly</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>serviceAccountName</span><span class=p>:</span><span class=w> </span><span class=l>default</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>token-vol</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>projected</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>sources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>serviceAccountToken</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>audience</span><span class=p>:</span><span class=w> </span><span class=l>api</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>expirationSeconds</span><span class=p>:</span><span class=w> </span><span class=m>3600</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>token</span><span class=w>
+</span></span></span></code></pre></div></div></div><p>示例 Pod 中包含一个投射卷，其中包含注入的服务账号令牌。
+此 Pod 中的容器可以使用该令牌访问 Kubernetes API 服务器，使用
+<a href=/zh-cn/docs/tasks/configure-pod-container/configure-service-account/>Pod 的 ServiceAccount</a>
+进行身份验证。<code>audience</code> 字段包含令牌所针对的受众。
+收到令牌的主体必须使用令牌受众中所指定的某个标识符来标识自身，否则应该拒绝该令牌。
+此字段是可选的，默认值为 API 服务器的标识。</p><p>字段 <code>expirationSeconds</code> 是服务账号令牌预期的生命期长度。默认值为 1 小时，
+必须至少为 10 分钟（600 秒）。管理员也可以通过设置 API 服务器的命令行参数
+<code>--service-account-max-token-expiration</code> 来为其设置最大值上限。
+<code>path</code> 字段给出与投射卷挂载点之间的相对路径。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>以 <a href=/zh-cn/docs/concepts/storage/volumes/#using-subpath><code>subPath</code></a>
+形式使用投射卷源的容器无法收到对应卷源的更新。</p></div><h2 id=clustertrustbundle>clusterTrustBundle 投射卷 <a class=td-heading-self-link href=#clustertrustbundle aria-label="Heading self-link"></a></h2><div class="feature-state-notice feature-stable" title="特性门控： ClusterTrustBundleProjection"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.37; （默认启用）</span></div><div class="feature-stable stable-in-latest-release"><details><summary>More information about this feature</summary><p><em>This is a stable feature in Kubernetes, and has been since version 1.37. It was first available in the v1.29 release.</em></p></details></div><p><code>clusterTrustBundle</code> 投射卷源将一个或多个
+<a href=/zh-cn/docs/reference/access-authn-authz/certificate-signing-requests#cluster-trust-bundles>ClusterTrustBundle</a>
+对象的内容作为一个自动更新的文件注入到容器文件系统中。</p><p>ClusterTrustBundle 可以通过<a href=/zh-cn/docs/reference/access-authn-authz/certificate-signing-requests#ctb-signer-unlinked>名称</a>
+或<a href=/zh-cn/docs/reference/access-authn-authz/certificate-signing-requests#ctb-signer-linked>签名者名称</a>被选中。</p><p>要按名称选择，可以使用 <code>name</code> 字段指定单个 ClusterTrustBundle 对象。</p><p>要按签名者名称选择，可以使用 <code>signerName</code> 字段（也可选用 <code>labelSelector</code> 字段）
+指定一组使用给定签名者名称的 ClusterTrustBundle 对象。
+如果 <code>labelSelector</code> 不存在，则针对该签名者的所有 ClusterTrustBundle 将被选中。</p><p>kubelet 会对所选 ClusterTrustBundle 对象中的证书进行去重，规范化 PEM 表示（丢弃注释和头部），
+重新排序证书，并将这些证书写入由 <code>path</code> 指定的文件中。
+随着所选 ClusterTrustBundle 的集合或其内容发生变化，kubelet 会保持更新此文件。</p><p>默认情况下，如果找不到指定的 ClusterTrustBundle，或者 <code>signerName</code> / <code>labelSelector</code>
+与所有 ClusterTrustBundle 都不匹配，kubelet 将阻止 Pod 启动。如果这不是你想要的行为，
+可以将 <code>optional</code> 字段设置为 <code>true</code>，Pod 将使用 <code>path</code> 处的空白文件启动。</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/pods/storage/projected-clustertrustbundle.yaml download=pods/storage/projected-clustertrustbundle.yaml><code>pods/storage/projected-clustertrustbundle.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("pods-storage-projected-clustertrustbundle-yaml")' title="复制 pods/storage/projected-clustertrustbundle.yaml 到剪贴板"></img></div><div class=includecode id=pods-storage-projected-clustertrustbundle-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>sa-ctb-name-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>container-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>busybox</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s2>&#34;sleep&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;3600&#34;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>token-vol</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;/root-certificates&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>readOnly</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>serviceAccountName</span><span class=p>:</span><span class=w> </span><span class=l>default</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>token-vol</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>projected</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>sources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>clusterTrustBundle</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>example-roots.pem</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>clusterTrustBundle</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>signerName</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;example.com/mysigner&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>labelSelector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nt>matchLabels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>              </span><span class=nt>version</span><span class=p>:</span><span class=w> </span><span class=l>live</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>mysigner-roots.pem</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>optional</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span></code></pre></div></div></div><h2 id=podcertificate>podCertificate 投射卷 <a class=td-heading-self-link href=#podcertificate aria-label="Heading self-link"></a></h2><div class="feature-state-notice feature-stable" title="特性门控： PodCertificateRequest"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.37; （默认启用）</span></div><div class="feature-stable stable-in-latest-release"><details><summary>More information about this feature</summary><p><em>This is a stable feature in Kubernetes, and has been since version 1.37. It was first available in the v1.34 release.</em></p></details></div><p><code>podCertificate</code> 投射卷源为 Pod 安全地提供一个私钥和 X.509 证书链，用作客户端或服务器凭据。
+当私钥和证书链接近过期时，kubelet 将处理刷新它们。应用程序只需确保在文件发生变化时，
+及时通过类似 <code>inotify</code> 或轮询的机制重新加载文件。</p><p>每个 <code>podCertificate</code> 投射支持以下配置字段：</p><ul><li><code>signerName</code>：你希望签发证书的
+<a href=/zh-cn/docs/reference/access-authn-authz/certificate-signing-requests#signers>签名者</a>。
+注意，签名者可能有自己的访问要求，并可能拒绝为你的 Pod 签发证书。</li><li><code>keyType</code>：应生成的私钥类型。有效值为
+<code>ED25519</code>、<code>ECDSAP256</code>、<code>ECDSAP384</code>、<code>ECDSAP521</code>、<code>RSA3072</code> 和 <code>RSA4096</code>。</li><li><code>maxExpirationSeconds</code>：你将接受的颁发给 Pod 的证书的最大生命周期。
+如果未设置，默认为 <code>86400</code>（24 小时）。必须至少为 <code>3600</code>（1 小时），最多为 <code>7862400</code>（91 天）。
+Kubernetes 内置签名者的最大生命周期限制为 <code>86400</code>（1 天）。签名者允许颁发比指定时间更短生命周期的证书。</li><li><code>credentialBundlePath</code>：投射内凭证包应写入的相对路径。凭证包是一个 PEM 格式的文件，
+其中第一个块是包含 PKCS#8 序列化私钥的 "PRIVATE KEY" 块，其余块是组成证书链（叶证书和任何中间证书）的 "CERTIFICATE" 块。</li><li><code>keyPath</code> 和 <code>certificateChainPath</code>：kubelet 应单独写入<strong>仅</strong>私钥或证书链的路径。</li></ul><ul><li><code>userAnnotations</code>：一个映射，允许你向签名器实现传递附加信息。
+它会被原封不动地复制到 kubelet 创建的
+<a href=/zh-cn/docs/reference/access-authn-authz/certificate-signing-requests#pod-certificate-requests>PodCertificateRequest</a>
+对象的 <code>spec.unverifiedUserAnnotations</code> 字段中。
+条目的验证方式与对象元数据注解相同，但所有键都必须带有域名前缀。
+除了整个字段的大小限制外，值本身没有其他限制。
+除了这些基本验证之外，API 服务器不会执行任何其他验证。
+签名器实现在使用这些数据时应格外谨慎。
+签名器不应在未执行适当的验证步骤之前就完全信任这些数据。
+签名器应记录其支持的键和值。签名器应拒绝包含其无法识别的键的请求。</li></ul><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>除非应用程序因兼容性原因需要将密钥和证书存储在单独的文件中，否则应优先使用 <code>credentialBundlePath</code>。
+kubelet 使用基于符号链接的原子写入策略，确保在你打开它投射的文件时，读取的要么是旧内容，要么是新内容。
+然而，如果你从单独的文件中读取密钥和证书链，在第一次读取后和第二次读取前，kubelet 可能会轮换凭证，
+这将导致你的应用程序加载不匹配的密钥和证书。</p></div><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/pods/storage/projected-podcertificate.yaml download=pods/storage/projected-podcertificate.yaml><code>pods/storage/projected-podcertificate.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("pods-storage-projected-podcertificate-yaml")' title="复制 pods/storage/projected-podcertificate.yaml 到剪贴板"></img></div><div class=includecode id=pods-storage-projected-podcertificate-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=c># 使用 podCertificate 投射请求 ED25519 的示例 Pod 规约，</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># 私钥，来自 `coolcert.example.com/foo` 签名者的证书，</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># 并将结果写入 `/var/run/my-x509-credentials/credentialbundle.pem`。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>default</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>podcertificate-pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>serviceAccountName</span><span class=p>:</span><span class=w> </span><span class=l>default</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>debian</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>main</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s2>&#34;sleep&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;infinity&#34;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-x509-credentials</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/var/run/my-x509-credentials</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-x509-credentials</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>projected</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>defaultMode</span><span class=p>:</span><span class=w> </span><span class=m>420</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>sources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>podCertificate</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>keyType</span><span class=p>:</span><span class=w> </span><span class=l>ED25519</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>signerName</span><span class=p>:</span><span class=w> </span><span class=l>coolcert.example.com/foo</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>credentialBundlePath</span><span class=p>:</span><span class=w> </span><span class=l>credentialbundle.pem</span><span class=w>
+</span></span></span></code></pre></div></div></div><h2 id=securitycontext-interactions>与 SecurityContext 间的关系 <a class=td-heading-self-link href=#securitycontext-interactions aria-label="Heading self-link"></a></h2><p>关于在投射的服务账号卷中处理文件访问权限的<a href=https://git.k8s.io/enhancements/keps/sig-storage/2451-service-account-token-volumes#proposal>提案</a>
+介绍了如何使得所投射的文件具有合适的属主访问权限。</p><h3 id=linux>Linux<a class=td-heading-self-link href=#linux aria-label="Heading self-link"></a></h3><p>在包含了投射卷并在
+<a href=/zh-cn/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context><code>SecurityContext</code></a>
+中设置了 <code>RunAsUser</code> 属性的 Linux Pod 中，投射文件具有正确的属主属性设置，
+其中包含了容器用户属主。</p><p>当 Pod 中的所有容器在其
+<a href=/zh-cn/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context><code>PodSecurityContext</code></a>
+或容器
+<a href=/zh-cn/docs/reference/kubernetes-api/workload-resources/pod-v1/#security-context-1><code>SecurityContext</code></a>
+中设置了相同的 <code>runAsUser</code> 时，kubelet 将确保 <code>serviceAccountToken</code>
+卷的内容归该用户所有，并且令牌文件的权限模式会被设置为 <code>0600</code>。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>在某 Pod 被创建后为其添加的<a class=glossary-tooltip title='你可以在 Pod 中临时运行的一种容器类型' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/pods/ephemeral-containers/ target=_blank aria-label=临时容器>临时容器</a><strong>不会</strong>更改创建该
+Pod 时设置的卷权限。</p><p>如果 Pod 的 <code>serviceAccountToken</code> 卷权限被设为 <code>0600</code>
+是因为 Pod 中的其他所有容器都具有相同的 <code>runAsUser</code>，
+则临时容器必须使用相同的 <code>runAsUser</code> 才能读取令牌。</p></div><h3 id=windows>Windows<a class=td-heading-self-link href=#windows aria-label="Heading self-link"></a></h3><p>在包含了投射卷并在 <code>SecurityContext</code> 中设置了 <code>RunAsUsername</code> 的 Windows Pod 中,
+由于 Windows 中用户账号的管理方式问题，文件的属主无法正确设置。
+Windows 在名为安全账号管理器（Security Account Manager，SAM）
+的数据库中保存本地用户和组信息。每个容器会维护其自身的 SAM 数据库实例，
+宿主系统无法窥视到容器运行期间数据库内容。Windows 容器被设计用来运行操作系统的用户态部分，
+与宿主系统之间隔离，因此维护了一个虚拟的 SAM 数据库。
+所以，在宿主系统上运行的 kubelet 无法动态为虚拟的容器账号配置宿主文件的属主。
+如果需要将宿主机器上的文件与容器共享，建议将它们放到挂载于 <code>C:\</code> 之外的独立卷中。</p><p>默认情况下，所投射的文件会具有如下例所示的属主属性设置：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-powershell data-lang=powershell><span class=line><span class=cl><span class=nb>PS </span><span class=n>C:</span><span class=p>\&gt;</span> <span class=nb>Get-Acl</span> <span class=n>C:</span><span class=p>\</span><span class=n>var</span><span class=p>\</span><span class=n>run</span><span class=p>\</span><span class=n>secrets</span><span class=p>\</span><span class=n>kubernetes</span><span class=p>.</span><span class=n>io</span><span class=p>\</span><span class=n>serviceaccount</span><span class=p>\..</span><span class=py>2021_08_31_22_22_18</span><span class=p>.</span><span class=mf>318230061</span><span class=p>\</span><span class=n>ca</span><span class=p>.</span><span class=py>crt</span> <span class=p>|</span> <span class=nb>Format-List</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>Path</span>   <span class=err>:</span> <span class=n>Microsoft</span><span class=p>.</span><span class=py>PowerShell</span><span class=p>.</span><span class=n>Core</span><span class=p>\</span><span class=n>FileSystem</span><span class=p>::</span><span class=n>C:</span><span class=p>\</span><span class=n>var</span><span class=p>\</span><span class=n>run</span><span class=p>\</span><span class=n>secrets</span><span class=p>\</span><span class=n>kubernetes</span><span class=p>.</span><span class=n>io</span><span class=p>\</span><span class=n>serviceaccount</span><span class=p>\..</span><span class=py>2021_08_31_22_22_18</span><span class=p>.</span><span class=mf>318230061</span><span class=p>\</span><span class=n>ca</span><span class=p>.</span><span class=py>crt</span>
+</span></span><span class=line><span class=cl><span class=n>Owner</span>  <span class=err>:</span> <span class=n>BUILTIN</span><span class=p>\</span><span class=n>Administrators</span>
+</span></span><span class=line><span class=cl><span class=nb>Group </span> <span class=err>:</span> <span class=n>NT</span> <span class=n>AUTHORITY</span><span class=p>\</span><span class=n>SYSTEM</span>
+</span></span><span class=line><span class=cl><span class=n>Access</span> <span class=err>:</span> <span class=n>NT</span> <span class=n>AUTHORITY</span><span class=p>\</span><span class=n>SYSTEM</span> <span class=n>Allow</span>  <span class=n>FullControl</span>
+</span></span><span class=line><span class=cl>         <span class=n>BUILTIN</span><span class=p>\</span><span class=n>Administrators</span> <span class=n>Allow</span>  <span class=n>FullControl</span>
+</span></span><span class=line><span class=cl>         <span class=n>BUILTIN</span><span class=p>\</span><span class=n>Users</span> <span class=n>Allow</span>  <span class=n>ReadAndExecute</span><span class=p>,</span> <span class=n>Synchronize</span>
+</span></span><span class=line><span class=cl><span class=n>Audit</span>  <span class=err>:</span>
+</span></span><span class=line><span class=cl><span class=n>Sddl</span>   <span class=err>:</span> <span class=n>O:BAG</span><span class=err>:</span><span class=n>SYD</span><span class=err>:</span><span class=n>AI</span><span class=p>(</span><span class=n>A</span><span class=p>;</span><span class=n>ID</span><span class=p>;</span><span class=n>FA</span><span class=p>;;;</span><span class=n>SY</span><span class=p>)(</span><span class=n>A</span><span class=p>;</span><span class=n>ID</span><span class=p>;</span><span class=n>FA</span><span class=p>;;;</span><span class=n>BA</span><span class=p>)(</span><span class=n>A</span><span class=p>;</span><span class=n>ID</span><span class=p>;</span><span class=n>0x1200a9</span><span class=p>;;;</span><span class=n>BU</span><span class=p>)</span>
+</span></span></code></pre></div><p>这意味着，所有类似 <code>ContainerAdministrator</code> 的管理员用户都具有读、写和执行访问权限，
+而非管理员用户将具有读和执行访问权限。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>总体而言，为容器授予访问宿主系统的权限这种做法是不推荐的，因为这样做可能会打开潜在的安全性攻击之门。</p><p>在创建 Windows Pod 时，如果在其 <code>SecurityContext</code> 中设置了 <code>RunAsUser</code>，
+Pod 会一直阻塞在 <code>ContainerCreating</code> 状态。因此，建议不要在 Windows
+节点上使用仅针对 Linux 的 <code>RunAsUser</code> 选项。</p></div></div>
+</body>
+</html>

@@ -13,6 +13,7 @@
       "!libs/contracts/src/events.ts",
       "!docs/design/screens",
       "!examples/kubernetes-docs/docs",
+      "!examples/decisive-test/kubernetes/docs",
       "!examples/company-drive/drive/research"
     ]
   },

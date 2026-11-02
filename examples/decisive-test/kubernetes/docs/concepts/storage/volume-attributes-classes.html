@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Volume Attributes Classes</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Volume Attributes Classes</h1><header class=article-meta></header><div class="feature-state-notice feature-stable" title="Feature Gate: VolumeAttributesClass"><span class=feature-state-name>Feature state:</span>
+<span class=feature-state-details><span class=feature-state-stage>Stable</span> since Kubernetes v1.36</span></div><div class=feature-stable><details><summary>More information about this feature</summary><p>This is a stable feature in Kubernetes, and has been since version v1.36. It was first available in the v1.29 release. You can no longer disable or opt out of this feature or behavior (it is locked); if you explicitly set a value for the associated feature gate <tt>VolumeAttributesClass</tt>, Kubernetes ignores it but does not report any error.</p></details></div><p>This page assumes that you are familiar with <a href=/docs/concepts/storage/storage-classes/>StorageClasses</a>,
+<a href=/docs/concepts/storage/volumes/>volumes</a> and <a href=/docs/concepts/storage/persistent-volumes/>PersistentVolumes</a>
+in Kubernetes.</p><p>A VolumeAttributesClass provides a way for administrators to describe the mutable
+"classes" of storage they offer. Different classes might map to different quality-of-service levels.
+Kubernetes itself is un-opinionated about what these classes represent.</p><p>This feature is generally available (GA) as of version 1.34, and users have the option to disable it.</p><p>You can also only use VolumeAttributesClasses with storage backed by
+<a class=glossary-tooltip title='The Container Storage Interface (CSI) defines a standard interface to expose storage systems to containers.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/storage/volumes/#csi target=_blank aria-label='Container Storage Interface'>Container Storage Interface</a>, and only where the
+relevant CSI driver implements the <code>ModifyVolume</code> API.</p><h2 id=the-volumeattributesclass-api>The VolumeAttributesClass API<a class=td-heading-self-link href=#the-volumeattributesclass-api aria-label="Heading self-link"></a></h2><p>Each VolumeAttributesClass contains the <code>driverName</code> and <code>parameters</code>, which are
+used when a PersistentVolume (PV) belonging to the class needs to be dynamically provisioned
+or modified.</p><p>The name of a VolumeAttributesClass object is significant and is how users can request a particular class.
+Administrators set the name and other parameters of a class when first creating VolumeAttributesClass objects.
+While the name of a VolumeAttributesClass object in a <code>PersistentVolumeClaim</code> is mutable, the parameters in an existing class are immutable.</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeAttributesClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>silver</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>driverName</span><span class=p>:</span><span class=w> </span><span class=l>csi.storage.example.com</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>iops</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;3000&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>throughput</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;50Mi&#34;</span><span class=w>
+</span></span></span></code></pre></div><h3 id=provisioner>Provisioner<a class=td-heading-self-link href=#provisioner aria-label="Heading self-link"></a></h3><p>Each VolumeAttributesClass has a provisioner that determines what volume plugin is used for
+provisioning PVs. The field <code>driverName</code> must be specified.</p><p>The feature support for VolumeAttributesClass is implemented in
+<a href=https://github.com/kubernetes-csi/external-provisioner>kubernetes-csi/external-provisioner</a>.</p><p>You are not restricted to specifying the <a href=https://github.com/kubernetes-csi/external-provisioner>kubernetes-csi/external-provisioner</a>.
+You can also run and specify external provisioners,
+which are independent programs that follow a specification defined by Kubernetes.
+Authors of external provisioners have full discretion over where their code lives, how
+the provisioner is shipped, how it needs to be run, what volume plugin it uses, etc.</p><p>To understand how the provisioner works with VolumeAttributesClass, refer to
+the <a href=https://kubernetes-csi.github.io/docs/external-provisioner.html>CSI external-provisioner documentation</a>.</p><h3 id=resizer>Resizer<a class=td-heading-self-link href=#resizer aria-label="Heading self-link"></a></h3><p>Each VolumeAttributesClass has a resizer that determines what volume plugin is used
+for modifying PVs. The field <code>driverName</code> must be specified.</p><p>The modifying volume feature support for VolumeAttributesClass is implemented in
+<a href=https://github.com/kubernetes-csi/external-resizer>kubernetes-csi/external-resizer</a>.</p><p>For example, an existing PersistentVolumeClaim is using a VolumeAttributesClass named silver:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-pv-claim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=l>…</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeAttributesClassName</span><span class=p>:</span><span class=w> </span><span class=l>silver</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=l>…</span><span class=w>
+</span></span></span></code></pre></div><p>A new VolumeAttributesClass gold is available in the cluster:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeAttributesClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>gold</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>driverName</span><span class=p>:</span><span class=w> </span><span class=l>csi.storage.example.com</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>iops</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;4000&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>throughput</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;60Mi&#34;</span><span class=w>
+</span></span></span></code></pre></div><p>The end user can update the PVC with the new VolumeAttributesClass gold and apply:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-pv-claim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=l>…</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeAttributesClassName</span><span class=p>:</span><span class=w> </span><span class=l>gold</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=l>…</span><span class=w>
+</span></span></span></code></pre></div><p>To understand how the resizer works with VolumeAttributesClass, refer to
+the <a href=https://kubernetes-csi.github.io/docs/external-resizer.html>CSI external-resizer documentation</a>.</p><h2 id=parameters>Parameters<a class=td-heading-self-link href=#parameters aria-label="Heading self-link"></a></h2><p>VolumeAttributeClasses have parameters that describe volumes belonging to them. Different parameters may be accepted
+depending on the provisioner or the resizer. For example, the value <code>4000</code>, for the parameter <code>iops</code>,
+and the parameter <code>throughput</code> are specific to GCE PD.
+When a parameter is omitted, the default is used at volume provisioning.
+If a user applies the PVC with a different VolumeAttributesClass with omitted parameters, the default value of
+the parameters may be used depending on the CSI driver implementation.
+Please refer to the related CSI driver documentation for more details.</p><p>There can be at most 512 parameters defined for a VolumeAttributesClass.
+The total length of the parameters object including its keys and values cannot exceed 256 KiB.</p></div>
+</body>
+</html>

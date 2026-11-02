@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>CSI 卷克隆</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>CSI 卷克隆</h1><header class=article-meta></header><p>本文档介绍 Kubernetes 中克隆现有 CSI 卷的概念。阅读前建议先熟悉
+<a href=/zh-cn/docs/concepts/storage/volumes>卷</a>。</p><h2 id=介绍>介绍<a class=td-heading-self-link href=#%e4%bb%8b%e7%bb%8d aria-label="Heading self-link"></a></h2><p><a class=glossary-tooltip title='容器存储接口 （CSI）定义了存储系统暴露给容器的标准接口。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/storage/volumes/#csi target=_blank aria-label=CSI>CSI</a> 卷克隆功能增加了通过在
+<code>dataSource</code> 字段中指定存在的
+<a class=glossary-tooltip title=声明在持久卷中定义的存储资源，以便可以将其挂载为容器中的卷。 data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims target=_blank aria-label=PVC>PVC</a>，
+来表示用户想要克隆的 <a class=glossary-tooltip title='包含可被 Pod 中容器访问的数据的目录。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/storage/volumes/ target=_blank aria-label=卷（Volume）>卷（Volume）</a>。</p><p>克隆（Clone），意思是为已有的 Kubernetes 卷创建副本，它可以像任何其它标准卷一样被使用。
+唯一的区别就是配置后，后端设备将创建指定完全相同的副本，而不是创建一个“新的”空卷。</p><p>从 Kubernetes API 的角度看，克隆的实现只是在创建新的 PVC 时，
+增加了指定一个现有 PVC 作为数据源的能力。源 PVC 必须是 bound
+状态且可用的（不在使用中）。</p><p>用户在使用该功能时，需要注意以下事项：</p><ul><li>克隆支持（<code>VolumePVCDataSource</code>）仅适用于 CSI 驱动。</li><li>克隆支持仅适用于 动态供应器。</li><li>CSI 驱动可能实现，也可能未实现卷克隆功能。</li><li>仅当 PVC 与目标 PVC 存在于同一命名空间（源和目标 PVC 必须在相同的命名空间）时，才可以克隆 PVC。</li><li>支持用一个不同存储类进行克隆。<ul><li>目标卷和源卷可以是相同的存储类，也可以不同。</li><li>可以使用默认的存储类，也可以在 spec 中省略 storageClassName 字段。</li></ul></li><li>克隆只能在两个使用相同 VolumeMode 设置的卷中进行
+（如果请求克隆一个块存储模式的卷，源卷必须也是块存储模式）。</li></ul><h2 id=制备>制备<a class=td-heading-self-link href=#%e5%88%b6%e5%a4%87 aria-label="Heading self-link"></a></h2><p>克隆卷与其他任何 PVC 一样配置，除了需要增加 dataSource 来引用同一命名空间中现有的 PVC。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>clone-of-pvc-1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>myns</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>accessModes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=l>ReadWriteOnce</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>storageClassName</span><span class=p>:</span><span class=w> </span><span class=l>cloning</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>requests</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>5Gi</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>dataSource</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>pvc-1</span><span class=w>
+</span></span></span></code></pre></div><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>你必须为 <code>spec.resources.requests.storage</code> 指定一个值，并且你指定的值必须大于或等于源卷的值。</p></div><p>结果是一个名称为 <code>clone-of-pvc-1</code> 的新 PVC 与指定的源 <code>pvc-1</code> 拥有相同的内容。</p><h2 id=使用>使用<a class=td-heading-self-link href=#%e4%bd%bf%e7%94%a8 aria-label="Heading self-link"></a></h2><p>一旦新的 PVC 可用，被克隆的 PVC 像其他 PVC 一样被使用。
+可以预期的是，新创建的 PVC 是一个独立的对象。
+可以独立使用、克隆、快照或删除它，而不需要考虑它的原始数据源 PVC。
+这也意味着，源没有以任何方式链接到新创建的 PVC，它也可以被修改或删除，而不会影响到新创建的克隆。</p></div>
+</body>
+</html>

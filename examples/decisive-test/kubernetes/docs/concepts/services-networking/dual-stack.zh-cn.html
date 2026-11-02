@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>IPv4/IPv6 双协议栈</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>IPv4/IPv6 双协议栈</h1><div class=lead>Kubernetes 允许你配置单协议栈 IPv4 网络、单协议栈 IPv6 网络或同时激活这两种网络的双协议栈网络。本页说明具体配置方法。</div><header class=article-meta></header><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.23</span></div><p>IPv4/IPv6 双协议栈网络能够将 IPv4 和 IPv6 地址分配给
+<a class=glossary-tooltip title='Pod 表示你的集群上一组正在运行的容器。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/pods/ target=_blank aria-label=Pod>Pod</a> 和
+<a class=glossary-tooltip title='将运行在一组 Pod 上的应用程序公开为网络服务的抽象方法。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/services-networking/service/ target=_blank aria-label=Service>Service</a>。</p><p>从 1.21 版本开始，Kubernetes 集群默认启用 IPv4/IPv6 双协议栈网络，
+以支持同时分配 IPv4 和 IPv6 地址。</p><h2 id=supported-features>支持的功能 <a class=td-heading-self-link href=#supported-features aria-label="Heading self-link"></a></h2><p>Kubernetes 集群的 IPv4/IPv6 双协议栈可提供下面的功能：</p><ul><li>双协议栈 Pod 网络（每个 Pod 分配一个 IPv4 和 IPv6 地址）</li><li>IPv4 和 IPv6 启用的 Service</li><li>Pod 的集群外出口通过 IPv4 和 IPv6 路由</li></ul><h2 id=prerequisites>先决条件 <a class=td-heading-self-link href=#prerequisites aria-label="Heading self-link"></a></h2><p>为了使用 IPv4/IPv6 双栈的 Kubernetes 集群，需要满足以下先决条件：</p><ul><li>Kubernetes 1.20 版本或更高版本，有关更早 Kubernetes 版本的使用双栈 Service 的信息，
+请参考对应版本的 Kubernetes 文档。</li><li>提供商支持双协议栈网络（云提供商或其他提供商必须能够为 Kubernetes
+节点提供可路由的 IPv4/IPv6 网络接口）。</li><li>支持双协议栈的<a href=/zh-cn/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/>网络插件</a>。</li></ul><h2 id=配置-ipv4-ipv6-双协议栈>配置 IPv4/IPv6 双协议栈<a class=td-heading-self-link href=#%e9%85%8d%e7%bd%ae-ipv4-ipv6-%e5%8f%8c%e5%8d%8f%e8%ae%ae%e6%a0%88 aria-label="Heading self-link"></a></h2><p>如果配置 IPv4/IPv6 双栈，请分配双栈集群网络：</p><ul><li>kube-apiserver：<ul><li><code>--service-cluster-ip-range=&lt;IPv4 CIDR>,&lt;IPv6 CIDR></code></li></ul></li><li>kube-controller-manager：<ul><li><code>--cluster-cidr=&lt;IPv4 CIDR>,&lt;IPv6 CIDR></code></li><li><code>--service-cluster-ip-range=&lt;IPv4 CIDR>,&lt;IPv6 CIDR></code></li><li><code>--node-cidr-mask-size-ipv4|--node-cidr-mask-size-ipv6</code> 对于 IPv4 默认为 /24，
+对于 IPv6 默认为 /64</li></ul></li><li>kube-proxy：<ul><li><code>--cluster-cidr=&lt;IPv4 CIDR>,&lt;IPv6 CIDR></code></li></ul></li><li>kubelet：<ul><li><code>--node-ip=&lt;IPv4 IP>,&lt;IPv6 IP></code><ul><li>裸机双栈节点（未使用 <code>--cloud-provider</code> 标志定义云平台的节点）需要此选项。
+如果你使用了某个云平台并选择覆盖云平台所选择的节点 IP，请设置 <code>--node-ip</code> 选项。</li><li>（传统的内置云平台实现不支持双栈 <code>--node-ip</code>。）</li></ul></li></ul></li></ul><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>IPv4 CIDR 的一个例子：<code>10.244.0.0/16</code>（尽管你会提供你自己的地址范围）。</p><p>IPv6 CIDR 的一个例子：<code>fdXY:IJKL:MNOP:15::/64</code>
+（这里演示的是格式而非有效地址 - 请看 <a href=https://tools.ietf.org/html/rfc4193>RFC 4193</a>）。</p></div><h2 id=services>Service <a class=td-heading-self-link href=#services aria-label="Heading self-link"></a></h2><p>你可以使用 IPv4 或 IPv6 地址来创建
+<a class=glossary-tooltip title='将运行在一组 Pod 上的应用程序公开为网络服务的抽象方法。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/services-networking/service/ target=_blank aria-label=Service>Service</a>。</p><p>Service 的地址族默认为第一个服务集群 IP 范围的地址族（通过 kube-apiserver 的
+<code>--service-cluster-ip-range</code> 参数配置）。</p><p>当你定义 Service 时，可以选择将其配置为双栈。若要指定所需的行为，你可以设置
+<code>.spec.ipFamilyPolicy</code> 字段为以下值之一：</p><ul><li><code>SingleStack</code>：单栈 Service。控制面使用第一个配置的服务集群 IP 范围为 Service 分配集群 IP。</li><li><code>PreferDualStack</code>：启用双栈时，为 Service 同时分配 IPv4 和 IPv6 集群 IP 地址。
+如果双栈未被启用或不被支持，则会返回到单栈行为。</li><li><code>RequireDualStack</code>：启用双栈时，同时从 IPv4 和 IPv6 的地址范围中分配 Service 的 <code>.spec.clusterIPs</code>。
+如果双栈未被启用或不被支持，则 Service API 对象创建失败。<ul><li>从基于在 <code>.spec.ipFamilies</code> 数组中第一个元素的地址族的 <code>.spec.clusterIPs</code>
+列表中选择 <code>.spec.clusterIP</code></li></ul></li></ul><p>如果你想要定义哪个 IP 族用于单栈或定义双栈 IP 族的顺序，可以通过设置
+Service 上的可选字段 <code>.spec.ipFamilies</code> 来选择地址族。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p><code>.spec.ipFamilies</code> 字段修改是有条件的：你可以添加或删除第二个 IP 地址族，
+但你不能更改现有 Service 的主要 IP 地址族。</p></div><p>你可以设置 <code>.spec.ipFamily</code> 为以下任何数组值：</p><ul><li><code>["IPv4"]</code></li><li><code>["IPv6"]</code></li><li><code>["IPv4","IPv6"]</code> （双栈）</li><li><code>["IPv6","IPv4"]</code> （双栈）</li></ul><p>你所列出的第一个地址族用于原来的 <code>.spec.clusterIP</code> 字段。</p><h3 id=dual-stack-service-configuration-scenarios>双栈 Service 配置场景 <a class=td-heading-self-link href=#dual-stack-service-configuration-scenarios aria-label="Heading self-link"></a></h3><p>以下示例演示多种双栈 Service 配置场景下的行为。</p><h4 id=dual-stack-options-on-new-services>新 Service 的双栈选项 <a class=td-heading-self-link href=#dual-stack-options-on-new-services aria-label="Heading self-link"></a></h4><ol><li><p>此 Service 规约中没有显式设定 <code>.spec.ipFamilyPolicy</code>。当你创建此 Service 时，Kubernetes
+从所配置的第一个 <code>service-cluster-ip-range</code> 中为 Service 分配一个集群 IP，并设置
+<code>.spec.ipFamilyPolicy</code> 为 <code>SingleStack</code>。
+（<a href=/zh-cn/docs/concepts/services-networking/service/#services-without-selectors>无选择算符的 Service</a>
+和<a href=/zh-cn/docs/concepts/services-networking/service/#headless-services>无头服务（Headless Service）</a>的行为方式与此相同。）</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/service/networking/dual-stack-default-svc.yaml download=service/networking/dual-stack-default-svc.yaml><code>service/networking/dual-stack-default-svc.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("service-networking-dual-stack-default-svc-yaml")' title="复制 service/networking/dual-stack-default-svc.yaml 到剪贴板"></img></div><div class=includecode id=service-networking-dual-stack-default-svc-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>labels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span></code></pre></div></div></div></li></ol><ol start=2><li><p>此 Service 规约显式地将 <code>.spec.ipFamilyPolicy</code> 设置为 <code>PreferDualStack</code>。
+当你在双栈集群上创建此 Service 时，Kubernetes 会为此 Service 分配 IPv4 和 IPv6 地址。
+控制平面更新 Service 的 <code>.spec</code> 以记录 IP 地址分配。
+字段 <code>.spec.clusterIPs</code> 是主要字段，包含两个分配的 IP 地址；<code>.spec.clusterIP</code> 是次要字段，
+其取值从 <code>.spec.clusterIPs</code> 计算而来。</p><ul><li>对于 <code>.spec.clusterIP</code> 字段，控制面记录来自第一个服务集群 IP
+范围对应的地址族的 IP 地址。</li><li>对于单协议栈的集群，<code>.spec.clusterIPs</code> 和 <code>.spec.clusterIP</code> 字段都
+仅仅列出一个地址。</li><li>对于启用了双协议栈的集群，将 <code>.spec.ipFamilyPolicy</code> 设置为
+<code>RequireDualStack</code> 时，其行为与 <code>PreferDualStack</code> 相同。</li></ul><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/service/networking/dual-stack-preferred-svc.yaml download=service/networking/dual-stack-preferred-svc.yaml><code>service/networking/dual-stack-preferred-svc.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("service-networking-dual-stack-preferred-svc-yaml")' title="复制 service/networking/dual-stack-preferred-svc.yaml 到剪贴板"></img></div><div class=includecode id=service-networking-dual-stack-preferred-svc-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>labels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ipFamilyPolicy</span><span class=p>:</span><span class=w> </span><span class=l>PreferDualStack</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span></code></pre></div></div></div></li></ol><ol start=3><li><p>下面的 Service 规约显式地在 <code>.spec.ipFamilies</code> 中指定 <code>IPv6</code> 和 <code>IPv4</code>，并将
+<code>.spec.ipFamilyPolicy</code> 设定为 <code>PreferDualStack</code>。
+当 Kubernetes 为 <code>.spec.clusterIPs</code> 分配一个 IPv6 和一个 IPv4 地址时，
+<code>.spec.clusterIP</code> 被设置成 IPv6 地址，因为它是 <code>.spec.clusterIPs</code> 数组中的第一个元素，
+覆盖其默认值。</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/service/networking/dual-stack-preferred-ipfamilies-svc.yaml download=service/networking/dual-stack-preferred-ipfamilies-svc.yaml><code>service/networking/dual-stack-preferred-ipfamilies-svc.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("service-networking-dual-stack-preferred-ipfamilies-svc-yaml")' title="复制 service/networking/dual-stack-preferred-ipfamilies-svc.yaml 到剪贴板"></img></div><div class=includecode id=service-networking-dual-stack-preferred-ipfamilies-svc-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>labels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ipFamilyPolicy</span><span class=p>:</span><span class=w> </span><span class=l>PreferDualStack</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ipFamilies</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=l>IPv6</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=l>IPv4</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span></code></pre></div></div></div></li></ol><h4 id=dual-stack-defaults-on-existing-services>现有 Service 的双栈默认值 <a class=td-heading-self-link href=#dual-stack-defaults-on-existing-services aria-label="Heading self-link"></a></h4><p>下面示例演示了在 Service 已经存在的集群上新启用双栈时的默认行为。
+（将现有集群升级到 1.21 或者更高版本会启用双协议栈支持。）</p><ol><li><p>在集群上启用双栈时，控制面会将现有 Service（无论是 <code>IPv4</code> 还是 <code>IPv6</code>）配置
+<code>.spec.ipFamilyPolicy</code> 为 <code>SingleStack</code> 并设置 <code>.spec.ipFamilies</code>
+为 Service 的当前地址族。</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/service/networking/dual-stack-default-svc.yaml download=service/networking/dual-stack-default-svc.yaml><code>service/networking/dual-stack-default-svc.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("service-networking-dual-stack-default-svc-yaml")' title="复制 service/networking/dual-stack-default-svc.yaml 到剪贴板"></img></div><div class=includecode id=service-networking-dual-stack-default-svc-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>labels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span></code></pre></div></div></div><p>你可以通过使用 kubectl 检查现有 Service 来验证此行为。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-shell data-lang=shell><span class=line><span class=cl>kubectl get svc my-service -o yaml
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>labels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>clusterIP</span><span class=p>:</span><span class=w> </span><span class=m>10.0.197.123</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>clusterIPs</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=m>10.0.197.123</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ipFamilies</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=l>IPv4</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ipFamilyPolicy</span><span class=p>:</span><span class=w> </span><span class=l>SingleStack</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>ClusterIP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>status</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>loadBalancer</span><span class=p>:</span><span class=w> </span>{}<span class=w>
+</span></span></span></code></pre></div></li></ol><ol start=2><li><p>在集群上启用双栈时，带有选择算符的现有
+<a href=/zh-cn/docs/concepts/services-networking/service/#headless-services>无头服务</a>
+由控制面设置 <code>.spec.ipFamilyPolicy</code> 为 <code>SingleStack</code>
+并设置 <code>.spec.ipFamilies</code> 为第一个服务集群 IP 范围的地址族（通过配置 kube-apiserver 的
+<code>--service-cluster-ip-range</code> 参数），即使 <code>.spec.clusterIP</code> 的设置值为 <code>None</code> 也如此。</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/service/networking/dual-stack-default-svc.yaml download=service/networking/dual-stack-default-svc.yaml><code>service/networking/dual-stack-default-svc.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("service-networking-dual-stack-default-svc-yaml")' title="复制 service/networking/dual-stack-default-svc.yaml 到剪贴板"></img></div><div class=includecode id=service-networking-dual-stack-default-svc-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>labels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span></code></pre></div></div></div><p>你可以通过使用 kubectl 检查带有选择算符的现有无头服务来验证此行为。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-shell data-lang=shell><span class=line><span class=cl>kubectl get svc my-service -o yaml
+</span></span></code></pre></div><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>labels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>clusterIP</span><span class=p>:</span><span class=w> </span><span class=l>None</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>clusterIPs</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=l>None</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ipFamilies</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=l>IPv4</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ipFamilyPolicy</span><span class=p>:</span><span class=w> </span><span class=l>SingleStack</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span></code></pre></div></li></ol><h4 id=switching-services-between-single-stack-and-dual-stack>在单栈和双栈之间切换 Service <a class=td-heading-self-link href=#switching-services-between-single-stack-and-dual-stack aria-label="Heading self-link"></a></h4><p>Service 可以从单栈更改为双栈，也可以从双栈更改为单栈。</p><ol><li><p>要将 Service 从单栈更改为双栈，根据需要将 <code>.spec.ipFamilyPolicy</code> 从 <code>SingleStack</code> 改为
+<code>PreferDualStack</code> 或 <code>RequireDualStack</code>。
+当你将此 Service 从单栈更改为双栈时，Kubernetes 将分配缺失的地址族，
+以便现在此 Service具有 IPv4 和 IPv6 地址。
+编辑 Service 规约将 <code>.spec.ipFamilyPolicy</code> 从 <code>SingleStack</code> 改为 <code>PreferDualStack</code>。</p><p>之前：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ipFamilyPolicy</span><span class=p>:</span><span class=w> </span><span class=l>SingleStack</span><span class=w>
+</span></span></span></code></pre></div><p>之后：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ipFamilyPolicy</span><span class=p>:</span><span class=w> </span><span class=l>PreferDualStack</span><span class=w>
+</span></span></span></code></pre></div></li></ol><ol start=2><li>要将 Service 从双栈更改为单栈，请将 <code>.spec.ipFamilyPolicy</code> 从 <code>PreferDualStack</code> 或
+<code>RequireDualStack</code> 改为 <code>SingleStack</code>。
+当你将此 Service 从双栈更改为单栈时，Kubernetes 只保留 <code>.spec.clusterIPs</code>
+数组中的第一个元素，并设置 <code>.spec.clusterIP</code> 为那个 IP 地址，
+并设置 <code>.spec.ipFamilies</code> 为 <code>.spec.clusterIPs</code> 地址族。</li></ol><h3 id=headless-services-without-selector>无选择算符的无头服务 <a class=td-heading-self-link href=#headless-services-without-selector aria-label="Heading self-link"></a></h3><p>对于<a href=/zh-cn/docs/concepts/services-networking/service/#without-selectors>不带选择算符的无头服务</a>，
+若没有显式设置 <code>.spec.ipFamilyPolicy</code>，则 <code>.spec.ipFamilyPolicy</code>
+字段默认设置为 <code>RequireDualStack</code>。</p><h3 id=service-type-loadbalancer>LoadBalancer 类型 Service <a class=td-heading-self-link href=#service-type-loadbalancer aria-label="Heading self-link"></a></h3><p>要为你的 Service 提供双栈负载均衡器：</p><ul><li>将 <code>.spec.type</code> 字段设置为 <code>LoadBalancer</code></li><li>将 <code>.spec.ipFamilyPolicy</code> 字段设置为 <code>PreferDualStack</code> 或者 <code>RequireDualStack</code></li></ul><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>为了使用双栈的负载均衡器类型 Service，你的云驱动必须支持 IPv4 和 IPv6 的负载均衡器。</p></div><h2 id=egress-traffic>出站流量 <a class=td-heading-self-link href=#egress-traffic aria-label="Heading self-link"></a></h2><p>如果你要启用出站流量，以便使用非公开路由 IPv6 地址的 Pod 到达集群外地址
+（例如公网），则需要通过透明代理或 IP 伪装等机制使 Pod 使用公共路由的
+IPv6 地址。
+<a href=https://github.com/kubernetes-sigs/ip-masq-agent>ip-masq-agent</a>项目
+支持在双栈集群上进行 IP 伪装。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>确认你的 <a class=glossary-tooltip title='容器网络接口 (Container network interface；CNI) 插件是遵循 appc/CNI 协议的一类网络插件。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/extend-kubernetes/compute-storage-net/network-plugins/ target=_blank aria-label=CNI>CNI</a> 驱动支持 IPv6。</p></div><h2 id=windows-support>Windows 支持 <a class=td-heading-self-link href=#windows-support aria-label="Heading self-link"></a></h2><p>Windows 上的 Kubernetes 不支持单栈“仅 IPv6” 网络。 然而，
+对于 Pod 和节点而言，仅支持单栈形式 Service 的双栈 IPv4/IPv6 网络是被支持的。</p><p>你可以使用 <code>l2bridge</code> 网络来实现 IPv4/IPv6 双栈联网。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>Windows 上的 Overlay（VXLAN）网络<strong>不</strong>支持双栈网络。</p></div><p>关于 Windows 的不同网络模式，你可以进一步阅读
+<a href=/zh-cn/docs/concepts/services-networking/windows-networking#network-modes>Windows 上的网络</a>。</p><h2 id=接下来>接下来<a class=td-heading-self-link href=#%e6%8e%a5%e4%b8%8b%e6%9d%a5 aria-label="Heading self-link"></a></h2><ul><li><a href=/zh-cn/docs/tasks/network/validate-dual-stack>验证 IPv4/IPv6 双协议栈</a>网络</li><li><a href=/zh-cn/docs/setup/production-environment/tools/kubeadm/dual-stack-support/>使用 kubeadm 启用双协议栈网络</a></li></ul></div>
+</body>
+</html>

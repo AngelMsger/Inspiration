@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>特定于节点的卷数限制</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>特定于节点的卷数限制</h1><header class=article-meta></header><p>此页面描述了各个云供应商可挂接至一个节点的最大卷数。</p><p>谷歌、亚马逊和微软等云供应商通常对可以挂接到节点的卷数量进行限制。
+Kubernetes 需要尊重这些限制。否则，在节点上调度的 Pod 可能会卡住去等待卷的挂接。</p><h2 id=kubernetes-default-limits>Kubernetes 的默认限制 <a class=td-heading-self-link href=#kubernetes-default-limits aria-label="Heading self-link"></a></h2><p>Kubernetes 调度器对挂接到一个节点的卷数有默认限制：</p><table><tr><th>云服务</th><th>每节点最大卷数</th></tr><tr><td><a href=https://aws.amazon.com/ebs/>Amazon Elastic Block Store (EBS)</a></td><td>39</td></tr><tr><td><a href=https://cloud.google.com/persistent-disk/>Google Persistent Disk</a></td><td>16</td></tr><tr><td><a href=https://azure.microsoft.com/en-us/services/storage/main-disks/>Microsoft Azure Disk Storage</a></td><td>16</td></tr></table><h2 id=dynamic-volume-limits>动态卷限制 <a class=td-heading-self-link href=#dynamic-volume-limits aria-label="Heading self-link"></a></h2><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.17</span></div><p>以下卷类型支持动态卷限制。</p><ul><li>Amazon EBS</li><li>Google Persistent Disk</li><li>Azure Disk</li><li>CSI</li></ul><p>对于由树内插件管理的卷，Kubernetes 会自动确定节点类型并确保节点上可挂接的卷数目合规。例如：</p><ul><li>在 <a href=https://cloud.google.com/compute/>Google Compute Engine</a> 环境中，
+<a href=https://cloud.google.com/compute/docs/disks/#pdnumberlimits>根据节点类型</a>最多可以将
+127 个卷挂接到节点。</li></ul><ul><li><p>对于 M5、C5、R5、T3 和 Z1D 实例类型的 Amazon EBS 磁盘，Kubernetes 仅允许 25 个卷挂接到节点。
+对于 <a href=https://aws.amazon.com/ec2/>Amazon Elastic Compute Cloud (EC2)</a>
+上的其他实例类型，Kubernetes 允许 39 个卷挂接至节点。</p></li><li><p>在 Azure 环境中，根据节点类型，最多 64 个磁盘可以挂接至一个节点。
+更多详细信息，请参阅
+<a href=https://docs.microsoft.com/zh-cn/azure/virtual-machines/windows/sizes>Azure 虚拟机的数量大小</a>。</p></li></ul><ul><li><p>如果 CSI 存储驱动（使用 <code>NodeGetInfo</code>）为节点通告卷数上限，则
+<a class=glossary-tooltip title='控制平面组件，负责监视新创建的、未指定运行节点的 Pod，选择节点让 Pod 在上面运行。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/reference/command-line-tools-reference/kube-scheduler/ target=_blank aria-label=kube-scheduler>kube-scheduler</a>
+将遵守该限制值。参考
+<a href=https://github.com/container-storage-interface/spec/blob/master/spec.md#nodegetinfo>CSI 规范</a>获取更多详细信息。</p></li><li><p>对于由已迁移到 CSI 驱动的树内插件管理的卷，最大卷数将是 CSI 驱动报告的卷数。</p></li></ul><h3 id=mutable-csi-node-allocatable-count>可变的 CSI 节点可分配数 <a class=td-heading-self-link href=#mutable-csi-node-allocatable-count aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-stable" title="特性门控： MutableCSINodeAllocatableCount"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.36; （默认启用）</span></div><div class=feature-stable><details><summary>More information about this feature</summary><p><em>This is a stable feature in Kubernetes, and has been since version 1.36. It was first available in the v1.33 release.</em></p></details></div><p>CSI 驱动可以在运行时动态调整可以挂载到 Node 的最大卷数量。
+这提高了调度准确性，并减少了由于资源可用性变化导致的 Pod 调度失败。</p><p>要使用此特性，你必须在以下组件上启用 <code>MutableCSINodeAllocatableCount</code>
+特性门控：</p><ul><li><code>kube-apiserver</code></li><li><code>kubelet</code></li></ul><h4 id=定期更新>定期更新<a class=td-heading-self-link href=#%e5%ae%9a%e6%9c%9f%e6%9b%b4%e6%96%b0 aria-label="Heading self-link"></a></h4><p>当启用时，CSI 驱动可以通过在 <code>CSIDriver</code> 规约中设置
+<code>nodeAllocatableUpdatePeriodSeconds</code> 字段来请求定期更新其卷限制。
+例如：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>CSIDriver</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>hostpath.csi.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>nodeAllocatableUpdatePeriodSeconds</span><span class=p>:</span><span class=w> </span><span class=m>60</span><span class=w>
+</span></span></span></code></pre></div><p>kubelet 将使用 <code>nodeAllocatableUpdatePeriodSeconds</code>
+中指定的时间间隔，定期调用相应的 CSI 驱动的 <code>NodeGetInfo</code>
+端点来刷新可挂接卷的最大数量。此字段允许的最小值为 10 秒。</p><p>如果卷挂载操作失败并返回 <code>ResourceExhausted</code> 错误（gRPC 代码 8），
+Kubernetes 会立即触发对此节点可分配卷数量的更新。此外，kubelet
+会将受影响的 Pod 标记为 Failed，从而使它们的控制器处理重新创建。
+这防止了 Pod 无限期地停留在 <code>ContainerCreating</code> 状态。</p><h3 id=防止在未安装-csi-驱动程序的情况下放置-pod>防止在未安装 CSI 驱动程序的情况下放置 Pod<a class=td-heading-self-link href=#%e9%98%b2%e6%ad%a2%e5%9c%a8%e6%9c%aa%e5%ae%89%e8%a3%85-csi-%e9%a9%b1%e5%8a%a8%e7%a8%8b%e5%ba%8f%e7%9a%84%e6%83%85%e5%86%b5%e4%b8%8b%e6%94%be%e7%bd%ae-pod aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-beta" title="特性门控： VolumeLimitScaling"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Beta</span> since Kubernetes v1.37; （默认启用）</span></div><div class=feature-beta></div><p><code>VolumeLimitScaling</code>
+<a href=/zh-cn/docs/reference/command-line-tools-reference/feature-gates#VolumeLimitScaling>特性门控</a>在
+Kubernetes v1.37 中默认启用。</p><p>然而，要在缺少 CSI 驱动的节点上阻止 Pod 调度，需要通过 <code>CSIDriver</code> 对象的
+<code>spec.preventPodSchedulingIfMissing</code> 字段显式启用。</p><p><code>preventPodSchedulingIfMissing</code> 字段默认为 <code>false</code>，如果你不希望 Pod 被调度到缺少 CSI 驱动的节点上，
+必须将其设置为 <code>true</code>。之所以默认设为 <code>false</code>，是出于向后兼容的考虑，同时也是为了兼容
+<a href=https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler>Cluster Autoscaler</a>，
+因为后者在自动扩缩阶段可能无法感知 CSI 卷的限制（见下文相应章节）。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>CSIDriver</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>hostpath.csi.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>preventPodSchedulingIfMissing</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span></code></pre></div><h3 id=csi-卷附加限制和集群自动扩缩器>CSI 卷附加限制和集群自动扩缩器<a class=td-heading-self-link href=#csi-%e5%8d%b7%e9%99%84%e5%8a%a0%e9%99%90%e5%88%b6%e5%92%8c%e9%9b%86%e7%be%a4%e8%87%aa%e5%8a%a8%e6%89%a9%e7%bc%a9%e5%99%a8 aria-label="Heading self-link"></a></h3><p>当传入 <code>--enable-csi-node-aware-scheduling=true</code> 参数时，
+<a href=https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler>Cluster Autoscaler</a>
+可以将 CSI 卷限制纳入考量。此选项与 <code>VolumeLimitScaling</code> 特性门控相互独立。</p><p>如果你使用 Cluster Autoscaler，只有当 Cluster Autoscaler 配置了
+<code>--enable-csi-node-aware-scheduling=true</code> 时，才可以将 <code>spec.preventPodSchedulingIfMissing</code>
+设置为 <code>true</code>。否则，其调度模拟不会包含新节点所需的 <code>CSINode</code> 信息，Cluster Autoscaler
+可能无法为使用 CSI 卷的 Pending Pod 完成扩容。</p></div>
+</body>
+</html>

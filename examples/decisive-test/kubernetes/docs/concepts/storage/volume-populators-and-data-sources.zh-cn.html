@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>卷填充器（Populator）与数据源</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>卷填充器（Populator）与数据源</h1><header class=article-meta></header><p>本文描述了 Kubernetes 中的<strong>卷填充器</strong>和<strong>数据源</strong>。
+建议先了解<a href=/zh-cn/docs/concepts/storage/persistent-volumes/>持久卷（Persistent Volume）</a>的相关内容。</p><p>当你创建一个 <a class=glossary-tooltip title=声明在持久卷中定义的存储资源，以便可以将其挂载为容器中的卷。 data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims target=_blank aria-label=PersistentVolumeClaim>PersistentVolumeClaim</a> 时，
+Kubernetes 为它配置的卷通常是空的。利用<strong>数据源</strong>，你可以请求在新卷中预先填充现有数据。
+<strong>卷填充器</strong>是根据 PersistentVolumeClaim 引用的数据源执行填充操作的控制器。</p><p>Kubernetes 内置支持数据源，可用于
+<a href=/zh-cn/docs/concepts/storage/volume-pvc-datasource/>克隆现有卷</a>或
+<a href=/zh-cn/docs/concepts/storage/volume-snapshots/>恢复卷快照</a>。自定义卷填充器扩展了这一机制。
+数据源是一种自定义资源，即类型由
+<a class=glossary-tooltip title='通过定制化的代码给你的 Kubernetes API 服务器增加资源对象，而无需编译完整的定制 API 服务器。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/ target=_blank aria-label=CustomResourceDefinition>CustomResourceDefinition</a> 定义的对象。
+填充器控制器会监视引用此类资源的 PersistentVolumeClaim，并从中填充新卷。</p><h2 id=卷填充器和数据源>卷填充器和数据源<a class=td-heading-self-link href=#%e5%8d%b7%e5%a1%ab%e5%85%85%e5%99%a8%e5%92%8c%e6%95%b0%e6%8d%ae%e6%ba%90 aria-label="Heading self-link"></a></h2><div class="feature-state-notice feature-beta"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Beta</span> since Kubernetes v1.24</span></div><p>Kubernetes 支持自定义卷填充器。要使用自定义卷填充器，你必须为 kube-apiserver 和
+kube-controller-manager 启用 <code>AnyVolumeDataSource</code>
+<a href=/zh-cn/docs/reference/command-line-tools-reference/feature-gates/>特性门控</a>。</p><p>卷填充器利用 PVC 规约中的 <code>dataSourceRef</code> 字段。与 <code>dataSource</code> 字段（只能包含对另一个
+PersistentVolumeClaim 或 VolumeSnapshot 的引用）不同，<code>dataSourceRef</code> 字段可以包含对同一命名空间中任何对象的引用，
+除了 PVC 之外的核心对象。对于启用了特性门控的集群，建议使用 <code>dataSourceRef</code> 而不是 <code>dataSource</code>。</p><h2 id=数据源引用>数据源引用<a class=td-heading-self-link href=#%e6%95%b0%e6%8d%ae%e6%ba%90%e5%bc%95%e7%94%a8 aria-label="Heading self-link"></a></h2><p><code>dataSourceRef</code> 字段的行为几乎与 <code>dataSource</code> 字段相同。如果指定了其中一个而未指定另一个，
+API 服务器会为两个字段赋予相同的值。两个字段在创建后都不能更改，尝试为两个字段指定不同的值将导致验证错误。
+因此，这两个字段的内容始终相同。</p><p>用户应该注意 <code>dataSourceRef</code> 字段和 <code>dataSource</code> 字段之间的两个区别：</p><ul><li><code>dataSource</code> 字段会忽略无效值（就像字段为空一样），而 <code>dataSourceRef</code> 字段从不忽略值，
+如果使用无效值将导致错误。无效值是除 PVC 之外的任何核心对象（没有 <code>apiGroup</code> 的对象）。</li><li><code>dataSourceRef</code> 字段可以包含不同类型的对象，而 <code>dataSource</code> 字段只允许 PVC 和 VolumeSnapshot。</li></ul><p>当启用 <code>CrossNamespaceVolumeDataSource</code> 特性时，还有额外的区别：</p><ul><li><code>dataSource</code> 字段只允许本地对象，而 <code>dataSourceRef</code> 字段允许任何命名空间中的对象。</li><li>指定命名空间时，<code>dataSource</code> 和 <code>dataSourceRef</code> 不会同步。</li></ul><p>用户应该在启用了特性门控的集群上始终使用 <code>dataSourceRef</code>，在未启用的集群上回退到 <code>dataSource</code>。
+在任何情况下都无需查看两个字段。语义略有不同的重复值仅为向后兼容而存在。
+特别是，旧版和新版控制器可以互操作，因为字段相同。</p><h3 id=使用卷填充器>使用卷填充器<a class=td-heading-self-link href=#%e4%bd%bf%e7%94%a8%e5%8d%b7%e5%a1%ab%e5%85%85%e5%99%a8 aria-label="Heading self-link"></a></h3><p>卷填充器是可以创建非空卷的<a class=glossary-tooltip title='控制器通过 API 服务器监控集群的公共状态，并致力于将当前状态转变为期望的状态。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/architecture/controller/ target=_blank aria-label=控制器>控制器</a>，
+卷的内容由自定义资源决定。用户通过使用 <code>dataSourceRef</code> 字段引用自定义资源来创建填充卷：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>populated-pvc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>dataSourceRef</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-name</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>ExampleDataSource</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>apiGroup</span><span class=p>:</span><span class=w> </span><span class=l>example.storage.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>accessModes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>ReadWriteOnce</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>requests</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>10Gi</span><span class=w>
+</span></span></span></code></pre></div><p>由于卷填充器是外部组件，如果未安装所有正确的组件，尝试创建使用卷填充器的 PVC 可能会失败。
+外部控制器应该在 PVC 上生成事件，以提供创建状态的反馈，包括由于缺少某些组件而无法创建 PVC 时的警告。</p><p>你可以将 Alpha 版本的<a href=https://github.com/kubernetes-csi/volume-data-source-validator>卷数据源验证器</a>控制器安装到你的集群中。
+当没有注册填充器来处理某种类型的数据源时，该控制器会在 PVC 上生成警告事件。
+当为 PVC 安装了合适的填充器时，填充器控制器负责报告与卷创建和过程中出现的问题相关的事件。</p><h2 id=跨命名空间数据源>跨命名空间数据源<a class=td-heading-self-link href=#%e8%b7%a8%e5%91%bd%e5%90%8d%e7%a9%ba%e9%97%b4%e6%95%b0%e6%8d%ae%e6%ba%90 aria-label="Heading self-link"></a></h2><div class="feature-state-notice feature-alpha"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.26</span></div><p>Kubernetes 支持跨命名空间卷数据源。要使用跨命名空间卷数据源，你必须为 kube-apiserver 和
+kube-controller-manager 启用 <code>AnyVolumeDataSource</code> 和 <code>CrossNamespaceVolumeDataSource</code>
+<a href=/zh-cn/docs/reference/command-line-tools-reference/feature-gates/>特性门控</a>。
+此外，你还必须为 csi-provisioner 启用 <code>CrossNamespaceVolumeDataSource</code> 特性门控。</p><p>启用 <code>CrossNamespaceVolumeDataSource</code> 特性门控允许你在 <code>dataSourceRef</code> 字段中指定命名空间。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>当你为卷数据源指定命名空间时，Kubernetes 在接受引用之前会检查另一个命名空间中的
+ReferenceGrant。ReferenceGrant 是 <code>gateway.networking.k8s.io</code> 扩展 API 的一部分。
+有关详情，请参阅 Gateway API 文档中的 <a href=https://gateway-api.sigs.k8s.io/api-types/referencegrant/>ReferenceGrant</a>。
+这意味着，在使用该机制之前，你必须使用 Gateway API 中的
+ReferenceGrant（至少包含此资源）来扩展你的 Kubernetes 集群。</p></div><h3 id=使用跨命名空间卷数据源>使用跨命名空间卷数据源<a class=td-heading-self-link href=#%e4%bd%bf%e7%94%a8%e8%b7%a8%e5%91%bd%e5%90%8d%e7%a9%ba%e9%97%b4%e5%8d%b7%e6%95%b0%e6%8d%ae%e6%ba%90 aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-alpha"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.26</span></div><p>创建 ReferenceGrant 以允许命名空间所有者接受引用。
+你可以通过使用 <code>dataSourceRef</code> 字段指定跨命名空间卷数据源来定义填充卷。
+你必须在源命名空间中已有有效的 ReferenceGrant：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>gateway.networking.k8s.io/v1beta1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>ReferenceGrant</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>allow-ns1-pvc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>default</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>from</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>group</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>ns1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>to</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>group</span><span class=p>:</span><span class=w> </span><span class=l>snapshot.storage.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeSnapshot</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>new-snapshot-demo</span><span class=w>
+</span></span></span></code></pre></div><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>foo-pvc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>ns1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>storageClassName</span><span class=p>:</span><span class=w> </span><span class=l>example</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>accessModes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=l>ReadWriteOnce</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>requests</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>1Gi</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>dataSourceRef</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>apiGroup</span><span class=p>:</span><span class=w> </span><span class=l>snapshot.storage.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeSnapshot</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>new-snapshot-demo</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>default</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeMode</span><span class=p>:</span><span class=w> </span><span class=l>Filesystem</span><span class=w>
+</span></span></span></code></pre></div><h2 id=接下来>接下来<a class=td-heading-self-link href=#%e6%8e%a5%e4%b8%8b%e6%9d%a5 aria-label="Heading self-link"></a></h2><ul><li>了解<a href=/zh-cn/docs/concepts/storage/persistent-volumes/>持久卷</a>。</li><li>了解 <a href=/zh-cn/docs/concepts/storage/volume-pvc-datasource/>CSI 卷克隆</a>。</li><li>了解<a href=/zh-cn/docs/concepts/storage/volume-snapshots/>卷快照</a>。</li><li>阅读本文提到的<a href=/zh-cn/docs/reference/command-line-tools-reference/feature-gates/>特性门控</a>。</li></ul></div>
+</body>
+</html>
