@@ -8,7 +8,7 @@ Six runs so far, three of them paid. DeepSeek V4.1 Flash read the company drive,
 
 **The 2026-11-01 round** weighed cost, accuracy and latency together, as the product owner asked ([2026-11-01-compact.md](../../apps/bench/runs/2026-11-01-compact.md)):
 
-- **A. A mature RAG answers a few more right; Inspiration answers from far less, and faster.** On DeepSeek, on the same search:
+- **A. A mature RAG answers a few more right; Inspiration reads far less, and its compact answer is also faster.** On DeepSeek, on the same search:
 
   | Path | Right (stale) of 150 | Input tokens per answer | CNY per answer, off-peak | Answering model, median |
   | --- | --- | --- | --- | --- |

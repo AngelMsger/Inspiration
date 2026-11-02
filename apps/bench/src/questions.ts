@@ -891,7 +891,7 @@ export async function searchReport(
       found: any(sources.map((h) => h.snippet)),
       found_whole: any(await wholeText(sources)),
       found_by_mature: any(mature.map((h) => h.snippet)),
-      found_compact: any(await wholeText(compact)),
+      found_compact: any(compact.map((h) => h.snippet)),
       found_in_statements: any(compact.filter((h) => h.kind !== "chunk").map((h) => h.snippet)),
       tokens: { engine: tokensOf(sources), compact: tokensOf(compact), mature: tokensOf(mature) },
       retention: retentionOf(q, raw, governed),
