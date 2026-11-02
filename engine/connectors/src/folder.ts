@@ -5,7 +5,8 @@
  *
  * - Markdown front matter: title, approval_state, sensitivity, authority,
  *   governance_level, owner, tags, language, translation_of (the external ID of the file
- *   it translates) and any other key (kept in metadata.extra).
+ *   it translates) and any other key (kept in metadata.extra). Front matter that is not
+ *   valid YAML gives no metadata, and the file syncs without it.
  * - Translations: a file named for its language ("leave-policy.zh.md", a two-letter
  *   language code with an optional script or region) is in that language, whatever its
  *   folder's .meta.yaml says, and translates the file without it ("leave-policy.md") when
@@ -96,7 +97,15 @@ export function globToRegExp(glob: string): RegExp {
 export function frontMatter(text: string): { meta: Meta; body: string } {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(text);
   if (!m) return { meta: {}, body: text };
-  const meta = parse(m[1] as string) as unknown;
+  let meta: unknown;
+  try {
+    meta = parse(m[1] as string);
+  } catch {
+    // Site generators accept front matter that YAML 1.2 rejects, such as a quoted value whose
+    // later lines are not indented (10 of the GitLab handbook's 4,198 pages): one such page
+    // must not stop a sync, and its text is still the body after the block.
+    meta = undefined;
+  }
   return {
     meta: meta && typeof meta === "object" && !Array.isArray(meta) ? (meta as Meta) : {},
     body: text.slice(m[0].length),
