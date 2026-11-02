@@ -124,6 +124,42 @@ describe.each<{ backend: Backend; skip: boolean }>([
     },
   );
 
+  it.skipIf(skip)(
+    "a file whose front matter stops being valid YAML fails alone and keeps the labels stored before",
+    async ({ world }) => {
+      // The folder's defaults are looser than the file's own labels, so reading the broken file
+      // with the defaults would downgrade it from secret and bring a search-only draft into governance.
+      await world.write("finance/.meta.yaml", "governance_level: governed\n");
+      await world.write("finance/.acl.yaml", "readers: [group:finance]\n");
+      const labels = "---\nsensitivity: secret\napproval_state: draft\ngovernance_level: search_only\n";
+      const body = "---\n# Synthetic budget\nThe test amount is 123.\n";
+      await world.write("finance/budget.md", `${labels}description: valid\n${body}`);
+      await world.write("finance/notice.md", "# Notice\n\nFirst.");
+      await world.sync.sync(SOURCE);
+      const stored = async () => {
+        const item = (await world.sync.items(SOURCE)).find((i) => i.external_id === "finance/budget.md");
+        const version = await world.store.getSourceVersion(item?.source_version_id ?? "");
+        return {
+          id: version?.id,
+          sensitivity: version?.sensitivity,
+          approval_state: version?.approval_state,
+          governance_level: version?.governance_level,
+        };
+      };
+      const before = await stored();
+      expect(before).toMatchObject({ sensitivity: "secret", approval_state: "draft", governance_level: "search_only" });
+
+      await world.write("finance/budget.md", `${labels}description: "unterminated\n${body}`);
+      await world.write("finance/notice.md", "# Notice\n\nSecond.");
+      const report = await world.sync.sync(SOURCE);
+      expect(report.outcomes).toMatchObject({ updated: 1, failed: 1, deleted: 0 });
+      expect(report.errors).toEqual([
+        { external_id: "finance/budget.md", error: expect.stringMatching(/^front matter is not valid YAML/) },
+      ]);
+      expect(await stored()).toEqual(before);
+    },
+  );
+
   it.skipIf(skip)("a first sync stores versions, ACL snapshots and events", async ({ world }) => {
     await world.write("finance/.acl.yaml", "readers: [group:finance, group:unknown]\n");
     await world.write(

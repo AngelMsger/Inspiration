@@ -11,6 +11,7 @@ import {
   FeishuDocxConnector,
   FixtureFeishuApi,
   FolderConnector,
+  FrontMatterError,
   globToRegExp,
   parseEntry,
   translationOf,
@@ -135,20 +136,19 @@ describe("folder connector", () => {
     expect(titles).toEqual(["Chapter 2 General provisions", "b", "Notice"]);
   });
 
-  test("front matter that is not valid YAML gives no metadata and the file still syncs", async () => {
+  test("a file whose front matter is not valid YAML is listed, but fetching it fails", async () => {
     // As in the GitLab handbook: a quoted description whose second paragraph is not indented.
     await put(
       "corpus/crm.md",
-      '---\ntitle: "CRM team"\ndescription: "We run the CRM.\n\nOur expertise is billing."\n---\n# Enterprise applications\n\nThe text',
+      '---\nsensitivity: secret\ndescription: "We run the CRM.\n\nOur expertise is billing."\n---\n# Enterprise applications\n\nThe text',
     );
-    const { connector, blobs } = await folder();
-    const [item] = (await connector.list({ kind: "folder" })).items;
-    const doc = asDocument(await connector.fetch(item?.ref ?? { source_id: "", external_id: "" }));
-    expect(doc.title).toBe("Enterprise applications");
-    expect(doc.metadata?.extra).toBeUndefined();
-    expect(
-      new TextDecoder().decode(await blobs.get(doc.file ?? { uri: "", sha256: "", size_bytes: 0, mime_type: "" })),
-    ).toContain("The text");
+    await put("corpus/notice.md", "# Notice\n\nA company notice");
+    const { connector } = await folder();
+    const items = (await connector.list({ kind: "folder" })).items;
+    expect(items.map((i) => i.ref.external_id)).toEqual(["crm.md", "notice.md"]);
+    const [crm, notice] = items.map((i) => i.ref);
+    await expect(connector.fetch(crm ?? { source_id: "", external_id: "" })).rejects.toThrow(FrontMatterError);
+    expect(asDocument(await connector.fetch(notice ?? { source_id: "", external_id: "" })).title).toBe("Notice");
   });
 
   test("a file named for its language is in it and translates the file without it; front matter says otherwise", async () => {
