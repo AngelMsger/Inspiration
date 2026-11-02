@@ -87,6 +87,17 @@ export const SNIPPET_TOKENS = 80;
 export const EMBED_BATCH = 64;
 /** Passages an answer reads, and statements beside them. */
 export const ANSWER_SOURCES = 8;
+/** How many passages and statements an answer reads, the best of each kind. */
+export interface AnswerSources {
+  passages: number;
+  statements: number;
+}
+/**
+ * A compact answer: the governed statements found, each a conclusion with the quote behind it,
+ * and a few whole passages for what reading missed. It reads about half of what a full
+ * answer reads, so a smaller model answers it faster, if what governance kept holds the answer.
+ */
+export const COMPACT_SOURCES: AnswerSources = { passages: 2, statements: 8 };
 /** Passages the mature-RAG baseline reads, where it has no statements beside them. */
 export const MATURE_SOURCES = 16;
 /** Below this confidence, a statement only one document states is thin evidence. */
@@ -172,6 +183,12 @@ export interface RetrievalOptions {
   readAll?: boolean;
   /** The most the long-context baseline reads for one answer; LONG_CONTEXT_TOKENS by default. */
   contextTokens?: number;
+  /**
+   * How many passages and statements an answer from search reads; ANSWER_SOURCES of each by
+   * default. The mature baseline reads MATURE_SOURCES passages and no statements whatever this
+   * says.
+   */
+  answerSources?: AnswerSources;
   prompts?: PromptRegistry;
   clock?: () => Date;
 }
@@ -216,6 +233,7 @@ export class Retrieval implements Retriever {
   readonly baseline: Baseline | undefined;
   readonly readAll: boolean;
   readonly contextTokens: number;
+  readonly answerSources: AnswerSources;
   readonly prompts: PromptRegistry;
   readonly clock: () => Date;
   readonly totals = { indexed: 0, chunks: 0, embedded: 0, searches: 0, answers: 0, untranslated: 0 };
@@ -234,6 +252,19 @@ export class Retrieval implements Retriever {
     this.baseline = options.baseline;
     this.readAll = options.readAll ?? false;
     this.contextTokens = options.contextTokens ?? LONG_CONTEXT_TOKENS;
+    this.answerSources = this.baseline
+      ? { passages: MATURE_SOURCES, statements: 0 }
+      : (options.answerSources ?? { passages: ANSWER_SOURCES, statements: ANSWER_SOURCES });
+    if (!Number.isInteger(this.answerSources.passages) || !Number.isInteger(this.answerSources.statements)) {
+      throw new RangeError(`answer sources must be whole numbers: ${JSON.stringify(this.answerSources)}`);
+    }
+    if (
+      this.answerSources.passages < 0 ||
+      this.answerSources.statements < 0 ||
+      this.answerSources.passages + this.answerSources.statements < 1
+    ) {
+      throw new RangeError(`an answer must read at least one source: ${JSON.stringify(this.answerSources)}`);
+    }
     this.clock = options.clock ?? (() => new Date());
     if (options.prompts) this.prompts = options.prompts;
     else {
@@ -810,9 +841,9 @@ export class Retrieval implements Retriever {
   }
 
   /**
-   * The best passages and, beside them, the best statements, ANSWER_SOURCES of each, so a
-   * statement never takes the place of a passage; then the values that hold instead of the
-   * ones found that do not.
+   * The best passages and, beside them, the best statements, as many of each as
+   * `answerSources` says, so a statement never takes the place of a passage; then the values that hold
+   * instead of the ones found that do not.
    */
   async #sources(query: AnswerQuery, who: Principal): Promise<{ hits: SearchHit[]; searched: Searched }> {
     if (this.baseline === "long_context") return this.#everything(query, who);
@@ -831,11 +862,11 @@ export class Retrieval implements Retriever {
     // A rival knows nothing of editions; the knowledge base answers from the latest.
     const replaced = this.baseline ? new Set<string>() : await this.#replaced(found.hits, who);
     const latest = latestEditions(found.hits, replaced);
-    const searched = { ...found, hits: bestOfEachKind(latest, this.baseline ? MATURE_SOURCES : ANSWER_SOURCES) };
+    const searched = { ...found, hits: bestOfEachKind(latest, this.answerSources) };
     const hits = passagesWithoutReplaced(searched);
     // A replaced edition's statement leaves, and the value that holds in its place still joins.
     const kept = new Set(latest.map((h) => h.unit_id));
-    const left = bestOfEachKind(found.hits).filter((h) => !kept.has(h.unit_id));
+    const left = bestOfEachKind(found.hits, this.answerSources).filter((h) => !kept.has(h.unit_id));
     await this.#addHeld(hits, searched, who, [...hits, ...left]);
     return { hits: latestEditions(hits, replaced), searched };
   }
@@ -1186,13 +1217,13 @@ export class Retrieval implements Retriever {
 
 const documentOf = (v: { source_id: string; external_id: string }) => `${v.source_id}:${v.external_id}`;
 
-/** The first n hits of each kind, in order: a statement never takes a passage's place. */
-function bestOfEachKind(hits: readonly SearchHit[], n = ANSWER_SOURCES): SearchHit[] {
+/** The first hits of each kind, as many as `sources` says, in order: a statement never takes a passage's place. */
+function bestOfEachKind(hits: readonly SearchHit[], sources: AnswerSources): SearchHit[] {
   const taken = new Map<string, number>();
   return hits.filter((h) => {
     const k = taken.get(h.kind) ?? 0;
     taken.set(h.kind, k + 1);
-    return k < n;
+    return k < (h.kind === "chunk" ? sources.passages : sources.statements);
   });
 }
 

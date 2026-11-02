@@ -29,6 +29,8 @@ import { completionRequest, makeGateway } from "./fixtures.ts";
 const DEV_CONFIG = fileURLToPath(new URL("../../../config/gateway.dev.yaml", import.meta.url));
 const DEEPSEEK_CONFIG = fileURLToPath(new URL("../../../config/gateway.deepseek.yaml", import.meta.url));
 const SEARCH_ONLY_CONFIG = fileURLToPath(new URL("../../../config/gateway.local-embeddings.yaml", import.meta.url));
+const HAIKU_CONFIG = fileURLToPath(new URL("../../../config/gateway.haiku.yaml", import.meta.url));
+const LUNA_CONFIG = fileURLToPath(new URL("../../../config/gateway.luna.yaml", import.meta.url));
 
 /** A client whose requests go straight to the app, without a socket. */
 function clientFor(gateway: Gateway): HttpModelGateway {
@@ -140,6 +142,39 @@ describe("config", () => {
     expect(refs("embed")).toEqual(["embeddings/qwen3-embedding-0.6b"]);
     expect(refs("rerank")).toEqual(["reranker/bge-reranker-v2-m3"]);
   });
+
+  test.each([
+    {
+      name: "Haiku",
+      file: HAIKU_CONFIG,
+      model: "anthropic/claude-haiku-5-5",
+      limit: 1,
+      request: { thinking: { type: "disabled" }, output_config: { effort: "low" } },
+    },
+    { name: "Luna", file: LUNA_CONFIG, model: "openai/gpt-6-luna", limit: 0.5, request: { reasoning_effort: "none" } },
+  ])(
+    "the $name config answers on its fast model and replays everything else",
+    async ({ file, model, limit, request }) => {
+      const config = loadGatewayConfig(file);
+      const providers = Object.fromEntries(config.providers.map((p) => [p.name, new FakeProvider(p)]));
+      const gateway = new Gateway(config, { providers, cache: new MemoryCache(10) });
+      const refs = (operation: "complete" | "embed" | "rerank", task?: string) =>
+        gateway.candidates(operation, "internal", { tier: "flash", ...(task ? { task } : {}) }).map((c) => c.ref);
+      expect(refs("complete", "retrieval.answer_question")).toEqual([model]);
+      for (const task of ["extraction.extract_claims", "retrieval.translate_question", "page-compiler.name_topics"]) {
+        expect(refs("complete", task), task).toEqual(["deepseek/deepseek-flash"]);
+        expect(config.routes.find((r) => r.prefer.includes("deepseek/deepseek-flash"))?.cache_only, task).toBe(true);
+      }
+      expect(refs("embed")).toEqual(["embeddings/qwen3-embedding-0.6b"]);
+      expect(refs("rerank")).toEqual(["reranker/bge-reranker-v2-m3"]);
+      expect(budgetFor(config, "tenant:ten_x/retrieval")).toMatchObject({ period: "day", limit });
+      const [provider, name] = model.split("/");
+      const fast = config.providers.find((p) => p.name === provider)?.models.find((m) => m.name === name);
+      expect(fast?.request).toEqual(request);
+      // Luna refuses max_tokens, the only limit an OpenAI-compatible request sends.
+      if (provider === "openai") expect(fast?.max_output_tokens).toBeUndefined();
+    },
+  );
 
   test.each([401, 429, 503, "transport"] as const)(
     "the search-only config replays saved replies and refuses the rest before the network (DeepSeek would give %s)",

@@ -1,0 +1,98 @@
+# Model gateway config for the fast-model arm of the validation (docs/design/validation.md):
+# Claude Haiku 5.5 answers the questions, and everything else replays a DeepSeek run's saved
+# replies, so the search, the reading and the translations are the ones the DeepSeek answers
+# were given. Import that run's replies first, start the local model server
+# (infra/local-embeddings), set DEEPSEEK_SEARCH_ONLY_KEY to anything but a key, and run
+#
+#   pnpm bench ingest examples/company-drive --today 2026-10-27 --context 50000 \
+#     --gateway config/gateway.haiku.yaml --stack
+#
+# --context 50000 leaves out both long-context paths: they send the whole drive, above the
+# 100,000-token prompt where Haiku's price rises fivefold. The other paths send a few thousand.
+currency: USD
+providers:
+  # Replays only: the route below is cache-only, so no request reaches DeepSeek.
+  - name: deepseek
+    kind: openai_compatible
+    base_url: https://api.deepseek.com/v1
+    api_key_env: DEEPSEEK_SEARCH_ONLY_KEY
+    max_sensitivity: internal
+    timeout_s: 300
+    max_retries: 0
+    models:
+      - name: deepseek-flash
+        operations: [complete]
+        tiers: [flash, standard, flagship]
+        json_schema: false
+        request: {thinking: {type: disabled}}
+        price: {input: 0.30, output: 1.20, cached_input: 0.006}
+
+  # Anthropic's published prices for prompts up to 100,000 tokens: US$0.10 per million input,
+  # 0.50 output, cache reads a tenth of input. Its tokenizer counts about 30% more tokens than
+  # older Claude models for the same text. Thinking is off and effort low, as DeepSeek runs
+  # with thinking off: the arm asks whether a fast model answers from governed sources as
+  # well, not how well a model reasons.
+  - name: anthropic
+    kind: anthropic
+    api_key_env: ANTHROPIC_API_KEY
+    max_sensitivity: internal
+    timeout_s: 120
+    max_retries: 2
+    models:
+      - name: claude-haiku-5-5
+        operations: [complete]
+        tiers: [flash]
+        json_schema: false
+        max_output_tokens: 2048
+        request: {thinking: {type: disabled}, output_config: {effort: low}}
+        price: {input: 0.10, output: 0.50, cached_input: 0.01}
+
+  - name: embeddings
+    kind: openai_compatible
+    base_url: http://127.0.0.1:8090/v1
+    max_sensitivity: secret
+    timeout_s: 900
+    max_retries: 0
+    models:
+      - name: qwen3-embedding-0.6b
+        operations: [embed]
+        dimensions: 1024
+        query_instruction: Given a question, retrieve passages that answer it
+
+  - name: reranker
+    kind: openai_compatible
+    base_url: http://127.0.0.1:8090/v1
+    max_sensitivity: secret
+    timeout_s: 900
+    max_retries: 2
+    models:
+      - name: bge-reranker-v2-m3
+        operations: [rerank]
+
+  - name: local
+    kind: fake
+    max_sensitivity: secret
+    models:
+      - {name: fake-ocr, operations: [ocr]}
+
+routes:
+  - match: "retrieval.answer_question"
+    prefer: [anthropic/claude-haiku-5-5]
+    only: true
+  - match: "*"
+    prefer: [deepseek/deepseek-flash]
+    only: true
+    cache_only: true
+
+budgets:
+  # The owner's cap for this arm (2026-11-01): US$1 in all. A soft stop, as in
+  # config/gateway.deepseek.yaml.
+  - match: "*"
+    period: day
+    limit: 1
+    pooled: true
+
+cache:
+  backend: valkey
+  ttl_s: 2592000
+  operations: [complete, embed, rerank]

@@ -16,12 +16,14 @@
         "gateway": "./src/migrations.ts#MIGRATIONS"
       },
       "model_providers": {
+        "anthropic": "./src/providers/anthropic.ts#AnthropicProvider",
         "openai_compatible": "./src/providers/openai-compatible.ts#OpenAICompatibleProvider",
         "fake": "./src/providers/fake.ts#FakeProvider"
       }
     }
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.3.0",
     "@hono/node-server": "^2.1.5",
     "@inspiration/contracts": "workspace:*",
     "@inspiration/kernel": "workspace:*",
