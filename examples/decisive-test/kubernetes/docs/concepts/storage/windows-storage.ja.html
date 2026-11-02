@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="ja">
+<head><meta charset="utf-8"><title>Windowsストレージ</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Windowsストレージ</h1><header class=article-meta></header><p>このページでは、Windowsオペレーティングシステム特有のストレージの概要について説明します。</p><h2 id=storage>永続ストレージ<a class=td-heading-self-link href=#storage aria-label="Heading self-link"></a></h2><p>Windowsでは、レイヤードファイルシステムドライバーを使用してコンテナレイヤーをマウントし、NTFSをベースにしたコピー用のファイルシステムを作成します。
+コンテナ内のすべてのファイルパスは、そのコンテナのコンテキスト内でのみ解決されます。</p><ul><li>Dockerでは、ボリュームマウントの対象はコンテナ内のディレクトリのみであり、個々のファイルを指定することはできません。
+この制限はcontainerdには適用されません。</li><li>ボリュームマウントでは、ファイルまたはディレクトリをホストファイルシステムへ投影(プロジェクション)することはできません。</li><li>WindowsレジストリおよびSAMデータベースへの書き込みアクセスが常に要求されるため、読み取り専用のファイルシステムはサポートされていません。
+ただし、読み取り専用のボリュームはサポートされています。</li><li>ボリュームのユーザーマスクやアクセス権限は利用できません。
+SAMはホストとコンテナの間で共有されないため、それらを対応付ける(マッピングする)ことができません。
+すべてのアクセス権限は、コンテナ内のコンテキストで解決されます。</li></ul><p>その結果、Windowsノードでは、以下のストレージ機能はサポートされません。</p><ul><li>ボリュームのsubPathマウント: Windowsコンテナでは、ボリューム全体のみがマウント可能</li><li>SecretのsubPathボリュームマウント</li><li>ホストマウントのプロジェクション</li><li>読み取り専用のrootファイルシステム(読み取り専用のボリュームでは引き続き<code>readOnly</code>をサポート)</li><li>ブロックデバイスのマッピング</li><li>メモリをストレージ媒体として使用すること(例: <code>emptyDir.medium</code>に<code>Memory</code>を指定)</li><li>uid/gidやLinuxのユーザー単位のファイルシステム権限などのファイルシステム機能</li><li><a href=/ja/docs/tasks/inject-data-application/distribute-credentials-secure/#set-posix-permissions-for-secret-keys>DefaultModeによるSecretのアクセス権限</a>の設定(UID/GIDに依存するため)</li><li>NFSベースのストレージおよびボリュームのサポート</li><li>マウント済みボリュームの拡張(resizefs)</li></ul><p>Kubernetes<a class=glossary-tooltip title=データを格納するディレクトリで、Pod内のコンテナからアクセス可能です。 data-bs-toggle=tooltip data-bs-placement=top href=/ja/docs/concepts/storage/volumes/ target=_blank aria-label=ボリューム>ボリューム</a>は、データの永続化やPodのボリューム共有を必要とする複雑なアプリケーションを、Kubernetes上へデプロイできます。
+特定のストレージバックエンドやプロトコルに関連付けられた永続ボリュームの管理には、さまざまな操作が含まれます。
+たとえば、ボリュームのプロビジョニング・プロビジョニング解除・サイズ変更、Kubernetesノードへのアタッチ・デタッチ、データを永続化する必要があるPod内の各コンテナへのボリュームのマウント・アンマウントです。</p><p>ボリューム管理コンポーネントは、Kubernetesボリューム<a href=/ja/docs/concepts/storage/volumes/#volume-types>プラグイン</a>として提供されています。
+Windowsでは、概ね以下のKubernetesボリュームプラグインがサポートされています。</p><ul><li><a href=/ja/docs/concepts/storage/volumes/#flexvolume><code>FlexVolumeプラグイン</code></a><ul><li>FlexVolumeはKubernetes 1.23で非推奨となっています。</li></ul></li><li><a href=/ja/docs/concepts/storage/volumes/#csi><code>CSIプラグイン</code></a></li></ul><h5 id=in-tree-volume-plugins>In-treeボリュームプラグイン<a class=td-heading-self-link href=#in-tree-volume-plugins aria-label="Heading self-link"></a></h5><p>以下のIn-treeプラグインは、Windowsノード上で永続ストレージをサポートしています。</p><ul><li><a href=/ja/docs/concepts/storage/volumes/#azurefile><code>azureFile</code></a></li><li><a href=/ja/docs/concepts/storage/volumes/#vspherevolume><code>vsphereVolume</code></a></li></ul></div>
+</body>
+</html>

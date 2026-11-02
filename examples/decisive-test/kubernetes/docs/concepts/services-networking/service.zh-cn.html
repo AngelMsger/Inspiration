@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>服务（Service）</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>服务（Service）</h1><div class=lead>将在集群中运行的应用通过同一个面向外界的端点公开出去，即使工作负载分散于多个后端也完全可行。</div><header class=article-meta></header><p>Kubernetes 中 Service 是 将运行在一个或一组 <a class=glossary-tooltip title='Pod 表示你的集群上一组正在运行的容器。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/pods/ target=_blank aria-label=Pod>Pod</a> 上的网络应用程序公开为网络服务的方法。</p><p>Kubernetes 中 Service 的一个关键目标是让你无需修改现有应用以使用某种不熟悉的服务发现机制。
+你可以在 Pod 集合中运行代码，无论该代码是为云原生环境设计的，还是被容器化的老应用。
+你可以使用 Service 让一组 Pod 可在网络上访问，这样客户端就能与之交互。</p><p>如果你使用 <a class=glossary-tooltip title=管理集群上的多副本应用。 data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/controllers/deployment/ target=_blank aria-label=Deployment>Deployment</a> 来运行你的应用，
+Deployment 可以动态地创建和销毁 Pod。
+在任何时刻，你都不知道有多少个这样的 Pod 正在工作以及它们健康与否；
+你可能甚至不知道如何辨别健康的 Pod。
+Kubernetes <a class=glossary-tooltip title='Pod 表示你的集群上一组正在运行的容器。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/pods/ target=_blank aria-label=Pod>Pod</a>
+的创建和销毁是为了匹配集群的预期状态。
+Pod 是临时资源（你不应该期待单个 Pod 既可靠又耐用）。</p><p>每个 Pod 会获得属于自己的 IP 地址（Kubernetes 期待网络插件来保证这一点）。
+对于集群中给定的某个 Deployment，这一刻运行的 Pod 集合可能不同于下一刻运行该应用的
+Pod 集合。</p><p>这就带来了一个问题：如果某组 Pod（称为“后端”）为集群内的其他 Pod（称为“前端”）
+集合提供功能，前端要如何发现并跟踪要连接的 IP 地址，以便其使用负载的后端组件呢？</p><h2 id=services-in-kubernetes>Kubernetes 中的 Service <a class=td-heading-self-link href=#services-in-kubernetes aria-label="Heading self-link"></a></h2><p>Service API 是 Kubernetes 的组成部分，它是一种抽象，帮助你将 Pod 集合在网络上公开出去。
+每个 Service 对象定义端点的一个逻辑集合（通常这些端点就是 Pod）以及如何访问到这些 Pod 的策略。</p><p>例如，考虑一个无状态的图像处理后端，其中运行 3 个副本（Replicas）。
+这些副本是可互换的 —— 前端不需要关心它们调用的是哪个后端。
+即便构成后端集合的实际 Pod 可能会发生变化，前端客户端不应该也没必要知道这些，
+而且它们也不必亲自跟踪后端的状态变化。</p><p>Service 抽象使这种解耦成为可能。</p><p>Service 所对应的 Pod 集合通常由你定义的<a class=glossary-tooltip title=选择算符允许用户通过标签对一组资源对象进行筛选过滤。 data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/overview/working-with-objects/labels/ target=_blank aria-label=选择算符>选择算符</a>来确定。
+若想了解定义 Service 端点的其他方式，可以查阅<a href=#services-without-selectors><strong>不带</strong>选择算符的 Service</a>。</p><p>如果你的工作负载使用 HTTP 通信，你可能会选择使用
+<a href=/zh-cn/docs/concepts/services-networking/ingress/>Ingress</a> 来控制
+Web 流量如何到达该工作负载。Ingress 不是一种 Service，但它可用作集群的入口点。
+Ingress 能让你将路由规则整合到同一个资源内，这样你就能将工作负载的多个组件公开出去，
+这些组件使用同一个侦听器，但各自独立地运行在集群中。</p><p>用于 Kubernetes 的 <a href=https://gateway-api.sigs.k8s.io/#what-is-the-gateway-api>Gateway</a> API
+能够提供 Ingress 和 Service 所不具备的一些额外能力。
+Gateway 是使用 <a class=glossary-tooltip title='通过定制化的代码给你的 Kubernetes API 服务器增加资源对象，而无需编译完整的定制 API 服务器。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/ target=_blank aria-label=CustomResourceDefinitions>CustomResourceDefinitions</a>
+实现的一系列扩展 API。
+你可以添加 Gateway 到你的集群中，之后就可以使用它们配置如何访问集群中运行的网络服务。</p><h3 id=cloud-native-service-discovery>云原生服务发现 <a class=td-heading-self-link href=#cloud-native-service-discovery aria-label="Heading self-link"></a></h3><p>如果你想要在自己的应用中使用 Kubernetes API 进行服务发现，可以查询
+<a class=glossary-tooltip title='提供 Kubernetes API 服务的控制面组件。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/architecture/#kube-apiserver target=_blank aria-label='API 服务器'>API 服务器</a>，
+寻找匹配的 EndpointSlices 对象。
+只要 Service 中的 Pod 集合发生变化，Kubernetes 就会为其更新 EndpointSlice。</p><p>对于非本地应用，Kubernetes 提供了在应用和后端 Pod 之间放置网络端口或负载均衡器的方法。</p><p>无论采用那种方式，你的负载都可以使用这里的<a href=#discovering-services>服务发现</a>机制找到希望连接的目标。</p><h2 id=defining-a-service>定义 Service <a class=td-heading-self-link href=#defining-a-service aria-label="Heading self-link"></a></h2><p>Kubernetes 中的 Service 是一个<a class=glossary-tooltip title='Kubernetes 系统中的实体，代表了集群的部分状态。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/overview/working-with-objects/#kubernetes-objects target=_blank aria-label=对象>对象</a>
+（与 Pod 或 ConfigMap 类似）。你可以使用 Kubernetes API 创建、查看或修改 Service 定义。
+通常你会使用 <code>kubectl</code> 这类工具来替你发起这些 API 调用。</p><p>例如，假定有一组 Pod，每个 Pod 都在侦听 TCP 端口 9376，并且它们还被打上
+<code>app.kubernetes.io/name=MyApp</code> 标签。你可以定义一个 Service 来发布该 TCP 侦听器。</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/service/simple-service.yaml download=service/simple-service.yaml><code>service/simple-service.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("service-simple-service-yaml")' title="复制 service/simple-service.yaml 到剪贴板"></img></div><div class=includecode id=service-simple-service-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>9376</span><span class=w>
+</span></span></span></code></pre></div></div></div><p>应用上述清单时，系统将创建一个名为 "my-service" 的、
+<a href=#publishing-services-service-types>服务类型</a>默认为 ClusterIP 的 Service。
+该 Service 指向带有标签 <code>app.kubernetes.io/name: MyApp</code> 的所有 Pod 的 TCP 端口 9376。</p><p>Kubernetes 为该 Service 分配一个 IP 地址（称为 “集群 IP”），供虚拟 IP 地址机制使用。
+有关该机制的更多详情，请阅读<a href=/zh-cn/docs/reference/networking/virtual-ips/>虚拟 IP 和服务代理</a>。</p><p>此 Service 的控制器不断扫描与其选择算符匹配的 Pod 集合，然后对 Service 的
+EndpointSlices 集合执行必要的更新。</p><p>Service 对象的名称必须是有效的
+<a href=/zh-cn/docs/concepts/overview/working-with-objects/names#rfc-1035-label-names>RFC 1123 标签名称</a>。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>Service 能够将<strong>任意</strong>入站 <code>port</code> 映射到某个 <code>targetPort</code>。
+默认情况下，出于方便考虑，<code>targetPort</code> 会被设置为与 <code>port</code> 字段相同的值。</p></div><h3 id=field-spec-ports>端口定义<a class=td-heading-self-link href=#field-spec-ports aria-label="Heading self-link"></a></h3><p>Pod 中的端口定义是有名字的，你可以在 Service 的 <code>targetPort</code> 属性中引用这些名字。
+例如，我们可以通过以下方式将 Service 的 <code>targetPort</code> 绑定到 Pod 端口：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>nginx-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>proxy</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>name-of-service-port</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=l>http-web-svc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nn>---</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>nginx</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>labels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>proxy</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>nginx</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>nginx:stable</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>containerPort</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>http-web-svc</span><span class=w>
+</span></span></span></code></pre></div><p>即使在 Service 中混合使用配置名称相同的多个 Pod，各 Pod 通过不同的端口号支持相同的网络协议，
+此机制也可以工作。这一机制为 Service 的部署和演化提供了较高的灵活性。
+例如，你可以在后端软件的新版本中更改 Pod 公开的端口号，但不会影响到客户端。</p><p>Service 的默认协议是 <a href=/zh-cn/docs/reference/networking/service-protocols/#protocol-tcp>TCP</a>；
+你还可以使用其他<a href=/zh-cn/docs/reference/networking/service-protocols/>受支持的任何协议</a>。</p><p>由于许多 Service 需要公开多个端口，所以 Kubernetes 为同一 Service 定义<a href=#multi-port-services>多个端口</a>。
+每个端口定义可以具有相同的 <code>protocol</code>，也可以具有不同协议。</p><h3 id=services-without-selectors>没有选择算符的 Service <a class=td-heading-self-link href=#services-without-selectors aria-label="Heading self-link"></a></h3><p>由于选择算符的存在，Service 的最常见用法是为 Kubernetes Pod 集合提供访问抽象，
+但是当与相应的 <a class=glossary-tooltip title='EndpointSlices 跟踪提供 Service 的 Pod 的 IP 地址。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/services-networking/endpoint-slices/ target=_blank aria-label=EndpointSlice>EndpointSlice</a>
+对象一起使用且没有设置选择算符时，Service 也可以为其他类型的后端提供抽象，
+包括在集群外运行的后端。</p><p>例如：</p><ul><li>你希望在生产环境中使用外部数据库集群，但在测试环境中使用自己的数据库。</li><li>你希望让你的 Service 指向另一个<a class=glossary-tooltip title='名字空间是 Kubernetes 用来支持隔离单个集群中的资源组的一种抽象。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/overview/working-with-objects/namespaces/ target=_blank aria-label=名字空间（Namespace）>名字空间（Namespace）</a>中或其它集群中的 Service。</li><li>你正在将工作负载迁移到 Kubernetes 上来。在评估所采用的方法时，你仅在 Kubernetes
+中运行一部分后端。</li></ul><p>在所有这些场景中，你都可以定义<strong>不</strong>指定用来匹配 Pod 的选择算符的 Service。例如：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>9376</span><span class=w>
+</span></span></span></code></pre></div><p>由于此 Service 没有选择算符，因此不会自动创建对应的 EndpointSlice 对象。
+你可以通过手动添加 EndpointSlice 对象，将 Service 映射到该服务运行位置的网络地址和端口：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>discovery.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>EndpointSlice</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service-1</span><span class=w> </span><span class=c># 按惯例将 Service 的名称用作 EndpointSlice 名称的前缀</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>labels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 你应设置 &#34;kubernetes.io/service-name&#34; 标签。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 设置其值以匹配 Service 的名称</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kubernetes.io/service-name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>addressType</span><span class=p>:</span><span class=w> </span><span class=l>IPv4</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=s1>&#39;&#39;</span><span class=w> </span><span class=c># 应与上面定义的 Service 端口的名称匹配</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>appProtocol</span><span class=p>:</span><span class=w> </span><span class=l>http</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>9376</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>endpoints</span><span class=p>:</span><span class=w>  </span><span class=c># 此列表中的 IP 地址可以按任何顺序显示</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>addresses</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=s2>&#34;10.4.5.6&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>addresses</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=s2>&#34;10.1.2.3&#34;</span><span class=w>
+</span></span></span></code></pre></div><h4 id=custom-endpointslices>自定义 EndpointSlices <a class=td-heading-self-link href=#custom-endpointslices aria-label="Heading self-link"></a></h4><p>当为 Service 创建 <a href=#endpointslices>EndpointSlice</a> 对象时，可以为 EndpointSlice 使用任何名称。
+一个名字空间中的各个 EndpointSlice 都必须具有一个唯一的名称。通过在 EndpointSlice 上设置
+<code>kubernetes.io/service-name</code> <a class=glossary-tooltip title=用来为对象设置可标识的属性标记；这些标记对用户而言是有意义且重要的。 data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/overview/working-with-objects/labels/ target=_blank aria-label=标签>标签</a>可以将
+EndpointSlice 链接到 Service。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>端点 IP 地址<strong>必须不是</strong>：本地回路地址（IPv4 的 127.0.0.0/8、IPv6 的 ::1/128）
+或链路本地地址（IPv4 的 169.254.0.0/16 和 224.0.0.0/24、IPv6 的 fe80::/64）。</p><p>端点 IP 地址不能是其他 Kubernetes 服务的集群 IP，因为
+<a class=glossary-tooltip title='kube-proxy 是集群中每个节点上运行的网络代理。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/reference/command-line-tools-reference/kube-proxy/ target=_blank aria-label=kube-proxy>kube-proxy</a> 不支持将虚拟 IP 作为目标地址。</p></div><p>对于你自己或在你自己代码中创建的 EndpointSlice，你还应该为
+<a href=/zh-cn/docs/reference/labels-annotations-taints/#endpointslicekubernetesiomanaged-by><code>endpointslice.kubernetes.io/managed-by</code></a>
+标签设置一个值。如果你创建自己的控制器代码来管理 EndpointSlice，
+请考虑使用类似于 <code>"my-domain.example/name-of-controller"</code> 的值。
+如果你使用的是第三方工具，请使用全小写的工具名称，并将空格和其他标点符号更改为短划线（<code>-</code>）。
+如果直接使用 <code>kubectl</code> 之类的工具来管理 EndpointSlice 对象，请使用用来描述这种手动管理的名称，
+例如 <code>"staff"</code> 或 <code>"cluster-admins"</code>。你要避免使用保留值 <code>"controller"</code>；
+该值标识由 Kubernetes 自己的控制平面管理的 EndpointSlice。</p><h4 id=service-no-selector-access>访问没有选择算符的 Service <a class=td-heading-self-link href=#service-no-selector-access aria-label="Heading self-link"></a></h4><p>访问没有选择算符的 Service 与有选择算符的 Service 的原理相同。
+在没有选择算符的 Service <a href=#services-without-selectors>示例</a>中，
+流量被路由到 EndpointSlice 清单中定义的两个端点之一：
+通过 TCP 协议连接到 10.1.2.3 或 10.4.5.6 的 9376 端口。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>Kubernetes API 服务器不允许将流量代理到未被映射至 Pod 上的端点。由于此约束，当 Service
+没有选择算符时，诸如 <code>kubectl port-forward service/&lt;service-name> forwardedPort:servicePort</code>
+之类的操作将会失败。这可以防止 Kubernetes API 服务器被用作调用者可能无权访问的端点的代理。</p></div><p><code>ExternalName</code> Service 是 Service 的特例，它没有选择算符，而是使用 DNS 名称。
+更多的相关信息，请参阅 <a href=#externalname>ExternalName</a> 一节。</p><h3 id=endpointslices>EndpointSlices<a class=td-heading-self-link href=#endpointslices aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.21</span></div><p><a href=/zh-cn/docs/concepts/services-networking/endpoint-slices/>EndpointSlices</a>
+对象表示某个 Service 的后端网络端点的子集（<strong>切片</strong>）。</p><p>你的 Kubernetes 集群会跟踪每个 EndpointSlices 所表示的端点数量。
+如果 Service 的端点太多以至于达到阈值，Kubernetes 会添加另一个空的
+EndpointSlices 并在其中存储新的端点信息。
+默认情况下，一旦现有 EndpointSlices 都包含至少 100 个端点，Kubernetes
+就会创建一个新的 EndpointSlices。
+在需要添加额外的端点之前，Kubernetes 不会创建新的 EndpointSlices。</p><p>参阅 <a href=/zh-cn/docs/concepts/services-networking/endpoint-slices/>EndpointSlices</a>
+了解有关该 API 的更多信息。</p><h3 id=endpoints>Endpoints（已弃用） <a class=td-heading-self-link href=#endpoints aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-deprecated"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>已弃用</span> since Kubernetes v1.33</span></div><p>EndpointSlices API 是旧版 <a href=/zh-cn/docs/reference/kubernetes-api/service-resources/endpoints-v1/>Endpoints</a>
+API 的演进版本。与 EndpointSlices 相比，已弃用的 Endpoints API 存在以下几个问题：</p><ul><li>不支持双栈集群。</li><li>不包含支持 <a href=/zh-cn/docs/concepts/services-networking/service/#traffic-distribution>trafficDistribution</a>
+等新特性所需的信息。</li><li>如果端点列表过长以至于无法放入单个对象中时会被截断。</li></ul><p>因此，推荐所有客户端使用 EndpointSlices API 来替换 Endpoints。</p><h4 id=over-capacity-endpoints>超出容量的端点 <a class=td-heading-self-link href=#over-capacity-endpoints aria-label="Heading self-link"></a></h4><p>Kubernetes 限制单个 Endpoints 对象中可以容纳的端点数量。
+当一个 Service 拥有 1000 个以上支撑端点时，Kubernetes 会截断 Endpoints 对象中的数据。
+由于一个 Service 可以链接到多个 EndpointSlices 之上，所以 1000 个支撑端点的限制仅影响旧版的
+Endpoints API。</p><p>如出现端点过多的情况，Kubernetes 选择最多 1000 个可能的后端端点存储到 Endpoints 对象中，
+并在 Endpoints 上设置<a class=glossary-tooltip title=注解是以键值对的形式给资源对象附加随机的无法标识的元数据。 data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/overview/working-with-objects/annotations/ target=_blank aria-label=注解>注解</a>
+<a href=/zh-cn/docs/reference/labels-annotations-taints/#endpoints-kubernetes-io-over-capacity><code>endpoints.kubernetes.io/over-capacity: truncated</code></a>。
+如果后端 Pod 的数量降至 1000 以下，控制平面也会移除该注解。</p><p>请求流量仍会被发送到后端，但任何依赖旧版 Endpoints API 的负载均衡机制最多只能将流量发送到
+1000 个可用的支撑端点。</p><p>这一 API 限制也意味着你不能手动将 Endpoints 更新为拥有超过 1000 个端点。</p><h3 id=application-protocol>应用协议 <a class=td-heading-self-link href=#application-protocol aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.20</span></div><p><code>appProtocol</code> 字段提供了一种为每个 Service 端口设置应用协议的方式。
+此字段被实现代码用作一种提示信息，以便针对实现能够理解的协议提供更为丰富的行为。
+此字段的取值会被映射到对应的 Endpoints 和 EndpointSlice 对象中。</p><p>此字段遵循标准的 Kubernetes 标签语法。合法的取值值可以是以下之一：</p><ul><li><a href=https://www.iana.org/assignments/service-names>IANA 标准服务名称</a>。</li><li>由具体实现所定义的、带有 <code>mycompany.com/my-custom-protocol</code> 这类前缀的名称。</li><li>Kubernetes 定义的前缀名称：<table><thead><tr><th>协议</th><th>描述</th></tr></thead><tbody><tr><td><code>kubernetes.io/h2c</code></td><td>基于明文的 HTTP/2 协议，如 <a href=https://www.rfc-editor.org/rfc/rfc7540>RFC 9113</a> 所述</td></tr><tr><td><code>kubernetes.io/ws</code></td><td>基于明文的 WebSocket 协议，如 <a href=https://www.rfc-editor.org/rfc/rfc6455>RFC 6455</a> 所述</td></tr><tr><td><code>kubernetes.io/wss</code></td><td>基于 TLS 的 WebSocket 协议，如 <a href=https://www.rfc-editor.org/rfc/rfc6455>RFC 6455</a> 所述</td></tr></tbody></table></li></ul><h3 id=multi-port-services>多端口 Service <a class=td-heading-self-link href=#multi-port-services aria-label="Heading self-link"></a></h3><p>对于某些 Service，你需要公开多个端口。Kubernetes 允许你为 Service 对象配置多个端口定义。
+为 Service 使用多个端口时，必须为所有端口提供名称，以使它们无歧义。
+例如：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>http</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>9376</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>https</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>443</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>9377</span><span class=w>
+</span></span></span></code></pre></div><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>与一般的 Kubernetes 名称一样，端口名称只能包含小写字母、数字和 <code>-</code>。
+端口名称还必须以字母或数字开头和结尾。</p><p>例如，名称 <code>123-abc</code> 和 <code>web</code> 是合法的，但是 <code>123_abc</code> 和 <code>-web</code> 不合法。</p></div><h2 id=publishing-services-service-types>Service 类型 <a class=td-heading-self-link href=#publishing-services-service-types aria-label="Heading self-link"></a></h2><p>对一些应用的某些部分（如前端），你可能希望将其公开于某外部 IP 地址，
+也就是可以从集群外部访问的某个地址。</p><p>Kubernetes Service 类型允许指定你所需要的 Service 类型。</p><p>可用的 <code>type</code> 值及其行为有：</p><dl><dt><code>ClusterIP</code></dt><dd>通过集群的内部 IP 公开 Service，选择该值时 Service 只能够在集群内部访问。
+这也是你没有为 Service 显式指定 <code>type</code> 时使用的默认值。
+你可以使用 <a href=/zh-cn/docs/concepts/services-networking/ingress/>Ingress</a>
+或者 <a href=https://gateway-api.sigs.k8s.io/>Gateway API</a> 向公共互联网公开服务。</dd><dt><a href=#type-nodeport><code>NodePort</code></a></dt><dd>通过每个节点上的 IP 和静态端口（<code>NodePort</code>）公开 Service。
+为了让 Service 可通过节点端口访问，Kubernetes 会为 Service 配置集群 IP 地址，
+相当于你请求了 <code>type: ClusterIP</code> 的 Service。</dd></dl><dl><dt><a href=#loadbalancer><code>LoadBalancer</code></a></dt><dd>使用云平台的负载均衡器向外部公开 Service。Kubernetes 不直接提供负载均衡组件；
+你必须提供一个，或者将你的 Kubernetes 集群与某个云平台集成。</dd><dt><a href=#externalname><code>ExternalName</code></a></dt><dd>将服务映射到 <code>externalName</code> 字段的内容（例如，映射到主机名 <code>api.foo.bar.example</code>）。
+该映射将集群的 DNS 服务器配置为返回具有该外部主机名值的 <code>CNAME</code> 记录。
+集群不会为之创建任何类型代理。</dd></dl><p>Service API 中的 <code>type</code> 字段被设计为层层递进的形式 - 每层都建立在前一层的基础上。
+但是，这种层层递进的形式有一个例外。
+你可以在定义 <code>LoadBalancer</code> Service
+时<a href=/zh-cn/docs/concepts/services-networking/service/#load-balancer-nodeport-allocation>禁止负载均衡器分配 <code>NodePort</code></a>。</p><h3 id=type-clusterip><code>type: ClusterIP</code><a class=td-heading-self-link href=#type-clusterip aria-label="Heading self-link"></a></h3><p>此默认 Service 类型从你的集群中为此预留的 IP 地址池中分配一个 IP 地址。</p><p>其他几种 Service 类型在 <code>ClusterIP</code> 类型的基础上进行构建。</p><p>如果你定义的 Service 将 <code>.spec.clusterIP</code> 设置为 <code>"None"</code>，则 Kubernetes
+不会为其分配 IP 地址。有关详细信息，请参阅<a href=#headless-services>无头服务</a>。</p><h4 id=choosing-your-own-ip-address>选择自己的 IP 地址 <a class=td-heading-self-link href=#choosing-your-own-ip-address aria-label="Heading self-link"></a></h4><p>在创建 <code>Service</code> 的请求中，你可以通过设置 <code>spec.clusterIP</code> 字段来指定自己的集群 IP 地址。
+比如，希望复用一个已存在的 DNS 条目，或者遗留系统已经配置了一个固定的 IP 且很难重新配置。</p><p>你所选择的 IP 地址必须是合法的 IPv4 或者 IPv6 地址，并且这个 IP 地址在 API 服务器上所配置的
+<code>service-cluster-ip-range</code> CIDR 范围内。
+如果你尝试创建一个带有非法 <code>clusterIP</code> 地址值的 Service，API 服务器会返回 HTTP 状态码 422，
+表示值不合法。</p><p>请阅读<a href=/zh-cn/docs/reference/networking/virtual-ips/#avoiding-collisions>避免冲突</a>节，
+以了解 Kubernetes 如何协助降低两个不同的 Service 试图使用相同 IP 地址的风险和影响。</p><h3 id=type-nodeport><code>type: NodePort</code> <a class=td-heading-self-link href=#type-nodeport aria-label="Heading self-link"></a></h3><p>如果你将 <code>type</code> 字段设置为 <code>NodePort</code>，则 Kubernetes 控制平面将在
+<code>--service-node-port-range</code> 标志所指定的范围内分配端口（默认值：30000-32767）。
+每个节点将该端口（每个节点上的相同端口号）上的流量代理到你的 Service。
+你的 Service 在其 <code>.spec.ports[*].nodePort</code> 字段中报告已分配的端口。</p><p>使用 NodePort 可以让你自由设置自己的负载均衡解决方案，
+配置 Kubernetes 不完全支持的环境，
+甚至直接公开一个或多个节点的 IP 地址。</p><p>对于 NodePort 类型 Service，Kubernetes 额外分配一个端口（TCP、UDP 或 SCTP 以匹配 Service 的协议）。
+集群中的每个节点都将自己配置为监听所分配的端口，并将流量转发到与该 Service 关联的某个就绪端点。
+通过使用合适的协议（例如 TCP）和适当的端口（分配给该 Service）连接到任何一个节点，
+你就能够从集群外部访问 <code>type: NodePort</code> Service。</p><h4 id=nodeport-custom-port>选择你自己的端口 <a class=td-heading-self-link href=#nodeport-custom-port aria-label="Heading self-link"></a></h4><p>如果需要特定的端口号，你可以在 <code>nodePort</code> 字段中指定一个值。
+控制平面将或者为你分配该端口，或者报告 API 事务失败。
+这意味着你需要自行注意可能发生的端口冲突。
+你还必须使用有效的端口号，该端口号在配置用于 NodePort 的范围内。</p><p>以下是 <code>type: NodePort</code> Service 的一个清单示例，其中指定了 NodePort
+值（在本例中为 30007）：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>NodePort</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 默认情况下，为了方便起见，`targetPort` 被设置为与 `port` 字段相同的值。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=c># 可选字段</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=c># 默认情况下，为了方便起见，Kubernetes 控制平面会从某个范围内分配一个端口号</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=c>#（默认：30000-32767）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>nodePort</span><span class=p>:</span><span class=w> </span><span class=m>30007</span><span class=w>
+</span></span></span></code></pre></div><h4 id=avoid-nodeport-collisions>预留 NodePort 端口范围以避免发生冲突 <a class=td-heading-self-link href=#avoid-nodeport-collisions aria-label="Heading self-link"></a></h4><p>为 NodePort Service 分配端口的策略既适用于自动分配的情况，也适用于手动分配的场景。
+当某个用于希望创建一个使用特定端口的 NodePort Service 时，该目标端口可能与另一个已经被分配的端口冲突。</p><p>为了避免这个问题，用于 NodePort Service 的端口范围被分为两段。
+动态端口分配默认使用较高的端口段，并且在较高的端口段耗尽时也可以使用较低的端口段。
+用户可以从较低端口段中分配端口，降低端口冲突的风险。</p><p>使用默认的 NodePort 范围 30000-32767 时，端口段划分如下：</p><ul><li>静态端口段：30000-30085</li><li>动态端口段：30086-32767</li></ul><p>有关静态和动态端口段的计算方式的更多详细信息，
+请参阅<a href=/blog/2023/05/11/nodeport-dynamic-and-static-allocation/>避免将端口分配给 NodePort Service</a>。</p><h4 id=service-nodeport-custom-listen-address><code>type: NodePort</code> Service 的 IP 地址配置<a class=td-heading-self-link href=#service-nodeport-custom-listen-address aria-label="Heading self-link"></a></h4><p>当 kube-proxy 处于 <a href=/zh-cn/docs/reference/networking/virtual-ips/#proxy-mode-iptables><code>iptables</code> 模式</a>时，
+NodePort Service 默认在所有节点 IP 上可用。当处于 <a href=/zh-cn/docs/reference/networking/virtual-ips/#proxy-mode-nftables><code>nftables</code> 模式</a>时，
+默认仅在节点的主 IP（或双栈主 IP）上可用。</p><p>你可以通过 kube-proxy 的 <code>--nodeport-addresses</code> 参数，或
+<a href=/zh-cn/docs/reference/config-api/kube-proxy-config.v1alpha1/>kube-proxy 配置文件</a>中与之等价的
+<code>nodePortAddresses</code> 字段，来更改 NodePort Service 可用的节点 IP 集合。
+该参数接受一个以逗号分隔的 IP 段列表（例如 <code>10.0.0.0/8</code>、<code>192.0.2.0/25</code>），或以下一个或多个关键字：</p><ul><li><code>primary</code> —— 节点的主 IPv4 和/或 IPv6 地址，根据 Node 对象确定。
+（这是 <code>nftables</code> 模式的默认值。）</li><li><code>localhost</code> —— 节点的本机回路地址（<code>127.0.0.0/8</code>、<code>::1/128</code>）。</li><li><code>all</code> —— 所有地址。（这是 <code>iptables</code> 和 <code>ipvs</code> 模式的默认值。）</li></ul><p>例如，如果使用 <code>--nodeport-addresses=192.168.0.0/24</code> 参数启动 kube-proxy，
+那么 kube-proxy 会在每个节点上查找该子网内的本地 IP 地址，并仅通过该 IP 提供 NodePort Service。</p><h4 id=localhost-nodeports>通过本机回路访问 <code>type: NodePort</code> Service<a class=td-heading-self-link href=#localhost-nodeports aria-label="Heading self-link"></a></h4><p>服务代理用来实现 NodePort Service 的机制，并不总是支持在本机回路上提供 NodePort Service。对于 kube-proxy：</p><ul><li><p>当使用 <code>iptables</code> 模式且 <code>--nodeport-addresses</code> 的取值包含 <code>127.0.0.1</code> 时，
+NodePort Service 将将在 <code>127.0.0.1</code> 上可用。但这需要启用一个内核 sysctl（<code>route_localnet</code>），
+在某些集群中可能会带来不安全的副作用。可以通过为 kube-proxy 传入 <code>--iptables-localhost-nodeports false</code>，
+或将 <code>--nodeport-addresses</code> 设置为不包含 <code>127.0.0.1</code> 的范围，来禁用 IPTables 模式下的本机回路 NodePort Service。</p></li><li><p>当使用 <code>ipvs</code> 模式，或在纯 IPv6 集群中使用 <code>iptables</code> 模式时，NodePort Service 不在本机回路上不可用。</p></li></ul><div class="feature-state-notice feature-alpha" title="特性门控： KubeProxyNFTablesLocalhostNodePorts"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.37; （默认禁用）</span></div><div class=feature-alpha><details><summary>More information about this feature</summary><p>To use this feature, you (or a cluster administrator) will need to enable the <a href=/docs/reference/command-line-tools-reference/feature-gates/#KubeProxyNFTablesLocalhostNodePorts><tt>KubeProxyNFTablesLocalhostNodePorts</tt></a> feature gate for all relevant components in your cluster.</p><p>See <a href=/docs/tasks/administer-cluster/configure-feature-gates/>Enable Or Disable Feature Gates</a> for more information.</p></details></div><ul><li>当使用 <code>nftables</code> 模式时，只有在启用了 <code>KubeProxyNFTablesLocalhostNodePorts</code>
+特性门控（Feature Gate），并且将 <code>--nodeport-addresses</code> 设置为显式包含 <code>localhost</code>
+的值时，NodePort Service 才在本机回路上可用。（仅将其设置为 <code>all</code> <strong>不会</strong>启用本机回路上的 NodePort Service。）
+该实现是通过将本机回路上的 NodePort Service 连接重定向到一个用户态代理来完成的，因此其效率不如普通的服务代理方式。</li></ul><p>那些自带服务代理实现的第三方网络插件可能支持，也可能不支持本机回路上的
+NodePort Service；请参考相应插件的文档。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>此 Service 的可见形式为 <code>&lt;NodeIP>:spec.ports[*].nodePort</code> 以及 <code>.spec.clusterIP:spec.ports[*].port</code>。
+如果设置了 kube-proxy 的 <code>--nodeport-addresses</code> 标志或 kube-proxy 配置文件中的等效字段，
+则 <code>&lt;NodeIP></code> 将是一个被过滤的节点 IP 地址（或可能是多个 IP 地址）。</p></div><h3 id=loadbalancer><code>type: LoadBalancer</code> <a class=td-heading-self-link href=#loadbalancer aria-label="Heading self-link"></a></h3><p>在使用支持外部负载均衡器的云平台时，如果将 <code>type</code> 设置为 <code>"LoadBalancer"</code>，
+则平台会为 Service 提供负载均衡器。
+负载均衡器的实际创建过程是异步进行的，关于所制备的负载均衡器的信息将会通过 Service 的
+<code>status.loadBalancer</code> 字段公开出来。
+例如：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>9376</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>clusterIP</span><span class=p>:</span><span class=w> </span><span class=m>10.0.171.239</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>LoadBalancer</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>status</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>loadBalancer</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>ingress</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>ip</span><span class=p>:</span><span class=w> </span><span class=m>192.0.2.127</span><span class=w>
+</span></span></span></code></pre></div><p>来自外部负载均衡器的流量将被直接重定向到后端各个 Pod 上，云平台决定如何进行负载平衡。</p><p>要实现 <code>type: LoadBalancer</code> 的服务，Kubernetes 通常首先进行与请求 <code>type: NodePort</code>
+服务类似的更改。cloud-controller-manager 组件随后配置外部负载均衡器，
+以将流量转发到所分配的节点端口。</p><p>你可以将负载均衡 Service 配置为<a href=#load-balancer-nodeport-allocation>忽略</a>分配节点端口，
+前提是云平台实现支持这点。</p><p>某些云平台允许你设置 <code>loadBalancerIP</code>。这时，平台将使用用户指定的 <code>loadBalancerIP</code>
+来创建负载均衡器。如果没有设置 <code>loadBalancerIP</code> 字段，平台将会给负载均衡器分配一个临时 IP。
+如果设置了 <code>loadBalancerIP</code>，但云平台并不支持这一特性，所设置的 <code>loadBalancerIP</code> 值将会被忽略。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>针对 Service 的 <code>.spec.loadBalancerIP</code> 字段已在 Kubernetes v1.24 中被弃用。</p><p>此字段的定义模糊，其含义因实现而异。它也不支持双协议栈联网。
+此字段可能会在未来的 API 版本中被移除。</p><p>如果你正在集成某云平台，该平台通过（特定于平台的）注解为 Service 指定负载均衡器 IP 地址，
+你应该切换到这种做法。</p><p>如果你正在为集成到 Kubernetes 的负载均衡器编写代码，请避免使用此字段。
+你可以与 <a href=https://gateway-api.sigs.k8s.io/>Gateway</a> 而不是 Service 集成，
+或者你可以在 Service 上定义自己的（特定于提供商的）注解，以指定等效的细节。</p></div><h4 id=节点存活态对负载均衡器流量的影响>节点存活态对负载均衡器流量的影响<a class=td-heading-self-link href=#%e8%8a%82%e7%82%b9%e5%ad%98%e6%b4%bb%e6%80%81%e5%af%b9%e8%b4%9f%e8%bd%bd%e5%9d%87%e8%a1%a1%e5%99%a8%e6%b5%81%e9%87%8f%e7%9a%84%e5%bd%b1%e5%93%8d aria-label="Heading self-link"></a></h4><p>负载均衡器运行状态检查对于现代应用程序至关重要，
+它们用于确定负载均衡器应将流量分派到哪个服务器（虚拟机或 IP 地址）。
+Kubernetes API 没有定义如何为 Kubernetes 托管负载均衡器实施运行状况检查，
+而是由云提供商（以及集成代码的实现人员）决定其行为。
+负载均衡器运行状态检查广泛用于支持 Service 的 <code>externalTrafficPolicy</code> 字段。</p><h4 id=混合协议类型的负载均衡器>混合协议类型的负载均衡器<a class=td-heading-self-link href=#%e6%b7%b7%e5%90%88%e5%8d%8f%e8%ae%ae%e7%b1%bb%e5%9e%8b%e7%9a%84%e8%b4%9f%e8%bd%bd%e5%9d%87%e8%a1%a1%e5%99%a8 aria-label="Heading self-link"></a></h4><div class="feature-state-locked feature-state-removed feature-stable"><p><em>This is a stable feature in Kubernetes, and has been since the 1.26 release. You can no longer toggle this feature (the associated <a href=/docs/reference/command-line-tools-reference/feature-gates-removed/>feature gate</a> has been removed).</em></p></div><p>默认情况下，对于 LoadBalancer 类型的 Service，当其中定义了多个端口时，
+所有端口必须使用相同的协议，并且该协议必须是被云平台支持的。</p><p>当 Service 中定义了多个端口时，特性门控 <code>MixedProtocolLBService</code>（从 kube-apiserver 1.24
+版本起默认为启用）允许 LoadBalancer 类型的 Service 使用不同的协议。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>可用于负载均衡 Service 的协议集合由你的云平台决定，他们可能在
+Kubernetes API 强制执行的限制之外另加一些约束。</p></div><h3 id=load-balancer-nodeport-allocation>禁用负载均衡 Service 的节点端口分配<a class=td-heading-self-link href=#load-balancer-nodeport-allocation aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.24</span></div><p>通过设置 Service 的 <code>spec.allocateLoadBalancerNodePorts</code> 为 <code>false</code>，你可以对 LoadBalancer
+类型的 Service 禁用节点端口分配操作。
+这仅适用于负载均衡器的实现能够直接将流量路由到 Pod 而不是使用节点端口的情况。
+默认情况下，<code>spec.allocateLoadBalancerNodePorts</code> 为 <code>true</code>，LoadBalancer 类型的 Service
+也会继续分配节点端口。如果某已有 Service 已被分配节点端口，如果将其属性
+<code>spec.allocateLoadBalancerNodePorts</code> 设置为 <code>false</code>，这些节点端口<strong>不会</strong>被自动释放。
+你必须显式地在每个 Service 端口中删除 <code>nodePorts</code> 项以释放对应的端口。</p><h4 id=load-balancer-class>设置负载均衡器实现的类别<a class=td-heading-self-link href=#load-balancer-class aria-label="Heading self-link"></a></h4><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.24</span></div><p>对于 <code>type</code> 设置为 <code>LoadBalancer</code> 的 Service，<code>spec.loadBalancerClass</code>
+字段允许你使用有别于云平台的默认负载均衡器的实现。</p><p>默认情况下，<code>.spec.loadBalancerClass</code> 是未设置的，如果集群使用 <code>--cloud-provider</code>
+件标志配置了云平台，<code>LoadBalancer</code> 类型 Service 会使用云平台的默认负载均衡器实现。</p><p>如果你设置了 <code>.spec.loadBalancerClass</code>，则假定存在某个与所指定的类相匹配的负载均衡器实现在监视
+Service 变更。所有默认的负载均衡器实现（例如，由云平台所提供的）都会忽略设置了此字段的 Service。
+<code>.spec.loadBalancerClass</code> 只能设置到类型为 <code>LoadBalancer</code> 的 Service 之上，
+而且一旦设置之后不可变更。</p><p><code>.spec.loadBalancerClass</code> 的值必须是一个标签风格的标识符，
+可以有选择地带有类似 "<code>internal-vip</code>" 或 "<code>example.com/internal-vip</code>" 这类前缀。
+没有前缀的名字是保留给最终用户的。</p><h4 id=load-balancer-ip-mode>负载均衡器 IP 地址模式 <a class=td-heading-self-link href=#load-balancer-ip-mode aria-label="Heading self-link"></a></h4><div class="feature-state-locked feature-state-removed feature-stable"><p><em>This is a stable feature in Kubernetes, and has been since the 1.32 release. You can no longer toggle this feature (the associated <a href=/docs/reference/command-line-tools-reference/feature-gates-removed/>feature gate</a> has been removed).</em></p></div><p>对于 <code>type: LoadBalancer</code> 的 Service，控制器可以设置 <code>.status.loadBalancer.ingress.ipMode</code>。
+<code>.status.loadBalancer.ingress.ipMode</code> 指定负载均衡器 IP 的行为方式。
+此字段只能在 <code>.status.loadBalancer.ingress.ip</code> 字段也被指定时才能指定。</p><p><code>.status.loadBalancer.ingress.ipMode</code> 有两个可能的值："VIP" 和 "Proxy"。
+默认值是 "VIP"，意味着流量被传递到目的地设置为负载均衡器 IP 和端口的节点上。
+将此字段设置为 "Proxy" 时会出现两种情况，具体取决于云驱动提供的负载均衡器如何传递流量：</p><ul><li>如果流量被传递到节点，然后 DNAT 到 Pod，则目的地将被设置为节点的 IP 和节点端口；</li><li>如果流量被直接传递到 Pod，则目的地将被设置为 Pod 的 IP 和端口。</li></ul><p>Service 实现可以使用此信息来调整流量路由。</p><h4 id=internal-load-balancer>内部负载均衡器<a class=td-heading-self-link href=#internal-load-balancer aria-label="Heading self-link"></a></h4><p>在混合环境中，有时有必要在同一（虚拟）网络地址段内路由来自 Service 的流量。</p><p>在水平分割（Split-Horizon）DNS 环境中，你需要两个 Service 才能将内部和外部流量都路由到你的端点。</p><p>如要设置内部负载均衡器，请根据你所使用的云平台，为 Service 添加以下注解之一：</p><ul class="nav nav-tabs" id=tabs-service-tabs role=tablist><li class=nav-item><button class="nav-link active" id=tabs-service-tabs-0-tab data-bs-toggle=tab data-bs-target=#tabs-service-tabs-0 role=tab aria-controls=tabs-service-tabs-0 aria-selected=true>
+Default</button><li class=nav-item><button class=nav-link id=tabs-service-tabs-1-tab data-bs-toggle=tab data-bs-target=#tabs-service-tabs-1 role=tab aria-controls=tabs-service-tabs-1 aria-selected=false>
+GCP</button><li class=nav-item><button class=nav-link id=tabs-service-tabs-2-tab data-bs-toggle=tab data-bs-target=#tabs-service-tabs-2 role=tab aria-controls=tabs-service-tabs-2 aria-selected=false>
+AWS</button><li class=nav-item><button class=nav-link id=tabs-service-tabs-3-tab data-bs-toggle=tab data-bs-target=#tabs-service-tabs-3 role=tab aria-controls=tabs-service-tabs-3 aria-selected=false>
+Azure</button><li class=nav-item><button class=nav-link id=tabs-service-tabs-4-tab data-bs-toggle=tab data-bs-target=#tabs-service-tabs-4 role=tab aria-controls=tabs-service-tabs-4 aria-selected=false>
+IBM Cloud</button><li class=nav-item><button class=nav-link id=tabs-service-tabs-5-tab data-bs-toggle=tab data-bs-target=#tabs-service-tabs-5 role=tab aria-controls=tabs-service-tabs-5 aria-selected=false>
+OpenStack</button><li class=nav-item><button class=nav-link id=tabs-service-tabs-6-tab data-bs-toggle=tab data-bs-target=#tabs-service-tabs-6 role=tab aria-controls=tabs-service-tabs-6 aria-selected=false>
+百度云</button><li class=nav-item><button class=nav-link id=tabs-service-tabs-7-tab data-bs-toggle=tab data-bs-target=#tabs-service-tabs-7 role=tab aria-controls=tabs-service-tabs-7 aria-selected=false>
+腾讯云</button><li class=nav-item><button class=nav-link id=tabs-service-tabs-8-tab data-bs-toggle=tab data-bs-target=#tabs-service-tabs-8 role=tab aria-controls=tabs-service-tabs-8 aria-selected=false>
+阿里云</button><li class=nav-item><button class=nav-link id=tabs-service-tabs-9-tab data-bs-toggle=tab data-bs-target=#tabs-service-tabs-9 role=tab aria-controls=tabs-service-tabs-9 aria-selected=false>
+OCI</button></ul><div class=tab-content id=tabs-service-tabs-content><div class="tab-body tab-pane fadeshow active" id=tabs-service-tabs-0 role=tabpanel aria-labelledby=tabs-service-tabs-0-tab tabindex=service-tabs><p>选择一个标签。</p></div><div class="tab-body tab-pane fade" id=tabs-service-tabs-1 role=tabpanel aria-labelledby=tabs-service-tabs-1-tab tabindex=service-tabs><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>annotations</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>networking.gke.io/load-balancer-type</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;Internal&#34;</span><span class=w>
+</span></span></span></code></pre></div></div><div class="tab-body tab-pane fade" id=tabs-service-tabs-2 role=tabpanel aria-labelledby=tabs-service-tabs-2-tab tabindex=service-tabs><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>annotations</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>service.beta.kubernetes.io/aws-load-balancer-scheme</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;internal&#34;</span><span class=w>
+</span></span></span></code></pre></div></div><div class="tab-body tab-pane fade" id=tabs-service-tabs-3 role=tabpanel aria-labelledby=tabs-service-tabs-3-tab tabindex=service-tabs><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>annotations</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>service.beta.kubernetes.io/azure-load-balancer-internal</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;true&#34;</span><span class=w>
+</span></span></span></code></pre></div></div><div class="tab-body tab-pane fade" id=tabs-service-tabs-4 role=tabpanel aria-labelledby=tabs-service-tabs-4-tab tabindex=service-tabs><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>annotations</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>service.kubernetes.io/ibm-load-balancer-cloud-provider-ip-type</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;private&#34;</span><span class=w>
+</span></span></span></code></pre></div></div><div class="tab-body tab-pane fade" id=tabs-service-tabs-5 role=tabpanel aria-labelledby=tabs-service-tabs-5-tab tabindex=service-tabs><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>annotations</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>service.beta.kubernetes.io/openstack-internal-load-balancer</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;true&#34;</span><span class=w>
+</span></span></span></code></pre></div></div><div class="tab-body tab-pane fade" id=tabs-service-tabs-6 role=tabpanel aria-labelledby=tabs-service-tabs-6-tab tabindex=service-tabs><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>annotations</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>service.beta.kubernetes.io/cce-load-balancer-internal-vpc</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;true&#34;</span><span class=w>
+</span></span></span></code></pre></div></div><div class="tab-body tab-pane fade" id=tabs-service-tabs-7 role=tabpanel aria-labelledby=tabs-service-tabs-7-tab tabindex=service-tabs><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>annotations</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>service.kubernetes.io/qcloud-loadbalancer-internal-subnetid</span><span class=p>:</span><span class=w> </span><span class=l>subnet-xxxxx</span><span class=w>
+</span></span></span></code></pre></div></div><div class="tab-body tab-pane fade" id=tabs-service-tabs-8 role=tabpanel aria-labelledby=tabs-service-tabs-8-tab tabindex=service-tabs><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>annotations</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>service.beta.kubernetes.io/alibaba-cloud-loadbalancer-address-type</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;intranet&#34;</span><span class=w>
+</span></span></span></code></pre></div></div><div class="tab-body tab-pane fade" id=tabs-service-tabs-9 role=tabpanel aria-labelledby=tabs-service-tabs-9-tab tabindex=service-tabs><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>annotations</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>service.beta.kubernetes.io/oci-load-balancer-internal</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span></code></pre></div></div></div><h3 id=externalname><code>type: ExternalName</code><a class=td-heading-self-link href=#externalname aria-label="Heading self-link"></a></h3><p>类型为 ExternalName 的 Service 将 Service 映射到 DNS 名称，而不是典型的选择算符，
+例如 <code>my-service</code> 或者 <code>cassandra</code>。你可以使用 <code>spec.externalName</code> 参数指定这些 Service。</p><p>例如，以下 Service 定义将 <code>prod</code> 名字空间中的 <code>my-service</code> Service 映射到 <code>my.database.example.com</code>：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>prod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>ExternalName</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>externalName</span><span class=p>:</span><span class=w> </span><span class=l>my.database.example.com</span><span class=w>
+</span></span></span></code></pre></div><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p><code>type: ExternalName</code> 的 Service 接受 IPv4 地址字符串，但将该字符串视为由数字组成的 DNS 名称，
+而不是 IP 地址（然而，互联网不允许在 DNS 中使用此类名称）。
+类似于 IPv4 地址的外部名称无法被 DNS 服务器解析。</p><p>如果你想要将 Service 直接映射到某特定 IP 地址，请考虑使用<a href=#headless-services>无头服务</a>。</p></div><p>当查找主机 <code>my-service.prod.svc.cluster.local</code> 时，集群 DNS 服务返回 <code>CNAME</code> 记录，
+其值为 <code>my.database.example.com</code>。访问 <code>my-service</code> 的方式与访问其他 Service 的方式相同，
+主要区别在于重定向发生在 DNS 级别，而不是通过代理或转发来完成。
+如果后来你决定将数据库移到集群中，则可以启动其 Pod，添加适当的选择算符或端点并更改
+Service 的 <code>type</code>。</p><div class="alert alert-caution" role=note><h4 class=alert-heading>注意：</h4><p>针对 ExternalName Service 使用一些常见的协议，包括 HTTP 和 HTTPS，可能会有问题。
+如果你使用 ExternalName Service，那么集群内客户端使用的主机名与 ExternalName 引用的名称不同。</p><p>对于使用主机名的协议，这一差异可能会导致错误或意外响应。
+HTTP 请求将具有源服务器无法识别的 <code>Host:</code> 标头；
+TLS 服务器将无法提供与客户端连接的主机名匹配的证书。</p></div><h2 id=headless-services>无头服务（Headless Services） <a class=td-heading-self-link href=#headless-services aria-label="Heading self-link"></a></h2><p>有时你并不需要负载均衡，也不需要单独的 Service IP。遇到这种情况，可以通过显式设置
+集群 IP（<code>spec.clusterIP</code>）的值为 <code>"None"</code> 来创建<strong>无头服务（Headless Service）</strong>。</p><p>你可以使用无头 Service 与其他服务发现机制交互，而不必绑定到 Kubernetes 的实现。</p><p>无头 Service 不会获得集群 IP，kube-proxy 不会处理这类 Service，
+而且平台也不会为它们提供负载均衡或路由支持。</p><p>无头 Service 允许客户端直接连接到它所偏好的任一 Pod。
+无头 Service 不使用<a href=/zh-cn/docs/reference/networking/virtual-ips/>虚拟 IP 地址和代理</a>
+配置路由和数据包转发；相反，无头 Service 通过内部 DNS 记录报告各个
+Pod 的端点 IP 地址，这些 DNS 记录是由集群的
+<a href=/zh-cn/docs/concepts/services-networking/dns-pod-service/>DNS 服务</a>所提供的。
+这些 DNS 记录是由集群内部 DNS 服务所提供的
+要定义无头 Service，你需要将 <code>.spec.type</code> 设置为 ClusterIP（这也是 <code>type</code>
+的默认值），并进一步将 <code>.spec.clusterIP</code> 设置为 <code>None</code>。</p><p>字符串值 None 是一种特殊情况，与未设置 <code>.spec.clusterIP</code> 字段不同。</p><p>DNS 如何自动配置取决于 Service 是否定义了选择器：</p><h3 id=with-selectors>带选择算符的 Service<a class=td-heading-self-link href=#with-selectors aria-label="Heading self-link"></a></h3><p>对定义了选择算符的无头 Service，Kubernetes 控制平面在 Kubernetes API 中创建
+EndpointSlices 对象，并且修改 DNS 配置返回 A 或 AAAA 记录（IPv4 或 IPv6 地址），
+这些记录直接指向 Service 的后端 Pod 集合。</p><h3 id=without-selectors>无选择算符的 Service <a class=td-heading-self-link href=#without-selectors aria-label="Heading self-link"></a></h3><p>对没有定义选择算符的无头 Service，控制平面不会创建 EndpointSlices 对象。
+然而 DNS 系统会执行以下操作之一：</p><ul><li>对于 <a href=#externalname><code>type: ExternalName</code></a> Service，查找和配置其 CNAME 记录；</li><li>对所有其他类型的 Service，针对 Service 的就绪端点的所有 IP 地址，查找和配置
+DNS A / AAAA 记录：<ul><li>对于 IPv4 端点，DNS 系统创建 A 记录。</li><li>对于 IPv6 端点，DNS 系统创建 AAAA 记录。</li></ul></li></ul><p>当你定义无选择算符的无头 Service 时，<code>port</code> 必须与 <code>targetPort</code> 匹配。</p><h2 id=discovering-services>服务发现 <a class=td-heading-self-link href=#discovering-services aria-label="Heading self-link"></a></h2><p>对于在集群内运行的客户端，Kubernetes 支持两种主要的服务发现模式：环境变量和 DNS。</p><h3 id=environment-variables>环境变量 <a class=td-heading-self-link href=#environment-variables aria-label="Heading self-link"></a></h3><p>当 Pod 运行在某 Node 上时，kubelet 会在其中为每个活跃的 Service 添加一组环境变量。
+kubelet 会添加环境变量 <code>{SVCNAME}_SERVICE_HOST</code> 和 <code>{SVCNAME}_SERVICE_PORT</code>。
+这里 Service 的名称被转为大写字母，横线被转换成下划线。</p><p>例如，一个 Service <code>redis-primary</code> 公开了 TCP 端口 6379，
+同时被分配了集群 IP 地址 10.0.0.11，这个 Service 生成的环境变量如下：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-shell data-lang=shell><span class=line><span class=cl><span class=nv>REDIS_PRIMARY_SERVICE_HOST</span><span class=o>=</span>10.0.0.11
+</span></span><span class=line><span class=cl><span class=nv>REDIS_PRIMARY_SERVICE_PORT</span><span class=o>=</span><span class=m>6379</span>
+</span></span><span class=line><span class=cl><span class=nv>REDIS_PRIMARY_PORT</span><span class=o>=</span>tcp://10.0.0.11:6379
+</span></span><span class=line><span class=cl><span class=nv>REDIS_PRIMARY_PORT_6379_TCP</span><span class=o>=</span>tcp://10.0.0.11:6379
+</span></span><span class=line><span class=cl><span class=nv>REDIS_PRIMARY_PORT_6379_TCP_PROTO</span><span class=o>=</span>tcp
+</span></span><span class=line><span class=cl><span class=nv>REDIS_PRIMARY_PORT_6379_TCP_PORT</span><span class=o>=</span><span class=m>6379</span>
+</span></span><span class=line><span class=cl><span class=nv>REDIS_PRIMARY_PORT_6379_TCP_ADDR</span><span class=o>=</span>10.0.0.11
+</span></span></code></pre></div><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>当你的 Pod 需要访问某 Service，并且你在使用环境变量方法将端口和集群 IP 发布到客户端
+Pod 时，必须在客户端 Pod 出现<strong>之前</strong>创建该 Service。
+否则，这些客户端 Pod 中将不会出现对应的环境变量。</p><p>如果仅使用 DNS 来发现 Service 的集群 IP，则无需担心此顺序问题。</p></div><p>Kubernetes 还支持并提供与 Docker Engine 的
+"<strong><a href=https://docs.docker.com/network/links/>legacy container links</a></strong>"
+兼容的变量。你可以阅读
+<a href=https://github.com/kubernetes/kubernetes/blob/dd2d12f6dc0e654c15d5db57a5f9f6ba61192726/pkg/kubelet/envvars/envvars.go#L72>makeLinkVariables</a>
+来了解这是如何在 Kubernetes 中实现的。</p><h3 id=dns>DNS<a class=td-heading-self-link href=#dns aria-label="Heading self-link"></a></h3><p>你可以（并且几乎总是应该）使用<a href=/zh-cn/docs/concepts/cluster-administration/addons/>插件（add-on）</a>
+来为 Kubernetes 集群安装 DNS 服务。</p><p>能够感知集群的 DNS 服务器（例如 CoreDNS）会监视 Kubernetes API 中的新 Service，
+并为每个 Service 创建一组 DNS 记录。如果在整个集群中都启用了 DNS，则所有 Pod
+都应该能够通过 DNS 名称自动解析 Service。</p><p>例如，如果你在 Kubernetes 命名空间 <code>my-ns</code> 中有一个名为 <code>my-service</code> 的 Service，
+则控制平面和 DNS 服务共同为 <code>my-service.my-ns</code> 生成 DNS 记录。
+名字空间 <code>my-ns</code> 中的 Pod 应该能够通过按名检索 <code>my-service</code> 来找到 Service
+（<code>my-service.my-ns</code> 也可以）。</p><p>其他名字空间中的 Pod 必须将名称限定为 <code>my-service.my-ns</code>。
+这些名称将解析为分配给 Service 的集群 IP。</p><p>Kubernetes 还支持命名端口的 DNS SRV（Service）记录。
+如果 Service <code>my-service.my-ns</code> 具有名为 <code>http</code>　的端口，且协议设置为 TCP，
+则可以用 <code>_http._tcp.my-service.my-ns</code> 执行 DNS SRV 查询以发现 <code>http</code> 的端口号以及 IP 地址。</p><p>Kubernetes DNS 服务器是唯一的一种能够访问 <code>ExternalName</code> 类型的 Service 的方式。
+关于 <code>ExternalName</code> 解析的更多信息可以查看
+<a href=/zh-cn/docs/concepts/services-networking/dns-pod-service/>Service 与 Pod 的 DNS</a>。</p><a id=shortcomings><a id=the-gory-details-of-virtual-ips><a id=proxy-modes><a id=proxy-mode-userspace><a id=proxy-mode-iptables><a id=proxy-mode-ipvs><a id=ips-and-vips><h2 id=virtual-ip-addressing-mechanism>虚拟 IP 寻址机制 <a class=td-heading-self-link href=#virtual-ip-addressing-mechanism aria-label="Heading self-link"></a></h2><p>阅读<a href=/zh-cn/docs/reference/networking/virtual-ips/>虚拟 IP 和 Service 代理</a>以了解
+Kubernetes 提供的使用虚拟 IP 地址公开 Service 的机制。</p><h3 id=traffic-policies>流量策略 <a class=td-heading-self-link href=#traffic-policies aria-label="Heading self-link"></a></h3><p>你可以设置 <code>.spec.internalTrafficPolicy</code> 和 <code>.spec.externalTrafficPolicy</code>
+字段来控制 Kubernetes 如何将流量路由到健康（“就绪”）的后端。</p><p>有关详细信息，请参阅<a href=/zh-cn/docs/reference/networking/virtual-ips/#traffic-policies>流量策略</a>。</p><h3 id=流量分发控制-traffic-distribution-hahahugoshortcode2393s41hbhb>流量分发控制 {#traffic-distribution}<div class="feature-state-notice feature-stable" title="特性门控： ServiceTrafficDistribution"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.33</span></div><div class=feature-stable><details><summary>More information about this feature</summary><p>This is a stable feature in Kubernetes, and has been since version v1.33. It was first available in the v1.30 release. You can no longer disable or opt out of this feature or behavior (it is locked); if you explicitly set a value for the associated feature gate <tt>ServiceTrafficDistribution</tt>, Kubernetes ignores it but does not report any error.</p></details></div><a class=td-heading-self-link href=#%e6%b5%81%e9%87%8f%e5%88%86%e5%8f%91%e6%8e%a7%e5%88%b6-traffic-distribution-hahahugoshortcode2393s41hbhb aria-label="Heading self-link"></a></h3><p><code>.spec.trafficDistribution</code> 字段提供了另一种影响 Kubernetes Service 内流量路由的方法。
+虽然流量策略侧重于严格的语义保证，但流量分发允许你表达一定的<strong>偏好</strong>（例如路由到拓扑上更接近的端点）。
+这一机制有助于优化性能、成本或可靠性。
+Kubernetes 1.37 支持以下字段值：</p><dl><dt><code>PreferSameZone</code></dt><dd>表示优先将流量路由到与客户端处于同一区域中的端点。</dd><dt><code>PreferSameNode</code></dt><dd>表示优先将流量路由到与客户端处于同一节点上的端点。</dd><dt><code>PreferClose</code>（已弃用）</dt><dd>这是 <code>PreferSameZone</code> 的一个较旧的别名，其语义不太明确。</dd></dl><p>如果未设置该字段，实现将应用其默认路由策略，
+详见<a href=/zh-cn/docs/reference/networking/virtual-ips/#traffic-distribution>流量分发</a>。</p><h2 id=session-stickiness>会话的黏性 <a class=td-heading-self-link href=#session-stickiness aria-label="Heading self-link"></a></h2><p>如果你想确保来自特定客户端的连接每次都传递到同一个 Pod，你可以配置基于客户端 IP
+地址的会话亲和性。
+可阅读<a href=/zh-cn/docs/reference/networking/virtual-ips/#session-affinity>会话亲和性</a>来进一步学习。</p><h3 id=external-ips>外部 IP <a class=td-heading-self-link href=#external-ips aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-deprecated"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>已弃用</span> since Kubernetes v1.36</span></div><p>所有用户都应开始逐步淘汰 <code>externalIPs</code>。
+请考虑改用外部负载均衡控制器或网关 API 实现。</p><p>如果有外部 IP 能够路由到一个或多个集群节点上，则 Kubernetes Service 可以在这些 <code>externalIPs</code>
+上公开出去。当网络流量进入集群时，如果外部 IP（作为目的 IP 地址）和端口都与该 Service 匹配，
+Kubernetes 所配置的规则和路由会确保流量被路由到该 Service 的端点之一。</p><p>定义 Service 时，你可以为任何
+<a href=#publishing-services-service-types>Service 类型</a>指定 <code>externalIPs</code>。
+在下面的例子中，名为 <code>my-service</code> 的 Service 可以在 "<code>198.51.100.32:80</code>"
+（根据 <code>.spec.externalIPs[]</code> 和 <code>.spec.ports[].port</code> 得出）上被客户端使用 TCP 协议访问。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>http</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>49152</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>externalIPs</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=m>198.51.100.32</span><span class=w>
+</span></span></span></code></pre></div><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>Kubernetes 不负责管理 <code>externalIPs</code> 的分配，这一工作是集群管理员的职责。</p></div><h2 id=api-object>API 对象 <a class=td-heading-self-link href=#api-object aria-label="Heading self-link"></a></h2><p>Service 是 Kubernetes REST API 中的顶级资源。你可以找到有关
+<a href=/docs/reference/generated/kubernetes-api/v1.37/#service-v1-core>Service 对象 API</a>
+的更多详细信息。</p><p><a id=shortcomings><a id=#the-gory-details-of-virtual-ips></p><h2 id=接下来>接下来<a class=td-heading-self-link href=#%e6%8e%a5%e4%b8%8b%e6%9d%a5 aria-label="Heading self-link"></a></h2><p>进一步学习 Service 及其在 Kubernetes 中所发挥的作用：</p><ul><li>完成<a href=/zh-cn/docs/tutorials/services/connect-applications-service/>使用 Service 连接到应用</a>教程。</li><li>阅读 <a href=/zh-cn/docs/concepts/services-networking/ingress/>Ingress</a> 文档。
+Ingress 负责将来自集群外部的 HTTP 和 HTTPS 请求路由给集群内的 Service。</li><li>阅读 <a href=/zh-cn/docs/concepts/services-networking/gateway/>Gateway</a> 文档。
+Gateway 作为 Kubernetes 的扩展提供比 Ingress 更高的灵活性。</li></ul><p>更多上下文，可以阅读以下内容：</p><ul><li><a href=/zh-cn/docs/reference/networking/virtual-ips/>虚拟 IP 和 Service 代理</a></li><li><a href=/zh-cn/docs/concepts/services-networking/endpoint-slices/>EndpointSlice</a></li><li><a href=/zh-cn/docs/reference/kubernetes-api/service-resources/service-v1/>Service API 参考</a></li><li><a href=/zh-cn/docs/reference/kubernetes-api/service-resources/endpoint-slice-v1/>EndpointSlice API 参考</a></li><li><a href=/zh-cn/docs/reference/kubernetes-api/service-resources/endpoints-v1/>Endpoints API 参考</a></li></ul></div>
+</body>
+</html>

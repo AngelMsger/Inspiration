@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>持久卷</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>持久卷</h1><header class=article-meta></header><p>本文描述 Kubernetes 中的<strong>持久卷（Persistent Volumes）</strong>。
+建议先熟悉<a href=/zh-cn/docs/concepts/storage/volumes/>卷（Volume）</a>、
+<a href=/zh-cn/docs/concepts/storage/storage-classes/>存储类（StorageClass）</a>和
+<a href=/zh-cn/docs/concepts/storage/volume-attributes-classes/>卷属性类（VolumeAttributesClass）</a>。</p><h2 id=introduction>介绍 <a class=td-heading-self-link href=#introduction aria-label="Heading self-link"></a></h2><p>存储的管理是一个与计算实例的管理完全不同的问题。
+PersistentVolume 子系统为用户和管理员提供了一组 API，
+将存储如何制备的细节从其如何被使用中抽象出来。
+为了实现这点，我们引入了两个新的 API 资源：PersistentVolume 和
+PersistentVolumeClaim。</p><p><strong>持久卷（PersistentVolume，PV）</strong> 是集群中的一块存储，可以由管理员事先制备，
+或者使用<a href=/zh-cn/docs/concepts/storage/storage-classes/>存储类（Storage Class）</a>来动态制备。
+持久卷是集群资源，就像节点也是集群资源一样。PV 持久卷和普通的 Volume 一样，
+也是使用卷插件来实现的，只是它们拥有独立于任何使用 PV 的 Pod 的生命周期。
+此 API 对象中记述了存储的实现细节，无论其背后是 NFS、iSCSI 还是特定于云平台的存储系统。</p><p><strong>持久卷申领（PersistentVolumeClaim，PVC）</strong> 表达的是用户对存储的请求，概念上与 Pod 类似。
+Pod 会耗用节点资源，而 PVC 申领会耗用 PV 资源。Pod 可以请求特定数量的资源（CPU
+和内存）。同样 PVC 申领也可以请求特定的大小和访问模式
+（例如，可以挂载为 ReadWriteOnce、ReadOnlyMany、ReadWriteMany 或 ReadWriteOncePod，
+请参阅<a href=#access-modes>访问模式</a>）。</p><p>尽管 PersistentVolumeClaim 允许用户消耗抽象的存储资源，
+常见的情况是针对不同的问题用户需要的是具有不同属性（如，性能）的 PersistentVolume 卷。
+集群管理员需要能够提供不同性质的 PersistentVolume，
+并且这些 PV 卷之间的差别不仅限于卷大小和访问模式，同时又不能将卷是如何实现的这些细节暴露给用户。
+为了满足这类需求，就有了<strong>存储类（StorageClass）</strong> 资源。</p><p>参见<a href=/zh-cn/docs/tutorials/configuration/configure-persistent-volume-storage>基于运行示例的详细演练</a>。</p><h2 id=lifecycle-of-a-volume-and-claim>卷和申领的生命周期 <a class=td-heading-self-link href=#lifecycle-of-a-volume-and-claim aria-label="Heading self-link"></a></h2><p>PV 卷是集群中的资源。PVC 申领是对这些资源的请求，也被用来执行对资源的申领检查。
+PV 卷和 PVC 申领之间的互动遵循如下生命周期：</p><h3 id=provisioning>制备 <a class=td-heading-self-link href=#provisioning aria-label="Heading self-link"></a></h3><p>PV 卷的制备有两种方式：静态制备或动态制备。</p><h4 id=static>静态制备 <a class=td-heading-self-link href=#static aria-label="Heading self-link"></a></h4><p>集群管理员创建若干 PV 卷。这些卷对象带有真实存储的细节信息，
+并且对集群用户可用（可见）。PV 卷对象存在于 Kubernetes API 中，可供用户消费（使用）。</p><h4 id=dynamic>动态制备 <a class=td-heading-self-link href=#dynamic aria-label="Heading self-link"></a></h4><p>如果管理员所创建的所有静态 PV 卷都无法与用户的 PersistentVolumeClaim 匹配，
+集群可以尝试为该 PVC 申领动态制备一个存储卷。
+这一制备操作是基于 StorageClass 来实现的：PVC 申领必须请求某个
+<a href=/zh-cn/docs/concepts/storage/storage-classes/>存储类</a>，
+同时集群管理员必须已经创建并配置了该类，这样动态制备卷的动作才会发生。
+如果 PVC 申领指定存储类为 <code>""</code>，则相当于为自身禁止使用动态制备的卷。</p><p>为了基于存储类完成动态的存储制备，集群管理员需要在 API 服务器上启用 <code>DefaultStorageClass</code>
+<a href=/zh-cn/docs/reference/access-authn-authz/admission-controllers/#defaultstorageclass>准入控制器</a>。
+举例而言，可以通过保证 <code>DefaultStorageClass</code> 出现在 API 服务器组件的
+<code>--enable-admission-plugins</code> 标志值中实现这点；该标志的值可以是逗号分隔的有序列表。
+关于 API 服务器标志的更多信息，可以参考
+<a href=/zh-cn/docs/reference/command-line-tools-reference/kube-apiserver/>kube-apiserver</a>
+文档。</p><h3 id=binding>绑定 <a class=td-heading-self-link href=#binding aria-label="Heading self-link"></a></h3><p>用户创建一个带有特定存储容量和特定访问模式需求的 PersistentVolumeClaim 对象；
+在动态制备场景下，这个 PVC 对象可能已经创建完毕。
+控制平面中的控制回路监测新的 PVC 对象，寻找与之匹配的 PV 卷（如果可能的话），
+并将二者绑定到一起。如果为了新的 PVC 申领动态制备了 PV 卷，则控制回路总是将该 PV 卷绑定到这一 PVC 申领。
+否则，用户总是能够获得他们所请求的资源，只是所获得的 PV 卷可能会超出所请求的配置。
+一旦绑定关系建立，则 PersistentVolumeClaim 绑定就是排他性的，
+无论该 PVC 申领是如何与 PV 卷建立的绑定关系。PVC 申领与 PV 卷之间的绑定是一种一对一的映射，
+实现上使用 ClaimRef 来记述 PV 卷与 PVC 申领间的双向绑定关系。</p><p>如果找不到匹配的 PV 卷，PVC 申领会无限期地处于未绑定状态。
+当与之匹配的 PV 卷可用时，PVC 申领会被绑定。
+例如，即使某集群上制备了很多 50 Gi 大小的 PV 卷，也无法与请求
+100 Gi 大小的存储的 PVC 匹配。当新的 100 Gi PV 卷被加入到集群时，
+该 PVC 才有可能被绑定。</p><h3 id=using>使用 <a class=td-heading-self-link href=#using aria-label="Heading self-link"></a></h3><p>Pod 将 PVC 申领当做存储卷来使用。集群会检视 PVC 申领，找到所绑定的卷，
+并为 Pod 挂载该卷。对于支持多种访问模式的卷，
+用户要在 Pod 中以卷的形式使用申领时指定期望的访问模式。</p><p>一旦用户有了申领对象并且该申领已经被绑定，
+则所绑定的 PV 卷在用户仍然需要它期间一直属于该用户。
+用户通过在 Pod 的 <code>volumes</code> 块中包含 <code>persistentVolumeClaim</code>
+节区来调度 Pod，访问所申领的 PV 卷。
+相关细节可参阅<a href=#claims-as-volumes>使用申领作为卷</a>。</p><h3 id=storage-object-in-use-protection>保护使用中的存储对象 <a class=td-heading-self-link href=#storage-object-in-use-protection aria-label="Heading self-link"></a></h3><p>保护使用中的存储对象（Storage Object in Use Protection）
+这一功能特性的目的是确保仍被 Pod 使用的 PersistentVolumeClaim（PVC）
+对象及其所绑定的 PersistentVolume（PV）对象在系统中不会被删除，因为这样做可能会引起数据丢失。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>当使用某 PVC 的 Pod 对象仍然存在时，认为该 PVC 仍被此 Pod 使用。</p></div><p>如果用户删除被某 Pod 使用的 PVC 对象，该 PVC 不会被立即移除。
+PVC 对象的移除会被推迟，直至其不再被任何 Pod 使用。
+此外，如果管理员删除已绑定到某 PVC 的 PV 卷，该 PV 卷也不会被立即移除。
+PV 对象的移除也要推迟到该 PV 不再绑定到 PVC。</p><p>你可以看到当 PVC 的状态为 <code>Terminating</code> 且其 <code>Finalizers</code> 列表中包含
+<code>kubernetes.io/pvc-protection</code> 时，PVC 对象是处于被保护状态的。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-shell data-lang=shell><span class=line><span class=cl>kubectl describe pvc hostpath
+</span></span></code></pre></div><pre tabindex=0><code>Name:          hostpath
+Namespace:     default
+StorageClass:  example-hostpath
+Status:        Terminating
+Volume:
+Labels:        &lt;none&gt;
+Annotations:   volume.beta.kubernetes.io/storage-class=example-hostpath
+               volume.beta.kubernetes.io/storage-provisioner=example.com/hostpath
+Finalizers:    [kubernetes.io/pvc-protection]
+...
+</code></pre><p>你也可以看到当 PV 对象的状态为 <code>Terminating</code> 且其 <code>Finalizers</code> 列表中包含
+<code>kubernetes.io/pv-protection</code> 时，PV 对象是处于被保护状态的。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-shell data-lang=shell><span class=line><span class=cl>kubectl describe pv task-pv-volume
+</span></span></code></pre></div><pre tabindex=0><code>Name:            task-pv-volume
+Labels:          type=local
+Annotations:     &lt;none&gt;
+Finalizers:      [kubernetes.io/pv-protection]
+StorageClass:    standard
+Status:          Terminating
+Claim:
+Reclaim Policy:  Delete
+Access Modes:    RWO
+Capacity:        1Gi
+Message:
+Source:
+    Type:          HostPath (bare host directory volume)
+    Path:          /tmp/data
+    HostPathType:
+Events:            &lt;none&gt;
+</code></pre><h3 id=reclaiming>回收（Reclaiming） <a class=td-heading-self-link href=#reclaiming aria-label="Heading self-link"></a></h3><p>当用户不再使用其存储卷时，他们可以从 API 中将 PVC 对象删除，
+从而允许该资源被回收再利用。PersistentVolume 对象的回收策略告诉集群，
+当其被从申领中释放时如何处理该数据卷。
+目前，数据卷可以被 Retained（保留）、Recycled（回收）或 Deleted（删除）。</p><h4 id=retain>保留（Retain） <a class=td-heading-self-link href=#retain aria-label="Heading self-link"></a></h4><p>回收策略 <code>Retain</code> 使得用户可以手动回收资源。当 PersistentVolumeClaim
+对象被删除时，PersistentVolume 卷仍然存在，对应的数据卷被视为"已释放（released）"。
+由于卷上仍然存在这前一申领人的数据，该卷还不能用于其他申领。
+管理员可以通过下面的步骤来手动回收该卷：</p><ol><li>删除 PersistentVolume 对象。与之相关的、位于外部基础设施中的存储资产在
+PV 删除之后仍然存在。</li><li>根据情况，手动清除所关联的存储资产上的数据。</li><li>手动删除所关联的存储资产。</li></ol><p>如果你希望重用该存储资产，可以基于存储资产的定义创建新的 PersistentVolume 卷对象。</p><h4 id=delete>删除（Delete） <a class=td-heading-self-link href=#delete aria-label="Heading self-link"></a></h4><p>对于支持 <code>Delete</code> 回收策略的卷插件，删除动作会将 PersistentVolume 对象从
+Kubernetes 中移除，同时也会从外部基础设施中移除所关联的存储资产。
+动态制备的卷会继承<a href=#reclaim-policy>其 StorageClass 中设置的回收策略</a>，
+该策略默认为 <code>Delete</code>。管理员需要根据用户的期望来配置 StorageClass；
+否则 PV 卷被创建之后必须要被编辑或者修补。
+参阅<a href=/zh-cn/docs/tasks/administer-cluster/change-pv-reclaim-policy/>更改 PV 卷的回收策略</a>。</p><h4 id=recycle>回收（Recycle） <a class=td-heading-self-link href=#recycle aria-label="Heading self-link"></a></h4><div class="alert alert-danger" role=note><h4 class=alert-heading>警告：</h4><p>回收策略 <code>Recycle</code> 已被废弃。取而代之的建议方案是使用动态制备。</p></div><p>如果下层的卷插件支持，回收策略 <code>Recycle</code> 会在卷上执行一些基本的擦除
+（<code>rm -rf /thevolume/*</code>）操作，之后允许该卷用于新的 PVC 申领。</p><p>不过，管理员可以按<a href=/zh-cn/docs/reference/command-line-tools-reference/kube-controller-manager/>参考资料</a>中所述，
+使用 Kubernetes 控制器管理器命令行参数来配置一个定制的回收器（Recycler）
+Pod 模板。此定制的回收器 Pod 模板必须包含一个 <code>volumes</code> 规约，如下例所示：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>pv-recycler</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>default</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Never</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>vol</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>hostPath</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/any/path/it/will/be/replaced</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>pv-recycler</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;registry.k8s.io/busybox&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s2>&#34;/bin/sh&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;-c&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;test -e /scrub &amp;&amp; rm -rf /scrub/..?* /scrub/.[!.]* /scrub/*  &amp;&amp; test -z \&#34;$(ls -A /scrub)\&#34; || exit 1&#34;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>vol</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/scrub</span><span class=w>
+</span></span></span></code></pre></div><p>请注意，定制回收器 Pod 模板中在 <code>volumes</code> 部分所指定的特定路径要替换为正被回收的卷的路径。</p><h3 id=persistentvolume-deletion-protection-finalizer>PersistentVolume 删除保护 finalizer <a class=td-heading-self-link href=#persistentvolume-deletion-protection-finalizer aria-label="Heading self-link"></a></h3><div class="feature-state-locked feature-state-removed feature-stable"><p><em>This is a stable feature in Kubernetes, and has been since the 1.33 release. You can no longer toggle this feature (the associated <a href=/docs/reference/command-line-tools-reference/feature-gates-removed/>feature gate</a> has been removed).</em></p></div><p>可以在 PersistentVolume 上添加终结器（Finalizer），
+以确保只有在删除对应的存储后才删除具有 <code>Delete</code> 回收策略的 PersistentVolume。</p><p>（在 v1.31 中引入的）终结器 <code>external-provisioner.volume.kubernetes.io/finalizer</code>
+被同时添加到动态制备和静态制备的 CSI 卷上。</p><p>（在 v1.31 中引入的）终结器 <code>kubernetes.io/pv-controller</code>
+被添加到动态制备的树内插件卷上，而对于静态制备的树内插件卷，此终结器将被忽略。</p><p>以下是动态制备的树内插件卷的示例：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-shell data-lang=shell><span class=line><span class=cl>kubectl describe pv pvc-74a498d6-3929-47e8-8c02-078c1ece4d78
+</span></span></code></pre></div><pre tabindex=0><code class=language-none data-lang=none>Name:            pvc-74a498d6-3929-47e8-8c02-078c1ece4d78
+Labels:          &lt;none&gt;
+Annotations:     kubernetes.io/createdby: vsphere-volume-dynamic-provisioner
+                 pv.kubernetes.io/bound-by-controller: yes
+                 pv.kubernetes.io/provisioned-by: kubernetes.io/vsphere-volume
+Finalizers:      [kubernetes.io/pv-protection kubernetes.io/pv-controller]
+StorageClass:    vcp-sc
+Status:          Bound
+Claim:           default/vcp-pvc-1
+Reclaim Policy:  Delete
+Access Modes:    RWO
+VolumeMode:      Filesystem
+Capacity:        1Gi
+Node Affinity:   &lt;none&gt;
+Message:
+Source:
+    Type:               vSphereVolume (a Persistent Disk resource in vSphere)
+    VolumePath:         [vsanDatastore] d49c4a62-166f-ce12-c464-020077ba5d46/kubernetes-dynamic-pvc-74a498d6-3929-47e8-8c02-078c1ece4d78.vmdk
+    FSType:             ext4
+    StoragePolicyName:  vSAN Default Storage Policy
+Events:                 &lt;none&gt;
+</code></pre><p>终结器 <code>external-provisioner.volume.kubernetes.io/finalizer</code>
+会被添加到 CSI 卷上。下面是一个例子：</p><pre tabindex=0><code class=language-none data-lang=none>Name:            pvc-2f0bab97-85a8-4552-8044-eb8be45cf48d
+Labels:          &lt;none&gt;
+Annotations:     pv.kubernetes.io/provisioned-by: csi.vsphere.vmware.com
+Finalizers:      [kubernetes.io/pv-protection external-provisioner.volume.kubernetes.io/finalizer]
+StorageClass:    fast
+Status:          Bound
+Claim:           demo-app/nginx-logs
+Reclaim Policy:  Delete
+Access Modes:    RWO
+VolumeMode:      Filesystem
+Capacity:        200Mi
+Node Affinity:   &lt;none&gt;
+Message:
+Source:
+    Type:              CSI (a Container Storage Interface (CSI) volume source)
+    Driver:            csi.vsphere.vmware.com
+    FSType:            ext4
+    VolumeHandle:      44830fa8-79b4-406b-8b58-621ba25353fd
+    ReadOnly:          false
+    VolumeAttributes:      storage.kubernetes.io/csiProvisionerIdentity=1648442357185-8081-csi.vsphere.vmware.com
+                           type=vSphere CNS Block Volume
+Events:                &lt;none&gt;
+</code></pre><p>当为特定的树内卷插件启用了 <code>CSIMigration{provider}</code> 特性标志时，<code>kubernetes.io/pv-controller</code>
+终结器将被替换为 <code>external-provisioner.volume.kubernetes.io/finalizer</code> 终结器。</p><p>这些终结器确保只有在从存储后端删除卷后，PV 对象才会被移除，
+前提是 PV 的回收策略为 <code>Delete</code>。
+这也确保了无论 PV 和 PVC 的删除顺序如何，此卷都会从存储后端被删除。</p><h3 id=reserving-a-persistentvolume>预留 PersistentVolume <a class=td-heading-self-link href=#reserving-a-persistentvolume aria-label="Heading self-link"></a></h3><p>控制平面可以在集群中<a href=#binding>将 PersistentVolumeClaim 绑定到匹配的 PersistentVolume</a>。
+但是，如果你希望 PVC 绑定到特定 PV，则需要预先绑定它们。</p><p>通过在 PersistentVolumeClaim 中指定 PersistentVolume，你可以声明该特定
+PV 与 PVC 之间的绑定关系。如果该 PersistentVolume 存在且未被通过其
+<code>claimRef</code> 字段预留给 PersistentVolumeClaim，则该 PersistentVolume
+会和该 PersistentVolumeClaim 绑定到一起。</p><p>绑定操作不会考虑某些卷匹配条件是否满足，包括节点亲和性等等。
+控制面仍然会检查<a href=/zh-cn/docs/concepts/storage/storage-classes/>存储类</a>、
+访问模式和所请求的存储尺寸都是合法的。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>foo-pvc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>foo</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>storageClassName</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;&#34;</span><span class=w> </span><span class=c># 此处须显式设置空字符串，否则会被设置为默认的 StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeName</span><span class=p>:</span><span class=w> </span><span class=l>foo-pv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=l>...</span><span class=w>
+</span></span></span></code></pre></div><p>此方法无法对 PersistentVolume 的绑定特权做出任何形式的保证。
+如果有其他 PersistentVolumeClaim 可以使用你所指定的 PV，
+则你应该首先预留该存储卷。你可以将 PV 的 <code>claimRef</code> 字段设置为相关的
+PersistentVolumeClaim 以确保其他 PVC 不会绑定到该 PV 卷。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>foo-pv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>storageClassName</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>claimRef</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>foo-pvc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>foo</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=l>...</span><span class=w>
+</span></span></span></code></pre></div><p>如果你想要使用 <code>persistentVolumeReclaimPolicy</code> 属性设置为 <code>Retain</code> 的
+PersistentVolume 卷时，包括你希望复用现有的 PV 卷时，这点是很有用的。</p><h3 id=expanding-persistent-volumes-claims>扩充 PVC 申领 <a class=td-heading-self-link href=#expanding-persistent-volumes-claims aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.24</span></div><p>现在，对扩充 PVC 申领的支持默认处于被启用状态。你可以扩充以下类型的卷：</p><ul><li><a class=glossary-tooltip title='容器存储接口 （CSI）定义了存储系统暴露给容器的标准接口。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/storage/volumes/#csi target=_blank aria-label=csi>csi</a>（包含一些 CSI 迁移的卷类型）</li><li>flexVolume（已弃用）</li><li>portworxVolume（已弃用）</li></ul><p>只有当 PVC 的存储类中将 <code>allowVolumeExpansion</code> 设置为 true 时，你才可以扩充该 PVC。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-vol-default</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>provisioner</span><span class=p>:</span><span class=w> </span><span class=l>vendor-name.example/magicstorage</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>resturl</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;http://192.168.10.100:8080&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>restuser</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>secretNamespace</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>secretName</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>allowVolumeExpansion</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span></code></pre></div><p>如果要为某 PVC 请求较大的存储卷，可以编辑 PVC 对象，设置一个更大的尺寸值。
+这一编辑操作会触发为下层 PersistentVolume 提供存储的卷的扩充。
+Kubernetes 不会创建新的 PV 卷来满足此申领的请求。
+与之相反，现有的卷会被调整大小。</p><div class="alert alert-danger" role=note><h4 class=alert-heading>警告：</h4><p>直接编辑 PersistentVolume 的大小可以阻止该卷自动调整大小。
+如果对 PersistentVolume 的容量进行编辑，然后又将其所对应的
+PersistentVolumeClaim 的 <code>.spec</code> 进行编辑，使该 PersistentVolumeClaim
+的大小匹配 PersistentVolume 的话，则不会发生存储大小的调整。
+Kubernetes 控制平面将看到两个资源的所需状态匹配，
+并认为其后备卷的大小已被手动增加，无需调整。</p></div><h4 id=csi-volume-expansion>CSI 卷的扩充 <a class=td-heading-self-link href=#csi-volume-expansion aria-label="Heading self-link"></a></h4><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.24</span></div><p>对 CSI 卷的扩充能力默认是被启用的，不过扩充 CSI 卷要求 CSI
+驱动支持卷扩充操作。可参阅特定 CSI 驱动的文档了解更多信息。</p><h4 id=resizing-a-volume-containing-a-file-system>重设包含文件系统的卷的大小<a class=td-heading-self-link href=#resizing-a-volume-containing-a-file-system aria-label="Heading self-link"></a></h4><p>只有卷中包含的文件系统是 XFS、Ext3 或者 Ext4 时，你才可以重设卷的大小。</p><p>当卷中包含文件系统时，只有在 Pod 使用 <code>ReadWrite</code> 模式来使用 PVC
+申领的情况下才能重设其文件系统的大小。文件系统扩充的操作或者是在 Pod
+启动期间完成，或者在下层文件系统支持在线扩充的前提下在 Pod 运行期间完成。</p><p>如果 FlexVolume 的驱动将 <code>RequiresFSResize</code> 能力设置为 <code>true</code>，
+则该 FlexVolume 卷（于 Kubernetes v1.23 弃用）可以在 Pod 重启期间调整大小。</p><h4 id=resizing-an-in-use-persistentvolumevlaim>重设使用中 PVC 申领的大小 <a class=td-heading-self-link href=#resizing-an-in-use-persistentvolumevlaim aria-label="Heading self-link"></a></h4><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.24</span></div><p>在这种情况下，你不需要删除和重建正在使用某现有 PVC 的 Pod 或 Deployment。
+所有使用中的 PVC 在其文件系统被扩充之后，立即可供其 Pod 使用。
+此功能特性对于没有被 Pod 或 Deployment 使用的 PVC 而言没有效果。
+你必须在执行扩展操作之前创建一个使用该 PVC 的 Pod。</p><p>与其他卷类型类似，FlexVolume 卷也可以在被 Pod 使用期间执行扩充操作。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>FlexVolume 卷的重设大小只能在下层驱动支持重设大小的时候才可进行。</p></div><h4 id=recovering-from-failure-when-expanding-volumes>处理扩充卷过程中的失败 <a class=td-heading-self-link href=#recovering-from-failure-when-expanding-volumes aria-label="Heading self-link"></a></h4><p>如果用户指定的新大小过大，底层存储系统无法满足，PVC 的扩展将不断重试，
+直到用户或集群管理员采取一些措施。这种情况是不希望发生的，因此 Kubernetes
+提供了以下从此类故障中恢复的方法。</p><ul class="nav nav-tabs" id=tabs-恢复方法 role=tablist><li class=nav-item><button class="nav-link active" id=tabs-恢复方法-0-tab data-bs-toggle=tab data-bs-target=#tabs-恢复方法-0 role=tab aria-controls=tabs-恢复方法-0 aria-selected=true>
+集群管理员手动处理</button><li class=nav-item><button class=nav-link id=tabs-恢复方法-1-tab data-bs-toggle=tab data-bs-target=#tabs-恢复方法-1 role=tab aria-controls=tabs-恢复方法-1 aria-selected=false>
+通过请求扩展为更小尺寸</button></ul><div class=tab-content id=tabs-恢复方法-content><div class="tab-body tab-pane fadeshow active" id=tabs-恢复方法-0 role=tabpanel aria-labelledby=tabs-恢复方法-0-tab tabindex=恢复方法><p>如果扩充下层存储的操作失败，集群管理员可以手动地恢复 PVC
+申领的状态并取消重设大小的请求。否则，在没有管理员干预的情况下，
+控制器会反复重试重设大小的操作。</p><ol><li>将绑定到 PVC 申领的 PV 卷标记为 <code>Retain</code> 回收策略。</li><li>删除 PVC 对象。由于 PV 的回收策略为 <code>Retain</code>，我们不会在重建 PVC 时丢失数据。</li><li>删除 PV 规约中的 <code>claimRef</code> 项，这样新的 PVC 可以绑定到该卷。
+这一操作会使得 PV 卷变为"可用（Available）"。</li><li>使用小于 PV 卷大小的尺寸重建 PVC，设置 PVC 的 <code>volumeName</code> 字段为 PV 卷的名称。
+这一操作将把新的 PVC 对象绑定到现有的 PV 卷。</li><li>不要忘记恢复 PV 卷上设置的回收策略。</li></ol></div><div class="tab-body tab-pane fade" id=tabs-恢复方法-1 role=tabpanel aria-labelledby=tabs-恢复方法-1-tab tabindex=恢复方法><p>如果 PVC 扩展失败，你可以使用比先前请求值更小的值来重试扩展。
+要使用一个更小的尺寸尝试请求新的扩展，请编辑该 PVC 的 <code>.spec.resources</code>
+并选择一个比你之前所尝试的值更小的值。
+如果由于容量限制而无法成功扩展至更高的值，这将很有用。
+如果发生了这种情况，或者你怀疑可能发生了这种情况，
+你可以通过指定一个在底层存储制备容量限制内的尺寸来重试扩展。
+你可以通过查看 <code>.status.allocatedResourceStatuses</code> 以及 PVC 上的事件来监控调整大小操作的状态。</p><p>请注意，尽管你可以指定比之前的请求更低的存储量，新值必须仍然高于
+<code>.status.capacity</code>。Kubernetes 不支持将 PVC 缩容到小于其当前值。</p></div></div><h2 id=types-of-persistent-volumes>持久卷的类型 <a class=td-heading-self-link href=#types-of-persistent-volumes aria-label="Heading self-link"></a></h2><p>PV 持久卷是用插件的形式来实现的。Kubernetes 目前支持以下插件：</p><ul><li><a href=/zh-cn/docs/concepts/storage/volumes/#csi><code>csi</code></a> - 容器存储接口（CSI）</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#fc><code>fc</code></a> - Fibre Channel（FC）存储</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#hostpath><code>hostPath</code></a> - HostPath 卷
+（仅供单节点测试使用；不适用于多节点集群；请尝试使用 <code>local</code> 卷作为替代）</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#iscsi><code>iscsi</code></a> - iSCSI（IP 上的 SCSI）存储</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#local><code>local</code></a> - 节点上挂载的本地存储设备</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#nfs><code>nfs</code></a> - 网络文件系统（NFS）存储</li></ul><p>以下的持久卷已被弃用但仍然可用。
+如果你使用除 <code>flexVolume</code>、<code>cephfs</code> 和 <code>rbd</code> 之外的卷类型，请安装相应的 CSI 驱动程序。</p><ul><li><a href=/zh-cn/docs/concepts/storage/volumes/#awselasticblockstore><code>awsElasticBlockStore</code></a> - AWS Elastic 块存储（EBS）
+（从 v1.23 开始<strong>默认启用迁移</strong>）</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#azuredisk><code>azureDisk</code></a> - Azure 磁盘
+（从 v1.23 开始<strong>默认启用迁移</strong>）</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#azurefile><code>azureFile</code></a> - Azure 文件
+（从 v1.24 开始<strong>默认启用迁移</strong>）</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#cinder><code>cinder</code></a> - Cinder（OpenStack 块存储）
+（从 v1.21 开始<strong>默认启用迁移</strong>）</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#flexVolume><code>flexVolume</code></a> - FlexVolume
+（从 v1.23 开始<strong>弃用</strong>，没有迁移计划，没有移除支持的计划）</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#gcePersistentDisk><code>gcePersistentDisk</code></a> - GCE 持久磁盘
+（从 v1.23 开始<strong>默认启用迁移</strong>）</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#portworxvolume><code>portworxVolume</code></a> - Portworx 卷
+（从 v1.31 开始<strong>默认启用迁移</strong>）</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#vspherevolume><code>vsphereVolume</code></a> - vSphere VMDK 卷
+（从 v1.25 开始<strong>默认启用迁移</strong>）</li></ul><p>旧版本的 Kubernetes 仍支持这些“树内（In-Tree）”持久卷类型：</p><ul><li><a href=/zh-cn/docs/concepts/storage/volumes/#cephfs><code>cephfs</code></a>
+（v1.31 之后<strong>不可用</strong>）</li><li><code>flocker</code> - Flocker 存储。
+（v1.25 之后<strong>不可用</strong>）</li><li><code>glusterfs</code> - GlusterFS 存储。
+（v1.26 之后<strong>不可用</strong>）</li><li><code>photonPersistentDisk</code> - Photon 控制器持久化盘
+（v1.15 之后<strong>不可用</strong>）</li><li><code>quobyte</code> - Quobyte 卷。
+（v1.25 之后<strong>不可用</strong>）</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#rbd><code>rbd</code></a> - Rados 块设备（RBD）卷
+（v1.31 之后<strong>不可用</strong>）</li><li><code>scaleIO</code> - ScaleIO 卷
+（v1.21 之后<strong>不可用</strong>）</li><li><code>storageos</code> - StorageOS 卷
+（v1.25 之后<strong>不可用</strong>）</li></ul><h2 id=persistent-volumes>持久卷 <a class=td-heading-self-link href=#persistent-volumes aria-label="Heading self-link"></a></h2><p>每个 PV 对象都包含 <code>spec</code> 部分和 <code>status</code> 部分，分别对应卷的规约和状态。
+PersistentVolume 对象的名称必须是合法的
+<a href=/zh-cn/docs/concepts/overview/working-with-objects/names#dns-subdomain-names>DNS 子域名</a>。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>pv0003</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>capacity</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>5Gi</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeMode</span><span class=p>:</span><span class=w> </span><span class=l>Filesystem</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>accessModes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>ReadWriteOnce</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>persistentVolumeReclaimPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Recycle</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>storageClassName</span><span class=p>:</span><span class=w> </span><span class=l>slow</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>mountOptions</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>hard</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>nfsvers=4.1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>nfs</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/tmp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>server</span><span class=p>:</span><span class=w> </span><span class=m>172.17.0.2</span><span class=w>
+</span></span></span></code></pre></div><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>在集群中使用持久卷存储通常需要一些特定于具体卷类型的辅助程序。
+在这个例子中，PersistentVolume 是 NFS 类型的，因此需要辅助程序 <code>/sbin/mount.nfs</code>
+来支持挂载 NFS 文件系统。</p></div><h3 id=capacity>容量 <a class=td-heading-self-link href=#capacity aria-label="Heading self-link"></a></h3><p>一般而言，每个 PV 卷都有确定的存储容量。
+这是通过 PV 的 <code>capacity</code> 属性设置的，
+该属性是一个<a class=glossary-tooltip title='使用全数字来表示较小数值或使用 SI 后缀表示较大数值的表示法。' data-bs-toggle=tooltip data-bs-placement=top href='/zh-cn/docs/reference/glossary/?all=true#term-quantity' target=_blank aria-label=量纲（Quantity）>量纲（Quantity）</a>。</p><p>目前存储大小是可以设置和请求的唯一资源，
+未来可能会包含 IOPS、吞吐量等属性。</p><h3 id=volume-mode>卷模式 <a class=td-heading-self-link href=#volume-mode aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.18</span></div><p>针对 PV 持久卷，Kubernetes
+支持两种卷模式（<code>volumeModes</code>）：<code>Filesystem（文件系统）</code> 和 <code>Block（块）</code>。
+<code>volumeMode</code> 是一个可选的 API 参数。
+如果该参数被省略，默认的卷模式是 <code>Filesystem</code>。</p><p><code>volumeMode</code> 属性设置为 <code>Filesystem</code> 的卷会被 Pod<strong>挂载（Mount）</strong> 到某个目录。
+如果卷的存储来自某块设备而该设备目前为空，Kubernetes 会在第一次挂载卷之前在设备上创建文件系统。</p><p>你可以将 <code>volumeMode</code> 设置为 <code>Block</code>，以便将卷作为原始块设备来使用。
+这类卷以块设备的方式交给 Pod 使用，其上没有任何文件系统。
+这种模式对于为 Pod 提供一种使用最快可能方式来访问卷而言很有帮助，
+Pod 和卷之间不存在文件系统层。另外，Pod 中运行的应用必须知道如何处理原始块设备。
+关于如何在 Pod 中使用 <code>volumeMode: Block</code> 的卷，
+可参阅<a href=#raw-block-volume-support>原始块卷支持</a>。</p><h3 id=access-modes>访问模式 <a class=td-heading-self-link href=#access-modes aria-label="Heading self-link"></a></h3><p>PersistentVolume 卷可以用资源提供者所支持的任何方式挂载到宿主系统上。
+如下表所示，提供者（驱动）的能力不同，每个 PV 卷的访问模式都会设置为对应卷所支持的模式值。
+例如，NFS 可以支持多个读写客户，但是某个特定的 NFS PV 卷可能在服务器上以只读的方式导出。
+每个 PV 卷都会获得自身的访问模式集合，描述的是特定 PV 卷的能力。</p><p>访问模式有：</p><dl><dt><code>ReadWriteOnce</code></dt><dd>卷可以被一个节点以读写方式挂载。
+ReadWriteOnce 访问模式仍然可以在同一节点上运行的多个 Pod 访问（读取或写入）该卷。
+对于单个 Pod 的访问，请参考 ReadWriteOncePod 访问模式。</dd><dt><code>ReadOnlyMany</code></dt><dd>卷可以被多个节点以只读方式挂载。</dd></dl><dl><dt><code>ReadWriteMany</code></dt><dd>卷可以被多个节点以读写方式挂载。</dd><dt><code>ReadWriteOncePod</code></dt><dd><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.29</span></div>卷可以被单个 Pod 以读写方式挂载。
+如果你想确保整个集群中只有一个 Pod 可以读取或写入该 PVC，
+请使用 ReadWriteOncePod 访问模式。</dd></dl><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p><code>ReadWriteOncePod</code> 访问模式仅适用于 <a class=glossary-tooltip title='容器存储接口 （CSI）定义了存储系统暴露给容器的标准接口。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/storage/volumes/#csi target=_blank aria-label=CSI>CSI</a>
+卷和 Kubernetes v1.22+。要使用此特性，你需要将以下
+<a href=https://kubernetes-csi.github.io/docs/sidecar-containers.html>CSI 边车</a>更新为下列或更高版本：</p><ul><li><a href=https://github.com/kubernetes-csi/external-provisioner/releases/tag/v3.0.0>csi-provisioner:v3.0.0+</a></li><li><a href=https://github.com/kubernetes-csi/external-attacher/releases/tag/v3.3.0>csi-attacher:v3.3.0+</a></li><li><a href=https://github.com/kubernetes-csi/external-resizer/releases/tag/v1.3.0>csi-resizer:v1.3.0+</a></li></ul></div><p>在命令行接口（CLI）中，访问模式也使用以下缩写形式：</p><ul><li>RWO - ReadWriteOnce</li><li>ROX - ReadOnlyMany</li><li>RWX - ReadWriteMany</li><li>RWOP - ReadWriteOncePod</li></ul><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>Kubernetes 使用卷访问模式来匹配 PersistentVolumeClaim 和 PersistentVolume。
+在某些场合下，卷访问模式也会限制 PersistentVolume 可以挂载的位置。
+卷访问模式并<strong>不会</strong>在存储已经被挂载的情况下为其实施写保护。
+即使访问模式设置为 ReadWriteOnce、ReadOnlyMany 或 ReadWriteMany，它们也不会对卷形成限制。
+例如，即使某个卷创建时设置为 ReadOnlyMany，也无法保证该卷是只读的。
+如果访问模式设置为 ReadWriteOncePod，则卷会被限制起来并且只能挂载到一个 Pod 上。</p></div><blockquote><p><strong>重要提醒！</strong> 每个卷同一时刻只能以一种访问模式挂载，即使该卷能够支持多种访问模式。</p></blockquote><table><thead><tr><th style=text-align:left>卷插件</th><th style=text-align:center>ReadWriteOnce</th><th style=text-align:center>ReadOnlyMany</th><th style=text-align:center>ReadWriteMany</th><th>ReadWriteOncePod</th></tr></thead><tbody><tr><td style=text-align:left>AzureFile</td><td style=text-align:center>✓</td><td style=text-align:center>✓</td><td style=text-align:center>✓</td><td>-</td></tr><tr><td style=text-align:left>CephFS</td><td style=text-align:center>✓</td><td style=text-align:center>✓</td><td style=text-align:center>✓</td><td>-</td></tr><tr><td style=text-align:left>CSI</td><td style=text-align:center>取决于驱动</td><td style=text-align:center>取决于驱动</td><td style=text-align:center>取决于驱动</td><td>取决于驱动</td></tr><tr><td style=text-align:left>FC</td><td style=text-align:center>✓</td><td style=text-align:center>✓</td><td style=text-align:center>-</td><td>-</td></tr><tr><td style=text-align:left>FlexVolume</td><td style=text-align:center>✓</td><td style=text-align:center>✓</td><td style=text-align:center>取决于驱动</td><td>-</td></tr><tr><td style=text-align:left>GCEPersistentDisk</td><td style=text-align:center>✓</td><td style=text-align:center>✓</td><td style=text-align:center>-</td><td>-</td></tr><tr><td style=text-align:left>Glusterfs</td><td style=text-align:center>✓</td><td style=text-align:center>✓</td><td style=text-align:center>✓</td><td>-</td></tr><tr><td style=text-align:left>HostPath</td><td style=text-align:center>✓</td><td style=text-align:center>-</td><td style=text-align:center>-</td><td>-</td></tr><tr><td style=text-align:left>iSCSI</td><td style=text-align:center>✓</td><td style=text-align:center>✓</td><td style=text-align:center>-</td><td>-</td></tr><tr><td style=text-align:left>NFS</td><td style=text-align:center>✓</td><td style=text-align:center>✓</td><td style=text-align:center>✓</td><td>-</td></tr><tr><td style=text-align:left>RBD</td><td style=text-align:center>✓</td><td style=text-align:center>✓</td><td style=text-align:center>-</td><td>-</td></tr><tr><td style=text-align:left>VsphereVolume</td><td style=text-align:center>✓</td><td style=text-align:center>-</td><td style=text-align:center>-（Pod 运行于同一节点上时可行）</td><td>-</td></tr><tr><td style=text-align:left>PortworxVolume</td><td style=text-align:center>✓</td><td style=text-align:center>-</td><td style=text-align:center>✓</td><td>-</td></tr></tbody></table><h3 id=class>类 <a class=td-heading-self-link href=#class aria-label="Heading self-link"></a></h3><p>每个 PV 可以属于某个类（Class），通过将其 <code>storageClassName</code> 属性设置为某个
+<a href=/zh-cn/docs/concepts/storage/storage-classes/>StorageClass</a> 的名称来指定。
+特定类的 PV 卷只能绑定到请求该类存储卷的 PVC 申领。
+未设置 <code>storageClassName</code> 的 PV 卷没有类设定，只能绑定到那些没有指定特定存储类的 PVC 上。</p><p>早前，Kubernetes 使用注解 <code>volume.beta.kubernetes.io/storage-class</code> 而不是
+<code>storageClassName</code> 属性。这一注解目前仍然起作用，不过在将来的 Kubernetes
+发布版本中该注解会被彻底废弃。</p><h3 id=reclaim-policy>回收策略 <a class=td-heading-self-link href=#reclaim-policy aria-label="Heading self-link"></a></h3><p>目前的回收策略有：</p><ul><li>Retain -- 手动回收</li><li>Recycle -- 简单擦除（<code>rm -rf /thevolume/*</code>）</li><li>Delete -- 删除存储卷</li></ul><p>对于 Kubernetes 1.37 来说，只有
+<code>nfs</code> 和 <code>hostPath</code> 卷类型支持回收（Recycle）。</p><h3 id=mount-options>挂载选项 <a class=td-heading-self-link href=#mount-options aria-label="Heading self-link"></a></h3><p>Kubernetes 管理员可以指定持久卷被挂载到节点上时使用的附加挂载选项。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>并非所有持久卷类型都支持挂载选项。</p></div><p>以下卷类型支持挂载选项：</p><ul><li><code>csi</code>（包含 CSI 迁移的卷类型）</li><li><code>iscsi</code></li><li><code>nfs</code></li></ul><p>Kubernetes 不对挂载选项执行合法性检查。如果挂载选项是非法的，挂载就会失败。</p><p>早前，Kubernetes 使用注解 <code>volume.beta.kubernetes.io/mount-options</code> 而不是
+<code>mountOptions</code> 属性。这一注解目前仍然起作用，不过在将来的 Kubernetes
+发布版本中该注解会被彻底废弃。</p><h3 id=node-affinity>节点亲和性 <a class=td-heading-self-link href=#node-affinity aria-label="Heading self-link"></a></h3><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>对大多数卷类型而言，你不需要设置节点亲和性字段。
+你需要为 <a href=/zh-cn/docs/concepts/storage/volumes/#local>local</a>
+卷显式地设置此属性。</p></div><p>每个 PV 卷可以通过设置节点亲和性来定义一些约束，进而限制从哪些节点上可以访问此卷。
+使用这些卷的 Pod 只会被调度到节点亲和性规则所选择的节点上执行。
+要设置节点亲和性，配置 PV 卷 <code>.spec</code> 中的 <code>nodeAffinity</code>。
+<a href=/zh-cn/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-v1/#PersistentVolumeSpec>持久卷</a>
+API 参考关于该字段的更多细节。</p><h4 id=节点亲和性更新>节点亲和性更新<a class=td-heading-self-link href=#%e8%8a%82%e7%82%b9%e4%ba%b2%e5%92%8c%e6%80%a7%e6%9b%b4%e6%96%b0 aria-label="Heading self-link"></a></h4><div class="feature-state-notice feature-alpha" title="特性门控： MutablePVNodeAffinity"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.35; （默认禁用）</span></div><div class=feature-alpha><details><summary>More information about this feature</summary><p>To use this feature, you (or a cluster administrator) will need to enable the <a href=/docs/reference/command-line-tools-reference/feature-gates/#MutablePVNodeAffinity><tt>MutablePVNodeAffinity</tt></a> feature gate for all relevant components in your cluster.</p><p>See <a href=/docs/tasks/administer-cluster/configure-feature-gates/>Enable Or Disable Feature Gates</a> for more information.</p></details></div><p>如果集群中启用了 <code>MutablePVNodeAffinity</code> 特性
+（<a href=/zh-cn/docs/reference/command-line-tools-reference/feature-gates/>特性门控</a>），
+则 PersistentVolume 的 <code>.spec.nodeAffinity</code> 字段将变为可变。
+这允许集群管理员或外部存储控制器在数据迁移时更新 PersistentVolume
+的节点亲和性，而无需中断正在运行的 Pod。</p><p>更新节点亲和性时，应确保新的节点亲和性仍然与卷当前使用的节点匹配。
+对于违反新亲和性的 Pod，如果该 Pod 已在运行，则可以继续运行。
+但 Kubernetes 不支持此配置，应尽快终止违反新亲和性的 Pod。
+由于内存缓存的存在，更新后创建的 Pod 在短时间内可能仍会按照旧的节点亲和性进行调度。</p><p>要使用此特性，应在以下组件上启用 <code>MutablePVNodeAffinity</code> 特性门控：</p><ul><li><code>kube-apiserver</code></li><li><code>kubelet</code></li></ul><h3 id=phase>阶段 <a class=td-heading-self-link href=#phase aria-label="Heading self-link"></a></h3><p>每个持久卷会处于以下阶段（Phase）之一：</p><dl><dt><code>Available</code></dt><dd>卷是一个空闲资源，尚未绑定到任何申领</dd><dt><code>Bound</code></dt><dd>该卷已经绑定到某申领</dd><dt><code>Released</code></dt><dd>所绑定的申领已被删除，但是关联存储资源尚未被集群回收</dd><dt><code>Failed</code></dt><dd>卷的自动回收操作失败</dd></dl><p>你可以使用 <code>kubectl describe persistentvolume &lt;name></code> 查看已绑定到
+PV 的 PVC 的名称。</p><h4 id=phase-transition-timestamp>阶段转换时间戳 <a class=td-heading-self-link href=#phase-transition-timestamp aria-label="Heading self-link"></a></h4><div class="feature-state-locked feature-state-removed feature-stable"><p><em>This is a stable feature in Kubernetes, and has been since the 1.31 release. You can no longer toggle this feature (the associated <a href=/docs/reference/command-line-tools-reference/feature-gates-removed/>feature gate</a> has been removed).</em></p></div><p>持久卷的 <code>.status</code> 字段可以包含 Alpha 状态的 <code>lastPhaseTransitionTime</code> 字段。
+该字段保存的是卷上次转换阶段的时间戳。
+对于新创建的卷，阶段被设置为 <code>Pending</code>，<code>lastPhaseTransitionTime</code> 被设置为当前时间。</p><h2 id=persistentvolumeclaim>PersistentVolumeClaim<a class=td-heading-self-link href=#persistentvolumeclaim aria-label="Heading self-link"></a></h2><p>每个 PVC 对象都有 <code>spec</code> 和 <code>status</code> 部分，分别对应申领的规约和状态。
+PersistentVolumeClaim 对象的名称必须是合法的
+<a href=/zh-cn/docs/concepts/overview/working-with-objects/names#dns-subdomain-names>DNS 子域名</a>。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>myclaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>accessModes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>ReadWriteOnce</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeMode</span><span class=p>:</span><span class=w> </span><span class=l>Filesystem</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>requests</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>8Gi</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>storageClassName</span><span class=p>:</span><span class=w> </span><span class=l>slow</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>matchLabels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>release</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;stable&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>matchExpressions</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- {<span class=nt>key: environment, operator: In, values</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=l>dev]}</span><span class=w>
+</span></span></span></code></pre></div><h3 id=access-modes>访问模式<a class=td-heading-self-link href=#access-modes aria-label="Heading self-link"></a></h3><p>申领在请求具有特定访问模式的存储时，使用与卷相同的<a href=#access-modes>访问模式约定</a>。</p><h3 id=volume-modes>卷模式<a class=td-heading-self-link href=#volume-modes aria-label="Heading self-link"></a></h3><p>申领使用<a href=#volume-mode>与卷相同的约定</a>来表明是将卷作为文件系统还是块设备来使用。</p><h3 id=volume-name>卷名称 <a class=td-heading-self-link href=#volume-name aria-label="Heading self-link"></a></h3><p>申领可以使用 <code>volumeName</code> 字段显式绑定到特定的 PersistentVolume。
+你也可以不设置 <code>volumeName</code> 字段，这表示你希望 Kubernetes 设置一个与申领匹配的新 PersistentVolume。
+如果指定的 PV 已经绑定到另一个 PVC，则绑定操作将卡在 Pending 状态。</p><h3 id=resources>资源 <a class=td-heading-self-link href=#resources aria-label="Heading self-link"></a></h3><p>申领和 Pod 一样，也可以请求特定数量的资源。在这个上下文中，请求的资源是存储。
+卷和申领都使用相同的<a href=https://git.k8s.io/design-proposals-archive/scheduling/resources.md>资源模型</a>。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>对于 <code>Filesystem</code> 类型的卷，存储请求指的是“外部”卷的大小（即从存储后端分配的大小）。<br>这意味着，对于在块设备之上构建文件系统的提供商来说，由于文件系统开销，可写入的大小可能会略小。<br>这种情况在 XFS 文件系统中尤为明显，因为默认启用了许多元数据功能。</p></div><h3 id=selector>选择算符 <a class=td-heading-self-link href=#selector aria-label="Heading self-link"></a></h3><p>申领可以设置<a href=/zh-cn/docs/concepts/overview/working-with-objects/labels/#label-selectors>标签选择算符</a>
+来进一步过滤卷集合。只有标签与选择算符相匹配的卷能够绑定到申领上。
+选择算符包含两个字段：</p><ul><li><code>matchLabels</code> - 卷必须包含带有此值的标签</li><li><code>matchExpressions</code> - 通过设定键（key）、值列表和操作符（operator）
+来构造的需求。合法的操作符有 <code>In</code>、<code>NotIn</code>、<code>Exists</code> 和 <code>DoesNotExist</code>。</li></ul><p>来自 <code>matchLabels</code> 和 <code>matchExpressions</code> 的所有需求都按逻辑与的方式组合在一起。
+这些需求都必须被满足才被视为匹配。</p><h3 id=class>类 <a class=td-heading-self-link href=#class aria-label="Heading self-link"></a></h3><p>申领可以通过为 <code>storageClassName</code> 属性设置
+<a href=/zh-cn/docs/concepts/storage/storage-classes/>StorageClass</a> 的名称来请求特定的存储类。
+只有所请求的类的 PV 卷，即 <code>storageClassName</code> 值与 PVC 设置相同的 PV 卷，
+才能绑定到 PVC 申领。</p><p>PVC 申领不必一定要请求某个类。如果 PVC 的 <code>storageClassName</code> 属性值设置为 <code>""</code>，
+则被视为要请求的是没有设置存储类的 PV 卷，因此这一 PVC 申领只能绑定到未设置存储类的
+PV 卷（未设置注解或者注解值为 <code>""</code> 的 PersistentVolume（PV）对象在系统中不会被删除，
+因为这样做可能会引起数据丢失）。未设置 <code>storageClassName</code> 的 PVC 与此大不相同，
+也会被集群作不同处理。具体筛查方式取决于
+<a href=/zh-cn/docs/reference/access-authn-authz/admission-controllers/#defaultstorageclass><code>DefaultStorageClass</code> 准入控制器插件</a>是否被启用。</p><ul><li>如果准入控制器插件被启用，则管理员可以设置一个默认的 StorageClass。
+所有未设置 <code>storageClassName</code> 的 PVC 都只能绑定到隶属于默认存储类的 PV 卷。
+设置默认 StorageClass 的工作是通过将对应 StorageClass 对象的注解
+<code>storageclass.kubernetes.io/is-default-class</code> 赋值为 <code>true</code> 来完成的。
+如果管理员未设置默认存储类，集群对 PVC 创建的处理方式与未启用准入控制器插件时相同。
+如果设定的默认存储类不止一个，当 PVC 被动态制备时将使用最新的默认存储类。</li><li>如果准入控制器插件被关闭，则不存在默认 StorageClass 的说法。
+所有将 <code>storageClassName</code> 设为 <code>""</code> 的 PVC 只能被绑定到也将 <code>storageClassName</code> 设为 <code>""</code> 的 PV。
+不过，只要默认的 StorageClass 可用，就可以稍后更新缺少 <code>storageClassName</code> 的 PVC。
+如果这个 PVC 更新了，它将不再绑定到也将 <code>storageClassName</code> 设为 <code>""</code> 的 PV。</li></ul><p>参阅<a href=#retroactive-default-storageclass-assignment>可追溯的默认 StorageClass 赋值</a>了解更多详细信息。</p><p>取决于安装方法，默认的 StorageClass 可能在集群安装期间由插件管理器（Addon
+Manager）部署到集群中。</p><p>当某 PVC 除了请求 StorageClass 之外还设置了 <code>selector</code>，则这两种需求会按逻辑与关系处理：
+只有隶属于所请求类且带有所请求标签的 PV 才能绑定到 PVC。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>目前，设置了非空 <code>selector</code> 的 PVC 对象无法让集群为其动态制备 PV 卷。</p></div><p>早前，Kubernetes 使用注解 <code>volume.beta.kubernetes.io/storage-class</code> 而不是
+<code>storageClassName</code> 属性。这一注解目前仍然起作用，不过在将来的 Kubernetes
+发布版本中该注解会被彻底废弃。</p><h4 id=retroactive-default-storageclass-assignment>可追溯的默认 StorageClass 赋值 <a class=td-heading-self-link href=#retroactive-default-storageclass-assignment aria-label="Heading self-link"></a></h4><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.28</span></div><p>你可以创建 PersistentVolumeClaim，而无需为新 PVC 指定 <code>storageClassName</code>。
+即使你的集群中不存在默认 StorageClass，你也可以这样做。
+在这种情况下，新的 PVC 会按照你的定义进行创建，并且在默认值可用之前，该 PVC 的
+<code>storageClassName</code> 保持不设置。</p><p>当一个默认的 StorageClass 变得可用时，控制平面会识别所有未设置 <code>storageClassName</code>
+的现有 PVC。对于 <code>storageClassName</code> 为空值或没有此主键的 PVC，
+控制平面会更新这些 PVC 以设置其 <code>storageClassName</code> 与新的默认 StorageClass 匹配。
+如果你有一个现有的 PVC，其中 <code>storageClassName</code> 是 <code>""</code>，
+并且你配置了默认 StorageClass，则此 PVC 将不会得到更新。</p><p>为了保持绑定到 <code>storageClassName</code> 设为 <code>""</code> 的 PV（当存在默认 StorageClass 时），
+你需要将关联 PVC 的 <code>storageClassName</code> 设置为 <code>""</code>。</p><p>此行为可帮助管理员更改默认 StorageClass，方法是先移除旧的 PVC，然后再创建或设置另一个 PVC。
+这一时间窗口内因为没有指定默认值，会导致所创建的未设置 <code>storageClassName</code> 的 PVC 也没有默认值设置，
+但由于默认 StorageClass 赋值是可追溯的，这种更改默认值的方式是安全的。</p><h3 id=unused-pvc-tracking>跟踪未使用的 PVC <a class=td-heading-self-link href=#unused-pvc-tracking aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-beta" title="特性门控： PersistentVolumeClaimUnusedSinceTime"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Beta</span> since Kubernetes v1.37; （默认启用）</span></div><div class=feature-beta></div><p>启用后，PVC 保护控制器为每个 PersistentVolumeClaim 添加 <code>Unused</code>
+<a href=/zh-cn/docs/concepts/workloads/pods/pod-lifecycle/#pod-conditions>状况</a>，
+标明 PVC 当前是否被任何非终端的 Pod 引用。</p><p>此状况有两种状态：</p><dl><dt><code>Unused</code>，状态为 <code>"True"</code>（原因 <code>NoPodsUsingPVC</code>）</dt><dd>没有非终端的 Pod 引用此 PVC。<code>lastTransitionTime</code> 记录
+PVC 何时成为未使用。</dd><dt><code>Unused</code>，状态为 <code>"False"</code>（原因 <code>PodUsingPVC</code>）</dt><dd>当前至少有一个非终端的 Pod 引用此 PVC。
+<code>lastTransitionTime</code> 记录 PVC 何时开始被使用。</dd></dl><p>如果 Pod 的阶段不是 <code>Succeeded</code> 或 <code>Failed</code>，则此该 Pod 被视为非终端 Pod。
+这意味着 Pending 状态的 Pod（即使尚未被调度）也会被视为正在使用此 PVC。</p><p><code>Unused</code> 状况中的 <code>lastTransitionTime</code> 可供集群管理员、监控工具以及外部控制器使用，
+以识别长时间未被使用的 PVC。例如，要查找所有超过 30 天未使用的 PVC，可以查询那些 <code>Unused</code>
+状况满足 <code>status: "True"</code> 且 <code>lastTransitionTime</code> 早于 30 天前的 PVC。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>此状况所表示的未使用时长可能短于实际未使用时间，原因可能是控制器处理存在延迟，或者此特性是在 PVC
+已经处于未使用状态之后才启用的。当 PVC 设置了 <code>deletionTimestamp</code>（即 PVC 正在被删除）时，此状况不会被更新。</p></div><h2 id=claims-as-volumes>使用申领作为卷 <a class=td-heading-self-link href=#claims-as-volumes aria-label="Heading self-link"></a></h2><p>Pod 将申领作为卷来使用，并藉此访问存储资源。
+申领必须位于使用它的 Pod 所在的同一名字空间内。
+集群在 Pod 的名字空间中查找申领，并使用它来获得申领所使用的 PV 卷。
+之后，卷会被挂载到宿主上并挂载到 Pod 中。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>mypod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>myfrontend</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>nginx</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;/var/www/html&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>mypd</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>mypd</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>persistentVolumeClaim</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>claimName</span><span class=p>:</span><span class=w> </span><span class=l>myclaim</span><span class=w>
+</span></span></span></code></pre></div><h3 id=a-note-on-namespaces>关于名字空间的说明 <a class=td-heading-self-link href=#a-note-on-namespaces aria-label="Heading self-link"></a></h3><p>PersistentVolume 卷的绑定是排他性的。
+由于 PersistentVolumeClaim 是名字空间作用域的对象，使用
+"Many" 模式（<code>ROX</code>、<code>RWX</code>）来挂载申领的操作只能在同一名字空间内进行。</p><h3 id=persistentvolumes-typed-hostpath>类型为 <code>hostpath</code> 的 PersistentVolume <a class=td-heading-self-link href=#persistentvolumes-typed-hostpath aria-label="Heading self-link"></a></h3><p><code>hostPath</code> PersistentVolume 使用节点上的文件或目录来模拟网络附加（network-attached）存储。
+相关细节可参阅
+<a href=/zh-cn/docs/tutorials/configuration/configure-persistent-volume-storage/#create-a-persistentvolume><code>hostPath</code> 卷示例</a>。</p><h2 id=raw-block-volume-support>原始块卷支持 <a class=td-heading-self-link href=#raw-block-volume-support aria-label="Heading self-link"></a></h2><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.18</span></div><p>以下卷插件支持原始块卷，包括其动态制备（如果支持的话）的卷：</p><ul><li>CSI（包含一些 CSI 迁移的卷类型）</li><li>FC（光纤通道）</li><li>iSCSI</li><li>Local 卷</li></ul><h3 id=persistent-volume-using-a-raw-block-volume>使用原始块卷的持久卷 <a class=td-heading-self-link href=#persistent-volume-using-a-raw-block-volume aria-label="Heading self-link"></a></h3><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>block-pv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>capacity</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>10Gi</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>accessModes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>ReadWriteOnce</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeMode</span><span class=p>:</span><span class=w> </span><span class=l>Block</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>persistentVolumeReclaimPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Retain</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>fc</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>targetWWNs</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s2>&#34;50060e801049cfd1&#34;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>lun</span><span class=p>:</span><span class=w> </span><span class=m>0</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>readOnly</span><span class=p>:</span><span class=w> </span><span class=kc>false</span><span class=w>
+</span></span></span></code></pre></div><h3 id=persistent-volume-claim-requesting-a-raw-block-volume>申请原始块卷的 PVC 申领 <a class=td-heading-self-link href=#persistent-volume-claim-requesting-a-raw-block-volume aria-label="Heading self-link"></a></h3><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>block-pvc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>accessModes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>ReadWriteOnce</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeMode</span><span class=p>:</span><span class=w> </span><span class=l>Block</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>requests</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>10Gi</span><span class=w>
+</span></span></span></code></pre></div><h3 id=pod-spec-adding-raw-block-device-path-in-container>在容器中添加原始块设备路径的 Pod 规约 <a class=td-heading-self-link href=#pod-spec-adding-raw-block-device-path-in-container aria-label="Heading self-link"></a></h3><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>pod-with-block-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>fc-container</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>fedora:26</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s2>&#34;/bin/sh&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;-c&#34;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>args</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=w> </span><span class=s2>&#34;tail -f /dev/null&#34;</span><span class=w> </span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>volumeDevices</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>data</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>devicePath</span><span class=p>:</span><span class=w> </span><span class=l>/dev/xvda</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>data</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>persistentVolumeClaim</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>claimName</span><span class=p>:</span><span class=w> </span><span class=l>block-pvc</span><span class=w>
+</span></span></span></code></pre></div><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>向 Pod 中添加原始块设备时，你要在容器内设置设备路径而不是挂载路径。</p></div><h3 id=binding-block-volumes>绑定块卷 <a class=td-heading-self-link href=#binding-block-volumes aria-label="Heading self-link"></a></h3><p>如果用户通过 PersistentVolumeClaim 规约的 <code>volumeMode</code> 字段来表明对原始块设备的请求，
+绑定规则与之前版本中未在规约中考虑此模式的实现略有不同。
+下面列举的表格是用户和管理员可以为请求原始块设备所作设置的组合。
+此表格表明在不同的组合下卷是否会被绑定。静态制备卷的卷绑定矩阵如下：</p><table><thead><tr><th>PV volumeMode</th><th style=text-align:center>PVC volumeMode</th><th style=text-align:right>结果</th></tr></thead><tbody><tr><td>未指定</td><td style=text-align:center>未指定</td><td style=text-align:right>绑定</td></tr><tr><td>未指定</td><td style=text-align:center>Block</td><td style=text-align:right>不绑定</td></tr><tr><td>未指定</td><td style=text-align:center>Filesystem</td><td style=text-align:right>绑定</td></tr><tr><td>Block</td><td style=text-align:center>未指定</td><td style=text-align:right>不绑定</td></tr><tr><td>Block</td><td style=text-align:center>Block</td><td style=text-align:right>绑定</td></tr><tr><td>Block</td><td style=text-align:center>Filesystem</td><td style=text-align:right>不绑定</td></tr><tr><td>Filesystem</td><td style=text-align:center>Filesystem</td><td style=text-align:right>绑定</td></tr><tr><td>Filesystem</td><td style=text-align:center>Block</td><td style=text-align:right>不绑定</td></tr><tr><td>Filesystem</td><td style=text-align:center>未指定</td><td style=text-align:right>绑定</td></tr></tbody></table><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>Alpha 发行版本中仅支持静态制备的卷。管理员需要在处理原始块设备时小心处理这些值。</p></div><h2 id=volume-snapshot-and-restore-volume-from-snapshot-support>对卷快照及从卷快照中恢复卷的支持 <a class=td-heading-self-link href=#volume-snapshot-and-restore-volume-from-snapshot-support aria-label="Heading self-link"></a></h2><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.20</span></div><p>卷快照（Volume Snapshot）仅支持树外 CSI 卷插件。
+有关细节可参阅<a href=/zh-cn/docs/concepts/storage/volume-snapshots/>卷快照</a>文档。
+树内卷插件被弃用。你可以查阅<a href=https://github.com/kubernetes/community/blob/main/sig-storage/volume-plugin-faq.md>卷插件 FAQ</a>
+了解已弃用的卷插件。</p><h3 id=create-persistent-volume-claim-from-volume-snapshot>基于卷快照创建 PVC 申领 <a class=td-heading-self-link href=#create-persistent-volume-claim-from-volume-snapshot aria-label="Heading self-link"></a></h3><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>restore-pvc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>storageClassName</span><span class=p>:</span><span class=w> </span><span class=l>csi-hostpath-sc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>dataSource</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>new-snapshot-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeSnapshot</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>apiGroup</span><span class=p>:</span><span class=w> </span><span class=l>snapshot.storage.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>accessModes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>ReadWriteOnce</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>requests</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>10Gi</span><span class=w>
+</span></span></span></code></pre></div><h2 id=volume-cloning>卷克隆 <a class=td-heading-self-link href=#volume-cloning aria-label="Heading self-link"></a></h2><p><a href=/zh-cn/docs/concepts/storage/volume-pvc-datasource/>卷克隆</a>功能特性仅适用于 CSI 卷插件。</p><h3 id=create-persistent-volume-claim-from-an-existing-pvc>基于现有 PVC 创建新的 PVC 申领 <a class=td-heading-self-link href=#create-persistent-volume-claim-from-an-existing-pvc aria-label="Heading self-link"></a></h3><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>cloned-pvc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>storageClassName</span><span class=p>:</span><span class=w> </span><span class=l>my-csi-plugin</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>dataSource</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>existing-src-pvc-name</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>accessModes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>ReadWriteOnce</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>requests</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>10Gi</span><span class=w>
+</span></span></span></code></pre></div><h2 id=volume-populators-and-data-sources>卷填充器（Populator）与数据源 <a class=td-heading-self-link href=#volume-populators-and-data-sources aria-label="Heading self-link"></a></h2><p><a href=#volume-cloning>卷克隆</a>和
+<a href=#volume-snapshot-and-restore-volume-from-snapshot-support>快照恢复</a>从内置的<strong>数据源</strong>预填充一个新的卷。
+<strong>卷填充器</strong>扩展了这个机制，使得 PersistentVolumeClaim 可以从其他类型的源（一个自定义资源）预填充，
+并通过其 <code>dataSourceRef</code> 字段引用：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>populated-pvc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>dataSourceRef</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-name</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>ExampleDataSource</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>apiGroup</span><span class=p>:</span><span class=w> </span><span class=l>example.storage.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>accessModes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>ReadWriteOnce</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>requests</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>10Gi</span><span class=w>
+</span></span></span></code></pre></div><p>有关详细信息（包括跨命名空间数据源），
+请参阅<a href=/zh-cn/docs/concepts/storage/volume-populators-and-data-sources/>卷填充器与数据源</a>。</p><h2 id=writing-portable-configuration>编写可移植的配置 <a class=td-heading-self-link href=#writing-portable-configuration aria-label="Heading self-link"></a></h2><p>如果你要编写配置模板和示例用来在很多集群上运行并且需要持久性存储，建议你使用以下模式：</p><ul><li>将 PersistentVolumeClaim 对象包含到你的配置包（Bundle）中，和 Deployment
+以及 ConfigMap 等放在一起。</li><li>不要在配置中包含 PersistentVolume 对象，因为对配置进行实例化的用户很可能
+没有创建 PersistentVolume 的权限。</li></ul><ul><li>为用户提供在实例化模板时指定存储类名称的能力。<ul><li>仍按用户提供存储类名称，将该名称放到 <code>persistentVolumeClaim.storageClassName</code> 字段中。
+这样会使得 PVC 在集群被管理员启用了存储类支持时能够匹配到正确的存储类，</li><li>如果用户未指定存储类名称，将 <code>persistentVolumeClaim.storageClassName</code> 留空（<code>nil</code>）。
+这样，集群会使用默认 <code>StorageClass</code> 为用户自动制备一个存储卷。
+很多集群环境都配置了默认的 <code>StorageClass</code>，或者管理员也可以自行创建默认的
+<code>StorageClass</code>。</li></ul></li></ul><ul><li>在你的工具链中，监测经过一段时间后仍未被绑定的 PVC 对象，要让用户知道这些对象，
+因为这可能意味着集群不支持动态存储（因而用户必须先创建一个匹配的 PV），或者
+集群没有配置存储系统（因而用户无法配置需要 PVC 的工作负载配置）。</li></ul><h2 id=接下来>接下来<a class=td-heading-self-link href=#%e6%8e%a5%e4%b8%8b%e6%9d%a5 aria-label="Heading self-link"></a></h2><ul><li>进一步了解<a href=/zh-cn/docs/tutorials/configuration/configure-persistent-volume-storage/#create-a-persistentvolume>创建 PV</a>。</li><li>进一步学习<a href=/zh-cn/docs/tutorials/configuration/configure-persistent-volume-storage/#create-a-persistentvolumeclaim>创建 PVC</a>。</li><li>阅读<a href=https://git.k8s.io/design-proposals-archive/storage/persistent-storage.md>持久存储的设计文档</a>。</li></ul><h3 id=reference>API 参考 <a class=td-heading-self-link href=#reference aria-label="Heading self-link"></a></h3><p>参阅本页面中所述的 API：</p><ul><li><a href=/zh-cn/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-v1/><code>PersistentVolume</code></a></li><li><a href=/zh-cn/docs/reference/kubernetes-api/config-and-storage-resources/persistent-volume-claim-v1/><code>PersistentVolumeClaim</code></a></li></ul></div>
+</body>
+</html>

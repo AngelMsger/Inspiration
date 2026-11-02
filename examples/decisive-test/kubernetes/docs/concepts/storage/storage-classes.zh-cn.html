@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>存储类（StorageClass）</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>存储类（StorageClass）</h1><header class=article-meta></header><p>本文描述了 Kubernetes 中 StorageClass 的概念。
+建议先熟悉<a href=/zh-cn/docs/concepts/storage/volumes/>卷</a>和<a href=/zh-cn/docs/concepts/storage/persistent-volumes>持久卷</a>的概念。</p><p>StorageClass 为管理员提供了描述存储<strong>类</strong>的方法。
+不同的类型可能会映射到不同的服务质量等级或备份策略，或是由集群管理员制定的任意策略。
+Kubernetes 本身并不清楚各种类代表的什么。</p><p>Kubernetes 存储类的概念类似于一些其他存储系统设计中的"配置文件"。</p><h2 id=storageclass-objects>StorageClass 对象 <a class=td-heading-self-link href=#storageclass-objects aria-label="Heading self-link"></a></h2><p>每个 StorageClass 都包含 <code>provisioner</code>、<code>parameters</code> 和 <code>reclaimPolicy</code> 字段，
+这些字段会在 StorageClass 需要动态制备 PersistentVolume 以满足 PersistentVolumeClaim（PVC）时使用到。</p><p>StorageClass 对象的命名很重要，用户使用这个命名来请求生成一个特定的类。
+当创建 StorageClass 对象时，管理员设置 StorageClass 对象的命名和其他参数。</p><p>作为管理员，你可以为没有申请绑定到特定 StorageClass 的 PVC 指定一个默认的存储类：
+更多详情请参阅
+<a href=/zh-cn/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims>PersistentVolumeClaim 概念</a>。</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/storage/storageclass-low-latency.yaml download=storage/storageclass-low-latency.yaml><code>storage/storageclass-low-latency.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("storage-storageclass-low-latency-yaml")' title="复制 storage/storageclass-low-latency.yaml 到剪贴板"></img></div><div class=includecode id=storage-storageclass-low-latency-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>low-latency</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>annotations</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>storageclass.kubernetes.io/is-default-class</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;false&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>provisioner</span><span class=p>:</span><span class=w> </span><span class=l>csi-driver.example-vendor.example</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>reclaimPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Retain</span><span class=w> </span><span class=c># 默认值是 Delete</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>allowVolumeExpansion</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>mountOptions</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=l>discard</span><span class=w> </span><span class=c># 这可能会在块存储层启用 UNMAP/TRIM</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>volumeBindingMode</span><span class=p>:</span><span class=w> </span><span class=l>WaitForFirstConsumer</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>guaranteedReadWriteLatency</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;true&#34;</span><span class=w> </span><span class=c># 这是服务提供商特定的</span><span class=w>
+</span></span></span></code></pre></div></div></div><h2 id=default-storageclass>默认 StorageClass <a class=td-heading-self-link href=#default-storageclass aria-label="Heading self-link"></a></h2><p>你可以将某个 StorageClass 标记为集群的默认存储类。
+关于如何设置默认的 StorageClass，
+请参见<a href=/zh-cn/docs/tasks/administer-cluster/change-default-storage-class/>更改默认 StorageClass</a>。</p><p>当一个 PVC 没有指定 <code>storageClassName</code> 时，会使用默认的 StorageClass。</p><p>如果你在集群中的多个 StorageClass 上将
+<a href=/zh-cn/docs/reference/labels-annotations-taints/#storageclass-kubernetes-io-is-default-class><code>storageclass.kubernetes.io/is-default-class</code></a>
+注解设置为 true，然后创建一个未设置 <code>storageClassName</code> 的 PersistentVolumeClaim（PVC），
+Kubernetes 将使用最近创建的默认 StorageClass。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>你应该尝试在集群中只将一个 StorageClass 标记为默认的存储类。
+Kubernetes 允许你拥有多个默认 StorageClass 的原因是为了无缝迁移。</p></div><p>你可以在创建新的 PVC 时不指定 <code>storageClassName</code>，即使在集群中没有默认
+StorageClass 的情况下也可以这样做。在这种情况下，新的 PVC
+会按照你定义的方式进行创建，并且该 PVC 的 <code>storageClassName</code> 将保持不设置，
+直到有可用的默认 StorageClass 为止。</p><p>你可以拥有一个没有任何默认 StorageClass 的集群。
+如果你没有将任何 StorageClass 标记为默认（例如，云服务提供商还没有为你设置默认值），那么
+Kubernetes 将无法为需要 StorageClass 的 PersistentVolumeClaim 应用默认值。</p><p>当默认 StorageClass 变得可用时，控制平面会查找所有未设置 <code>storageClassName</code> 的现有 PVC。
+对于那些 <code>storageClassName</code> 值为空或没有此键的 PVC，控制平面将更新它们，
+将 <code>storageClassName</code> 设置为匹配新的默认 StorageClass。
+如果你有一个现成的 PVC，其 <code>storageClassName</code> 为 <code>""</code>，
+而你配置了默认的 StorageClass，那么该 PVC 将不会被更新。</p><p>（当默认的 StorageClass 存在时）为了继续绑定到 <code>storageClassName</code> 为 <code>""</code> 的 PV，
+你需要将关联 PVC 的 <code>storageClassName</code> 设置为 <code>""</code>。</p><h2 id=provisioner>存储制备器 <a class=td-heading-self-link href=#provisioner aria-label="Heading self-link"></a></h2><p>每个 StorageClass 都有一个制备器（Provisioner），用来决定使用哪个卷插件制备 PV。
+该字段必须指定。</p><table><thead><tr><th style=text-align:left>卷插件</th><th style=text-align:center>内置制备器</th><th style=text-align:center>配置示例</th></tr></thead><tbody><tr><td style=text-align:left>AzureFile</td><td style=text-align:center>✓</td><td style=text-align:center><a href=#azure-file>Azure File</a></td></tr><tr><td style=text-align:left>CephFS</td><td style=text-align:center>-</td><td style=text-align:center>-</td></tr><tr><td style=text-align:left>FC</td><td style=text-align:center>-</td><td style=text-align:center>-</td></tr><tr><td style=text-align:left>FlexVolume</td><td style=text-align:center>-</td><td style=text-align:center>-</td></tr><tr><td style=text-align:left>iSCSI</td><td style=text-align:center>-</td><td style=text-align:center>-</td></tr><tr><td style=text-align:left>Local</td><td style=text-align:center>-</td><td style=text-align:center><a href=#local>Local</a></td></tr><tr><td style=text-align:left>NFS</td><td style=text-align:center>-</td><td style=text-align:center><a href=#nfs>NFS</a></td></tr><tr><td style=text-align:left>PortworxVolume</td><td style=text-align:center>✓</td><td style=text-align:center><a href=#portworx-volume>Portworx Volume</a></td></tr><tr><td style=text-align:left>RBD</td><td style=text-align:center>✓</td><td style=text-align:center><a href=#ceph-rbd>Ceph RBD</a></td></tr><tr><td style=text-align:left>VsphereVolume</td><td style=text-align:center>✓</td><td style=text-align:center><a href=#vsphere>vSphere</a></td></tr></tbody></table><p>你不限于指定此处列出的"内置"制备器（其名称前缀为 "kubernetes.io" 并打包在 Kubernetes 中）。
+你还可以运行和指定外部制备器，这些独立的程序遵循由 Kubernetes
+定义的<a href=https://github.com/kubernetes/design-proposals-archive/blob/main/storage/volume-provisioning.md>规范</a>。
+外部供应商的作者完全可以自由决定他们的代码保存于何处、打包方式、运行方式、使用的插件（包括 Flex）等。
+代码仓库 <a href=https://github.com/kubernetes-sigs/sig-storage-lib-external-provisioner>kubernetes-sigs/sig-storage-lib-external-provisioner</a>
+包含一个用于为外部制备器编写功能实现的类库。你可以访问代码仓库
+<a href=https://github.com/kubernetes-sigs/sig-storage-lib-external-provisioner>kubernetes-sigs/sig-storage-lib-external-provisioner</a>
+了解外部驱动列表。</p><p>例如，NFS 没有内部制备器，但可以使用外部制备器。
+也有第三方存储供应商提供自己的外部制备器。</p><h2 id=reclaim-policy>回收策略<a class=td-heading-self-link href=#reclaim-policy aria-label="Heading self-link"></a></h2><p>由 StorageClass 动态创建的 PersistentVolume 会在类的
+<a href=/zh-cn/docs/concepts/storage/persistent-volumes/#reclaiming><code>reclaimPolicy</code></a>
+字段中指定回收策略，可以是 <code>Delete</code> 或者 <code>Retain</code>。
+如果 StorageClass 对象被创建时没有指定 <code>reclaimPolicy</code>，它将默认为 <code>Delete</code>。</p><p>通过 StorageClass 手动创建并管理的 PersistentVolume 会使用它们被创建时指定的回收策略。</p><h2 id=allow-volume-expansion>卷扩展 <a class=td-heading-self-link href=#allow-volume-expansion aria-label="Heading self-link"></a></h2><p>PersistentVolume 可以配置为可扩展。
+这允许你通过编辑相应的 PVC 对象来调整卷大小，申请一个新的、更大的存储容量。</p><p>当下层 StorageClass 的 <code>allowVolumeExpansion</code> 字段设置为 <code>true</code> 时，以下类型的卷支持卷扩展。</p><table><caption style=display:none>卷类型及其 Kubernetes 版本要求</caption><thead><tr><th style=text-align:left>卷类型</th><th style=text-align:left>卷扩展的 Kubernetes 版本要求</th></tr></thead><tbody><tr><td style=text-align:left>Azure File</td><td style=text-align:left>1.11</td></tr><tr><td style=text-align:left>CSI</td><td style=text-align:left>1.24</td></tr><tr><td style=text-align:left>FlexVolume</td><td style=text-align:left>1.13</td></tr><tr><td style=text-align:left>Portworx</td><td style=text-align:left>1.11</td></tr><tr><td style=text-align:left>rbd</td><td style=text-align:left>1.11</td></tr></tbody></table><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>此功能仅可用于扩容卷，不能用于缩小卷。</p></div><h2 id=mount-options>挂载选项 <a class=td-heading-self-link href=#mount-options aria-label="Heading self-link"></a></h2><p>由 StorageClass 动态创建的 PersistentVolume 将使用类中 <code>mountOptions</code> 字段指定的挂载选项。</p><p>如果卷插件不支持挂载选项，却指定了挂载选项，则制备操作会失败。
+挂载选项在 StorageClass 和 PV 上都<strong>不</strong>会做验证。如果其中一个挂载选项无效，
+那么这个 PV 挂载操作就会失败。</p><h2 id=volume-binding-mode>卷绑定模式<a class=td-heading-self-link href=#volume-binding-mode aria-label="Heading self-link"></a></h2><p><code>volumeBindingMode</code>
+字段控制了<a href=/zh-cn/docs/concepts/storage/persistent-volumes/#provisioning>卷绑定和动态制备</a>应该发生在什么时候。
+当未设置时，默认使用 <code>Immediate</code> 模式。</p><p><code>Immediate</code> 模式表示一旦创建了 PersistentVolumeClaim 也就完成了卷绑定和动态制备。
+对于由于拓扑限制而非集群所有节点可达的存储后端，PersistentVolume会在不知道
+Pod 调度要求的情况下绑定或者制备。</p><p>集群管理员可以通过指定 <code>WaitForFirstConsumer</code> 模式来解决此问题。
+该模式将延迟 PersistentVolume 的绑定和制备，直到使用该 PersistentVolumeClaim
+的 Pod 被创建。PersistentVolume 会根据 Pod 调度约束指定的拓扑来选择或制备。
+这些包括但不限于<a href=/zh-cn/docs/concepts/configuration/manage-resources-containers/>资源需求</a>、
+<a href=/zh-cn/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector>节点筛选器</a>、
+<a href=/zh-cn/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity/>Pod 亲和性和互斥性</a>、
+以及<a href=/zh-cn/docs/concepts/scheduling-eviction/taint-and-toleration>污点和容忍度</a>。</p><p>以下插件支持使用动态制备的 <code>WaitForFirstConsumer</code>：</p><ul><li>CSI 卷，前提是特定的 CSI 驱动程序支持此卷</li></ul><p>以下插件支持预创建绑定 PersistentVolume 的 <code>WaitForFirstConsumer</code> 模式：</p><ul><li>CSI 卷，前提是特定的 CSI 驱动程序支持此卷</li><li><a href=#local><code>local</code></a></li></ul><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>如果你选择使用 <code>WaitForFirstConsumer</code>，请不要在 Pod 规约中使用 <code>nodeName</code> 来指定节点亲和性。
+如果在这种情况下使用 <code>nodeName</code>，Pod 将会绕过调度程序，PVC 将停留在 <code>pending</code> 状态。</p><p>相反，你可以为 <code>kubernetes.io/hostname</code> 使用节点选择器：</p></div><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/storage/storageclass/pod-volume-binding.yaml download=storage/storageclass/pod-volume-binding.yaml><code>storage/storageclass/pod-volume-binding.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("storage-storageclass-pod-volume-binding-yaml")' title="复制 storage/storageclass/pod-volume-binding.yaml 到剪贴板"></img></div><div class=includecode id=storage-storageclass-pod-volume-binding-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>task-pv-pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>nodeSelector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kubernetes.io/hostname</span><span class=p>:</span><span class=w> </span><span class=l>kube-01</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>task-pv-storage</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>persistentVolumeClaim</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>claimName</span><span class=p>:</span><span class=w> </span><span class=l>task-pv-claim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>task-pv-container</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>nginx</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=nt>containerPort</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;http-server&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;/usr/share/nginx/html&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>task-pv-storage</span><span class=w>
+</span></span></span></code></pre></div></div></div><h2 id=allowed-topologies>允许的拓扑结构 <a class=td-heading-self-link href=#allowed-topologies aria-label="Heading self-link"></a></h2><p>当集群操作人员使用了 <code>WaitForFirstConsumer</code> 的卷绑定模式，
+在大部分情况下就没有必要将制备限制为特定的拓扑结构。
+然而，如果还有需要的话，可以使用 <code>allowedTopologies</code>。</p><p>这个例子描述了如何将制备卷的拓扑限制在特定的区域，
+在使用时应该根据插件支持情况替换 <code>zone</code> 和 <code>zones</code> 参数。</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/storage/storageclass/storageclass-topology.yaml download=storage/storageclass/storageclass-topology.yaml><code>storage/storageclass/storageclass-topology.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("storage-storageclass-storageclass-topology-yaml")' title="复制 storage/storageclass/storageclass-topology.yaml 到剪贴板"></img></div><div class=includecode id=storage-storageclass-storageclass-topology-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>standard</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>provisioner</span><span class=p>:</span><span class=w>  </span><span class=l>example.com/example</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>pd-standard</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>volumeBindingMode</span><span class=p>:</span><span class=w> </span><span class=l>WaitForFirstConsumer</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>allowedTopologies</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span>- <span class=nt>matchLabelExpressions</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>topology.kubernetes.io/zone</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>values</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>us-central-1a</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>us-central-1b</span><span class=w>
+</span></span></span></code></pre></div></div></div><p><code>tagSpecification</code>：具有此前缀的标签适用于动态配置的 EBS 卷。</p><h2 id=parameters>参数 <a class=td-heading-self-link href=#parameters aria-label="Heading self-link"></a></h2><p>StorageClass 的参数描述了存储类的卷。取决于制备器，可以接受不同的参数。
+当参数被省略时，会使用默认值。</p><p>一个 StorageClass 最多可以定义 512 个参数。这些参数对象的总长度不能超过
+256 KiB，包括参数的键和值。</p><h3 id=aws-ebs>AWS EBS<a class=td-heading-self-link href=#aws-ebs aria-label="Heading self-link"></a></h3><p>Kubernetes 1.37 不包含 <code>awsElasticBlockStore</code> 卷类型。</p><p>AWSElasticBlockStore 树内存储驱动程序在 Kubernetes v1.19 版本中被弃用，
+并在 v1.27 版本中被完全移除。</p><p>Kubernetes 项目建议你转为使用 <a href=https://github.com/kubernetes-sigs/aws-ebs-csi-driver>AWS EBS</a>
+树外存储驱动程序。</p><p>以下是一个针对 AWS EBS CSI 驱动程序的 StorageClass 示例：</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/storage/storageclass/storageclass-aws-ebs.yaml download=storage/storageclass/storageclass-aws-ebs.yaml><code>storage/storageclass/storageclass-aws-ebs.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("storage-storageclass-storageclass-aws-ebs-yaml")' title="复制 storage/storageclass/storageclass-aws-ebs.yaml 到剪贴板"></img></div><div class=includecode id=storage-storageclass-storageclass-aws-ebs-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>ebs-sc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>provisioner</span><span class=p>:</span><span class=w> </span><span class=l>ebs.csi.aws.com</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>volumeBindingMode</span><span class=p>:</span><span class=w> </span><span class=l>WaitForFirstConsumer</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>csi.storage.k8s.io/fstype</span><span class=p>:</span><span class=w> </span><span class=l>xfs</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>io1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>iopsPerGB</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;50&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>encrypted</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;true&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>tagSpecification_1</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;key1=value1&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>tagSpecification_2</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;key2=value2&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>allowedTopologies</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span>- <span class=nt>matchLabelExpressions</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>topology.ebs.csi.aws.com/zone</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>values</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>us-east-2c</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># `tagSpecification`: 带有这个前缀的 tag 被应用到动态制备的 EBS 卷</span><span class=w>
+</span></span></span></code></pre></div></div></div><h3 id=aws-efs>AWS EFS<a class=td-heading-self-link href=#aws-efs aria-label="Heading self-link"></a></h3><p>要配置 AWS EFS 存储，你可以使用树外
+<a href=https://github.com/kubernetes-sigs/aws-efs-csi-driver>AWS_EFS_CSI_DRIVER</a>。</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/storage/storageclass/storageclass-aws-efs.yaml download=storage/storageclass/storageclass-aws-efs.yaml><code>storage/storageclass/storageclass-aws-efs.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("storage-storageclass-storageclass-aws-efs-yaml")' title="复制 storage/storageclass/storageclass-aws-efs.yaml 到剪贴板"></img></div><div class=includecode id=storage-storageclass-storageclass-aws-efs-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>efs-sc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>provisioner</span><span class=p>:</span><span class=w> </span><span class=l>efs.csi.aws.com</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>provisioningMode</span><span class=p>:</span><span class=w> </span><span class=l>efs-ap</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>fileSystemId</span><span class=p>:</span><span class=w> </span><span class=l>fs-92107410</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>directoryPerms</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;700&#34;</span><span class=w>
+</span></span></span></code></pre></div></div></div><ul><li><code>provisioningMode</code>：由 Amazon EFS 制备的卷类型。目前，仅支持基于访问点的制备（<code>efs-ap</code>）。</li><li><code>fileSystemId</code>：在此文件系统下创建访问点。</li><li><code>directoryPerms</code>：由访问点所创建的根目录的目录权限。</li></ul><p>有关细节参阅
+<a href=https://github.com/kubernetes-sigs/aws-efs-csi-driver/blob/master/examples/kubernetes/dynamic_provisioning/README.md>AWS_EFS_CSI_Driver 动态制备</a>文档。</p><h3 id=nfs>NFS<a class=td-heading-self-link href=#nfs aria-label="Heading self-link"></a></h3><p>要配置 NFS 存储，
+你可以使用树内驱动程序或<a href=https://github.com/kubernetes-csi/csi-driver-nfs#readme>针对 Kubernetes 的 NFS CSI 驱动程序</a>（推荐）。</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/storage/storageclass/storageclass-nfs.yaml download=storage/storageclass/storageclass-nfs.yaml><code>storage/storageclass/storageclass-nfs.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("storage-storageclass-storageclass-nfs-yaml")' title="复制 storage/storageclass/storageclass-nfs.yaml 到剪贴板"></img></div><div class=includecode id=storage-storageclass-storageclass-nfs-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-nfs</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>provisioner</span><span class=p>:</span><span class=w> </span><span class=l>example.com/external-nfs</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>server</span><span class=p>:</span><span class=w> </span><span class=l>nfs-server.example.com</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/share</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>readOnly</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;false&#34;</span><span class=w>
+</span></span></span></code></pre></div></div></div><ul><li><code>server</code>：NFS 服务器的主机名或 IP 地址。</li><li><code>path</code>：NFS 服务器导出的路径。</li><li><code>readOnly</code>：是否将存储挂载为只读的标志（默认为 <code>false</code>）。</li></ul><p>Kubernetes 不包含内部 NFS 驱动。你需要使用外部驱动为 NFS 创建 StorageClass。
+这里有些例子：</p><ul><li><a href=https://github.com/kubernetes-sigs/nfs-ganesha-server-and-external-provisioner>NFS Ganesha 服务器和外部驱动</a></li><li><a href=https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner>NFS subdir 外部驱动</a></li></ul><h3 id=vsphere>vSphere<a class=td-heading-self-link href=#vsphere aria-label="Heading self-link"></a></h3><p>vSphere 存储类有两种制备器：</p><ul><li><a href=#vsphere-provisioner-csi>CSI 制备器</a>：<code>csi.vsphere.vmware.com</code></li><li><a href=#vcp-provisioner>vCP 制备器</a>：<code>kubernetes.io/vsphere-volume</code></li></ul><p>树内制备器已经被
+<a href=/blog/2019/12/09/kubernetes-1-17-feature-csi-migration-beta/#why-are-we-migrating-in-tree-plugins-to-csi>弃用</a>。
+更多关于 CSI 制备器的详情，请参阅
+<a href=https://vsphere-csi-driver.sigs.k8s.io/>Kubernetes vSphere CSI 驱动</a>和
+<a href=/zh-cn/docs/concepts/storage/volumes/#vsphere-csi-migration>vSphereVolume CSI 迁移</a>。</p><h4 id=vsphere-provisioner-csi>CSI 制备器<a class=td-heading-self-link href=#vsphere-provisioner-csi aria-label="Heading self-link"></a></h4><p>vSphere CSI StorageClass 制备器在 Tanzu Kubernetes 集群下运行。示例请参阅
+<a href=https://github.com/kubernetes-sigs/vsphere-csi-driver/blob/master/example/vanilla-k8s-RWM-filesystem-volumes/example-sc.yaml>vSphere CSI 仓库</a>。</p><h4 id=vcp-provisioner>vCP 制备器 <a class=td-heading-self-link href=#vcp-provisioner aria-label="Heading self-link"></a></h4><p>以下示例使用 VMware Cloud Provider（vCP）StorageClass 制备器。</p><ol><li><p>使用用户指定的磁盘格式创建一个 StorageClass。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>fast</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>provisioner</span><span class=p>:</span><span class=w> </span><span class=l>kubernetes.io/vsphere-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>diskformat</span><span class=p>:</span><span class=w> </span><span class=l>zeroedthick</span><span class=w>
+</span></span></span></code></pre></div><p><code>diskformat</code>：<code>thin</code>、<code>zeroedthick</code> 和 <code>eagerzeroedthick</code>。
+默认值：<code>"thin"</code>。</p></li></ol><ol start=2><li><p>在用户指定的数据存储上创建磁盘格式的 StorageClass。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>fast</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>provisioner</span><span class=p>:</span><span class=w> </span><span class=l>kubernetes.io/vsphere-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>diskformat</span><span class=p>:</span><span class=w> </span><span class=l>zeroedthick</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>datastore</span><span class=p>:</span><span class=w> </span><span class=l>VSANDatastore</span><span class=w>
+</span></span></span></code></pre></div><p><code>datastore</code>：用户也可以在 StorageClass 中指定数据存储。
+卷将在 StorageClass 中指定的数据存储上创建，在这种情况下是 <code>VSANDatastore</code>。
+该字段是可选的。
+如果未指定数据存储，则将在用于初始化 vSphere Cloud Provider 的 vSphere
+配置文件中指定的数据存储上创建该卷。</p></li></ol><ol start=3><li><p>Kubernetes 中的存储策略管理</p><ul><li><p>使用现有的 vCenter SPBM 策略</p><p>vSphere 用于存储管理的最重要特性之一是基于策略的管理。
+基于存储策略的管理（SPBM）是一个存储策略框架，提供单一的统一控制平面的跨越广泛的数据服务和存储解决方案。
+SPBM 使得 vSphere 管理员能够克服先期的存储配置挑战，如容量规划、差异化服务等级和管理容量空间。</p><p>SPBM 策略可以在 StorageClass 中使用 <code>storagePolicyName</code> 参数声明。</p></li></ul><ul><li><p>Kubernetes 内的 Virtual SAN 策略支持</p><p>Vsphere Infrastructure（VI）管理员将能够在动态卷配置期间指定自定义 Virtual SAN
+存储功能。你现在可以在动态制备卷期间以存储能力的形式定义存储需求，例如性能和可用性。
+存储能力需求会转换为 Virtual SAN 策略，之后当持久卷（虚拟磁盘）被创建时，
+会将其推送到 Virtual SAN 层。虚拟磁盘分布在 Virtual SAN 数据存储中以满足要求。</p><p>你可以参考<a href=https://github.com/vmware-archive/vsphere-storage-for-kubernetes/blob/fa4c8b8ad46a85b6555d715dd9d27ff69839df53/documentation/policy-based-mgmt.md>基于存储策略的动态制备卷管理</a>，
+进一步了解有关持久卷管理的存储策略的详细信息。</p></li></ul></li></ol><h3 id=ceph-rbd>Ceph RBD（已弃用） <a class=td-heading-self-link href=#ceph-rbd aria-label="Heading self-link"></a></h3><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><div class="feature-state-notice feature-deprecated"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>已弃用</span> since Kubernetes v1.28</span></div><p>Ceph RBD 的内部驱动程序已被弃用。请使用
+<a href=https://github.com/ceph/ceph-csi>CephFS RBD CSI 驱动程序</a>。</p></div><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/storage/storageclass/storageclass-ceph-rbd.yaml download=storage/storageclass/storageclass-ceph-rbd.yaml><code>storage/storageclass/storageclass-ceph-rbd.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("storage-storageclass-storageclass-ceph-rbd-yaml")' title="复制 storage/storageclass/storageclass-ceph-rbd.yaml 到剪贴板"></img></div><div class=includecode id=storage-storageclass-storageclass-ceph-rbd-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>fast</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>provisioner</span><span class=p>:</span><span class=w> </span><span class=l>kubernetes.io/rbd</span><span class=w> </span><span class=c># 这个 provisioner 已被弃用</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>monitors</span><span class=p>:</span><span class=w> </span><span class=m>198.19.254.105</span><span class=p>:</span><span class=m>6789</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>adminId</span><span class=p>:</span><span class=w> </span><span class=l>kube</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>adminSecretName</span><span class=p>:</span><span class=w> </span><span class=l>ceph-secret</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>adminSecretNamespace</span><span class=p>:</span><span class=w> </span><span class=l>kube-system</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>pool</span><span class=p>:</span><span class=w> </span><span class=l>kube</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>userId</span><span class=p>:</span><span class=w> </span><span class=l>kube</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>userSecretName</span><span class=p>:</span><span class=w> </span><span class=l>ceph-secret-user</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>userSecretNamespace</span><span class=p>:</span><span class=w> </span><span class=l>default</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>fsType</span><span class=p>:</span><span class=w> </span><span class=l>ext4</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>imageFormat</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;2&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>imageFeatures</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;layering&#34;</span><span class=w>
+</span></span></span></code></pre></div></div></div><ul><li><code>monitors</code>：Ceph monitor，逗号分隔。该参数是必需的。</li><li><code>adminId</code>：Ceph 客户端 ID，用于在池 Ceph 池中创建映像。默认是 "admin"。</li><li><code>adminSecret</code>：<code>adminId</code> 的 Secret 名称。该参数是必需的。
+提供的 Secret 必须有值为 "kubernetes.io/rbd" 的 type 参数。</li><li><code>adminSecretNamespace</code>：<code>adminSecret</code> 的命名空间。默认是 "default"。</li><li><code>pool</code>：Ceph RBD 池。默认是 "rbd"。</li><li><code>userId</code>：Ceph 客户端 ID，用于映射 RBD 镜像。默认与 <code>adminId</code> 相同。</li></ul><ul><li><p><code>userSecretName</code>：用于映射 RBD 镜像的 <code>userId</code> 的 Ceph Secret 的名字。
+它必须与 PVC 存在于相同的 namespace 中。该参数是必需的。
+提供的 Secret 必须具有值为 "kubernetes.io/rbd" 的 type 参数，例如以这样的方式创建：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-shell data-lang=shell><span class=line><span class=cl>kubectl create secret generic ceph-secret --type<span class=o>=</span><span class=s2>&#34;kubernetes.io/rbd&#34;</span> <span class=se>\
+</span></span></span><span class=line><span class=cl><span class=se></span>  --from-literal<span class=o>=</span><span class=nv>key</span><span class=o>=</span><span class=s1>&#39;QVFEQ1pMdFhPUnQrSmhBQUFYaERWNHJsZ3BsMmNjcDR6RFZST0E9PQ==&#39;</span> <span class=se>\
+</span></span></span><span class=line><span class=cl><span class=se></span>  --namespace<span class=o>=</span>kube-system
+</span></span></code></pre></div></li></ul><ul><li><code>userSecretNamespace</code>：<code>userSecretName</code> 的命名空间。</li><li><code>fsType</code>：Kubernetes 支持的 fsType。默认：<code>"ext4"</code>。</li><li><code>imageFormat</code>：Ceph RBD 镜像格式，"1" 或者 "2"。默认值是 "1"。</li><li><code>imageFeatures</code>：这个参数是可选的，只能在你将 <code>imageFormat</code> 设置为 "2" 才使用。
+目前支持的功能只是 <code>layering</code>。默认是 ""，没有功能打开。</li></ul><h3 id=azure-disk>Azure 磁盘 <a class=td-heading-self-link href=#azure-disk aria-label="Heading self-link"></a></h3><p>Kubernetes 1.37 不包含 <code>azureDisk</code> 卷类型。</p><p><code>azureDisk</code> 树内存储驱动程序在 Kubernetes v1.19 版本中被弃用，并在
+v1.27 版本中被完全移除。</p><p>Kubernetes 项目建议你转为使用
+<a href=https://github.com/kubernetes-sigs/azuredisk-csi-driver>Azure Disk</a>
+第三方存储驱动程序。</p><h3 id=azure-file>Azure 文件（已弃用） <a class=td-heading-self-link href=#azure-file aria-label="Heading self-link"></a></h3><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/storage/storageclass/storageclass-azure-file.yaml download=storage/storageclass/storageclass-azure-file.yaml><code>storage/storageclass/storageclass-azure-file.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("storage-storageclass-storageclass-azure-file-yaml")' title="复制 storage/storageclass/storageclass-azure-file.yaml 到剪贴板"></img></div><div class=includecode id=storage-storageclass-storageclass-azure-file-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>azurefile</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>provisioner</span><span class=p>:</span><span class=w> </span><span class=l>kubernetes.io/azure-file</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>skuName</span><span class=p>:</span><span class=w> </span><span class=l>Standard_LRS</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>location</span><span class=p>:</span><span class=w> </span><span class=l>eastus</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>storageAccount</span><span class=p>:</span><span class=w> </span><span class=l>azure_storage_account_name</span><span class=w> </span><span class=c># 示例值</span><span class=w>
+</span></span></span></code></pre></div></div></div><ul><li><code>skuName</code>：Azure 存储帐户 SKU 层。默认为空。</li><li><code>location</code>：Azure 存储帐户位置。默认为空。</li><li><code>storageAccount</code>：Azure 存储帐户名称。默认为空。
+如果不提供存储帐户，会搜索所有与资源相关的存储帐户，以找到一个匹配
+<code>skuName</code> 和 <code>location</code> 的账号。
+如果提供存储帐户，它必须存在于与集群相同的资源组中，<code>skuName</code> 和 <code>location</code> 会被忽略。</li><li><code>secretNamespace</code>：包含 Azure 存储帐户名称和密钥的密钥的名字空间。
+默认值与 Pod 相同。</li><li><code>secretName</code>：包含 Azure 存储帐户名称和密钥的密钥的名称。
+默认值为 <code>azure-storage-account-&lt;accountName>-secret</code></li><li><code>readOnly</code>：指示是否将存储安装为只读的标志。默认为 <code>false</code>，表示"读/写"挂载。
+该设置也会影响 <code>VolumeMounts</code> 中的 <code>ReadOnly</code> 设置。</li></ul><p>在存储制备期间，为挂载凭证创建一个名为 <code>secretName</code> 的 Secret。如果集群同时启用了
+<a href=/zh-cn/docs/reference/access-authn-authz/rbac/>RBAC</a>
+和<a href=/zh-cn/docs/reference/access-authn-authz/rbac/#controller-roles>控制器角色</a>，
+为 <code>system:controller:persistent-volume-binder</code> 的 clusterrole 添加
+<code>secret</code> 资源的 <code>create</code> 权限。</p><p>在多租户上下文中，强烈建议显式设置 <code>secretNamespace</code> 的值，
+否则其他用户可能会读取存储帐户凭据。</p><h3 id=portworx-volume>Portworx 卷（已弃用） <a class=td-heading-self-link href=#portworx-volume aria-label="Heading self-link"></a></h3><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/storage/storageclass/storageclass-portworx-volume.yaml download=storage/storageclass/storageclass-portworx-volume.yaml><code>storage/storageclass/storageclass-portworx-volume.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("storage-storageclass-storageclass-portworx-volume-yaml")' title="复制 storage/storageclass/storageclass-portworx-volume.yaml 到剪贴板"></img></div><div class=includecode id=storage-storageclass-storageclass-portworx-volume-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>portworx-io-priority-high</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>provisioner</span><span class=p>:</span><span class=w> </span><span class=l>kubernetes.io/portworx-volume</span><span class=w> </span><span class=c># 这个 provisioner 已被弃用</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>repl</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;1&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>snap_interval</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;70&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>priority_io</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;high&#34;</span><span class=w>
+</span></span></span></code></pre></div></div></div><ul><li><code>fs</code>：选择的文件系统：<code>none/xfs/ext4</code>（默认：<code>ext4</code>）。</li><li><code>block_size</code>：以 Kbytes 为单位的块大小（默认值：<code>32</code>）。</li><li><code>repl</code>：同步副本数量，以复制因子 <code>1..3</code>（默认值：<code>1</code>）的形式提供。
+这里需要填写字符串，即，<code>"1"</code> 而不是 <code>1</code>。</li><li><code>io_priority</code>：决定是否从更高性能或者较低优先级存储创建卷
+<code>high/medium/low</code>（默认值：<code>low</code>）。</li><li><code>snap_interval</code>：触发快照的时钟/时间间隔（分钟）。
+快照是基于与先前快照的增量变化，0 是禁用快照（默认：<code>0</code>）。
+这里需要填写字符串，即，是 <code>"70"</code> 而不是 <code>70</code>。</li><li><code>aggregation_level</code>：指定卷分配到的块数量，0 表示一个非聚合卷（默认：<code>0</code>）。
+这里需要填写字符串，即，是 <code>"0"</code> 而不是 <code>0</code>。</li><li><code>ephemeral</code>：指定卷在卸载后进行清理还是持久化。
+<code>emptyDir</code> 的使用场景可以将这个值设置为 <code>true</code>，
+<code>persistent volumes</code> 的使用场景可以将这个值设置为 <code>false</code>
+（例如 Cassandra 这样的数据库）
+<code>true/false</code>（默认为 <code>false</code>）。这里需要填写字符串，即，
+是 <code>"true"</code> 而不是 <code>true</code>。</li></ul><h3 id=local>本地 <a class=td-heading-self-link href=#local aria-label="Heading self-link"></a></h3><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/storage/storageclass/storageclass-local.yaml download=storage/storageclass/storageclass-local.yaml><code>storage/storageclass/storageclass-local.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("storage-storageclass-storageclass-local-yaml")' title="复制 storage/storageclass/storageclass-local.yaml 到剪贴板"></img></div><div class=includecode id=storage-storageclass-storageclass-local-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>local-storage</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>provisioner</span><span class=p>:</span><span class=w> </span><span class=l>kubernetes.io/no-provisioner</span><span class=w> </span><span class=c># 表示这个 StorageClass 不支持自动制备</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>volumeBindingMode</span><span class=p>:</span><span class=w> </span><span class=l>WaitForFirstConsumer</span><span class=w>
+</span></span></span></code></pre></div></div></div><p>在 Kubernetes 1.37 中，本地卷还不支持动态制备；
+然而还是需要创建 StorageClass 以延迟卷绑定，直到 Pod 被实际调度到合适的节点。
+这是由 <code>WaitForFirstConsumer</code> 卷绑定模式指定的。</p><p>延迟卷绑定使得调度器在为 PersistentVolumeClaim 选择一个合适的
+PersistentVolume 时能考虑到所有 Pod 的调度限制。</p></div>
+</body>
+</html>

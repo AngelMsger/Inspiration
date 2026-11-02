@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Service Internal Traffic Policy</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Service Internal Traffic Policy</h1><div class=lead>If two Pods in your cluster want to communicate, and both Pods are actually running on the same node, use <em>Service Internal Traffic Policy</em> to keep network traffic within that node. Avoiding a round trip via the cluster network can help with reliability, performance (network latency and throughput), or cost.</div><header class=article-meta></header><div class="feature-state-notice feature-stable"><span class=feature-state-name>Feature state:</span>
+<span class=feature-state-details><span class=feature-state-stage>Stable</span> since Kubernetes v1.26</span></div><p><em>Service Internal Traffic Policy</em> enables internal traffic restrictions to only route
+internal traffic to endpoints within the node the traffic originated from. The
+"internal" traffic here refers to traffic originated from Pods in the current
+cluster. This can help to reduce costs and improve performance.</p><h2 id=using-service-internal-traffic-policy>Using Service Internal Traffic Policy<a class=td-heading-self-link href=#using-service-internal-traffic-policy aria-label="Heading self-link"></a></h2><p>You can enable the internal-only traffic policy for a
+<a class=glossary-tooltip title='A way to expose an application running on a set of Pods as a network service.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/services-networking/service/ target=_blank aria-label=Service>Service</a>, by setting its
+<code>.spec.internalTrafficPolicy</code> to <code>Local</code>. This tells kube-proxy to only use node local
+endpoints for cluster internal traffic.</p><div class="alert alert-info" role=note><h4 class=alert-heading>Note:</h4>For pods on nodes with no endpoints for a given Service, the Service
+behaves as if it has zero endpoints (for Pods on this node) even if the service
+does have endpoints on other nodes.</div><p>The following example shows what a Service looks like when you set
+<code>.spec.internalTrafficPolicy</code> to <code>Local</code>:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>9376</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>internalTrafficPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Local</span><span class=w>
+</span></span></span></code></pre></div><h2 id=how-it-works>How it works<a class=td-heading-self-link href=#how-it-works aria-label="Heading self-link"></a></h2><p>The kube-proxy filters the endpoints it routes to based on the
+<code>spec.internalTrafficPolicy</code> setting. When it's set to <code>Local</code>, only node local
+endpoints are considered. When it's <code>Cluster</code> (the default), or is not set,
+Kubernetes considers all endpoints.</p><h2 id=what-s-next>What's next<a class=td-heading-self-link href=#what-s-next aria-label="Heading self-link"></a></h2><ul><li>Read about <a href=/docs/concepts/services-networking/topology-aware-routing/>Topology Aware Routing</a></li><li>Read about <a href=/docs/tasks/access-application-cluster/create-external-load-balancer/#preserving-the-client-source-ip>Service External Traffic Policy</a></li><li>Follow the <a href=/docs/tutorials/services/connect-applications-service/>Connecting Applications with Services</a> tutorial</li></ul></div>
+</body>
+</html>

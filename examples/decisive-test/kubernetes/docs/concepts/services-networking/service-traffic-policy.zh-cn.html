@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>服务内部流量策略</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>服务内部流量策略</h1><div class=lead>如果集群中的两个 Pod 想要通信，并且两个 Pod 实际上都在同一节点运行， <strong>服务内部流量策略</strong> 可以将网络流量限制在该节点内。 通过集群网络避免流量往返有助于提高可靠性、增强性能（网络延迟和吞吐量）或降低成本。</div><header class=article-meta></header><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.26</span></div><p><strong>服务内部流量策略</strong>开启了内部流量限制，将内部流量只路由到发起方所处节点内的服务端点。
+这里的”内部“流量指当前集群中的 Pod 所发起的流量。
+这种机制有助于节省开销，提升效率。</p><h2 id=using-service-internal-traffic-policy>使用服务内部流量策略<a class=td-heading-self-link href=#using-service-internal-traffic-policy aria-label="Heading self-link"></a></h2><p>你可以通过将 <a class=glossary-tooltip title='将运行在一组 Pod 上的应用程序公开为网络服务的抽象方法。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/services-networking/service/ target=_blank aria-label=Service>Service</a> 的
+<code>.spec.internalTrafficPolicy</code> 项设置为 <code>Local</code>，
+来为它指定一个内部专用的流量策略。
+此设置就相当于告诉 kube-proxy 对于集群内部流量只能使用节点本地的服务端口。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4>如果某节点上的 Pod 均不提供指定 Service 的服务端点，
+即使该 Service 在其他节点上有可用的服务端点，
+Service 的行为看起来也像是它只有 0 个服务端点（只针对此节点上的 Pod）。</div><p>以下示例展示了把 Service 的 <code>.spec.internalTrafficPolicy</code> 项设为 <code>Local</code> 时，
+Service 的样子：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>app.kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>MyApp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>9376</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>internalTrafficPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Local</span><span class=w>
+</span></span></span></code></pre></div><h2 id=how-it-works>工作原理<a class=td-heading-self-link href=#how-it-works aria-label="Heading self-link"></a></h2><p>kube-proxy 基于 <code>spec.internalTrafficPolicy</code> 的设置来过滤路由的目标服务端点。
+当它的值设为 <code>Local</code> 时，只会选择节点本地的服务端点。
+当它的值设为 <code>Cluster</code> 或缺省时，Kubernetes 会选择所有的服务端点。</p><h2 id=接下来>接下来<a class=td-heading-self-link href=#%e6%8e%a5%e4%b8%8b%e6%9d%a5 aria-label="Heading self-link"></a></h2><ul><li>请阅读<a href=/zh-cn/docs/concepts/services-networking/topology-aware-routing/>拓扑感知路由</a></li><li>请阅读 <a href=/zh-cn/docs/tasks/access-application-cluster/create-external-load-balancer/#preserving-the-client-source-ip>Service 的外部流量策略</a></li><li>遵循<a href=/zh-cn/docs/tutorials/services/connect-applications-service/>使用 Service 连接到应用</a>教程</li></ul></div>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Volume Health Monitoring</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Volume Health Monitoring</h1><header class=article-meta></header><div class="feature-state-notice feature-alpha" title="Feature Gate: CSIVolumeHealth"><span class=feature-state-name>Feature state:</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.21; disabled by default</span></div><div class=feature-alpha><details><summary>More information about this feature</summary><p>To use this feature, you (or a cluster administrator) will need to enable the <a href=/docs/reference/command-line-tools-reference/feature-gates/#CSIVolumeHealth><tt>CSIVolumeHealth</tt></a> feature gate for all relevant components in your cluster.</p><p>See <a href=/docs/tasks/administer-cluster/configure-feature-gates/>Enable Or Disable Feature Gates</a> for more information.</p></details></div><p>CSI volume health monitoring lets a <a class=glossary-tooltip title='The Container Storage Interface (CSI) defines a standard interface to expose storage systems to containers.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/storage/volumes/#csi target=_blank aria-label=CSI>CSI</a>
+driver report health problems with a volume or with its storage backend directly to
+Kubernetes. The driver reports through CSI RPCs, and Kubernetes surfaces the reports on
+three status fields:
+<a class=glossary-tooltip title='Claims storage resources defined in a PersistentVolume so that it can be mounted as a volume in a container.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims target=_blank aria-label=PersistentVolumeClaim>PersistentVolumeClaim</a>
+<code>.status.healthStatus</code>, <a class=glossary-tooltip title='A Pod represents a set of running containers in your cluster.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/workloads/pods/ target=_blank aria-label=Pod>Pod</a>
+<code>.status.volumeHealth</code>, and
+<a href=/docs/reference/kubernetes-api/storage/csi-node-v1/>CSINode</a> <code>.status.storageHealth</code>.
+Automation can watch these durable status fields instead of
+having to reconstruct volume health from ephemeral
+<a class=glossary-tooltip title='Kubernetes objects that describe some state change in the cluster.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/reference/kubernetes-api/cluster-resources/event-v1/ target=_blank aria-label=Events>Events</a> or from vendor-specific
+dashboards.</p><div class="alert alert-info" role=note><h4 class=alert-heading>Note:</h4>The <code>CSIVolumeHealth</code> feature gate has existed since Kubernetes v1.21, but the
+mechanism described on this page is a redesign that replaces the original
+alpha implementation. See <a href=#limitations>Limitations</a> for what changed.</div><h2 id=how-it-works>How it works<a class=td-heading-self-link href=#how-it-works aria-label="Heading self-link"></a></h2><p>The CSI spec defines four RPCs for health reporting:</p><ul><li>On the CSI controller plugin: <code>ControllerListVolumeHealth</code> and
+<code>ControllerGetVolumeHealth</code>, for controller-observed, per-volume health.</li><li>On the CSI node plugin: <code>NodeGetVolumeHealth</code>, for node-observed, per-volume
+health, and <code>NodeGetStorageHealth</code>, for the health of the storage backend as seen
+from that node.</li></ul><p>A driver only needs to implement the RPCs it wants to support, and advertises support
+through CSI plugin capabilities. A driver that implements none of these RPCs is never
+probed, and reporting stays dormant for that driver. A driver that advertises the
+controller <code>LIST_VOLUME_HEALTH</code> capability must also advertise <code>GET_VOLUME_HEALTH</code>;
+the <code>csi-external-health-monitor-controller</code> sidecar enforces this requirement.</p><p>Each health report carries a <code>status</code> drawn from a small, machine-parseable set of
+values, together with a driver-defined <code>reason</code> and an optional human-readable
+<code>message</code>:</p><ul><li>Volume-level status values (used for <code>PersistentVolumeClaim.status.healthStatus</code>
+and <code>Pod.status.volumeHealth</code>): <code>Inaccessible</code>, <code>DataLoss</code>, <code>Degraded</code>.</li><li>Storage-backend status values (used for <code>CSINode.status.storageHealth</code>):
+<code>StorageUnreachable</code>, <code>StorageDegraded</code>.</li></ul><p>The node-side and controller-side reports are independent: a volume can be
+<code>Inaccessible</code> from one node that lost its data path to the backend while the
+controller plugin still reports the volume as healthy, and vice versa.</p><h2 id=health-reported-on-pods>Health reported on Pods<a class=td-heading-self-link href=#health-reported-on-pods aria-label="Heading self-link"></a></h2><p>For volumes that use a CSI driver supporting the node-side <code>NodeGetVolumeHealth</code> RPC,
+the <a class=glossary-tooltip title='An agent that runs on each node in the cluster. It makes sure that containers are running in a pod.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/reference/command-line-tools-reference/kubelet target=_blank aria-label=kubelet>kubelet</a> periodically calls that
+RPC for each CSI volume it has mounted for a Pod, and writes the result to
+<code>pod.status.volumeHealth</code>, keyed by the volume name from <code>pod.spec.volumes</code>. The probe
+interval is the kubelet's <code>volumeStatsAggPeriod</code> setting (the
+<code>--volume-stats-agg-period</code> command line flag).</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># ...</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>status</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeHealth</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>healthConditions</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>status</span><span class=p>:</span><span class=w> </span><span class=l>Inaccessible</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>reason</span><span class=p>:</span><span class=w> </span><span class=l>VolumeNotFound</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>message</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;volume not found on the storage backend&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>lastTransitionTime</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;2026-07-20T12:00:00Z&#34;</span><span class=w>
+</span></span></span></code></pre></div><p>The kubelet only writes <code>pods/status</code>, a subresource it is already authorized to
+update for Pods bound to its own node, so no new authorization is required for this
+field.</p><h2 id=health-reported-on-csinode>Health reported on CSINode<a class=td-heading-self-link href=#health-reported-on-csinode aria-label="Heading self-link"></a></h2><p>For each CSI driver registered on a node that supports <code>NodeGetStorageHealth</code>, the
+kubelet periodically calls that RPC and writes the result to
+<code>csinode.status.storageHealth</code>, keyed by driver name.</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>CSINode</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># ...</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>status</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>storageHealth</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>csi.example.com</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>healthConditions</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>status</span><span class=p>:</span><span class=w> </span><span class=l>StorageUnreachable</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>reason</span><span class=p>:</span><span class=w> </span><span class=l>NetworkPartition</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>message</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;data path to the storage backend is unreachable from this node&#34;</span><span class=w>
+</span></span></span></code></pre></div><p>A <code>StorageHealthCondition</code> entry can optionally scope itself to a specific
+<code>accessMode</code> or <code>volumeMode</code>, for backends that degrade asymmetrically (for example, a
+network problem that affects <code>ReadWriteMany</code> access but not <code>ReadWriteOnce</code>).</p><p>Writing to <code>csinodes/status</code> is a new capability added by this feature: the
+<a href=/docs/reference/access-authn-authz/node/>Node authorization mode</a> and the
+NodeRestriction admission plugin only allow a kubelet to patch the <code>CSINode</code> object
+that matches its own node, and only while the <code>CSIVolumeHealth</code>
+<a href=/docs/reference/command-line-tools-reference/feature-gates/>feature gate</a> is
+enabled.</p><h2 id=health-reported-on-persistentvolumeclaims>Health reported on PersistentVolumeClaims<a class=td-heading-self-link href=#health-reported-on-persistentvolumeclaims aria-label="Heading self-link"></a></h2><p>Controller-observed volume health is written to <code>persistentvolumeclaim.status.healthStatus</code>
+by the <code>csi-external-health-monitor-controller</code> sidecar that runs alongside a CSI
+driver's controller plugin. The sidecar calls <code>ControllerListVolumeHealth</code> (or falls
+back to <code>ControllerGetVolumeHealth</code> per volume) and writes the result:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># ...</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>status</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>healthStatus</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>healthConditions</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>status</span><span class=p>:</span><span class=w> </span><span class=l>Inaccessible</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>reason</span><span class=p>:</span><span class=w> </span><span class=l>VolumeNotFound</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>message</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;volume not found on the storage backend&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>lastTransitionTime</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;2026-07-20T12:00:00Z&#34;</span><span class=w>
+</span></span></span></code></pre></div><p>No node ever writes this field; only the sidecar, running in the control plane, does.
+This keeps a compromised or misbehaving node from being able to influence what other
+users of the cluster see on a PVC.</p><p>Whether this path is available for a given driver depends on that driver, and its
+deployment of the <code>csi-external-health-monitor-controller</code> sidecar, having adopted the
+new controller RPCs.</p><h2 id=enabling-volume-health-monitoring>Enabling volume health monitoring<a class=td-heading-self-link href=#enabling-volume-health-monitoring aria-label="Heading self-link"></a></h2><p>Volume health monitoring is controlled by a single
+<a href=/docs/reference/command-line-tools-reference/feature-gates/>feature gate</a>,
+<code>CSIVolumeHealth</code>, on both <code>kube-apiserver</code> and the kubelet:</p><ul><li>On <code>kube-apiserver</code>, enabling the feature gate allows the new status fields to be
+written and read; disabling it drops the fields on the next write to the object,
+while preserving values already stored.</li><li>On the kubelet, enabling the feature gate starts the periodic node-side probing
+described above.</li></ul><p>Controller-side monitoring, which populates <code>persistentvolumeclaim.status.healthStatus</code>,
+does not have its own feature gate. Deploying the <code>csi-external-health-monitor-controller</code>
+sidecar alongside your CSI driver's controller plugin is itself the controller-side
+opt-in.</p><p>Enabling the feature gate does not, by itself, cause any health information to
+appear: a CSI driver also has to advertise and implement the corresponding RPCs.
+Check your CSI driver's documentation to see which of the four RPCs, if any, it
+supports.</p><h2 id=monitoring>Monitoring<a class=td-heading-self-link href=#monitoring aria-label="Heading self-link"></a></h2><p>The kubelet exposes a <code>csi_node_storage_health_status</code> gauge metric, labeled by
+<code>driver_name</code>, <code>status</code>, and <code>reason</code>, with a value of <code>1</code> for each storage-backend
+condition currently reported for a driver on that node.</p><h2 id=limitations>Limitations<a class=td-heading-self-link href=#limitations aria-label="Heading self-link"></a></h2><ul><li>Kubernetes only surfaces these health reports; it does not act on them.
+Nothing in Kubernetes reschedules Pods, fails over volumes, or otherwise reacts
+to a reported condition on its own. Building a remediation controller on top of
+these status fields is left to cluster operators and vendors.</li><li>An older, alpha implementation of the same <code>CSIVolumeHealth</code> feature gate (available
+starting in Kubernetes v1.21) reported abnormal volume conditions using Kubernetes
+Events and a <code>kubelet_volume_stats_health_status_abnormal</code> metric. That mechanism
+has been replaced by the status fields and RPCs described on this page, and no
+longer exists.</li></ul><h2 id=what-s-next>What's next<a class=td-heading-self-link href=#what-s-next aria-label="Heading self-link"></a></h2><ul><li>Read <a href=https://github.com/kubernetes/enhancements/tree/master/keps/sig-storage/1432-volume-health-monitor>KEP-1432</a>
+for the full design.</li><li>See the <a href=https://kubernetes-csi.github.io/docs/drivers.html>CSI driver documentation</a>
+to find out which CSI drivers implement volume health monitoring.</li></ul></div>
+</body>
+</html>

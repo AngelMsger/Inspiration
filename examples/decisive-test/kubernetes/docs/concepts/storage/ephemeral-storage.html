@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Local ephemeral storage</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Local ephemeral storage</h1><header class=article-meta></header><p>Nodes have local ephemeral storage, backed by
+locally-attached writeable devices or, sometimes, by RAM.
+"Ephemeral" means that there is no long-term guarantee about durability.</p><p>Pods use ephemeral local storage for scratch space, caching, and for logs.
+The kubelet can provide scratch space to Pods using local ephemeral storage to
+mount <a href=/docs/concepts/storage/volumes/#emptydir><code>emptyDir</code></a>
+<a class=glossary-tooltip title='A directory containing data, accessible to the containers in a pod.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/storage/volumes/ target=_blank aria-label=volumes>volumes</a> into containers.</p><p>The kubelet also uses this kind of storage to hold
+<a href=/docs/concepts/cluster-administration/logging/#logging-at-the-node-level>node-level container logs</a>,
+container images, and the writable layers of running containers.</p><div class="alert alert-caution" role=note><h4 class=alert-heading>Caution:</h4>If a node fails, the data in its ephemeral storage can be lost.
+Your applications cannot expect any performance SLAs (disk IOPS for example)
+from local ephemeral storage.</div><div class="alert alert-info" role=note><h4 class=alert-heading>Note:</h4><p>To make the resource quota work on ephemeral-storage, two things need to be done:</p><ul><li>An admin sets the resource quota for ephemeral-storage in a namespace.</li><li>A user needs to specify limits for the ephemeral-storage resource in the Pod spec.</li></ul><p>If the user doesn't specify the ephemeral-storage resource limit in the Pod spec,
+the resource quota is not enforced on ephemeral-storage.</p></div><p>Kubernetes lets you track, reserve and limit the amount
+of ephemeral local storage a Pod can consume.</p><h2 id=configurations>Configurations for local ephemeral storage<a class=td-heading-self-link href=#configurations aria-label="Heading self-link"></a></h2><p>Kubernetes supports the following ways to configure local ephemeral storage on a
+node:<ul class="nav nav-tabs" id=tabs-local-storage-configurations role=tablist><li class=nav-item><button class="nav-link active" id=tabs-local-storage-configurations-0-tab data-bs-toggle=tab data-bs-target=#tabs-local-storage-configurations-0 role=tab aria-controls=tabs-local-storage-configurations-0 aria-selected=true>
+Single filesystem</button><li class=nav-item><button class=nav-link id=tabs-local-storage-configurations-1-tab data-bs-toggle=tab data-bs-target=#tabs-local-storage-configurations-1 role=tab aria-controls=tabs-local-storage-configurations-1 aria-selected=false>
+Runtime filesystem</button><li class=nav-item><button class=nav-link id=tabs-local-storage-configurations-2-tab data-bs-toggle=tab data-bs-target=#tabs-local-storage-configurations-2 role=tab aria-controls=tabs-local-storage-configurations-2 aria-selected=false>
+Split image filesystem</button></ul><div class=tab-content id=tabs-local-storage-configurations-content><div class="tab-body tab-pane fadeshow active" id=tabs-local-storage-configurations-0 role=tabpanel aria-labelledby=tabs-local-storage-configurations-0-tab tabindex=local-storage-configurations><p>In this configuration, you place all different kinds of ephemeral local data
+(<code>emptyDir</code> volumes, writeable layers, container images, logs) into one filesystem.</p><p>The kubelet also writes
+<a href=/docs/concepts/cluster-administration/logging/#logging-at-the-node-level>node-level container logs</a>
+and treats these similarly to ephemeral local storage.</p><p>The kubelet writes logs to files inside its configured log directory (<code>/var/log</code>
+by default); and has a base directory for other locally stored data
+(<code>/var/lib/kubelet</code> by default).</p><p>Typically, both <code>/var/lib/kubelet</code> and <code>/var/log</code> are on the system root filesystem,
+and the kubelet is designed with that layout in mind.</p><p>Your node can have as many other filesystems, not used for Kubernetes,
+as you like.</p></div><div class="tab-body tab-pane fade" id=tabs-local-storage-configurations-1 role=tabpanel aria-labelledby=tabs-local-storage-configurations-1-tab tabindex=local-storage-configurations><p>You use one filesystem on the node for ephemeral data from running Pods, such as
+logs and <code>emptyDir</code> volumes. You can also use this filesystem for other data,
+such as system logs that are not related to Kubernetes; it can even be the root
+filesystem.</p><p>The kubelet also writes
+<a href=/docs/concepts/cluster-administration/logging/#logging-at-the-node-level>node-level container logs</a>
+into the first filesystem, and treats these similarly to ephemeral local storage.</p><p>You also use a separate filesystem, backed by a different logical storage device.
+In this configuration, the container runtime stores both container image layers
+and writeable layers on this second filesystem. Configure this storage location
+in your container runtime, not in the kubelet.</p><p>The first filesystem does not hold any image layers or writeable layers.</p><p>Your node can have as many other filesystems, not used for Kubernetes,
+as you like.</p></div><div class="tab-body tab-pane fade" id=tabs-local-storage-configurations-2 role=tabpanel aria-labelledby=tabs-local-storage-configurations-2-tab tabindex=local-storage-configurations><p>In this configuration, container image layers are on a separate filesystem, and
+container writeable layers are on the same filesystem as the kubelet's ephemeral
+data, such as logs and <code>emptyDir</code> volumes.</p><p>This layout requires support for the <code>containerfs</code> eviction signals. For details
+about the feature gate and the container runtimes that support this layout, see
+<a href=/docs/concepts/scheduling-eviction/node-pressure-eviction/#filesystem-signals>node-pressure eviction</a>.</p></div></div></p><p>The <a href=/docs/concepts/scheduling-eviction/node-pressure-eviction/#filesystem-signals>node-pressure eviction</a>
+page refers to these observed filesystems as <code>nodefs</code>, <code>imagefs</code>, and
+<code>containerfs</code>. Those names do not always mean separate mount points.</p><p>The kubelet can measure local storage use when you set up the node using one of
+the supported configurations for local ephemeral storage.</p><p>If you have a different configuration, then the kubelet does not apply resource
+limits for ephemeral local storage.</p><div class="alert alert-info" role=note><h4 class=alert-heading>Note:</h4>The kubelet tracks <code>tmpfs</code> emptyDir volumes as container memory use, rather
+than as local ephemeral storage.</div><div class="alert alert-info" role=note><h4 class=alert-heading>Note:</h4>The kubelet can only track ephemeral storage on the filesystems it observes
+through the supported layouts. If you mount extra filesystems under paths such as
+<code>/var/lib/kubelet</code>, <code>/var/log</code>, or the container runtime storage directory
+outside those layouts, the kubelet might not report ephemeral storage correctly.</div><h2 id=requests-limits>Setting requests and limits for local ephemeral storage<a class=td-heading-self-link href=#requests-limits aria-label="Heading self-link"></a></h2><p>You can specify <code>ephemeral-storage</code> for managing local ephemeral storage. Each
+container of a Pod can specify either or both of the following:</p><ul><li><code>spec.containers[].resources.limits.ephemeral-storage</code></li><li><code>spec.containers[].resources.requests.ephemeral-storage</code></li></ul><p>Limits and requests for <code>ephemeral-storage</code> are measured in byte quantities.
+You can express storage as a plain integer or as a fixed-point number using one of these suffixes:
+E, P, T, G, M, k. You can also use the power-of-two equivalents: Ei, Pi, Ti, Gi,
+Mi, Ki. For example, the following quantities all represent roughly the same value:</p><ul><li><code>128974848</code></li><li><code>129e6</code></li><li><code>129M</code></li><li><code>123Mi</code></li></ul><p>Pay attention to the case of the suffixes. If you request <code>400m</code> of ephemeral-storage, this is a request
+for 0.4 bytes. Someone who types that probably meant to ask for 400 mebibytes (<code>400Mi</code>)
+or 400 megabytes (<code>400M</code>).</p><p>In the following example, the Pod has two containers. Each container has a request of
+2GiB of local ephemeral storage. Each container has a limit of 4GiB of local ephemeral
+storage. Therefore, the Pod has a request of 4GiB of local ephemeral storage, and
+a limit of 8GiB of local ephemeral storage. 500Mi of that limit could be
+consumed by the <code>emptyDir</code> volume.</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>frontend</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>app</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>images.my-company.example/app:v4</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>requests</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>ephemeral-storage</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;2Gi&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>limits</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>ephemeral-storage</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;4Gi&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>ephemeral</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;/tmp&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>log-aggregator</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>images.my-company.example/log-aggregator:v6</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>requests</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>ephemeral-storage</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;2Gi&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>limits</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>ephemeral-storage</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;4Gi&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>ephemeral</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;/tmp&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>ephemeral</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>emptyDir</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>sizeLimit</span><span class=p>:</span><span class=w> </span><span class=l>500Mi</span><span class=w>
+</span></span></span></code></pre></div><h2 id=how-pods-with-ephemeral-storage-requests-are-scheduled>How Pods with ephemeral-storage requests are scheduled<a class=td-heading-self-link href=#how-pods-with-ephemeral-storage-requests-are-scheduled aria-label="Heading self-link"></a></h2><p>When you create a Pod, the Kubernetes scheduler selects a node for the Pod to
+run on. Each node has a maximum amount of local ephemeral storage it can provide for Pods.
+For more information, see
+<a href=/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable>Node Allocatable</a>.</p><p>The scheduler ensures that the sum of the resource requests of the scheduled containers is less than the capacity of the node.</p><h2 id=resource-emphemeralstorage-consumption>Ephemeral storage consumption management<a class=td-heading-self-link href=#resource-emphemeralstorage-consumption aria-label="Heading self-link"></a></h2><p>If the kubelet is managing local ephemeral storage as a resource, then the
+kubelet measures storage use in:</p><ul><li><code>emptyDir</code> volumes, except <em>tmpfs</em> <code>emptyDir</code> volumes</li><li>directories holding node-level logs</li><li>writeable container layers</li></ul><p>If a Pod is using more ephemeral storage than you allow it to, the kubelet
+sets an eviction signal that triggers Pod eviction.</p><p>For container-level isolation, if a container's writable layer and log
+usage exceeds its storage limit, the kubelet marks the Pod for eviction.</p><p>For pod-level isolation the kubelet works out an overall Pod storage limit by
+summing the limits for the containers in that Pod. In this case, if the sum of
+the local ephemeral storage usage from all containers and also the Pod's <code>emptyDir</code>
+volumes exceeds the overall Pod storage limit, then the kubelet also marks the Pod
+for eviction.</p><div class="alert alert-caution" role=note><h4 class=alert-heading>Caution:</h4><p>If the kubelet is not measuring local ephemeral storage, then a Pod
+that exceeds its local storage limit will not be evicted for breaching
+local storage resource limits.</p><p>However, if the filesystem space for writeable container layers, node-level logs,
+or <code>emptyDir</code> volumes falls low, the node
+<a class=glossary-tooltip title='A core object consisting of three required properties: key, value, and effect. Taints prevent the scheduling of pods on nodes or node groups.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/scheduling-eviction/taint-and-toleration/ target=_blank aria-label=taints>taints</a> itself as short on local storage
+and this taint triggers eviction for any Pods that don't specifically tolerate the taint.</p><p>See the supported <a href=#configurations>configurations</a> for ephemeral local storage.</p></div><p>The kubelet supports different ways to measure Pod storage use:</p><ul class="nav nav-tabs" id=tabs-resource-emphemeralstorage-measurement role=tablist><li class=nav-item><button class="nav-link active" id=tabs-resource-emphemeralstorage-measurement-0-tab data-bs-toggle=tab data-bs-target=#tabs-resource-emphemeralstorage-measurement-0 role=tab aria-controls=tabs-resource-emphemeralstorage-measurement-0 aria-selected=true>
+Periodic scanning</button><li class=nav-item><button class=nav-link id=tabs-resource-emphemeralstorage-measurement-1-tab data-bs-toggle=tab data-bs-target=#tabs-resource-emphemeralstorage-measurement-1 role=tab aria-controls=tabs-resource-emphemeralstorage-measurement-1 aria-selected=false>
+Filesystem project quota</button></ul><div class=tab-content id=tabs-resource-emphemeralstorage-measurement-content><div class="tab-body tab-pane fadeshow active" id=tabs-resource-emphemeralstorage-measurement-0 role=tabpanel aria-labelledby=tabs-resource-emphemeralstorage-measurement-0-tab tabindex=resource-emphemeralstorage-measurement><p>The kubelet performs regular, scheduled checks that scan each <code>emptyDir</code> volume,
+container log directory, and writeable container layer.</p><p>The scan measures how much space is used.</p><div class="alert alert-info" role=note><h4 class=alert-heading>Note:</h4><p>In this mode, the kubelet does not track open file descriptors
+for deleted files.</p><p>If you (or a container) create a file inside an <code>emptyDir</code> volume,
+something then opens that file, and you delete the file while it is still open,
+then the inode for the deleted file stays until you close that file
+but the kubelet does not categorize the space as in use.</p></div></div><div class="tab-body tab-pane fade" id=tabs-resource-emphemeralstorage-measurement-1 role=tabpanel aria-labelledby=tabs-resource-emphemeralstorage-measurement-1-tab tabindex=resource-emphemeralstorage-measurement><div class="feature-state-notice feature-beta" title="Feature Gate: LocalStorageCapacityIsolationFSQuotaMonitoring"><span class=feature-state-name>Feature state:</span>
+<span class=feature-state-details><span class=feature-state-stage>Beta</span> since Kubernetes v1.31; disabled by default</span></div><div class=feature-beta><details><summary>More information about this feature</summary><p>To use this feature, you (or a cluster administrator) will need to enable the <a href=/docs/reference/command-line-tools-reference/feature-gates/#LocalStorageCapacityIsolationFSQuotaMonitoring><tt>LocalStorageCapacityIsolationFSQuotaMonitoring</tt></a> feature gate for all relevant components in your cluster.</p><p>See <a href=/docs/tasks/administer-cluster/configure-feature-gates/>Enable Or Disable Feature Gates</a> for more information.</p></details></div><p>Project quotas are an operating-system level feature for managing
+storage use on filesystems. With Kubernetes, you can enable project
+quotas for monitoring storage use. Make sure that the filesystem
+backing the <code>emptyDir</code> volumes, on the node, provides project quota support.
+For example, XFS and ext4fs offer project quotas.</p><div class="alert alert-info" role=note><h4 class=alert-heading>Note:</h4>Project quotas let you monitor storage use; they do not enforce limits.</div><p>Kubernetes uses project IDs starting from <code>1048576</code>. The IDs in use are
+registered in <code>/etc/projects</code> and <code>/etc/projid</code>. If project IDs in
+this range are used for other purposes on the system, those project
+IDs must be registered in <code>/etc/projects</code> and <code>/etc/projid</code> so that
+Kubernetes does not use them.</p><p>Quotas are faster and more accurate than directory scanning.
+When a directory is assigned to a project, all files created under a directory
+are created in that project, and the kernel merely has to keep track of
+how many blocks are in use by files in that project.
+If a file is created and deleted, but has an open file descriptor,
+it continues to consume space. Quota tracking records that space accurately
+whereas directory scans overlook the storage used by deleted files.</p><p>To use quotas to track a pod's resource usage, the pod must be in
+a user namespace. Within user namespaces, the kernel restricts changes
+to projectIDs on the filesystem, ensuring the reliability of storage
+metrics calculated by quotas.</p><p>If you want to use project quotas, you should:</p><ul><li><p>Enable the <code>LocalStorageCapacityIsolationFSQuotaMonitoring=true</code>
+<a href=/docs/reference/command-line-tools-reference/feature-gates/>feature gate</a>
+using the <code>featureGates</code> field in the
+<a href=/docs/reference/config-api/kubelet-config.v1beta1/>kubelet configuration</a>.</p></li><li><p>Ensure the <code>UserNamespacesSupport</code>
+<a href=/docs/reference/command-line-tools-reference/feature-gates/>feature gate</a>
+is enabled, and that the kernel, CRI implementation and OCI runtime support user namespaces.</p></li><li><p>Ensure that the root filesystem (or optional runtime filesystem)
+has project quotas enabled. All XFS filesystems support project quotas.
+For ext4 filesystems, you need to enable the project quota tracking feature
+while the filesystem is not mounted.</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-bash data-lang=bash><span class=line><span class=cl><span class=c1># For ext4, with /dev/block-device not mounted</span>
+</span></span><span class=line><span class=cl>sudo tune2fs -O project -Q prjquota /dev/block-device
+</span></span></code></pre></div></li><li><p>Ensure that the root filesystem (or optional runtime filesystem) is
+mounted with project quotas enabled. For both XFS and ext4fs, the
+mount option is named <code>prjquota</code>.</p></li></ul><p>If you don't want to use project quotas, you should:</p><ul><li>Disable the <code>LocalStorageCapacityIsolationFSQuotaMonitoring</code>
+<a href=/docs/reference/command-line-tools-reference/feature-gates/>feature gate</a>
+using the <code>featureGates</code> field in the
+<a href=/docs/reference/config-api/kubelet-config.v1beta1/>kubelet configuration</a>.</li></ul></div></div><h2 id=what-s-next>What's next<a class=td-heading-self-link href=#what-s-next aria-label="Heading self-link"></a></h2><ul><li>Read about <a href=https://www.linux.org/docs/man8/xfs_quota.html>project quotas</a> in XFS</li></ul></div>
+</body>
+</html>

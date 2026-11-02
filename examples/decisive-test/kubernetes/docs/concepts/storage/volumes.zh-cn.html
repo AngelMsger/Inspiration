@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>卷</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>卷</h1><header class=article-meta></header><p>Kubernetes <strong>卷</strong>为 <a class=glossary-tooltip title='Pod 表示你的集群上一组正在运行的容器。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/pods/ target=_blank aria-label=Pod>Pod</a>
+中的容器提供了一种通过文件系统访问和共享数据的方式。存在不同类别的卷，你可以将其用于各种用途，例如：</p><ul><li>基于 <a class=glossary-tooltip title='ConfigMap 是一种 API 对象，用来将非机密性的数据保存到键值对中。使用时可以用作环境变量、命令行参数或者存储卷中的配置文件。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/tasks/configure-pod-container/configure-pod-configmap/ target=_blank aria-label=ConfigMap>ConfigMap</a> 或
+<a class=glossary-tooltip title='Secret 用于存储敏感信息，如密码、 OAuth 令牌和 SSH 密钥。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/configuration/secret/ target=_blank aria-label=Secret>Secret</a> 填充配置文件</li><li>为 Pod 提供一些临时的涂销空间</li><li>在同一个 Pod 中的两个不同容器之间共享文件系统</li><li>在两个不同的 Pod 之间共享文件系统（即使这些 Pod 运行在不同的节点上）</li><li>持久化存储数据，这样即使 Pod 重启或被替换，存储的数据仍然可用</li></ul><ul><li>基于容器所在 Pod 的详细信息，将配置信息传递给运行在容器中的应用
+（例如告诉<a class=glossary-tooltip title='在 Pod 的整个生命期内保持运行的辅助容器。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/pods/sidecar-containers/ target=_blank aria-label=边车容器>边车容器</a>：Pod 运行在哪个命名空间）</li><li>以只读权限访问另一个容器镜像中的数据</li></ul><p>数据共享可以发生在容器内不同本地进程之间，或在不同容器之间，或在多个 Pod 之间。</p><h2 id=why-volumes-are-important>为什么卷很重要 <a class=td-heading-self-link href=#why-volumes-are-important aria-label="Heading self-link"></a></h2><ul><li><strong>数据持久性：</strong> 容器中的文件在磁盘上是临时存放的，这给在容器中运行较重要的应用带来一些问题。
+当容器崩溃或被停止时，容器的状态不会被保存，因此在容器生命期内创建或修改的所有文件都将丢失。
+在崩溃之后，kubelet 会以干净的状态重启容器。</li></ul><ul><li><strong>共享存储：</strong> 当多个容器在一个 Pod 中运行并需要共享文件时，会出现另一个问题。
+那就是在所有容器之间设置和访问共享文件系统可能会很有难度。</li></ul><p>Kubernetes <a class=glossary-tooltip title='包含可被 Pod 中容器访问的数据的目录。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/storage/volumes/ target=_blank aria-label=卷（Volume）>卷（Volume）</a>
+这一抽象概念能够解决这两个问题。</p><p>在你学习卷、持久卷（PersistentVolume）和持久卷申领（PersistentVolumeClaim）之前，
+你应该先了解 <a class=glossary-tooltip title='Pod 表示你的集群上一组正在运行的容器。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/pods/ target=_blank aria-label=Pod>Pod</a>，
+确保你理解 Kubernetes 如何使用 Pod 来运行容器。</p><h2 id=how-volumes-work>卷是如何工作的 <a class=td-heading-self-link href=#how-volumes-work aria-label="Heading self-link"></a></h2><p>Kubernetes 支持很多类型的卷。
+<a class=glossary-tooltip title='Pod 表示你的集群上一组正在运行的容器。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/pods/ target=_blank aria-label=Pod>Pod</a> 可以同时使用任意数目的卷类型。
+<a href=/zh-cn/docs/concepts/storage/ephemeral-volumes/>临时卷</a>类型将生命期关联到特定的 Pod，
+但<a href=/zh-cn/docs/concepts/storage/persistent-volumes/>持久卷</a>可以比任意独立 Pod 的生命期长。
+当 Pod 不再存在时，Kubernetes 也会销毁临时卷；不过 Kubernetes 不会销毁持久卷。
+对于给定 Pod 中任何类型的卷，在容器重启期间数据都不会丢失。</p><p>卷的核心是一个目录，其中可能存有数据，Pod 中的容器可以访问该目录中的数据。
+所采用的特定的卷类型将决定该目录如何形成的、使用何种介质保存数据以及目录中存放的内容。</p><p>使用卷时, 在 <code>.spec.volumes</code> 字段中设置为 Pod 提供的卷，并在
+<code>.spec.containers[*].volumeMounts</code> 字段中声明卷在容器中的挂载位置。</p><p>当 Pod 被启动时，容器中的进程看到的文件系统视图是由它们的<a class=glossary-tooltip title=镜像（Image）是保存的容器实例，它打包了应用运行所需的一组软件。 data-bs-toggle=tooltip data-bs-placement=top href='/zh-cn/docs/reference/glossary/?all=true#term-image' target=_blank aria-label=容器镜像>容器镜像</a>
+的初始内容以及挂载在容器中的卷（如果定义了的话）所组成的。
+其中根文件系统同容器镜像的内容相吻合。
+任何在该文件系统下的写入操作，如果被允许的话，都会影响接下来容器中进程访问文件系统时所看到的内容。
+卷被挂载在镜像中的<a href=#using-subpath>指定路径</a>下。
+Pod 配置中的每个容器必须独立指定各个卷的挂载位置。</p><p>卷不能挂载到其他卷之上（不过存在一种<a href=#using-subpath>使用 subPath</a> 的相关机制），
+也不能与其他卷有硬链接。</p><h2 id=volume-types>卷类型 <a class=td-heading-self-link href=#volume-types aria-label="Heading self-link"></a></h2><p>Kubernetes 支持下列类型的卷：</p><h3 id=configmap>configMap<a class=td-heading-self-link href=#configmap aria-label="Heading self-link"></a></h3><p><a href=/zh-cn/docs/tasks/configure-pod-container/configure-pod-configmap/><code>configMap</code></a>
+卷提供了向 Pod 注入配置数据的方法。
+ConfigMap 对象中存储的数据可以被 <code>configMap</code> 类型的卷引用，然后被 Pod 中运行的容器化应用使用。</p><p>引用 configMap 对象时，你可以在卷中通过它的名称来引用。
+你可以自定义 ConfigMap 中特定条目所要使用的路径。
+下面的配置显示了如何将名为 <code>log-config</code> 的 ConfigMap 挂载到名为 <code>configmap-pod</code>
+的 Pod 中：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>configmap-pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>busybox:1.28</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s1>&#39;sh&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;-c&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;echo &#34;The app is running!&#34; &amp;&amp; tail -f /dev/null&#39;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>config-vol</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/etc/config</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>config-vol</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>configMap</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>log-config</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>items</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>log_level</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>log_level.conf</span><span class=w>
+</span></span></span></code></pre></div><p><code>log-config</code> ConfigMap 以卷的形式挂载，并且存储在 <code>log_level</code>
+条目中的所有内容都被挂载到 Pod 的 <code>/etc/config/log_level.conf</code> 路径下。
+请注意，这个路径来源于卷的 <code>mountPath</code> 和 <code>log_level</code> 键对应的 <code>path</code>。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><ul><li>你必须先<a href=/zh-cn/docs/tasks/configure-pod-container/configure-pod-configmap/#create-a-configmap>创建 ConfigMap</a>，
+才能使用它。</li><li>ConfigMap 总是以 <code>readOnly</code> 的模式挂载。</li><li>某容器以 <a href=#using-subpath><code>subPath</code></a> 卷挂载方式使用 ConfigMap 时，
+若 ConfigMap 发生变化，此容器将无法接收更新。</li><li>文本数据挂载成文件时采用 UTF-8 字符编码。如果使用其他字符编码形式，可使用
+<code>binaryData</code> 字段。</li></ul></div><h3 id=downwardapi>downwardAPI<a class=td-heading-self-link href=#downwardapi aria-label="Heading self-link"></a></h3><p><code>downwardAPI</code> 卷用于为应用提供 <a class=glossary-tooltip title='将 Pod 和容器字段值暴露给容器中运行的代码的机制。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/workloads/pods/downward-api/ target=_blank aria-label='downward API'>downward API</a> 数据。
+在这类卷中，所公开的数据以纯文本格式的只读文件形式存在。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>容器以 <a href=#using-subpath>subPath</a> 卷挂载方式使用 downward API 时，
+在字段值更改时将不能接收到它的更新。</p></div><p>更多详细信息请参考<a href=/zh-cn/docs/tasks/inject-data-application/downward-api-volume-expose-pod-information/>通过文件将 Pod 信息呈现给容器</a>。</p><h3 id=emptydir>emptyDir<a class=td-heading-self-link href=#emptydir aria-label="Heading self-link"></a></h3><p>对于定义了 <code>emptyDir</code> 卷的 Pod，在 Pod 被指派到某节点时此卷会被创建。
+就像其名称所表示的那样，<code>emptyDir</code> 卷最初是空的。尽管 Pod 中的容器挂载 <code>emptyDir</code>
+卷的路径可能相同也可能不同，但这些容器都可以读写 <code>emptyDir</code> 卷中相同的文件。
+当 Pod 因为某些原因被从节点上删除时，<code>emptyDir</code> 卷中的数据也会被永久删除。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>容器崩溃并<strong>不</strong>会导致 Pod 被从节点上移除，因此容器崩溃期间 <code>emptyDir</code> 卷中的数据是安全的。</p></div><p><code>emptyDir</code> 的一些用途：</p><ul><li>缓存空间，例如基于磁盘的归并排序。</li><li>为耗时较长的计算任务提供检查点，以便任务能方便地从崩溃前状态恢复执行。</li><li>在 Web 服务器容器服务数据时，保存内容管理器容器获取的文件。</li></ul><p><code>emptyDir.medium</code> 字段用来控制 <code>emptyDir</code> 卷的存储位置。
+默认情况下，<code>emptyDir</code> 卷存储在该节点所使用的介质上；
+此处的介质可以是磁盘、SSD 或网络存储，这取决于你的环境。
+你可以将 <code>emptyDir.medium</code> 字段设置为 <code>"Memory"</code>，
+以告诉 Kubernetes 为你挂载 tmpfs（基于 RAM 的文件系统）。
+虽然 tmpfs 速度非常快，但是要注意它与磁盘不同，
+并且你所写入的所有文件都会计入容器的内存消耗，受容器内存限制约束。</p><p>你可以通过为默认介质指定大小限制，来限制 <code>emptyDir</code> 卷的存储容量。
+此存储是从<a href=/zh-cn/docs/concepts/storage/ephemeral-storage/#setting-requests-and-limits-for-local-ephemeral-storage>节点临时存储</a>中分配的。
+如果来自其他来源（如日志文件或镜像分层数据）的数据占满了存储，<code>emptyDir</code>
+可能会在达到此限制之前发生存储容量不足的问题。</p><p>如果未指定大小，内存支持的卷将被设置为节点可分配内存的大小。</p><div class="alert alert-caution" role=note><h4 class=alert-heading>注意：</h4><p>使用内存作为介质的 <code>emptyDir</code> 卷时，
+请查阅<a href=/zh-cn/docs/concepts/configuration/manage-resources-containers/#memory-backed-emptydir>此处</a>，
+了解有关资源管理方面的注意事项。</p></div><div class="feature-state-notice feature-alpha" title="特性门控： EmptyDirVolumeMode"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.37; （默认禁用）</span></div><div class=feature-alpha><details><summary>More information about this feature</summary><p>To use this feature, you (or a cluster administrator) will need to enable the <a href=/docs/reference/command-line-tools-reference/feature-gates/#EmptyDirVolumeMode><tt>EmptyDirVolumeMode</tt></a> feature gate for all relevant components in your cluster.</p><p>See <a href=/docs/tasks/administer-cluster/configure-feature-gates/>Enable Or Disable Feature Gates</a> for more information.</p></details></div><p><code>emptyDir.mode</code> 字段用于设置 emptyDir 目录的 Unix 权限位，取值范围为 <code>0000</code>
+到 <code>01777</code>（八进制）。与 Secret 和 ConfigMap 卷上的 <code>defaultMode</code> 字段用法一致。
+如果未指定 <code>mode</code>，则目录将以默认的 <code>0777</code> 权限创建。</p><p>设置自定义模式适用于以下场景：仅允许属主和属组访问（例如 <code>0750</code>），或在共享目录上设置粘滞位，
+使得只有文件属主才能删除自己的文件（例如 <code>01777</code>）。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>如果在 Pod 的安全上下文中设置了 <code>fsGroup</code>，则 <code>fsGroup</code> 所应用的组权限会覆盖此处指定的 <code>mode</code>。
+<code>mode</code> 字段在 Windows 上无效。</p></div><h4 id=emptydir-配置示例>emptyDir 配置示例<a class=td-heading-self-link href=#emptydir-%e9%85%8d%e7%bd%ae%e7%a4%ba%e4%be%8b aria-label="Heading self-link"></a></h4><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-pd</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>registry.k8s.io/test-webserver</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-container</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/cache</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>cache-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>cache-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>emptyDir</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>sizeLimit</span><span class=p>:</span><span class=w> </span><span class=l>500Mi</span><span class=w>
+</span></span></span></code></pre></div><h4 id=emptydir-内存配置示例>emptyDir 内存配置示例<a class=td-heading-self-link href=#emptydir-%e5%86%85%e5%ad%98%e9%85%8d%e7%bd%ae%e7%a4%ba%e4%be%8b aria-label="Heading self-link"></a></h4><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-pd</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>registry.k8s.io/test-webserver</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-container</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/cache</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>cache-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>cache-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>emptyDir</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>sizeLimit</span><span class=p>:</span><span class=w> </span><span class=l>500Mi</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>medium</span><span class=p>:</span><span class=w> </span><span class=l>Memory</span><span class=w>
+</span></span></span></code></pre></div><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><div class="feature-state-notice feature-alpha" title="特性门控： InPlacePodVerticalScalingMemoryBackedVolumes"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.37; （默认禁用）</span></div><div class=feature-alpha><details><summary>More information about this feature</summary><p>To use this feature, you (or a cluster administrator) will need to enable the <a href=/docs/reference/command-line-tools-reference/feature-gates/#InPlacePodVerticalScalingMemoryBackedVolumes><tt>InPlacePodVerticalScalingMemoryBackedVolumes</tt></a> feature gate for all relevant components in your cluster.</p><p>See <a href=/docs/tasks/administer-cluster/configure-feature-gates/>Enable Or Disable Feature Gates</a> for more information.</p></details></div><p>启用 <code>InPlacePodVerticalScalingMemoryBackedVolumes</code> 特性门控后，
+你可以动态调整基于内存的（<code>medium: Memory</code>）<code>emptyDir</code> 卷的 <code>sizeLimit</code>，而无需重启 Pod。
+有关详情，请参阅<a href=/zh-cn/docs/tasks/configure-pod-container/resize-container-resources/resizing-memory-backed-emptydir-volumes>调整分配给容器的 CPU 和内存资源</a>。</p></div><h4 id=emptydir-权限配置示例>emptyDir 权限配置示例<a class=td-heading-self-link href=#emptydir-%e6%9d%83%e9%99%90%e9%85%8d%e7%bd%ae%e7%a4%ba%e4%be%8b aria-label="Heading self-link"></a></h4><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volume-user-fields-example</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>busybox:1.28</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s1>&#39;sh&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;-c&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;echo &#34;The app is running!&#34; &amp;&amp; tail -f /dev/null&#39;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volA</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/mnt/volA</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volB</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/mnt/volB</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volC</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/mnt/volC</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volA</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>configMap</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>defaultUser</span><span class=p>:</span><span class=w> </span><span class=m>1000</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>cm1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>items</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>foo</span><span class=w> </span><span class=c># Owner=defaultUser</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>foo</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>bar</span><span class=w> </span><span class=c># Owner=user</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>bar</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>user</span><span class=p>:</span><span class=w> </span><span class=m>1001</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volB</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>secret</span><span class=p>:</span><span class=w> </span><span class=c># Owner=defaultUser</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>defaultUser</span><span class=p>:</span><span class=w> </span><span class=m>1000</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>secretName</span><span class=p>:</span><span class=w> </span><span class=l>secret1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volC</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>projected</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>sources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>secret</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>secret2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>items</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>moo</span><span class=w> </span><span class=c># Owner=root</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>moo</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>baa</span><span class=w> </span><span class=c># Owner=user</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>baa</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nt>user</span><span class=p>:</span><span class=w> </span><span class=m>1000</span><span class=w>
+</span></span></span></code></pre></div><h3 id=fc>fc（光纤通道）<a class=td-heading-self-link href=#fc aria-label="Heading self-link"></a></h3><p><code>fc</code> 卷类型允许将现有的光纤通道块存储卷挂载到 Pod 中。
+可以使用卷配置中的参数 <code>targetWWNs</code> 来指定单个或多个目标 WWN（World Wide Names）。
+如果指定了多个 WWN，targetWWNs 期望这些 WWN 来自多路径连接。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>你必须配置 FC SAN Zoning，以便预先向目标 WWN 分配和屏蔽这些 LUN（卷），这样
+Kubernetes 主机才可以访问它们。</p></div><h3 id=gcepersistentdisk>gcePersistentDisk（已弃用）<a class=td-heading-self-link href=#gcepersistentdisk aria-label="Heading self-link"></a></h3><p>在 Kubernetes 1.37 中，所有针对树内 <code>gcePersistentDisk</code>
+类型的操作都会被重定向到 <code>pd.csi.storage.gke.io</code> <a class=glossary-tooltip title='容器存储接口 （CSI）定义了存储系统暴露给容器的标准接口。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/storage/volumes/#csi target=_blank aria-label=CSI>CSI</a> 驱动。</p><p><code>gcePersistentDisk</code> 源代码树内卷存储驱动在 Kubernetes v1.17 版本中被弃用，
+在 v1.28 版本中被完全移除。</p><p>Kubernetes 项目建议你转为使用
+<a href=https://github.com/kubernetes-sigs/gcp-compute-persistent-disk-csi-driver>Google Compute Engine Persistent Disk CSI</a>
+第三方存储驱动插件。</p><h3 id=gitrepo>gitRepo（已禁用） <a class=td-heading-self-link href=#gitrepo aria-label="Heading self-link"></a></h3><div class="alert alert-danger" role=note><h4 class=alert-heading>警告：</h4><p>Kubernetes 1.37 <strong>不</strong>包含 <code>gitRepo</code> 卷驱动。
+提供使用此驱动方法的最后一个版本是 Kubernetes v1.35，
+并且自从 <a href=/zh-cn/releases/1.11>v1.11</a> 小版本发布以来，它已被弃用。</p><p>如果需要制备已挂载 Git 仓库的 Pod，你可以将
+<a href=#emptydir>EmptyDir</a> 卷挂载到
+<a href=/zh-cn/docs/concepts/workloads/pods/init-containers/>Init 容器</a>中，
+使用 Git 命令完成仓库的克隆操作，然后将 <a href=#emptydir>EmptyDir</a> 卷挂载到 Pod 的容器中。</p><hr><p>你可以使用 <a href=/zh-cn/docs/reference/access-authn-authz/validating-admission-policy/>ValidatingAdmissionPolicy</a>
+这类<a href=/zh-cn/docs/concepts/policy/>策略</a>来限制在你的集群中使用 <code>gitRepo</code> 卷。
+你可以使用以下通用表达语言（CEL）表达式作为策略的一部分，以拒绝使用 <code>gitRepo</code> 卷：</p><pre tabindex=0><code class=language-cel data-lang=cel>!has(object.spec.volumes) || !object.spec.volumes.exists(v, has(v.gitRepo))
+</code></pre></div><h3 id=hostpath>hostPath<a class=td-heading-self-link href=#hostpath aria-label="Heading self-link"></a></h3><p><code>hostPath</code> 卷能将主机节点文件系统上的文件或目录挂载到你的 Pod 中。
+虽然这不是大多数 Pod 需要的，但是它为一些应用提供了强大的逃生舱。</p><div class="alert alert-danger" role=note><h4 class=alert-heading>警告：</h4><p>使用 <code>hostPath</code> 类型的卷存在许多安全风险。如果可以，你应该尽量避免使用 <code>hostPath</code> 卷。
+例如，你可以改为定义并使用 <a href=#local><code>local</code> PersistentVolume</a>。</p><p>如果你通过准入时的验证来限制对节点上特定目录的访问，这种限制只有在你额外要求所有
+<code>hostPath</code> 卷的挂载都是<strong>只读</strong>的情况下才有效。如果你允许不受信任的 Pod
+以读写方式挂载任意主机路径，则该 Pod 中的容器可能会破坏可读写主机挂载卷的安全性。</p><hr><p>无论 <code>hostPath</code> 卷是以只读还是读写方式挂载，使用时都需要小心，这是因为：</p><ul><li>访问主机文件系统可能会暴露特权系统凭证（例如 kubelet 的凭证）或特权 API（例如容器运行时套接字），
+这些可以被用于容器逃逸或攻击集群的其他部分。</li><li>具有相同配置的 Pod（例如基于 PodTemplate 创建的 Pod）可能会由于节点上的文件不同而在不同节点上表现出不同的行为。</li><li><code>hostPath</code> 卷的用量不会被视为临时存储用量。
+你需要自己监控磁盘使用情况，因为过多的 <code>hostPath</code> 磁盘使用量会导致节点上的磁盘压力。</li></ul></div><p><code>hostPath</code> 的一些用法有：</p><ul><li>运行一个需要访问节点级系统组件的容器
+（例如一个将系统日志传输到集中位置的容器，使用只读挂载 <code>/var/log</code> 来访问这些日志）</li><li>让存储在主机系统上的配置文件可以被<a class=glossary-tooltip title='静态 Pod（Static Pod）是指由特定节点上的 kubelet 守护进程直接管理的 Pod。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/tasks/configure-pod-container/static-pod/ target=_blank aria-label='静态 Pod'>静态 Pod</a>
+以只读方式访问；与普通 Pod 不同，静态 Pod 无法访问 ConfigMap。</li></ul><h4 id=hostpath-卷类型><code>hostPath</code> 卷类型<a class=td-heading-self-link href=#hostpath-%e5%8d%b7%e7%b1%bb%e5%9e%8b aria-label="Heading self-link"></a></h4><p>除了必需的 <code>path</code> 属性外，你还可以选择为 <code>hostPath</code> 卷指定 <code>type</code>。</p><p><code>type</code> 的可用值有：</p><table><thead><tr><th style=text-align:left>取值</th><th style=text-align:left>行为</th></tr></thead><tbody><tr><td style=text-align:left><code>‌""</code></td><td style=text-align:left>空字符串（默认）用于向后兼容，这意味着在安装 hostPath 卷之前不会执行任何检查。</td></tr><tr><td style=text-align:left><code>DirectoryOrCreate</code></td><td style=text-align:left>如果在给定路径上什么都不存在，那么将根据需要创建空目录，权限设置为 0755，具有与 kubelet 相同的组和属主信息。</td></tr><tr><td style=text-align:left><code>Directory</code></td><td style=text-align:left>在给定路径上必须存在的目录。</td></tr><tr><td style=text-align:left><code>FileOrCreate</code></td><td style=text-align:left>如果在给定路径上什么都不存在，那么将在那里根据需要创建空文件，权限设置为 0644，具有与 kubelet 相同的组和所有权。</td></tr><tr><td style=text-align:left><code>File</code></td><td style=text-align:left>在给定路径上必须存在的文件。</td></tr><tr><td style=text-align:left><code>Socket</code></td><td style=text-align:left>在给定路径上必须存在的 UNIX 套接字。</td></tr><tr><td style=text-align:left><code>CharDevice</code></td><td style=text-align:left><strong>（仅 Linux 节点）</strong> 在给定路径上必须存在的字符设备。</td></tr><tr><td style=text-align:left><code>BlockDevice</code></td><td style=text-align:left><strong>（仅 Linux 节点）</strong> 在给定路径上必须存在的块设备。</td></tr></tbody></table><div class="alert alert-caution" role=note><h4 class=alert-heading>注意：</h4><p><code>FileOrCreate</code> 模式<strong>不会</strong>创建文件的父目录。如果挂载文件的父目录不存在，Pod 将启动失败。
+为了确保这种模式正常工作，你可以尝试分别挂载目录和文件，如
+<code>hostPath</code> 的 <a href=#hostpath-fileorcreate-example><code>FileOrCreate</code> 示例</a>所示。</p></div><p>下层主机上创建的某些文件或目录只能由 root 用户访问。
+此时，你需要在<a href=/zh-cn/docs/tasks/configure-pod-container/security-context/>特权容器</a>中以
+root 身份运行进程，或者修改主机上的文件权限，以便能够从 <code>hostPath</code>
+卷读取数据（或将数据写入到 <code>hostPath</code> 卷）。</p><h4 id=hostpath-配置示例>hostPath 配置示例<a class=td-heading-self-link href=#hostpath-%e9%85%8d%e7%bd%ae%e7%a4%ba%e4%be%8b aria-label="Heading self-link"></a></h4><ul class="nav nav-tabs" id=tabs-hostpath-examples role=tablist><li class=nav-item><button class="nav-link active" id=tabs-hostpath-examples-0-tab data-bs-toggle=tab data-bs-target=#tabs-hostpath-examples-0 role=tab aria-controls=tabs-hostpath-examples-0 aria-selected=true>
+Linux 节点</button><li class=nav-item><button class=nav-link id=tabs-hostpath-examples-1-tab data-bs-toggle=tab data-bs-target=#tabs-hostpath-examples-1 role=tab aria-controls=tabs-hostpath-examples-1 aria-selected=false>
+Windows 节点</button></ul><div class=tab-content id=tabs-hostpath-examples-content><div class="tab-body tab-pane fadeshow active" id=tabs-hostpath-examples-0 role=tabpanel aria-labelledby=tabs-hostpath-examples-0-tab tabindex=hostpath-examples><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nn>---</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># 此清单将主机上的 &#34;/data/foo&#34; 目录挂载为 hostpath-example-linux Pod 中运行的单个容器内的 &#34;/foo&#34; 目录</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c>#</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># 容器中的挂载是只读的</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>hostpath-example-linux</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>os</span><span class=p>:</span><span class=w> </span>{<span class=w> </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>linux }</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>nodeSelector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kubernetes.io/os</span><span class=p>:</span><span class=w> </span><span class=l>linux</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-container</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>registry.k8s.io/test-webserver</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/foo</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>readOnly</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 挂载 &#34;/data/foo&#34;，但仅当该目录已经存在时</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>hostPath</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/data/foo</span><span class=w> </span><span class=c># 主机上的目录位置</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>Directory</span><span class=w> </span><span class=c># 此字段可选</span><span class=w>
+</span></span></span></code></pre></div></div><div class="tab-body tab-pane fade" id=tabs-hostpath-examples-1 role=tabpanel aria-labelledby=tabs-hostpath-examples-1-tab tabindex=hostpath-examples><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nn>---</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># 此清单将主机上的 &#34;C:\Data\foo&#34; 目录挂载为 hostpath-example-windows Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># 中运行的单个容器内的 &#34;C:\foo&#34; 目录</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c>#</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=c># 容器中的挂载是只读的</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>hostpath-example-windows</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>os</span><span class=p>:</span><span class=w> </span>{<span class=w> </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>windows }</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>nodeSelector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kubernetes.io/os</span><span class=p>:</span><span class=w> </span><span class=l>windows</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-container</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>microsoft/windowsservercore:1709</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;C:\\foo&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>readOnly</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 从主机挂载 &#34;C:\Data\foo&#34;，但仅当该目录已经存在时</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>hostPath</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;C:\\Data\\foo&#34;</span><span class=w> </span><span class=c># 主机上的目录位置</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>Directory      </span><span class=w> </span><span class=c># 此字段可选</span><span class=w>
+</span></span></span></code></pre></div></div></div><h4 id=hostpath-fileorcreate-example>hostPath FileOrCreate 配置示例 <a class=td-heading-self-link href=#hostpath-fileorcreate-example aria-label="Heading self-link"></a></h4><p>以下清单定义了一个 Pod，将 <code>/var/local/aaa</code> 挂载到 Pod 中的单个容器内。
+如果节点上还没有路径 <code>/var/local/aaa</code>，kubelet 会创建这一目录，然后将其挂载到 Pod 中。</p><p>如果 <code>/var/local/aaa</code> 已经存在但不是一个目录，Pod 会失败。
+此外，kubelet 还会尝试在该目录内创建一个名为 <code>/var/local/aaa/1.txt</code> 的文件（从主机的视角来看）；
+如果在该路径上已经存在某个东西且不是常规文件，则 Pod 会失败。</p><p>以下是清单示例：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-webserver</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>os</span><span class=p>:</span><span class=w> </span>{<span class=w> </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>linux }</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>nodeSelector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kubernetes.io/os</span><span class=p>:</span><span class=w> </span><span class=l>linux</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-webserver</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>registry.k8s.io/test-webserver:latest</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/var/local/aaa</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>mydir</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/var/local/aaa/1.txt</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>myfile</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>mydir</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>hostPath</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=c># 确保文件所在目录被创建成功。</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/var/local/aaa</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>DirectoryOrCreate</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>myfile</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>hostPath</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/var/local/aaa/1.txt</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>FileOrCreate</span><span class=w>
+</span></span></span></code></pre></div><h3 id=image>image<a class=td-heading-self-link href=#image aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-stable" title="特性门控： ImageVolume"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.36; （默认启用）</span></div><div class=feature-stable><details><summary>More information about this feature</summary><p><em>This is a stable feature in Kubernetes, and has been since version 1.36. It was first available in the v1.31 release.</em></p></details></div><p><code>image</code> 卷源代表一个在 kubelet 主机上可用的 OCI 对象（容器镜像或工件）。</p><p>使用 <code>image</code> 卷源的一个例子是：</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/pods/image-volumes.yaml download=pods/image-volumes.yaml><code>pods/image-volumes.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("pods-image-volumes-yaml")' title="复制 pods/image-volumes.yaml 到剪贴板"></img></div><div class=includecode id=pods-image-volumes-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>image-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>shell</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s2>&#34;sleep&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;infinity&#34;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>debian</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>reference</span><span class=p>:</span><span class=w> </span><span class=l>quay.io/crio/artifact:v2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>pullPolicy</span><span class=p>:</span><span class=w> </span><span class=l>IfNotPresent</span><span class=w>
+</span></span></span></code></pre></div></div></div><p>此卷在 Pod 启动时基于提供的 <code>pullPolicy</code> 值进行解析：</p><dl><dt><code>Always</code></dt><dd>kubelet 始终尝试拉取此引用。如果拉取失败，kubelet 会将 Pod 设置为 <code>Failed</code>。</dd></dl><dl><dt><code>Never</code></dt><dd>kubelet 从不拉取此引用，仅使用本地镜像或工件。
+如果本地没有任何镜像层存在，或者该镜像的清单未被缓存，则 Pod 会变为 <code>Failed</code>。</dd><dt><code>IfNotPresent</code></dt><dd>如果引用在磁盘上不存在，kubelet 会进行拉取。
+如果引用不存在且拉取失败，则 Pod 会变为 <code>Failed</code>。</dd></dl><p>如果 Pod 被删除并重新创建，此卷会被重新解析，这意味着在 Pod 重新创建时将可以访问新的远程内容。
+在 Pod 启动期间解析或拉取镜像失败将导致容器无法启动，并可能显著增加延迟。
+如果失败，将使用正常的卷回退进行重试，并输出 Pod 失败的原因和相关消息。</p><p>此卷可以挂载的对象类型由主机上的容器运行时实现负责定义，至少必须包含容器镜像字段所支持的所有有效类型。
+OCI 对象将以只读方式被挂载到单个目录（<code>spec.containers[*].volumeMounts[*].mountPath</code>）中。</p><p>此外：</p><ul><li>从 Kubernetes v1.33 开始，才支持容器的
+<a href=/zh-cn/docs/concepts/storage/volumes/#using-subpath><code>subPath</code></a> 或
+<a href=/zh-cn/docs/concepts/storage/volumes/#using-subpath-expanded-environment><code>subPathExpr</code></a>
+挂载（<code>spec.containers[*].volumeMounts[*].subPath</code>、<code>spec.containers[*].volumeMounts[*].subPathExpr</code>）。</li><li><code>spec.securityContext.fsGroupChangePolicy</code> 字段对这种卷没有效果。</li><li><a href=/zh-cn/docs/reference/access-authn-authz/admission-controllers/#alwayspullimages><code>AlwaysPullImages</code> 准入控制器</a>也适用于此卷源，
+就像适用于容器镜像一样。</li></ul><p><code>image</code> 类型可用的字段如下：</p><dl><dt><code>reference</code></dt><dd>要使用的工件引用。例如，你可以指定 <code>registry.k8s.io/conformance:v1.37.0</code>
+来加载 Kubernetes 合规性测试镜像中的文件。其行为与 <code>pod.spec.containers[*].image</code> 相同。
+拉取 Secret 的组装方式与容器镜像所用的方式相同，即通过查找节点凭据、服务账户镜像拉取 Secret
+和 Pod 规约镜像拉取 Secret。此字段是可选的，允许更高层次的配置管理在 Deployment 和
+StatefulSet 这类工作负载控制器中默认使用或重载容器镜像。
+参阅<a href=/zh-cn/docs/concepts/containers/images>容器镜像更多细节</a>。</dd></dl><dl><dt><code>pullPolicy</code></dt><dd>拉取 OCI 对象的策略。可能的值为：<code>Always</code>、<code>Never</code> 或 <code>IfNotPresent</code>。
+如果指定了 <code>:latest</code> 标记，则默认为 <code>Always</code>，否则默认为 <code>IfNotPresent</code>。</dd></dl><p>有关如何使用卷源的更多细节，请参见
+<a href=/zh-cn/docs/tasks/configure-pod-container/image-volumes><strong>Pod 使用镜像卷</strong></a>示例。</p><h4 id=image-volume-pod-status>Pod 状态与 <code>image</code> 卷 <a class=td-heading-self-link href=#image-volume-pod-status aria-label="Heading self-link"></a></h4><div class="feature-state-notice feature-alpha" title="特性门控： ImageVolumeWithDigest"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.35; （默认禁用）</span></div><div class=feature-alpha><details><summary>More information about this feature</summary><p>To use this feature, you (or a cluster administrator) will need to enable the <a href=/docs/reference/command-line-tools-reference/feature-gates/#ImageVolumeWithDigest><tt>ImageVolumeWithDigest</tt></a> feature gate for all relevant components in your cluster.</p><p>See <a href=/docs/tasks/administer-cluster/configure-feature-gates/>Enable Or Disable Feature Gates</a> for more information.</p></details></div><p>如果在你的集群中启用了 <code>ImageVolumeWithDigest</code>
+<a href=/zh-cn/docs/reference/command-line-tools-reference/feature-gates/>特性门控</a>，
+那么每当你为 Pod 指定一个 <code>image</code> 卷时，kubelet 都会更新 Pod 状态，
+记录作为卷来源使用的容器镜像的<strong>摘要</strong>（digest）。</p><p>下面是一个正在运行的 Pod 的简化示例，以 YAML 表示，其中已包含状态更新。
+请注意容器状态中 <code>volumeMounts</code> 下新增的 <code>ImageRef</code> 字段。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>default</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>shell</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s2>&#34;sleep&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;infinity&#34;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>docker.io/library/debian:12</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>artifact</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/data</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>artifact</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>reference</span><span class=p>:</span><span class=w> </span><span class=l>quay.io/crio/artifact:v2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>pullPolicy</span><span class=p>:</span><span class=w> </span><span class=l>IfNotPresent</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>status</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containerStatuses</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>containerID</span><span class=p>:</span><span class=w> </span><span class=l>containerd://examplecontainerid1234567890abcdef</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>docker.io/library/debian:12</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>imageID</span><span class=p>:</span><span class=w> </span><span class=l>docker-pullable://docker.io/library/debian@sha256:3f1d6c17773a45c97bd8f158d665c9709d7b29ed7917ac934086ad96f92e4510</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>artifact</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/data</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>readOnly</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>imageRef</span><span class=p>:</span><span class=w> </span><span class=l>quay.io/crio/artifact@sha256:abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890</span><span class=w>
+</span></span></span></code></pre></div><h3 id=iscsi>iscsi<a class=td-heading-self-link href=#iscsi aria-label="Heading self-link"></a></h3><p><code>iscsi</code> 卷能将 iSCSI（基于 IP 的 SCSI）卷挂载到你的 Pod 中。
+不像 <code>emptyDir</code> 那样会在删除 Pod 的同时也会被删除，<code>iscsi</code>
+卷的内容在删除 Pod 时会被保留，卷只是被卸载。
+这意味着 <code>iscsi</code> 卷可以被预先填充数据，并且这些数据可以在 Pod 之间共享。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>在使用 iSCSI 卷之前，你必须拥有自己的 iSCSI 服务器，并在上面创建卷。</p></div><p>iSCSI 的一个特点是它可以同时被多个用户以只读方式挂载。
+这意味着你可以用数据集预先填充卷，然后根据需要在尽可能多的 Pod 上使用它。
+不幸的是，iSCSI 卷只能由单个使用者以读写模式挂载。不允许同时写入。</p><h3 id=local>local<a class=td-heading-self-link href=#local aria-label="Heading self-link"></a></h3><p><code>local</code> 卷所代表的是某个被挂载的本地存储设备，例如磁盘、分区或者目录。</p><p><code>local</code> 卷只能用作静态创建的持久卷。不支持动态配置。</p><p>与 <code>hostPath</code> 卷相比，<code>local</code> 卷能够以持久和可移植的方式使用，而无需手动将 Pod
+调度到节点。系统通过查看 PersistentVolume 的节点亲和性配置，就能了解卷的节点约束。</p><p>然而，<code>local</code> 卷仍然取决于底层节点的可用性，并不适合所有应用程序。
+如果节点变得不健康，那么 <code>local</code> 卷也将变得不可被 Pod 访问。使用它的 Pod 将不能运行。
+使用 <code>local</code> 卷的应用程序必须能够容忍这种可用性的降低，以及因底层磁盘的耐用性特征而带来的潜在的数据丢失风险。</p><p>下面是一个使用 <code>local</code> 卷和 <code>nodeAffinity</code> 的持久卷示例：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-pv</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>capacity</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>100Gi</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeMode</span><span class=p>:</span><span class=w> </span><span class=l>Filesystem</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>accessModes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=l>ReadWriteOnce</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>persistentVolumeReclaimPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Delete</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>storageClassName</span><span class=p>:</span><span class=w> </span><span class=l>local-storage</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>local</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/mnt/disks/ssd1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>nodeAffinity</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>required</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>nodeSelectorTerms</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>matchExpressions</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>kubernetes.io/hostname</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>operator</span><span class=p>:</span><span class=w> </span><span class=l>In</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>values</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span>- <span class=l>example-node</span><span class=w>
+</span></span></span></code></pre></div><p>使用 <code>local</code> 卷时，你需要设置 PersistentVolume 对象的 <code>nodeAffinity</code> 字段。
+Kubernetes 调度器使用 PersistentVolume 的 <code>nodeAffinity</code> 信息来将使用 <code>local</code>
+卷的 Pod 调度到正确的节点。</p><p>PersistentVolume 对象的 <code>volumeMode</code> 字段可被设置为 <code>"Block"</code>
+（而不是默认值 <code>"Filesystem"</code>），以将 <code>local</code> 卷作为原始块设备暴露出来。</p><p>使用 <code>local</code> 卷时，建议创建一个 StorageClass 并将其 <code>volumeBindingMode</code> 设置为
+<code>WaitForFirstConsumer</code>。要了解更多详细信息，请参考
+<a href=/zh-cn/docs/concepts/storage/storage-classes/#local>local StorageClass 示例</a>。
+延迟卷绑定的操作可以确保 Kubernetes 在为 PersistentVolumeClaim 作出绑定决策时，会评估
+Pod 可能具有的其他节点约束，例如：如节点资源需求、节点选择器、Pod 亲和性和 Pod 反亲和性。</p><p>你可以在 Kubernetes 之外单独运行静态驱动以改进对 <code>local</code> 卷的生命周期管理。
+请注意，此驱动尚不支持动态配置。
+有关如何运行外部 <code>local</code> 卷驱动，请参考
+<a href=https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner><code>local</code> 卷驱动用户指南</a>。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>如果不使用外部静态驱动来管理卷的生命周期，用户需要手动清理和删除 <code>local</code> 类型的持久卷。</p></div><h3 id=nfs>nfs<a class=td-heading-self-link href=#nfs aria-label="Heading self-link"></a></h3><p><code>nfs</code> 卷能将 NFS（网络文件系统）挂载到你的 Pod 中。
+不像 <code>emptyDir</code> 那样会在删除 Pod 的同时也会被删除，<code>nfs</code> 卷的内容在删除 Pod
+时会被保存，卷只是被卸载。
+这意味着 <code>nfs</code> 卷可以被预先填充数据，并且这些数据可以在 Pod 之间共享。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-pd</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>registry.k8s.io/test-webserver</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-container</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/my-nfs-data</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>nfs</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>server</span><span class=p>:</span><span class=w> </span><span class=l>my-nfs-server.example.com</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/my-nfs-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>readOnly</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span></code></pre></div><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>在使用 NFS 卷之前，你必须运行自己的 NFS 服务器并将目标 share 导出备用。</p><p>还需要注意，不能在 Pod 规约中指定 NFS 挂载可选项。
+可以选择设置服务端的挂载可选项，或者使用
+<a href=https://man7.org/linux/man-pages/man5/nfsmount.conf.5.html><code>/etc/nfsmount.conf</code></a>。
+此外，还可以通过允许设置挂载可选项的持久卷挂载 NFS 卷。</p></div><h3 id=persistentvolumeclaim>persistentVolumeClaim<a class=td-heading-self-link href=#persistentvolumeclaim aria-label="Heading self-link"></a></h3><p><code>persistentVolumeClaim</code> 卷用来将<a href=/zh-cn/docs/concepts/storage/persistent-volumes/>持久卷</a>（PersistentVolume）挂载到 Pod 中。
+持久卷申领（PersistentVolumeClaim）是用户在不知道特定云环境细节的情况下“申领”持久存储（例如 iSCSI 卷）的一种方法。</p><p>更多详情请参考<a href=/zh-cn/docs/concepts/storage/persistent-volumes/>持久卷</a>。</p><h3 id=portworxvolume>portworxVolume（已弃用）<a class=td-heading-self-link href=#portworxvolume aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-deprecated"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>已弃用</span> since Kubernetes v1.25</span></div><p><code>portworxVolume</code> 是一个可伸缩的块存储层，能够以超融合（hyperconverged）的方式与 Kubernetes 一起运行。
+<a href=https://portworx.com/use-case/kubernetes-storage/>Portworx</a>
+支持对服务器上存储的指纹处理、基于存储能力进行分层以及跨多个服务器整合存储容量。
+Portworx 可以以 in-guest 方式在虚拟机中运行，也可以在裸金属 Linux 节点上运行。</p><p><code>portworxVolume</code> 类型的卷可以通过 Kubernetes 动态创建，也可以预先配备并在 Pod 内引用。
+下面是一个引用预先配备的 Portworx 卷的示例 Pod：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-portworx-volume-pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>registry.k8s.io/test-webserver</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-container</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/mnt</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>pxvol</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>pxvol</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c># 此 Portworx 卷必须已经存在</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>portworxVolume</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>volumeID</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;pxvol&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>fsType</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;&lt;fs-type&gt;&#34;</span><span class=w>
+</span></span></span></code></pre></div><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>在 Pod 中使用 portworxVolume 之前，你要确保有一个名为 <code>pxvol</code> 的 PortworxVolume 存在。</p></div><h4 id=portworx-csi-迁移>Portworx CSI 迁移<a class=td-heading-self-link href=#portworx-csi-%e8%bf%81%e7%a7%bb aria-label="Heading self-link"></a></h4><div class="feature-state-locked feature-state-removed feature-stable"><p><em>This is a stable feature in Kubernetes, and has been since the 1.33 release. You can no longer toggle this feature (the associated <a href=/docs/reference/command-line-tools-reference/feature-gates-removed/>feature gate</a> has been removed).</em></p></div><p>在 Kubernetes 1.37 中，默认情况下，
+所有针对树内 Portworx 卷的操作都会被重定向到
+<code>pxd.portworx.com</code> 容器存储接口（CSI）驱动。
+<a href=https://docs.portworx.com/portworx-enterprise/operations/operate-kubernetes/storage-operations/csi>Portworx CSI 驱动程序</a>必须安装在集群上。</p><h3 id=projected>投射（projected） <a class=td-heading-self-link href=#projected aria-label="Heading self-link"></a></h3><p>投射卷能将若干现有的卷来源映射到同一目录上。
+更多详情请参考<a href=/zh-cn/docs/concepts/storage/projected-volumes/>投射卷</a>。</p><h3 id=secret>secret<a class=td-heading-self-link href=#secret aria-label="Heading self-link"></a></h3><p><code>secret</code> 卷用来给 Pod 传递敏感信息，例如密码。你可以将 Secret 存储在 Kubernetes
+API 服务器上，然后以文件的形式挂载到 Pod 中，无需直接与 Kubernetes 耦合。
+<code>secret</code> 卷由 tmpfs（基于 RAM 的文件系统）提供存储，因此它们永远不会被写入非易失性（持久化的）存储器。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><ul><li>使用前你必须在 Kubernetes API 中创建 Secret。</li><li>Secret 总是以 <code>readOnly</code> 的模式挂载。</li><li>容器以 <a href=#using-subpath><code>subPath</code></a> 卷挂载方式使用 Secret 时，将无法接收 Secret 的更新。</li></ul></div><p>更多详情请参考<a href=/zh-cn/docs/concepts/configuration/secret/>配置 Secret</a>。</p><h2 id=using-subpath>使用 subPath <a class=td-heading-self-link href=#using-subpath aria-label="Heading self-link"></a></h2><p>有时，在单个 Pod 中共享卷以供多方使用是很有用的。
+<code>volumeMounts[*].subPath</code> 属性可用于指定所引用的卷内的子路径，而不是其根路径。</p><p>下面例子展示了如何配置某包含 LAMP 堆栈（Linux、Apache、MySQL、PHP）的 Pod 使用同一共享卷。
+此示例中的 <code>subPath</code> 配置不建议在生产环境中使用。
+PHP 应用的代码和相关数据映射到卷的 <code>html</code> 文件夹，MySQL 数据库存储在卷的 <code>mysql</code> 文件夹中：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-lamp-site</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>mysql</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>mysql</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>env</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>MYSQL_ROOT_PASSWORD</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>value</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;rootpasswd&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/var/lib/mysql</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>site-data</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>subPath</span><span class=p>:</span><span class=w> </span><span class=l>mysql</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>php</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>php:7.0-apache</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/var/www/html</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>site-data</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>subPath</span><span class=p>:</span><span class=w> </span><span class=l>html</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>site-data</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>persistentVolumeClaim</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>claimName</span><span class=p>:</span><span class=w> </span><span class=l>my-lamp-site-data</span><span class=w>
+</span></span></span></code></pre></div><h3 id=using-subpath-expanded-environment>使用带有扩展环境变量的 subPath <a class=td-heading-self-link href=#using-subpath-expanded-environment aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.17</span></div><p>使用 <code>subPathExpr</code> 字段可以基于 downward API 环境变量来构造 <code>subPath</code> 目录名。
+<code>subPath</code> 和 <code>subPathExpr</code> 属性是互斥的。</p><p>在这个示例中，<code>Pod</code> 使用 <code>subPathExpr</code> 来 <code>hostPath</code> 卷 <code>/var/log/pods</code> 中创建目录 <code>pod1</code>。
+<code>hostPath</code> 卷采用来自 <code>downwardAPI</code> 的 Pod 名称生成目录名。
+宿主机目录 <code>/var/log/pods/pod1</code> 被挂载到容器的 <code>/logs</code> 中。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>pod1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>container1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>env</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>POD_NAME</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>valueFrom</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>fieldRef</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>fieldPath</span><span class=p>:</span><span class=w> </span><span class=l>metadata.name</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>busybox:1.28</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=w> </span><span class=s2>&#34;sh&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;-c&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;while [ true ]; do echo &#39;Hello&#39;; sleep 10; done | tee -a /logs/hello.txt&#34;</span><span class=w> </span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>workdir1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/logs</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=c># 包裹变量名的是小括号，而不是大括号</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>subPathExpr</span><span class=p>:</span><span class=w> </span><span class=l>$(POD_NAME)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>restartPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Never</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>workdir1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>hostPath</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/var/log/pods</span><span class=w>
+</span></span></span></code></pre></div><h2 id=resources>资源 <a class=td-heading-self-link href=#resources aria-label="Heading self-link"></a></h2><p><code>emptyDir</code> 卷的存储介质（例如磁盘、SSD 等）是由保存 kubelet
+数据的根目录（通常是 <code>/var/lib/kubelet</code>）的文件系统的介质确定。
+Kubernetes 对 <code>emptyDir</code> 卷或者 <code>hostPath</code> 卷可以消耗的空间没有限制，容器之间或
+Pod 之间也没有隔离。</p><p>要了解如何使用资源规约来请求空间，
+可参考<a href=/zh-cn/docs/concepts/configuration/manage-resources-containers/>如何管理资源</a>。</p><h2 id=out-of-tree-volume-plugins>树外（Out-of-Tree）卷插件 <a class=td-heading-self-link href=#out-of-tree-volume-plugins aria-label="Heading self-link"></a></h2><p>Out-of-Tree 卷插件包括<a class=glossary-tooltip title='容器存储接口 （CSI）定义了存储系统暴露给容器的标准接口。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/storage/volumes/#csi target=_blank aria-label=容器存储接口（CSI）>容器存储接口（CSI）</a>和
+FlexVolume（已弃用）。它们使存储供应商能够创建自定义存储插件，而无需将插件源码添加到
+Kubernetes 代码仓库。</p><p>以前，所有卷插件（如上面列出的卷类型）都是“树内（In-Tree）”的。
+“树内”插件是与 Kubernetes 的核心组件一同构建、链接、编译和交付的。
+这意味着向 Kubernetes 添加新的存储系统（卷插件）需要将代码合并到 Kubernetes 核心代码库中。</p><p>CSI 和 FlexVolume 都允许独立于 Kubernetes 代码库开发卷插件，并作为扩展部署（安装）在
+Kubernetes 集群上。</p><p>对于希望创建树外（Out-Of-Tree）卷插件的存储供应商，
+请参考<a href=https://github.com/kubernetes/community/blob/main/sig-storage/volume-plugin-faq.md>卷插件常见问题</a>。</p><h3 id=csi>CSI<a class=td-heading-self-link href=#csi aria-label="Heading self-link"></a></h3><p><a href=https://github.com/container-storage-interface/spec/blob/master/spec.md>容器存储接口</a>（CSI）
+为容器编排系统（如 Kubernetes）定义标准接口，以将任意存储系统暴露给它们的容器工作负载。</p><p>更多详情请阅读
+<a href=https://git.k8s.io/design-proposals-archive/storage/container-storage-interface.md>CSI 设计方案</a>。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>Kubernetes v1.13 废弃了对 CSI 规范版本 0.2 和 0.3 的支持，并将在以后的版本中删除。</p></div><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>CSI 驱动可能并非兼容所有的 Kubernetes 版本。
+请查看特定 CSI 驱动的文档，以了解各个 Kubernetes 版本所支持的部署步骤以及兼容性列表。</p></div><p>一旦在 Kubernetes 集群上部署了 CSI 兼容卷驱动程序，用户就可以使用
+<code>csi</code> 卷类型来挂接、挂载 CSI 驱动所提供的卷。</p><p><code>csi</code> 卷可以在 Pod 中以三种方式使用：</p><ul><li>通过 <a href=#persistentvolumeclaim>PersistentVolumeClaim</a> 对象引用</li><li>使用<a href=/zh-cn/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes>一般性的临时卷</a></li><li>使用 <a href=/zh-cn/docs/concepts/storage/ephemeral-volumes/#csi-ephemeral-volumes>CSI 临时卷</a>，
+前提是驱动支持这种用法</li></ul><p>存储管理员可以使用以下字段来配置 CSI 持久卷：</p><ul><li><code>driver</code>：指定要使用的卷驱动名称的字符串值。
+这个值必须与 CSI 驱动程序在 <code>GetPluginInfoResponse</code> 中返回的值相对应；该接口定义在
+<a href=https://github.com/container-storage-interface/spec/blob/master/spec.md#getplugininfo>CSI 规范</a>中。
+Kubernetes 使用所给的值来标识要调用的 CSI 驱动程序；CSI
+驱动程序也使用该值来辨识哪些 PV 对象属于该 CSI 驱动程序。</li></ul><ul><li><code>volumeHandle</code>：唯一标识卷的字符串值。
+该值必须与 CSI 驱动在 <code>CreateVolumeResponse</code> 的 <code>volume_id</code> 字段中返回的值相对应；接口定义在
+<a href=https://github.com/container-storage-interface/spec/blob/master/spec.md#createvolume>CSI 规范</a>中。
+在所有对 CSI 卷驱动程序的调用中，引用该 CSI 卷时都使用此值作为 <code>volume_id</code> 参数。</li></ul><ul><li><code>readOnly</code>：一个可选的布尔值，指示通过 <code>ControllerPublished</code>
+关联该卷时是否设置该卷为只读。默认值是 <code>false</code>。
+该值通过 <code>ControllerPublishVolumeRequest</code> 中的 <code>readonly</code> 字段传递给 CSI 驱动。</li></ul><ul><li><code>fsType</code>：如果 PV 的 <code>VolumeMode</code> 为 <code>Filesystem</code>，那么此字段指定挂载卷时应该使用的文件系统。
+如果卷尚未格式化，并且支持格式化，此值将用于格式化卷。
+此值可以通过 <code>ControllerPublishVolumeRequest</code>、<code>NodeStageVolumeRequest</code> 和
+<code>NodePublishVolumeRequest</code> 的 <code>VolumeCapability</code> 字段传递给 CSI 驱动。</li></ul><ul><li><code>volumeAttributes</code>：一个字符串到字符串的映射表，用来设置卷的静态属性。
+该映射必须与 CSI 驱动程序返回的 <code>CreateVolumeResponse</code> 中的 <code>volume.attributes</code>
+字段的映射相对应；
+<a href=https://github.com/container-storage-interface/spec/blob/master/spec.md#createvolume>CSI 规范</a>中有相应的定义。
+该映射通过 <code>ControllerPublishVolumeRequest</code>、<code>NodeStageVolumeRequest</code> 和
+<code>NodePublishVolumeRequest</code> 中的 <code>volume_context</code> 字段传递给 CSI 驱动。</li></ul><ul><li><code>controllerPublishSecretRef</code>：对包含敏感信息的 Secret 对象的引用；
+该敏感信息会被传递给 CSI 驱动来完成 CSI <code>ControllerPublishVolume</code> 和
+<code>ControllerUnpublishVolume</code> 调用。
+此字段是可选的；在不需要 Secret 时可以是空的。
+如果 Secret 包含多个 Secret 条目，则所有的 Secret 条目都会被传递。</li></ul><ul><li><p><code>nodeExpandSecretRef</code>：对包含敏感信息的 Secret 对象的引用，
+该信息会传递给 CSI 驱动以完成 CSI <code>NodeExpandVolume</code> 调用。
+此字段是可选的，如果不需要 Secret，则可能是空的。
+如果 Secret 包含多个 Secret 条目，则传递所有 Secret 条目。
+当你为节点初始化的卷扩展配置 Secret 数据时，kubelet 会通过 <code>NodeExpandVolume()</code>
+调用将该数据传递给 CSI 驱动。所有受支持的 Kubernetes 版本都提供 <code>nodeExpandSecretRef</code> 字段，
+并且默认可用。Kubernetes v1.25 之前的版本不包括此支持。</p><p>为每个 kube-apiserver 和每个节点上的 kubelet 启用名为 <code>CSINodeExpandSecret</code>
+的<a href=/zh-cn/docs/reference/command-line-tools-reference/feature-gates-removed/>特性门控</a>。
+自 Kubernetes 1.27 版本起，此特性已默认启用，无需显式启用特性门控。
+在节点初始化的存储大小调整操作期间，你还必须使用支持或需要 Secret 数据的 CSI 驱动。</p></li></ul><ul><li><code>nodePublishSecretRef</code>：对包含敏感信息的 Secret 对象的引用。
+该信息传递给 CSI 驱动来完成 CSI <code>NodePublishVolume</code> 调用。
+此字段是可选的，如果不需要 Secret，则可能是空的。
+如果 Secret 对象包含多个 Secret 条目，则传递所有 Secret 条目。</li></ul><ul><li><code>nodeStageSecretRef</code>：对包含敏感信息的 Secret 对象的引用，
+该信息会传递给 CSI 驱动以完成 CSI <code>NodeStageVolume</code> 调用。
+此字段是可选的，如果不需要 Secret，则可能是空的。
+如果 Secret 包含多个 Secret 条目，则传递所有 Secret 条目。</li></ul><h4 id=csi-raw-block-volume-support>CSI 原始块卷支持 <a class=td-heading-self-link href=#csi-raw-block-volume-support aria-label="Heading self-link"></a></h4><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.18</span></div><p>具有外部 CSI 驱动程序的供应商能够在 Kubernetes 工作负载中实现原始块卷支持。</p><p>你可以和以前一样，
+安装自己的<a href=/zh-cn/docs/concepts/storage/persistent-volumes/#raw-block-volume-support>带有原始块卷支持的 PV/PVC</a>，
+采用 CSI 对此过程没有影响。</p><h4 id=csi-ephemeral-volumes>CSI 临时卷 <a class=td-heading-self-link href=#csi-ephemeral-volumes aria-label="Heading self-link"></a></h4><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.25</span></div><p>你可以直接在 Pod 规约中配置 CSI 卷。采用这种方式配置的卷都是临时卷，
+无法在 Pod 重新启动后继续存在。
+进一步的信息可参阅<a href=/zh-cn/docs/concepts/storage/ephemeral-volumes/#csi-ephemeral-volumes>临时卷</a>。</p><p>有关如何开发 CSI 驱动的更多信息，请参考 <a href=https://kubernetes-csi.github.io/docs/>kubernetes-csi 文档</a>。</p><h4 id=windows-csi-proxy>Windows CSI 代理 <a class=td-heading-self-link href=#windows-csi-proxy aria-label="Heading self-link"></a></h4><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.22</span></div><p>CSI 节点插件需要执行多种特权操作，例如扫描磁盘设备和挂载文件系统等。
+这些操作在每个宿主机操作系统上都是不同的。对于 Linux 工作节点而言，容器化的 CSI
+节点插件通常部署为特权容器。对于 Windows 工作节点而言，容器化 CSI
+节点插件的特权操作是通过 <a href=https://github.com/kubernetes-csi/csi-proxy>csi-proxy</a>
+来支持的。csi-proxy 是一个由社区管理的、独立的可执行二进制文件，
+需要被预安装到每个 Windows 节点上。</p><p>要了解更多的细节，可以参考你要部署的 CSI 插件的部署指南。</p><h4 id=migrating-to-csi-drivers-from-in-tree-plugins>从树内插件迁移到 CSI 驱动程序 <a class=td-heading-self-link href=#migrating-to-csi-drivers-from-in-tree-plugins aria-label="Heading self-link"></a></h4><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.25</span></div><p><code>CSIMigration</code> 特性针对现有树内插件的操作会被定向到相应的 CSI 插件（应已安装和配置）。
+因此，操作员在过渡到取代树内插件的 CSI 驱动时，无需对现有存储类、PV 或 PVC（指树内插件）进行任何配置更改。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>即使你针对这种卷完成了 CSI 迁移且你升级到不再内置对这种存储类别的支持的 Kubernetes 版本，
+现有的由树内卷插件所创建的 PV 在未来无需进行任何配置更改就可以使用，</p><p>作为迁移的一部分，你或其他集群管理员<strong>必须</strong>安装和配置适用于该存储的 CSI 驱动。
+Kubernetes 不会为你安装该软件。</p><hr><p>在完成迁移之后，你也可以定义新的 PVC 和 PV，引用原来的、内置的集成存储。
+只要你安装并配置了适当的 CSI 驱动，即使是全新的卷，PV 的创建仍然可以继续工作。
+实际的存储管理现在通过 CSI 驱动来进行。</p></div><p>所支持的操作和特性包括：配备（Provisioning）/删除、挂接（Attach）/解挂（Detach）、
+挂载（Mount）/卸载（Unmount）和调整卷大小。</p><p>上面的<a href=#volume-types>卷类型</a>节列出了支持 <code>CSIMigration</code> 并已实现相应 CSI
+驱动程序的树内插件。</p><h3 id=flexvolume>flexVolume（已弃用） <a class=td-heading-self-link href=#flexvolume aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-deprecated"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>已弃用</span> since Kubernetes v1.23</span></div><p>FlexVolume 是一个使用基于 exec 的模型来与驱动程序对接的树外插件接口。
+用户必须在每个节点上的预定义卷插件路径中安装 FlexVolume
+驱动程序可执行文件，在某些情况下，控制平面节点中也要安装。</p><p>Pod 通过 <code>flexvolume</code> 树内插件与 FlexVolume 驱动程序交互。</p><p>下面的 FlexVolume
+<a href=https://github.com/Microsoft/K8s-Storage-Plugins/tree/master/flexvolume/windows>插件</a>以
+PowerShell 脚本的形式部署在宿主机系统上，支持 Windows 节点：</p><ul><li><a href=https://github.com/microsoft/K8s-Storage-Plugins/tree/master/flexvolume/windows/plugins/microsoft.com~smb.cmd>SMB</a></li><li><a href=https://github.com/microsoft/K8s-Storage-Plugins/tree/master/flexvolume/windows/plugins/microsoft.com~iscsi.cmd>iSCSI</a></li></ul><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>FlexVolume 已被弃用。推荐使用树外 CSI 驱动来将外部存储整合进 Kubernetes。</p><p>FlexVolume 驱动的维护者应开发一个 CSI 驱动并帮助用户从 FlexVolume 驱动迁移到 CSI。
+FlexVolume 用户应迁移工作负载以使用对等的 CSI 驱动。</p></div><h2 id=mount-propagation>挂载卷的传播 <a class=td-heading-self-link href=#mount-propagation aria-label="Heading self-link"></a></h2><div class="alert alert-caution" role=note><h4 class=alert-heading>注意：</h4><p>挂载卷的传播是一项底层功能，不能在所有类型的卷中以一致的方式工作。
+建议只在 <code>hostPath</code> 或基于内存的 <code>emptyDir</code> 卷中使用。
+详情请参考<a href=https://github.com/kubernetes/kubernetes/issues/95049>讨论</a>。</p></div><p>挂载卷的传播能力允许将容器安装的卷共享到同一 Pod 中的其他容器，甚至共享到同一节点上的其他 Pod。</p><p>卷的挂载传播特性由 <code>containers[*].volumeMounts</code> 中的 <code>mountPropagation</code> 字段控制，
+它的值包括：</p><ul><li><p><code>None</code> - 此卷挂载将不会感知到主机后续在此卷或其任何子目录上执行的挂载变化。
+类似的，容器所创建的卷挂载在主机上是不可见的。这是默认模式。</p><p>该模式等同于 <a href=https://man7.org/linux/man-pages/man8/mount.8.html><code>mount(8)</code></a> 中描述的
+<code>rprivate</code> 挂载传播选项。</p><p>然而，当 <code>rprivate</code> 传播选项不适用时，CRI 运行时可以转为选择 <code>rslave</code> 挂载传播选项
+（即 <code>HostToContainer</code>）。当挂载源包含 Docker 守护进程的根目录（<code>/var/lib/docker</code>）时，
+cri-dockerd（Docker）已知可以选择 <code>rslave</code> 挂载传播选项。</p></li></ul><ul><li><p><code>HostToContainer</code> - 此卷挂载将会感知到主机后续针对此卷或其任何子目录的挂载操作。</p><p>换句话说，如果主机在此挂载卷中挂载任何内容，容器将能看到它被挂载在那里。</p><p>类似的，配置了 <code>Bidirectional</code> 挂载传播选项的 Pod 如果在同一卷上挂载了内容，挂载传播设置为
+<code>HostToContainer</code> 的容器都将能看到这一变化。</p><p>该模式等同于 <a href=https://man7.org/linux/man-pages/man8/mount.8.html><code>mount(8)</code></a>
+中描述的 <code>rslave</code> 挂载传播选项。</p></li></ul><ul><li><p><code>Bidirectional</code> - 这种卷挂载和 <code>HostToContainer</code> 挂载表现相同。
+另外，容器创建的卷挂载将被传播回至主机和使用同一卷的所有 Pod 的所有容器。</p><p>该模式的典型用例是带有 FlexVolume 或 CSI 驱动的 Pod，或者需要通过
+<code>hostPath</code> 卷在主机上挂载某些东西的 Pod。</p><p>该模式等同于 <a href=https://man7.org/linux/man-pages/man8/mount.8.html><code>mount(8)</code></a> 中描述的
+<code>rshared</code> 挂载传播选项。</p><div class="alert alert-danger" role=note><h4 class=alert-heading>警告：</h4><p><code>Bidirectional</code> 形式的挂载传播可能比较危险。
+它可以破坏主机操作系统，因此它只被允许在特权容器中使用。
+强烈建议你熟悉 Linux 内核行为。
+此外，由 Pod 中的容器创建的任何卷挂载必须在终止时由容器销毁（卸载）。</p></div></li></ul><h2 id=read-only-mounts>只读挂载 <a class=td-heading-self-link href=#read-only-mounts aria-label="Heading self-link"></a></h2><p>通过将 <code>.spec.containers[*].volumeMounts[*].readOnly</code> 字段设置为 <code>true</code> 可以使挂载只读。
+这不会使卷本身只读，但该容器将无法写入此卷。
+Pod 中的其他容器可以以读写方式挂载同一个卷。</p><p>在 Linux 上，只读挂载默认不会以递归方式只读。
+假如有一个 Pod 将主机的 <code>/mnt</code> 挂载为 <code>hostPath</code> 卷。
+如果在 <code>/mnt/&lt;SUBMOUNT></code> 上有另一个以读写方式挂载的文件系统（如 tmpfs、NFS 或 USB 存储），
+即使挂载本身被指定为只读，挂载到容器中的卷 <code>/mnt/&lt;SUBMOUNT></code> 也是可写的。</p><h3 id=recursive-read-only-mounts>递归只读挂载 <a class=td-heading-self-link href=#recursive-read-only-mounts aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-stable" title="特性门控： RecursiveReadOnlyMounts"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.33</span></div><div class=feature-stable><details><summary>More information about this feature</summary><p>This is a stable feature in Kubernetes, and has been since version v1.33. It was first available in the v1.30 release. You can no longer disable or opt out of this feature or behavior (it is locked); if you explicitly set a value for the associated feature gate <tt>RecursiveReadOnlyMounts</tt>, Kubernetes ignores it but does not report any error.</p></details></div><p>通过为 kubelet 和 kube-apiserver 设置 <code>RecursiveReadOnlyMounts</code>
+<a href=/zh-cn/docs/reference/command-line-tools-reference/feature-gates/>特性门控</a>，
+并为 Pod 设置 <code>.spec.containers[*].volumeMounts[*].recursiveReadOnly</code> 字段，
+递归只读挂载可以被启用。</p><p>允许的值为：</p><ul><li><code>Disabled</code>（默认）：无效果。</li></ul><ul><li><p><code>Enabled</code>：使挂载递归只读。需要满足以下所有要求：</p><ul><li><code>readOnly</code> 设置为 <code>true</code></li><li><code>mountPropagation</code> 不设置，或设置为 <code>None</code></li><li>主机运行 Linux 内核 v5.12 或更高版本</li><li><a href=/zh-cn/docs/concepts/architecture/cri>CRI 级别</a>的容器运行时支持递归只读挂载</li><li>OCI 级别的容器运行时支持递归只读挂载</li></ul><p>如果其中任何一个不满足，递归只读挂载将会失败。</p></li></ul><ul><li><code>IfPossible</code>：尝试应用 <code>Enabled</code>，如果内核或运行时类不支持该特性，则回退为 <code>Disabled</code>。</li></ul><p>示例：</p><div class="highlight code-sample"><div class=copy-code-icon><a href=https://raw.githubusercontent.com/kubernetes/website/main/content/zh-cn/examples/storage/rro.yaml download=storage/rro.yaml><code>storage/rro.yaml</code>
+</a><img src=/images/copycode.svg class=icon-copycode onclick='copyCode("storage-rro-yaml")' title="复制 storage/rro.yaml 到剪贴板"></img></div><div class=includecode id=storage-rro-yaml><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>rro</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>mnt</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>hostPath</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=c># tmpfs 被挂载到 /mnt/tmpfs 上</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>/mnt</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>busybox</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>busybox</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>args</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s2>&#34;sleep&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;infinity&#34;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=c># /mnt-rro/tmpfs 不可写入</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>mnt</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/mnt-rro</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>readOnly</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>mountPropagation</span><span class=p>:</span><span class=w> </span><span class=l>None</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>recursiveReadOnly</span><span class=p>:</span><span class=w> </span><span class=l>Enabled</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=c># /mnt-ro/tmpfs 可写入</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>mnt</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/mnt-ro</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>readOnly</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=c># /mnt-rw/tmpfs 可写入</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>mnt</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/mnt-rw</span><span class=w>
+</span></span></span></code></pre></div></div></div><p>当此属性被 kubelet 和 kube-apiserver 识别到时，
+<code>.status.containerStatuses[*].volumeMounts[*].recursiveReadOnly</code> 字段将被设置为
+<code>Enabled</code> 或 <code>Disabled</code>。</p><h2 id=文件属主>文件属主<a class=td-heading-self-link href=#%e6%96%87%e4%bb%b6%e5%b1%9e%e4%b8%bb aria-label="Heading self-link"></a></h2><h3 id=属组-gid>属组（GID）<a class=td-heading-self-link href=#%e5%b1%9e%e7%bb%84-gid aria-label="Heading self-link"></a></h3><p>卷文件的属组（GID）由 Pod 的 <code>spec.securityContext.fsGroup</code> 控制。</p><p>有关详细配置步骤，请参阅<a href=/zh-cn/docs/tasks/configure-pod-container/security-context/>为 Pod 或容器配置安全上下文</a>。</p><h3 id=属主-uid>属主（UID）<a class=td-heading-self-link href=#%e5%b1%9e%e4%b8%bb-uid aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-alpha" title="特性门控： AtomicWriteVolumeUserFields"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.37; （默认禁用）</span></div><div class=feature-alpha><details><summary>More information about this feature</summary><p>To use this feature, you (or a cluster administrator) will need to enable the <a href=/docs/reference/command-line-tools-reference/feature-gates/#AtomicWriteVolumeUserFields><tt>AtomicWriteVolumeUserFields</tt></a> feature gate for all relevant components in your cluster.</p><p>See <a href=/docs/tasks/administer-cluster/configure-feature-gates/>Enable Or Disable Feature Gates</a> for more information.</p></details></div><p>启用 <code>AtomicWriteVolumeUserFields</code>
+<a href=/zh-cn/docs/reference/command-line-tools-reference/feature-gates/>特性门控</a>后，将为
+<code>configMap</code>、<code>secret</code>、<code>downwardAPI</code> 和 <code>projected</code> 卷启用文件属主（UID）字段。</p><p>在卷级别指定 <code>defaultUser</code> 时，会在创建时设置该卷所有数据文件的属主 UID。
+在项级别，<code>user</code> 字段控制单个文件的属主 UID，且优先于 <code>defaultUser</code>。</p><p>示例：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volume-user-fields-example</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>busybox:1.28</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=s1>&#39;sh&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;-c&#39;</span><span class=p>,</span><span class=w> </span><span class=s1>&#39;echo &#34;The app is running!&#34; &amp;&amp; tail -f /dev/null&#39;</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volA</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/mnt/volA</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volB</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/mnt/volB</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volC</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=l>/mnt/volC</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volA</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>configMap</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>defaultUser</span><span class=p>:</span><span class=w> </span><span class=m>1000</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>cm1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>items</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>foo</span><span class=w> </span><span class=c># Owner=defaultUser</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>foo</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>bar</span><span class=w> </span><span class=c># Owner=user</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>bar</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>user</span><span class=p>:</span><span class=w> </span><span class=m>1001</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volB</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>secret</span><span class=p>:</span><span class=w> </span><span class=c># Owner=defaultUser</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>defaultUser</span><span class=p>:</span><span class=w> </span><span class=m>1000</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>secretName</span><span class=p>:</span><span class=w> </span><span class=l>secret1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>volC</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>projected</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>sources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>secret</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>secret2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>items</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>moo</span><span class=w> </span><span class=c># Owner=root</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>moo</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span>- <span class=nt>key</span><span class=p>:</span><span class=w> </span><span class=l>baa</span><span class=w> </span><span class=c># Owner=user</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nt>path</span><span class=p>:</span><span class=w> </span><span class=l>baa</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nt>user</span><span class=p>:</span><span class=w> </span><span class=m>1000</span><span class=w>
+</span></span></span></code></pre></div><h4 id=implementations-rro>实现 <a class=td-heading-self-link href=#implementations-rro aria-label="Heading self-link"></a></h4><div class="alert alert-secondary callout third-party-content" role=note><strong>说明：</strong>&#8200;本部分链接到提供 Kubernetes 所需功能的第三方项目。Kubernetes 项目作者不负责这些项目。此页面遵循<a href=https://github.com/cncf/foundation/blob/main/policies-guidance/website-guidelines.md target=_blank>CNCF 网站指南</a>，按字母顺序列出项目。要将项目添加到此列表中，请在提交更改之前阅读<a href=/zh-cn/docs/contribute/style/content-guide/#third-party-content>内容指南</a>。</div><p>以下容器运行时已知支持递归只读挂载。</p><p>CRI 级别：</p><ul><li><a href=https://containerd.io/>containerd</a>，自 v2.0 起</li><li><a href=https://cri-o.io/>CRI-O</a>，自 v1.30 起</li></ul><p>OCI 级别：</p><ul><li><a href=https://runc.io/>runc</a>，自 v1.1 起</li><li><a href=https://github.com/containers/crun>crun</a>，自 v1.8.6 起</li></ul><h2 id=绑定挂载选项>绑定挂载选项<a class=td-heading-self-link href=#%e7%bb%91%e5%ae%9a%e6%8c%82%e8%bd%bd%e9%80%89%e9%a1%b9 aria-label="Heading self-link"></a></h2><div class="feature-state-notice feature-alpha" title="特性门控： VolumeBindMountOptions"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.37; （默认禁用）</span></div><div class=feature-alpha><details><summary>More information about this feature</summary><p>To use this feature, you (or a cluster administrator) will need to enable the <a href=/docs/reference/command-line-tools-reference/feature-gates/#VolumeBindMountOptions><tt>VolumeBindMountOptions</tt></a> feature gate for all relevant components in your cluster.</p><p>See <a href=/docs/tasks/administer-cluster/configure-feature-gates/>Enable Or Disable Feature Gates</a> for more information.</p></details></div><p><code>.spec.containers[*].volumeMounts[*].bindMountOptions</code> 字段用于将安全相关的
+Linux bind 挂载标志应用于任何卷挂载。允许的值为：</p><ul><li><code>noexec</code> - 禁止在已挂载卷上执行二进制文件</li><li><code>nodev</code> - 忽略已挂载卷上的设备特殊文件</li><li><code>nosuid</code> - 忽略已挂载卷上的 set-user-identifier（SUID）和 set-group-identifier（SGID）位</li></ul><p>这些选项按容器分别生效，因此同一 Pod 中的不同容器可以以不同的 bind 挂载选项挂载同一卷。该字段不支持用于<a href=#image>镜像卷</a>。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>容器运行时（如 containerd 或 CRI-O）必须支持 CRI <code>Mount</code> 消息中的 <code>mount_options</code> 字段。
+如果运行时未声明支持此字段，kubelet 会拒绝使用 <code>bindMountOptions</code> 的 Pod。该字段在 Windows 节点上无效。</p></div><h2 id=接下来>接下来<a class=td-heading-self-link href=#%e6%8e%a5%e4%b8%8b%e6%9d%a5 aria-label="Heading self-link"></a></h2><p>参考<a href=/zh-cn/docs/tutorials/stateful-application/mysql-wordpress-persistent-volume/>使用持久卷部署 WordPress 和 MySQL</a>
+示例。</p></div>
+</body>
+</html>

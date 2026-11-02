@@ -298,3 +298,168 @@ questions:
       - "What is the most a single purchase on a corporate card may be?"
       - "公司卡单笔消费最高可以是多少？"
       - "コーポレートカードでの1回の購入は最大いくらまでですか？"
+  - fact: "dual_stack_state"
+    ask:
+      - "What is the feature state of IPv4/IPv6 dual-stack networking in Kubernetes, and since which version?"
+      - "Kubernetes 的 IPv4/IPv6 双协议栈网络目前处于什么特性状态？从哪个版本开始？"
+      - "KubernetesのIPv4/IPv6デュアルスタックネットワークの機能の状態は何で、どのバージョンからですか？"
+  - fact: "internal_traffic_policy_state"
+    ask:
+      - "What is the feature state of Service internal traffic policy (internalTrafficPolicy), and since which Kubernetes version?"
+      - "Service 的内部流量策略（internalTrafficPolicy）目前是什么特性状态？从哪个 Kubernetes 版本开始？"
+      - "Serviceの内部トラフィックポリシー(internalTrafficPolicy)の機能の状態は何で、どのKubernetesバージョンからですか？"
+  - fact: "storage_capacity_tracking_state"
+    ask:
+      - "What is the feature state of storage capacity tracking (CSIStorageCapacity) in Kubernetes, and since which version?"
+      - "Kubernetes 的存储容量跟踪（CSIStorageCapacity）目前是什么特性状态？从哪个版本开始？"
+      - "Kubernetesのストレージ容量の追跡(CSIStorageCapacity)の機能の状態は何で、どのバージョンからですか？"
+  - fact: "volume_attributes_class_state"
+    ask:
+      - "What is the feature state of VolumeAttributesClass, and since which Kubernetes version?"
+      - "VolumeAttributesClass（卷属性类）目前是什么特性状态？从哪个 Kubernetes 版本开始？"
+      - "VolumeAttributesClassの機能の状態は何で、どのKubernetesバージョンからですか？"
+  - fact: "pvc_online_resize_state"
+    ask:
+      - "What is the feature state of resizing a PersistentVolumeClaim that a Pod is using, and since which Kubernetes version?"
+      - "对正在被 Pod 使用的 PVC 调整大小，目前是什么特性状态？从哪个 Kubernetes 版本开始？"
+      - "Podが使用中のPersistentVolumeClaimのリサイズの機能の状態は何で、どのKubernetesバージョンからですか？"
+  - fact: "volume_snapshot_state"
+    ask:
+      - "What is the feature state of volume snapshots and restoring a volume from a snapshot, and since which Kubernetes version?"
+      - "卷快照以及从卷快照恢复卷的支持目前是什么特性状态？从哪个 Kubernetes 版本开始？"
+      - "ボリュームスナップショットとスナップショットからのボリューム復元のサポートの機能の状態は何で、どのKubernetesバージョンからですか？"
+  - fact: "csi_ephemeral_volumes_state"
+    ask:
+      - "What is the feature state of CSI ephemeral volumes, and since which Kubernetes version?"
+      - "CSI 临时卷目前是什么特性状态？从哪个 Kubernetes 版本开始？"
+      - "CSIエフェメラルボリュームの機能の状態は何で、どのKubernetesバージョンからですか？"
+  - fact: "csi_migration_state"
+    ask:
+      - "What is the feature state of CSI migration (moving in-tree volume plugins to CSI drivers), and since which Kubernetes version?"
+      - "CSI 迁移（把树内卷插件迁移到 CSI 驱动程序）目前是什么特性状态？从哪个 Kubernetes 版本开始？"
+      - "CSI移行(ツリー内ボリュームプラグインからCSIドライバーへの移行)の機能の状態は何で、どのKubernetesバージョンからですか？"
+  - fact: "topology_routing_annotation"
+    ask:
+      - "Which annotation do I set on a Service to turn on topology aware routing, so that traffic stays in its zone?"
+      - "要为 Service 启用拓扑感知路由、让流量尽量留在同一可用区，需要设置哪个注解？"
+      - "Serviceでトポロジーを意識したルーティングを有効にしてトラフィックを同じゾーン内に保つには、どのアノテーションを設定しますか？"
+  - fact: "volume_populators_state"
+    ask:
+      - "What is the feature state of volume populators (the AnyVolumeDataSource feature), and since which Kubernetes version?"
+      - "卷填充器（AnyVolumeDataSource 特性）目前是什么特性状态？从哪个 Kubernetes 版本开始？"
+      - "ボリュームポピュレーター(AnyVolumeDataSource機能)の機能の状態は何で、どのKubernetesバージョンからですか？"
+  - fact: "network_policy_port_range_state"
+    ask:
+      - "What is the feature state of targeting a range of ports in a NetworkPolicy with the endPort field, and since which Kubernetes version?"
+      - "在 NetworkPolicy 中用 endPort 字段指定端口范围，目前是什么特性状态？从哪个 Kubernetes 版本开始？"
+      - "NetworkPolicyでendPortフィールドを使ってポートの範囲を指定する機能の状態は何で、どのKubernetesバージョンからですか？"
+  - fact: "endpoint_terminating_condition_state"
+    ask:
+      - "What is the feature state of the terminating condition on EndpointSlice endpoints, and since which Kubernetes version?"
+      - "EndpointSlice 端点上的 terminating 状况目前是什么特性状态？从哪个 Kubernetes 版本开始？"
+      - "EndpointSliceのエンドポイントのterminating状態の機能の状態は何で、どのKubernetesバージョンからですか？"
+  - fact: "generic_ephemeral_volumes_state"
+    ask:
+      - "What is the feature state of generic ephemeral volumes, and since which Kubernetes version?"
+      - "通用临时卷目前是什么特性状态？从哪个 Kubernetes 版本开始？"
+      - "汎用エフェメラルボリュームの機能の状態は何で、どのKubernetesバージョンからですか？"
+  - fact: "mixed_protocol_lb_state"
+    ask:
+      - "What is the feature state of LoadBalancer Services with mixed protocol types (for example TCP and UDP on one Service), and since which Kubernetes version?"
+      - "在一个 LoadBalancer Service 上混用多种协议（例如 TCP 和 UDP）目前是什么特性状态？从哪个 Kubernetes 版本开始？"
+      - "1つのLoadBalancer Serviceで複数のプロトコル(例えばTCPとUDP)を混在させる機能の状態は何で、どのKubernetesバージョンからですか？"
+  - fact: "endpoints_per_slice_default"
+    ask:
+      - "By default, how many endpoints does one EndpointSlice hold at most?"
+      - "默认情况下，一个 EndpointSlice 最多包含多少个端点？"
+      - "デフォルトでは、1つのEndpointSliceに含まれるエンドポイントは最大いくつですか？"
+  - fact: "ebs_volumes_m5_node"
+    ask:
+      - "How many EBS volumes does Kubernetes let me attach to a node of the m5 instance type on AWS?"
+      - "在 AWS 上，Kubernetes 允许 m5 实例类型的节点挂接多少个 EBS 卷？"
+      - "AWSでm5インスタンスタイプのノードには、KubernetesはEBSボリュームをいくつまでアタッチさせますか？"
+  - fact: "production_kubernetes_version"
+    ask:
+      - "Which Kubernetes version do our production clusters run?"
+      - "我们的生产集群运行的是哪个 Kubernetes 版本？"
+      - "本番クラスターはどのKubernetesバージョンで動いていますか？"
+  - fact: "default_storage_class"
+    ask:
+      - "What is the default StorageClass on our production clusters?"
+      - "我们生产集群的默认 StorageClass 是哪个？"
+      - "本番クラスターのデフォルトのStorageClassは何ですか？"
+  - fact: "snapshot_retention_days"
+    ask:
+      - "How long are scheduled VolumeSnapshots kept on our production clusters?"
+      - "我们生产集群上的定时卷快照（VolumeSnapshot）保留多久？"
+      - "本番クラスターで定期的なVolumeSnapshotはどのくらいの期間保持されますか？"
+  - fact: "gold_class_iops"
+    ask:
+      - "How many IOPS does the gold VolumeAttributesClass give on our clusters?"
+      - "我们集群上的 gold VolumeAttributesClass 提供多少 IOPS？"
+      - "私たちのクラスターのgold VolumeAttributesClassは何IOPSですか？"
+  - fact: "pvcs_per_namespace"
+    ask:
+      - "How many PersistentVolumeClaims may one namespace hold on our clusters?"
+      - "在我们的集群上，一个命名空间最多可以有多少个 PersistentVolumeClaim？"
+      - "私たちのクラスターでは、1つのネームスペースにPersistentVolumeClaimをいくつまで作れますか？"
+  - fact: "loadbalancer_services_per_namespace"
+    ask:
+      - "How many Services of type LoadBalancer may one namespace have on our clusters?"
+      - "在我们的集群上，一个命名空间最多可以有多少个 LoadBalancer 类型的 Service？"
+      - "私たちのクラスターでは、1つのネームスペースにLoadBalancerタイプのServiceをいくつまで作れますか？"
+  - fact: "pvc_size_without_review"
+    ask:
+      - "Up to what size can a PersistentVolumeClaim be on our clusters without a capacity review?"
+      - "在我们的集群上，PersistentVolumeClaim 多大以内不需要容量评审？"
+      - "私たちのクラスターでは、PersistentVolumeClaimはどのサイズまでなら容量レビューなしで作れますか？"
+  - fact: "nodeport_default_range"
+    ask:
+      - "What is the default port range for NodePort Services?"
+      - "NodePort 类型 Service 的默认端口范围是多少？"
+      - "NodePort Serviceのデフォルトのポート範囲は何ですか？"
+  - fact: "nodeport_static_band"
+    ask:
+      - "With the default NodePort range, which ports form the static band?"
+      - "使用默认的 NodePort 范围时，静态端口段是哪些端口？"
+      - "デフォルトのNodePortの範囲を使う場合、静的帯域はどのポートですか？"
+  - fact: "dns_search_domains_max"
+    ask:
+      - "How many DNS search domains does Kubernetes allow?"
+      - "Kubernetes 最多允许多少个 DNS 搜索域？"
+      - "KubernetesではDNS検索ドメインをいくつまで指定できますか？"
+  - fact: "dns_search_total_length"
+    ask:
+      - "What is the most the total length of all DNS search domains can be before Kubernetes limits the DNS config?"
+      - "所有 DNS 搜索域的总长度最多可以是多少，超过后 Kubernetes 会限制 DNS 配置？"
+      - "KubernetesがDNS設定を制限するのは、DNS検索ドメインの文字数の合計がいくつを超えたときですか？"
+  - fact: "fqdn_hostname_limit"
+    ask:
+      - "On Linux, how long can a Pod's FQDN be when the Pod sets setHostnameAsFQDN?"
+      - "在 Linux 上，Pod 设置了 setHostnameAsFQDN 时，其 FQDN 最长可以是多少个字符？"
+      - "Linuxで、PodがsetHostnameAsFQDNを設定している場合、そのFQDNは何文字まで使えますか？"
+  - fact: "sa_token_default_expiry"
+    ask:
+      - "How long is a projected service account token valid by default (expirationSeconds)?"
+      - "投射卷中的服务账号令牌（expirationSeconds）默认有效多久？"
+      - "投影ボリュームのサービスアカウントトークン(expirationSeconds)のデフォルトの有効期間はどれくらいですか？"
+  - fact: "sa_token_min_expiry"
+    ask:
+      - "What is the shortest expirationSeconds a projected service account token may have?"
+      - "投射卷中的服务账号令牌的 expirationSeconds 最短可以设为多少？"
+      - "投影ボリュームのサービスアカウントトークンのexpirationSecondsは最短でどれくらいにできますか？"
+  - fact: "gce_dynamic_volume_limit"
+    ask:
+      - "On Google Compute Engine, up to how many volumes can Kubernetes attach to a node?"
+      - "在 Google Compute Engine 上，Kubernetes 最多可以将多少个卷挂接到一个节点？"
+      - "Google Compute Engine上では、Kubernetesは1つのノードに最大いくつのボリュームを接続できますか？"
+  - fact: "clusterip_static_band_max"
+    ask:
+      - "At most how many addresses can the static band of a Service ClusterIP range have?"
+      - "Service ClusterIP 范围中的静态段最多可以有多少个地址？"
+      - "ServiceのClusterIP範囲の静的帯域は、最大でいくつのアドレスになりますか？"
+  - fact: "endpoints_per_slice_max"
+    ask:
+      - "Up to what maximum can --max-endpoints-per-slice set the number of endpoints in an EndpointSlice?"
+      - "--max-endpoints-per-slice 最多可以把每个 EndpointSlice 的端点数设置到多少？"
+      - "--max-endpoints-per-sliceで、EndpointSliceあたりのエンドポイント数は最大いくつまで設定できますか？"

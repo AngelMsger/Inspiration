@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Service ClusterIP allocation</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Service ClusterIP allocation</h1><header class=article-meta></header><p>In Kubernetes, <a href=/docs/concepts/services-networking/service/>Services</a> are an abstract way to expose
+an application running on a set of Pods. Services
+can have a cluster-scoped virtual IP address (using a Service of <code>type: ClusterIP</code>).
+Clients can connect using that virtual IP address, and Kubernetes then load-balances traffic to that
+Service across the different backing Pods.</p><h2 id=how-service-clusterips-are-allocated>How Service ClusterIPs are allocated?<a class=td-heading-self-link href=#how-service-clusterips-are-allocated aria-label="Heading self-link"></a></h2><p>When Kubernetes needs to assign a virtual IP address for a Service,
+that assignment happens one of two ways:</p><dl><dt><em>dynamically</em></dt><dd>the cluster's control plane automatically picks a free IP address from within the configured IP range for <code>type: ClusterIP</code> Services.</dd><dt><em>statically</em></dt><dd>you specify an IP address of your choice, from within the configured IP range for Services.</dd></dl><p>Across your whole cluster, every Service <code>ClusterIP</code> must be unique.
+Trying to create a Service with a specific <code>ClusterIP</code> that has already
+been allocated will return an error.</p><h2 id=why-do-you-need-to-reserve-service-cluster-ips>Why do you need to reserve Service Cluster IPs?<a class=td-heading-self-link href=#why-do-you-need-to-reserve-service-cluster-ips aria-label="Heading self-link"></a></h2><p>Sometimes you may want to have Services running in well-known IP addresses, so other components and
+users in the cluster can use them.</p><p>The best example is the DNS Service for the cluster. As a soft convention, some Kubernetes installers assign the 10th IP address from
+the Service IP range to the DNS service. Assuming you configured your cluster with Service IP range
+10.96.0.0/16 and you want your DNS Service IP to be 10.96.0.10, you'd have to create a Service like
+this:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>labels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>k8s-app</span><span class=p>:</span><span class=w> </span><span class=l>kube-dns</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kubernetes.io/cluster-service</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;true&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>CoreDNS</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>kube-dns</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>kube-system</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>clusterIP</span><span class=p>:</span><span class=w> </span><span class=m>10.96.0.10</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>dns</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>53</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>UDP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>53</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>dns-tcp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>53</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>53</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>k8s-app</span><span class=p>:</span><span class=w> </span><span class=l>kube-dns</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>ClusterIP</span><span class=w>
+</span></span></span></code></pre></div><p>But, as it was explained before, the IP address 10.96.0.10 has not been reserved.
+If other Services are created before or in parallel with dynamic allocation, there is a chance they can allocate this IP.
+Hence, you will not be able to create the DNS Service because it will fail with a conflict error.</p><h2 id=avoid-ClusterIP-conflict>How can you avoid Service ClusterIP conflicts?<a class=td-heading-self-link href=#avoid-ClusterIP-conflict aria-label="Heading self-link"></a></h2><p>The allocation strategy implemented in Kubernetes to allocate ClusterIPs to Services reduces the
+risk of collision.</p><p>The <code>ClusterIP</code> range is divided, based on the formula <code>min(max(16, cidrSize / 16), 256)</code>,
+described as <em>never less than 16 or more than 256 with a graduated step between them</em>.</p><p>Dynamic IP assignment uses the upper band by default, once this has been exhausted it will
+use the lower range. This will allow users to use static allocations on the lower band with a low
+risk of collision.</p><h2 id=allocation-examples>Examples<a class=td-heading-self-link href=#allocation-examples aria-label="Heading self-link"></a></h2><h3 id=allocation-example-1>Example 1<a class=td-heading-self-link href=#allocation-example-1 aria-label="Heading self-link"></a></h3><p>This example uses the IP address range: 10.96.0.0/24 (CIDR notation) for the IP addresses
+of Services.</p><p>Range Size: 2<sup>8</sup> - 2 = 254<br>Band Offset: <code>min(max(16, 256/16), 256)</code> = <code>min(16, 256)</code> = 16<br>Static band start: 10.96.0.1<br>Static band end: 10.96.0.16<br>Range end: 10.96.0.254</p><pre class=mermaid>
+pie showData
+    title 10.96.0.0/24
+    "Static" : 16
+    "Dynamic" : 238
+</pre><h3 id=allocation-example-2>Example 2<a class=td-heading-self-link href=#allocation-example-2 aria-label="Heading self-link"></a></h3><p>This example uses the IP address range: 10.96.0.0/20 (CIDR notation) for the IP addresses
+of Services.</p><p>Range Size: 2<sup>12</sup> - 2 = 4094<br>Band Offset: <code>min(max(16, 4096/16), 256)</code> = <code>min(256, 256)</code> = 256<br>Static band start: 10.96.0.1<br>Static band end: 10.96.1.0<br>Range end: 10.96.15.254</p><pre class=mermaid>
+pie showData
+    title 10.96.0.0/20
+    "Static" : 256
+    "Dynamic" : 3838
+</pre><h3 id=allocation-example-3>Example 3<a class=td-heading-self-link href=#allocation-example-3 aria-label="Heading self-link"></a></h3><p>This example uses the IP address range: 10.96.0.0/16 (CIDR notation) for the IP addresses
+of Services.</p><p>Range Size: 2<sup>16</sup> - 2 = 65534<br>Band Offset: <code>min(max(16, 65536/16), 256)</code> = <code>min(4096, 256)</code> = 256<br>Static band start: 10.96.0.1<br>Static band ends: 10.96.1.0<br>Range end: 10.96.255.254</p><pre class=mermaid>
+pie showData
+    title 10.96.0.0/16
+    "Static" : 256
+    "Dynamic" : 65278
+</pre><h2 id=what-s-next>What's next<a class=td-heading-self-link href=#what-s-next aria-label="Heading self-link"></a></h2><ul><li>Read about <a href=/docs/tasks/access-application-cluster/create-external-load-balancer/#preserving-the-client-source-ip>Service External Traffic Policy</a></li><li>Read about <a href=/docs/tutorials/services/connect-applications-service/>Connecting Applications with Services</a></li><li>Read about <a href=/docs/concepts/services-networking/service/>Services</a></li></ul></div>
+</body>
+</html>

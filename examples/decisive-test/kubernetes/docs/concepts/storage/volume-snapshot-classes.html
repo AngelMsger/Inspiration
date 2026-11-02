@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Volume Snapshot Classes</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Volume Snapshot Classes</h1><header class=article-meta></header><p>This document describes the concept of VolumeSnapshotClass in Kubernetes. Familiarity
+with <a href=/docs/concepts/storage/volume-snapshots/>volume snapshots</a> and
+<a href=/docs/concepts/storage/storage-classes/>storage classes</a> is suggested.</p><h2 id=introduction>Introduction<a class=td-heading-self-link href=#introduction aria-label="Heading self-link"></a></h2><p>Just like StorageClass provides a way for administrators to describe the "classes"
+of storage they offer when provisioning a volume, VolumeSnapshotClass provides a
+way to describe the "classes" of storage when provisioning a volume snapshot.</p><h2 id=the-volumesnapshotclass-resource>The VolumeSnapshotClass Resource<a class=td-heading-self-link href=#the-volumesnapshotclass-resource aria-label="Heading self-link"></a></h2><p>Each VolumeSnapshotClass contains the fields <code>driver</code>, <code>deletionPolicy</code>, and <code>parameters</code>,
+which are used when a VolumeSnapshot belonging to the class needs to be
+dynamically provisioned.</p><p>The name of a VolumeSnapshotClass object is significant, and is how users can
+request a particular class. Administrators set the name and other parameters
+of a class when first creating VolumeSnapshotClass objects, and the objects cannot
+be updated once they are created.</p><div class="alert alert-info" role=note><h4 class=alert-heading>Note:</h4>Installation of the CRDs is the responsibility of the Kubernetes distribution.
+Without the required CRDs present, the creation of a VolumeSnapshotClass fails.</div><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>snapshot.storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeSnapshotClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>csi-hostpath-snapclass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>driver</span><span class=p>:</span><span class=w> </span><span class=l>hostpath.csi.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>deletionPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Delete</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span></code></pre></div><p>Administrators can specify a default VolumeSnapshotClass for VolumeSnapshots
+that don't request any particular class to bind to by adding the
+<code>snapshot.storage.kubernetes.io/is-default-class: "true"</code> annotation:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>snapshot.storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeSnapshotClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>csi-hostpath-snapclass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>annotations</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>snapshot.storage.kubernetes.io/is-default-class</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;true&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>driver</span><span class=p>:</span><span class=w> </span><span class=l>hostpath.csi.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>deletionPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Delete</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span></code></pre></div><p>If multiple CSI drivers exist, a default VolumeSnapshotClass can be specified
+for each of them.</p><h3 id=volumesnapshotclass-dependencies>VolumeSnapshotClass dependencies<a class=td-heading-self-link href=#volumesnapshotclass-dependencies aria-label="Heading self-link"></a></h3><p>When you create a VolumeSnapshot without specifying a VolumeSnapshotClass, Kubernetes
+automatically selects a default VolumeSnapshotClass that has a CSI driver matching
+the CSI driver of the PVC’s StorageClass.</p><p>This behavior allows multiple default VolumeSnapshotClass objects to coexist in a cluster, as long as
+each one is associated with a unique CSI driver.</p><p>Always ensure that there is only one default VolumeSnapshotClass for each CSI driver. If
+multiple default VolumeSnapshotClass objects are created using the same CSI driver,
+a VolumeSnapshot creation will fail because Kubernetes cannot determine which one to use.</p><h3 id=driver>Driver<a class=td-heading-self-link href=#driver aria-label="Heading self-link"></a></h3><p>Volume snapshot classes have a driver that determines what CSI volume plugin is
+used for provisioning VolumeSnapshots. This field must be specified.</p><h3 id=deletionpolicy>DeletionPolicy<a class=td-heading-self-link href=#deletionpolicy aria-label="Heading self-link"></a></h3><p>Volume snapshot classes have a <a href=/docs/concepts/storage/volume-snapshots/#delete>deletionPolicy</a>.
+It enables you to configure what happens to a VolumeSnapshotContent when the VolumeSnapshot
+object it is bound to is to be deleted. The deletionPolicy of a volume snapshot class can
+either be <code>Retain</code> or <code>Delete</code>. This field must be specified.</p><p>If the deletionPolicy is <code>Delete</code>, then the underlying storage snapshot will be
+deleted along with the VolumeSnapshotContent object. If the deletionPolicy is <code>Retain</code>,
+then both the underlying snapshot and VolumeSnapshotContent remain.</p><h2 id=parameters>Parameters<a class=td-heading-self-link href=#parameters aria-label="Heading self-link"></a></h2><p>Volume snapshot classes have parameters that describe volume snapshots belonging to
+the volume snapshot class. Different parameters may be accepted depending on the
+<code>driver</code>.</p></div>
+</body>
+</html>
