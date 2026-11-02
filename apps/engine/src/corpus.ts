@@ -8,7 +8,8 @@
  * keeps a subset of a larger one (corpora of growing size around the same cases). An optional
  * files.yaml says where each file comes from and when it was last changed: stamp() gives
  * every file listed that modified time, as the drive the corpus stands for would report it,
- * where a checkout dates every file the day it was made.
+ * where a checkout dates every file the day it was made. A file written for a test says so
+ * (kind constructed), with what it changes and the file it is based on, if any.
  *
  * provision() writes what the business layer would into access control: the directory's
  * members and the corpus's reader as members of the tenant, every space owned by the reader
@@ -62,13 +63,20 @@ export interface CorpusFile {
   path: string;
   /** When the file was last changed, as its drive would say: a day or an instant. */
   modified: string;
-  /** What the file is to the company: the document in use, a copy of an older version, or an old revision kept. */
-  kind?: "current" | "stale_copy" | "old_revision";
+  /**
+   * What the file is to the company: the document in use, a copy of an older version, or an
+   * old revision kept; or a file written for a test, which no outside source has.
+   */
+  kind?: "current" | "stale_copy" | "old_revision" | "constructed";
   /** For a stale copy or an old revision: the file whose older version it is. */
   of?: string;
   url?: string;
   revision?: string;
   license?: string;
+  /** For a constructed file, the file and revision it starts from, as "<path>@<revision>". */
+  based_on?: string;
+  /** What the file is and why it is there, in a sentence or two. */
+  note?: string;
 }
 
 const FILES_SCHEMA = {
@@ -84,11 +92,13 @@ const FILES_SCHEMA = {
         properties: {
           path: { type: "string", minLength: 1 },
           modified: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}" },
-          kind: { enum: ["current", "stale_copy", "old_revision"] },
+          kind: { enum: ["current", "stale_copy", "old_revision", "constructed"] },
           of: { type: "string" },
           url: { type: "string" },
           revision: { type: "string" },
           license: { type: "string" },
+          based_on: { type: "string" },
+          note: { type: "string" },
         },
       },
     },

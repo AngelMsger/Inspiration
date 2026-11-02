@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>卷快照</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>卷快照</h1><header class=article-meta></header><p>在 Kubernetes 中，<strong>卷快照</strong> 是一个存储系统上卷的快照，本文假设你已经熟悉了 Kubernetes
+的<a href=/zh-cn/docs/concepts/storage/persistent-volumes/>持久卷</a>。</p><h2 id=introduction>介绍<a class=td-heading-self-link href=#introduction aria-label="Heading self-link"></a></h2><p>与 <code>PersistentVolume</code> 和 <code>PersistentVolumeClaim</code> 这两个
+API 资源用于给用户和管理员制备卷类似，
+<code>VolumeSnapshotContent</code> 和 <code>VolumeSnapshot</code> 这两个
+API 资源用于给用户和管理员创建卷快照。</p><p><code>VolumeSnapshotContent</code> 是从一个卷获取的一种快照，该卷由管理员在集群中进行制备。
+就像持久卷（PersistentVolume）是集群的资源一样，它也是集群中的资源。</p><p><code>VolumeSnapshot</code> 是用户对于卷的快照的请求。
+它类似于持久卷声明（PersistentVolumeClaim）。</p><p><code>VolumeSnapshotClass</code> 允许指定属于 <code>VolumeSnapshot</code> 的不同属性。
+在从存储系统的相同卷上获取的快照之间，
+这些属性可能有所不同，因此不能通过使用与 <code>PersistentVolumeClaim</code>
+相同的 <code>StorageClass</code> 来表示。</p><p>卷快照能力为 Kubernetes 用户提供了一种标准的方式来在指定时间点复制卷的内容，并且不需要创建全新的卷。
+例如，这一功能使得数据库管理员能够在执行编辑或删除之类的修改之前对数据库执行备份。</p><p>当使用该功能时，用户需要注意以下几点：</p><ul><li>API 对象 <code>VolumeSnapshot</code>，<code>VolumeSnapshotContent</code> 和 <code>VolumeSnapshotClass</code>
+是 <a class=glossary-tooltip title='通过定制化的代码给你的 Kubernetes API 服务器增加资源对象，而无需编译完整的定制 API 服务器。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/ target=_blank aria-label=CRD>CRD</a>，
+不属于核心 API。</li><li><code>VolumeSnapshot</code> 支持仅可用于 CSI 驱动。</li><li>作为 <code>VolumeSnapshot</code> 部署过程的一部分，Kubernetes 团队提供了一个部署于控制平面的快照控制器，
+并且提供了一个叫做 <code>csi-snapshotter</code> 的边车（Sidecar）辅助容器，和 CSI 驱动程序一起部署。
+快照控制器监视 <code>VolumeSnapshot</code> 和 <code>VolumeSnapshotContent</code> 对象，
+并且负责创建和删除 <code>VolumeSnapshotContent</code> 对象。
+边车 csi-snapshotter 监视 <code>VolumeSnapshotContent</code> 对象，
+并且触发针对 CSI 端点的 <code>CreateSnapshot</code> 和 <code>DeleteSnapshot</code> 的操作。</li><li>还有一个验证性质的 Webhook 服务器，可以对快照对象进行更严格的验证。
+Kubernetes 发行版应将其与快照控制器和 CRD（而非 CSI 驱动程序）一起安装。
+此服务器应该安装在所有启用了快照功能的 Kubernetes 集群中。</li><li>CSI 驱动可能实现，也可能没有实现卷快照功能。CSI 驱动可能会使用 csi-snapshotter
+来提供对卷快照的支持。详见 <a href=https://kubernetes-csi.github.io/docs/>CSI 驱动程序文档</a></li><li>Kubernetes 负责 CRD 和快照控制器的安装。</li></ul><p>对于高级用例，例如创建多个卷的组快照，请参阅外部
+<a href=https://kubernetes-csi.github.io/docs/group-snapshot-restore-feature.html>CSI 卷组快照文档</a>。</p><p>在快照仅在集群部分范围内可用的集群中
+（例如，没有共享存储的多可用区集群中、位于某一可用区的卷的快照），
+可以记录快照的拓扑，并在从快照恢复时遵循该拓扑。有关详情，请参阅外部的
+<a href=https://kubernetes-csi.github.io/docs/introduction.html>CSI（容器存储接口）文档</a>。</p><h2 id=lifecycle-of-a-volume-snapshot-and-volume-snapshot-content>卷快照和卷快照内容的生命周期<a class=td-heading-self-link href=#lifecycle-of-a-volume-snapshot-and-volume-snapshot-content aria-label="Heading self-link"></a></h2><p><code>VolumeSnapshotContents</code> 是集群中的资源。<code>VolumeSnapshots</code> 是对于这些资源的请求。
+<code>VolumeSnapshotContents</code> 和 <code>VolumeSnapshots</code> 之间的交互遵循以下生命周期：</p><h3 id=provisioning-volume-snapshot>制备卷快照<a class=td-heading-self-link href=#provisioning-volume-snapshot aria-label="Heading self-link"></a></h3><p>快照可以通过两种方式进行制备：预制备或动态制备。</p><h4 id=static>预制备<a class=td-heading-self-link href=#static aria-label="Heading self-link"></a></h4><p>集群管理员创建多个 <code>VolumeSnapshotContents</code>。
+它们带有存储系统上实际卷快照的详细信息，可以供集群用户使用。
+它们存在于 Kubernetes API 中，并且能够被使用。</p><h4 id=dynamic>动态制备<a class=td-heading-self-link href=#dynamic aria-label="Heading self-link"></a></h4><p>可以从 <code>PersistentVolumeClaim</code> 中动态获取快照，而不用使用已经存在的快照。
+在获取快照时，<a href=/zh-cn/docs/concepts/storage/volume-snapshot-classes/>卷快照类</a>
+指定要用的特定于存储提供程序的参数。</p><h3 id=binding>绑定<a class=td-heading-self-link href=#binding aria-label="Heading self-link"></a></h3><p>在预制备和动态制备场景下，快照控制器处理绑定 <code>VolumeSnapshot</code>
+对象和其合适的 <code>VolumeSnapshotContent</code> 对象。
+绑定关系是一对一的。</p><p>在预制备快照绑定场景下，<code>VolumeSnapshotContent</code> 对象创建之后，才会和
+<code>VolumeSnapshot</code> 进行绑定。</p><h3 id=persistent-volume-claim-as-snapshot-source-protection>快照源的持久性卷声明保护 <a class=td-heading-self-link href=#persistent-volume-claim-as-snapshot-source-protection aria-label="Heading self-link"></a></h3><p>这种保护的目的是确保在从系统中获取快照时，不会将正在使用的
+<a class=glossary-tooltip title=声明在持久卷中定义的存储资源，以便可以将其挂载为容器中的卷。 data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims target=_blank aria-label=PersistentVolumeClaim>PersistentVolumeClaim</a>
+API 对象从系统中删除（因为这可能会导致数据丢失）。</p><p>在为某 <code>PersistentVolumeClaim</code> 生成快照时，该 <code>PersistentVolumeClaim</code> 处于被使用状态。
+如果删除一个正作为快照源使用的 <code>PersistentVolumeClaim</code> API 对象，
+该 <code>PersistentVolumeClaim</code> 对象不会立即被移除。
+相反，移除 <code>PersistentVolumeClaim</code> 对象的动作会被推迟，
+直到快照状态变为 ReadyToUse 或快照操作被中止时再执行。</p><h3 id=delete>删除<a class=td-heading-self-link href=#delete aria-label="Heading self-link"></a></h3><p>删除 <code>VolumeSnapshot</code> 对象触发删除 <code>VolumeSnapshotContent</code> 操作，并且 <code>DeletionPolicy</code> 会紧跟着执行。
+如果 <code>DeletionPolicy</code> 是 <code>Delete</code>，那么底层存储快照会和 <code>VolumeSnapshotContent</code> 一起被删除。
+如果 <code>DeletionPolicy</code> 是 <code>Retain</code>，那么底层快照和 <code>VolumeSnapshotContent</code> 都会被保留。</p><h2 id=volume-snapshots>卷快照<a class=td-heading-self-link href=#volume-snapshots aria-label="Heading self-link"></a></h2><p>每个 <code>VolumeSnapshot</code> 包含一个 <code>spec</code> 和一个 <code>status</code>。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>snapshot.storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeSnapshot</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>new-snapshot-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeSnapshotClassName</span><span class=p>:</span><span class=w> </span><span class=l>csi-hostpath-snapclass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>source</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>persistentVolumeClaimName</span><span class=p>:</span><span class=w> </span><span class=l>pvc-test</span><span class=w>
+</span></span></span></code></pre></div><p><code>persistentVolumeClaimName</code> 是 <code>PersistentVolumeClaim</code> 数据源对快照的名称。
+这个字段是动态制备快照中的必填字段。</p><p>卷快照可以通过指定 <a href=/zh-cn/docs/concepts/storage/volume-snapshot-classes/>VolumeSnapshotClass</a>
+使用 <code>volumeSnapshotClassName</code> 属性来请求特定类。
+如果没有设置，那么使用默认类（如果有）。</p><p>如下面例子所示，对于预制备的快照，需要给快照指定 <code>volumeSnapshotContentName</code> 作为来源。
+对于预制备的快照 <code>source</code> 中的<code>volumeSnapshotContentName</code> 字段是必填的。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>snapshot.storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeSnapshot</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>test-snapshot</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>source</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeSnapshotContentName</span><span class=p>:</span><span class=w> </span><span class=l>test-content</span><span class=w>
+</span></span></span></code></pre></div><h2 id=volume-snapshot-contents>卷快照内容 <a class=td-heading-self-link href=#volume-snapshot-contents aria-label="Heading self-link"></a></h2><p>每个 VolumeSnapshotContent 对象包含 spec 和 status。
+在动态制备时，快照通用控制器创建 <code>VolumeSnapshotContent</code> 对象。下面是例子：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>snapshot.storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeSnapshotContent</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>snapcontent-72d9a349-aacd-42d2-a240-d775650d2455</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>deletionPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Delete</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>driver</span><span class=p>:</span><span class=w> </span><span class=l>hostpath.csi.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>source</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>volumeHandle</span><span class=p>:</span><span class=w> </span><span class=l>ee0cfb94-f8d4-11e9-b2d8-0242ac110002</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>sourceVolumeMode</span><span class=p>:</span><span class=w> </span><span class=l>Filesystem</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeSnapshotClassName</span><span class=p>:</span><span class=w> </span><span class=l>csi-hostpath-snapclass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeSnapshotRef</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>new-snapshot-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>default</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>uid</span><span class=p>:</span><span class=w> </span><span class=l>72d9a349-aacd-42d2-a240-d775650d2455</span><span class=w>
+</span></span></span></code></pre></div><p><code>volumeHandle</code> 是存储后端创建卷的唯一标识符，在卷创建期间由 CSI 驱动程序返回。
+动态设置快照需要此字段。它指出了快照的卷源。</p><p>对于预制备快照，你（作为集群管理员）要按如下命令来创建 <code>VolumeSnapshotContent</code> 对象。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>snapshot.storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeSnapshotContent</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>new-snapshot-content-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>deletionPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Delete</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>driver</span><span class=p>:</span><span class=w> </span><span class=l>hostpath.csi.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>source</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>snapshotHandle</span><span class=p>:</span><span class=w> </span><span class=l>7bdd0de3-aaeb-11e8-9aae-0242ac110002</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>sourceVolumeMode</span><span class=p>:</span><span class=w> </span><span class=l>Filesystem</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeSnapshotRef</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>new-snapshot-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>default</span><span class=w>
+</span></span></span></code></pre></div><p><code>snapshotHandle</code> 是存储后端创建卷的唯一标识符。对于预制备的快照，这个字段是必需的。
+它指定此 <code>VolumeSnapshotContent</code> 表示的存储系统上的 CSI 快照 ID。</p><p><code>sourceVolumeMode</code> 是创建快照的卷的模式。<code>sourceVolumeMode</code> 字段的值可以是
+<code>Filesystem</code> 或 <code>Block</code>。如果没有指定源卷模式，Kubernetes 会将快照视为未知的源卷模式。</p><p><code>volumeSnapshotRef</code> 字段是对相应的 <code>VolumeSnapshot</code> 的引用。
+请注意，当 <code>VolumeSnapshotContent</code> 被创建为预配置快照时。
+<code>volumeSnapshotRef</code> 中引用的 <code>VolumeSnapshot</code> 可能还不存在。</p><h2 id=convert-volume-mode>转换快照的卷模式<a class=td-heading-self-link href=#convert-volume-mode aria-label="Heading self-link"></a></h2><p>如果在你的集群上安装的 <code>VolumeSnapshots</code> API 支持 <code>sourceVolumeMode</code>
+字段，则该 API 可以防止未经授权的用户转换卷的模式。</p><p>要检查你的集群是否具有此特性的能力，可以运行如下命令：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-shell data-lang=shell><span class=line><span class=cl>kubectl get crd volumesnapshotcontent -o yaml
+</span></span></code></pre></div><p>如果你希望允许用户从现有的 <code>VolumeSnapshot</code> 创建 <code>PersistentVolumeClaim</code>，
+但是使用与源卷不同的卷模式，则需要添加注解
+<code>snapshot.storage.kubernetes.io/allow-volume-mode-change: "true"</code>
+到对应 <code>VolumeSnapshot</code> 的 <code>VolumeSnapshotContent</code> 中。</p><p>对于预制备的快照，<code>spec.sourceVolumeMode</code> 需要由集群管理员填充。</p><p>启用此特性的 <code>VolumeSnapshotContent</code> 资源示例如下所示：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>snapshot.storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeSnapshotContent</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>new-snapshot-content-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>annotations</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>snapshot.storage.kubernetes.io/allow-volume-mode-change</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;true&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>deletionPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Delete</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>driver</span><span class=p>:</span><span class=w> </span><span class=l>hostpath.csi.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>source</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>snapshotHandle</span><span class=p>:</span><span class=w> </span><span class=l>7bdd0de3-aaeb-11e8-9aae-0242ac110002</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>sourceVolumeMode</span><span class=p>:</span><span class=w> </span><span class=l>Filesystem</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeSnapshotRef</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>new-snapshot-test</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>default</span><span class=w>
+</span></span></span></code></pre></div><h2 id=卷快照拓扑>卷快照拓扑<a class=td-heading-self-link href=#%e5%8d%b7%e5%bf%ab%e7%85%a7%e6%8b%93%e6%89%91 aria-label="Heading self-link"></a></h2><p>在某些集群中，快照仅能在集群的一部分范围内使用。
+例如，在存储未跨可用区共享的多可用区集群中，位于某一可用区的卷的快照只能在该可用区内使用：
+从该快照恢复的卷只能在快照数据所在的位置创建。</p><p>启用 <code>VolumeSnapshotTopology</code> 特性后，该拓扑将被记录并遵循：</p><ul><li>集群管理员可以在
+<a href=/zh-cn/docs/concepts/storage/volume-snapshot-classes/>VolumeSnapshotClass</a>
+上设置 <code>allowedTopologies</code>，以指定动态创建的快照应可在哪些位置使用。</li><li>CSI 驱动会上报快照可在哪些位置使用，csi-snapshotter 边车会将其记录在
+<code>VolumeSnapshotContent.spec.nodeAffinity</code> 中。</li><li>从快照置备卷时，该拓扑会用于将恢复后的卷放置在快照数据可访问的位置。</li></ul><p>这是 CSI 边车的一个 Alpha 特性，通过在 csi-snapshotter 和
+external-provisioner 上启用 <code>VolumeSnapshotTopology</code> 特性门控来开启。
+有关详情，请参阅外部的
+<a href=https://kubernetes-csi.github.io/docs/introduction.html>CSI 文档</a>。</p><h2 id=provisioning-volumes-from-snapshots>从快照制备卷<a class=td-heading-self-link href=#provisioning-volumes-from-snapshots aria-label="Heading self-link"></a></h2><p>你可以制备一个新卷，该卷预填充了快照中的数据，在 <code>PersistentVolumeClaim</code>
+对象中使用 <strong>dataSource</strong> 字段。</p><p>更多详细信息，
+请参阅<a href=/zh-cn/docs/concepts/storage/persistent-volumes/#volume-snapshot-and-restore-volume-from-snapshot-support>卷快照和从快照还原卷</a>。</p></div>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>Gateway API</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Gateway API</h1><div class=lead>Gateway API 是一组 API 类别，可提供动态基础设施制备和高级流量路由。</div><header class=article-meta></header><p><a href=https://gateway-api.sigs.k8s.io/>Gateway API</a> 通过使用可扩展的、角色导向的、
+协议感知的配置机制来提供网络服务。它是一个<a class=glossary-tooltip title='扩展 Kubernetes 功能的资源。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/cluster-administration/addons/ target=_blank aria-label=附加组件>附加组件</a>，
+包含可提供动态基础设施配置和高级流量路由的
+API <a href=https://gateway-api.sigs.k8s.io/references/spec/>类别</a>。</p><h2 id=design-principles>设计原则<a class=td-heading-self-link href=#design-principles aria-label="Heading self-link"></a></h2><p>Gateway API 的设计和架构遵从以下原则：</p><ul><li><strong>角色导向：</strong> Gateway API 类别是基于负责管理 Kubernetes 服务网络的组织角色建模的：<ul><li><strong>基础设施提供者：</strong> 管理使用多个独立集群为多个租户提供服务的基础设施，例如，云提供商。</li><li><strong>集群操作员：</strong> 管理集群，通常关注策略、网络访问、应用程序权限等。</li><li><strong>应用程序开发人员：</strong> 管理在集群中运行的应用程序，通常关注应用程序级配置和
+<a href=/zh-cn/docs/concepts/services-networking/service/>Service</a> 组合。</li></ul></li></ul><ul><li><strong>可移植：</strong> Gateway API 规范用<a href=/zh-cn/docs/concepts/extend-kubernetes/api-extension/custom-resources>自定义资源</a>来定义，
+并受到许多<a href=https://gateway-api.sigs.k8s.io/implementations/>实现</a>的支持。</li><li><strong>表达能力强：</strong> Gateway API 类别支持常见流量路由场景的功能，例如基于标头的匹配、流量加权以及其他只能在
+<a href=/zh-cn/docs/concepts/services-networking/ingress/>Ingress</a> 中使用自定义注解才能实现的功能。</li><li><strong>可扩展的：</strong> Gateway 允许在 API 的各个层链接自定义资源。这使得在 API 结构内的适当位置进行精细定制成为可能。</li></ul><h2 id=resource-model>资源模型<a class=td-heading-self-link href=#resource-model aria-label="Heading self-link"></a></h2><p>Gateway API 具有四种稳定的 API 类别：</p><ul><li><p><strong>GatewayClass：</strong> 定义一组具有配置相同的网关，由实现该类的控制器管理。</p></li><li><p><strong>Gateway：</strong> 定义流量处理基础设施（例如云负载均衡器）的一个实例。</p></li><li><p><strong>HTTPRoute：</strong> 定义特定于 HTTP 的规则，用于将流量从 Gateway 监听器映射到后端网络端点的某种呈现。
+这些端点通常表示为 <a class=glossary-tooltip title='将运行在一组 Pod 上的应用程序公开为网络服务的抽象方法。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/services-networking/service/ target=_blank aria-label=Service>Service</a>。</p></li></ul><ul><li><strong>GRPCRoute：</strong> 定义特定于 gRPC 的规则，用于将流量从 Gateway 监听器映射到后端网络端点的某种呈现。
+这些端点通常表示为 <a class=glossary-tooltip title='将运行在一组 Pod 上的应用程序公开为网络服务的抽象方法。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/services-networking/service/ target=_blank aria-label=Service>Service</a>。</li></ul><p>Gateway API 被组织成不同的 API 类别，这些 API 类别具有相互依赖的关系，以支持组织中角色导向的特点。
+一个 Gateway 对象只能与一个 GatewayClass 相关联；GatewayClass 描述负责管理此类 Gateway 的网关控制器。
+各个（可以是多个）路由类别（例如 HTTPRoute）可以关联到此 Gateway 对象。
+Gateway 可以对能够挂接到其 <code>listeners</code> 的路由进行过滤，从而与路由形成双向信任模型。</p><p>下图说明这三个稳定的 Gateway API 类别之间的关系：</p><figure class=diagram-medium><img src=/docs/images/gateway-kind-relationships.svg alt="此图呈现的是三个稳定的 Gateway API 类别之间的关系"></figure><h3 id=api-kind-gateway-class>GatewayClass<a class=td-heading-self-link href=#api-kind-gateway-class aria-label="Heading self-link"></a></h3><p>Gateway 可以由不同的控制器实现，通常具有不同的配置。
+Gateway 必须引用某 GatewayClass，而后者中包含实现该类的控制器的名称。</p><p>下面是一个最精简的 GatewayClass 示例：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>gateway.networking.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>GatewayClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-class</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>controllerName</span><span class=p>:</span><span class=w> </span><span class=l>example.com/gateway-controller</span><span class=w>
+</span></span></span></code></pre></div><p>在此示例中，一个实现了 Gateway API 的控制器被配置为管理某些 GatewayClass 对象，
+这些对象的控制器名为 <code>example.com/gateway-controller</code>。
+归属于此类的 Gateway 对象将由此实现的控制器来管理。</p><p>有关此 API 类别的完整定义，请参阅
+<a href=https://gateway-api.sigs.k8s.io/references/spec/#gateway.networking.k8s.io/v1.GatewayClass>GatewayClass</a>。</p><h3 id=api-kind-gateway>Gateway<a class=td-heading-self-link href=#api-kind-gateway aria-label="Heading self-link"></a></h3><p>Gateway 用来描述流量处理基础设施的一个实例。Gateway 定义了一个网络端点，该端点可用于处理流量，
+即对 Service 等后端进行过滤、平衡、拆分等。
+例如，Gateway 可以代表某个云负载均衡器，或配置为接受 HTTP 流量的集群内代理服务器。</p><p>下面是一个典型的 Gateway 资源示例：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>gateway.networking.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Gateway</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-gateway</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>example-namespace</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>gatewayClassName</span><span class=p>:</span><span class=w> </span><span class=l>example-class</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>listeners</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>http</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>HTTP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>hostname</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;www.example.com&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>allowedRoutes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>namespaces</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>from</span><span class=p>:</span><span class=w> </span><span class=l>Same</span><span class=w>
+</span></span></span></code></pre></div><p>在此示例中，流量处理基础设施的实例被编程为监听 80 端口上的 HTTP 流量。
+由于未指定 <code>addresses</code> 字段，因此对应实现的控制器负责将地址或主机名设置到 Gateway 之上。
+该地址用作网络端点，用于处理路由中定义的后端网络端点的流量。</p><p>有关此类 API 的完整定义，请参阅
+<a href=https://gateway-api.sigs.k8s.io/references/spec/#gateway.networking.k8s.io/v1.Gateway>Gateway</a>。
+有关配置 HTTPS/TLS 监听器的指导，请参阅
+<a href=https://gateway-api.sigs.k8s.io/guides/tls/>Gateway API TLS 指南</a>。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>默认情况下，Gateway 只接受来自同一命名空间的 Route。
+如果需要跨命名空间的 Route，则必须通过配置 <code>allowedRoutes</code> 来显式允许。</p></div><h3 id=api-kind-httproute>HTTPRoute<a class=td-heading-self-link href=#api-kind-httproute aria-label="Heading self-link"></a></h3><p>HTTPRoute 类别指定从 Gateway 监听器到后端网络端点的 HTTP 请求的路由行为。
+对于服务后端，实现可以将后端网络端点表示为服务 IP 或服务的支持 EndpointSlices。
+HTTPRoute 表示将被应用到下层 Gateway 实现的配置。
+例如，定义新的 HTTPRoute 可能会导致在云负载均衡器或集群内代理服务器中配置额外的流量路由。</p><p>下面是一个最典型的 HTTPRoute 示例：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>gateway.networking.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>HTTPRoute</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-httproute</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>parentRefs</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-gateway</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>hostnames</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=s2>&#34;www.example.com&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>rules</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>matches</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>path</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>PathPrefix</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>value</span><span class=p>:</span><span class=w> </span><span class=l>/login</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>backendRefs</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-svc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>8080</span><span class=w>
+</span></span></span></code></pre></div><p>在此示例中，来自 Gateway <code>example-gateway</code> 的 HTTP 流量，
+如果 <code>Host:</code> 的标头设置为 <code>www.example.com</code> 且请求路径指定为 <code>/login</code>，
+将被路由到 Service <code>example-svc</code> 的 <code>8080</code> 端口。</p><p>有关此类 API 的完整定义，请参阅
+<a href=https://gateway-api.sigs.k8s.io/references/spec/#gateway.networking.k8s.io/v1.HTTPRoute>HTTPRoute</a>。</p><h3 id=api-kind-grpcroute>GRPCRoute<a class=td-heading-self-link href=#api-kind-grpcroute aria-label="Heading self-link"></a></h3><p>GRPCRoute 类别给出将 gRPC 请求从 Gateway 监听器转发到后端网络端点的路由行为。
+对于 Service 后端，其中一种实现方式可以将后端网络端点表示为 Service IP，
+或支撑此 Service 的若干 EndpointSlice。GRPCRoute 表示的是一些要应用于底层 Gateway 实现的配置。
+例如，定义一个新的 GRPCRoute 的操作可能会意味着要在云负载均衡器或集群内代理服务器中配置额外的流量路由。</p><p>支持 GRPCRoute 的 Gateway 必须支持 HTTP/2，且无需从 HTTP/1 升级，以确保 gRPC 流量能够正常传输。</p><p>以下是一个典型的 GRPCRoute 示例：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>gateway.networking.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>GRPCRoute</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-grpcroute</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>parentRefs</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-gateway</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>hostnames</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=s2>&#34;svc.example.com&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>rules</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>backendRefs</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-svc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>50051</span><span class=w>
+</span></span></span></code></pre></div><p>在此示例中，来自 Gateway <code>example-gateway</code> 且主机设置为 <code>svc.example.com</code> 的 gRPC
+流量将被定向到同一名字空间中 <code>example-svc</code> 服务的 <code>50051</code> 端口上。</p><p>GRPCRoute 允许匹配特定的 gRPC 服务，如下所示：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>gateway.networking.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>GRPCRoute</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-grpcroute</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>parentRefs</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-gateway</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>hostnames</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=s2>&#34;svc.example.com&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>rules</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>matches</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>method</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>service</span><span class=p>:</span><span class=w> </span><span class=l>com.example</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>method</span><span class=p>:</span><span class=w> </span><span class=l>Login</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>backendRefs</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>foo-svc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>50051</span><span class=w>
+</span></span></span></code></pre></div><p>在这种情况下，GRPCRoute 将匹配发往 <code>svc.example.com</code> 的所有流量，
+并应用其路由规则将流量转发到正确的后端。由于仅指定了一个匹配条件，只有发往
+<code>svc.example.com</code> 的 <code>com.example.User.Login</code> 方法请求会被转发。
+其他请求方法的 RPC 调用都不会被此路由匹配。</p><p>有关这种 API 类别的完整定义，请参阅
+<a href=https://gateway-api.sigs.k8s.io/references/spec/#grpcroute>GRPCRoute</a> 参考文档。</p><h2 id=request-flow>请求数据流<a class=td-heading-self-link href=#request-flow aria-label="Heading self-link"></a></h2><p>以下是使用 Gateway 和 HTTPRoute 将 HTTP 流量路由到服务的简单示例：</p><figure class=diagram-medium><img src=/docs/images/gateway-request-flow.svg alt="此图为使用 Gateway 和 HTTPRoute 将 HTTP 流量路由到服务的示例"></figure><p>在此示例中，实现为反向代理的 Gateway 的请求数据流如下：</p><ol><li>客户端开始准备 URL 为 <code>http://www.example.com</code> 的 HTTP 请求。</li><li>客户端的 DNS 解析器查询目标名称并了解与 Gateway 关联的一个或多个 IP 地址的映射。</li><li>客户端向 Gateway IP 地址发送请求；反向代理接收 HTTP 请求并使用 <code>Host:</code>
+标头来匹配基于 Gateway 和附加的 HTTPRoute 所获得的配置。</li><li>可选的，反向代理可以根据 HTTPRoute 的匹配规则进行请求头和（或）路径匹配。</li><li>可选地，反向代理可以修改请求；例如，根据 HTTPRoute 的过滤规则添加或删除标头。</li><li>最后，反向代理将请求转发到一个或多个后端。</li></ol><h2 id=conformance>标准合规性<a class=td-heading-self-link href=#conformance aria-label="Heading self-link"></a></h2><p>Gateway API 涵盖广泛的功能并得到广泛实现。
+这种组合需要明确的标准合规性定义和测试，以确保 API 在任何地方使用时都能提供一致的体验。</p><p>请参阅<a href=https://gateway-api.sigs.k8s.io/docs/concepts/conformance/>合规性</a>相关的文档，
+以了解发布渠道、支持级别和运行合规性测试等详细信息。</p><h2 id=migrating-from-ingress>从 Ingress 迁移<a class=td-heading-self-link href=#migrating-from-ingress aria-label="Heading self-link"></a></h2><p>Gateway API 是 <a href=/zh-cn/docs/concepts/services-networking/ingress/>Ingress</a> API 的后继者。
+但是其中不包括 Ingress 类型。因此，需要将现有 Ingress 资源一次性转换为 Gateway API 资源。</p><p>有关将 Ingress 资源迁移到 Gateway API 资源的详细信息，请参阅
+<a href=https://gateway-api.sigs.k8s.io/guides/getting-started/migrating-from-ingress>Ingress 迁移</a>指南。</p><h2 id=接下来>接下来<a class=td-heading-self-link href=#%e6%8e%a5%e4%b8%8b%e6%9d%a5 aria-label="Heading self-link"></a></h2><p>Gateway API 资源不是由 Kubernetes 原生实现的，
+而是被定义为受广泛<a href=https://gateway-api.sigs.k8s.io/implementations/>实现</a>支持的<a href=/zh-cn/docs/concepts/extend-kubernetes/api-extension/custom-resources/>自定义资源</a>。
+用户需要<a href=https://gateway-api.sigs.k8s.io/guides/#installing-gateway-api>安装</a> Gateway API CRD
+或按照所选实现的安装说明进行操作。
+安装完成后，使用<a href=https://gateway-api.sigs.k8s.io/guides/>入门</a>指南来帮助你快速开始使用 Gateway API。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4><p>请务必查看所选实现的文档以了解可能存在的注意事项。</p></div><p>有关所有 Gateway API 类型的其他详细信息，请参阅
+<a href=https://gateway-api.sigs.k8s.io/reference/api-spec/main/spec/>API 规范</a>。</p></div>
+</body>
+</html>

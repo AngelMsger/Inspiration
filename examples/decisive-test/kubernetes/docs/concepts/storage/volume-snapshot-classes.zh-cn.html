@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>卷快照类</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>卷快照类</h1><header class=article-meta></header><p>本文档描述了 Kubernetes 中 VolumeSnapshotClass 的概念。建议熟悉
+<a href=/zh-cn/docs/concepts/storage/volume-snapshots/>卷快照（Volume Snapshots）</a>和
+<a href=/zh-cn/docs/concepts/storage/storage-classes>存储类（Storage Class）</a>。</p><h2 id=introduction>介绍<a class=td-heading-self-link href=#introduction aria-label="Heading self-link"></a></h2><p>就像 StorageClass 为管理员提供了一种在配置卷时描述存储“类”的方法，
+VolumeSnapshotClass 提供了一种在配置卷快照时描述存储“类”的方法。</p><h2 id=the-volumesnapshortclass-resource>VolumeSnapshotClass 资源 <a class=td-heading-self-link href=#the-volumesnapshortclass-resource aria-label="Heading self-link"></a></h2><p>每个 VolumeSnapshotClass 都包含 <code>driver</code>、<code>deletionPolicy</code> 和 <code>parameters</code> 字段，
+在需要动态配置属于该类的 VolumeSnapshot 时使用。</p><p>VolumeSnapshotClass 对象的名称很重要，是用户可以请求特定类的方式。
+管理员在首次创建 VolumeSnapshotClass 对象时设置类的名称和其他参数，
+对象一旦创建就无法更新。</p><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4>CRD 的安装是 Kubernetes 发行版的责任。 如果不存在所需的 CRD，则 VolumeSnapshotClass 的创建将失败。</div><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>snapshot.storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeSnapshotClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>csi-hostpath-snapclass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>driver</span><span class=p>:</span><span class=w> </span><span class=l>hostpath.csi.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>deletionPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Delete</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span></code></pre></div><p>管理员可以为未请求任何特定类绑定的 VolumeSnapshots 指定默认的 VolumeSnapshotClass，
+方法是设置注解 <code>snapshot.storage.kubernetes.io/is-default-class: "true"</code>：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>snapshot.storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeSnapshotClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>csi-hostpath-snapclass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>annotations</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>snapshot.storage.kubernetes.io/is-default-class</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;true&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>driver</span><span class=p>:</span><span class=w> </span><span class=l>hostpath.csi.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>deletionPolicy</span><span class=p>:</span><span class=w> </span><span class=l>Delete</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span></code></pre></div><p>如果存在多个 CSI 驱动程序，可以为每个驱动程序指定一个默认的 VolumeSnapshotClass。</p><h3 id=volumesnapshotclass-dependencies>VolumeSnapshotClass 依赖关系 <a class=td-heading-self-link href=#volumesnapshotclass-dependencies aria-label="Heading self-link"></a></h3><p>当你创建一个 VolumeSnapshot 且未指定 VolumeSnapshotClass 时，
+Kubernetes 会自动选择一个默认的 VolumeSnapshotClass，
+该类与 PVC 的 StorageClass 所使用的 CSI 驱动程序匹配。</p><p>这种行为允许多个默认的 VolumeSnapshotClass 对象在集群中共存，
+只要每个默认类都与唯一的 CSI 驱动程序进行关联。</p><p>请始终确保每个 CSI 驱动程序只有一个默认的 VolumeSnapshotClass。
+如果使用相同的 CSI 驱动程序创建了多个默认的 VolumeSnapshotClass 对象，
+则创建 VolumeSnapshot 时会失败，因为 Kubernetes 无法确定使用哪个类。</p><h3 id=driver>驱动程序<a class=td-heading-self-link href=#driver aria-label="Heading self-link"></a></h3><p>卷快照类有一个驱动程序，用于确定配置 VolumeSnapshot 的 CSI 卷插件。
+此字段必须指定。</p><h3 id=deletion-policy>删除策略<a class=td-heading-self-link href=#deletion-policy aria-label="Heading self-link"></a></h3><p>卷快照类具有 <a href=/zh-cn/docs/concepts/storage/volume-snapshots/#delete>deletionPolicy</a> 属性。
+用户可以配置当所绑定的 VolumeSnapshot 对象将被删除时，如何处理 VolumeSnapshotContent 对象。
+卷快照类的这个策略可以是 <code>Retain</code> 或者 <code>Delete</code>。这个策略字段必须指定。</p><p>如果删除策略是 <code>Delete</code>，那么底层的存储快照会和 VolumeSnapshotContent 对象
+一起删除。如果删除策略是 <code>Retain</code>，那么底层快照和 VolumeSnapshotContent
+对象都会被保留。</p><h2 id=parameters>参数<a class=td-heading-self-link href=#parameters aria-label="Heading self-link"></a></h2><p>卷快照类具有描述属于该卷快照类的卷快照的参数，可根据 <code>driver</code> 接受不同的参数。</p></div>
+</body>
+</html>

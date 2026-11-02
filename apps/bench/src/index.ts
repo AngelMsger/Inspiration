@@ -70,6 +70,7 @@ export { type OutlineReport, type OutlineRun, outlineReport } from "./outline.ts
 export { assignOwners, type OwnersReport } from "./owners.ts";
 export {
   beyondRaw,
+  type Case,
   type FactKey,
   type InputSource,
   type Keys,
@@ -78,6 +79,9 @@ export {
   loadKeys,
   loadQuestions,
   type Outcome,
+  outcomeOf,
+  PATTERNS,
+  type Pattern,
   type Question,
   type QuestionResult,
   QuestionsError,

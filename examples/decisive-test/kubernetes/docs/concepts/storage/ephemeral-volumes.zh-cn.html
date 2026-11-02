@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>临时卷</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>临时卷</h1><header class=article-meta></header><p>本文档描述 Kubernetes 中的 <strong>临时卷（Ephemeral Volume）</strong>。
+建议先了解<a href=/zh-cn/docs/concepts/storage/volumes/>卷</a>，特别是 PersistentVolumeClaim 和 PersistentVolume。</p><p>有些应用程序需要额外的存储，但并不关心数据在重启后是否仍然可用。
+例如，缓存服务经常受限于内存大小，而且可以将不常用的数据转移到比内存慢的存储中，对总体性能的影响并不大。</p><p>另有些应用程序需要以文件形式注入的只读数据，比如配置数据或密钥。</p><p><strong>临时卷</strong> 就是为此类用例设计的。因为卷会遵从 Pod 的生命周期，与 Pod 一起创建和删除，
+所以停止和重新启动 Pod 时，不会受持久卷在何处可用的限制。</p><p>临时卷在 Pod 规约中以 <strong>内联</strong> 方式定义，这简化了应用程序的部署和管理。</p><h3 id=types-of-ephemeral-volumes>临时卷的类型<a class=td-heading-self-link href=#types-of-ephemeral-volumes aria-label="Heading self-link"></a></h3><p>Kubernetes 为了不同的用途，支持几种不同类型的临时卷：</p><ul><li><a href=/zh-cn/docs/concepts/storage/volumes/#emptydir>emptyDir</a>：
+Pod 启动时为空，存储空间来自本地的 kubelet 根目录（通常是根磁盘）或内存</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#configmap>configMap</a>、
+<a href=/zh-cn/docs/concepts/storage/volumes/#downwardapi>downwardAPI</a>、
+<a href=/zh-cn/docs/concepts/storage/volumes/#secret>secret</a>：
+将不同类型的 Kubernetes 数据注入到 Pod 中</li><li><a href=/zh-cn/docs/concepts/storage/volumes/#image>镜像</a>：
+允许将容器镜像文件或制品直接挂载到 Pod。</li><li><a href=#csi-ephemeral-volumes>CSI 临时卷</a>：
+类似于前面的卷类型，但由专门<a href=https://kubernetes-csi.github.io/docs/ephemeral-local-volumes.html>支持此特性</a>
+的指定 <a class=glossary-tooltip title='容器存储接口 （CSI）定义了存储系统暴露给容器的标准接口。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/storage/volumes/#csi target=_blank aria-label=CSI>CSI</a> 驱动程序提供</li><li><a href=#generic-ephemeral-volumes>通用临时卷</a>：
+它可以由所有支持持久卷的存储驱动程序提供</li></ul><p><code>emptyDir</code>、<code>configMap</code>、<code>downwardAPI</code>、<code>secret</code> 是作为
+<a href=/zh-cn/docs/concepts/storage/ephemeral-storage/>本地临时存储</a>
+提供的。它们由各个节点上的 kubelet 管理。</p><p>CSI 临时卷 <strong>必须</strong> 由第三方 CSI 存储驱动程序提供。</p><p>通用临时卷 <strong>可以</strong> 由第三方 CSI 存储驱动程序提供，也可以由支持动态制备的任何其他存储驱动程序提供。
+一些专门为 CSI 临时卷编写的 CSI 驱动程序，不支持动态制备：因此这些驱动程序不能用于通用临时卷。</p><p>使用第三方驱动程序的优势在于，它们可以提供 Kubernetes 本身不支持的功能，
+例如，与 kubelet 管理的磁盘具有不同性能特征的存储，或者用来注入不同的数据。</p><h3 id=csi-ephemeral-volumes>CSI 临时卷<a class=td-heading-self-link href=#csi-ephemeral-volumes aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.25</span></div><div class="alert alert-info" role=note><h4 class=alert-heading>说明：</h4>只有一部分 CSI 驱动程序支持 CSI 临时卷。Kubernetes CSI
+<a href=https://kubernetes-csi.github.io/docs/drivers.html>驱动程序列表</a>
+显示了支持临时卷的驱动程序。</div><p>从概念上讲，CSI 临时卷类似于 <code>configMap</code>、<code>downwardAPI</code> 和 <code>secret</code> 类型的卷：
+在各个本地节点管理卷的存储，并在 Pod 调度到节点后与其他本地资源一起创建。
+在这个阶段，Kubernetes 没有重新调度 Pod 的概念。卷创建不太可能失败，否则 Pod 启动将会受阻。
+特别是，这些卷 <strong>不</strong> 支持<a href=/zh-cn/docs/concepts/storage/storage-capacity/>感知存储容量的 Pod 调度</a>。
+它们目前也没包括在 Pod 的存储资源使用限制中，因为 kubelet 只能对它自己管理的存储强制执行。</p><p>下面是使用 CSI 临时存储的 Pod 的示例清单：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-csi-app</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-frontend</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>busybox:1.28</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;/data&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-csi-inline-vol</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=w> </span><span class=s2>&#34;sleep&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;1000000&#34;</span><span class=w> </span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-csi-inline-vol</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>csi</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>driver</span><span class=p>:</span><span class=w> </span><span class=l>inline.storage.kubernetes.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>volumeAttributes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>foo</span><span class=p>:</span><span class=w> </span><span class=l>bar</span><span class=w>
+</span></span></span></code></pre></div><p><code>volumeAttributes</code> 决定驱动程序准备什么样的卷。每个驱动程序的属性不尽相同，没有实现标准化。
+有关进一步的说明，请参阅每个 CSI 驱动程序的文档。</p><h3 id=csi-driver-restrictions>CSI 驱动程序限制<a class=td-heading-self-link href=#csi-driver-restrictions aria-label="Heading self-link"></a></h3><p>CSI 临时卷允许用户直接向 CSI 驱动程序提供 <code>volumeAttributes</code>，它会作为 Pod 规约的一部分。
+有些 <code>volumeAttributes</code> 通常仅限于管理员使用，允许这一类 <code>volumeAttributes</code> 的 CSI 驱动程序不适合在内联临时卷中使用。
+例如，通常在 StorageClass 中定义的参数不应通过使用内联临时卷向用户公开。</p><p>如果集群管理员需要限制在 Pod 规约中作为内联卷使用的 CSI 驱动程序，可以这样做：</p><ul><li>从 CSIDriver 规约的 <code>volumeLifecycleModes</code> 中删除 <code>Ephemeral</code>，这可以防止驱动程序被用作内联临时卷。</li><li>使用<a href=/zh-cn/docs/reference/access-authn-authz/extensible-admission-controllers/>准入 Webhook</a>
+来限制如何使用此驱动程序。</li></ul><h3 id=generic-ephemeral-volumes>通用临时卷<a class=td-heading-self-link href=#generic-ephemeral-volumes aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-stable"><span class=feature-state-name>特性状态：</span>
+<span class=feature-state-details><span class=feature-state-stage>GA</span> since Kubernetes v1.23</span></div><p>通用临时卷类似于 <code>emptyDir</code> 卷，因为它为每个 Pod 提供临时数据存放目录，
+在最初制备完毕时一般为空。不过通用临时卷也有一些额外的功能特性：</p><ul><li>存储可以是本地的，也可以是网络连接的。</li><li>卷可以有固定的大小，Pod 不能超量使用。</li><li>卷可能有一些初始数据，这取决于驱动程序和参数。</li></ul><ul><li>支持典型的卷操作，前提是相关的驱动程序也支持该操作，包括
+<a href=/zh-cn/docs/concepts/storage/volume-snapshots/>快照</a>、
+<a href=/zh-cn/docs/concepts/storage/volume-pvc-datasource/>克隆</a>、
+<a href=/zh-cn/docs/concepts/storage/persistent-volumes/#expanding-persistent-volumes-claims>调整大小</a>和
+<a href=/zh-cn/docs/concepts/storage/storage-capacity/>存储容量跟踪</a>）。</li></ul><p>示例：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Pod</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-app</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>containers</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>my-frontend</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>image</span><span class=p>:</span><span class=w> </span><span class=l>busybox:1.28</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>volumeMounts</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=nt>mountPath</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;/scratch&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>scratch-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>command</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=w> </span><span class=s2>&#34;sleep&#34;</span><span class=p>,</span><span class=w> </span><span class=s2>&#34;1000000&#34;</span><span class=w> </span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>scratch-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>ephemeral</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nt>volumeClaimTemplate</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nt>labels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>              </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>my-frontend-volume</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>          </span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nt>accessModes</span><span class=p>:</span><span class=w> </span><span class=p>[</span><span class=w> </span><span class=s2>&#34;ReadWriteOnce&#34;</span><span class=w> </span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nt>storageClassName</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;scratch-storage-class&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>              </span><span class=nt>requests</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>1Gi</span><span class=w>
+</span></span></span></code></pre></div><h3 id=lifecycle-and-persistentvolumeclaim>生命周期和 PersistentVolumeClaim<a class=td-heading-self-link href=#lifecycle-and-persistentvolumeclaim aria-label="Heading self-link"></a></h3><p>关键的设计思想是在 Pod 的卷来源中允许使用
+<a href=/docs/reference/generated/kubernetes-api/v1.37/#ephemeralvolumesource-v1-core>卷申领的参数</a>。
+PersistentVolumeClaim 的标签、注解和整套字段集均被支持。
+创建这样一个 Pod 后，临时卷控制器在 Pod 所属的命名空间中创建一个实际的
+PersistentVolumeClaim 对象，并确保删除 Pod 时，同步删除 PersistentVolumeClaim。</p><p>如上设置将触发卷的绑定与/或制备，相应动作或者在
+<a class=glossary-tooltip title='StorageClass 是管理员用来描述可用的不同存储类型的一种方法。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/storage/storage-classes/ target=_blank aria-label=StorageClass>StorageClass</a>
+使用即时卷绑定时立即执行，或者当 Pod 被暂时性调度到某节点时执行 (<code>WaitForFirstConsumer</code> 卷绑定模式)。
+对于通用的临时卷，建议采用后者，这样调度器就可以自由地为 Pod 选择合适的节点。
+对于即时绑定，调度器则必须选出一个节点，使得在卷可用时，能立即访问该卷。</p><p>就<a href=/zh-cn/docs/concepts/architecture/garbage-collection/#owners-dependents>资源所有权</a>而言，
+拥有通用临时存储的 Pod 是提供临时存储 (ephemeral storage) 的 PersistentVolumeClaim 的所有者。
+当 Pod 被删除时，Kubernetes 垃圾收集器会删除 PVC，
+然后 PVC 通常会触发卷的删除，因为存储类的默认回收策略是删除卷。
+你可以使用带有 <code>retain</code> 回收策略的 StorageClass 创建准临时 (Quasi-Ephemeral) 本地存储：
+该存储比 Pod 寿命长，所以在这种情况下，你需要确保单独进行卷清理。</p><p>当这些 PVC 存在时，它们可以像其他 PVC 一样使用。
+特别是，它们可以被引用作为批量克隆或快照的数据源。
+PVC 对象还保持着卷的当前状态。</p><h3 id=persistentvolumeclaim-naming>PersistentVolumeClaim 的命名<a class=td-heading-self-link href=#persistentvolumeclaim-naming aria-label="Heading self-link"></a></h3><p>自动创建的 PVC 采取确定性的命名机制：名称是 Pod 名称和卷名称的组合，中间由连字符(<code>-</code>)连接。
+在上面的示例中，PVC 将被命名为 <code>my-app-scratch-volume</code> 。
+这种确定性的命名机制使得与 PVC 交互变得更容易，因为一旦知道 Pod 名称和卷名，就不必搜索它。</p><p>这种命名机制也引入了潜在的冲突，不同的 Pod 之间（名为 “Pod-a” 的
+Pod 挂载名为 "scratch" 的卷，和名为 "pod" 的 Pod 挂载名为 “a-scratch” 的卷，
+这两者均会生成名为 "pod-a-scratch" 的 PVC），或者在 Pod 和手工创建的
+PVC 之间可能出现冲突。</p><p>这类冲突会被检测到：如果 PVC 是为 Pod 创建的，那么它只用于临时卷。
+此检测基于所有权关系。现有的 PVC 不会被覆盖或修改。
+但这并不能解决冲突，因为如果没有正确的 PVC，Pod 就无法启动。</p><div class="alert alert-caution" role=note><h4 class=alert-heading>注意：</h4><p>当同一个命名空间中命名 Pod 和卷时，要小心，以防止发生此类冲突。</p></div><h3 id=security>安全<a class=td-heading-self-link href=#security aria-label="Heading self-link"></a></h3><p>只要用户有权限创建 Pod，就可以使用通用的临时卷间接地创建持久卷申领（PVCs），
+即使他们没有权限直接创建 PVCs。集群管理员必须注意这一点。如果这与他们的安全模型相悖，
+他们应该使用<a href=/zh-cn/docs/reference/access-authn-authz/extensible-admission-controllers/>准入 Webhook</a>
+来拒绝那些包含通用临时卷的对象（例如 Pod）。</p><p>正常的 <a href=/zh-cn/docs/concepts/policy/resource-quotas/#storage-resource-quota>PVC 的名字空间配额</a>
+仍然有效，因此即使允许用户使用这种新机制，他们也不能使用它来规避其他策略。</p><h2 id=接下来>接下来<a class=td-heading-self-link href=#%e6%8e%a5%e4%b8%8b%e6%9d%a5 aria-label="Heading self-link"></a></h2><h3 id=ephemeral-volumes-managed-by-kubelet>kubelet 管理的临时卷<a class=td-heading-self-link href=#ephemeral-volumes-managed-by-kubelet aria-label="Heading self-link"></a></h3><p>参阅<a href=/zh-cn/docs/concepts/storage/ephemeral-storage/>本地临时存储</a>。</p><h3 id=csi-ephemeral-volumes>CSI 临时卷<a class=td-heading-self-link href=#csi-ephemeral-volumes aria-label="Heading self-link"></a></h3><ul><li>有关设计的更多信息，参阅
+<a href=https://github.com/kubernetes/enhancements/blob/ad6021b3d61a49040a3f835e12c8bb5424db2bbb/keps/sig-storage/20190122-csi-inline-volumes.md>Ephemeral Inline CSI volumes KEP</a>。</li><li>关于本特性下一步开发的更多信息，参阅
+<a href=https://github.com/kubernetes/enhancements/issues/596>enhancement tracking issue #596</a>。</li></ul><h3 id=generic-ephemeral-volumes>通用临时卷<a class=td-heading-self-link href=#generic-ephemeral-volumes aria-label="Heading self-link"></a></h3><ul><li>有关设计的更多信息，参阅
+<a href=https://github.com/kubernetes/enhancements/blob/master/keps/sig-storage/1698-generic-ephemeral-volumes/README.md>Generic ephemeral inline volumes KEP</a>。</li></ul></div>
+</body>
+</html>

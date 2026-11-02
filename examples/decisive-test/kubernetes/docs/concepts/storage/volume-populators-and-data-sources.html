@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Volume Populators and Data Sources</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Volume Populators and Data Sources</h1><header class=article-meta></header><p>This document describes <em>volume populators</em> and <em>data sources</em> in Kubernetes.
+Familiarity with <a href=/docs/concepts/storage/persistent-volumes/>persistent volumes</a>
+is suggested.</p><p>When you create a <a class=glossary-tooltip title='Claims storage resources defined in a PersistentVolume so that it can be mounted as a volume in a container.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/storage/persistent-volumes/#persistentvolumeclaims target=_blank aria-label=PersistentVolumeClaim>PersistentVolumeClaim</a>,
+the volume that Kubernetes provisions for it normally starts empty. A <em>data source</em>
+lets you instead request that the new volume be pre-populated with existing data.
+<em>Volume populators</em> are the controllers that carry out that population, based on the
+data source that the PersistentVolumeClaim references.</p><p>Kubernetes has built-in support for data sources that
+<a href=/docs/concepts/storage/volume-pvc-datasource/>clone an existing volume</a> or that
+<a href=/docs/concepts/storage/volume-snapshots/>restore a volume snapshot</a>. Custom volume
+populators extend this mechanism. The data source is a custom resource, that is, an object
+whose type is defined by a
+<a class=glossary-tooltip title='Custom code that defines a resource to add to your Kubernetes API server without building a complete custom server.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/ target=_blank aria-label=CustomResourceDefinition>CustomResourceDefinition</a>.
+A populator controller watches for PersistentVolumeClaims that reference such a resource
+and fills the new volume from it.</p><h2 id=volume-populators-and-data-sources>Volume populators and data sources<a class=td-heading-self-link href=#volume-populators-and-data-sources aria-label="Heading self-link"></a></h2><div class="feature-state-notice feature-beta"><span class=feature-state-name>Feature state:</span>
+<span class=feature-state-details><span class=feature-state-stage>Beta</span> since Kubernetes v1.24</span></div><p>Kubernetes supports custom volume populators.
+To use custom volume populators, you must enable the <code>AnyVolumeDataSource</code>
+<a href=/docs/reference/command-line-tools-reference/feature-gates/>feature gate</a> for
+the kube-apiserver and kube-controller-manager.</p><p>Volume populators take advantage of a PVC spec field called <code>dataSourceRef</code>. Unlike the
+<code>dataSource</code> field, which can only contain either a reference to another PersistentVolumeClaim
+or to a VolumeSnapshot, the <code>dataSourceRef</code> field can contain a reference to any object in the
+same namespace, except for core objects other than PVCs. For clusters that have the feature
+gate enabled, use of the <code>dataSourceRef</code> is preferred over <code>dataSource</code>.</p><h2 id=data-source-references>Data source references<a class=td-heading-self-link href=#data-source-references aria-label="Heading self-link"></a></h2><p>The <code>dataSourceRef</code> field behaves almost the same as the <code>dataSource</code> field. If one is
+specified while the other is not, the API server will give both fields the same value. Neither
+field can be changed after creation, and attempting to specify different values for the two
+fields will result in a validation error. Therefore the two fields will always have the same
+contents.</p><p>There are two differences between the <code>dataSourceRef</code> field and the <code>dataSource</code> field that
+users should be aware of:</p><ul><li>The <code>dataSource</code> field ignores invalid values (as if the field was blank) while the
+<code>dataSourceRef</code> field never ignores values and will cause an error if an invalid value is
+used. Invalid values are any core object (objects with no apiGroup) except for PVCs.</li><li>The <code>dataSourceRef</code> field may contain different types of objects, while the <code>dataSource</code> field
+only allows PVCs and VolumeSnapshots.</li></ul><p>When the <code>CrossNamespaceVolumeDataSource</code> feature is enabled, there are additional differences:</p><ul><li>The <code>dataSource</code> field only allows local objects, while the <code>dataSourceRef</code> field allows
+objects in any namespaces.</li><li>When namespace is specified, <code>dataSource</code> and <code>dataSourceRef</code> are not synced.</li></ul><p>Users should always use <code>dataSourceRef</code> on clusters that have the feature gate enabled, and
+fall back to <code>dataSource</code> on clusters that do not. It is not necessary to look at both fields
+under any circumstance. The duplicated values with slightly different semantics exist only for
+backwards compatibility. In particular, a mixture of older and newer controllers are able to
+interoperate because the fields are the same.</p><h3 id=using-volume-populators>Using volume populators<a class=td-heading-self-link href=#using-volume-populators aria-label="Heading self-link"></a></h3><p>Volume populators are <a class=glossary-tooltip title='A control loop that watches the shared state of the cluster through the apiserver and makes changes attempting to move the current state towards the desired state.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/architecture/controller/ target=_blank aria-label=controllers>controllers</a> that can
+create non-empty volumes, where the contents of the volume are determined by a Custom Resource.
+Users create a populated volume by referring to a Custom Resource using the <code>dataSourceRef</code> field:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>populated-pvc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>dataSourceRef</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-name</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>ExampleDataSource</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>apiGroup</span><span class=p>:</span><span class=w> </span><span class=l>example.storage.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>accessModes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>ReadWriteOnce</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>requests</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>10Gi</span><span class=w>
+</span></span></span></code></pre></div><p>Because volume populators are external components, attempts to create a PVC that uses one
+can fail if not all the correct components are installed. External controllers should generate
+events on the PVC to provide feedback on the status of the creation, including warnings if
+the PVC cannot be created due to some missing component.</p><p>You can install the alpha <a href=https://github.com/kubernetes-csi/volume-data-source-validator>volume data source validator</a>
+controller into your cluster. That controller generates warning Events on a PVC in the case that no populator
+is registered to handle that kind of data source. When a suitable populator is installed for a PVC, it's the
+responsibility of that populator controller to report Events that relate to volume creation and issues during
+the process.</p><h2 id=cross-namespace-data-sources>Cross namespace data sources<a class=td-heading-self-link href=#cross-namespace-data-sources aria-label="Heading self-link"></a></h2><div class="feature-state-notice feature-alpha"><span class=feature-state-name>Feature state:</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.26</span></div><p>Kubernetes supports cross namespace volume data sources.
+To use cross namespace volume data sources, you must enable the <code>AnyVolumeDataSource</code>
+and <code>CrossNamespaceVolumeDataSource</code>
+<a href=/docs/reference/command-line-tools-reference/feature-gates/>feature gates</a> for
+the kube-apiserver and kube-controller-manager.
+Also, you must enable the <code>CrossNamespaceVolumeDataSource</code> feature gate for the csi-provisioner.</p><p>Enabling the <code>CrossNamespaceVolumeDataSource</code> feature gate allows you to specify
+a namespace in the dataSourceRef field.</p><div class="alert alert-info" role=note><h4 class=alert-heading>Note:</h4>When you specify a namespace for a volume data source, Kubernetes checks for a
+ReferenceGrant in the other namespace before accepting the reference.
+ReferenceGrant is part of the <code>gateway.networking.k8s.io</code> extension APIs.
+See <a href=https://gateway-api.sigs.k8s.io/reference/api-types/referencegrant/>ReferenceGrant</a>
+in the Gateway API documentation for details.
+This means that you must extend your Kubernetes cluster with at least ReferenceGrant from the
+Gateway API before you can use this mechanism.</div><h3 id=using-a-cross-namespace-volume-data-source>Using a cross-namespace volume data source<a class=td-heading-self-link href=#using-a-cross-namespace-volume-data-source aria-label="Heading self-link"></a></h3><div class="feature-state-notice feature-alpha"><span class=feature-state-name>Feature state:</span>
+<span class=feature-state-details><span class=feature-state-stage>Alpha</span> since Kubernetes v1.26</span></div><p>Create a ReferenceGrant to allow the namespace owner to accept the reference.
+You define a populated volume by specifying a cross namespace volume data source
+using the <code>dataSourceRef</code> field. You must already have a valid ReferenceGrant
+in the source namespace:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>gateway.networking.k8s.io/v1beta1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>ReferenceGrant</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>allow-ns1-pvc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>default</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>from</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>group</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>ns1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>to</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>group</span><span class=p>:</span><span class=w> </span><span class=l>snapshot.storage.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeSnapshot</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>new-snapshot-demo</span><span class=w>
+</span></span></span></code></pre></div><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>foo-pvc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>ns1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>storageClassName</span><span class=p>:</span><span class=w> </span><span class=l>example</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>accessModes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=l>ReadWriteOnce</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>requests</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>1Gi</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>dataSourceRef</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>apiGroup</span><span class=p>:</span><span class=w> </span><span class=l>snapshot.storage.k8s.io</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>VolumeSnapshot</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>new-snapshot-demo</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>default</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>volumeMode</span><span class=p>:</span><span class=w> </span><span class=l>Filesystem</span><span class=w>
+</span></span></span></code></pre></div><h2 id=what-s-next>What's next<a class=td-heading-self-link href=#what-s-next aria-label="Heading self-link"></a></h2><ul><li>Learn about <a href=/docs/concepts/storage/persistent-volumes/>Persistent Volumes</a>.</li><li>Learn about <a href=/docs/concepts/storage/volume-pvc-datasource/>CSI Volume Cloning</a>.</li><li>Learn about <a href=/docs/concepts/storage/volume-snapshots/>Volume Snapshots</a>.</li><li>Read about the <a href=/docs/reference/command-line-tools-reference/feature-gates/>feature gates</a>
+mentioned on this page.</li></ul></div>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>Service ClusterIP 分配</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Service ClusterIP 分配</h1><header class=article-meta></header><p>在 Kubernetes 中，<a href=/zh-cn/docs/concepts/services-networking/service/>Service</a> 是一种抽象的方式，
+用于公开在一组 Pod 上运行的应用。
+Service 可以具有集群作用域的虚拟 IP 地址（使用 <code>type: ClusterIP</code> 的 Service）。
+客户端可以使用该虚拟 IP 地址进行连接，Kubernetes 通过不同的后台 Pod 对该 Service 的流量进行负载均衡。</p><h2 id=service-clusterip-是如何分配的>Service ClusterIP 是如何分配的？<a class=td-heading-self-link href=#service-clusterip-%e6%98%af%e5%a6%82%e4%bd%95%e5%88%86%e9%85%8d%e7%9a%84 aria-label="Heading self-link"></a></h2><p>当 Kubernetes 需要为 Service 分配虚拟 IP 地址时，该分配会通过以下两种方式之一进行：</p><dl><dt><strong>动态分配</strong></dt><dd>集群的控制面自动从所配置的 IP 范围内为 <code>type: ClusterIP</code> 选择一个空闲 IP 地址。</dd><dt><strong>静态分配</strong></dt><dd>根据为 Service 所配置的 IP 范围，选定并设置你的 IP 地址。</dd></dl><p>在整个集群中，每个 Service 的 <code>ClusterIP</code> 都必须是唯一的。
+尝试使用已分配的 <code>ClusterIP</code> 创建 Service 将返回错误。</p><h2 id=为什么需要预留-service-的-clusterip>为什么需要预留 Service 的 ClusterIP ？<a class=td-heading-self-link href=#%e4%b8%ba%e4%bb%80%e4%b9%88%e9%9c%80%e8%a6%81%e9%a2%84%e7%95%99-service-%e7%9a%84-clusterip aria-label="Heading self-link"></a></h2><p>有时你可能希望 Services 在众所周知的 IP 上面运行，以便集群中的其他组件和用户可以使用它们。</p><p>最好的例子是集群的 DNS Service。作为一种非强制性的约定，一些 Kubernetes 安装程序
+将 Service IP 范围中的第 10 个 IP 地址分配给 DNS 服务。假设将集群的 Service IP 范围配置为
+10.96.0.0/16，并且希望 DNS Service IP 为 10.96.0.10，则必须创建如下 Service：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>Service</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>labels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>k8s-app</span><span class=p>:</span><span class=w> </span><span class=l>kube-dns</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kubernetes.io/cluster-service</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;true&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kubernetes.io/name</span><span class=p>:</span><span class=w> </span><span class=l>CoreDNS</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>kube-dns</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>namespace</span><span class=p>:</span><span class=w> </span><span class=l>kube-system</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>clusterIP</span><span class=p>:</span><span class=w> </span><span class=m>10.96.0.10</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>dns</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>53</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>UDP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>53</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>dns-tcp</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>53</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>targetPort</span><span class=p>:</span><span class=w> </span><span class=m>53</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>selector</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>k8s-app</span><span class=p>:</span><span class=w> </span><span class=l>kube-dns</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>ClusterIP</span><span class=w>
+</span></span></span></code></pre></div><p>但如前所述，IP 地址 10.96.0.10 尚未被保留。如果在 DNS 启动之前或同时采用动态分配机制创建其他 Service，
+则它们有可能被分配此 IP，因此，你将无法创建 DNS Service，因为它会因冲突错误而失败。</p><h2 id=avoid-ClusterIP-conflict>如何避免 Service ClusterIP 冲突？<a class=td-heading-self-link href=#avoid-ClusterIP-conflict aria-label="Heading self-link"></a></h2><p>Kubernetes 中用來将 ClusterIP 分配给 Service 的分配策略降低了冲突的风险。</p><p><code>ClusterIP</code> 范围根据公式 <code>min(max(16, cidrSize / 16), 256)</code> 进行划分，
+描述为不小于 16 且不大于 256，并在二者之间有一个渐进的步长。</p><p>默认情况下，动态 IP 分配使用地址较高的一段，一旦用完，它将使用较低范围。
+这将允许用户在冲突风险较低的较低地址段上使用静态分配。</p><h2 id=allocation-examples>示例<a class=td-heading-self-link href=#allocation-examples aria-label="Heading self-link"></a></h2><h3 id=allocation-example-1>示例 1<a class=td-heading-self-link href=#allocation-example-1 aria-label="Heading self-link"></a></h3><p>此示例使用 IP 地址范围：10.96.0.0/24（CIDR 表示法）作为 Service 的 IP 地址。</p><p>范围大小：2<sup>8</sup> - 2 = 254<br>带宽偏移量：<code>min(max(16, 256/16), 256)</code> = <code>min(16, 256)</code> = 16<br>静态带宽起始地址：10.96.0.1<br>静态带宽结束地址：10.96.0.16<br>范围结束地址：10.96.0.254</p><pre class=mermaid>
+pie showData
+    title 10.96.0.0/24
+    "静态分配" : 16
+    "动态分配" : 238
+</pre><h3 id=allocation-example-2>示例 2<a class=td-heading-self-link href=#allocation-example-2 aria-label="Heading self-link"></a></h3><p>此示例使用 IP 地址范围 10.96.0.0/20（CIDR 表示法）作为 Service 的 IP 地址。</p><p>范围大小：2<sup>12</sup> - 2 = 4094<br>带宽偏移量：<code>min(max(16, 4096/16), 256)</code> = <code>min(256, 256)</code> = 256<br>静态带宽起始地址：10.96.0.1<br>静态带宽结束地址：10.96.1.0<br>范围结束地址：10.96.15.254</p><pre class=mermaid>
+pie showData
+    title 10.96.0.0/20
+    "静态分配" : 256
+    "动态分配" : 3838
+</pre><h3 id=allocation-example-3>示例 3<a class=td-heading-self-link href=#allocation-example-3 aria-label="Heading self-link"></a></h3><p>此示例使用 IP 地址范围 10.96.0.0/16（CIDR 表示法）作为 Service 的 IP 地址。</p><p>范围大小：2<sup>16</sup> - 2 = 65534<br>带宽偏移量：<code>min(max(16, 65536/16), 256)</code> = <code>min(4096, 256)</code> = 256<br>静态带宽起始地址：10.96.0.1<br>静态带宽结束地址：10.96.1.0<br>范围结束地址：10.96.255.254</p><pre class=mermaid>
+pie showData
+    title 10.96.0.0/16
+    "静态分配" : 256
+    "动态分配" : 65278
+</pre><h2 id=接下来>接下来<a class=td-heading-self-link href=#%e6%8e%a5%e4%b8%8b%e6%9d%a5 aria-label="Heading self-link"></a></h2><ul><li>阅读<a href=/zh-cn/docs/tasks/access-application-cluster/create-external-load-balancer/#preserving-the-client-source-ip>服务外部流量策略</a></li><li>阅读<a href=/zh-cn/docs/tutorials/services/connect-applications-service/>应用程序与服务连接</a></li><li>阅读<a href=/zh-cn/docs/concepts/services-networking/service/>服务</a></li></ul></div>
+</body>
+</html>

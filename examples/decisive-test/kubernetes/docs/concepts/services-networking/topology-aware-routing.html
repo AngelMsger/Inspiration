@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Topology Aware Routing</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Topology Aware Routing</h1><div class=lead><em>Topology Aware Routing</em> provides a mechanism to help keep network traffic within the zone where it originated. Preferring same-zone traffic between Pods in your cluster can help with reliability, performance (network latency and throughput), or cost.</div><header class=article-meta></header><p><em>Topology Aware Routing</em> adjusts routing behavior to prefer keeping traffic in
+the zone it originated from. In some cases this can help reduce costs or improve
+network performance.</p><h2 id=motivation>Motivation<a class=td-heading-self-link href=#motivation aria-label="Heading self-link"></a></h2><p>Kubernetes clusters are increasingly deployed in multi-zone environments.
+<em>Topology Aware Routing</em> provides a mechanism to help keep traffic within the
+zone it originated from. When calculating the endpoints for a <a class=glossary-tooltip title='A way to expose an application running on a set of Pods as a network service.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/services-networking/service/ target=_blank aria-label=Service>Service</a>, the EndpointSlice controller considers
+the topology (region and zone) of each endpoint and populates the hints field to
+allocate it to a zone. Cluster components such as <a class=glossary-tooltip title='kube-proxy is a network proxy that runs on each node in the cluster.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/reference/command-line-tools-reference/kube-proxy/ target=_blank aria-label=kube-proxy>kube-proxy</a> can then consume those hints, and use
+them to influence how the traffic is routed (favoring topologically closer
+endpoints).</p><h2 id=enabling-topology-aware-routing>Enabling Topology Aware Routing<a class=td-heading-self-link href=#enabling-topology-aware-routing aria-label="Heading self-link"></a></h2><p>You can enable Topology Aware Routing for a Service by setting the
+<code>service.kubernetes.io/topology-mode</code> annotation to <code>Auto</code>. When there are
+enough endpoints available in each zone, Topology Hints will be populated on
+EndpointSlices to allocate individual endpoints to specific zones, resulting in
+traffic being routed closer to where it originated from.</p><h2 id=when-it-works-best>When it works best<a class=td-heading-self-link href=#when-it-works-best aria-label="Heading self-link"></a></h2><p>This feature works best when:</p><h3 id=1-incoming-traffic-is-evenly-distributed>1. Incoming traffic is evenly distributed<a class=td-heading-self-link href=#1-incoming-traffic-is-evenly-distributed aria-label="Heading self-link"></a></h3><p>If a large proportion of traffic is originating from a single zone, that traffic
+could overload the subset of endpoints that have been allocated to that zone.
+This feature is not recommended when incoming traffic is expected to originate
+from a single zone.</p><h3 id=three-or-more-endpoints-per-zone>2. The Service has 3 or more endpoints per zone<a class=td-heading-self-link href=#three-or-more-endpoints-per-zone aria-label="Heading self-link"></a></h3><p>In a three zone cluster, this means 9 or more endpoints. If there are fewer than
+3 endpoints per zone, there is a high (≈50%) probability that the EndpointSlice
+controller will not be able to allocate endpoints evenly and instead will fall
+back to the default cluster-wide routing approach.</p><h2 id=how-it-works>How It Works<a class=td-heading-self-link href=#how-it-works aria-label="Heading self-link"></a></h2><p>The "Auto" heuristic attempts to proportionally allocate a number of endpoints
+to each zone. Note that this heuristic works best for Services that have a
+significant number of endpoints.</p><h3 id=implementation-control-plane>EndpointSlice controller<a class=td-heading-self-link href=#implementation-control-plane aria-label="Heading self-link"></a></h3><p>The EndpointSlice controller is responsible for setting hints on EndpointSlices
+when this heuristic is enabled. The controller allocates a proportional amount of
+endpoints to each zone. This proportion is based on the
+<a href=/docs/tasks/administer-cluster/reserve-compute-resources/#node-allocatable>allocatable</a>
+CPU cores for nodes running in that zone. For example, if one zone had 2 CPU
+cores and another zone only had 1 CPU core, the controller would allocate twice
+as many endpoints to the zone with 2 CPU cores.</p><p>The following example shows what an EndpointSlice looks like when hints have
+been populated:</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>discovery.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>EndpointSlice</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>example-hints</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>labels</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>kubernetes.io/service-name</span><span class=p>:</span><span class=w> </span><span class=l>example-svc</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>addressType</span><span class=p>:</span><span class=w> </span><span class=l>IPv4</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>ports</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>http</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>protocol</span><span class=p>:</span><span class=w> </span><span class=l>TCP</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>port</span><span class=p>:</span><span class=w> </span><span class=m>80</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>endpoints</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span>- <span class=nt>addresses</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span>- <span class=s2>&#34;10.1.2.3&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>conditions</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>ready</span><span class=p>:</span><span class=w> </span><span class=kc>true</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>hostname</span><span class=p>:</span><span class=w> </span><span class=l>pod-1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>zone</span><span class=p>:</span><span class=w> </span><span class=l>zone-a</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>hints</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>forZones</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span>- <span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=s2>&#34;zone-a&#34;</span><span class=w>
+</span></span></span></code></pre></div><h3 id=implementation-kube-proxy>kube-proxy<a class=td-heading-self-link href=#implementation-kube-proxy aria-label="Heading self-link"></a></h3><p>The kube-proxy component filters the endpoints it routes to based on the hints set by
+the EndpointSlice controller. In most cases, this means that the kube-proxy is able
+to route traffic to endpoints in the same zone. Sometimes the controller allocates endpoints
+from a different zone to ensure more even distribution of endpoints between zones.
+This would result in some traffic being routed to other zones.</p><h2 id=safeguards>Safeguards<a class=td-heading-self-link href=#safeguards aria-label="Heading self-link"></a></h2><p>The Kubernetes control plane and the kube-proxy on each node apply some
+safeguard rules before using Topology Aware Hints. If these don't check out,
+the kube-proxy selects endpoints from anywhere in your cluster, regardless of the
+zone.</p><ol><li><p><strong>Insufficient number of endpoints:</strong> If there are less endpoints than zones
+in a cluster, the controller will not assign any hints.</p></li><li><p><strong>Impossible to achieve balanced allocation:</strong> In some cases, it will be
+impossible to achieve a balanced allocation of endpoints among zones. For
+example, if zone-a is twice as large as zone-b, but there are only 2
+endpoints, an endpoint allocated to zone-a may receive twice as much traffic
+as zone-b. The controller does not assign hints if it can't get this "expected
+overload" value below an acceptable threshold for each zone. Importantly this
+is not based on real-time feedback. It is still possible for individual
+endpoints to become overloaded.</p></li><li><p><strong>One or more Nodes has insufficient information:</strong> If any node does not have
+a <code>topology.kubernetes.io/zone</code> label or is not reporting a value for
+allocatable CPU, the control plane does not set any topology-aware endpoint
+hints and so kube-proxy does not filter endpoints by zone.</p></li><li><p><strong>One or more endpoints does not have a zone hint:</strong> When this happens,
+the kube-proxy assumes that a transition from or to Topology Aware Hints is
+underway. Filtering endpoints for a Service in this state would be dangerous
+so the kube-proxy falls back to using all endpoints.</p></li><li><p><strong>A zone is not represented in hints:</strong> If the kube-proxy is unable to find
+at least one endpoint with a hint targeting the zone it is running in, it falls
+back to using endpoints from all zones. This is most likely to happen as you add
+a new zone into your existing cluster.</p></li></ol><h2 id=constraints>Constraints<a class=td-heading-self-link href=#constraints aria-label="Heading self-link"></a></h2><ul><li><p>Topology Aware Hints are not used when <code>internalTrafficPolicy</code> is set to <code>Local</code>
+on a Service. It is possible to use both features in the same cluster on different
+Services, just not on the same Service.</p></li><li><p>This approach will not work well for Services that have a large proportion of
+traffic originating from a subset of zones. Instead this assumes that incoming
+traffic will be roughly proportional to the capacity of the Nodes in each
+zone.</p></li><li><p>The EndpointSlice controller ignores unready nodes as it calculates the
+proportions of each zone. This could have unintended consequences if a large
+portion of nodes are unready.</p></li><li><p>The EndpointSlice controller ignores nodes with the
+<code>node-role.kubernetes.io/control-plane</code> or <code>node-role.kubernetes.io/master</code>
+label set. This could be problematic if workloads are also running on those
+nodes.</p></li><li><p>The EndpointSlice controller does not take into account <a class=glossary-tooltip title='A core object consisting of three required properties: key, value, and effect. Tolerations enable the scheduling of pods on nodes or node groups that have a matching taint.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/scheduling-eviction/taint-and-toleration/ target=_blank aria-label=tolerations>tolerations</a> when deploying or calculating the
+proportions of each zone. If the Pods backing a Service are limited to a
+subset of Nodes in the cluster, this will not be taken into account.</p></li><li><p>This may not work well with autoscaling. For example, if a lot of traffic is
+originating from a single zone, only the endpoints allocated to that zone will
+be handling that traffic. That could result in <a class=glossary-tooltip title='Object that automatically scales the number of pod replicas based on targeted resource utilization or custom metric targets.' data-bs-toggle=tooltip data-bs-placement=top href=/docs/concepts/workloads/autoscaling/horizontal-pod-autoscale/ target=_blank aria-label='Horizontal Pod Autoscaler'>Horizontal Pod Autoscaler</a>
+either not picking up on this event, or newly added pods starting in a
+different zone.</p></li></ul><h2 id=custom-heuristics>Custom heuristics<a class=td-heading-self-link href=#custom-heuristics aria-label="Heading self-link"></a></h2><p>Kubernetes is deployed in many different ways, there is no single heuristic for
+allocating endpoints to zones will work for every use case. A key goal of this
+feature is to enable custom heuristics to be developed if the built in heuristic
+does not work for your use case. The first steps to enable custom heuristics
+were included in the 1.27 release. This is a limited implementation that may not
+yet cover some relevant and plausible situations.</p><h2 id=what-s-next>What's next<a class=td-heading-self-link href=#what-s-next aria-label="Heading self-link"></a></h2><ul><li>Follow the <a href=/docs/tutorials/services/connect-applications-service/>Connecting Applications with Services</a> tutorial</li><li>Learn about the
+<a href=/docs/concepts/services-networking/service/#traffic-distribution>trafficDistribution</a>
+field, which is closely related to the <code>service.kubernetes.io/topology-mode</code>
+annotation and provides flexible options for traffic routing within
+Kubernetes.</li></ul></div>
+</body>
+</html>

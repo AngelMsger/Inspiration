@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>Windows 存储</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>Windows 存储</h1><header class=article-meta></header><p>此页面提供特定于 Windows 操作系统的存储概述。</p><h2 id=storage>持久存储<a class=td-heading-self-link href=#storage aria-label="Heading self-link"></a></h2><p>Windows 有一个分层文件系统驱动程序用来挂载容器层和创建基于 NTFS 的文件系统拷贝。
+容器中的所有文件路径仅在该容器的上下文中解析。</p><ul><li>使用 Docker 时，卷挂载只能是容器中的目录，而不能是单个文件。此限制不适用于 containerd。</li><li>卷挂载不能将文件或目录映射回宿主文件系统。</li><li>不支持只读文件系统，因为 Windows 注册表和 SAM 数据库始终需要写访问权限。不过，Windows 支持只读的卷。</li><li>不支持卷的用户掩码和访问许可，因为宿主与容器之间并不共享 SAM，二者之间不存在映射关系。
+所有访问许可都是在容器上下文中解析的。</li></ul><p>因此，Windows 节点不支持以下存储功能：</p><ul><li>卷子路径挂载：只能在 Windows 容器上挂载整个卷</li><li>Secret 的子路径挂载</li><li>宿主挂载映射</li><li>只读的根文件系统（映射的卷仍然支持 <code>readOnly</code>）</li><li>块设备映射</li><li>内存作为存储介质（例如 <code>emptyDir.medium</code> 设置为 <code>Memory</code>）</li><li>类似 UID/GID、各用户不同的 Linux 文件系统访问许可等文件系统特性</li><li>使用 <a href=/zh-cn/docs/tasks/inject-data-application/distribute-credentials-secure/#set-posix-permissions-for-secret-keys>DefaultMode 设置 Secret 权限</a>
+（因为该特性依赖 UID/GID）</li><li>基于 NFS 的存储和卷支持</li><li>扩展已挂载卷（resizefs）</li></ul><p>使用 Kubernetes <a class=glossary-tooltip title='包含可被 Pod 中容器访问的数据的目录。' data-bs-toggle=tooltip data-bs-placement=top href=/zh-cn/docs/concepts/storage/volumes/ target=_blank aria-label=卷>卷</a>，
+对数据持久性和 Pod 卷共享有需求的复杂应用也可以部署到 Kubernetes 上。
+管理与特定存储后端或协议相关的持久卷时，相关的操作包括：对卷的制备（Provisioning）、
+去配（De-provisioning）和调整大小，将卷挂接到 Kubernetes 节点或从节点上解除挂接，
+将卷挂载到需要持久数据的 Pod 中的某容器上或从容器上卸载。</p><p>卷管理组件作为 Kubernetes 卷<a href=/zh-cn/docs/concepts/storage/volumes/#volume-types>插件</a>发布。
+Windows 支持以下类型的 Kubernetes 卷插件：</p><ul><li><a href=/zh-cn/docs/concepts/storage/volumes/#flexvolume><code>FlexVolume plugins</code></a><ul><li>请注意自 1.23 版本起，FlexVolume 已被弃用</li></ul></li><li><a href=/zh-cn/docs/concepts/storage/volumes/#csi><code>CSI Plugins</code></a></li></ul><h5 id=in-tree-volume-plugins>树内（In-Tree）卷插件 <a class=td-heading-self-link href=#in-tree-volume-plugins aria-label="Heading self-link"></a></h5><p>以下树内（In-Tree）插件支持 Windows 节点上的持久存储：</p><ul><li><a href=/zh-cn/docs/concepts/storage/volumes/#azurefile><code>azureFile</code></a></li><li><a href=/zh-cn/docs/concepts/storage/volumes/#vspherevolume><code>vsphereVolume</code></a></li></ul></div>
+</body>
+</html>

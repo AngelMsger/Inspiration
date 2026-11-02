@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-cn">
+<head><meta charset="utf-8"><title>动态卷制备</title></head>
+<body>
+<div class=td-content><h1 data-pagefind-weight=10>动态卷制备</h1><header class=article-meta></header><p>动态卷制备允许按需创建存储卷。
+如果没有动态制备，集群管理员必须手动地联系他们的云或存储提供商来创建新的存储卷，
+然后在 Kubernetes 集群创建
+<a href=/zh-cn/docs/concepts/storage/persistent-volumes/><code>PersistentVolume</code> 对象</a>来表示这些卷。
+动态制备功能消除了集群管理员预先配置存储的需要。相反，它在用户创建
+<a href=/zh-cn/docs/concepts/storage/persistent-volumes/><code>PersistentVolumeClaim</code> 对象</a>时自动制备存储。</p><h2 id=background>背景 <a class=td-heading-self-link href=#background aria-label="Heading self-link"></a></h2><p>动态卷制备的实现基于 <code>storage.k8s.io</code> API 组中的 <code>StorageClass</code> API 对象。
+集群管理员可以根据需要定义多个 <code>StorageClass</code> 对象，每个对象指定一个<strong>卷插件</strong>（又名 <strong>provisioner</strong>），
+卷插件向卷制备商提供在创建卷时需要的数据卷信息及相关参数。</p><p>集群管理员可以在集群中定义和公开多种存储（来自相同或不同的存储系统），每种都具有自定义参数集。
+该设计也确保终端用户不必担心存储制备的复杂性和细微差别，但仍然能够从多个存储选项中进行选择。</p><p>有关更多详细信息，请参阅<a href=/zh-cn/docs/concepts/storage/storage-classes/>存储类</a>概念。</p><h2 id=enabling-dynamic-provisioning>启用动态卷制备 <a class=td-heading-self-link href=#enabling-dynamic-provisioning aria-label="Heading self-link"></a></h2><p>要启用动态制备功能，集群管理员需要为用户预先创建一个或多个 <code>StorageClass</code> 对象。
+<code>StorageClass</code> 对象定义当动态制备被调用时，哪一个驱动将被使用和哪些参数将被传递给驱动。
+StorageClass 对象的名字必须是一个合法的
+<a href=/zh-cn/docs/concepts/overview/working-with-objects/names#dns-subdomain-names>DNS 子域名</a>。
+以下清单创建了一个 <code>StorageClass</code> 存储类 "slow"，它提供类似标准磁盘的永久磁盘。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>slow</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>provisioner</span><span class=p>:</span><span class=w> </span><span class=l>kubernetes.io/gce-pd</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>pd-standard</span><span class=w>
+</span></span></span></code></pre></div><p>以下清单创建了一个 "fast" 存储类，它提供类似 SSD 的永久磁盘。</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>storage.k8s.io/v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>StorageClass</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>fast</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>provisioner</span><span class=p>:</span><span class=w> </span><span class=l>kubernetes.io/gce-pd</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>parameters</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>type</span><span class=p>:</span><span class=w> </span><span class=l>pd-ssd</span><span class=w>
+</span></span></span></code></pre></div><h2 id=using-dynamic-provisioning>使用动态卷制备<a class=td-heading-self-link href=#using-dynamic-provisioning aria-label="Heading self-link"></a></h2><p>用户通过在 <code>PersistentVolumeClaim</code> 中包含存储类来请求动态制备的存储。
+在 Kubernetes v1.9 之前，这通过 <code>volume.beta.kubernetes.io/storage-class</code> 注解实现。
+然而，这个注解自 v1.6 起就不被推荐使用了。
+用户现在能够而且应该使用 <code>PersistentVolumeClaim</code> 对象的 <code>storageClassName</code> 字段。
+这个字段的值必须能够匹配到集群管理员配置的 <code>StorageClass</code> 名称（见<a href=#enabling-dynamic-provisioning>启用动态卷制备</a>）。</p><p>例如，要选择 “fast” 存储类，用户将创建如下的 PersistentVolumeClaim：</p><div class=highlight><pre tabindex=0 class=chroma><code class=language-yaml data-lang=yaml><span class=line><span class=cl><span class=nt>apiVersion</span><span class=p>:</span><span class=w> </span><span class=l>v1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>kind</span><span class=p>:</span><span class=w> </span><span class=l>PersistentVolumeClaim</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>metadata</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>name</span><span class=p>:</span><span class=w> </span><span class=l>claim1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w></span><span class=nt>spec</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>accessModes</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span>- <span class=l>ReadWriteOnce</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>storageClassName</span><span class=p>:</span><span class=w> </span><span class=l>fast</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>  </span><span class=nt>resources</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nt>requests</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>      </span><span class=nt>storage</span><span class=p>:</span><span class=w> </span><span class=l>30Gi</span><span class=w>
+</span></span></span></code></pre></div><p>该声明会自动制备一块类似 SSD 的永久磁盘。
+在删除该声明后，这个卷也会被销毁。</p><h2 id=defaulting-behavior>设置默认值的行为 <a class=td-heading-self-link href=#defaulting-behavior aria-label="Heading self-link"></a></h2><p>可以在集群上启用动态卷制备，以便在未指定存储类的情况下动态设置所有声明。
+集群管理员可以通过以下方式启用此行为：</p><ul><li>标记一个 <code>StorageClass</code> 为 <strong>默认</strong>，</li><li>确保 <a href=/zh-cn/docs/reference/access-authn-authz/admission-controllers/#defaultstorageclass><code>DefaultStorageClass</code> 准入控制器</a>在
+API 服务器端被启用。</li></ul><p>管理员可以通过向其添加
+<a href=/zh-cn/docs/reference/labels-annotations-taints/#storageclass-kubernetes-io-is-default-class><code>storageclass.kubernetes.io/is-default-class</code> 注解</a>
+来将特定的 <code>StorageClass</code> 标记为默认。
+当集群中存在默认的 <code>StorageClass</code> 并且用户创建了一个未指定 <code>storageClassName</code> 的 <code>PersistentVolumeClaim</code> 时，
+<code>DefaultStorageClass</code> 准入控制器会自动向其中添加指向默认存储类的 <code>storageClassName</code> 字段。</p><p>请注意，如果你在集群的多个 StorageClass 设置 <code>storageclass.kubernetes.io/is-default-class</code> 注解为 true，
+并之后创建了未指定 <code>storageClassName</code> 的 <code>PersistentVolumeClaim</code>，
+Kubernetes 会使用最新创建的默认 StorageClass。</p><h2 id=topology-awareness>拓扑感知<a class=td-heading-self-link href=#topology-awareness aria-label="Heading self-link"></a></h2><p>在<a href=/zh-cn/docs/setup/best-practices/multiple-zones/>多可用区</a>集群中，Pod 可以被分散到某个区域的多个可用区。
+单可用区存储后端应该被制备到 Pod 被调度到的可用区。
+这可以通过设置<a href=/zh-cn/docs/concepts/storage/storage-classes/#volume-binding-mode>卷绑定模式</a>来实现。</p></div>
+</body>
+</html>

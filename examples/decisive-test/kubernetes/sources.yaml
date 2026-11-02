@@ -1,0 +1,629 @@
+# Where each file of the Kubernetes topic comes from: the page kubernetes.io served on the
+# day given, its kubernetes/website commit and the date the page footer gives, and the SHA-256
+# of the page as served. Each file is the page's content element (class td-content),
+# unchanged, up to the feedback block that ends it, in a minimal document with the page's
+# title and language. The pages are (c) The Kubernetes Authors, licensed under CC BY 4.0.
+files:
+  - file: concepts/services-networking/_index.html
+    url: https://kubernetes.io/docs/concepts/services-networking/
+    language: en
+    revision: 0606d4546e249aa0bb9e7de12076d5b330490c07
+    last_modified: 2026-03-24
+    fetched_at: 2026-11-02T03:03:36Z
+    page_sha256: 7e52ee8381c1d2eb61ac50c8088a85911cd81f17a62774d2026fc037702d917c
+  - file: concepts/services-networking/_index.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/services-networking/
+    language: zh-cn
+    revision: 9bc2c3ed0620a68a87db5a4b7f62934695953487
+    last_modified: 2026-04-06
+    fetched_at: 2026-11-02T03:09:16Z
+    page_sha256: 62452e8132fd78f6729cd78bad374d64d9467d8d68d344930aa038c632b54288
+  - file: concepts/services-networking/_index.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/services-networking/
+    language: ja
+    revision: 4dba042a57dbcf0ab83d6cdd1861ab4517a264a3
+    last_modified: 2025-12-23
+    fetched_at: 2026-11-02T03:15:52Z
+    page_sha256: a611e9308ecc76f8b3df87957d4992561162e5d9b402d74f2a31acd0b22ebe36
+  - file: concepts/services-networking/cluster-ip-allocation.html
+    url: https://kubernetes.io/docs/concepts/services-networking/cluster-ip-allocation/
+    language: en
+    revision: e57546d9a1a218b971ef1b19be8376b43db2d9e3
+    last_modified: 2024-10-24
+    fetched_at: 2026-11-02T03:03:37Z
+    page_sha256: 8ea5929d790a3175f8d0b7d3d771753f550fe7974e3eb29b78ba9df6839096ac
+  - file: concepts/services-networking/cluster-ip-allocation.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/services-networking/cluster-ip-allocation/
+    language: zh-cn
+    revision: cefd6b347b77e848b6c0002e031c45b1dd28213e
+    last_modified: 2024-10-29
+    fetched_at: 2026-11-02T03:09:17Z
+    page_sha256: 439ffea5e622887ba80b8e77c82642af4e768b5413997d64a76dcb9745811618
+  - file: concepts/services-networking/cluster-ip-allocation.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/services-networking/cluster-ip-allocation/
+    language: ja
+    revision: 35356d09e67fbc0d0820f1b9498bc39670e9bd09
+    last_modified: 2024-10-09
+    fetched_at: 2026-11-02T03:15:52Z
+    page_sha256: 100667194a0b05b48872431d7b3bca938b71cb8b8a908e97d8e7acbc5b6799cd
+  - file: concepts/services-networking/connect-applications-service.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/services-networking/connect-applications-service/
+    language: ja
+    revision: 002caf84276f7b0733d70f6cd91a81e735808cbe
+    last_modified: 2026-07-24
+    fetched_at: 2026-11-02T03:15:52Z
+    page_sha256: 4ef29567fd73e5c6645b58c27a8db782fd3dda44cbce9c251aa0516fb6b44af6
+  - file: concepts/services-networking/dns-pod-service.html
+    url: https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/
+    language: en
+    revision: 9e0fdab8b3ce8e83d3f6b0fae55b52f6c118ec7a
+    last_modified: 2025-07-29
+    fetched_at: 2026-11-02T03:03:37Z
+    page_sha256: 0e9b0c89f20ea082a923529a9b52229ad5a03692dfa4a45418d2935ad371e530
+  - file: concepts/services-networking/dns-pod-service.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/services-networking/dns-pod-service/
+    language: zh-cn
+    revision: 3cc69c67e5ddd9f9df4c050ecb18391af758ed69
+    last_modified: 2026-05-01
+    fetched_at: 2026-11-02T03:09:17Z
+    page_sha256: 1e4a6c132a4e530993cc6403a132616bc2c6aa90d550867dcf4abdfebef77049
+  - file: concepts/services-networking/dns-pod-service.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/services-networking/dns-pod-service/
+    language: ja
+    revision: 10fd5e53542fb90b58303785474b349d3dea369a
+    last_modified: 2026-02-15
+    fetched_at: 2026-11-02T03:15:53Z
+    page_sha256: 62ea16959a6721022d62f7505eec0f2459cc1c5d5cdcd962d99c06e30f05fbf0
+  - file: concepts/services-networking/dual-stack.html
+    url: https://kubernetes.io/docs/concepts/services-networking/dual-stack/
+    language: en
+    revision: 5ead3267130f13fb42982e51c9390e9d3e0dc065
+    last_modified: 2024-06-12
+    fetched_at: 2026-11-02T03:03:37Z
+    page_sha256: 6a75ba6b87560bee0dfc93972ffbb5759935cba6f75311ea139c0d2d9b15d079
+  - file: concepts/services-networking/dual-stack.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/services-networking/dual-stack/
+    language: zh-cn
+    revision: 9070bf13ee20657dd2097cd2da1a570a7ea4915d
+    last_modified: 2024-07-14
+    fetched_at: 2026-11-02T03:09:17Z
+    page_sha256: 159d06646744168a9bcd16586b52fcc3a58c4e76f27cd8657d7a6c4f096f188a
+  - file: concepts/services-networking/dual-stack.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/services-networking/dual-stack/
+    language: ja
+    revision: 002caf84276f7b0733d70f6cd91a81e735808cbe
+    last_modified: 2026-07-24
+    fetched_at: 2026-11-02T03:15:53Z
+    page_sha256: 2b78692b0e57fec3f777de85ea62d87edd6484da5d868038fc0c97079ba344f6
+  - file: concepts/services-networking/endpoint-slices.html
+    url: https://kubernetes.io/docs/concepts/services-networking/endpoint-slices/
+    language: en
+    revision: 5fadc4a1b30559723ab52e18e678b46a092de848
+    last_modified: 2025-06-22
+    fetched_at: 2026-11-02T03:03:37Z
+    page_sha256: d34bbbc73329b7d6cdbc36baf448ce84084504b88a6858cb81963250925b2954
+  - file: concepts/services-networking/endpoint-slices.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/services-networking/endpoint-slices/
+    language: zh-cn
+    revision: 3a249d1c402241c494408e7c4cc6e7955c90b698
+    last_modified: 2025-11-12
+    fetched_at: 2026-11-02T03:09:18Z
+    page_sha256: 3fa71f7bf37701d796661c6b2ae582dc9a62f6caa96f3ead6a09d0ac9e393e1e
+  - file: concepts/services-networking/endpoint-slices.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/services-networking/endpoint-slices/
+    language: ja
+    revision: 24d99b9b2d1d9fa69b6497ac0a042926f8d4151e
+    last_modified: 2026-05-28
+    fetched_at: 2026-11-02T03:15:54Z
+    page_sha256: 54fbb606ff0ca8b5deba5bf4dab485f0231bbb4bb3fdbd30ea9fb799a4dc1b58
+  - file: concepts/services-networking/gateway.html
+    url: https://kubernetes.io/docs/concepts/services-networking/gateway/
+    language: en
+    revision: 6588c3634de4cef331ea3415f984bc9897194da6
+    last_modified: 2026-08-19
+    fetched_at: 2026-11-02T03:03:38Z
+    page_sha256: 309a8a58019953a763e9eb7f6251cdde02772aab8b4b3e7acc42a5bdd7ccc3ff
+  - file: concepts/services-networking/gateway.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/services-networking/gateway/
+    language: zh-cn
+    revision: 4f5acf5a42a7f97505f18c3fba2022fb12f8ccaf
+    last_modified: 2026-08-28
+    fetched_at: 2026-11-02T03:09:18Z
+    page_sha256: eba4114d3b25a767b74f169f1f385dbca46a6ed1be3cb8f09b9a1a5e18a58c14
+  - file: concepts/services-networking/gateway.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/services-networking/gateway/
+    language: ja
+    revision: 97e63fe6372cd201869e358b338f4a21788478b5
+    last_modified: 2025-12-29
+    fetched_at: 2026-11-02T03:15:54Z
+    page_sha256: 829d42e88875486bfe16fb0e4251adc73eb5ea1fab7a854571816b5962f4ab8a
+  - file: concepts/services-networking/ingress.html
+    url: https://kubernetes.io/docs/concepts/services-networking/ingress/
+    language: en
+    revision: 5e041a86f730d0b4ad62f8fb22c52680dd9616f8
+    last_modified: 2025-11-24
+    fetched_at: 2026-11-02T03:03:38Z
+    page_sha256: 43cd6851dcbfb321feee973e676f9c2b6369cdc328a3b4d1279a0c779e7cd688
+  - file: concepts/services-networking/ingress.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/services-networking/ingress/
+    language: zh-cn
+    revision: 73ccb01c5d5ebb86ac6b9a6b26a98f93ec791a9d
+    last_modified: 2026-08-31
+    fetched_at: 2026-11-02T03:09:19Z
+    page_sha256: 24fd10a848c98c95d313c7bb56fbd647bc18dad0554503fbfed0304554d71391
+  - file: concepts/services-networking/ingress.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/services-networking/ingress/
+    language: ja
+    revision: a45f99d59099922519067353a5fef80e3e0dcc11
+    last_modified: 2026-10-30
+    fetched_at: 2026-11-02T03:15:55Z
+    page_sha256: e4dcd1bfb6465313833d256d0a430c4b6b72a63fadba2ee23a55b5050352f6d3
+  - file: concepts/services-networking/ingress-controllers.html
+    url: https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/
+    language: en
+    revision: 72875d9b7b1db884444ade9ddb711b18f5067346
+    last_modified: 2026-09-02
+    fetched_at: 2026-11-02T03:03:38Z
+    page_sha256: 3bf5722d8ced6bcfb7d125302bf52a9d82bc9a33195245e15f66885f48260dc2
+  - file: concepts/services-networking/ingress-controllers.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/services-networking/ingress-controllers/
+    language: zh-cn
+    revision: ec6b916ff7c9c18353dba85e51d06d1eb0665ca2
+    last_modified: 2026-01-27
+    fetched_at: 2026-11-02T03:09:18Z
+    page_sha256: 1d2f4bde9fa1968037c2c965dc7e22b99b15edd1e34e1bcfa697666cda621612
+  - file: concepts/services-networking/ingress-controllers.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/services-networking/ingress-controllers/
+    language: ja
+    revision: 91a7f203b6b79b9874da617f7b9f63bfbbcb52ce
+    last_modified: 2025-12-13
+    fetched_at: 2026-11-02T03:15:54Z
+    page_sha256: f78a85f0fd26cb2ad6a1c2196dd4d2174f605080126c1382e09cc42597890503
+  - file: concepts/services-networking/network-policies.html
+    url: https://kubernetes.io/docs/concepts/services-networking/network-policies/
+    language: en
+    revision: 03c191bcc446f9c15a9e68d6cd1154b53bde4291
+    last_modified: 2026-04-14
+    fetched_at: 2026-11-02T03:03:39Z
+    page_sha256: 2b4225a068c57d985d604082697db7ef84d7efb68203594b2ff134fe0de98651
+  - file: concepts/services-networking/network-policies.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/services-networking/network-policies/
+    language: zh-cn
+    revision: 975cf6928358fb437849c4efe47c9ac25edfb8d9
+    last_modified: 2026-04-22
+    fetched_at: 2026-11-02T03:09:19Z
+    page_sha256: 677a560ab63776807e9f0e79a1992f54ed39b5fc0a132fb3b90e9a0466063679
+  - file: concepts/services-networking/network-policies.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/services-networking/network-policies/
+    language: ja
+    revision: 002caf84276f7b0733d70f6cd91a81e735808cbe
+    last_modified: 2026-07-24
+    fetched_at: 2026-11-02T03:15:55Z
+    page_sha256: b0004896de9df5d150819a0c4c257be8c8ce0873c48356d736a51ba9e517af23
+  - file: concepts/services-networking/service.html
+    url: https://kubernetes.io/docs/concepts/services-networking/service/
+    language: en
+    revision: 2b91a642323ed049b339f6852f176d83fa771fd1
+    last_modified: 2026-07-07
+    fetched_at: 2026-11-02T03:03:39Z
+    page_sha256: fa32c01b79411b666080cc63ff2ca751b0133897ec845d4386808a0b3ae1d10e
+  - file: concepts/services-networking/service.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/services-networking/service/
+    language: zh-cn
+    revision: 63d44dfc3721dc240f634724ebe39b96f3dec716
+    last_modified: 2026-09-22
+    fetched_at: 2026-11-02T03:09:20Z
+    page_sha256: de0fa39179c9563b009dee615a19450159f0aceeee627b0d33beb69e5f048c24
+  - file: concepts/services-networking/service.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/services-networking/service/
+    language: ja
+    revision: 83ef304435a09592eb063582f22fc4b407e6d179
+    last_modified: 2026-03-06
+    fetched_at: 2026-11-02T03:15:56Z
+    page_sha256: 3b394ed40bde17899ba8a346bae820e16fa4cac0f98af92fc0cc75d4311fd45e
+  - file: concepts/services-networking/service-traffic-policy.html
+    url: https://kubernetes.io/docs/concepts/services-networking/service-traffic-policy/
+    language: en
+    revision: 07f224714adff85991cb783b91b9806c575f00ca
+    last_modified: 2023-08-20
+    fetched_at: 2026-11-02T03:03:39Z
+    page_sha256: f38191355f25e6d352951cb039658db7c7df3c4add664a1d7b83028c849d85e9
+  - file: concepts/services-networking/service-traffic-policy.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/services-networking/service-traffic-policy/
+    language: zh-cn
+    revision: 3ecbb41a7e8a0f85e871e29dbd674a22a0202149
+    last_modified: 2023-10-05
+    fetched_at: 2026-11-02T03:09:20Z
+    page_sha256: ddf47502b4344d1062902687d326975a40977ea1b2887ae123d4521746dc0066
+  - file: concepts/services-networking/service-traffic-policy.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/services-networking/service-traffic-policy/
+    language: ja
+    revision: d25a113ce00fabcf96523e3d38b7f6a64f4e9b76
+    last_modified: 2023-02-20
+    fetched_at: 2026-11-02T03:15:56Z
+    page_sha256: 7784422414e64740f8fa99e59c2530b1c4496a01c731cbf4d676ff293e73413a
+  - file: concepts/services-networking/topology-aware-routing.html
+    url: https://kubernetes.io/docs/concepts/services-networking/topology-aware-routing/
+    language: en
+    revision: e741652133167e682b13ce3b4b6bd89a6b32cf24
+    last_modified: 2026-10-12
+    fetched_at: 2026-11-02T03:03:39Z
+    page_sha256: fe1f1800a3e941ece9c9c5511cc6e5f2d1ce122f89c13a7d706bb28ce7a4ec01
+  - file: concepts/services-networking/topology-aware-routing.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/services-networking/topology-aware-routing/
+    language: zh-cn
+    revision: caec7b92e209554d8f6453dc6314ac7aa8c7de03
+    last_modified: 2024-06-21
+    fetched_at: 2026-11-02T03:09:20Z
+    page_sha256: b6ed1c64bc667cfb8d8a6bd75bc7bd4c14ee9a560d1db2969b709e3d7475e51c
+  - file: concepts/services-networking/topology-aware-routing.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/services-networking/topology-aware-routing/
+    language: ja
+    revision: 2cb4897b5bd3eb6df14e06158e7c6a1cb793a3e5
+    last_modified: 2026-10-30
+    fetched_at: 2026-11-02T03:15:56Z
+    page_sha256: 77b5eec4bfd951c05ae24212885259354dbe2feb9bbe52b591df2c7fe52cd28a
+  - file: concepts/services-networking/windows-networking.html
+    url: https://kubernetes.io/docs/concepts/services-networking/windows-networking/
+    language: en
+    revision: 406db73486c78e33d0b52a27db89c2573bdad95a
+    last_modified: 2025-07-03
+    fetched_at: 2026-11-02T03:03:40Z
+    page_sha256: 3a89c4a49a3946d441f4986912b910a690192e7932dacc70345684297d9d7e55
+  - file: concepts/services-networking/windows-networking.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/services-networking/windows-networking/
+    language: zh-cn
+    revision: 3409eeef7635a1709a134d2f369cad5dcef38297
+    last_modified: 2025-08-28
+    fetched_at: 2026-11-02T03:09:21Z
+    page_sha256: 76cb348228ca26f767d19f08f0b789710d4c2d101f3c42a07ff75069e46e6685
+  - file: concepts/storage/_index.html
+    url: https://kubernetes.io/docs/concepts/storage/
+    language: en
+    revision: e9703497a1fdc3f098d064f850a4ff7b4ed0e4aa
+    last_modified: 2021-06-16
+    fetched_at: 2026-11-02T03:03:40Z
+    page_sha256: d28e4e5d144cca877ebc45b2c8d667e999a7cdc97b2c67e147118fadb65a9633
+  - file: concepts/storage/_index.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/
+    language: zh-cn
+    revision: c52818c03d6bb8d6bf76b09ad20de3a823dc8e0a
+    last_modified: 2022-06-10
+    fetched_at: 2026-11-02T03:09:21Z
+    page_sha256: 8950cdb105ed0fcaddc5e01432c7a8fb18e288c640f77eec9092fea6d7ae0d69
+  - file: concepts/storage/_index.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/
+    language: ja
+    revision: 7c256aa07ee3404fa9eb36a2a9ab3ef53e874d50
+    last_modified: 2021-06-22
+    fetched_at: 2026-11-02T03:15:57Z
+    page_sha256: 26e9ba8825002eff5e9781841f47564caf1e7d0cc0080981ed2296958b08e35b
+  - file: concepts/storage/dynamic-provisioning.html
+    url: https://kubernetes.io/docs/concepts/storage/dynamic-provisioning/
+    language: en
+    revision: 47b7c6f6b36e77358998c30d0cfc6c075d5bcd2c
+    last_modified: 2025-10-29
+    fetched_at: 2026-11-02T03:03:40Z
+    page_sha256: 2d22455413374fbb243d6f1d9131d583691d90c56e204ca21e91f85376d0b006
+  - file: concepts/storage/dynamic-provisioning.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/dynamic-provisioning/
+    language: zh-cn
+    revision: 4f49680cb3bc0e01dad2fabfefc9fa75ad5c88d9
+    last_modified: 2025-10-31
+    fetched_at: 2026-11-02T03:09:21Z
+    page_sha256: d79961dd04a630c0b17efbbf8a577d3223011d8970786f1de5b408b09624694e
+  - file: concepts/storage/dynamic-provisioning.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/dynamic-provisioning/
+    language: ja
+    revision: 1ebb46a00f2b1d81bb499c9bd1b6f2ae369fde7d
+    last_modified: 2025-09-23
+    fetched_at: 2026-11-02T03:15:57Z
+    page_sha256: f9674230f8f02007fcbd4cc0b3de32e4d708462021c4603d1b5de07af385c983
+  - file: concepts/storage/ephemeral-storage.html
+    url: https://kubernetes.io/docs/concepts/storage/ephemeral-storage/
+    language: en
+    revision: 6dc6c3a989c065ef570348e150e260291e5d670b
+    last_modified: 2026-04-23
+    fetched_at: 2026-11-02T03:03:40Z
+    page_sha256: f5aad7fc32be8ab6df19833bd0ab66ce7ed8323de1057e247206d51501478ee0
+  - file: concepts/storage/ephemeral-storage.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/ephemeral-storage/
+    language: zh-cn
+    revision: 35337960f9fc0a6acfe48b3ccef6905e0e7f040a
+    last_modified: 2026-08-19
+    fetched_at: 2026-11-02T03:09:22Z
+    page_sha256: 9d5ec7085a3437bb1c5c2a9280e8449145326ccdac175e487f7a8085d8156719
+  - file: concepts/storage/ephemeral-storage.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/ephemeral-storage/
+    language: ja
+    revision: 7257e20abdb2a209be8f87c11b2295ad58652881
+    last_modified: 2026-04-30
+    fetched_at: 2026-11-02T03:15:58Z
+    page_sha256: 5b1adc425a792e750447e4b16936a629e000482f0022dbd98eec333be90a556b
+  - file: concepts/storage/ephemeral-volumes.html
+    url: https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/
+    language: en
+    revision: b94586af739cfcafdec96ed24b78a5483de6b6ed
+    last_modified: 2025-10-05
+    fetched_at: 2026-11-02T03:03:41Z
+    page_sha256: 452d3dd82aba813f4955abe80d38efa9e061ecedf74cfe43ce4381d0eca88e28
+  - file: concepts/storage/ephemeral-volumes.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/ephemeral-volumes/
+    language: zh-cn
+    revision: 657970686034a465d9175f12a604fe5d26c0c5bd
+    last_modified: 2026-01-27
+    fetched_at: 2026-11-02T03:09:22Z
+    page_sha256: 530e4d152bd8690ed5731d329fb1b1f161abebad4dfb18977cfab182b9fa0b6b
+  - file: concepts/storage/ephemeral-volumes.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/ephemeral-volumes/
+    language: ja
+    revision: f05c3c47a51659d4cfa7730dbf5ba3431f068c9c
+    last_modified: 2023-07-20
+    fetched_at: 2026-11-02T03:15:58Z
+    page_sha256: 9dcaa36298ad18fe8228b4ba711b9174bbf926ccc393869ae5506a6eeb62caaa
+  - file: concepts/storage/persistent-volumes.html
+    url: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+    language: en
+    revision: 71016f53298428df5a65faf791cc034ce028c172
+    last_modified: 2026-06-17
+    fetched_at: 2026-11-02T03:03:41Z
+    page_sha256: f517b1773cfac92e93c0e3cbe8b20138eea9052ced46988a898115cd7fa3a2b1
+  - file: concepts/storage/persistent-volumes.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/persistent-volumes/
+    language: zh-cn
+    revision: 3c9e97489724138a90f33c3978ea4ab98ab4b4af
+    last_modified: 2026-07-01
+    fetched_at: 2026-11-02T03:09:23Z
+    page_sha256: 37509be0448890bef11393136725e6a01e48dd87f10007e28f178910c7187bd9
+  - file: concepts/storage/persistent-volumes.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/persistent-volumes/
+    language: ja
+    revision: ffdbd8b55d0718acdb6a8a3142fd1af44e7ab76d
+    last_modified: 2026-06-08
+    fetched_at: 2026-11-02T03:15:58Z
+    page_sha256: ca87c707a98a6cf3c67dc7953d28cd32b75d9d13269a980a44088bd265d9f854
+  - file: concepts/storage/projected-volumes.html
+    url: https://kubernetes.io/docs/concepts/storage/projected-volumes/
+    language: en
+    revision: da72567af460317d735072e0df65c33a8a050c75
+    last_modified: 2026-07-28
+    fetched_at: 2026-11-02T03:03:41Z
+    page_sha256: f14c5ec56e7a306da9762a42ca0788cef2447b063342b3aec13d15b127017412
+  - file: concepts/storage/projected-volumes.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/projected-volumes/
+    language: zh-cn
+    revision: ec39204d96836e757af795d2d9bb39305ddfef28
+    last_modified: 2026-08-27
+    fetched_at: 2026-11-02T03:09:23Z
+    page_sha256: e68590251ead0f8805b8a41475b24e303f79b8b6a57f632d2ed8ddaf70187e41
+  - file: concepts/storage/projected-volumes.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/projected-volumes/
+    language: ja
+    revision: 002caf84276f7b0733d70f6cd91a81e735808cbe
+    last_modified: 2026-07-24
+    fetched_at: 2026-11-02T03:15:59Z
+    page_sha256: 619f1b1b5431e445d1c89074e8d55735f545d4e9b0e0bee84a44b09f104d84fb
+  - file: concepts/storage/storage-capacity.html
+    url: https://kubernetes.io/docs/concepts/storage/storage-capacity/
+    language: en
+    revision: 54ecdc489652db9f938990f4fd9683bd0ad8bc60
+    last_modified: 2022-10-24
+    fetched_at: 2026-11-02T03:03:41Z
+    page_sha256: 4e91568f685c84b2a989631d5d58916468c9e3b01a14ae423904714fae36a83d
+  - file: concepts/storage/storage-capacity.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/storage-capacity/
+    language: zh-cn
+    revision: ac0d48784ad3744a9b592f7b92db1a766d9e1247
+    last_modified: 2023-02-09
+    fetched_at: 2026-11-02T03:09:23Z
+    page_sha256: bffb85f480bff66a4b604c28e82e984421d6cee04624c631c72883574601bdca
+  - file: concepts/storage/storage-capacity.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/storage-capacity/
+    language: ja
+    revision: 6c4074996679ddce6718a69f3646ee5aa6679b20
+    last_modified: 2023-02-08
+    fetched_at: 2026-11-02T03:15:59Z
+    page_sha256: c5020b0ae18851d4235956125cc9a2829e86534717628c149f073ca514b204b6
+  - file: concepts/storage/storage-classes.html
+    url: https://kubernetes.io/docs/concepts/storage/storage-classes/
+    language: en
+    revision: 28a92aa209c5254b06b3b9d323752db2c4bd0b51
+    last_modified: 2026-10-29
+    fetched_at: 2026-11-02T03:03:42Z
+    page_sha256: 685d10d7983931301081ec26def3a12d0063063baa22fdd61abae7fb41b75da4
+  - file: concepts/storage/storage-classes.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/storage-classes/
+    language: zh-cn
+    revision: a1af5dd16aa14b7b61620c99f4637c5eb4f6f0a1
+    last_modified: 2026-08-17
+    fetched_at: 2026-11-02T03:09:24Z
+    page_sha256: 39e8625e55db0cf66c6138347ab96b9e05f65c2de2bc551e903c692f54f9c599
+  - file: concepts/storage/storage-classes.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/storage-classes/
+    language: ja
+    revision: 7bd2037cd3ee23ab4f96d4e1d3e21355064095a7
+    last_modified: 2026-05-16
+    fetched_at: 2026-11-02T03:15:59Z
+    page_sha256: 7e5fdbddaf99ee0bed37828afdbe5b0fecfcbc52bd130422a15b49cec9fd644b
+  - file: concepts/storage/storage-limits.html
+    url: https://kubernetes.io/docs/concepts/storage/storage-limits/
+    language: en
+    revision: d525c3e37502acd9d59d1746872dd7cd88b75fac
+    last_modified: 2026-08-06
+    fetched_at: 2026-11-02T03:03:42Z
+    page_sha256: d0a137a138305207d46e5212e5c55f59610f64e769c1ef65203444ade3590a3b
+  - file: concepts/storage/storage-limits.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/storage-limits/
+    language: zh-cn
+    revision: ec39204d96836e757af795d2d9bb39305ddfef28
+    last_modified: 2026-08-27
+    fetched_at: 2026-11-02T03:09:24Z
+    page_sha256: 0ca774ba4cce088c511399a3f544e21355b656fa54ebff341235425e0685efa8
+  - file: concepts/storage/storage-limits.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/storage-limits/
+    language: ja
+    revision: a47b2227c7d388aa624c8ccb21d0c2bc627db486
+    last_modified: 2023-10-24
+    fetched_at: 2026-11-02T03:16:00Z
+    page_sha256: f4c758711a3f4ed8140107537a65016ec173f99bc0fcc8179196e5d30a204d0b
+  - file: concepts/storage/volume-attributes-classes.html
+    url: https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/
+    language: en
+    revision: b27fde8da1cd80eca158dfe71c4f86d65df9b12c
+    last_modified: 2026-09-25
+    fetched_at: 2026-11-02T03:03:42Z
+    page_sha256: 59b47848e3b8086d87a43a65349680ecc18f325c307b69ba98f557aa48eaaf4b
+  - file: concepts/storage/volume-attributes-classes.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/volume-attributes-classes/
+    language: zh-cn
+    revision: b27fde8da1cd80eca158dfe71c4f86d65df9b12c
+    last_modified: 2026-09-25
+    fetched_at: 2026-11-02T03:09:25Z
+    page_sha256: b0eeff2e7cc6aa7b2363a8d97d326706ce21a0ad9ac0a5caa3d4aebc3aa5fb21
+  - file: concepts/storage/volume-attributes-classes.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/volume-attributes-classes/
+    language: ja
+    revision: b27fde8da1cd80eca158dfe71c4f86d65df9b12c
+    last_modified: 2026-09-25
+    fetched_at: 2026-11-02T03:16:00Z
+    page_sha256: 220d78c338f154cb2fbd04e392eaacc658bc06a1175f2c6a8d9b8e7ab8e297cc
+  - file: concepts/storage/volume-health-monitoring.html
+    url: https://kubernetes.io/docs/concepts/storage/volume-health-monitoring/
+    language: en
+    revision: b9c39d4bd18f8d59e7ad35978340a7c863e7e8da
+    last_modified: 2026-06-30
+    fetched_at: 2026-11-02T03:03:42Z
+    page_sha256: 6dfc5fb840c2def95f4c12bf9426747c278f1a01d6f5c034525f32f3e2b4477b
+  - file: concepts/storage/volume-health-monitoring.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/volume-health-monitoring/
+    language: zh-cn
+    revision: b06d7889372df41188f47ddd41ee677ca2553bdd
+    last_modified: 2024-07-16
+    fetched_at: 2026-11-02T03:09:25Z
+    page_sha256: 58795dcd72c458fb8dad80fbee28f3962682c8af551f94ede71cc35fcee068fe
+  - file: concepts/storage/volume-health-monitoring.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/volume-health-monitoring/
+    language: ja
+    revision: 9f1be539792f1da5e61f7b0cda473c9d5e105f64
+    last_modified: 2022-11-30
+    fetched_at: 2026-11-02T03:16:01Z
+    page_sha256: 201a5b4aca8602d4c18246478be004d10cdcbd5c1b0332e5353852a63a6fa40f
+  - file: concepts/storage/volume-populators-and-data-sources.html
+    url: https://kubernetes.io/docs/concepts/storage/volume-populators-and-data-sources/
+    language: en
+    revision: 28a92aa209c5254b06b3b9d323752db2c4bd0b51
+    last_modified: 2026-10-29
+    fetched_at: 2026-11-02T03:03:43Z
+    page_sha256: 792d237f370fbed26b1d29714785e71d5219b63bf152efc2986a9174dd78ca04
+  - file: concepts/storage/volume-populators-and-data-sources.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/volume-populators-and-data-sources/
+    language: zh-cn
+    revision: 3b48a15362b85116f7d900907e85571041e4fb3c
+    last_modified: 2026-07-01
+    fetched_at: 2026-11-02T03:09:26Z
+    page_sha256: eac6b8fe4ae940d9e0145c1592d48f2762c246ce6fd6a2ed1e05d264f94b38d5
+  - file: concepts/storage/volume-pvc-datasource.html
+    url: https://kubernetes.io/docs/concepts/storage/volume-pvc-datasource/
+    language: en
+    revision: 28869440174f91b0fa8b7d18d9bf69652571e675
+    last_modified: 2023-06-01
+    fetched_at: 2026-11-02T03:03:43Z
+    page_sha256: e47669f9e8201a596ce897bc0784ae078a1d32288170acdd0c795d49dee102b1
+  - file: concepts/storage/volume-pvc-datasource.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/volume-pvc-datasource/
+    language: zh-cn
+    revision: 279a835a9c6a449b3b7a3ee860b04f81a36de866
+    last_modified: 2023-06-04
+    fetched_at: 2026-11-02T03:09:26Z
+    page_sha256: 6c98c5116eae1df54f8aeeecc599d0b64ec6e84549e0ef30c98660ae829d770e
+  - file: concepts/storage/volume-pvc-datasource.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/volume-pvc-datasource/
+    language: ja
+    revision: f9ccb1412d298eef83d739c1b13ea3c98a696c32
+    last_modified: 2023-03-06
+    fetched_at: 2026-11-02T03:16:01Z
+    page_sha256: 44194314f41f647248f4791660582076acc1f4a4102fa1212bd3ef343c125f12
+  - file: concepts/storage/volume-snapshot-classes.html
+    url: https://kubernetes.io/docs/concepts/storage/volume-snapshot-classes/
+    language: en
+    revision: c0c456446e442c96c50fa2c5460c0135525763a2
+    last_modified: 2025-01-09
+    fetched_at: 2026-11-02T03:03:44Z
+    page_sha256: 8167c4b6ad1f9aeb577080c6d62a6d42471d29e3e258e25fab58dfe9e5e70039
+  - file: concepts/storage/volume-snapshot-classes.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/volume-snapshot-classes/
+    language: zh-cn
+    revision: de099224f751eb08a7d682323f31c06f8d90748f
+    last_modified: 2025-01-17
+    fetched_at: 2026-11-02T03:09:26Z
+    page_sha256: 5ee8c6335aa37974dc7b6eecf6abe434b150a172d4ce969e3bdc163c8edc1cef
+  - file: concepts/storage/volume-snapshot-classes.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/volume-snapshot-classes/
+    language: ja
+    revision: 1ebb46a00f2b1d81bb499c9bd1b6f2ae369fde7d
+    last_modified: 2025-09-23
+    fetched_at: 2026-11-02T03:16:01Z
+    page_sha256: 026c7dea9a4177f800f5a83fd7fd1a6aea1539417b7e08588ea8da1781b6e454
+  - file: concepts/storage/volume-snapshots.html
+    url: https://kubernetes.io/docs/concepts/storage/volume-snapshots/
+    language: en
+    revision: 7648c3772f8aa0e40c94acc601d4b62c8abf86f3
+    last_modified: 2026-07-30
+    fetched_at: 2026-11-02T03:03:43Z
+    page_sha256: 00fba60b001c765e5f8ef7f515a7477f7fa75740b1ddda7e75e1bb565cc982d7
+  - file: concepts/storage/volume-snapshots.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/volume-snapshots/
+    language: zh-cn
+    revision: 51415dc72fd2a8062a55d34ebd7d231151a6923f
+    last_modified: 2026-09-05
+    fetched_at: 2026-11-02T03:09:26Z
+    page_sha256: e8fe5749b37d20a6d13bd74a03389d7c83283a6ea46ddec9bfed1d6e384fdb0a
+  - file: concepts/storage/volume-snapshots.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/volume-snapshots/
+    language: ja
+    revision: b5915f07c48d207c8fbbab3ea81c20a42ef93c96
+    last_modified: 2026-10-30
+    fetched_at: 2026-11-02T03:16:02Z
+    page_sha256: 9c38ab5fe834baee4db0e6c0d3f7c02b02665ce9b122c0928e605de97dc2f8a1
+  - file: concepts/storage/volumes.html
+    url: https://kubernetes.io/docs/concepts/storage/volumes/
+    language: en
+    revision: 8d07a7368a571bef1fcf2ab106f5551e1edf63e5
+    last_modified: 2026-09-24
+    fetched_at: 2026-11-02T03:03:44Z
+    page_sha256: 98eb40b3120b82cf70a09905bf9394470248e45e3baad4fa6749fbaf3ed34bba
+  - file: concepts/storage/volumes.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/volumes/
+    language: zh-cn
+    revision: f5f7e14118a29677fc0133fcfee9301b7a20120a
+    last_modified: 2026-09-05
+    fetched_at: 2026-11-02T03:09:27Z
+    page_sha256: 9c21c68f83549c40300a0e88b80e0aebc183e2f8329b8c639dc8c0160c9b8a7a
+  - file: concepts/storage/volumes.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/volumes/
+    language: ja
+    revision: b6b09d7705639407bd34f2b1795eacc376a581c9
+    last_modified: 2026-06-08
+    fetched_at: 2026-11-02T03:16:02Z
+    page_sha256: 79ff8f0cf1a0af5b09b2b5d62b7058798befe577817bc21eea6e5b579b6a773c
+  - file: concepts/storage/windows-storage.html
+    url: https://kubernetes.io/docs/concepts/storage/windows-storage/
+    language: en
+    revision: 976ead0a1a7976edc9346b39d653dcda29655d5f
+    last_modified: 2023-11-29
+    fetched_at: 2026-11-02T03:03:44Z
+    page_sha256: 7a965c47c1bd44a9be5c0a26960113365169c59a823a04663671bf6a18293302
+  - file: concepts/storage/windows-storage.zh-cn.html
+    url: https://kubernetes.io/zh-cn/docs/concepts/storage/windows-storage/
+    language: zh-cn
+    revision: 22c9a904ec1046381858de5b43da6e15edef4eaf
+    last_modified: 2023-12-06
+    fetched_at: 2026-11-02T03:09:27Z
+    page_sha256: 6b8c2ef622dc4528f97da73d51324e060999c133ebbf1890133530fba9009be7
+  - file: concepts/storage/windows-storage.ja.html
+    url: https://kubernetes.io/ja/docs/concepts/storage/windows-storage/
+    language: ja
+    revision: 1d4da2be559fed76a5686b4f4a8f8847bba3a0da
+    last_modified: 2026-08-04
+    fetched_at: 2026-11-02T03:16:02Z
+    page_sha256: ca7b7ba723efa65d738a7f3c41cc9c88f019b6e3a38451fbfa90aa26feabedea
