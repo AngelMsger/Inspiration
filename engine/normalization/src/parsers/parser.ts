@@ -1,3 +1,6 @@
+// What every built-in parser does the same way: read its bytes as text, and name itself as the
+// producer of what it returns.
+
 import type { Parser, ProducerInfo } from "@inspiration/contracts";
 
 /** UTF-8 text without a byte order mark. */

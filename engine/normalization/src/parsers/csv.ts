@@ -2,7 +2,7 @@
 
 import type { DocBlock, FileMeta, ParseResult, Parser } from "@inspiration/contracts";
 import { parse } from "csv-parse/sync";
-import { decode, producer } from "./shared.ts";
+import { decode, producer } from "./parser.ts";
 
 export function parseCsv(text: string): DocBlock[] {
   const rows = parse(text, { bom: true, relax_column_count: true, skip_empty_lines: true }) as string[][];

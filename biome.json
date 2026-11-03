@@ -26,7 +26,15 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "preset": "recommended"
+      "preset": "recommended",
+      "complexity": {
+        "noExcessiveCognitiveComplexity": {
+          "level": "error",
+          "options": {
+            "maxAllowedComplexity": 40
+          }
+        }
+      }
     }
   },
   "javascript": {
@@ -41,5 +49,88 @@
         "organizeImports": "on"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": ["engine/page-compiler/src/topics.ts"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": {
+              "level": "error",
+              "options": {
+                "maxAllowedComplexity": 145
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/bench/src/cli.ts"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": {
+              "level": "error",
+              "options": {
+                "maxAllowedComplexity": 100
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["apps/bench/src/synthesize.ts"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": {
+              "level": "error",
+              "options": {
+                "maxAllowedComplexity": 80
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": ["engine/agent-runtime/src/runtime.ts", "engine/page-compiler/src/cluster.ts"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": {
+              "level": "error",
+              "options": {
+                "maxAllowedComplexity": 65
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "engine/extraction/src/extract.ts",
+        "engine/freshness/src/freshness.ts",
+        "engine/knowledge-store/src/base.ts",
+        "engine/normalization/src/blocks.ts",
+        "engine/normalization/src/parsers/html.ts"
+      ],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": {
+              "level": "error",
+              "options": {
+                "maxAllowedComplexity": 45
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

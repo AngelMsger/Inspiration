@@ -83,8 +83,9 @@ apps/<name>       组装根：现在是引擎进程及其测量工具；以后�
    死信流。
 2. **知识存储的仓储 API。** 对知识的读写都经过 `KnowledgeStore`。任何组件都不读取其他组件的表。
 3. **同步调用** `libs/contracts/src/interfaces.ts` 中的接口：`AuthZ`（access-control）、`ModelGateway`
-   （model-gateway）、`Retriever`（retrieval）、`AgentRuntime`（agent-runtime）和 Blob 存储。每个接口都有进程内
-   实现，在有用的地方还有接口相同的 HTTP 实现（model gateway 目前两者都有）。`components.yaml` 列出每个组件可以
+   （model-gateway）、`Retriever`（retrieval）、`AgentRuntime`（agent-runtime）、Blob 存储，以及 retrieval 在回答时
+   读取的 `SlotVerdicts`（governance，一个槽里成立的值）和 `StalenessReader`（freshness，一个单元有多陈旧）。
+   每个接口都有进程内实现，在有用的地方还有接口相同的 HTTP 实现（model gateway 目前两者都有）。`components.yaml` 列出每个组件可以
    发起哪些调用，清单测试检查一个包不依赖其他任何东西。
 
 主流程，从一份变化的文档到一个最新的页面：
