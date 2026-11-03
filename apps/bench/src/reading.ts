@@ -43,27 +43,52 @@ export function predicateOfFact(fact: string): string {
   return fact.slice(fact.indexOf("/") + 1).split("|")[0] as string;
 }
 
-const NUMBER = /(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)/;
+// A number, with its sign unless the sign joins two numbers ("3-5").
+const NUMBER = /(?<![\d.,])(-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)/;
 const NUMERIC = new Set(["number", "money", "percent", "duration"]);
+const NEGATION = new Set(["not", "no", "never", "without"]);
 const fold = (s: string) => s.trim().toLowerCase();
+/** A unit's parts: "USD per person per event" is usd, person, event; "addresses" is address. */
+const unitParts = (unit: string) =>
+  fold(unit)
+    .replace(/\s+per\s+/g, "/")
+    .split("/")
+    .map((part) =>
+      part
+        .trim()
+        .replace(/(ss|sh|ch|x)es$/, "$1")
+        .replace(/(?<!s)s$/, ""),
+    )
+    .filter(Boolean);
 
 /**
- * A key's value as extraction writes it for the entry: a numeric entry's first number with the
- * entry's unit ("more than 3 days" is "3 day"), an enum's first listed value the key names as a
- * word ("stable since v1.25" is "stable"). Any other value, or one without such a number or
- * word, stays as the key says it.
+ * A key's value as extraction writes it for the entry, when the key's words leave no doubt: a
+ * numeric entry's first number with the entry's unit ("more than 3 days" is "3 day"), an
+ * enum's listed value the key names first ("stable since v1.25" is "stable"). A unit the
+ * entry lacks ("15 USD/quarter" for USD/year) or a negated enum ("not stable") keeps the key's
+ * words, as does any other value, so a misread never counts as found. Conditions the slot's
+ * value cannot hold ("more than", "per segment") are not checked here (issue #68).
  */
 export function keyedForm(entry: Pick<PredicateEntry, "value"> | undefined, value: string): string {
   const v = entry?.value;
   if (v && NUMERIC.has(v.kind)) {
-    const n = value.match(NUMBER)?.[1];
-    if (n === undefined) return value;
-    const number = String(Number(n.replaceAll(",", "")));
+    const m = NUMBER.exec(value);
+    if (!m) return value;
+    // The words after the number, to a comma or bracket, are the key's unit.
+    const said = unitParts(value.slice(m.index + m[0].length).split(/[,;(]/)[0] ?? "");
+    const known = new Set([...unitParts(v.unit ?? ""), ...(v.currency ? [fold(v.currency)] : [])]);
+    if (said.some((part) => !known.has(part))) return value;
+    const number = String(Number((m[1] as string).replaceAll(",", "")));
     return v.unit ? `${number} ${v.unit}` : number;
   }
   if (v?.kind === "enum" && v.values?.length) {
-    const words = fold(value).split(/[^\p{L}\p{N}]+/u);
-    return v.values.find((x) => fold(x) === fold(value)) ?? v.values.find((x) => words.includes(fold(x))) ?? value;
+    const listed = new Map(v.values.map((x) => [fold(x), x]));
+    const exact = listed.get(fold(value));
+    if (exact) return exact;
+    const words = fold(value).split(/[^\p{L}\p{N}-]+/u);
+    const at = words.findIndex((w) => listed.has(w));
+    if (at < 0 || NEGATION.has(words[at - 1] ?? "")) return value;
+    return listed.get(words[at] as string) as string;
   }
   return value;
 }
