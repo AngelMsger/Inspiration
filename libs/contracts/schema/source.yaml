@@ -809,3 +809,71 @@ $defs:
         type: array
         items:
           type: string
+
+  DocumentEntry:
+    description: >
+      One document as the Documents tree lists it: its source item and the latest version the
+      engine holds. Built by source sync from what it last stored; listed only to a principal
+      who may read the document.
+    type: object
+    required: [source_id, external_id, title, source_version_id, governance_level, fetched_at]
+    properties:
+      source_id:
+        $ref: "common.yaml#/$defs/SourceId"
+      external_id:
+        type: string
+      title:
+        type: string
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      mime_type:
+        type: string
+      language:
+        $ref: "common.yaml#/$defs/Locale"
+      governance_level:
+        $ref: "#/$defs/GovernanceLevel"
+      approval_state:
+        $ref: "#/$defs/ApprovalState"
+      modified_at:
+        description: When the source last changed the document, where it says.
+        $ref: "common.yaml#/$defs/Instant"
+      fetched_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  DocumentTreeNodeKind:
+    type: string
+    enum: [source, folder, document]
+
+  DocumentTreeNode:
+    description: >
+      A source, a folder in it or a document, in a space's Documents tree. Sources and folders
+      hold their children and count the documents below them; a folder with nothing the
+      reader may open is left out, never shown as empty or counted.
+    type: object
+    required: [kind, name, source_id, path]
+    properties:
+      kind:
+        $ref: "#/$defs/DocumentTreeNodeKind"
+      name:
+        type: string
+      source_id:
+        $ref: "common.yaml#/$defs/SourceId"
+      path:
+        description: The folders from the source's root to this node, the node's own name last; empty for a source.
+        type: array
+        items:
+          type: string
+      source_type:
+        description: For a source, its connector plugin name.
+        $ref: "common.yaml#/$defs/PluginName"
+      document_count:
+        description: For a source or folder, the documents below it the reader may open.
+        type: integer
+        minimum: 0
+      children:
+        type: array
+        items:
+          $ref: "#/$defs/DocumentTreeNode"
+      document:
+        description: For a document, its entry.
+        $ref: "#/$defs/DocumentEntry"

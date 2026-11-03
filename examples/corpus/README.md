@@ -9,6 +9,9 @@ single-valued facts (hotel caps, deadlines, leave days ...) that extraction puts
 so governance can compare values across documents. A Chinese copy is in
 [README.zh.md](README.zh.md); if the two differ, this English version wins.
 
+It is also the tenant of the demo (`pnpm demo`, see `apps/web`): `people.yaml` names three of
+its members, whom the web app's stand-in backend offers to act as in place of signing in.
+
 Run it through the engine with `pnpm bench ingest examples/corpus` (see `apps/bench`).
 With the mocked extraction model it gives about 120 claims, 58 of them in 15 slots, and
 finds the four planted value conflicts below (hotel cap, meal allowance, first-year leave,

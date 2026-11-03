@@ -266,3 +266,24 @@ $defs:
         $ref: "common.yaml#/$defs/RequestId"
       message:
         type: string
+
+  DocumentAnnotations:
+    description: >
+      The marks of the Annotated view of one version of a document: the current statements
+      resting on its spans that the reader may read, each marked as search marks it (where its
+      value stands with governance, and the statement that holds instead), and those statements
+      that hold in place of an outdated or disputed one. A statement cites only documents the
+      reader may read.
+    type: object
+    required: [source_version_id, statements, held]
+    properties:
+      source_version_id:
+        $ref: "common.yaml#/$defs/SourceVersionId"
+      statements:
+        type: array
+        items:
+          $ref: "#/$defs/SearchHit"
+      held:
+        type: array
+        items:
+          $ref: "#/$defs/SearchHit"

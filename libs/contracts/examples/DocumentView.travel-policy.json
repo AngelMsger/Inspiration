@@ -1,0 +1,192 @@
+{
+  "document": {
+    "source_id": "src_01QINGHE00000000000POLICIES",
+    "external_id": "财务/差旅费管理办法.md",
+    "title": "差旅费管理办法",
+    "source_version_id": "sv_01M6G2RZ5BW44M458V3TVZKSGS",
+    "governance_level": "governed",
+    "approval_state": "approved",
+    "mime_type": "text/markdown",
+    "language": "zh-CN",
+    "modified_at": "2026-10-20T08:15:00Z",
+    "fetched_at": "2026-10-20T08:15:00Z"
+  },
+  "source_name": "制度库",
+  "space_id": "spc_01QINGHE000000000000POLICY",
+  "path": ["财务"],
+  "version": {
+    "id": "sv_01M6G2RZ5BW44M458V3TVZKSGS",
+    "tenant_id": "ten_01QINGHE000000000000000001",
+    "source_id": "src_01QINGHE00000000000POLICIES",
+    "space_id": "spc_01QINGHE000000000000POLICY",
+    "external_id": "财务/差旅费管理办法.md",
+    "version": {
+      "content_hash": "sha256:ebbae5c32e231ccaf01f65629d43f19dcced31a98c820418087a39e7106e93df",
+      "metadata_hash": "sha256:40fd8b0998f07620037b0dd26fbe6a92ee101e85d1a799eb3c811a1441e327d1",
+      "acl_hash": "sha256:9e51c9f23aa6989185e4dfbefb05b85849a37ff27bc3f3adc707b0b617151afc",
+      "modified_at": "2026-10-20T08:15:00Z",
+      "size_bytes": 2450
+    },
+    "title": "差旅费管理办法",
+    "mime_type": "text/markdown",
+    "approval_state": "approved",
+    "authority": 0.9,
+    "sensitivity": "internal",
+    "governance_level": "governed",
+    "fetched_at": "2026-10-20T08:15:00Z",
+    "kind": "file",
+    "language": "zh-CN",
+    "uri": "https://drive.qinghe.example/制度库/财务/差旅费管理办法.md",
+    "metadata": {
+      "modified_at": "2026-10-20T08:15:00Z",
+      "path": ["财务"],
+      "author_external_id": "li.na",
+      "tags": ["差旅", "报销", "财务"],
+      "extra": {
+        "language": "zh-CN",
+        "effective_from": "2026-01-01",
+        "document_number": "QH-FIN-003"
+      }
+    }
+  },
+  "blocks": [
+    {
+      "id": "blk_c43560d3c7d0f419257394eac0b59b2c",
+      "tenant_id": "ten_01QINGHE000000000000000001",
+      "source_version_id": "sv_01M6G2RZ5BW44M458V3TVZKSGS",
+      "kind": "heading",
+      "anchor": "L10",
+      "text": "差旅费管理办法",
+      "text_hash": "sha256:1ed2ae25dbdcfc6f9a85fb17cfc91bf400d32596059c7b93486af4510b37c930",
+      "ordinal": 0,
+      "span_ids": [],
+      "level": 1
+    },
+    {
+      "id": "blk_e3fd5e5b55efe91eceaed9c23ac76de6",
+      "tenant_id": "ten_01QINGHE000000000000000001",
+      "source_version_id": "sv_01M6G2RZ5BW44M458V3TVZKSGS",
+      "kind": "heading",
+      "anchor": "L12",
+      "text": "第一章 总则",
+      "text_hash": "sha256:76c6f9facd16a33d360b9a017670b6b5559d1694b2d0ae346363176b5719af21",
+      "ordinal": 1,
+      "span_ids": [],
+      "level": 2,
+      "heading_path": ["差旅费管理办法"]
+    },
+    {
+      "id": "blk_01b89a92b6987a04acfe49aa1fec1b02",
+      "tenant_id": "ten_01QINGHE000000000000000001",
+      "source_version_id": "sv_01M6G2RZ5BW44M458V3TVZKSGS",
+      "kind": "paragraph",
+      "anchor": "L14",
+      "text": "第一条 为规范公司差旅费管理，合理控制差旅成本，根据国家有关规定并结合公司实际，制定本办法。",
+      "text_hash": "sha256:b2221db51c33d2753591b2768a0612b2f156cf58a4b2f1d4101322d97d2a496c",
+      "ordinal": 2,
+      "span_ids": ["spn_768d37b351921f52003c7762959373fd"],
+      "heading_path": ["差旅费管理办法", "第一章 总则"]
+    },
+    {
+      "id": "blk_65df8fbe0bb18e97b5164c8ee49577c0",
+      "tenant_id": "ten_01QINGHE000000000000000001",
+      "source_version_id": "sv_01M6G2RZ5BW44M458V3TVZKSGS",
+      "kind": "table_row",
+      "anchor": "L34",
+      "text": "一线城市\t北京、上海、广州、深圳\t600",
+      "text_hash": "sha256:477559e15d114c39fbafbf6b58983c1ed35a6ebbd37d483c84c36f14ab52f9a4",
+      "ordinal": 13,
+      "span_ids": [
+        "spn_959b28acd17ea8e2fbb6a528f7eb8857",
+        "spn_f36d765f7d616992a38062f20e1fc009",
+        "spn_27c10e792e357c4543fd0bd2664c1411"
+      ],
+      "parent_id": "blk_4397acf0b6d1490fd8b89d1229eb24bf",
+      "heading_path": ["差旅费管理办法", "第三章 住宿费"]
+    }
+  ],
+  "annotations": {
+    "source_version_id": "sv_01M6G2RZ5BW44M458V3TVZKSGS",
+    "statements": [
+      {
+        "unit_id": "clm_adb78be1949ca5ce89278bf8d05f509c",
+        "kind": "claim",
+        "title": "差旅费管理办法",
+        "snippet": "城市级别：一线城市，代表城市：北京、上海、广州、深圳，每晚限额（元）：600。",
+        "score": 0,
+        "citations": [
+          {
+            "span_id": "spn_27c10e792e357c4543fd0bd2664c1411",
+            "source_version_id": "sv_01M6G2RZ5BW44M458V3TVZKSGS",
+            "source_title": "差旅费管理办法",
+            "uri": "https://drive.qinghe.example/制度库/财务/差旅费管理办法.md",
+            "quote": "600",
+            "locator": {
+              "block_anchor": "L34",
+              "kind": "table_cell",
+              "char_start": 17,
+              "char_end": 20,
+              "cell": {
+                "col": 2,
+                "row": 1
+              }
+            },
+            "fetched_at": "2026-10-20T08:15:00Z"
+          }
+        ],
+        "freshness": {
+          "state": "fresh",
+          "as_of": "2026-10-27T09:00:00.000Z",
+          "staleness": 0,
+          "review_due": "2027-10-27T00:00:00Z"
+        },
+        "confidence": 0.9,
+        "review_status": "unreviewed",
+        "token_estimate": 43,
+        "space_id": "spc_01QINGHE000000000000POLICY",
+        "language": "zh-CN",
+        "slot_key": "hotel_cap_per_night|一线城市",
+        "standing": "outdated",
+        "held_unit_id": "clm_64c53e3f93042344d32b5ef33ca44317"
+      }
+    ],
+    "held": [
+      {
+        "unit_id": "clm_64c53e3f93042344d32b5ef33ca44317",
+        "kind": "claim",
+        "title": "关于调整一线城市住宿标准的通知",
+        "snippet": "根据 2026 年 9 月经营会决议，自 2026 年 10 月 1 日起，北京、上海、广州、深圳的住宿限额由每晚 600 元调整为每晚 650 元。",
+        "score": 0,
+        "citations": [
+          {
+            "span_id": "spn_2fc90845281f6b55926d4e4232236208",
+            "source_version_id": "sv_01M6G2RZ63VD13TD5ETGHXDZHB",
+            "source_title": "关于调整一线城市住宿标准的通知",
+            "uri": "https://drive.qinghe.example/团队知识/通知/关于调整一线城市住宿标准的通知.txt",
+            "quote": "根据 2026 年 9 月经营会决议，自 2026 年 10 月 1 日起，北京、上海、广州、深圳的住宿限额由每晚 600 元调整为每晚 650 元。",
+            "locator": {
+              "block_anchor": "L5",
+              "kind": "text_range",
+              "char_start": 0,
+              "char_end": 75
+            },
+            "fetched_at": "2026-10-20T08:15:00Z"
+          }
+        ],
+        "freshness": {
+          "state": "fresh",
+          "as_of": "2026-10-27T09:00:00.000Z",
+          "staleness": 0,
+          "review_due": "2027-10-27T00:00:00Z"
+        },
+        "confidence": 0.9,
+        "review_status": "unreviewed",
+        "token_estimate": 92,
+        "space_id": "spc_01QINGHE00000000000000TEAM",
+        "language": "zh-CN",
+        "slot_key": "hotel_cap_per_night|一线城市",
+        "standing": "holds"
+      }
+    ]
+  }
+}

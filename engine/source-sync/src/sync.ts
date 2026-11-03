@@ -6,6 +6,7 @@ import {
   type Connector,
   type ConnectorFactory,
   contractErrors,
+  type DocumentEntry,
   type EventEnvelope,
   type EventHandler,
   type KnowledgeStore,
@@ -21,6 +22,7 @@ import {
 } from "@inspiration/contracts";
 import { defineTable, type Records } from "@inspiration/eventbus";
 import { logger, registry } from "@inspiration/kernel";
+import { entryOf } from "./tree.ts";
 
 const log = logger("source-sync");
 
@@ -59,6 +61,12 @@ export function itemKey(sourceId: string, externalId: string): string {
  * without principal_id, and access control denies them.
  */
 export type PrincipalResolver = (source: Source, entry: AclEntry) => string | undefined;
+
+/** A document with its latest stored version, as the Documents tree lists it. */
+export interface ListedDocument {
+  version: SourceVersion;
+  entry: DocumentEntry;
+}
 
 export type ItemOutcome = "created" | "updated" | "acl_changed" | "unchanged" | "deleted" | "failed";
 
@@ -136,6 +144,30 @@ export class SourceSync {
 
   items(sourceId: string): Promise<ItemState[]> {
     return this.records.find(ITEMS, { source_id: sourceId });
+  }
+
+  /**
+   * The documents of a space's sources, each with its latest stored version, for the
+   * Documents tree (documentTree). Deleted items are left out. The caller keeps only those a
+   * reader may open before it builds the tree.
+   */
+  async documents(tenantId: string, spaceId: string): Promise<{ sources: Source[]; documents: ListedDocument[] }> {
+    const sources = (await this.listSources(tenantId)).filter((s) => s.space_id === spaceId);
+    const documents: ListedDocument[] = [];
+    for (const source of sources) {
+      const items = (await this.items(source.id)).filter((i) => !i.deleted);
+      const versions = await Promise.all(items.map((i) => this.store.getSourceVersion(i.source_version_id)));
+      for (const version of versions) if (version) documents.push({ version, entry: entryOf(version) });
+    }
+    return { sources, documents };
+  }
+
+  /** One document's latest stored version, or undefined when the item is unknown or deleted. */
+  async document(sourceId: string, externalId: string): Promise<ListedDocument | undefined> {
+    const state = await this.records.get(ITEMS, itemKey(sourceId, externalId));
+    if (!state || state.deleted) return undefined;
+    const version = await this.store.getSourceVersion(state.source_version_id);
+    return version && { version, entry: entryOf(version) };
   }
 
   async #source(sourceId: string): Promise<Source> {

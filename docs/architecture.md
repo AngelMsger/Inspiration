@@ -31,6 +31,15 @@ tokens, and agent runs.
 Engine APIs are tenant- and membership-aware and free of UI concerns, so the business layer,
 its web app and agents all use the same surface.
 
+The web app reads the engine through its HTTP API, version 0 (`apps/engine/src/http.ts`): the
+spaces a member may read, a space's Documents tree, one document with the marks of its
+Annotated view, search and answers. Every read is checked against the member's permissions,
+and anything the member may not read answers as if it did not exist. Until the business layer
+signs principal tokens, a request names its tenant and member in the `x-inspiration-tenant`
+and `x-inspiration-member` headers, a development stand-in that listens on localhost only. The
+web app's own backend is a stand-in too (`apps/web/src/backend.ts`): a person picks whom to act
+as, and only the backend sets those headers. `pnpm demo` runs both over the demo tenant.
+
 ## One repository, a folder per layer
 
 Both layers are built in this repository, as one pnpm workspace, and each has its own folder:
@@ -39,8 +48,8 @@ Both layers are built in this repository, as one pnpm workspace, and each has it
 libs/<name>       shared libraries both layers use: contracts, kernel, eventbus, testkit
 engine/<name>     engine components, one package each
 business/<name>   business-layer components, one package each
-apps/<name>       composition roots: the engine process and its measurement harness today;
-                  the business backend and the web app later
+apps/<name>       composition roots: the engine process, its measurement harness and the
+                  web app today; the business backend later
 ```
 
 Package names stay `@inspiration/<name>`.

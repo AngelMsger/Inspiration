@@ -1,0 +1,22 @@
+{
+  "name": "@inspiration/web",
+  "version": "0.1.0",
+  "description": "The product web app: a React page over the engine's HTTP API, with a development stand-in for its backend; pnpm demo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "vite": "8.3.4"
+  }
+}

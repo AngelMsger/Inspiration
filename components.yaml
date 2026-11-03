@@ -251,7 +251,9 @@ libraries:
 # it lists that app under `uses`.
 apps:
   engine:
-    owns: The engine process; corpus manifests, standing in for the business layer's provisioning
+    owns: The engine process; corpus manifests, standing in for the business layer's provisioning; its HTTP API, version 0 (pnpm engine serve)
+  web:
+    owns: The product web app (React, Vite) over the engine's HTTP API, its language packs, and a development stand-in for its backend; the demo (pnpm demo)
   bench:
     owns: The measurement harness and its CLI (pnpm bench); ingest runs and volume reports, the control check, history replay, questions and answers, the reading check, cost, synthetic corpora
     uses: [engine]

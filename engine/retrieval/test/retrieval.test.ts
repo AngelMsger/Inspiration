@@ -185,6 +185,49 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       expect(cut.hits.length).toBeGreaterThan(0);
     });
 
+    test("a document's marks: its statements in reading order, and what holds instead of an outdated one", async ({
+      world,
+    }) => {
+      const policy = await world.document("travel.md", POLICY, { title: "Travel policy" });
+      const handbook = await world.document(
+        "handbook.md",
+        [
+          { id: "p1", text: "Meals are paid up to 100 yuan a day." },
+          { id: "p2", text: "Hotels in tier-1 cities cost at most 600 yuan a night." },
+        ],
+        { title: "Old handbook", readers: [ALICE] },
+      );
+      const held = await world.claim(
+        "Hotels in tier-1 cities cost at most 650 yuan a night.",
+        policy.spansOf("p1")[0] as never,
+        cap(650),
+      );
+      const old = await world.claim(
+        "Hotels in tier-1 cities cost at most 600 yuan a night.",
+        handbook.spansOf("p2")[0] as never,
+        cap(600),
+      );
+      const meals = await world.claim("Meals are paid up to 100 yuan a day.", handbook.spansOf("p1")[0] as never);
+      world.verdicts.set(
+        HOTEL,
+        verdict({ value: "650 CNY/night", claim: held.id }, { value: "600 CNY/night", claim: old.id }),
+      );
+
+      const marks = await world.retrieval.annotations(handbook.version.id, ALICE);
+      expect(marks.statements.map((s) => [s.unit_id, s.standing])).toEqual([
+        [meals.id, undefined],
+        [old.id, "outdated"],
+      ]);
+      expect(marks.statements[1]?.held_unit_id).toBe(held.id);
+      expect(marks.held.map((h) => [h.unit_id, h.title])).toEqual([[held.id, "Travel policy"]]);
+      // Someone who may not read the handbook sees no marks on it, as if it had none.
+      expect(await world.retrieval.annotations(handbook.version.id, BOB)).toEqual({
+        source_version_id: handbook.version.id,
+        statements: [],
+        held: [],
+      });
+    });
+
     test("nobody finds what they cannot read, and a statement cites only readable evidence", async ({ world }) => {
       const secret = await world.document(
         "board.md",

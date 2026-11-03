@@ -69,6 +69,12 @@
  * that left the latest edition is no longer stated; the value that holds in place of such a
  * statement still joins. search() still lists every edition.
  *
+ * annotations(version, principal) gives the Annotated view of one version of a document:
+ * every current statement resting on its spans that the asker may read, marked as search
+ * marks it and in the document's reading order, with the statements that hold in place of
+ * the outdated and disputed ones, wherever they are stated. A document the asker may not
+ * read has no marks.
+ *
  * Baselines, to measure the knowledge base against over the same documents and model
  * (RetrievalOptions.baseline): "mature" answers from passages alone, without statements or
  * governance, as a carefully built RAG does: the same search (hybrid, translated, reranked),

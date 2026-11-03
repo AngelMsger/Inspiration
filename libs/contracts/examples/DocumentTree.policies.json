@@ -1,0 +1,42 @@
+{
+  "space_id": "spc_01QINGHE000000000000POLICY",
+  "sources": [
+    {
+      "kind": "source",
+      "name": "制度库",
+      "source_id": "src_01QINGHE00000000000POLICIES",
+      "source_type": "folder",
+      "path": [],
+      "document_count": 1,
+      "children": [
+        {
+          "kind": "folder",
+          "name": "财务",
+          "source_id": "src_01QINGHE00000000000POLICIES",
+          "path": ["财务"],
+          "document_count": 1,
+          "children": [
+            {
+              "kind": "document",
+              "name": "差旅费管理办法",
+              "source_id": "src_01QINGHE00000000000POLICIES",
+              "path": ["财务", "差旅费管理办法"],
+              "document": {
+                "source_id": "src_01QINGHE00000000000POLICIES",
+                "external_id": "财务/差旅费管理办法.md",
+                "title": "差旅费管理办法",
+                "source_version_id": "sv_01M6G2RZ5BW44M458V3TVZKSGS",
+                "governance_level": "governed",
+                "approval_state": "approved",
+                "mime_type": "text/markdown",
+                "language": "zh-CN",
+                "modified_at": "2026-10-20T08:15:00Z",
+                "fetched_at": "2026-10-20T08:15:00Z"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

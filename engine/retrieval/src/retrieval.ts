@@ -1,7 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { aclTokens } from "@inspiration/access-control";
 import {
-  type AnswerNote,
   type AnswerQuery,
   type AuthZ,
   allows,
@@ -10,6 +9,7 @@ import {
   type Citation,
   type Claim,
   type ClaimEvidence,
+  type DocumentAnnotations,
   type DuplicateDocument,
   type EventEnvelope,
   type EventHandler,
@@ -48,6 +48,21 @@ import { searchText } from "@inspiration/knowledge-store";
 import { estimateTokens, PromptRegistry } from "@inspiration/model-gateway";
 import { type ChunkDraft, chunk } from "./chunks.ts";
 import {
+  citationOf,
+  type Found,
+  freshnessOf,
+  notesOf,
+  passageHit,
+  passagesWithoutReplaced,
+  type Searched,
+  type Statement,
+  snippetOf,
+  spanScores,
+  standingOf,
+  statementHit,
+  titleOf,
+} from "./hits.ts";
+import {
   ANSWER_PROMPT_VERSION,
   ANSWER_SCHEMA,
   ANSWER_TASK,
@@ -70,6 +85,8 @@ import {
 } from "./protocol.ts";
 import { fill, overlap, PACKS, packFor, terms } from "./text.ts";
 
+export { SNIPPET_TOKENS } from "./hits.ts";
+
 const log = logger(COMPONENT);
 const PROMPTS_DIR = fileURLToPath(new URL("../prompts/", import.meta.url));
 
@@ -81,8 +98,6 @@ export const RERANK_POOL = 30;
 export const STATEMENT_POOL = 30;
 /** Reciprocal rank fusion's constant. */
 export const RRF_K = 60;
-/** About how long a passage's snippet is. */
-export const SNIPPET_TOKENS = 80;
 /** Texts per embedding call. */
 export const EMBED_BATCH = 64;
 /** Passages an answer reads, and statements beside them. */
@@ -102,8 +117,6 @@ export const COMPACT_SOURCES: AnswerSources = { passages: 2, statements: 8 };
 export const MATURE_SOURCES = 16;
 /** Below this confidence, a statement only one document states is thin evidence. */
 export const THIN = 0.6;
-/** An outdated value ranks as if it scored this share of its score. */
-const OUTDATED_WEIGHT = 0.5;
 /** How far an answer follows editions of editions, and the most documents it looks at. */
 const EDITION_HOPS = 3;
 const EDITION_DOCUMENTS = 50;
@@ -191,34 +204,6 @@ export interface RetrievalOptions {
   answerSources?: AnswerSources;
   prompts?: PromptRegistry;
   clock?: () => Date;
-}
-
-/** A chunk that passed the permission check, with its version and fused score. */
-interface Found {
-  chunk: Chunk;
-  version: SourceVersion;
-  fused: number;
-  spans: Span[];
-}
-
-/** A statement found through the chunks that quote it. */
-interface Statement {
-  claim: Claim;
-  base: number;
-  citations: Citation[];
-  title: string;
-  version?: SourceVersion;
-  verdict?: SlotVerdict;
-}
-
-interface Searched {
-  hits: SearchHit[];
-  statements: Map<string, Statement>;
-  verdicts: Map<string, SlotVerdict>;
-  filter: IndexFilter;
-  filters?: SearchQuery["filters"];
-  /** The sensitivity of every unit found. */
-  labels: Map<string, SensitivityLabel>;
 }
 
 export class Retrieval implements Retriever {
@@ -516,7 +501,9 @@ export class Retrieval implements Retriever {
     const found = await this.#readable(fused, who);
     if (!found.length) return empty;
     const words = terms(query.text);
-    const statements = kinds.has("claim") ? await this.#statements(found, words, who, filter, query) : new Map();
+    const statements = kinds.has("claim")
+      ? await this.#statements(spanScores(found), words, who, filter, query)
+      : new Map();
     const verdicts = await this.#visibleVerdicts(
       who,
       await this.#verdictsOf(
@@ -572,6 +559,57 @@ export class Retrieval implements Retriever {
       ...(query.filters && { filters: query.filters }),
       labels,
     };
+  }
+
+  /**
+   * The marks of the Annotated view of one version of a document: every current statement
+   * resting on the version's spans that the asker may read, marked as search marks it, in the
+   * document's reading order; and the statements that hold in place of those outdated or
+   * disputed, wherever they are stated. Nothing when the asker may not read the document.
+   */
+  async annotations(sourceVersionId: string, who: Principal): Promise<DocumentAnnotations> {
+    const none: DocumentAnnotations = { source_version_id: sourceVersionId, statements: [], held: [] };
+    const version = await this.store.getSourceVersion(sourceVersionId);
+    if (!version || version.tenant_id !== who.tenant_id) return none;
+    if (!(await this.#readableDocuments(who, [version])).has(version.id)) return none;
+    const order = new Map<string, number>();
+    for (const b of await this.store.blocksOf(sourceVersionId)) for (const id of b.span_ids) order.set(id, order.size);
+    const filter = await this.#scope(who, undefined);
+    const statements = await this.#statements(
+      new Map([...order.keys()].map((id) => [id, 1])),
+      new Set(),
+      who,
+      filter,
+      {},
+      { limit: Number.POSITIVE_INFINITY },
+    );
+    const verdicts = await this.#visibleVerdicts(
+      who,
+      await this.#verdictsOf(
+        who.tenant_id,
+        [...statements.values()].map((s) => s.claim),
+      ),
+      statements.values(),
+    );
+    for (const s of statements.values()) {
+      const slot = slotOf(s.claim);
+      if (slot) s.verdict = verdicts.get(slot);
+    }
+    const listed = [...statements.values()];
+    const staleness = await this.#staleness(
+      who.tenant_id,
+      listed.map((s) => s.claim.id),
+    );
+    const now = this.clock().toISOString();
+    const first = (h: SearchHit) =>
+      Math.min(...h.citations.map((c) => order.get(c.span_id) ?? Number.POSITIVE_INFINITY));
+    const hits = listed
+      .map((s) => statementHit(s, 0, freshnessOf(staleness.get(s.claim.id), now)))
+      .sort((a, b) => first(a) - first(b) || (a.unit_id < b.unit_id ? -1 : 1));
+    const searched: Searched = { hits, statements, verdicts, filter, labels: new Map() };
+    const all = [...hits];
+    await this.#addHeld(all, searched, who);
+    return { source_version_id: sourceVersionId, statements: hits, held: all.slice(hits.length) };
   }
 
   /** What the asker may read, within the spaces asked for when any are. */
@@ -696,15 +734,13 @@ export class Retrieval implements Retriever {
    * readable evidence as citations. Those sharing most of the query come first.
    */
   async #statements(
-    found: readonly Found[],
+    spanScore: ReadonlyMap<string, number>,
     words: ReadonlySet<string>,
     who: Principal,
     filter: IndexFilter,
     query: Pick<SearchQuery, "filters">,
     options: { limit?: number; slotted?: boolean } = {},
   ): Promise<Map<string, Statement>> {
-    const spanScore = new Map<string, number>();
-    for (const f of found) for (const s of f.spans) spanScore.set(s.id, Math.max(spanScore.get(s.id) ?? 0, f.fused));
     const ids = await this.store.claimsCiting([...spanScore.keys()]);
     const claims = (await this.store.getClaims(ids))
       .filter(asked(filter, query.filters))
@@ -939,7 +975,7 @@ export class Retrieval implements Retriever {
    */
   async #governedEverything(query: AnswerQuery, who: Principal): Promise<{ hits: SearchHit[]; searched: Searched }> {
     const { filter, found } = await this.#all(query, who);
-    const statements = await this.#statements(found, new Set(), who, filter, query, {
+    const statements = await this.#statements(spanScores(found), new Set(), who, filter, query, {
       limit: Number.POSITIVE_INFINITY,
       slotted: true,
     });
@@ -1258,60 +1294,6 @@ function latestEditions(hits: readonly SearchHit[], replaced: ReadonlySet<string
   });
 }
 
-function titleOf(version: SourceVersion, path?: readonly string[]): string {
-  const title = version.title ?? version.external_id;
-  const last = path?.at(-1);
-  return last && last !== title ? `${title} › ${last}` : title;
-}
-
-function citationOf(span: Span, version: SourceVersion, quote: string): Citation {
-  return {
-    span_id: span.id,
-    source_version_id: version.id,
-    source_title: version.title ?? version.external_id,
-    ...(version.uri && { uri: version.uri }),
-    quote,
-    locator: span.locator,
-    fetched_at: version.fetched_at,
-  };
-}
-
-/**
- * The spans of a found chunk that share most of the query, in reading order, up to about
- * SNIPPET_TOKENS; the first span when none shares a word.
- */
-function snippetOf(f: Found, words: ReadonlySet<string>): { text: string; spans: Span[] } {
-  const ranked = f.spans
-    .map((s, i) => ({ s, i, near: overlap(words, s.text) }))
-    .sort((a, b) => b.near - a.near || a.i - b.i);
-  const picked: typeof ranked = [];
-  let size = 0;
-  for (const r of ranked) {
-    if (picked.length && (r.near === 0 || size + estimateTokens(r.s.text) > SNIPPET_TOKENS)) break;
-    picked.push(r);
-    size += estimateTokens(r.s.text);
-  }
-  const spans = picked.sort((a, b) => a.i - b.i).map((r) => r.s);
-  return { text: spans.map((s) => s.text).join(" "), spans };
-}
-
-/** A passage as a hit, quoting the spans given. */
-function passageHit(f: Found, spans: readonly Span[], score: number, freshness: FreshnessInfo): SearchHit {
-  return {
-    unit_id: f.chunk.id,
-    kind: "chunk",
-    title: titleOf(f.version, f.chunk.heading_path),
-    snippet: spans.map((s) => s.text).join(" "),
-    score,
-    citations: spans.map((span) => citationOf(span, f.version, span.text)),
-    freshness,
-    review_status: "unreviewed",
-    token_estimate: f.chunk.token_count + estimateTokens(f.chunk.contextual_header ?? ""),
-    space_id: f.chunk.space_id,
-    ...(f.version.language && { language: f.version.language }),
-  };
-}
-
 /** Whether a claim is current and within what the search asked for and the asker's scope. */
 function asked(filter: IndexFilter, f: SearchQuery["filters"]): (c: Claim) => boolean {
   const spaces = new Set(filter.space_ids);
@@ -1323,125 +1305,4 @@ function asked(filter: IndexFilter, f: SearchQuery["filters"]): (c: Claim) => bo
     (!f?.knowledge_classes?.length || f.knowledge_classes.includes(c.knowledge_class)) &&
     (!f?.statuses?.length || f.statuses.includes(c.status)) &&
     (f?.min_confidence === undefined || c.confidence >= f.min_confidence);
-}
-
-/** A statement as a hit, marked with where its value stands and which value holds instead. */
-function statementHit(s: Statement, score: number, freshness: FreshnessInfo): SearchHit {
-  const standing = standingOf(s.claim, s.verdict);
-  const held = s.verdict && standing !== "holds" ? s.verdict.values[0]?.claim_ids[0] : undefined;
-  const slot = slotOf(s.claim);
-  // Both sides of an open contradiction are in dispute, the one that holds for now too.
-  const disputed = s.verdict?.disputed && (standing === "holds" || standing === "disputed");
-  return {
-    unit_id: s.claim.id,
-    kind: "claim",
-    title: s.title,
-    snippet: s.claim.statement,
-    score: score * (standing === "outdated" ? OUTDATED_WEIGHT : 1),
-    citations: s.citations,
-    freshness,
-    confidence: s.claim.confidence,
-    review_status: disputed ? "disputed" : s.claim.status === "verified" ? "verified" : "unreviewed",
-    ...(s.claim.owner_id && { owner_id: s.claim.owner_id }),
-    token_estimate:
-      estimateTokens(s.claim.statement) +
-      s.citations.reduce((n: number, c: Citation) => n + estimateTokens(c.quote), 0),
-    space_id: s.claim.space_id,
-    ...(s.claim.language && { language: s.claim.language }),
-    ...(slot && { slot_key: slot }),
-    ...(standing && { standing }),
-    ...(held && held !== s.claim.id && { held_unit_id: held }),
-  };
-}
-
-/**
- * The hits an answer reads. A passage's sentence that states a value of a fact slot other
- * than the one that holds brings its statement along, marked, so the value that holds joins
- * too; a sentence that only states replaced values is left out of the passage, and a
- * passage with nothing left is left out.
- */
-function passagesWithoutReplaced(searched: Searched): SearchHit[] {
-  const quoting = new Map<string, Statement[]>();
-  for (const s of searched.statements.values()) {
-    if (!standingOf(s.claim, s.verdict)) continue;
-    for (const c of s.citations) quoting.set(c.span_id, [...(quoting.get(c.span_id) ?? []), s]);
-  }
-  const have = new Set(searched.hits.map((h) => h.unit_id));
-  const hits: SearchHit[] = [];
-  const brought: SearchHit[] = [];
-  for (const h of searched.hits) {
-    if (h.kind !== "chunk") {
-      hits.push(h);
-      continue;
-    }
-    const kept = h.citations.filter((c) => {
-      const by = quoting.get(c.span_id) ?? [];
-      for (const s of by) {
-        if (have.has(s.claim.id) || standingOf(s.claim, s.verdict) === "holds") continue;
-        have.add(s.claim.id);
-        brought.push(statementHit(s, 0, h.freshness));
-      }
-      return !by.length || by.some((s) => standingOf(s.claim, s.verdict) !== "outdated");
-    });
-    if (kept.length === h.citations.length) hits.push(h);
-    else if (kept.length) hits.push({ ...h, citations: kept, snippet: kept.map((c) => c.quote).join(" ") });
-  }
-  return [...hits, ...brought];
-}
-
-function standingOf(claim: Claim, verdict: SlotVerdict | undefined): SearchHit["standing"] {
-  if (!verdict) return undefined;
-  const value = valueKeyOf(claim);
-  return verdict.values.find((v) => v.value === value)?.standing;
-}
-
-function freshnessOf(s: Staleness | undefined, now: string): FreshnessInfo {
-  if (!s) return { state: "fresh", as_of: now };
-  return {
-    state: s.state,
-    as_of: s.computed_at,
-    staleness: s.score,
-    ...(s.review_due && { review_due: s.review_due }),
-  };
-}
-
-/** Notes on the slots an answer gives a value of: disputed slots, and outdated values found. */
-function notesOf(
-  slots: ReadonlySet<string>,
-  hits: readonly SearchHit[],
-  searched: Searched,
-  pack: ReturnType<typeof packFor>,
-): AnswerNote[] {
-  const notes: AnswerNote[] = [];
-  const mark = pack.text("list_mark");
-  for (const slot of [...slots].sort()) {
-    const verdict = searched.verdicts.get(slot);
-    if (!verdict) continue;
-    const mine = hits.filter((h) => h.slot_key === slot);
-    if (verdict.disputed) {
-      const disputed = verdict.values.filter((v) => v.standing === "holds" || v.standing === "disputed");
-      notes.push({
-        kind: "conflict",
-        text: fill(pack.text("conflict"), {
-          values: disputed.map((v) => v.value).join(mark),
-          held: verdict.held_value,
-        }),
-        unit_ids: [...new Set(disputed.flatMap((v) => v.claim_ids))],
-      });
-    }
-    const outdated = mine.filter((h) => h.standing === "outdated");
-    if (outdated.length) {
-      const old = [...new Set(outdated.map((h) => valueKeyOf(searched.statements.get(h.unit_id)?.claim ?? {}) ?? ""))];
-      notes.push({
-        kind: "outdated",
-        text: fill(pack.text("outdated"), {
-          documents: [...new Set(outdated.map((h) => h.title))].join(mark),
-          old: old.join(mark),
-          held: verdict.held_value,
-        }),
-        unit_ids: [...outdated.map((h) => h.unit_id), ...(verdict.values[0]?.claim_ids ?? [])],
-      });
-    }
-  }
-  return notes;
 }

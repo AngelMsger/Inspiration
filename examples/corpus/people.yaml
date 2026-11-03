@@ -1,0 +1,18 @@
+# The people of the demo tenant, as the business layer's accounts would name them. The web
+# app's development backend (apps/web/src/backend.ts) offers each one to act as, in place of
+# signing in; the first is the default. Their member IDs are the ones corpus.yaml provisions.
+
+tenant: ten_01QINGHE000000000000000001
+people:
+  - member: mem_01QINGHE000000000000000001
+    name: 陈晨
+    about: 市场部 · 成员
+    locale: zh-CN
+  - member: mem_01QINGHE00000000000000LINA
+    name: 李娜
+    about: 财务部 · 差旅制度负责人
+    locale: zh-CN
+  - member: mem_01QINGHE000000000ZHANGMIN
+    name: 张敏
+    about: 人力资源部 · 薪酬负责人
+    locale: zh-CN
