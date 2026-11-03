@@ -92,8 +92,12 @@ export function apiHandler(engine: Engine, directory: Directory) {
   ];
 
   return async (incoming: IncomingMessage, res: ServerResponse): Promise<void> => {
-    const url = new URL(incoming.url ?? "/", "http://localhost");
+    let path = incoming.url ?? "/";
     try {
+      // Parsed inside the try: a listener that throws would take the process down with it.
+      const url = URL.parse(path, "http://localhost");
+      if (!url) throw new HttpError(400, "bad_request", `the request target ${path} is not a valid URL`);
+      path = url.pathname;
       if (url.pathname === "/v0/health") return send(res, 200, { ok: true });
       const route = routes.find((r) => r.method === incoming.method && r.path.test(url.pathname));
       if (!route) throw notFound(`route ${incoming.method} ${url.pathname}`);
@@ -109,7 +113,7 @@ export function apiHandler(engine: Engine, directory: Directory) {
             : error instanceof RangeError
               ? new HttpError(404, "not_found", error.message)
               : undefined;
-      if (!e) log.error("request failed", { method: incoming.method, path: url.pathname, error });
+      if (!e) log.error("request failed", { method: incoming.method, path, error });
       const body: ApiError = { error: { code: e?.code ?? "internal", message: e?.message ?? "internal error" } };
       send(res, e?.status ?? 500, body);
     }

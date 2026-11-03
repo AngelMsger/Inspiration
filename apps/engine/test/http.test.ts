@@ -2,7 +2,7 @@
 // sees only what they may read.
 
 import { mkdtemp, rm } from "node:fs/promises";
-import type { Server } from "node:http";
+import { request, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -160,5 +160,20 @@ describe("engine HTTP API", () => {
     expect(contractErrors("ApiError", anonymous.body)).toEqual([]);
     expect((await call("/v0/answers", { body: { question: "" } })).status).toBe(400);
     expect((await call("/v0/nothing")).status).toBe(404);
+  });
+
+  test("answers a request target that is not a URL with 400, and keeps serving", async () => {
+    // fetch would normalize the target; a raw request sends it as it is.
+    const { port } = server.address() as AddressInfo;
+    const status = await new Promise<number | undefined>((resolve, reject) => {
+      const req = request({ host: "127.0.0.1", port, path: "//[" }, (res) => {
+        res.resume();
+        resolve(res.statusCode);
+      });
+      req.on("error", reject);
+      req.end();
+    });
+    expect(status).toBe(400);
+    expect(await call("/v0/health", { anonymous: true })).toEqual({ status: 200, body: { ok: true } });
   });
 });
