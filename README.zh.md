@@ -58,6 +58,7 @@ engine/<component>  每个引擎组件一个包（见 components.yaml）
 business/           业务层的包（尚无）；engine/ 和 libs/ 从不依赖它们
 apps/engine         引擎进程：把组件接到存储、事件总线和 blob 存储上
 apps/bench          测量工具（pnpm bench）：在语料上运行引擎、生成报告、核对答案
+apps/site           产品官网（pnpm site）：三种语言的静态页面和一段演示动画
 examples/<corpus>   语料，以及核对运行结果所用的答案（见 examples/README.zh.md）
 infra/              原型运行环境的 docker compose，以及运行时用的本地向量模型服务
 config/             模型网关的示例配置

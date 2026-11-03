@@ -1,0 +1,196 @@
+# Every word of the Chinese page. The keys are the same as in en.yaml.
+meta:
+  name: 中文
+  htmlLang: zh-CN
+  serif: '"Newsreader", "Noto Serif SC", "Songti SC", serif'
+  sans: '"Instrument Sans", "Noto Sans SC", "PingFang SC", system-ui, sans-serif'
+  fonts:
+    - "Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400"
+    - "Instrument Sans:wght@400;500;600"
+    - "Geist Mono:wght@400;500"
+    - "Noto Sans SC:wght@400;500;600;700"
+    - "Noto Serif SC:wght@400;500;600;700"
+  title: Inspiration · 有出处、常更新的企业知识
+  description: >-
+    Inspiration 把分散在公司各处的文档、审批流和调研报告变成治理过的知识：每条事实都有出处，来源一变就跟着更新，人和智能体在各自的权限内读到同一个答案。
+
+nav:
+  how: 工作方式
+  features: 特性
+  agents: 给智能体
+  access: 申请试用
+  language: 语言
+
+hero:
+  status: 开发中
+  title:
+    - text: 知识有源，
+      note: 1
+    - text: 常读常新。
+      note: 2
+  lead: >-
+    Inspiration 把分散在公司各处的文档、审批流和调研报告，变成治理过的知识。每条事实都保留原文出处和一位维护人，来源一变就跟着更新，人和智能体都在自己的权限内读到它。
+  primary: 申请试用
+  secondary: 看看怎么工作
+  notes:
+    - 每条事实都保留它所在段落的原文引用。
+    - 来源一变，所有依赖它的回答都跟着变。
+  download: 产品开发中，暂不提供下载。
+
+problem:
+  kicker: 问题
+  title: 别再猜哪份文档才是对的。
+  lead: >-
+    在恒远机械，同一条住宿标准写在五份文档里。搜索把五份都找出来，聊天助手引用排在最前面的那一份。
+  documents:
+    - name: 差旅费管理办法 第七条
+      place: 财务部制度库
+      value: 600 元
+      mark: "old"
+    - name: 关于调整一线城市住宿标准的通知
+      place: 财务部 · 09-28
+      value: 10 月 1 日起 650 元
+      mark: "source"
+    - name: 报销常见问题
+      place: 财务部知识库
+      value: 650 元
+      mark: ""
+    - name: 城市住宿标准.csv
+      place: 共享盘
+      value: 600 元
+      mark: "old"
+    - name: 新人入职指南
+      place: 人力资源部知识库
+      value: 600 元
+      mark: "old"
+  answerLabel: Inspiration 的回答
+  answer: 10 月 1 日起每晚 650 元
+  answerMeta: 依据 9 月 28 日的通知 · 李娜已确认 · 3 份文档标为已过时
+
+demo:
+  kicker: 工作方式
+  title: 规则一变，答案跟着变。
+  label: >-
+    动画：一位成员问深圳的住宿上限，得到 600 元。一份新通知进来后，回答变成 650 元并引用这份通知，旧制度标为已过时；主题维护人按一下，确认建议的修改。
+  steps:
+    - title: 来源变了
+      text: >-
+        财务部在飞书发了一份通知，提高了住宿上限。Inspiration 只读变化的两段，不重读整个知识库。
+    - title: 答案跟上
+      text: >-
+        所有回答、知识页和智能体都改成 650 元，并引用这份通知。管理办法里的旧数字标为已过时，不会被删掉。
+    - title: 维护人确认
+      text: >-
+        差旅主题的维护人李娜收到一条待办，建议已经选好，按一下就确认。
+  replay: 重播
+  caption: 示意动画，公司和数据均为虚构。
+  ui:
+    company: 恒远机械
+    search: 搜索或提问
+    question: 深圳出差，住宿每晚能报多少？
+    answerBefore: "经理及以下每晚最多报 "
+    answerAfter: " 元。"
+    note: 10 月 1 日起按通知执行。管理办法第七条仍写着 600，已不再适用。
+    original: ""
+    policy: 差旅费管理办法 · 第七条
+    notice: 关于调整一线城市住宿标准的通知
+    outdated: 已过时
+    changeLabel: 飞书 · 新文档
+    changeMeta: 读了 2 段 · 1 条事实有变
+    inbox: 待办
+    owner: 李娜 · 差旅主题维护人
+    todoTitle: 一线城市住宿上限改为 650 元
+    option: 确认 650 元，并请财务部修订管理办法
+    suggested: 建议
+    reason: 通知更新，并写明取代第七条。
+    confirm: 确认
+    confirmed: 已确认
+    confirmedBy: 李娜已确认 · 刚刚
+
+features:
+  kicker: 不一样的地方
+  title: 查得到出处，自己保持最新的知识。
+  items:
+    - title: 每句话都有出处
+      text: >-
+        Inspiration 把知识存成一条条事实，每条都带着来源的原文引用和生效时间。知识页和回答都由这些事实组成，任何一句话都能点开看到背后的原文。
+    - title: 变化像构建一样传播
+      text: >-
+        来源一变，Inspiration 只重读变化的段落，只重建引用它们的内容。不用重新导入，也不会为无关紧要的变化去打扰人。
+    - title: 人来决定，量在跟得上的范围
+      text: >-
+        助手先把材料读完，把需要人处理的事归成每周一小摞，并填好建议。维护人按一下就能确认，例行的也可以交给助手处理。助手做的每件事都能看原因、能撤销。
+    - title: 一条事实，任何语言
+      text: >-
+        用中文写的制度，可以回答用英文或日文提的问题，并引用中文原文。译文只是同一份知识的副本，不会变成第二个版本。
+  trace:
+    quote: 自 2026 年 10 月 1 日起，一线城市经理及以下人员住宿标准调整为每晚 650 元。
+    gloss: ""
+    source: 关于调整一线城市住宿标准的通知 · 第二条 · 09-28
+  fresh:
+    steps:
+      - 新增通知
+      - 读了 2 段
+      - 1 条事实有变
+      - 重建 4 处
+    places:
+      - 回答
+      - 差旅报销标准
+      - 预订出差酒店
+      - 深圳卡片
+  govern:
+    heading: 待办 · 本周
+    rows:
+      - label: 需要你
+        value: "1"
+      - label: 可以按建议处理
+        value: "6"
+      - label: 已替你决定
+        value: "34"
+    action: 按建议处理这 6 件
+  language:
+    fact: 每晚 650 元
+    holds: 2026-10-01 起
+    source: 同一条事实，引用中文原文
+
+agents:
+  kicker: 给智能体
+  title: 人和智能体，读到同一个答案。
+  lead: >-
+    公司的智能体通过 MCP 和 REST 读取同一份治理过的知识。它以所代表的那个人的身份工作，只看到这个人能看的内容。它拿到的是现行的值、出处和生效日期，而不是五个版本里的五段原文。
+  points:
+    - 提问、搜索、阅读、跟踪变化：工具按智能体要做的事来设计。
+    - 每个结果都带着出处、版本、状态和 token 估算。
+    - 智能体只读取和提议，知识只在有人批准后才改变。
+  note: 示意。智能体接口还在设计中。
+  question: 深圳出差，经理住宿每晚上限？
+  answer: 2026-10-01 起每晚 650 元。
+
+enterprise:
+  kicker: 为企业而建
+  title: 谁能读什么，由企业决定。
+  items:
+    - title: 每个空间都有维护人
+      text: >-
+        空间维护人决定谁能读这个空间。来源应用的权限只做提醒，权限不取决于十几个应用各自的设置。
+    - title: 发布之前只属于自己
+      text: >-
+        每个成员都有私有的我的空间。发布时，知识经空间维护人审核后移入共享空间。
+    - title: 来源和模型都在掌控中
+      text: >-
+        先支持飞书，更多来源随后接入。内容只会发给获准处理其敏感级别的模型服务。
+    - title: 云服务或私有部署
+      text: >-
+        同一套代码既能作为云服务运行，也能私有部署，支持中文、英文和日文。
+
+access:
+  kicker: 早期试用
+  title: Inspiration 正在开发中。
+  text: >-
+    现在还没有可下载的版本。我们在找几支知识分散在多个工具里的团队，提前试用，和我们一起打磨。如果你们正是这样的团队，欢迎来信。
+  label: 来信
+  copy: 复制地址
+  copied: 已复制
+
+footer:
+  line: Inspiration 正在开发中。示例中的公司、人名和数字均为虚构。
