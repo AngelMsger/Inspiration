@@ -11,6 +11,8 @@ import type {
   SearchResult,
   Space,
   SpaceList,
+  SpaceOverview,
+  SyncReport,
   Tenant,
   Todo,
   TopicList,
@@ -18,6 +20,7 @@ import type {
 } from "@inspiration/contracts";
 import { useEffect, useState } from "react";
 import type { Session } from "./backend.ts";
+import type { Update } from "./updates.ts";
 
 export class ApiFailure extends Error {
   override name = "ApiFailure";
@@ -66,6 +69,9 @@ export const api = {
   topic: (key: string) => call<TopicView>(`/v0/topics/${encodeURIComponent(key)}`),
   inbox: () => call<Inbox>("/v0/inbox"),
   resolve: (todo: string, how: ResolveTodo) => call<Todo>(`/v0/todos/${encodeURIComponent(todo)}/resolve`, how),
+  overview: (space: string) => call<SpaceOverview>(`/v0/spaces/${encodeURIComponent(space)}/overview`),
+  updates: () => call<{ updates: Update[] }>("/demo/updates"),
+  putUpdate: (name: string) => call<SyncReport>(`/demo/updates/${encodeURIComponent(name)}`, {}),
 };
 
 export type Loaded<T> = { state: "loading" } | { state: "done"; value: T } | { state: "failed"; error: ApiFailure };
