@@ -42,3 +42,10 @@ pnpm bench cache export <new replies.jsonl> --stack
 A call is paid again only when its key changes: a new prompt version, another model or
 request option, or different text in a window. So a fix to answering reruns the questions
 and nothing else, and a fix to one prompt rereads only what that prompt reads.
+
+The file is a backup of replies this project's gateway produced, and is trusted for nothing
+more. No reply in it is checked against the provider, and whoever edits it can plant replies,
+so it is imported only into a bench cache, never into a shared or production one. Because it
+is the only copy of paid replies once the container is gone, `cache import` checks every line
+first: when one does not parse, or lacks its key or reply, it names each broken line and
+writes nothing.
