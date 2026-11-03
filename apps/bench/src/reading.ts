@@ -43,27 +43,81 @@ export function predicateOfFact(fact: string): string {
   return fact.slice(fact.indexOf("/") + 1).split("|")[0] as string;
 }
 
-const NUMBER = /(\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)/;
+const NUMBER = /(?<![\d.,])-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?/g;
 const NUMERIC = new Set(["number", "money", "percent", "duration"]);
-const fold = (s: string) => s.trim().toLowerCase();
+// The key's values are written in English (keys.yaml), so its words are matched here, not
+// through language packs.
+const NEGATED = /\b(?:not|no|never|none|without)\b|n't\b/i;
+const BOUNDS = new Set([
+  "",
+  "more than",
+  "less than",
+  "fewer than",
+  "over",
+  "under",
+  "up to",
+  "within",
+  "at most",
+  "at least",
+]);
+const SIGNS: Record<string, string> = { $: "usd", us$: "usd", "€": "eur", "£": "gbp" };
+const fold = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
+/** "USD per person per event" is usd, then person and event; the order is the unit's meaning. */
+const unitOf = (unit: string) => {
+  const [per, ...each] = fold(unit)
+    .replace(/ ?\bper\b ?/g, "/")
+    .split("/");
+  return { per: (per ?? "").trim(), each: each.map((e) => e.trim()) };
+};
+/** A word unit matches its plural; a symbol ("m", "ms", "s") matches only itself. */
+const sameWord = (said: string, unit: string) =>
+  said === unit || (unit.length > 2 && (said === `${unit}s` || said === `${unit}es`));
 
 /**
- * A key's value as extraction writes it for the entry: a numeric entry's first number with the
- * entry's unit ("more than 3 days" is "3 day"), an enum's first listed value the key names as a
- * word ("stable since v1.25" is "stable"). Any other value, or one without such a number or
- * word, stays as the key says it.
+ * A key's value as extraction writes it for the fact's catalogue entry, when the key's words
+ * leave no doubt; otherwise the key's words, so a value read wrong is never counted as found.
+ * A numeric entry takes the key's one number with the entry's unit ("more than 3 days" is
+ * "3 day"); the key's unit must be the entry's, in the same order, or its currency alone
+ * ("5,000 USD" for USD/transaction). An enum takes the one listed value the key names
+ * ("stable since v1.25" is "stable"). A negation, a second number or enum value, brackets,
+ * other units or currencies keep the key's words. A bound ("more than", "up to") is dropped as
+ * extraction drops it: conditions a slot's value cannot hold are not checked here (issue #68).
  */
 export function keyedForm(entry: Pick<PredicateEntry, "value"> | undefined, value: string): string {
   const v = entry?.value;
-  if (v && NUMERIC.has(v.kind)) {
-    const n = value.match(NUMBER)?.[1];
-    if (n === undefined) return value;
-    const number = String(Number(n.replaceAll(",", "")));
+  if (!v || NEGATED.test(value)) return value;
+  if (NUMERIC.has(v.kind)) {
+    const numbers = [...value.matchAll(NUMBER)];
+    const n = numbers[0];
+    if (numbers.length !== 1 || n === undefined || /[()[\],;]/.test(value.replace(NUMBER, ""))) return value;
+    let before = fold(value.slice(0, n.index));
+    const after = unitOf(value.slice(n.index + n[0].length));
+    const unit = unitOf(v.unit ?? "");
+    const currency = v.currency === undefined ? undefined : fold(v.currency);
+    const sign = before.match(/(?:^|\s)(us\$|\$|€|£|[a-z]{3})$/)?.[1];
+    if (sign !== undefined && !BOUNDS.has(before)) {
+      if ((SIGNS[sign] ?? sign) !== currency) return value;
+      before = before.slice(0, -sign.length).trim();
+    }
+    if (!BOUNDS.has(before)) return value;
+    const per = after.per === "" || sameWord(after.per, unit.per);
+    // A key may leave the period out ("5,000 USD" for USD/transaction), never name another one.
+    const each =
+      after.each.length === 0 ||
+      (after.each.length === unit.each.length && after.each.every((e, i) => sameWord(e, unit.each[i] as string)));
+    if (!per || !each || (sign !== undefined && after.per !== "" && after.per !== currency)) return value;
+    const number = String(Number(n[0].replaceAll(",", "")));
     return v.unit ? `${number} ${v.unit}` : number;
   }
-  if (v?.kind === "enum" && v.values?.length) {
-    const words = fold(value).split(/[^\p{L}\p{N}]+/u);
-    return v.values.find((x) => fold(x) === fold(value)) ?? v.values.find((x) => words.includes(fold(x))) ?? value;
+  if (v.kind === "enum" && v.values?.length) {
+    const listed = new Map(v.values.map((x) => [fold(x), x]));
+    const named = new Set(
+      fold(value)
+        .split(/[^\p{L}\p{N}-]+/u)
+        .filter((w) => listed.has(w)),
+    );
+    if (named.size !== 1) return listed.get(fold(value)) ?? value;
+    return listed.get([...named][0] as string) as string;
   }
   return value;
 }
