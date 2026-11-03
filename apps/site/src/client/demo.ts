@@ -131,22 +131,3 @@
   );
   seen.observe(wrap);
 })();
-
-// Copying the contact address; the link next to it may do nothing where mail links are blocked.
-document.addEventListener("click", (event) => {
-  const button = (event.target as Element | null)?.closest<HTMLButtonElement>("button[data-copy]");
-  if (!button) return;
-  const text = button.dataset.copy ?? "";
-  const label = button.textContent ?? "";
-  const done = () => {
-    button.textContent = button.dataset.done ?? label;
-    window.setTimeout(() => {
-      button.textContent = label;
-    }, 1600);
-  };
-  const select = () => {
-    const address = button.parentElement?.querySelector(".address");
-    if (address) window.getSelection()?.selectAllChildren(address);
-  };
-  navigator.clipboard?.writeText(text).then(done, select) ?? select();
-});

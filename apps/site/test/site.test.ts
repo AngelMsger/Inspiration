@@ -17,8 +17,8 @@ describe("site", () => {
       expect(markup, path).not.toMatch(/undefined|\[object Object\]/);
       // Without script the demo shows its result.
       expect(html, path).toContain('class="stage is-changed is-todo is-confirmed"');
-      // No download is offered while the product is in development.
-      expect(html, path).not.toMatch(/download=|\.dmg|\.exe|\.zip/);
+      // No download or sign-up is offered while the product is in development.
+      expect(html, path).not.toMatch(/download=|\.dmg|\.exe|\.zip|mailto:|<form/);
     }
     expect(pages.get("zh/index.html")).toContain('<html lang="zh-CN">');
     expect(pages.get("ja/index.html")).toContain('href="../zh/"');

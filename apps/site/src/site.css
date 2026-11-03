@@ -159,14 +159,6 @@ h2 {
   color: var(--page);
   background: var(--indigo-deep);
 }
-.button.ghost {
-  color: var(--ink);
-  background: transparent;
-  border-color: var(--rule);
-}
-.button.ghost:hover {
-  background: var(--page);
-}
 .button.small {
   font-size: 13.5px;
   padding: 9px 13px;
@@ -1313,28 +1305,6 @@ main > section {
   background: var(--page);
   border-top: 1px solid var(--rule);
 }
-.mail {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px 16px;
-  margin-top: 32px;
-}
-.address {
-  font: 500 15px / 1 var(--mono);
-  user-select: all;
-  color: var(--ink);
-}
-.copy-address {
-  font: 500 13.5px / 1 var(--sans);
-  color: var(--indigo);
-  background: none;
-  border: 0;
-  padding: 6px 0;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
 
 /* Footer */
 .foot {
@@ -1391,9 +1361,6 @@ main > section {
   .grid4,
   .notes {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .top .button {
-    display: none;
   }
   .ill {
     height: auto;

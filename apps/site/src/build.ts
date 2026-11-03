@@ -6,7 +6,7 @@
  *
  * The page carries a scripted demo of the product (the hotel cap story of the demo corpus),
  * drawn in the product's own look; it is an illustration, not the product. While the product
- * is in active development the site offers early access by mail and no download.
+ * is in active development the site offers no download and no sign-up; it says so.
  *
  * Usage (`pnpm site` runs this file):
  *
@@ -79,14 +79,6 @@ export function loadPacks(dir = join(SITE, "languages")): { tag: string; pack: P
   return packs;
 }
 
-/** Where the contact address and other settings of the build live. */
-function settings(): { contact: string } {
-  const s = parse(readFileSync(join(SITE, "site.yaml"), "utf8")) as { contact?: unknown };
-  if (typeof s.contact !== "string" || !s.contact.includes("@"))
-    throw new RangeError("site.yaml: contact is not an address");
-  return { contact: s.contact };
-}
-
 /** The page of each language as a path relative to the output folder, with its HTML. */
 export function build(options: BuildOptions): Map<string, string> {
   const packs = loadPacks();
@@ -94,7 +86,6 @@ export function build(options: BuildOptions): Map<string, string> {
     throw new RangeError(`site: no language pack for root ${options.root}`);
   const css = readFileSync(join(SITE, "src/site.css"), "utf8");
   const script = stripTypeScriptTypes(readFileSync(join(SITE, "src/client/demo.ts"), "utf8"));
-  const { contact } = settings();
   const pages = new Map<string, string>();
   for (const { tag, pack } of packs) {
     const depth = tag === options.root ? 0 : 1;
@@ -103,7 +94,7 @@ export function build(options: BuildOptions): Map<string, string> {
       "./";
     const path = tag === options.root ? "index.html" : `${tag}/index.html`;
     const fragment = options.fragment && tag === options.root;
-    pages.set(path, renderPage({ tag, pack, packs, href, contact, css, script, fragment }));
+    pages.set(path, renderPage({ tag, pack, packs, href, css, script, fragment }));
   }
   return pages;
 }

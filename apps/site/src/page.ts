@@ -18,13 +18,12 @@ export interface Pack {
     title: string;
     description: string;
   };
-  nav: { how: string; features: string; agents: string; access: string; language: string };
+  nav: { how: string; features: string; agents: string; language: string };
   hero: {
     status: string;
     title: TitleRun[];
     lead: string;
     primary: string;
-    secondary: string;
     notes: string[];
     download: string;
   };
@@ -88,7 +87,7 @@ export interface Pack {
     answer: string;
   };
   enterprise: { kicker: string; title: string; items: { title: string; text: string }[] };
-  access: { kicker: string; title: string; text: string; label: string; copy: string; copied: string };
+  access: { kicker: string; title: string; text: string };
   footer: { line: string };
 }
 
@@ -100,7 +99,6 @@ export interface PageContext {
   packs: { tag: string; pack: Pack }[];
   /** The link from this page to the page of each language tag. */
   href: (tag: string) => string;
-  contact: string;
   css: string;
   script: string;
   /** Leave out the document shell, for hosts that add their own (the Artifact preview). */
@@ -141,7 +139,6 @@ function header(c: PageContext): string {
       <a href="#agents">${esc(p.nav.agents)}</a>
     </nav>
     <nav class="langs" aria-label="${esc(p.nav.language)}">${langs}</nav>
-    <a class="button small" href="#access">${esc(p.nav.access)}</a>
   </div>
 </header>`;
 }
@@ -158,8 +155,7 @@ function hero(c: PageContext): string {
     <h1>${title}</h1>
     <p class="lead">${esc(h.lead)}</p>
     <div class="actions">
-      <a class="button" href="#access">${esc(h.primary)}</a>
-      <a class="button ghost" href="#how">${esc(h.secondary)}</a>
+      <a class="button" href="#how">${esc(h.primary)}</a>
       <span class="aside">${esc(h.download)}</span>
     </div>
     <ol class="notes">${notes}</ol>
@@ -374,11 +370,6 @@ function access(c: PageContext): string {
     <p class="kicker">${esc(a.kicker)}</p>
     <h2>${esc(a.title)}</h2>
     <p class="body">${esc(a.text)}</p>
-    <div class="mail">
-      <a class="button" href="mailto:${esc(c.contact)}">${esc(a.label)}</a>
-      <code class="address">${esc(c.contact)}</code>
-      <button type="button" class="copy-address" data-copy="${esc(c.contact)}" data-done="${esc(a.copied)}">${esc(a.copy)}</button>
-    </div>
   </div>
 </section>`;
 }

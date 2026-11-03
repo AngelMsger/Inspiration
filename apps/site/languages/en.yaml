@@ -22,7 +22,6 @@ nav:
   how: How it works
   features: Features
   agents: For agents
-  access: Request early access
   language: Language
 
 hero:
@@ -37,8 +36,7 @@ hero:
     into governed knowledge. Each fact keeps its exact source and a person who maintains it,
     stays current as its sources change, and reaches people and agents within their own
     permissions.
-  primary: Request early access
-  secondary: See how it works
+  primary: See how it works
   notes:
     - Every fact keeps a verbatim quote from the passage it came from.
     - When a source changes, every answer that relies on it follows.
@@ -216,12 +214,7 @@ access:
   kicker: Early access
   title: Inspiration is in active development.
   text: >-
-    There is nothing to download yet. We are looking for a few teams whose knowledge spans
-    several tools to try it early and shape it with us. If that sounds like your team, write to
-    us.
-  label: Write to us
-  copy: Copy address
-  copied: Copied
+    There is nothing to download or sign up for yet. Early access will open here once the product is ready for its first teams.
 
 footer:
   line: Inspiration is in active development. The company, people and figures in the examples are made up.
