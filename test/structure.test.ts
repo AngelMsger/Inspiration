@@ -16,7 +16,7 @@ const MAX_LINES = 800;
  * component next gains a feature; lower a ceiling as a file shrinks, and never raise one.
  */
 const CEILINGS: Record<string, number> = {
-  "engine/retrieval/src/retrieval.ts": 1500,
+  "engine/retrieval/src/retrieval.ts": 1350,
   "apps/bench/src/questions.ts": 1300,
   "engine/page-compiler/src/topics.ts": 1100,
   "engine/governance/test/governance.test.ts": 1000,
