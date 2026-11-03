@@ -34,6 +34,12 @@
  * for it. A real run with --stack or --database also meters into the database, so the
  * config's day budget counts the day's earlier runs.
  *
+ * Before a real run pays, it checks what it can for free (preflight.ts): it names the keyed
+ * facts the corpus's catalogue lacks before the first call, and refuses to start when the
+ * catalogue names none of them, unless --allow-uncatalogued. Before questions, any run stops
+ * when the reader may read none of the indexed documents, as after a run resumed on an
+ * existing database, whose permissions were in memory.
+ *
  * synthesize writes a synthetic corpus of about n documents, with truth.json listing every
  * fact it states, for scale runs.
  *
@@ -69,6 +75,7 @@ import { loadHistory, loadTimeline, replay, replayLines } from "./history.ts";
 import { inboxLines, inboxReport } from "./inbox.ts";
 import { daysSummary, ingest, plantedDuplicates, summary } from "./ingest.ts";
 import { onUse, onUseSummary } from "./onuse.ts";
+import { catalogueCoverage, coverageLines, readableDocuments } from "./preflight.ts";
 import {
   loadKeys,
   loadQuestions,
@@ -87,6 +94,7 @@ const USAGE = [
   "                          [--today <YYYY-MM-DD>] [--on-use <n>] [--edit <share>] [--days <n>] [--context <tokens>]",
   "                          [--compact <passages>,<statements>]",
   "                          [--gateway <file> [--dry-run]] [--questions <n>] [--search-only] [--sample <share>]",
+  "                          [--allow-uncatalogued]",
   "       inspiration-bench synthesize <dir> --documents <n> [--seed <n>]",
   "       inspiration-bench replay <corpus> [--stack | --database <url> [--valkey <url>]] [--json <file>]",
   "       inspiration-bench ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]",
@@ -116,6 +124,7 @@ async function main(argv: string[]): Promise<number> {
       questions: { type: "string" },
       "search-only": { type: "boolean" },
       sample: { type: "string" },
+      "allow-uncatalogued": { type: "boolean" },
     },
   });
   const [command, dir, ...rest] = positionals;
@@ -180,6 +189,12 @@ async function main(argv: string[]): Promise<number> {
     console.error("--dry-run prices the run a --gateway config would make");
     return 2;
   }
+  const keys = await loadKeys(dir);
+  if (values.gateway && !values["dry-run"] && keys) {
+    const { lines, start } = coverageLines(catalogueCoverage(corpus, keys), values["allow-uncatalogued"] === true);
+    for (const line of lines) console.error(line);
+    if (!start) return 2;
+  }
   let cache: ValkeyCache | undefined;
   let gateway: Gateway | undefined;
   let usagePool: Pool | undefined;
@@ -242,7 +257,6 @@ async function main(argv: string[]): Promise<number> {
       console.log(`\n${controlLines(checked).join("\n")}`);
       out.control = checked;
     }
-    const keys = await loadKeys(dir);
     if (keys) {
       const read = await readingReport(engine, corpus, keys);
       console.log(`\n${readingLines(read).join("\n")}`);
@@ -250,6 +264,17 @@ async function main(argv: string[]): Promise<number> {
     }
     const listed = await loadQuestions(dir);
     const questions = listed && values.questions ? sampleQuestions(listed, Number(values.questions)) : listed;
+    if (questions) {
+      const seen = await readableDocuments(engine, corpus);
+      if (seen.indexed && !seen.readable) {
+        console.error(
+          `preflight: the reader may read none of the ${seen.indexed} indexed documents, so every search would find ` +
+            "nothing; a run resumed on an existing database has no permissions (they live in memory), so replay " +
+            "into a fresh one, where saved replies cost nothing",
+        );
+        return 1;
+      }
+    }
     if (questions && values["search-only"]) {
       const searched = await searchReport(engine, corpus, questions);
       console.log(`\n${searchLines(searched).join("\n")}`);

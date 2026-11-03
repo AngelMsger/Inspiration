@@ -8,8 +8,11 @@ import { languageOf } from "@inspiration/kernel";
 import { describe, expect, test } from "vitest";
 import { parse } from "yaml";
 import { type Keys, loadKeys, loadQuestions, outcomeOf, PATTERNS, type Question } from "../src/index.ts";
+import { catalogueCoverage } from "../src/preflight.ts";
 
 const DECISIVE = fileURLToPath(new URL("../../../examples/decisive-test/", import.meta.url));
+/** How far from a quote, in characters, a word naming its fact may be: about one extraction window. */
+const NEAR = 1500;
 
 /** A file's text as a reader sees it: HTML without its tags, every run of spaces one space. */
 async function textOf(path: string): Promise<string> {
@@ -62,6 +65,36 @@ describe("the decisive test's cases", () => {
       }
     }
     expect([Object.keys(keys.facts).length, quotes]).toEqual([92, 217]);
+  });
+
+  test("the catalogue names every keyed fact, by a word found near each place the key cites", async () => {
+    // Extraction offers a window only the entries whose words it names: an entry no window
+    // names leaves its fact without a slot, as a missing entry does.
+    const keys = (await loadKeys(DECISIVE)) as Keys;
+    const entries = (
+      parse(await readFile(join(DECISIVE, "vocabulary.yaml"), "utf8")) as {
+        predicates: { predicate: string; aliases: string[] }[];
+      }
+    ).predicates;
+    const aliases = new Map(entries.map((e) => [e.predicate, e.aliases.map((a) => a.toLowerCase())]));
+    expect(catalogueCoverage({ vocabulary: { predicates: entries } } as never, keys).uncatalogued).toEqual([]);
+    const unnamed: string[] = [];
+    for (const [fact, key] of Object.entries(keys.facts)) {
+      for (const group of [key.values, key.misleading ?? [], key.conflicting ?? []]) {
+        for (const s of group.flatMap((value) => value.stated)) {
+          // A quote may stand in several places; extraction reads each, so one named place is enough.
+          const text = (await textOf(s.file)).toLowerCase();
+          const quote = s.quote.replace(/\s+/g, " ").toLowerCase();
+          let named = false;
+          for (let at = text.indexOf(quote); at >= 0 && !named; at = text.indexOf(quote, at + 1)) {
+            const near = text.slice(Math.max(0, at - NEAR), at + NEAR);
+            named = aliases.get(fact)?.some((a) => near.includes(a)) ?? false;
+          }
+          if (!named) unnamed.push(`${fact}: ${s.file}`);
+        }
+      }
+    }
+    expect(unnamed).toEqual([]);
   });
 
   test("files.yaml lists every file of the topics, and says what each constructed one changes", async () => {
