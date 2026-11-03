@@ -129,7 +129,66 @@ producer name, its consumer group and the first part of its model task names.
   passes.
 - Public behaviour is described in the doc comment of `src/index.ts` or in `docs/`.
 - Whatever the change replaces or leaves unused is gone or marked (see below).
+- The change keeps to "Keeping the code simple" below.
 - The change lands through a pull request.
+
+## Keeping the code simple
+
+Code here is read again and again by people and agents who did not write it, so it stays as
+small and as plain as its job allows. Rules marked *checked* fail `make check` (Biome and
+`test/structure.test.ts`); the rest are on every pull request.
+
+**Build what is decided, not what might be needed.**
+
+- A new component, library, app, plugin group, contract type, event, setting or third-party
+  package serves a requirement already in force: the overview, a design doc with
+  `Status: adopted`, or an issue labelled `planned`. Its pull request names it. Nothing is
+  added for later.
+- An abstraction needs two users now. An interface or a plugin group needs two
+  implementations (a test double counts as one); an option needs a caller that sets it to
+  something other than its default. Until then, write a function or a constant.
+- A pull request does one thing. When it changes more than about 600 lines of hand-written
+  source, tests, data and generated files aside, its description says why it cannot be split.
+
+**Reuse before adding.**
+
+- Look in the libraries and in the component itself before writing a helper. Code moves into
+  a library only when a second package needs it, and into one of the four that exist.
+- One third-party package per job: one YAML parser, one HTTP framework, one Postgres client,
+  one Valkey client. A new package says in its pull request why Node's standard library or a
+  package already in the workspace will not do, and what its licence is.
+
+**Small pieces** (*checked*).
+
+- A TypeScript file has one job and at most 800 lines, generated files aside. Split it by job
+  before it would pass the limit. The files over it today have a ceiling each in
+  `test/structure.test.ts`; they are split when their component next gains a feature, and a
+  ceiling is only ever lowered.
+- A function's cognitive complexity is at most 40 (Biome's `noExcessiveCognitiveComplexity`).
+  The files that hold a function above it today have a ceiling in `biome.json`; a change
+  there splits the function instead of adding to it.
+
+**A structure anyone can predict** (*checked*, except the last rule).
+
+- A package's `src/` has at most one level of folders, each named for the kind of thing it
+  holds (`parsers/`, `providers/`, `feishu/`, `cli/`).
+- No file or folder is named `utils`, `helpers`, `misc`, `common` or `shared`: a name says
+  what the code does.
+- Other packages reach a package only by its name, which is its `src/index.ts`; tests may
+  also use a `testing` entry. Each package's `exports` enforces this.
+- A new top-level folder, library, app, component or plugin group changes the structure
+  everyone works in. The product owner agrees to it before it is built, as with a breaking
+  contract change, and the same pull request gives it its line in `components.yaml` or in
+  the README's layout.
+
+**Say what is built.**
+
+- `components.yaml` gives each component's whole design, so its events and calls include
+  planned ones. A built component's `owns` therefore ends with what is still planned
+  ("Planned are ..."), so nobody takes a declared event or call for a working one.
+- Code that only measures (a baseline, a rival, a report) lives in `apps/bench`. Where it
+  needs a component's internals, as the retrieval baselines do, the component's doc comment
+  and `components.yaml` say it is there to measure, and it goes when the measurement ends.
 
 ## Keeping the repo small
 
@@ -154,7 +213,8 @@ be current. `test/docs.test.ts` checks the mechanical part; the rest is on every
 
 Once a week, and after each large stack of pull requests lands, a hygiene pass looks for
 what these rules miss: merged branches, status lines that lag, superseded material still
-unmarked, files over 500 KB, folders the README's layout does not list. It fixes the
+unmarked, files over 500 KB, folders the README's layout does not list, source files close
+to their line limit, exports nothing imports and packages nothing uses. It fixes the
 mechanical part in one small pull request and lists the rest for the product owner.
 
 ## Languages

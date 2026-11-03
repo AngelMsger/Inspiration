@@ -1,7 +1,7 @@
 /** Plain text: paragraphs are separated by blank lines. */
 
 import type { DocBlock, FileMeta, ParseResult, Parser } from "@inspiration/contracts";
-import { decode, producer } from "./shared.ts";
+import { decode, producer } from "./parser.ts";
 
 export function parseText(text: string): DocBlock[] {
   const blocks: DocBlock[] = [];

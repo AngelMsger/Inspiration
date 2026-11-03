@@ -8,7 +8,7 @@ import { gfmFromMarkdown } from "mdast-util-gfm";
 import { toString as textOf } from "mdast-util-to-string";
 import { frontmatter } from "micromark-extension-frontmatter";
 import { gfm } from "micromark-extension-gfm";
-import { decode, producer } from "./shared.ts";
+import { decode, producer } from "./parser.ts";
 
 const MATTER = ["yaml", "toml"] as const;
 
