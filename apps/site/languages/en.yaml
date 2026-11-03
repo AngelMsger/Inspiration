@@ -1,0 +1,220 @@
+# Every word of the English page. The keys are the same in every pack; the build fails on
+# a missing or extra key. The people, the company and the figures are made up; they follow
+# the demo story (Hengyuan Machinery, the hotel cap that moves from 600 to 650 yuan).
+meta:
+  name: English
+  htmlLang: en
+  serif: '"Newsreader", "Noto Serif SC", Georgia, serif'
+  sans: '"Instrument Sans", "Noto Sans SC", system-ui, sans-serif'
+  fonts:
+    - "Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400"
+    - "Instrument Sans:wght@400;500;600"
+    - "Geist Mono:wght@400;500"
+    - "Noto Sans SC:wght@400;500"
+    - "Noto Serif SC:wght@400"
+  title: Inspiration · Governed knowledge for people and agents
+  description: >-
+    Inspiration turns scattered documents, approval flows and research into governed knowledge.
+    Every fact keeps its source, stays current as sources change, and reaches people and agents
+    within their own permissions.
+
+nav:
+  how: How it works
+  features: Features
+  agents: For agents
+  language: Language
+
+hero:
+  status: In active development
+  title:
+    - text: Every fact sourced.
+      note: 1
+    - text: Every answer current.
+      note: 2
+  lead: >-
+    Inspiration turns the documents, approval flows and research scattered across your company
+    into governed knowledge. Each fact keeps its exact source and a person who maintains it,
+    stays current as its sources change, and reaches people and agents within their own
+    permissions.
+  primary: See how it works
+  notes:
+    - Every fact keeps a verbatim quote from the passage it came from.
+    - When a source changes, every answer that relies on it follows.
+  download: Not available for download while we build it.
+
+problem:
+  kicker: The problem
+  title: Stop guessing which document is right.
+  lead: >-
+    At Hengyuan Machinery, one hotel rule lives in five documents. Search finds all five. A chat
+    assistant quotes whichever ranks first.
+  documents:
+    - name: Travel expense policy, article 7
+      place: Finance policy library
+      value: "600"
+      mark: "old"
+    - name: Notice on tier-1 city hotel rates
+      place: Finance, 28 Sep
+      value: 650 from 1 Oct
+      mark: "source"
+    - name: Expense FAQ
+      place: Finance wiki
+      value: "650"
+      mark: ""
+    - name: City hotel rates.csv
+      place: Shared drive
+      value: "600"
+      mark: "old"
+    - name: New-hire guide
+      place: HR wiki
+      value: "600"
+      mark: "old"
+  answerLabel: What Inspiration answers
+  answer: 650 yuan a night from 1 October
+  answerMeta: Per the notice of 28 September · confirmed by Li Na · 3 documents marked outdated
+
+demo:
+  kicker: How it works
+  title: When the rules change, the answers change with them.
+  label: >-
+    Animation: a member asks about the hotel cap in Shenzhen and gets 600 yuan. A new notice
+    arrives, the answer becomes 650 yuan with the notice as its source and the old policy marked
+    outdated, and the topic owner confirms the suggested change with one press.
+  steps:
+    - title: A source changes
+      text: >-
+        Finance posts a notice in Feishu that raises the hotel cap. Inspiration reads the two
+        passages that changed, not the whole library.
+    - title: Answers follow
+      text: >-
+        Every answer, page and agent now says 650 and cites the notice. The policy's old line is
+        marked outdated, not deleted.
+    - title: The owner confirms
+      text: >-
+        Li Na, who maintains the travel rules, gets one todo with the suggestion already
+        selected, and confirms it with one press.
+  replay: Replay
+  caption: An illustration with a made-up company and sample data.
+  ui:
+    company: Hengyuan Machinery
+    search: Search or ask
+    question: How much can I claim for a hotel night in Shenzhen?
+    answerBefore: "Managers and below can claim up to "
+    answerAfter: " yuan a night."
+    note: From 1 October, per the notice. Article 7 of the policy still says 600, which no longer applies.
+    original: Chinese original
+    policy: 差旅费管理办法 · 第七条
+    notice: 关于调整一线城市住宿标准的通知
+    outdated: Outdated
+    changeLabel: New in Feishu
+    changeMeta: 2 passages read · 1 fact changed
+    inbox: Inbox
+    owner: Li Na · topic owner, Travel
+    todoTitle: The tier-1 hotel cap is now 650
+    option: Confirm 650 and ask Finance to revise the policy
+    suggested: Suggested
+    reason: The notice is newer and says it replaces article 7.
+    confirm: Confirm
+    confirmed: Confirmed
+    confirmedBy: Confirmed by Li Na · just now
+
+features:
+  kicker: What makes it different
+  title: Knowledge you can check, that keeps itself current.
+  items:
+    - title: Every sentence has a source
+      text: >-
+        Inspiration stores knowledge as single facts, each with a verbatim quote from its source
+        and the dates it holds. Pages and answers are built from those facts, so any sentence
+        opens to the passage behind it.
+    - title: Changes flow through like a build
+      text: >-
+        When a source changes, Inspiration re-reads only the passages that changed and rebuilds
+        only what cites them. Nothing is imported twice, and nobody is asked about changes that
+        do not matter.
+    - title: People decide, in amounts they can keep up with
+      text: >-
+        The assistant does the reading and sorts what needs a person into a short weekly pile,
+        with its suggestion already filled in. Owners confirm with one press, or let it settle
+        the routine ones. Everything it does has a reason and an undo.
+    - title: One fact, in every language
+      text: >-
+        A policy written in Chinese answers a question asked in English or Japanese, and cites
+        the original. Translations are copies of the same knowledge, never a second version of
+        it.
+  trace:
+    quote: 自 2026 年 10 月 1 日起，一线城市经理及以下人员住宿标准调整为每晚 650 元。
+    gloss: >-
+      Machine translation: from 1 October 2026, the hotel cap for managers and below in tier-1
+      cities is 650 yuan a night.
+    source: 关于调整一线城市住宿标准的通知 · 第二条 · 09-28
+  fresh:
+    steps:
+      - Notice added
+      - 2 passages read
+      - 1 fact changed
+      - 4 places rebuilt
+    places:
+      - Answers
+      - Travel expenses page
+      - Booking a hotel
+      - Shenzhen card
+  govern:
+    heading: Inbox · this week
+    rows:
+      - label: Needs you
+        value: "1"
+      - label: Can follow the suggestion
+        value: "6"
+      - label: Decided for you
+        value: "34"
+    action: Settle these 6
+  language:
+    fact: 650 yuan a night
+    holds: from 2026-10-01
+    source: One fact, cited in its Chinese original
+
+agents:
+  kicker: For agents
+  title: One answer, for people and agents.
+  lead: >-
+    Your agents reach the same governed knowledge through MCP and REST. They act as the person
+    they work for and see only what that person may read. They get the value in force with its
+    source and the date it holds, instead of five passages from five versions.
+  points:
+    - "Ask, search, read and follow changes: tools shaped by what an agent is trying to do."
+    - Every result carries its source, version, status and a token estimate.
+    - Agents read and propose. Knowledge changes only when a person approves.
+  note: Illustrative. The agent API is in design.
+  question: Hotel cap per night in Shenzhen for a manager?
+  answer: 650 yuan a night from 2026-10-01.
+
+enterprise:
+  kicker: Built for companies
+  title: Your company decides who reads what.
+  items:
+    - title: Spaces with owners
+      text: >-
+        Each space's owner decides who reads it. Source permissions only warn, so access never
+        depends on a dozen apps' settings.
+    - title: Private until published
+      text: >-
+        Every member has a private My space. Publishing moves knowledge into a shared space after
+        the space owner's review.
+    - title: Your sources, your models
+      text: >-
+        Feishu and Lark first, with more sources to follow. Content goes only to model providers
+        cleared for its sensitivity.
+    - title: Cloud or your own servers
+      text: >-
+        One codebase runs as a hosted service or as a private deployment, in English, Chinese and
+        Japanese.
+
+access:
+  kicker: Early access
+  title: Inspiration is in active development.
+  text: >-
+    There is nothing to download or sign up for yet. Early access will open here once the product is ready for its first teams.
+
+footer:
+  line: Inspiration is in active development. The company, people and figures in the examples are made up.
