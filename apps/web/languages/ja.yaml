@@ -9,6 +9,9 @@ account.language: 表示言語
 
 nav.label: ナレッジ
 nav.home: ホーム
+nav.inbox: "受信トレイ"
+nav.knowledge: "ナレッジ"
+nav.topics: "{count} トピック"
 nav.spaces: スペース
 nav.documents: ドキュメント
 
@@ -75,6 +78,75 @@ doc.holds_instead: 現行の値
 doc.from: "出典：『{title}』"
 doc.reading: ドキュメントを開いています…
 doc.not_found: このドキュメントは存在しないか、開く権限がありません。
+
+inbox.title: "受信トレイ"
+inbox.week: "第 {week} 週"
+inbox.loading: "受信トレイを開いています…"
+inbox.empty: "対応待ちはありません。"
+inbox.suggested: "提案：『{title}』の {value}"
+inbox.confirm: "提案を確定：{value}"
+inbox.open: "開く"
+inbox.acknowledge: "了解"
+inbox.noted: "記録しました。"
+inbox.decided: "{value} を確定しました。読み手とエージェントには現行の値として表示されます。"
+inbox.see_marks: "『{title}』の注釈を見る"
+inbox.see_topic: "トピック『{title}』を見る"
+inbox.hidden: "開けない資料"
+
+inbox.side: "{value}：『{title}』"
+quote.title: "『{title}』"
+list.mark: "、"
+fact.scoped: "{topic}（{scope}）"
+
+todo.conflict: "矛盾"
+todo.stale: "写しの確認"
+todo.override_conflict: "上書きの矛盾"
+todo.review_due: "見直し期限"
+todo.assumption_drift: "前提の変化"
+todo.comment_followup: "コメント"
+todo.publish_review: "公開の審査"
+todo.coverage_gap: "不足"
+todo.extraction_review: "抽出の確認"
+todo.feedback: "フィードバック"
+todo.note: "メモ"
+todo.unstated: "記載なし"
+todo.source_deleted: "ソース削除"
+
+decision.now_disputed: "読み手には {value} が「矛盾あり」として表示されています。"
+decision.now_outdated: "読み手には {value} が表示され、{others} は「古い」と表示されています。"
+decision.yours: "あなたの判断"
+decision.choice: "{value}（『{title}』に従う）"
+decision.suggested: "提案"
+decision.confirm: "確定"
+decision.dismiss: "今は対応しない"
+decision.confirming: "確定しています…"
+decision.about: "この矛盾について"
+decision.topic: "トピック"
+decision.after: "確定後"
+decision.after_text: "読み手とエージェントには {value} が表示されます。ほかの値は原文で「古い」と表示され、回答に「決定待ち」と出なくなります。"
+decision.not_found: "この項目はもう対応待ちではありません。"
+decision.back: "受信トレイへ戻る"
+
+unit.day: "{n} 日"
+unit.cny_per_night: "1 泊 {n} 元"
+unit.cny_per_day: "1 日 {n} 元"
+unit.cny: "{n} 元"
+
+knowledge.title: "ナレッジ"
+knowledge.empty: "このスペースにはまだトピックがありません。"
+knowledge.loading: "トピックを開いています…"
+knowledge.not_found: "このトピックは存在しないか、読む権限がありません。"
+topic.owner: "トピック担当 {name}"
+topic.no_owner: "トピック担当はまだいません"
+topic.others: "その他"
+topic.subtopics: "サブトピック"
+topic.about: "このトピック"
+topic.pending: "あなたの判断待ち"
+topic.none: "まだ読める内容はありません。"
+topic.written: "『{title}』の記載："
+topic.on_page: "このページ"
+topic.sources: "出典"
+topic.places: "{documents} 件のドキュメントの {places} か所"
 
 palette.label: 検索、質問、移動
 palette.ask: "「{text}」と質問する"

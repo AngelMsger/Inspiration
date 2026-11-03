@@ -19,3 +19,13 @@ budget:
 
 question: 去深圳出差住宿每晚能报多少？
 search: 住宿限额
+
+# First-year leave: the attendance policy's 5 days against the onboarding guide's 7, a
+# contradiction its owner decides.
+leave:
+  topic: 年休假
+  fact: 年休假天数
+  slot: annual_leave_days|工龄 1 至 10 年
+  question: 工作第一年有几天年假？
+  values: [5 day, 7 day]
+  titles: [考勤与休假管理制度, 新人入职指南]

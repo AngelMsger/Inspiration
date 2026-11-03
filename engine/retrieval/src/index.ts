@@ -73,7 +73,10 @@
  * every current statement resting on its spans that the asker may read, marked as search
  * marks it and in the document's reading order, with the statements that hold in place of
  * the outdated and disputed ones, wherever they are stated. A document the asker may not
- * read has no marks.
+ * read has no marks. statementsOf(claims, principal) gives the current statements with
+ * those IDs that the asker may read, marked the same way and in the order asked, with the
+ * statements that hold instead: what a todo asks a person to choose between, or what a topic
+ * holds.
  *
  * Baselines, to measure the knowledge base against over the same documents and model
  * (RetrievalOptions.baseline): "mature" answers from passages alone, without statements or

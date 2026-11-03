@@ -71,6 +71,56 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect((await world.inbox.items(TENANT)).map((i) => i.todo.status).sort()).toEqual(["done", "open"]);
     });
 
+    test("a todo offers what its requester can apply, and resolving it tells the requester what was chosen", async ({
+      world,
+    }) => {
+      await world.topics({ key: "t-hotel", owner_id: LI });
+      const { claims } = await world.document(
+        ["The hotel cap in tier-1 cities is 650 yuan a night.", "The hotel cap in tier-1 cities is 600 yuan a night."],
+        "t-hotel",
+      );
+      const units = claims.map((c) => c.id);
+      const offer = (value: string) => ({ key: `choose:${value}`, label: `Choose ${value}`, effect: { value } });
+      await world.request({
+        unit_ids: units,
+        dedupe_key: "governance:conflict:hotel",
+        slot_key: "hotel",
+        resolutions: [offer("650")],
+      });
+      // A later request replaces what the todo offers.
+      await world.request({
+        unit_ids: units,
+        dedupe_key: "governance:conflict:hotel",
+        slot_key: "hotel",
+        resolutions: [offer("650"), offer("600")],
+      });
+      const [item] = await world.inbox.items(TENANT);
+      const id = item?.todo.id as string;
+      expect(item?.todo.resolutions?.map((r) => r.key)).toEqual(["choose:650", "choose:600"]);
+
+      await expect(world.inbox.resolve(TENANT, id, { by: LI, with: "choose:700" })).rejects.toThrow(RangeError);
+      expect(await world.resolved()).toEqual([]);
+
+      const done = await world.inbox.resolve(TENANT, id, { by: LI, with: "choose:600" });
+      expect(done).toMatchObject({ status: "done", resolved_by: LI, resolved_with: "choose:600" });
+      // Resolving a closed todo again changes nothing and tells nobody.
+      await world.inbox.resolve(TENANT, id, { by: WANG, with: "choose:650" });
+      expect(await world.resolved()).toEqual([
+        {
+          todo_id: id,
+          kind: "conflict",
+          space_id: SPACE,
+          dedupe_key: "governance:conflict:hotel",
+          slot_key: "hotel",
+          created_by: "governance",
+          status: "done",
+          resolved_by: LI,
+          resolved_with: "choose:600",
+          effect: { value: "600" },
+        },
+      ]);
+    });
+
     test("a withdrawn request dismisses its open todo, and opens nothing when there is none", async ({ world }) => {
       await world.topics({ key: "t-hotel", owner_id: LI });
       const { claims } = await world.document(

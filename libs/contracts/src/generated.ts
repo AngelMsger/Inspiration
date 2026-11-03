@@ -303,7 +303,7 @@ export type HitKind = "claim" | "sop" | "section" | "page" | "entity" | "chunk" 
 export type FreshnessState = "fresh" | "aging" | "stale" | "at_risk";
 export type ReviewStatus = "unreviewed" | "verified" | "disputed" | "published";
 /**
- * Where one value of a fact slot stands with governance today. holds: the value governance proposes. outdated: a supersession puts the held value in its place (an older edition, a translation behind its original). disputed: an open contradiction with the held value, for a person to decide. differs: another difference, such as a scope, a plan or a value only reference documents state.
+ * Where one value of a fact slot stands with governance today. holds: the value governance proposes. outdated: a supersession puts the held value in its place (an older edition, a translation behind its original), or a person chose the held value over it. disputed: an open contradiction with the held value, for a person to decide. differs: another difference, such as a scope, a plan or a value only reference documents state.
  *
  */
 export type SlotStanding = "holds" | "outdated" | "disputed" | "differs";
@@ -335,9 +335,41 @@ export type GatewayErrorCode =
   | "cache_miss";
 export type GatewayOperation = "complete" | "embed" | "rerank" | "ocr";
 /**
+ * review: an owner's todos about one topic in one week. notes: an owner's notes of one week. campaign: a space's first reviews of one topic. steward: todos of a topic nobody owns.
+ *
+ */
+export type InboxCardKind = "review" | "notes" | "campaign" | "steward";
+/**
  * An ISO 8601 week, "2026-W44".
  */
 export type IsoWeek = string;
+export type TopicKey = string;
+/**
+ * proposed: made by clustering and not yet confirmed; readers never see it, owners do. confirmed: an owner confirmed it, so re-clustering keeps it and never moves its confirmed placements. retired: it has no statements left; its key is not reused.
+ *
+ */
+export type TopicStatus = "proposed" | "confirmed" | "retired";
+export type TodoId = string;
+/**
+ * note: a value only reference documents state disagrees with the governed one. It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget. unstated: a new version of a document stopped stating claims, which are kept, marked, until the owner keeps or retires them; source_deleted: the same for a deleted document (docs/design/source-changes.md).
+ *
+ */
+export type TodoKind =
+  | "conflict"
+  | "stale"
+  | "override_conflict"
+  | "review_due"
+  | "assumption_drift"
+  | "comment_followup"
+  | "publish_review"
+  | "coverage_gap"
+  | "extraction_review"
+  | "feedback"
+  | "note"
+  | "unstated"
+  | "source_deleted";
+export type Priority = "low" | "normal" | "high" | "urgent";
+export type TodoStatus = "open" | "in_progress" | "done" | "dismissed";
 export type KnowledgeModelId = string;
 export type KnowledgeModelKind = "formula" | "decision_table" | "kpi";
 export type SopStatus = "draft" | "in_review" | "verified" | "published" | "retired";
@@ -352,7 +384,6 @@ export type OverrideMode = "replace" | "hide" | "insert_after" | "pin";
  * conflicted = sources now disagree with the override; its author has a todo.
  */
 export type OverrideStatus = "active" | "conflicted" | "retired";
-export type TodoId = string;
 export type PageKind =
   "topic" | "sop" | "entity" | "policy" | "faq" | "report" | "index" | "custom";
 export type SnapshotCauseKind =
@@ -371,8 +402,6 @@ export type SnapshotCauseKind =
  *
  */
 export type PlacedBy = "clustering" | "page" | "member";
-export type TopicKey = string;
-export type Priority = "low" | "normal" | "high" | "urgent";
 export type PublishRequestId = string;
 export type PublishState = "draft" | "in_review" | "published" | "retired";
 export type QualityGate = "citations" | "conflicts" | "pii" | "permission_widening" | "freshness";
@@ -399,30 +428,6 @@ export type SopId = string;
 export type StepBasis = "from_definition" | "mined" | "inferred" | "document" | "human";
 export type SourceStatus = "active" | "paused" | "error" | "archived";
 export type SpaceKind = "personal" | "team" | "org" | "source_mirror";
-/**
- * proposed: made by clustering and not yet confirmed; readers never see it, owners do. confirmed: an owner confirmed it, so re-clustering keeps it and never moves its confirmed placements. retired: it has no statements left; its key is not reused.
- *
- */
-export type TopicStatus = "proposed" | "confirmed" | "retired";
-/**
- * note: a value only reference documents state disagrees with the governed one. It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget. unstated: a new version of a document stopped stating claims, which are kept, marked, until the owner keeps or retires them; source_deleted: the same for a deleted document (docs/design/source-changes.md).
- *
- */
-export type TodoKind =
-  | "conflict"
-  | "stale"
-  | "override_conflict"
-  | "review_due"
-  | "assumption_drift"
-  | "comment_followup"
-  | "publish_review"
-  | "coverage_gap"
-  | "extraction_review"
-  | "feedback"
-  | "note"
-  | "unstated"
-  | "source_deleted";
-export type TodoStatus = "open" | "in_progress" | "done" | "dismissed";
 /**
  * read = no side effects; propose = creates a proposal or a todo that a person accepts in collaboration.
  */
@@ -2082,6 +2087,114 @@ export interface GroundedAnswer {
   notes?: AnswerNote[];
 }
 /**
+ * A member's open todos on the cards the inbox puts them on, most urgent card first, with what each todo asks them to choose between.
+ *
+ */
+export interface Inbox {
+  cards: InboxCard[];
+}
+export interface InboxCard {
+  batch_key: string;
+  kind: InboxCardKind;
+  week?: IsoWeek;
+  topic?: TaxonomyNode;
+  todos: InboxTodo[];
+}
+/**
+ * A topic in a space's knowledge outline (area, topic or subtopic, at most three levels). Statements are placed in topics (see Placement). Keys are stable across re-clustering and never reused.
+ *
+ */
+export interface TaxonomyNode {
+  key: TopicKey;
+  tenant_id: TenantId;
+  space_id: SpaceId;
+  title: string;
+  summary?: string;
+  parent_key?: TopicKey;
+  ordinal: number;
+  page_id?: PageId;
+  status?: TopicStatus;
+  owner_id?: PrincipalId;
+  /**
+   * Current statements placed in the topic, its subtopics included.
+   */
+  statement_count?: number;
+}
+export interface InboxTodo {
+  todo: Todo;
+  /**
+   * What the fact a conflict or a note is about is called in the tenant's predicate catalogue ("Hotel cap per night"); the slot's qualifiers are its scope.
+   *
+   */
+  fact_label?: string;
+  /**
+   * The statements the todo is about (its claims), as the member may read them, in the todo's order: for a conflict, the best statement of each value, the proposed one first.
+   *
+   */
+  statements: SearchHit[];
+  /**
+   * The resolutions the todo offers, in its order; for a conflict, the proposed value first.
+   */
+  choices: TodoChoice[];
+}
+export interface Todo {
+  id: TodoId;
+  tenant_id: TenantId;
+  space_id: SpaceId;
+  kind: TodoKind;
+  title: string;
+  detail?: Markdown;
+  priority: Priority;
+  status: TodoStatus;
+  assignee_id?: PrincipalId;
+  unit_ids: UnitId[];
+  resolutions?: TodoResolution[];
+  /**
+   * The inbox card the todo is on. Collaboration groups an owner's todos about one topic in one week on a card, at most 20 to a card.
+   *
+   */
+  batch_key?: string;
+  taxonomy_key?: TopicKey;
+  /**
+   * The fact slot a conflict or a note is about.
+   */
+  slot_key?: string;
+  week?: IsoWeek;
+  created_by: ComponentName;
+  created_at: Instant;
+  due_at?: Instant;
+  resolved_by?: PrincipalId;
+  /**
+   * Key of the chosen resolution.
+   */
+  resolved_with?: string;
+  resolved_at?: Instant;
+}
+/**
+ * A one-click resolution offered on a todo.
+ */
+export interface TodoResolution {
+  key: string;
+  label: string;
+  description?: string;
+  /**
+   * Machine-readable effect, interpreted by the todo's producer.
+   */
+  effect?: {
+    [k: string]: unknown | undefined;
+  };
+}
+/**
+ * One resolution a todo offers. For a conflict it chooses a value: the value, and the statement of it to show (one of the todo's statements, when the member may read it).
+ *
+ */
+export interface TodoChoice {
+  key: string;
+  label: string;
+  value?: string;
+  unit_id?: UnitId;
+}
+/**
  * Pushed into the search index as a pre-filter. A row matches when its space is in space_ids, its acl_tokens overlap principal_tokens, and its sensitivity is at most max_sensitivity. Results are still re-checked before they leave the server.
  *
  */
@@ -2463,6 +2576,17 @@ export interface ResearchReport {
   producer?: ProducerInfo;
 }
 /**
+ * How the member resolves a todo assigned to them: done with one of the resolutions it offers, or dismissed. The response is the closed Todo.
+ *
+ */
+export interface ResolveTodo {
+  /**
+   * The key of the chosen resolution.
+   */
+  with?: string;
+  status?: "done" | "dismissed";
+}
+/**
  * Freshness says units need a look, not what is wrong with them. Collaboration turns it into a todo, merging requests with the same dedupe_key into one open todo as it does for todo.requested; research may re-check the units itself.
  *
  */
@@ -2572,6 +2696,8 @@ export interface SlotVerdict {
    * The day governance decided as of.
    */
   decided_on?: string;
+  chosen_by?: PrincipalId;
+  chosen_at?: Instant;
 }
 /**
  * A structured procedure. Every step cites claims.
@@ -2727,73 +2853,6 @@ export interface SubscriptionInfo {
   scope_ids: string[];
   expires_at?: Instant;
 }
-/**
- * A topic in a space's knowledge outline (area, topic or subtopic, at most three levels). Statements are placed in topics (see Placement). Keys are stable across re-clustering and never reused.
- *
- */
-export interface TaxonomyNode {
-  key: TopicKey;
-  tenant_id: TenantId;
-  space_id: SpaceId;
-  title: string;
-  summary?: string;
-  parent_key?: TopicKey;
-  ordinal: number;
-  page_id?: PageId;
-  status?: TopicStatus;
-  owner_id?: PrincipalId;
-  /**
-   * Current statements placed in the topic, its subtopics included.
-   */
-  statement_count?: number;
-}
-export interface Todo {
-  id: TodoId;
-  tenant_id: TenantId;
-  space_id: SpaceId;
-  kind: TodoKind;
-  title: string;
-  detail?: Markdown;
-  priority: Priority;
-  status: TodoStatus;
-  assignee_id?: PrincipalId;
-  unit_ids: UnitId[];
-  resolutions?: TodoResolution[];
-  /**
-   * The inbox card the todo is on. Collaboration groups an owner's todos about one topic in one week on a card, at most 20 to a card.
-   *
-   */
-  batch_key?: string;
-  taxonomy_key?: TopicKey;
-  /**
-   * The fact slot a conflict or a note is about.
-   */
-  slot_key?: string;
-  week?: IsoWeek;
-  created_by: ComponentName;
-  created_at: Instant;
-  due_at?: Instant;
-  resolved_by?: PrincipalId;
-  /**
-   * Key of the chosen resolution.
-   */
-  resolved_with?: string;
-  resolved_at?: Instant;
-}
-/**
- * A one-click resolution offered on a todo.
- */
-export interface TodoResolution {
-  key: string;
-  label: string;
-  description?: string;
-  /**
-   * Machine-readable effect, interpreted by the todo's producer.
-   */
-  effect?: {
-    [k: string]: unknown | undefined;
-  };
-}
 export interface TodoCreated {
   todo_id: TodoId;
   kind: TodoKind;
@@ -2832,10 +2891,39 @@ export interface TodoRequested {
   slot_key?: string;
   suggested_assignee_id?: PrincipalId;
   /**
+   * What the person may choose, each with an effect the requester applies when the todo is resolved with it (todo.resolved). Without them, any resolution closes the todo.
+   *
+   */
+  resolutions?: TodoResolution[];
+  /**
    * The reason went away: collaboration dismisses the open todo with this key, and creates none when there is no open one. A later request with the key opens a new todo.
    *
    */
   withdrawn?: boolean;
+}
+/**
+ * A person, or an agent acting for one, closed a todo. The component that asked for it applies the chosen resolution's effect; the others ignore it. A todo the requester withdrew is dismissed without this event.
+ *
+ */
+export interface TodoResolved {
+  todo_id: TodoId;
+  kind: TodoKind;
+  space_id: SpaceId;
+  dedupe_key: string;
+  slot_key?: string;
+  created_by: ComponentName;
+  status: TodoStatus;
+  resolved_by: PrincipalId;
+  /**
+   * Key of the chosen resolution.
+   */
+  resolved_with?: string;
+  /**
+   * The chosen resolution's effect, as the requester offered it.
+   */
+  effect?: {
+    [k: string]: unknown | undefined;
+  };
 }
 export interface ToolSpec {
   name: ToolName;
@@ -2854,6 +2942,31 @@ export interface ToolSpec {
    * Typical size of the result for an agent, from the MCP tool table.
    */
   token_budget?: number;
+}
+/**
+ * The live topics of a space's knowledge outline, ordered by key; areas have no parent.
+ */
+export interface TopicList {
+  space_id: SpaceId;
+  topics: TaxonomyNode[];
+}
+/**
+ * One topic as the member may read it: its current statements and its subtopics', and those of every other value of the facts they fill, wherever they are stated, all marked as search marks them; the statements that hold in place of the outdated and disputed ones; and the facts.
+ *
+ */
+export interface TopicView {
+  topic: TaxonomyNode;
+  parent?: TaxonomyNode;
+  subtopics: TaxonomyNode[];
+  statements: SearchHit[];
+  held: SearchHit[];
+  /**
+   * The fact slots the statements fill, each with its label in the tenant's predicate catalogue.
+   */
+  facts: {
+    slot_key: string;
+    label?: string;
+  }[];
 }
 /**
  * Connector.fetch result when the known version is still current.

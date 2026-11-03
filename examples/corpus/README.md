@@ -69,7 +69,8 @@ area, using the fake embeddings, which only see shared characters:
 
 The demo stands in for the business layer: each topic's owner is the member who wrote most
 of its documents (front matter `owner`), so 9 of the 10 topics get one of two members. The
-inbox then puts each todo in front of its topic's owner:
+bench and `pnpm demo` assign them the same way (`assignOwners` in `apps/engine`). The inbox
+then puts each todo in front of its topic's owner:
 - the two conflicts (hotel cap, first-year leave) on their owners' cards for the week;
 - the minutes' budget deadline on the owner's notes card, outside the weekly budget of 10
   cards;
@@ -77,6 +78,11 @@ inbox then puts each todo in front of its topic's owner:
 
 Over the next sixty days the three process documents come due for review and join their
 owners' cards.
+
+Both conflicts land with 张敏: the notice that raises the hotel cap sits in 团队知识/通知 and
+is placed in the 新人入职指南 topic, which 张敏 owns. In the demo, 张敏 confirms 5 days of
+first-year leave; the onboarding guide's 7 days then reads as outdated in the guide, on the
+年休假 topic page and in answers.
 
 ## Permissions
 

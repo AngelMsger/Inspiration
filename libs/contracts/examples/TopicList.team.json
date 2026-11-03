@@ -1,0 +1,16 @@
+{
+  "space_id": "spc_01QINGHE00000000000000TEAM",
+  "topics": [
+    {
+      "key": "t-9dd9798c9aad",
+      "tenant_id": "ten_01QINGHE000000000000000001",
+      "space_id": "spc_01QINGHE00000000000000TEAM",
+      "title": "新人入职指南",
+      "ordinal": 4,
+      "statement_count": 10,
+      "status": "proposed",
+      "summary": "新人入职指南相关的规定与说明，见新人入职指南等文档。",
+      "owner_id": "mem_01QINGHE000000000ZHANGMIN"
+    }
+  ]
+}

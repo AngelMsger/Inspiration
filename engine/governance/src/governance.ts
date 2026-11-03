@@ -9,7 +9,6 @@ import {
   type KnowledgeStore,
   levelOf,
   newEvent,
-  type Priority,
   type ProducerInfo,
   payloadOf,
   type SlotStanding,
@@ -25,9 +24,11 @@ import {
 } from "@inspiration/contracts";
 import { defineTable, type RecordReader, type Records, type RecordTx } from "@inspiration/eventbus";
 import { logger } from "@inspiration/kernel";
+import { type ChoiceEffect, COMPONENT, decisionOf, noteOf, todoOf, withdrawal } from "./requests.ts";
 import {
   asOf,
   type CaseDraft,
+  type Choice,
   decide,
   governedIn,
   groupsOf,
@@ -38,9 +39,9 @@ import {
   withMember,
 } from "./slots.ts";
 
-const log = logger("governance");
+export { type ChoiceEffect, COMPONENT } from "./requests.ts";
 
-export const COMPONENT = "governance";
+const log = logger("governance");
 
 export const MEMBERS = defineTable<Member>("governance.members", {
   key: (m) => m.claim_id,
@@ -68,6 +69,8 @@ export interface SlotState {
   asked?: TodoRequested;
   /** The notes as last published, while their values are only stated by reference documents. */
   notes?: Note[];
+  /** A person's choice on the slot's todo, kept while governance would ask the same question. */
+  chosen?: Choice;
 }
 
 /**
@@ -137,7 +140,6 @@ function slotKey(tenantId: string, slot: string): string {
   return `${tenantId}\x1f${slot}`;
 }
 
-const PRIORITY: readonly Priority[] = ["low", "normal", "high", "urgent"];
 /**
  * Letters and digits a passage needs before two documents stating it are a copy rather than
  * two sources that happen to word a short rule alike.
@@ -220,74 +222,6 @@ function sourceKeysOf(
   };
 }
 
-/** "hotel_cap_per_night (tier-1 city)" */
-function slotLabel(slot: string): string {
-  const [predicate, ...qualifiers] = slot.split("|");
-  return qualifiers.length ? `${predicate} (${qualifiers.join(", ")})` : (predicate as string);
-}
-
-function statements(g: ValueGroup): string {
-  const n = (count: number, one: string) => `${count} ${one}${count === 1 ? "" : "s"}`;
-  return `${n(g.count, "statement")} in ${n(g.versions.length, "document")}, the most authoritative ${g.best.document}`;
-}
-
-/** The todo request for a slot's open cases. */
-function todoOf(decision: SlotDecision, open: readonly CaseDraft[], groups: Map<string, ValueGroup>): TodoRequested {
-  const { proposed } = decision;
-  const contenders = open.map((c) => groups.get(c.value) as ValueGroup);
-  const why = decision.change
-    ? `changed on ${decision.change.stated_from} in ${decision.change.document}`
-    : "the most authoritative source";
-  const detail = [
-    `- **${proposed.value}**, proposed (${why}): ${statements(proposed)}.`,
-    ...open.map(
-      (c) =>
-        `- ${c.value}, ${c.classification.replace(/_/g, " ")}: ${statements(groups.get(c.value) as ValueGroup)}. ${c.rationale}`,
-    ),
-  ].join("\n");
-  const priority = open.reduce<Priority>(
-    (p, c) => (PRIORITY.indexOf(c.priority) > PRIORITY.indexOf(p) ? c.priority : p),
-    "low",
-  );
-  const predicate = proposed.slot.split("|")[0] as string;
-  return {
-    kind: "conflict",
-    space_id: proposed.best.space_id,
-    title: `${slotLabel(proposed.slot)}: ${[proposed, ...contenders].map((g) => g.value).join(" or ")}`,
-    detail,
-    priority,
-    unit_ids: [proposed.best.claim_id, ...contenders.map((g) => g.best.claim_id)],
-    dedupe_key: `${COMPONENT}:conflict:${proposed.slot}`,
-    batch_key: `${COMPONENT}:conflict:${predicate}`,
-    slot_key: proposed.slot,
-  };
-}
-
-/** The request that withdraws an earlier one. */
-function withdrawal(request: TodoRequested): TodoRequested {
-  return { ...request, withdrawn: true };
-}
-
-/** The note for a value only reference documents state: what they say, and the governed value that holds. */
-function noteOf(proposed: ValueGroup, other: ValueGroup, draft: CaseDraft): Note {
-  const since = other.best.stated_from ?? other.best.document_from;
-  const request: TodoRequested = {
-    kind: "note",
-    space_id: proposed.best.space_id,
-    title: `${slotLabel(proposed.slot)}: ${other.value} in ${other.best.document}, ${proposed.value} holds`,
-    detail: [
-      `- **${proposed.value}** holds: ${statements(proposed)}.`,
-      `- ${other.value}${since ? ` (from ${since})` : ""}: ${statements(other)}. ${draft.rationale}`,
-    ].join("\n"),
-    priority: "low",
-    unit_ids: [proposed.best.claim_id, other.best.claim_id],
-    dedupe_key: `${COMPONENT}:note:${proposed.slot}:${other.value}`,
-    batch_key: `${COMPONENT}:note:${proposed.slot}`,
-    slot_key: proposed.slot,
-  };
-  return { request, said: contentHash(JSON.stringify([request.title, since ?? "", request.unit_ids])) };
-}
-
 /**
  * Governance: keeps every current claim with a slot and a value in its slot's value groups,
  * decides which value each slot should hold, records a conflict case against every other
@@ -340,8 +274,22 @@ export class Governance implements SlotVerdicts {
     await this.apply(event);
   };
 
+  readonly onTodoResolved: EventHandler = async (event: EventEnvelope) => {
+    await this.resolved(event);
+  };
+
   handlers(): Record<string, EventHandler> {
-    return { "claims.updated": this.onClaimsUpdated };
+    return { "claims.updated": this.onClaimsUpdated, "todo.resolved": this.onTodoResolved };
+  }
+
+  /**
+   * Apply what a person chose on one of governance's conflict todos: the slot holds that value
+   * while governance would ask the same question. A choice on a question it no longer asks
+   * asks the current one; a todo dismissed or closed without a choice is not asked again until
+   * the question changes. Delivering it again changes nothing.
+   */
+  async resolved(event: EventEnvelope): Promise<GovernanceResult> {
+    return this.#serial(event.tenant_id, () => this.#resolved(event));
   }
 
   /** The value groups of a slot and the decision over them. */
@@ -367,11 +315,12 @@ export class Governance implements SlotVerdicts {
       );
       const groups = asOf(stored, today).filter((g) => g.count > 0);
       if (!groups.length) continue;
-      const decision = decide(groups, today);
+      const state = await this.records.get(SLOTS, slotKey(tenantId, slot));
+      const { decision } = decisionOf(groups, today, state);
       const held = decision?.proposed ?? (groups[0] as ValueGroup);
       const cases = new Map((decision?.cases ?? []).map((c) => [c.value, c]));
       const standingOf = (c: CaseDraft | undefined): SlotStanding =>
-        c?.classification === "supersession"
+        c?.classification === "supersession" || c?.status === "resolved"
           ? "outdated"
           : c?.classification === "contradiction" && c.status === "open"
             ? "disputed"
@@ -397,6 +346,7 @@ export class Governance implements SlotVerdicts {
           }),
         ],
         decided_on: today,
+        ...(decision?.chosen && { chosen_by: decision.chosen.by, chosen_at: decision.chosen.at }),
       });
     }
     return out;
@@ -471,6 +421,42 @@ export class Governance implements SlotVerdicts {
         withdrawn: result.withdrawn.length,
       });
     }
+    return result;
+  }
+
+  async #resolved(event: EventEnvelope): Promise<GovernanceResult> {
+    const result: GovernanceResult = { slots: [], requests: [], notes: [], withdrawn: [] };
+    const r = payloadOf(event, "todo.resolved");
+    const slot = r.slot_key;
+    if (r.created_by !== COMPONENT || r.kind !== "conflict" || !slot) return result;
+    const effect = r.effect as Partial<ChoiceEffect> | undefined;
+    await this.records.transaction(async (tx) => {
+      if (!(await tx.firstDelivery(COMPONENT, event.id))) return;
+      const state = await tx.get(SLOTS, slotKey(event.tenant_id, slot));
+      if (!state) return;
+      // The todo is closed: nothing is left to withdraw.
+      const { asked: _asked, chosen: _chosen, ...rest } = state;
+      const chose = r.status === "done" && effect?.slot_key === slot && typeof effect.value === "string";
+      let next: SlotState = rest;
+      if (chose && state.requested && effect.question === state.requested) {
+        next = {
+          ...rest,
+          chosen: {
+            value: effect.value as string,
+            by: r.resolved_by,
+            at: event.occurred_at,
+            question: state.requested,
+          },
+        };
+      } else if (chose) next = { ...rest, requested: "" };
+      await tx.put(SLOTS, [next]);
+      const { request, notes, withdrawn } = await this.#decide(tx, event.tenant_id, slot, event);
+      result.slots.push(slot);
+      if (request) result.requests.push(request);
+      result.notes.push(...notes);
+      result.withdrawn.push(...withdrawn);
+    });
+    this.#count(result);
     return result;
   }
 
@@ -627,7 +613,8 @@ export class Governance implements SlotVerdicts {
       this.#members(tx, tenantId, slot, value, tx),
     );
     if (recounted.length) await tx.put(VALUE_GROUPS, recounted);
-    const decision = decide(stored, today);
+    const state = await tx.get(SLOTS, slotKey(tenantId, slot));
+    const { decision, question } = decisionOf(stored, today, state);
     const recheck = await tx.get(RECHECKS, slotKey(tenantId, slot));
     const next = decision ? nextChangeDay(stored, today) : undefined;
     // Cases, notes and todos name what each value rests on today.
@@ -675,7 +662,6 @@ export class Governance implements SlotVerdicts {
         ...(cause && { causation: cause }),
         occurredAt: this.clock(),
       });
-    const state = await tx.get(SLOTS, slotKey(tenantId, slot));
     const withdrawn: TodoRequested[] = [];
 
     // A note is published again only when what it says changed (Note.said), not whenever
@@ -692,16 +678,12 @@ export class Governance implements SlotVerdicts {
 
     // Only a slot that governed documents state has an owner to ask.
     const open = (decision?.cases ?? []).filter((c) => c.status === "open");
+    // A person's choice leaves no case open, so the slot asks nothing while it holds.
     const asks = decision !== undefined && open.length > 0 && governedIn(decision.proposed) > 0;
-    const fingerprint =
-      decision && asks
-        ? contentHash(
-            JSON.stringify([decision.proposed.value, open.map((c) => [c.value, c.classification, c.priority])]),
-          )
-        : "";
+    const fingerprint = asks ? question : "";
     const request =
       decision && asks && (state?.requested ?? "") !== fingerprint
-        ? todoOf(decision, open, new Map(groups.map((g) => [g.value, g])))
+        ? todoOf(decision, open, new Map(groups.map((g) => [g.value, g])), question)
         : undefined;
     if (!asks && state?.asked) withdrawn.push(withdrawal(state.asked));
 
@@ -713,6 +695,7 @@ export class Governance implements SlotVerdicts {
       requested: fingerprint,
       ...(asked && { asked }),
       ...(published.length > 0 && { notes: published }),
+      ...(decision?.chosen && { chosen: decision.chosen }),
     };
     if (canonicalJson(updated) !== canonicalJson(state ?? { tenant_id: tenantId, slot, requested: "" })) {
       await tx.put(SLOTS, [updated]);

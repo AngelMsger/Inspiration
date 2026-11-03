@@ -14,6 +14,10 @@ import {
   type DocumentTreeNode,
   type DocumentView,
   type GroundedAnswer,
+  type Inbox,
+  type InboxTodo,
+  type TopicList,
+  type TopicView,
 } from "@inspiration/contracts";
 import { testData } from "@inspiration/testkit";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
@@ -28,11 +32,14 @@ const DATA = testData<{
   budget: { item: string; title: string; folder: string };
   question: string;
   search: string;
+  leave: { topic: string; fact: string; slot: string; question: string; values: string[]; titles: string[] };
 }>(import.meta.url, "corpus.yaml");
 const TRAVEL = DATA.travel.item;
 const BUDGET = DATA.budget.item;
 // In the finance group, which alone reads the internal budget note.
 const LI_NA = "mem_01QINGHE00000000000000LINA";
+// Wrote the attendance policy and the onboarding guide, so owns their topics.
+const ZHANG_MIN = "mem_01QINGHE000000000ZHANGMIN";
 
 let engine: Engine;
 let server: Server;
@@ -152,6 +159,73 @@ describe("engine HTTP API", () => {
     expect(
       (await call(`/v0/documents?source=${POLICIES}&item=${encodeURIComponent(BUDGET)}`, { member: LI_NA })).status,
     ).toBe(200);
+  });
+
+  test("lists a space's topics, and shows one with every value of the facts it holds", async () => {
+    const list = await call(`/v0/spaces/${POLICY}/topics`);
+    expect(contractErrors("TopicList", list.body)).toEqual([]);
+    const leave = (list.body as unknown as TopicList).topics.find((t) => t.title === DATA.leave.topic);
+    expect(leave).toBeDefined();
+    const { status, body } = await call(`/v0/topics/${leave?.key}`);
+    expect(status).toBe(200);
+    expect(contractErrors("TopicView", body)).toEqual([]);
+    const view = body as unknown as TopicView;
+    const fact = view.facts.find((f) => f.slot_key === DATA.leave.slot);
+    expect(fact?.label).toBe(DATA.leave.fact);
+    // The guide's 7 days live in another topic, and still show against the policy's 5.
+    expect(
+      view.statements
+        .filter((h) => h.slot_key === fact?.slot_key)
+        .map((h) => [h.title, h.standing])
+        .sort(),
+    ).toEqual(
+      [
+        [DATA.leave.titles[0], "holds"],
+        [DATA.leave.titles[1], "disputed"],
+      ].sort(),
+    );
+    expect((await call("/v0/topics/t-nothing")).status).toBe(404);
+  });
+
+  // Last: the choice changes what the tenant knows.
+  test("a todo's owner sees what it asks them to choose, and the choice changes the answer", async () => {
+    const reader = await call("/v0/inbox");
+    expect(reader.body).toEqual({ cards: [] });
+    const { status, body } = await call("/v0/inbox", { member: ZHANG_MIN });
+    expect(status).toBe(200);
+    expect(contractErrors("Inbox", body)).toEqual([]);
+    const leave = (body as unknown as Inbox).cards
+      .flatMap((c) => c.todos)
+      .find((t) => t.todo.slot_key === DATA.leave.slot) as InboxTodo;
+    const titleOf = new Map(leave.statements.map((h) => [h.unit_id, h.title]));
+    expect(leave.choices.map((c) => [c.value, titleOf.get(c.unit_id ?? "")])).toEqual(
+      DATA.leave.values.map((v, i) => [v, DATA.leave.titles[i]]),
+    );
+    const notes = async () =>
+      (
+        (await call("/v0/answers", { body: { question: DATA.leave.question } })).body as unknown as GroundedAnswer
+      ).notes?.map((n) => n.kind) ?? [];
+    expect(await notes()).toContain("conflict");
+
+    const resolve = (body: unknown, member = ZHANG_MIN) => call(`/v0/todos/${leave.todo.id}/resolve`, { member, body });
+    // The owner confirms the value governance proposed.
+    const proposed = leave.choices[0]?.key;
+    expect((await resolve({ with: proposed }, corpus.reader.id)).status).toBe(404);
+    expect((await resolve({ with: "choose:9 day" })).status).toBe(400);
+    expect((await resolve({})).status).toBe(400);
+    const done = await resolve({ with: proposed });
+    expect(done.status).toBe(200);
+    expect(contractErrors("Todo", done.body)).toEqual([]);
+    expect(done.body).toMatchObject({ status: "done", resolved_by: ZHANG_MIN, resolved_with: proposed });
+
+    // The guide's 7 days no longer stand against the policy: they are out of date.
+    expect(await notes()).toEqual(["outdated"]);
+    const after = (await call("/v0/inbox", { member: ZHANG_MIN })).body as unknown as Inbox;
+    expect(after.cards.flatMap((c) => c.todos).map((t) => t.todo.id)).not.toContain(leave.todo.id);
+    const topic = (await call(`/v0/topics/${leave.todo.taxonomy_key}`)).body as unknown as TopicView;
+    expect(topic.statements.filter((h) => h.slot_key === leave.todo.slot_key).map((h) => h.standing)).toEqual(
+      expect.arrayContaining(["holds", "outdated"]),
+    );
   });
 
   test("refuses a request without a member, and a body that is not valid", async () => {

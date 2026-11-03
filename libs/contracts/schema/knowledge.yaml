@@ -988,7 +988,8 @@ $defs:
     description: >
       Where one value of a fact slot stands with governance today. holds: the value
       governance proposes. outdated: a supersession puts the held value in its place (an
-      older edition, a translation behind its original). disputed: an open contradiction
+      older edition, a translation behind its original), or a person chose the held value
+      over it. disputed: an open contradiction
       with the held value, for a person to decide. differs: another difference, such as a
       scope, a plan or a value only reference documents state.
     type: string
@@ -1041,6 +1042,13 @@ $defs:
         description: The day governance decided as of.
         type: string
         format: date
+      chosen_by:
+        description: >
+          The person, or the agent acting for one, who chose the held value on a conflict todo.
+          The choice holds while governance would ask the same question.
+        $ref: "common.yaml#/$defs/PrincipalId"
+      chosen_at:
+        $ref: "common.yaml#/$defs/Instant"
 
   ConflictCase:
     description: A suspected conflict between claims, found by governance.

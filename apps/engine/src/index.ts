@@ -8,7 +8,8 @@
  * one, everything stays in memory.
  *
  * Corpus is the prototype's provisioning, standing in for the business layer: a corpus.yaml
- * declares a tenant, its spaces, sources and a stand-in directory. Runs over a corpus, their
+ * declares a tenant, its spaces, sources and a stand-in directory, and assignOwners gives each
+ * topic the member who wrote most of it (owners.ts). Runs over a corpus, their
  * reports and the checks against hand-written answers are the measurement harness's
  * (apps/bench).
  *
@@ -24,4 +25,5 @@
 export { Corpus, CorpusError, type CorpusManifest } from "./corpus.ts";
 export { Engine, type EngineOptions } from "./engine.ts";
 export { apiHandler, type Directory, serveApi } from "./http.ts";
+export { assignOwners, type TopicOwners } from "./owners.ts";
 export { seed } from "./serve.ts";
