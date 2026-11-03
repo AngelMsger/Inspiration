@@ -12,12 +12,13 @@
     "contracts:check": "node libs/contracts/codegen/generate.ts --check",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web/tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web/tsconfig.json && tsc -p apps/site/tsconfig.json",
     "test": "vitest run",
     "test:unit": "INSPIRATION_STACK=off vitest run",
     "bench": "node apps/bench/src/cli.ts",
     "engine": "node apps/engine/src/serve.ts",
-    "demo": "node apps/web/src/demo.ts"
+    "demo": "node apps/web/src/demo.ts",
+    "site": "node apps/site/src/build.ts"
   },
   "dependencies": {
     "@inspiration/access-control": "workspace:*",

@@ -21,3 +21,6 @@ config/gateway.yaml
 .idea/
 .vscode/
 .DS_Store
+
+# The product website build
+apps/site/dist/

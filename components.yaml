@@ -14,6 +14,8 @@
 #            in_progress = someone is building it (put the branch in `owner`).
 # runtime:   node (a TypeScript package) or python (a worker behind an HTTP contract).
 # plugins:   plugin groups the component's package declares, migrations included.
+# publishes, subscribes and calls give the whole design, planned parts included; a built
+#            component's `owns` ends with what is still planned ("Planned are ...").
 # calls:     the only synchronous dependencies allowed: other components, or `blobs`
 #            (the kernel's blob store). A built component's package may depend on the
 #            libraries below and on the components it calls, nothing else.
@@ -27,7 +29,7 @@ components:
     layer: ingest
     status: built
     runtime: node
-    owns: One integration per vendor (Feishu first) for sync and agent tools alike, a typed client over the vendor's API with one scope set and one rate budget per connection and a share kept for interactive tool calls; enumeration, fetch, ACL read, webhooks; Feishu docs, wiki, approval and upload connectors; registered queries for QueryData. Planned on the same client are agent tools (agent_tools plugins), each acting as the member with the member's own connection, and credentials only as leases from the credential broker
+    owns: One integration per vendor (Feishu first) for sync and agent tools alike, which enumerates, fetches and reads ACLs; built for local folders, and for Feishu documents and approvals against recorded fixtures. Planned are the typed client over the live vendor API, with one scope set and one rate budget per connection and a share kept for interactive tool calls; webhooks, which publish source.changed; Feishu wiki and upload connectors; registered queries for QueryData; agent tools (agent_tools plugins), each acting as the member with the member's own connection; credentials only as leases from the credential broker
     plugins: [connectors]
     publishes: [source.changed]
     subscribes: []
@@ -38,7 +40,7 @@ components:
     layer: ingest
     status: built
     runtime: node
-    owns: Cursors, 15-minute polls, nightly reconcile, rate budgets, subscription upkeep, debounce; stores source versions and ACL snapshots
+    owns: Lists a source page by page, fetches the items whose hashes changed, and stores source versions, tombstones and ACL snapshots with each version's governance level; syncs a source or one item when asked. Planned are 15-minute polls and the nightly reconcile as schedules, rate budgets, subscription upkeep, debounce, publishing source.changed, SourceSync.fetch_now, the Documents tree
     plugins: [migrations]
     publishes: [source.changed, document.fetched, acl.changed]
     subscribes: [source.changed]
@@ -60,7 +62,7 @@ components:
     layer: ingest
     status: built
     runtime: node
-    owns: Parser routing (built-in text parsers, the parsing worker for Office, PDF and scans), canonical blocks and spans with stable IDs, block diff against the previous version, duplicate documents and editions of one document
+    owns: Parser routing over the built-in Markdown, text, HTML and CSV parsers; canonical blocks and spans with stable IDs; block diff against the previous version; duplicate documents and editions of one document. Planned are Office, PDF and scans through the parsing worker, a language tag per block, mirror pages
     plugins: [parsers, migrations]
     publishes: [blocks.changed]
     subscribes: [document.fetched]
@@ -71,7 +73,7 @@ components:
     layer: compile
     status: built
     runtime: node
-    owns: Claims with evidence, entity resolution, SOPs from documents and approval mining, knowledge models
+    owns: Claims with verbatim evidence, fact-slot keys, reading by governance level and extract on use; facts a version stops stating, kept and marked, with a todo for their owner. Planned are entity resolution, SOPs from documents and approval mining, knowledge models, the artifact.dirty and comment.created subscriptions
     plugins: [migrations, model_mocks]
     publishes: [claims.updated, todo.requested]
     subscribes: [blocks.changed, artifact.dirty, comment.created]
@@ -82,7 +84,7 @@ components:
     layer: compile
     status: built
     runtime: node
-    owns: Dependency graph, dirty marking with early cutoff, staleness scores, TTL and assumption schedulers, copies an edit left behind
+    owns: Review clocks by knowledge class and plan day, staleness scores, copies and translations an edit left behind. Planned are the dependency graph and dirty marking with early cutoff (artifact.dirty), verification expiry
     plugins: [migrations]
     publishes: [artifact.dirty, review.due]
     subscribes: [blocks.changed, claims.updated]
@@ -93,7 +95,7 @@ components:
     layer: compile
     status: built
     runtime: node
-    owns: Conflict tiers and judge, citation audit, claim merge, coverage gaps, taxonomy gardener, each with a token budget
+    owns: Fact-slot values counted by independent source, the value that holds, conflict cases and todo requests from the deterministic tier, notes on values only reference documents state, daily rechecks of dated changes. Planned are the semantic, NLI and model-judge tiers (through model-gateway and agent-runtime), citation audit, claim merge (claims.updated), coverage gaps and the taxonomy gardener, each with a token budget
     plugins: [migrations]
     publishes: [todo.requested, claims.updated]
     subscribes: [claims.updated]
@@ -104,7 +106,7 @@ components:
     layer: compile
     status: built
     runtime: node
-    owns: Taxonomy clustering with stable keys and statement placements, cited page synthesis, diagram compilers, PageSpec output and page snapshots
+    owns: Topics with stable keys and statement placements, re-clustered within a change budget and named by the model. Planned are cited page synthesis, diagram compilers, PageSpec output and page snapshots (page.rendered), the artifact.dirty subscription
     plugins: [migrations, model_mocks]
     publishes: [page.rendered]
     subscribes: [artifact.dirty, claims.updated]
@@ -115,7 +117,7 @@ components:
     layer: control
     status: built
     runtime: node
-    owns: The inbox (todos merged by dedupe key, routed to topic owners, on weekly cards within a budget; notes; first-review campaigns), comments and anchoring, agent replies, overrides, publish state machine, quality gates, verification expiry
+    owns: The inbox, with todos merged by dedupe key, routed to topic owners, on weekly cards within a budget; notes; first-review campaigns. Planned are comments and anchoring (comment.created), agent replies, overrides (claims.updated), the publish state machine (unit.published), quality gates, verification expiry, reacting to page.rendered
     plugins: [migrations]
     publishes: [comment.created, unit.published, todo.created, claims.updated]
     subscribes: [page.rendered, comment.created, todo.requested, todo.created, review.due]
@@ -126,7 +128,7 @@ components:
     layer: store
     status: built
     runtime: node
-    owns: Schema, migrations, repository API, lineage, bitemporal reads, page snapshots, ACL snapshots, DataRef resolution (rows keep claim IDs for per-reader filtering), pgvector and pg_search index backends
+    owns: Schema, migrations, repository API, lineage, bitemporal reads, page snapshots, ACL snapshots, DataRef resolution (rows keep claim IDs for per-reader filtering), pgvector and pg_search index backends, and for now the chunk tables. Planned are entities, relations and procedures; handing the chunk tables and index backends to retrieval, which owns every index (adopted 2026-10-24)
     plugins: [migrations, vector_indexes, keyword_indexes]
     publishes: []
     subscribes: []
@@ -137,7 +139,7 @@ components:
     layer: serve
     status: built
     runtime: node
-    owns: Chunks of every document with a contextual header, an embedding and ACL tokens, kept across versions; hybrid search (vector and keyword indexes, RRF), the reranker over statements and passages together, ACL pre-filter and post-check; grounded answers that give the value governance holds, in the question's language, with notes on disputed and replaced values, read from the latest edition of a document the asker can read; questions searched in every pack language too; mature-RAG and long-context baselines to measure answers against, and a governed long context that reads everything the asker may read after governance. Planned are page, procedure and entity indexes (claims.updated, artifact.dirty, page.rendered, unit.published), FAQ precompute and the semantic cache
+    owns: Chunks of every document with a contextual header, an embedding and ACL tokens, kept across versions; hybrid search (vector and keyword indexes, RRF), the reranker over statements and passages together, ACL pre-filter and post-check; grounded answers that give the value governance holds, in the question's language, with notes on disputed and replaced values, read from the latest edition of a document the asker can read; questions searched in every pack language too; mature-RAG and long-context baselines to measure answers against, and a governed long context that reads everything the asker may read after governance. Planned are its own chunk tables and index backends, now in the knowledge store; page, procedure and entity indexes (claims.updated, artifact.dirty, page.rendered, unit.published), FAQ precompute and the semantic cache
     plugins: [migrations, model_mocks]
     publishes: []
     subscribes: [acl.changed, blocks.changed, claims.updated, artifact.dirty, page.rendered, unit.published]
@@ -159,7 +161,7 @@ components:
     layer: control
     status: built
     runtime: node
-    owns: SpiceDB schema and graph, source ACL mirroring, the derived-knowledge rule, search pre-filters, oversharing scan, audit log; people and groups arrive from the business layer's directory
+    owns: SpiceDB schema and graph, and an in-memory graph for tests; source ACL mirroring, the derived-knowledge rule over lineage, search pre-filters, agent scopes; people and groups arrive from the business layer's directory. Planned are the two-domain space and proof rules that replace source ACLs and the lineage rule (adopted 2026-10-24), the oversharing scan, the audit log
     plugins: []
     publishes: []
     subscribes: [acl.changed]
@@ -170,7 +172,7 @@ components:
     layer: control
     status: built
     runtime: node
-    owns: Provider routing by sensitivity, budgets, prompt registry, response cache, cost metering, eval harness; the HTTP service other runtimes call
+    owns: Provider routing by sensitivity, budgets, prompt registry, response cache, cost metering; the HTTP service other runtimes call. Planned are web_search, an eval harness
     plugins: [migrations, model_providers]
     publishes: []
     subscribes: []
@@ -181,7 +183,7 @@ components:
     layer: control
     status: built
     runtime: node
-    owns: The loop built-in agents run on (AgentSpec, tool registry, step and token limits, structured output) and their run traces; the gate every tool call passes, since a model chose it from content that may be hostile (operations the spec allows, validated arguments, read or propose only, a trace entry per call)
+    owns: The loop built-in agents run on (AgentSpec, tool registry, step and token limits, structured output) and their run traces; the gate every tool call passes, since a model chose it from content that may be hostile (operations the spec allows, validated arguments, read or propose only, a trace entry per call). No built-in agent runs on it yet. Planned are edits a member asked for (knowledge.write)
     plugins: [migrations]
     publishes: []
     subscribes: []
@@ -255,3 +257,5 @@ apps:
   bench:
     owns: The measurement harness and its CLI (pnpm bench); ingest runs and volume reports, the control check, history replay, questions and answers, the reading check, cost, synthetic corpora
     uses: [engine]
+  site:
+    owns: The product website (pnpm site); static pages in English, Chinese and Japanese from language packs, a scripted demo of the product, and no download or sign-up while in development

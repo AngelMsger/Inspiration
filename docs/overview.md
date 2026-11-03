@@ -1,6 +1,6 @@
 # Inspiration: product requirements and technical architecture
 
-Version 2, as of 2026-10-27. This document replaces the first product and technical overview and folds in every discussion on it. Part I is the product requirements: who Inspiration is for, the scenarios it must handle and what it must do. Part II is the technical architecture: how it is built, and how we know the hard parts can work. Part III is the plan: where we are, what comes next, the risks and the decisions. Every requirement and component says whether it is built, designed, proposed or still open. The design documents listed at the end hold the details. A Chinese copy is in [zh/overview.md](zh/overview.md); if the two differ, this English version wins.
+Version 2, as of 2026-10-27; the state of each part was brought up to date on 2026-11-03. This document replaces the first product and technical overview and folds in every discussion on it. Part I is the product requirements: who Inspiration is for, the scenarios it must handle and what it must do. Part II is the technical architecture: how it is built, and how we know the hard parts can work. Part III is the plan: where we are, what comes next, the risks and the decisions. Every requirement and component says whether it is built, designed, proposed or still open. The design documents listed at the end hold the details. A Chinese copy is in [zh/overview.md](zh/overview.md); if the two differ, this English version wins.
 
 | If you want to know | Read |
 | --- | --- |
@@ -44,7 +44,7 @@ Four bets set Inspiration apart, each answering a failure of today's tools:
 
 **Who it is for.** Teams and companies whose knowledge lives across several tools (Feishu or Lark, Confluence, approval systems, file shares, PDFs). It starts with one person's library and grows into teams and companies. The strongest early uses are governing procedures and policies across tools, and a governed knowledge endpoint for a company's own agents. It is sold as SaaS first, with private deployment as a second profile of the same code. English, Chinese and Japanese are supported from the first release, as one knowledge base: knowledge is language-neutral, and language is only how it is expressed.
 
-**Where it stands.** The engine runs end to end on a mocked model through seven stages: ingest, extraction, governance, freshness, governance levels, topics and the inbox, all merged on `main`, and its language rules live in resource files. Pages, search, the agent API, the business layer and the UI are designed but not built. Real models are switched on once the mocked pipeline covers every stage.
+**Where it stands.** The engine runs end to end on a mocked model through seven stages: ingest, extraction, governance, freshness, governance levels, topics and the inbox, all merged on `main`, and its language rules live in resource files. Search and grounded answers are built too. Pages, the agent API, the business layer and the UI are designed but not built. Since 2026-10-27, real models have been used to validate the knowledge core first, before the remaining stages are built ([validation](design/validation.md)).
 
 **What is new in this version.** It is written as a PRD plus an architecture, with scenarios that say why each design exists and a feasibility section that says what is proven and what is not. It also takes in the decisions and proposals from the discussions since the first version:
 
@@ -684,7 +684,7 @@ Each section of [`components.yaml`](../components.yaml) maps to one folder. A pa
 | Stage | Component | Job | State |
 | --- | --- | --- | --- |
 | Ingest | connectors | One integration per vendor: list, fetch, read ACLs, webhooks, agent tools. Built: local folders, Feishu documents and approvals (recorded fixtures) | Built |
-| Ingest | source-sync | Versions, tombstones, ACL snapshots, polls and reconcile; later `fetch_now` and the Documents tree | Built |
+| Ingest | source-sync | Versions, tombstones, ACL snapshots, polls and reconcile; later `fetch_now` and the Documents tree | Built; poll and reconcile schedules planned (a sync runs when called) |
 | Ingest | parsing | Python worker for Office, PDF and scans (Docling, PaddleOCR-VL) behind an HTTP contract | Planned |
 | Ingest | normalization | Canonical blocks and spans with stable IDs, block diff, duplicate documents; later mirror pages | Built |
 | Ingest | research | Research agent over the agent API and approved web search; reports become sources | Planned |
@@ -694,13 +694,13 @@ Each section of [`components.yaml`](../components.yaml) maps to one folder. A pa
 | Compile | governance | Slot values, conflict cases with a proposed value, todo requests, notes; later model-judge tiers and rules | Built |
 | Compile | page-compiler | Topics and placements; later cited pages, the omission check, diagrams, snapshots | Topics built |
 | Store | knowledge-store | The only owner of knowledge tables: lineage, bitemporal reads, slots, topics, page snapshots | Built |
-| Serve | retrieval | Every search index; hybrid search, rerank, permission filters, grounded answers | Built for passages and statements; page, procedure and entity indexes planned |
+| Serve | retrieval | Every search index; hybrid search, rerank, permission filters, grounded answers | Built for passages, with the statements they quote joined at query time; also two baselines to measure answers against (a mature RAG and long context), a governed long context and compact answers; its own chunk tables, now in `kb`, and page, procedure and entity indexes planned |
 | Serve | agent-api | MCP server, REST and OpenAPI, Skills export, per-call audit | Planned |
 | Serve | views | Interactive view templates, generation, render check, sandbox hosting | Planned |
 | Control | collaboration | The inbox; later comments, overrides, publishing, decisions, releases | Inbox built |
 | Control | access-control | Permissions on SpiceDB, search pre-filters, audit | Built; space and proof rules designed |
 | Control | model-gateway | Every model call: routing by sensitivity, budgets, prompts, cache, metering | Built |
-| Control | agent-runtime | The loop built-in agents run on: tools, limits, approval gates, traces | Built |
+| Control | agent-runtime | The loop built-in agents run on: tools, limits, approval gates, traces | Built; no built-in agent runs on it yet |
 | Control | credential-broker | Tenant and member connections, encrypted secrets, refresh, short-lived leases | Designed |
 | Control | sandbox | One isolated container per job for code we did not write | Designed |
 
@@ -726,7 +726,7 @@ There are exactly three paths, and the manifest test enforces that a package use
 
 1. **Events.** A component writes its data and its events in one Postgres transaction (a transactional outbox). A relay moves them to Valkey Streams, one stream per event type, and each consuming component reads with its own consumer group. Delivery is at least once, so handlers are idempotent. Events that cannot be parsed, are newer than the consumer knows, or keep failing go to a dead-letter stream. Payloads carry IDs and codes, never sentences.
 2. **The knowledge store's repository API.** No component reads another component's tables.
-3. **Synchronous interfaces** from the contracts package: `AuthZ`, `ModelGateway`, `Retriever`, `AgentRuntime`, the blob store, and later `SourceSync.fetch_now`, `CredentialBroker` and `Sandbox`. Each has an in-process implementation and, where useful, an HTTP one with the same interface.
+3. **Synchronous interfaces** from the contracts package: `AuthZ`, `ModelGateway`, `Retriever`, `AgentRuntime`, the blob store, `SlotVerdicts` (governance) and `StalenessReader` (freshness), which retrieval reads while it answers, and later `SourceSync.fetch_now`, `CredentialBroker` and `Sandbox`. Each has an in-process implementation and, where useful, an HTTP one with the same interface.
 
 ```mermaid
 flowchart LR
@@ -754,14 +754,14 @@ flowchart LR
 
 | Event | Published by | Consumed by | State |
 | --- | --- | --- | --- |
-| `source.changed` | connectors, source-sync, research | source-sync | Built |
+| `source.changed` | connectors, source-sync, research | source-sync | Consumer built; publishers planned (webhooks, polls, research), so a sync runs when called |
 | `document.fetched` | source-sync | normalization | Built |
-| `acl.changed` | source-sync | access-control; collaboration for the source-restricted todo | Built |
+| `acl.changed` | source-sync | access-control, retrieval; collaboration for the source-restricted todo (planned) | Built |
 | `blocks.changed` | normalization | extraction, freshness, retrieval | Built |
-| `claims.updated` | extraction, governance, collaboration | freshness, governance, page-compiler, retrieval | Built |
+| `claims.updated` | extraction; governance and collaboration (planned) | freshness, governance, page-compiler; retrieval (planned) | Built |
 | `artifact.dirty` | freshness | extraction, page-compiler, retrieval | Planned |
 | `review.due` | freshness | collaboration, research | Built |
-| `todo.requested` | governance; views and page-compiler (designed) | collaboration | Built |
+| `todo.requested` | extraction, governance; views and page-compiler (designed) | collaboration | Built |
 | `todo.created` | collaboration | business layer | Built |
 | `page.rendered` | page-compiler | collaboration, retrieval, views | Planned |
 | `comment.created` | collaboration | extraction, collaboration | Planned |
@@ -1018,13 +1018,13 @@ The prototype runs on mocked models on purpose: it proves the pipeline, the volu
 
 | Hard part | Evidence today | Not yet proven | How we find out | If it falls short |
 | --- | --- | --- | --- | --- |
-| Extracting statements with verbatim evidence | The quote check is enforced by the store; extraction runs end to end on mocks | Quality and recall with real models on real documents | A capped probe, then the G1 evaluation (entailment at or above 95%) | Governance levels keep extraction to governed documents; low-confidence statements stay Reference |
+| Extracting statements with verbatim evidence | The quote check is enforced by the store; on the company drive a real model reads 77% of keyed values at 53% precision, against bars of 85% and 90% ([validation](design/validation.md)) | Quality and recall with real models on real documents | A capped probe, then the G1 evaluation (entailment at or above 95%) | Governance levels keep extraction to governed documents; low-confidence statements stay Reference |
 | Fact slots across documents | 59% of statements land in a slot on the synthetic tenant; typed values built | How varied real predicates and qualifiers are | Run the probe on a real policy library; owners confirm the predicate catalogue | Statements without a slot are grouped by page section and still cited |
 | Topics people can own | No statement moved without cause; first-review campaigns work | Topic size with real embeddings (fake embeddings made topics about ten times too big) | Re-measure with Qwen3-Embedding | The Trace view is designed for about 1,000 statements per topic; owners can split topics |
 | Review load | Median 1, max 4 cards per owner per week over a simulated year | Real conflict rates and owner behaviour | Conflict precision at G1; weekly active owners at G2 | Levels, the weekly budget, precedence rules and change reviews |
 | Incremental freshness at scale | 10,000 documents: 72 s to sync, 535 s to settle; 1 of 175 edits asked a person | Real change patterns, webhooks and rate limits in a live Feishu tenant | The pilot tenant | The nightly full listing catches whatever push and polls miss |
 | Permissions without leaks or blank pages | SpiceDB checks, scope filters and consistency tokens built; the compiled-knowledge design has eight acceptance tests | Precision of the omission check, which needs a model for "the other side" | An evaluation set of balanced arguments and abuse cases; the red team | Three of the four triggers need no model; "publish with a note" is always available |
-| Answers and agent efficiency | Contracts in place | Retrieval quality and tokens per task | Recall@10 and tokens per task against a chunk-only baseline (G1, G2) | Hybrid search with rerank; tools return handles before text |
+| Answers and agent efficiency | Answers built and measured on real models: of 150 questions on the company drive, a mature RAG 137, Inspiration 134 with 5,538 input tokens per answer against 9,936, compact answers 128 with 2,075 ([validation](design/validation.md)); the agent API is not built | Retrieval quality and tokens per task | Recall@10 and tokens per task against a chunk-only baseline (G1, G2) | Hybrid search with rerank; tools return handles before text |
 | Knowledge across languages | Language packs and language-neutral keys built | Missed and wrong merges across languages | A three-language evaluation corpus | Unmerged statements stay duplicates, never false conflicts |
 | Parsing Office, PDF and scans | Built-in text parsers | Throughput and layout quality, especially on domestic accelerators | Benchmark Docling and PaddleOCR-VL on the customer's hardware early in a pilot | A router with confidence escalation; placeholders that say "open in source" |
 | Feishu and Lark in production | Connectors built against recorded fixtures; single-flight refresh designed | Rate limits and token refresh on a real tenant | The pilot tenant | Reserved rate share for interactive calls; re-authorization todos |
@@ -1039,6 +1039,7 @@ The prototype runs on mocked models on purpose: it proves the pipeline, the volu
 - **Tests on both backends.** Unit tests use in-memory doubles; code with a Postgres, Valkey or SpiceDB implementation runs the same tests against the real stack. `make check` runs Biome, strict `tsc`, contract freshness and every test with the stack up.
 - **A demo tenant and a scale generator.** `examples/corpus` is Qinghe Technology, with planted duplicates and conflicts; `pnpm bench synthesize` writes synthetic tenants of any size, and `pnpm bench ingest` prints a volume report.
 - **Every change lands through a pull request.** The product owner's local Codex reviews it; findings are fixed and the PR is merged. Correctness comes first, then layering, clear component boundaries and explicit contracts.
+- **Complexity is kept down on purpose.** Build only what a requirement in force needs; an abstraction needs two users; reuse before adding a helper or a package; files at most 800 lines and functions at most a cognitive complexity of 40, both checked; at most one folder level under a package's `src/` and no grab-bag files; a new folder, library, app, component or plugin group needs the product owner's agreement first. [AGENTS.md](../AGENTS.md), "Keeping the code simple", has the rules.
 - **Names describe what things do.** No plan numbers in code, docs or events. [AGENTS.md](../AGENTS.md) has the full rules for anyone, human or agent, building a component.
 
 **Technology stack.**
@@ -1084,7 +1085,7 @@ flowchart TB
 
 **Built and merged on `main`:** contracts, kernel, event bus, test kit, knowledge store, access control, model gateway, agent runtime, connectors, source sync, normalization, extraction, governance, freshness, tenant-scoped member IDs, and the engine process with its CLI, demo corpus and synthesizer (PRs #2 to #7); governance levels, fact-slot keys and extract on use, topics and placements, and the inbox (PRs #8 to #10); language rules in resource files for en, zh and ja with a repo test against Chinese and Japanese in code (PRs #12 and #13); the move into a folder per layer (PR #15); the design documents (PRs #11 and #14) and this overview as product requirements and technical architecture (PR #17); a value from statements not yet in effect lends no authority (PR #16); a control corpus whose cases each have one right answer, with the engine's known gaps recorded (PR #18); who owns vendor integrations, the tool gate and the sandbox in `components.yaml` (PR #19); a snapshot of the UI screens (PR #20); and the design for code repositories (PRs #21 to #23).
 
-**Built, in review** (PRs #27 to #30): the replay of a real policy through its edit history; facts a new version stops stating are kept, marked; values counted by independent source, with copies and translations once, and the original holding over a translation that says otherwise; real pages of the Kubernetes documentation in English, Chinese and Japanese; and retrieval, with search and answers that give the value that holds, checked with 12 questions in three languages.
+**Built and merged since** (PRs #27 to #86): the replay of a real policy through its edit history; facts a new version stops stating are kept, marked; values counted by independent source, with copies and translations once, and the original holding over a translation that says otherwise; real pages of the Kubernetes documentation in English, Chinese and Japanese; and retrieval, with search and answers that give the value that holds, checked with 12 questions in three languages (PRs #27 to #33); answers from the latest edition of a document (#38); cheap real runs with dry-run pricing, a response cache and a day budget (#39, #45); whole passages, a real embedding and reranker, query translation, the two baselines, a governed long context and compact answers (#59 to #66, #74); native Anthropic and OpenAI-compatible providers for the fast-model arm (#75); and the decisive test's corpus, fact catalogue and free preflight (#78, #79, #83, #84). What the real-model runs found is in [Validating the knowledge core](design/validation.md).
 
 **Measured** on a synthetic tenant of 10,000 documents with the mocked model and fake embeddings (Postgres and Valkey). These numbers describe volumes and the pipeline, not model quality:
 
@@ -1109,7 +1110,7 @@ Topics come out about ten times larger than the design target of about 100 state
 
 ## 24. Next steps and effort
 
-The rule is to mock every model call until each stage runs end to end, and only then switch on real models. The proposed order of the remaining stages, for discussion:
+The rule was to mock every model call until each stage runs end to end, and only then switch on real models. On 2026-10-27 the product owner put validating the knowledge core with real models first ([validation](design/validation.md)); the stages below follow its result. The proposed order of the remaining stages, for discussion:
 
 1. **Engine side of the business contract:** the principal token, provisioning and the seed command, the space and proof rules in access-control, and domain keys on slots and conflicts.
 2. **Pages and views of sources:** cited page synthesis for an audience, `PageSpec` snapshots and diffs, the dependency graph with `artifact.dirty`, mirror pages and the Documents tree.
@@ -1176,6 +1177,9 @@ After that, pilot and product-v1 work for Artifact-level editing (templates, Wor
 | 2026-10-27 | Concrete before abstract: an imported source opens as a document in its own shape, and knowledge is revealed from it step by step, concrete to abstract; someone new starts in their documents, not in knowledge cards |
 | 2026-10-27 | The Sources tree is called the Documents tree (文档树, ドキュメントツリー), the word people use for their material, although it also holds chats and sheets; a source is still a source wherever a page cites it |
 | 2026-10-27 | Connections that bring knowledge in are Source connections (来源连接, ソース接続), and "connection" alone always means one; the apps and agents that use knowledge are Apps with access (proposed: 使用知识的应用, アクセスを許可したアプリ), never connected apps. There is no Verified domains page: the email domain for joining sits in Members, and the company's Feishu organization beside Source connections |
+| 2026-10-27 | Validate the knowledge core (extraction and governance) on real models first; the business layer and permissions can wait. Every run leaves a trace in the repo and its replies are kept, so nothing is paid for twice |
+| 2026-10-28 | Inspiration must lead a mature RAG by at least 10 points on stale and conflicting information, within one topic's material, on fast and cheap models as well as strong ones; organizing knowledge must never lose the right value |
+| 2026-11-01 | Cost, accuracy and latency are judged together. The cheapest provider runs the tests; a cheap GPT model or Claude Haiku only backs a conclusion. If governance cannot set the product apart, the fallback is a knowledge and identity gateway for agents |
 
 ## 27. Open questions
 

@@ -183,6 +183,12 @@ importers:
         specifier: workspace:*
         version: link:../../libs/testkit
 
+  apps/site:
+    dependencies:
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
+
   apps/web:
     dependencies:
       '@inspiration/contracts':

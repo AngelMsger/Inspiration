@@ -125,7 +125,13 @@ export class MemoryGraph implements Graph {
   }
 
   async read(resourceType: string, resourceId?: string, relation?: string): Promise<Relationship[]> {
-    const found = [...this.#rels.values()].flatMap((bucket) =>
+    // One object's relation is one bucket: scanning them all made every document check cost the
+    // size of the whole graph.
+    const buckets =
+      resourceId !== undefined && relation !== undefined
+        ? [this.#rels.get(objectKey({ type: resourceType, id: resourceId }, relation)) ?? new Map()]
+        : [...this.#rels.values()];
+    const found = buckets.flatMap((bucket) =>
       [...bucket.values()].filter(
         (r) =>
           r.resource.type === resourceType &&

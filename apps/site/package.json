@@ -1,0 +1,14 @@
+{
+  "name": "@inspiration/site",
+  "version": "0.1.0",
+  "description": "The product website: static pages in English, Chinese and Japanese with a scripted demo; no download while in development",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node src/build.ts",
+    "serve": "node src/build.ts --serve"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  }
+}

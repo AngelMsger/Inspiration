@@ -120,9 +120,10 @@ There are exactly three paths.
    `KnowledgeStore`. No component reads another component's tables.
 3. **Synchronous calls** to the interfaces in `libs/contracts/src/interfaces.ts`:
    `AuthZ` (access-control), `ModelGateway` (model-gateway), `Retriever` (retrieval),
-   `AgentRuntime` (agent-runtime) and the blob store. Each has an in-process
-   implementation and, where useful, an HTTP one with the same interface (the model
-   gateway has both today). `components.yaml` lists which calls each component may make,
+   `AgentRuntime` (agent-runtime), the blob store, and `SlotVerdicts` (governance) and
+   `StalenessReader` (freshness), which retrieval reads while it answers: the value that
+   holds in a slot, and how stale a unit is. Each has an in-process implementation and,
+   where useful, an HTTP one with the same interface (the model gateway has both today). `components.yaml` lists which calls each component may make,
    and the manifest test checks that a package depends on nothing else.
 
 The main flow, from a changed document to a fresh page:

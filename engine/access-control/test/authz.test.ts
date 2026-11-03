@@ -232,6 +232,15 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
       expect(await w.authz.graph.read("document", documentObjectId(w.source, "doc-managers"))).toEqual([]);
     });
 
+    test("reading one object's relation gives what a wider read narrows to", async ({ w }) => {
+      await w.authz.mirror(acl(w.source, "doc-managers", [entry("group", w.ids.managers)]), { spaceId: w.space });
+      const one = await w.authz.graph.read("source", w.source, "space");
+      expect(one.map((r) => r.subject.id)).toEqual([w.space]);
+      const all = await w.authz.graph.read("source");
+      expect(one).toEqual(all.filter((r) => r.resource.id === w.source && r.relation === "space"));
+      expect(await w.authz.graph.read("source", "src_unknown", "space")).toEqual([]);
+    });
+
     test("documents inherit their folder's ACL", async ({ w }) => {
       await w.authz.mirror(acl(w.source, "folder", [entry("user", w.ids.carol)]), { spaceId: w.space });
       await w.authz.mirror(acl(w.source, "folder/report.docx", [], "folder"), { spaceId: w.space });

@@ -17,6 +17,6 @@
     "skipLibCheck": true
   },
   "include": ["libs", "engine", "business", "apps", "test", "vitest.config.ts"],
-  // The web app compiles for the browser with its own settings (apps/web/tsconfig.json).
-  "exclude": ["**/node_modules", "apps/web"]
+  // The web app and the site's client compile for the browser with their own settings.
+  "exclude": ["**/node_modules", "apps/web", "apps/site/src/client"]
 }

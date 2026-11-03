@@ -9,7 +9,7 @@
 import type { DocBlock, FileMeta, ParseResult, Parser } from "@inspiration/contracts";
 import { type ChildNode, type Element, isTag, isText } from "domhandler";
 import { parseDocument } from "htmlparser2";
-import { decode, producer } from "./shared.ts";
+import { decode, producer } from "./parser.ts";
 
 const SKIP = new Set(["script", "style", "head", "noscript", "template", "svg", "nav"]);
 const HEADINGS: Record<string, number> = { h1: 1, h2: 2, h3: 3, h4: 4, h5: 5, h6: 6 };

@@ -84,6 +84,7 @@ business/           business-layer packages (none yet); engine/ and libs/ never 
 apps/engine         the engine process: wires the components to the store, the bus and the blob store; HTTP API
 apps/web            the product web app over the engine's HTTP API, and a stand-in backend (pnpm demo)
 apps/bench          the measurement harness (pnpm bench): runs the engine over a corpus, reports, checks answers
+apps/site           the product website (pnpm site): static pages in three languages with a scripted demo
 examples/<corpus>   corpora with the answers runs are checked against (see examples/README.md)
 infra/              docker compose for the prototype stack, and a local embedding server for runs
 config/             example configuration of the model gateway
