@@ -21,8 +21,8 @@
  * build with a RangeError naming it.
  */
 
-import { mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createServer } from "node:http";
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from "node:fs";
+import { createServer, type Server } from "node:http";
 import { stripTypeScriptTypes } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -99,27 +99,46 @@ export function build(options: BuildOptions): Map<string, string> {
   return pages;
 }
 
-function write(pages: Map<string, string>, out: string): void {
-  rmSync(out, { recursive: true, force: true });
+/**
+ * Writes the pages built with `root` into `out`. The folder may hold other files, so only the
+ * builder's own paths are touched: every page is overwritten, and the root language's
+ * `<root>/index.html`, left by an earlier build with another root, is removed.
+ */
+export function write(pages: Map<string, string>, out: string, root: string): void {
+  const stale = join(out, root);
+  rmSync(join(stale, "index.html"), { force: true });
+  if (existsSync(stale) && readdirSync(stale).length === 0) rmdirSync(stale);
   for (const [path, html] of pages) {
     mkdirSync(dirname(join(out, path)), { recursive: true });
     writeFileSync(join(out, path), html);
   }
 }
 
-function serve(options: BuildOptions, port: number): void {
-  createServer((req, res) => {
-    const url = new URL(req.url ?? "/", "http://localhost");
-    const path = url.pathname.replace(/^\//, "").replace(/(^|\/)$/, "$1index.html");
+/** The page a request target asks for, or undefined when the target is not a URL path. */
+function pageFor(target: string): string | undefined {
+  if (!URL.canParse(target, "http://localhost")) return undefined;
+  const { pathname } = new URL(target, "http://localhost");
+  return pathname.replace(/^\//, "").replace(/(^|\/)$/, "$1index.html");
+}
+
+/** A server for the pages that rebuilds them on every request, so an edit shows on reload. */
+export function server(options: BuildOptions): Server {
+  return createServer((req, res) => {
+    const text = (status: number, body: string) => {
+      res.writeHead(status, { "content-type": "text/plain; charset=utf-8" });
+      res.end(body);
+    };
+    const path = pageFor(req.url ?? "/");
+    if (path === undefined) return text(400, "Bad request");
     try {
       const html = build(options).get(path);
-      res.writeHead(html ? 200 : 404, { "content-type": "text/html; charset=utf-8" });
-      res.end(html ?? "Not found");
+      if (!html) return text(404, "Not found");
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      res.end(html);
     } catch (error) {
-      res.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
-      res.end(String(error));
+      text(500, String(error));
     }
-  }).listen(port, () => console.log(`site: http://localhost:${port}/`));
+  });
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
@@ -137,10 +156,12 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     explicitIndex: values.preview,
     fragment: values.preview,
   };
-  if (values.serve) serve(options, Number(values.port));
-  else {
+  if (values.serve) {
+    const port = Number(values.port);
+    server(options).listen(port, () => console.log(`site: http://localhost:${port}/`));
+  } else {
     const pages = build(options);
-    write(pages, values.out);
+    write(pages, values.out, options.root);
     console.log(`site: ${[...pages.keys()].join(", ")} in ${values.out}`);
   }
 }
