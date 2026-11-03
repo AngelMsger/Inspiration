@@ -24,8 +24,8 @@ const CEILINGS: Record<string, number> = {
 const GENERATED = new Set(["libs/contracts/src/generated.ts", "libs/contracts/src/events.ts"]);
 const GRAB_BAGS = /^(utils?|helpers?|misc|common|shared)(\.|$)/;
 
-/** Hand-written TypeScript in the packages and the repo-wide tests, tracked or new. */
-const files = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "*.ts"], {
+/** Hand-written TypeScript (.ts and .tsx) in the packages and the repo-wide tests, tracked or new. */
+const files = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "*.ts", "*.tsx"], {
   cwd: ROOT,
   encoding: "utf8",
 })
