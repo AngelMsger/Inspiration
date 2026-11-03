@@ -13,7 +13,7 @@
  *
  * The replay also counts what each version asked of people: the todos it raised, by kind;
  * the open todos it gave more to decide (a list of statements no longer stated that grew),
- * which ask again; the todos withdrawn without a person; and the conflict cases governance
+ * which ask again, but not a statement a refresh showed in place of a superseded one; the todos withdrawn without a person; and the conflict cases governance
  * opened, with how many it settled without a person. With a timeline, a fact changed in a
  * version when the value in effect differs from the one before (a value that appears or
  * stops being stated counts too), so the report gives asks per changed fact. The first
@@ -269,16 +269,18 @@ async function asked(
   seen: { todos: Map<string, { open: boolean; units: Set<string> }>; cases: Set<string> },
 ): Promise<StepAsks> {
   const asks = noAsks();
-  for (const { todo } of await engine.inbox.items(tenantId)) {
+  for (const { todo, refreshed } of await engine.inbox.items(tenantId)) {
     const open = todo.status === "open";
     const before = seen.todos.get(todo.id);
     seen.todos.set(todo.id, { open, units: new Set(todo.unit_ids) });
+    // A statement a refresh showed in place of a superseded one is not more to decide.
+    const swapped = new Set(refreshed);
     if (!before) {
       if (todo.kind === "note") asks.notes++;
       else add(asks.todos, todo.kind);
     } else if (before.open && !open && todo.resolved_with === "withdrawn") {
       asks.withdrawn++;
-    } else if (open && todo.unit_ids.some((id) => !before.units.has(id))) {
+    } else if (open && todo.unit_ids.some((id) => !before.units.has(id) && !swapped.has(id))) {
       add(asks.more, todo.kind);
     }
   }

@@ -45,6 +45,11 @@ export interface Item {
   with_todo?: string;
   /** A review already due when freshness first saw its document: first-review campaign work. */
   campaign?: true;
+  /**
+   * Units refreshes showed in place of superseded ones since the todo last asked something new
+   * (TodoRequested.refresh): they ask nothing new, so review load leaves them out.
+   */
+  refreshed?: string[];
 }
 
 export const ITEMS = defineTable<Item>("collaboration.items", {
@@ -102,6 +107,8 @@ interface Request {
   resolutions?: TodoResolution[];
   due_at?: string;
   campaign?: boolean;
+  /** Shows the open todo's question with current statements; opens no todo. */
+  refresh?: boolean;
 }
 
 /** The topic a todo's units are placed in, and who owns it. */
@@ -205,6 +212,7 @@ export class Inbox {
       dedupe_key: r.dedupe_key,
       ...(r.slot_key !== undefined && { slot_key: r.slot_key }),
       ...(r.resolutions?.length && { resolutions: r.resolutions }),
+      ...(r.refresh && { refresh: true }),
     });
   };
 
@@ -367,19 +375,30 @@ export class Inbox {
         if (!(await tx.firstDelivery(COMPONENT, event.id))) return undefined;
         this.totals.received++;
         const [open] = await tx.find(ITEMS, { tenant_id: tenantId, dedupe_key: request.dedupe_key, status: OPEN });
+        if (!open && request.refresh) return undefined;
         if (open) {
           // A later request replaces what the todo says; where it sits stays.
           const { detail: _detail, slot_key: _slot, resolutions: _resolutions, ...todo } = open.todo;
-          open.todo = {
-            ...todo,
-            title: request.title,
-            priority: request.priority,
-            unit_ids: request.unit_ids,
-            ...(request.detail !== undefined && { detail: request.detail }),
-            ...(request.slot_key !== undefined && { slot_key: request.slot_key }),
-            ...(request.resolutions && { resolutions: request.resolutions }),
+          // A refresh adds the units it swapped in to what earlier ones did; a new ask clears them.
+          const { refreshed, ...rest } = open;
+          const shown = new Set(todo.unit_ids);
+          const swapped = request.refresh
+            ? [...new Set([...(refreshed ?? []), ...request.unit_ids.filter((id) => !shown.has(id))])]
+            : [];
+          const replaced: Item = {
+            ...rest,
+            todo: {
+              ...todo,
+              title: request.title,
+              priority: request.priority,
+              unit_ids: request.unit_ids,
+              ...(request.detail !== undefined && { detail: request.detail }),
+              ...(request.slot_key !== undefined && { slot_key: request.slot_key }),
+              ...(request.resolutions && { resolutions: request.resolutions }),
+            },
+            ...(swapped.length > 0 && { refreshed: swapped }),
           };
-          await tx.put(ITEMS, [open]);
+          await tx.put(ITEMS, [replaced]);
           this.totals.merged++;
           return undefined;
         }

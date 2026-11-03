@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { type Claim, type ClaimsUpdated, newEvent } from "@inspiration/contracts";
+import { type Claim, type ClaimsUpdated, newEvent, type TodoRequested } from "@inspiration/contracts";
 import { describe, expect } from "vitest";
 import { MEMBERS, RECHECKS, sourcesOf, VALUE_GROUPS, type ValueGroup } from "../src/index.ts";
 import { BACKENDS, governanceTest, HOTEL, SPACE, TENANT, type World } from "./fixtures.ts";
@@ -81,6 +81,42 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
   const test = governanceTest(backend);
 
   describe.skipIf(skip)("governance", () => {
+    describe("once the revised policy states the change itself", () => {
+      const revised = async (world: World) => {
+        await world.state({ ...POLICY, effective_from: "2026-10-01" }, [
+          { text: "The hotel cap in tier-1 cities is 650 yuan a night.", value: 650 },
+        ]);
+        await world.state({ title: "Notice on the tier-1 city hotel standard", authority: 0.5 }, [
+          {
+            text: "From 1 October 2026 the hotel cap rises from 600 to 650 yuan a night.",
+            value: 650,
+            from: "2026-10-01",
+          },
+        ]);
+      };
+      const against = async (world: World) =>
+        (await world.governance.conflicts(TENANT)).map((c) => [c.classification, c.status]);
+
+      test("an older document that still says 600 is out of date, and its owner is still asked", async ({ world }) => {
+        await revised(world);
+        await world.state({ title: "Onboarding guide", authority: 0.5, effective_from: "2026-03-01" }, [
+          { text: "Hotels in tier-1 cities: up to 600 yuan a night.", value: 600 },
+        ]);
+        const { decision } = await world.governance.slot(TENANT, HOTEL);
+        expect([decision?.proposed.value, decision?.basis]).toEqual(["650 CNY/night", "authority"]);
+        expect(await against(world)).toEqual([["supersession", "open"]]);
+        expect((await world.requests()).map((r) => r.kind)).toEqual(["conflict"]);
+      });
+
+      test("a document dated after the change that still says 600 is in dispute", async ({ world }) => {
+        await revised(world);
+        await world.state({ title: "Sales handbook", authority: 0.5, effective_from: "2026-10-12" }, [
+          { text: "Hotels in tier-1 cities: up to 600 yuan a night.", value: 600 },
+        ]);
+        expect(await against(world)).toEqual([["contradiction", "open"]]);
+      });
+    });
+
     test("a dated change outranks the policy until it is revised; archived values settle alone", async ({ world }) => {
       const policy = await world.state(POLICY, [
         { text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 },
@@ -856,6 +892,38 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         ["conflict", true],
         ["conflict", false],
       ]);
+    });
+
+    test("an open todo whose statement goes, while another says the same, shows that one instead", async ({
+      world,
+    }) => {
+      const policy = await world.state(POLICY, [
+        { text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 },
+      ]);
+      const guide = await world.state(GUIDE, [
+        { text: "On trips to Beijing, hotels within 700 yuan a night.", value: 700 },
+      ]);
+      const forwarded = await world.state({ title: "Forwarded guide", authority: 0.4 }, [
+        { text: "Hotels in Beijing up to 700 yuan a night.", value: 700 },
+      ]);
+      // Another document saying 700 changes counts, not what the todo shows.
+      expect(forwarded.result.requests).toEqual([]);
+
+      // The question stays (600 proposed, 700 contradicts it), so the todo is sent again for the
+      // statement it now shows, marked a refresh: collaboration replaces the open one.
+      const closed = await world.close(guide.claims);
+      expect(closed.requests.map((r) => [r.unit_ids, r.refresh])).toEqual([
+        [[policy.claims[0]?.id, forwarded.claims[0]?.id], true],
+      ]);
+      expect(closed.requests[0]?.detail).toContain("1 statement in 1 document, the most authoritative Forwarded guide");
+      expect(closed.withdrawn).toEqual([]);
+
+      // A todo closed without a choice is not sent again when its statement goes.
+      await world.resolve(closed.requests[0] as TodoRequested, { status: "dismissed" });
+      await world.state({ title: "Team wiki", authority: 0.3 }, [
+        { text: "Beijing hotels: 700 yuan a night at most.", value: 700 },
+      ]);
+      expect((await world.close(forwarded.claims)).requests).toEqual([]);
     });
   });
 });

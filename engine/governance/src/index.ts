@@ -19,8 +19,9 @@
  *   statement rests on (MIN_COPY letters and digits at least, compared without case, spaces
  *   or punctuation) are one source.
  * - Every other value gets a ConflictCase from the deterministic tier: a supersession
- *   (auto-resolved when only archived documents state it), plan versus fact, or a
- *   contradiction, with the proposed value's best claim in effect as proposed_winner_id.
+ *   (auto-resolved when only archived documents state it; open when it predates a dated
+ *   change to the proposed value, its own or one that beat the leader), plan versus fact, or
+ *   a contradiction, with the proposed value's best claim in effect as proposed_winner_id.
  * - Governed documents decide a slot they state. A value only reference documents state is
  *   an auto-resolved contradiction, and a change a reference document dates moves nothing;
  *   the case names that change, so the owner learns of it. Governance publishes a note for
@@ -33,7 +34,10 @@
  * - When a slot's open cases or proposed value change, governance publishes one
  *   todo.requested for the slot (dedupe_key "governance:conflict:<slot>"); a new statement
  *   that only repeats a known value asks for nothing, and neither does a slot only reference
- *   documents state, which has no owner. Collaboration owns the todo.
+ *   documents state, which has no owner. While the todo is open and a statement it shows is
+ *   superseded (a new edition of a policy drops its old value, which a guide still states), the
+ *   same question is sent again marked refresh, showing the statements that say it now, and
+ *   collaboration replaces the open todo; it asks nothing new. Collaboration owns the todo.
  * - When the reason for a request or a note goes away (the slot stops asking, or the value
  *   is no longer stated by reference documents alone), governance publishes it again marked
  *   withdrawn, and collaboration dismisses the open todo.

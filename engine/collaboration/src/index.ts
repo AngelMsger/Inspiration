@@ -5,7 +5,9 @@
  * On todo.requested and review.due the inbox keeps one open todo per dedupe_key: a later
  * request with the key replaces its title, detail, priority and units and leaves it where it
  * is; a new one publishes todo.created. A request marked withdrawn dismisses the open todo
- * with its key (resolved_with "withdrawn") and opens nothing. Reviews become todos by kind:
+ * with its key (resolved_with "withdrawn") and opens nothing. A request marked refresh only
+ * replaces an open todo, and the item keeps the units it swapped in (Item.refreshed) so
+ * review load does not count them as more to decide. Reviews become todos by kind:
  * ttl and verification_expiry are review_due, assumption is assumption_drift,
  * evidence_changed is stale.
  *

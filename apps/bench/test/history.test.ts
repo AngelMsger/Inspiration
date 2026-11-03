@@ -5,7 +5,15 @@ import { fileURLToPath } from "node:url";
 import { Corpus, Engine } from "@inspiration/engine";
 import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
-import { type History, inEffect, loadHistory, loadTimeline, replay, type Timeline } from "../src/index.ts";
+import {
+  type History,
+  inEffect,
+  loadHistory,
+  loadTimeline,
+  type ReplayReport,
+  replay,
+  type Timeline,
+} from "../src/index.ts";
 
 const EXPENSES = fileURLToPath(new URL("../../../examples/gitlab-expenses/", import.meta.url));
 
@@ -93,14 +101,13 @@ describe("the GitLab expense policy history", { timeout: 60_000 }, () => {
   });
 });
 
-test("a statement that leaves an open todo and comes back gives it more to decide each time it comes back", async () => {
+/** Replay the versions of one handbook page, each a list of lines, through a fresh engine. */
+async function replayPage(
+  versions: string[][],
+  then: (report: ReplayReport, engine: Engine, tenant: string) => Promise<void>,
+) {
   const dir = await mkdtemp(join(tmpdir(), "inspiration-history-"));
   const blobDir = await mkdtemp(join(tmpdir(), "inspiration-history-"));
-  const hotel = "- Hotel stays are reimbursable up to $600 USD per night.";
-  const meal = "- Meals while traveling are reimbursable, up to $100 USD per day.";
-  const other = "- Book every trip through the travel desk.";
-  // Both, neither, the hotel back, the hotel gone again, both back.
-  const versions = [[hotel, meal], [other], [hotel], [other], [hotel, meal]];
   try {
     for (const file of ["corpus.yaml", "vocabulary.yaml"]) await copyFile(join(EXPENSES, file), join(dir, file));
     await mkdir(join(dir, "handbook", "finance"), { recursive: true });
@@ -121,15 +128,7 @@ test("a statement that leaves an open todo and comes back gives it more to decid
       vocabulary: () => corpus.vocabulary,
     });
     try {
-      const report = await replay(engine, dir, history, (at) => (now = at));
-      expect(report.steps.map((s) => s.asks)).toMatchObject([
-        { todos: {} },
-        { todos: { unstated: 1 } },
-        { more: {} },
-        { more: { unstated: 1 } },
-        { withdrawn: 1 },
-      ]);
-      expect(report.review).toMatchObject({ todos: 1, more: 1, withdrawn: 1 });
+      await then(await replay(engine, dir, history, (at) => (now = at)), engine, corpus.tenantId);
     } finally {
       await engine.close();
     }
@@ -137,6 +136,41 @@ test("a statement that leaves an open todo and comes back gives it more to decid
     await rm(dir, { recursive: true, force: true });
     await rm(blobDir, { recursive: true, force: true });
   }
+}
+
+test("a statement that leaves an open todo and comes back gives it more to decide each time it comes back", async () => {
+  const hotel = "- Hotel stays are reimbursable up to $600 USD per night.";
+  const meal = "- Meals while traveling are reimbursable, up to $100 USD per day.";
+  const other = "- Book every trip through the travel desk.";
+  // Both, neither, the hotel back, the hotel gone again, both back.
+  await replayPage([[hotel, meal], [other], [hotel], [other], [hotel, meal]], async (report) => {
+    expect(report.steps.map((s) => s.asks)).toMatchObject([
+      { todos: {} },
+      { todos: { unstated: 1 } },
+      { more: {} },
+      { more: { unstated: 1 } },
+      { withdrawn: 1 },
+    ]);
+    expect(report.review).toMatchObject({ todos: 1, more: 1, withdrawn: 1 });
+  });
+});
+
+test("a todo shown a statement in place of a superseded one is not given more to decide", async () => {
+  const capped = "- Hotel stays are capped at $300 USD per night.";
+  const lines = [
+    "- Hotel stays are reimbursable up to $300 USD per night.",
+    "- Hotel stays: up to $300 USD per night.",
+    "- Hotel stays are reimbursable up to $400 USD per night in New York.",
+  ];
+  // The todo shows the capped line for 300; the next version drops it, and 300 still leads.
+  await replayPage([[...lines, capped], lines], async (report, engine, tenant) => {
+    const [item] = await engine.inbox.items(tenant, { open: true });
+    expect(item?.refreshed).toHaveLength(1);
+    expect(report.steps.map((s) => [s.asks.todos, s.asks.more])).toEqual([
+      [{ conflict: 1 }, {}],
+      [{}, {}],
+    ]);
+  });
 });
 
 describe("history.yaml and timeline.yaml", () => {

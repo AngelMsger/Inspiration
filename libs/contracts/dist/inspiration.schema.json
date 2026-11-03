@@ -7890,6 +7890,10 @@
         "withdrawn": {
           "description": "The reason went away: collaboration dismisses the open todo with this key, and creates none when there is no open one. A later request with the key opens a new todo.\n",
           "type": "boolean"
+        },
+        "refresh": {
+          "description": "The same question, showing the statements that say each value now (one it showed was superseded): collaboration replaces the open todo with this key, and creates none when there is no open one. It asks nothing new.\n",
+          "type": "boolean"
         }
       }
     },

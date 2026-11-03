@@ -681,9 +681,19 @@ export class Governance implements SlotVerdicts {
     // A person's choice leaves no case open, so the slot asks nothing while it holds.
     const asks = decision !== undefined && open.length > 0 && governedIn(decision.proposed) > 0;
     const fingerprint = asks ? question : "";
+    // A changed question is asked. The open todo of the same question is sent again, marked a
+    // refresh, only when a statement it shows was superseded, so it never shows one that no
+    // longer says its value; other documents repeating a value do not send it. A todo closed
+    // without a choice has no `asked`, so it is not asked again.
+    const shown = asks && state?.requested === fingerprint ? (state.asked?.unit_ids ?? []) : [];
+    const stale = shown.length > 0 && (await tx.getMany(MEMBERS, shown)).length < shown.length;
+    const asking = (state?.requested ?? "") !== fingerprint;
     const request =
-      decision && asks && (state?.requested ?? "") !== fingerprint
-        ? todoOf(decision, open, new Map(groups.map((g) => [g.value, g])), question)
+      decision && asks && (asking || stale)
+        ? {
+            ...todoOf(decision, open, new Map(groups.map((g) => [g.value, g])), question),
+            ...(!asking && { refresh: true }),
+          }
         : undefined;
     if (!asks && state?.asked) withdrawn.push(withdrawal(state.asked));
 

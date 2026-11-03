@@ -2900,6 +2900,11 @@ export interface TodoRequested {
    *
    */
   withdrawn?: boolean;
+  /**
+   * The same question, showing the statements that say each value now (one it showed was superseded): collaboration replaces the open todo with this key, and creates none when there is no open one. It asks nothing new.
+   *
+   */
+  refresh?: boolean;
 }
 /**
  * A person, or an agent acting for one, closed a todo. The component that asked for it applies the chosen resolution's effect; the others ignore it. A todo the requester withdrew is dismissed without this event.
