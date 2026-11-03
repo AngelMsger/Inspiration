@@ -6,9 +6,10 @@
  * reply as the gateway cached it, readable for an audit.
  */
 
-import { createReadStream } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { once } from "node:events";
+import { createReadStream, createWriteStream } from "node:fs";
 import { createInterface } from "node:readline";
+import { finished } from "node:stream/promises";
 import type { ValkeyCache } from "@inspiration/model-gateway";
 
 /** Writes every cached reply to file and returns how many there were. */
@@ -16,7 +17,11 @@ export async function exportReplies(cache: ValkeyCache, file: string): Promise<n
   const lines: string[] = [];
   for await (const [key, value] of cache.entries()) lines.push(JSON.stringify({ key, reply: JSON.parse(value) }));
   lines.sort(); // the same replies make the same file
-  await writeFile(file, lines.map((l) => `${l}\n`).join(""));
+  // Line by line: the decisive test's 1.2 GB of replies is past the longest string V8 allows.
+  const out = createWriteStream(file);
+  for (const line of lines) if (!out.write(`${line}\n`)) await once(out, "drain");
+  out.end();
+  await finished(out);
   return lines.length;
 }
 
