@@ -90,6 +90,8 @@ export type Score01 = number;
 export type ClaimStatus =
   "proposed" | "active" | "verified" | "disputed" | "superseded" | "retracted";
 export type EntityId = string;
+export type ApiErrorCode =
+  "bad_request" | "unauthenticated" | "forbidden" | "not_found" | "internal";
 export type ApprovalAction =
   | "start"
   | "approve"
@@ -297,6 +299,20 @@ export type DocBlockKind =
   | "form_field"
   | "page_break"
   | "other";
+export type HitKind = "claim" | "sop" | "section" | "page" | "entity" | "chunk" | "knowledge_model";
+export type FreshnessState = "fresh" | "aging" | "stale" | "at_risk";
+export type ReviewStatus = "unreviewed" | "verified" | "disputed" | "published";
+/**
+ * Where one value of a fact slot stands with governance today. holds: the value governance proposes. outdated: a supersession puts the held value in its place (an older edition, a translation behind its original). disputed: an open contradiction with the held value, for a person to decide. differs: another difference, such as a scope, a plan or a value only reference documents state.
+ *
+ */
+export type SlotStanding = "holds" | "outdated" | "disputed" | "differs";
+/**
+ * How much of a source the engine governs. governed: fully extracted, and its claims get owners, review clocks and conflict todos. reference: extracted only on use (a passage that touches a catalogue slot, or one a page or an answer cites), with no owners, reviews or todos; a value that differs from a governed one is a note, never a conflict todo. search_only: never extracted, only searched.
+ *
+ */
+export type GovernanceLevel = "governed" | "reference" | "search_only";
+export type DocumentTreeNodeKind = "source" | "folder" | "document";
 /**
  * Qwen3-Embedding and similar models embed queries with an instruction prefix and documents without.
  */
@@ -309,7 +325,6 @@ export type EventId = string;
  */
 export type EventType = string;
 export type FeedbackKind = "wrong" | "outdated" | "missing" | "unclear" | "helpful";
-export type FreshnessState = "fresh" | "aging" | "stale" | "at_risk";
 export type GatewayErrorCode =
   | "budget_exceeded"
   | "no_route"
@@ -319,12 +334,6 @@ export type GatewayErrorCode =
   | "bad_request"
   | "cache_miss";
 export type GatewayOperation = "complete" | "embed" | "rerank" | "ocr";
-/**
- * How much of a source the engine governs. governed: fully extracted, and its claims get owners, review clocks and conflict todos. reference: extracted only on use (a passage that touches a catalogue slot, or one a page or an answer cites), with no owners, reviews or todos; a value that differs from a governed one is a note, never a conflict todo. search_only: never extracted, only searched.
- *
- */
-export type GovernanceLevel = "governed" | "reference" | "search_only";
-export type HitKind = "claim" | "sop" | "section" | "page" | "entity" | "chunk" | "knowledge_model";
 /**
  * An ISO 8601 week, "2026-W44".
  */
@@ -383,12 +392,6 @@ export type ViewTheme = "light" | "dark";
  *
  */
 export type ReviewDueKind = "ttl" | "assumption" | "verification_expiry" | "evidence_changed";
-export type ReviewStatus = "unreviewed" | "verified" | "disputed" | "published";
-/**
- * Where one value of a fact slot stands with governance today. holds: the value governance proposes. outdated: a supersession puts the held value in its place (an older edition, a translation behind its original). disputed: an open contradiction with the held value, for a person to decide. differs: another difference, such as a scope, a plan or a value only reference documents state.
- *
- */
-export type SlotStanding = "holds" | "outdated" | "disputed" | "differs";
 export type SopId = string;
 /**
  * Where an SOP statement comes from; shown to readers and reviewers.
@@ -632,6 +635,15 @@ export interface SearchFilters {
   min_confidence?: Score01;
   statuses?: ClaimStatus[];
   entity_ids?: EntityId[];
+}
+/**
+ * The body of every error response.
+ */
+export interface ApiError {
+  error: {
+    code: ApiErrorCode;
+    message: string;
+  };
 }
 /**
  * An approval process definition. Feishu definitions give the form and an ordered node list but no branch edges; extraction mines the edges from instance logs.
@@ -1709,6 +1721,58 @@ export interface DocBlock {
   };
   children?: DocBlock[];
 }
+/**
+ * The marks of the Annotated view of one version of a document: the current statements resting on its spans that the reader may read, each marked as search marks it (where its value stands with governance, and the statement that holds instead), and those statements that hold in place of an outdated or disputed one. A statement cites only documents the reader may read.
+ *
+ */
+export interface DocumentAnnotations {
+  source_version_id: SourceVersionId;
+  statements: SearchHit[];
+  held: SearchHit[];
+}
+export interface SearchHit {
+  unit_id: UnitId;
+  kind: HitKind;
+  title: string;
+  snippet: string;
+  score: number;
+  citations: Citation[];
+  freshness: FreshnessInfo;
+  confidence?: Score01;
+  review_status: ReviewStatus;
+  owner_id?: PrincipalId;
+  token_estimate: number;
+  space_id?: SpaceId;
+  language?: Locale;
+  /**
+   * The fact slot a claim fills.
+   */
+  slot_key?: string;
+  standing?: SlotStanding;
+  held_unit_id?: UnitId;
+}
+export interface FreshnessInfo {
+  state: FreshnessState;
+  as_of: Instant;
+  staleness?: Score01;
+  review_due?: Instant;
+}
+/**
+ * One document as the Documents tree lists it: its source item and the latest version the engine holds. Built by source sync from what it last stored; listed only to a principal who may read the document.
+ *
+ */
+export interface DocumentEntry {
+  source_id: SourceId;
+  external_id: string;
+  title: string;
+  source_version_id: SourceVersionId;
+  mime_type?: string;
+  language?: Locale;
+  governance_level: GovernanceLevel;
+  approval_state?: ApprovalState;
+  modified_at?: Instant;
+  fetched_at: Instant;
+}
 export interface DocumentFetched {
   source_id: SourceId;
   source_version_id: SourceVersionId;
@@ -1733,6 +1797,117 @@ export interface DocumentMetadata {
   tags?: string[];
   translation_of?: SourceRef;
   extra?: {
+    [k: string]: unknown | undefined;
+  };
+}
+/**
+ * A space's Documents tree as the member may see it, one node per source.
+ */
+export interface DocumentTree {
+  space_id: SpaceId;
+  sources: DocumentTreeNode[];
+}
+/**
+ * A source, a folder in it or a document, in a space's Documents tree. Sources and folders hold their children and count the documents below them; a folder with nothing the reader may open is left out, never shown as empty or counted.
+ *
+ */
+export interface DocumentTreeNode {
+  kind: DocumentTreeNodeKind;
+  name: string;
+  source_id: SourceId;
+  /**
+   * The folders from the source's root to this node, the node's own name last; empty for a source.
+   */
+  path: string[];
+  source_type?: PluginName;
+  /**
+   * For a source or folder, the documents below it the reader may open.
+   */
+  document_count?: number;
+  children?: DocumentTreeNode[];
+  document?: DocumentEntry;
+}
+/**
+ * One document for its Original and Annotated views: the version shown, its blocks in reading order, and the marks on them.
+ *
+ */
+export interface DocumentView {
+  document: DocumentEntry;
+  source_name: string;
+  space_id?: SpaceId;
+  /**
+   * The folders from the source's root to the document.
+   */
+  path?: string[];
+  version: SourceVersion;
+  blocks: SourceBlock[];
+  annotations: DocumentAnnotations;
+}
+/**
+ * One fetched revision of one item. Immutable once written.
+ */
+export interface SourceVersion {
+  id: SourceVersionId;
+  tenant_id: TenantId;
+  source_id: SourceId;
+  space_id: SpaceId;
+  external_id: string;
+  kind?: SourceItemKind;
+  version: Version;
+  title: string;
+  mime_type: string;
+  language?: Locale;
+  uri?: string;
+  approval_state: ApprovalState;
+  authority: Score01;
+  sensitivity: SensitivityLabel;
+  governance_level?: GovernanceLevel;
+  fetched_at: Instant;
+  previous_version_id?: SourceVersionId;
+  /**
+   * Tombstone version written when the item disappears from the source.
+   */
+  deleted?: boolean;
+  blob?: BlobRef;
+  metadata?: DocumentMetadata;
+}
+/**
+ * One structural block (heading, paragraph, list item, table, ...) of one source version, written by normalization. The id is stable across versions: the source's native block ID where it has one (Feishu block_id, Confluence localId), otherwise derived from the document, the heading path and the text, so a block diff follows the source's own structure. A block that keeps its id but changes its text is a changed block. Spans are the citable passages inside a block; claims cite spans, never blocks.
+ *
+ */
+export interface SourceBlock {
+  id: SourceBlockId;
+  tenant_id: TenantId;
+  source_version_id: SourceVersionId;
+  parent_id?: SourceBlockId;
+  kind: DocBlockKind;
+  /**
+   * Where the block is in the source, as the connector or parser gave it.
+   */
+  anchor: string;
+  /**
+   * Heading level or list depth.
+   */
+  level?: number;
+  /**
+   * Titles of the headings above the block, outermost first.
+   */
+  heading_path?: string[];
+  /**
+   * The block's own text (a table's cells joined by tabs and newlines).
+   */
+  text: string;
+  text_hash: ContentHash;
+  /**
+   * Position in reading order within the version.
+   */
+  ordinal: number;
+  page?: number;
+  /**
+   * The block's spans in reading order. A heading or an empty block may have none.
+   */
+  span_ids: SpanId[];
+  attrs?: {
     [k: string]: unknown | undefined;
   };
 }
@@ -1882,12 +2057,6 @@ export interface FileMeta {
   page_count?: number;
   has_text_layer?: boolean;
   language?: Locale;
-}
-export interface FreshnessInfo {
-  state: FreshnessState;
-  as_of: Instant;
-  staleness?: Score01;
-  review_due?: Instant;
 }
 export interface GatewayError {
   code: GatewayErrorCode;
@@ -2344,27 +2513,6 @@ export interface ScopeSpec {
     [k: string]: unknown | undefined;
   };
 }
-export interface SearchHit {
-  unit_id: UnitId;
-  kind: HitKind;
-  title: string;
-  snippet: string;
-  score: number;
-  citations: Citation[];
-  freshness: FreshnessInfo;
-  confidence?: Score01;
-  review_status: ReviewStatus;
-  owner_id?: PrincipalId;
-  token_estimate: number;
-  space_id?: SpaceId;
-  language?: Locale;
-  /**
-   * The fact slot a claim fills.
-   */
-  slot_key?: string;
-  standing?: SlotStanding;
-  held_unit_id?: UnitId;
-}
 export interface SearchQuery {
   text: string;
   kinds?: HitKind[];
@@ -2512,77 +2660,9 @@ export interface Source {
   created_at: Instant;
   updated_at?: Instant;
 }
-/**
- * One structural block (heading, paragraph, list item, table, ...) of one source version, written by normalization. The id is stable across versions: the source's native block ID where it has one (Feishu block_id, Confluence localId), otherwise derived from the document, the heading path and the text, so a block diff follows the source's own structure. A block that keeps its id but changes its text is a changed block. Spans are the citable passages inside a block; claims cite spans, never blocks.
- *
- */
-export interface SourceBlock {
-  id: SourceBlockId;
-  tenant_id: TenantId;
-  source_version_id: SourceVersionId;
-  parent_id?: SourceBlockId;
-  kind: DocBlockKind;
-  /**
-   * Where the block is in the source, as the connector or parser gave it.
-   */
-  anchor: string;
-  /**
-   * Heading level or list depth.
-   */
-  level?: number;
-  /**
-   * Titles of the headings above the block, outermost first.
-   */
-  heading_path?: string[];
-  /**
-   * The block's own text (a table's cells joined by tabs and newlines).
-   */
-  text: string;
-  text_hash: ContentHash;
-  /**
-   * Position in reading order within the version.
-   */
-  ordinal: number;
-  page?: number;
-  /**
-   * The block's spans in reading order. A heading or an empty block may have none.
-   */
-  span_ids: SpanId[];
-  attrs?: {
-    [k: string]: unknown | undefined;
-  };
-}
 export interface SourceChanged {
   source_id: SourceId;
   change: ChangeEvent;
-}
-/**
- * One fetched revision of one item. Immutable once written.
- */
-export interface SourceVersion {
-  id: SourceVersionId;
-  tenant_id: TenantId;
-  source_id: SourceId;
-  space_id: SpaceId;
-  external_id: string;
-  kind?: SourceItemKind;
-  version: Version;
-  title: string;
-  mime_type: string;
-  language?: Locale;
-  uri?: string;
-  approval_state: ApprovalState;
-  authority: Score01;
-  sensitivity: SensitivityLabel;
-  governance_level?: GovernanceLevel;
-  fetched_at: Instant;
-  previous_version_id?: SourceVersionId;
-  /**
-   * Tombstone version written when the item disappears from the source.
-   */
-  deleted?: boolean;
-  blob?: BlobRef;
-  metadata?: DocumentMetadata;
 }
 /**
  * A container that holds permissions. Personal, team, org, or a mirror of one source.
@@ -2596,6 +2676,18 @@ export interface Space {
   parent_id?: SpaceId;
   owner_id: PrincipalId;
   default_sensitivity: SensitivityLabel;
+  created_at: Instant;
+}
+/**
+ * The spaces of the tenant the member may read.
+ */
+export interface SpaceList {
+  tenant: Tenant;
+  spaces: Space[];
+}
+export interface Tenant {
+  id: TenantId;
+  name: string;
   created_at: Instant;
 }
 /**
@@ -2654,11 +2746,6 @@ export interface TaxonomyNode {
    * Current statements placed in the topic, its subtopics included.
    */
   statement_count?: number;
-}
-export interface Tenant {
-  id: TenantId;
-  name: string;
-  created_at: Instant;
 }
 export interface Todo {
   id: TodoId;

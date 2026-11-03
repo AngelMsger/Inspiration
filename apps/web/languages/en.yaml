@@ -1,0 +1,86 @@
+# The web app's words in English. Keys are shared by every pack; {name} is filled in.
+
+language.name: English
+
+top.search: Search, ask or run a command
+top.account: "Account, {name}"
+account.acting_as: "Demo: act as"
+account.language: Interface language
+
+nav.label: Knowledge
+nav.home: Home
+nav.spaces: Spaces
+nav.documents: Documents
+
+home.morning: "Good morning, {name}"
+home.afternoon: "Good afternoon, {name}"
+home.evening: "Good evening, {name}"
+home.ask: Ask a question, or type what you are looking for
+home.recent: Recently viewed
+home.recent_none: Documents you open show up here.
+home.spaces: Your spaces
+home.documents: "{count} documents"
+
+ask.answer: Answer
+ask.reading: Reading what you can open…
+ask.none: The documents you can read do not answer this.
+ask.sources: Sources
+ask.results: "Results · {count}"
+ask.gaps: Not covered
+note.outdated: Replaced value
+note.conflict: Being decided
+note.thin_evidence: One source only
+
+hit.claim: Statement
+hit.chunk: Passage
+hit.section: Section
+hit.page: Page
+hit.sop: Procedure
+hit.entity: Card
+hit.knowledge_model: Knowledge model
+
+standing.holds: Current
+standing.outdated: Outdated
+standing.disputed: Disputed
+standing.differs: Differs
+
+level.governed: Strict
+level.reference: Loose
+level.search_only: Search only
+
+source.folder: Folder
+source.feishu.docx: Feishu wiki
+source.feishu.approval: Feishu approval
+
+folder.name: Name
+folder.level: Governance level
+folder.modified: Modified
+folder.count: "{count} documents"
+folder.empty: Nothing here that you can open.
+folder.not_found: This space does not exist, or you cannot read it.
+
+doc.original: Original
+doc.annotated: Annotated
+doc.views: Views
+doc.back: Back to the answer
+doc.synced: "Synced {date}"
+doc.level: "Governance level: {level}"
+doc.summary: "{statements} statements"
+doc.outdated: "{count} outdated"
+doc.passage: Selected passage
+doc.close: Close
+doc.says: What this passage says
+doc.none: Nothing has been read out of this passage.
+doc.holds_instead: Holds instead
+doc.from: "From {title}"
+doc.reading: Opening the document…
+doc.not_found: This document does not exist, or you cannot open it.
+
+palette.label: Search, ask, or go somewhere
+palette.ask: "Ask “{text}”"
+palette.act_as: "Act as {name}"
+palette.language: "Interface language: {name}"
+palette.none: Nothing matches.
+
+failure.engine: The engine did not answer. Is pnpm demo running?
+failure.other: "Something went wrong: {message}"

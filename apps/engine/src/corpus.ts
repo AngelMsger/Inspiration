@@ -22,7 +22,15 @@ import { access, readdir, readFile, utimes } from "node:fs/promises";
 import { join, posix, relative, resolve, sep } from "node:path";
 import type { AuthzService } from "@inspiration/access-control";
 import { globToRegExp } from "@inspiration/connectors";
-import { type AclEntry, type Principal, parseAs, type Source, schemaErrors } from "@inspiration/contracts";
+import {
+  type AclEntry,
+  type Principal,
+  parseAs,
+  type Source,
+  type Space,
+  schemaErrors,
+  type Tenant,
+} from "@inspiration/contracts";
 import { loadVocabulary, type Vocabulary } from "@inspiration/extraction";
 import type { PrincipalResolver } from "@inspiration/source-sync";
 import { parse } from "yaml";
@@ -218,6 +226,24 @@ export class Corpus {
   get reader(): Principal {
     const id = this.manifest.reader ?? `mem_${this.tenantId.slice("ten_".length)}`;
     return { id, kind: "member", tenant_id: this.tenantId };
+  }
+
+  /** The tenant as the business layer would name it. */
+  get tenant(): Tenant {
+    return { id: this.tenantId, name: this.manifest.tenant.name, created_at: new Date(0).toISOString() };
+  }
+
+  /** The corpus's spaces as the business layer would describe them, each owned by the reader. */
+  get spaces(): Space[] {
+    return this.manifest.spaces.map((s) => ({
+      id: s.id,
+      tenant_id: this.tenantId,
+      kind: "team",
+      name: s.name,
+      owner_id: this.reader.id,
+      default_sensitivity: "internal",
+      created_at: new Date(0).toISOString(),
+    }));
   }
 
   /** What the business layer would provision in access control for the corpus. Idempotent. */

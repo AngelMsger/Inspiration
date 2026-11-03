@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { FolderConnector } from "@inspiration/connectors";
 import {
   type Connector,
+  type DocumentTreeNode,
   type EventEnvelope,
   type KnowledgeStore,
   type NormalizedDocument,
@@ -16,7 +17,7 @@ import { LocalBlobStore, openPool } from "@inspiration/kernel";
 import { MemoryStore, PostgresStore } from "@inspiration/knowledge-store";
 import { createTestDatabase, hasStack } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
-import { SourceSync } from "../src/index.ts";
+import { documentTree, SourceSync } from "../src/index.ts";
 
 const TENANT = "ten_01JC0000000000000000TENANT";
 const FINANCE = "grp_01JC0000000000000FINANCE1";
@@ -101,6 +102,38 @@ describe.each<{ backend: Backend; skip: boolean }>([
   { backend: "postgres", skip: !hasStack() },
 ])("source sync on $backend", ({ backend, skip }) => {
   const it = syncTest(backend);
+
+  it.skipIf(skip)(
+    "the Documents tree folds a space's documents into folders, and builds none the reader cannot open",
+    async ({ world }) => {
+      await world.write("policies/finance/expenses.md", "# Expense policy\n\nArticle 1 The text.");
+      await world.write("policies/finance/internal/budget.md", "# Budget note\n\nInternal.");
+      await world.write("policies/leave.md", "# Leave policy\n\nFive days.");
+      await world.write("notice.txt", "A company notice");
+      await world.sync.sync(SOURCE);
+      await world.remove("notice.txt");
+      await world.sync.sync(SOURCE);
+
+      const { sources, documents } = await world.sync.documents(TENANT, "spc_01JC00000000000000000SPACE");
+      expect(documents.map((d) => d.entry.external_id).sort()).toEqual([
+        "policies/finance/expenses.md",
+        "policies/finance/internal/budget.md",
+        "policies/leave.md",
+      ]);
+      const readable = documents.filter((d) => !d.entry.external_id.includes("/internal/"));
+      const [root] = documentTree(sources, readable);
+      const shape = (n: DocumentTreeNode): unknown =>
+        n.kind === "document" ? n.name : { [n.name]: [n.document_count, ...(n.children ?? []).map(shape)] };
+      expect(root && shape(root)).toEqual({
+        Policies: [2, { policies: [2, { finance: [1, "Expense policy"] }, "Leave policy"] }],
+      });
+      expect(root?.children?.[0]?.children?.[0]?.path).toEqual(["policies", "finance"]);
+      const leave = await world.sync.document(SOURCE, "policies/leave.md");
+      expect(leave?.entry).toMatchObject({ title: "Leave policy", governance_level: "reference" });
+      expect(leave?.entry.modified_at).toBeTruthy();
+      expect(await world.sync.document(SOURCE, "notice.txt")).toBeUndefined();
+    },
+  );
 
   it.skipIf(skip)(
     "each version gets its governance level: the item's, its folder's, else reference",

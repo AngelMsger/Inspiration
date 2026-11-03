@@ -20,6 +20,11 @@
  * a file reference for the parser router, or a process snapshot. Normalization reads it.
  * ACL entries are mapped to engine principals with the resolver the business layer provides;
  * unmapped principals are kept without principal_id and denied by access control.
+ *
+ * The Documents tree: documents(tenant, space) lists a space's documents with their latest
+ * versions, and documentTree() folds the ones a reader may open into one node per source,
+ * with its folders (the source's own path, else the external ID's) and documents. A folder
+ * with nothing left in it is never built, so a reader never learns it exists.
  */
 
 export { MIGRATIONS } from "./migrations.ts";
@@ -29,9 +34,11 @@ export {
   type ItemOutcome,
   type ItemState,
   itemKey,
+  type ListedDocument,
   type PrincipalResolver,
   SOURCES,
   SourceSync,
   type SourceSyncOptions,
   type SyncReport,
 } from "./sync.ts";
+export { documentTree, entryOf, foldersOf } from "./tree.ts";

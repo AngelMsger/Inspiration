@@ -12,9 +12,16 @@
  * reports and the checks against hand-written answers are the measurement harness's
  * (apps/bench).
  *
+ * serve.ts runs the engine in memory over a corpus and serves its HTTP API (http.ts), version
+ * 0, for the business layer's web app: `pnpm engine serve <corpus>`. The corpus stands in for
+ * the business layer's directory (tenants and spaces by name) and its identity, which the
+ * API takes from two development headers until principal tokens exist.
+ *
  * Apps are composition roots: they may depend on any component; nothing depends on them but
  * the harness that measures this one.
  */
 
 export { Corpus, CorpusError, type CorpusManifest } from "./corpus.ts";
 export { Engine, type EngineOptions } from "./engine.ts";
+export { apiHandler, type Directory, serveApi } from "./http.ts";
+export { seed } from "./serve.ts";

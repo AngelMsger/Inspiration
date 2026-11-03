@@ -4,11 +4,11 @@ Inspiration 把企业分散的文档、审批流程和对话变成一个活的�
 
 本文是 [README.md](README.md) 的中文副本；两者不一致时以英文版为准。
 
-本仓库是一个 monorepo，包含整个产品。引擎（摄取、知识流水线、存储、权限、模型访问和 agent API）已经构建；业务层（身份、租户和账号、发布策略）和 Web 应用是下一步，放在各自的文件夹里，只通过引擎的 API 和事件使用引擎。检查保证每一层、每个组件都不越过自己的边界（见[架构](docs/zh/architecture.md)）。
+本仓库是一个 monorepo，包含整个产品。引擎（摄取、知识流水线、存储、权限、模型访问和 agent API）已经构建；业务层（身份、租户和账号、发布策略）是下一步，放在自己的文件夹里，只通过引擎的 API 和事件使用引擎。Web 应用已经有了第一批界面，用于演示。检查保证每一层、每个组件都不越过自己的边界（见[架构](docs/zh/architecture.md)）。
 
 ## 状态
 
-引擎的基础和知识流水线已构建并有测试；业务层和 Web 应用尚未开始。[`components.yaml`](components.yaml) 列出每个组件及其状态（已构建、进行中或已计划），每个包的 `src/index.ts` 说明它做什么。[总览](docs/zh/overview.md)说明哪些已构建、接下来做什么、哪些仍未决定。
+引擎的基础和知识流水线已构建并有测试；业务层尚未开始。Web 应用在引擎的 HTTP API 上展示设计画布里阅读部分的界面，用一个替身代替登录，供演示使用。[`components.yaml`](components.yaml) 列出每个组件及其状态（已构建、进行中或已计划），每个包的 `src/index.ts` 说明它做什么。[总览](docs/zh/overview.md)说明哪些已构建、接下来做什么、哪些仍未决定。
 
 除解析 worker 外全部是 Node 22 上的 TypeScript；解析 worker 用 Python，因为最好的文档解析器是 Python 的。
 
@@ -40,6 +40,13 @@ pnpm bench ask examples/kubernetes-docs "Kubernetes 集群最多可以有多少�
 
 [`examples/README.zh.md`](examples/README.zh.md) 列出每个语料、它测量什么、如何运行，以及哪个测试要求它与答案一致。
 
+要看产品本身，运行演示。它用开发用的模型读完演示租户，不花钱，然后在 http://127.0.0.1:5173 提供 Web 应用（账户菜单里可以切换身份和界面语言）：
+
+```bash
+pnpm demo                                    # 引擎在 4100 端口，Web 应用在 5173 端口
+pnpm engine serve examples/corpus            # 只启动引擎的 HTTP API
+```
+
 不启动模型服务也可以试用模型网关，用假的模型提供方运行它：
 
 ```bash
@@ -56,7 +63,8 @@ libs/eventbus       事务性 outbox、转发到 Valkey Streams、消费者、�
 libs/testkit        针对 compose 运行环境的测试夹具
 engine/<component>  每个引擎组件一个包（见 components.yaml）
 business/           业务层的包（尚无）；engine/ 和 libs/ 从不依赖它们
-apps/engine         引擎进程：把组件接到存储、事件总线和 blob 存储上
+apps/engine         引擎进程：把组件接到存储、事件总线和 blob 存储上；HTTP API
+apps/web            产品 Web 应用，基于引擎的 HTTP API，带一个替身后端（pnpm demo）
 apps/bench          测量工具（pnpm bench）：在语料上运行引擎、生成报告、核对答案
 examples/<corpus>   语料，以及核对运行结果所用的答案（见 examples/README.zh.md）
 infra/              原型运行环境的 docker compose，以及运行时用的本地向量模型服务

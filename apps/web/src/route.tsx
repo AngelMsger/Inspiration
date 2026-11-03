@@ -1,0 +1,124 @@
+// Every state of the page has its own address, so the browser's Back always works and any
+// screen can be linked to. A route is parsed from the address and written back to it.
+
+import { type MouseEvent, type ReactNode, useEffect, useState } from "react";
+
+export type DocumentRoute = {
+  name: "document";
+  /** The latest version of a source item, or the version a citation names. */
+  source?: string;
+  item?: string;
+  version?: string;
+  view: "original" | "annotated";
+  /** The passage to select: a block, or the block holding a cited span. */
+  block?: string;
+  span?: string;
+  /** The question the reader came from, for the way back. */
+  from?: string;
+};
+
+export type Route =
+  | { name: "home" }
+  | { name: "ask"; q: string }
+  | { name: "documents"; space: string; source?: string; folders: string[] }
+  | DocumentRoute;
+
+export function parse(url: URL): Route {
+  const q = url.searchParams;
+  const get = (key: string) => q.get(key) ?? undefined;
+  const space = url.pathname.match(/^\/spaces\/([^/]+)\/documents$/);
+  if (space?.[1]) {
+    return {
+      name: "documents",
+      space: decodeURIComponent(space[1]),
+      source: get("source"),
+      folders: q.getAll("folder"),
+    };
+  }
+  if (url.pathname === "/ask") return { name: "ask", q: get("q") ?? "" };
+  if (url.pathname === "/document") {
+    return {
+      name: "document",
+      source: get("source"),
+      item: get("item"),
+      version: get("version"),
+      view: get("view") === "annotated" ? "annotated" : "original",
+      block: get("block"),
+      span: get("span"),
+      from: get("from"),
+    };
+  }
+  return { name: "home" };
+}
+
+export function href(route: Route): string {
+  const query = (pairs: [string, string | undefined][]) => {
+    const q = new URLSearchParams();
+    for (const [k, v] of pairs) if (v) q.append(k, v);
+    const s = q.toString();
+    return s ? `?${s}` : "";
+  };
+  switch (route.name) {
+    case "home":
+      return "/";
+    case "ask":
+      return `/ask${query([["q", route.q]])}`;
+    case "documents":
+      return `/spaces/${encodeURIComponent(route.space)}/documents${query([
+        ["source", route.source],
+        ...route.folders.map((f): [string, string] => ["folder", f]),
+      ])}`;
+    case "document":
+      return `/document${query([
+        ["source", route.source],
+        ["item", route.item],
+        ["version", route.version],
+        ["view", route.view === "annotated" ? "annotated" : undefined],
+        ["block", route.block],
+        ["span", route.span],
+        ["from", route.from],
+      ])}`;
+  }
+}
+
+const CHANGED = "inspiration:navigate";
+
+export function navigate(route: Route, options: { replace?: boolean } = {}): void {
+  const to = href(route);
+  if (options.replace) history.replaceState(null, "", to);
+  else history.pushState(null, "", to);
+  window.dispatchEvent(new Event(CHANGED));
+}
+
+export function useRoute(): Route {
+  const [route, setRoute] = useState(() => parse(new URL(location.href)));
+  useEffect(() => {
+    const update = () => setRoute(parse(new URL(location.href)));
+    window.addEventListener("popstate", update);
+    window.addEventListener(CHANGED, update);
+    return () => {
+      window.removeEventListener("popstate", update);
+      window.removeEventListener(CHANGED, update);
+    };
+  }, []);
+  return route;
+}
+
+/** A link that moves within the page, and still opens in a new tab with a modifier key. */
+export function Link(props: { to: Route; className?: string; children: ReactNode; current?: boolean }) {
+  const onClick = (e: MouseEvent) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    navigate(props.to);
+  };
+  return (
+    <a
+      href={href(props.to)}
+      className={props.className}
+      onClick={onClick}
+      aria-current={props.current ? "page" : undefined}
+    >
+      {props.children}
+    </a>
+  );
+}

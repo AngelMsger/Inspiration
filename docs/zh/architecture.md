@@ -22,6 +22,8 @@ Inspiration 是围绕一个知识存储的一组组件。每个组件只负责�
 
 引擎 API 感知租户和成员身份，且不涉及界面问题，所以业务层、它的 Web 应用和 Agent 都使用同一套接口。
 
+Web 应用通过引擎的 HTTP API（第 0 版，`apps/engine/src/http.ts`）读取引擎：成员能读的空间、一个空间的文档树、一篇文档及其标注视图里的标记、搜索和回答。每次读取都按成员的权限检查，成员不能读的内容一律当作不存在来回答。在业务层签发主体令牌之前，请求用 `x-inspiration-tenant` 和 `x-inspiration-member` 两个请求头说明租户和成员；这是开发用的替身，只监听本机。Web 应用自己的后端也是替身（`apps/web/src/backend.ts`）：使用者选择以谁的身份操作，只有后端设置这两个请求头。`pnpm demo` 在演示租户上同时运行两者。
+
 ## 一个仓库，每层一个目录
 
 两层都在本仓库里构建，同属一个 pnpm workspace，每层有自己的目录：
@@ -30,7 +32,7 @@ Inspiration 是围绕一个知识存储的一组组件。每个组件只负责�
 libs/<name>       两层共用的共享库：contracts、kernel、eventbus、testkit
 engine/<name>     引擎组件，每个组件一个包
 business/<name>   业务层组件，每个组件一个包
-apps/<name>       组装根：现在是引擎进程及其测量工具；以后加上业务后端和 Web 应用
+apps/<name>       组装根：现在是引擎进程、它的测量工具和 Web 应用；以后加上业务后端
 ```
 
 包名仍是 `@inspiration/<name>`。

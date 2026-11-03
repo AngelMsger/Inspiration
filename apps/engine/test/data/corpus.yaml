@@ -1,0 +1,21 @@
+# The demo corpus (examples/corpus) in its own words, as the HTTP API test reads it.
+
+spaces: [公司制度, 团队知识]
+
+# The travel policy, the finance folder it sits in, and what its marks say.
+travel:
+  item: 财务/差旅费管理办法.md
+  title: 差旅费管理办法
+  folder: 财务
+  outdated: "600"
+  held: "650"
+  held_by: 关于调整一线城市住宿标准的通知
+
+# The finance-only budget note and the folder only finance may open.
+budget:
+  item: 财务/内部/2027 年度预算编制说明.md
+  title: 2027 年度预算编制说明
+  folder: 内部
+
+question: 去深圳出差住宿每晚能报多少？
+search: 住宿限额

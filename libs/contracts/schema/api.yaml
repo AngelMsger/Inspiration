@@ -1,0 +1,79 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: api.yaml
+title: Engine HTTP API
+description: >
+  Request and response bodies of the engine's HTTP API (version 0), which the business
+  layer's web app reads on behalf of a member. Every request names the tenant and the member
+  it acts for; the engine checks every read against that member's permissions. Bodies that
+  already have a type (GroundedAnswer, SearchResult, AnswerQuery) are not repeated here.
+
+$defs:
+  SpaceList:
+    description: The spaces of the tenant the member may read.
+    type: object
+    required: [tenant, spaces]
+    properties:
+      tenant:
+        $ref: "authz.yaml#/$defs/Tenant"
+      spaces:
+        type: array
+        items:
+          $ref: "authz.yaml#/$defs/Space"
+
+  DocumentTree:
+    description: A space's Documents tree as the member may see it, one node per source.
+    type: object
+    required: [space_id, sources]
+    properties:
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      sources:
+        type: array
+        items:
+          $ref: "source.yaml#/$defs/DocumentTreeNode"
+
+  DocumentView:
+    description: >
+      One document for its Original and Annotated views: the version shown, its blocks in
+      reading order, and the marks on them.
+    type: object
+    required: [document, source_name, version, blocks, annotations]
+    properties:
+      document:
+        $ref: "source.yaml#/$defs/DocumentEntry"
+      source_name:
+        type: string
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      path:
+        description: The folders from the source's root to the document.
+        type: array
+        items:
+          type: string
+      version:
+        description: The version shown, without its stored blob.
+        $ref: "source.yaml#/$defs/SourceVersion"
+      blocks:
+        type: array
+        items:
+          $ref: "source.yaml#/$defs/SourceBlock"
+      annotations:
+        $ref: "retrieval.yaml#/$defs/DocumentAnnotations"
+
+  ApiErrorCode:
+    type: string
+    enum: [bad_request, unauthenticated, forbidden, not_found, internal]
+
+  ApiError:
+    description: The body of every error response.
+    type: object
+    required: [error]
+    properties:
+      error:
+        type: object
+        required: [code, message]
+        properties:
+          code:
+            $ref: "#/$defs/ApiErrorCode"
+          message:
+            type: string

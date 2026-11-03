@@ -10,6 +10,7 @@ import {
   type Citation,
   type Claim,
   type ClaimEvidence,
+  type DocumentAnnotations,
   type DuplicateDocument,
   type EventEnvelope,
   type EventHandler,
@@ -516,7 +517,9 @@ export class Retrieval implements Retriever {
     const found = await this.#readable(fused, who);
     if (!found.length) return empty;
     const words = terms(query.text);
-    const statements = kinds.has("claim") ? await this.#statements(found, words, who, filter, query) : new Map();
+    const statements = kinds.has("claim")
+      ? await this.#statements(spanScores(found), words, who, filter, query)
+      : new Map();
     const verdicts = await this.#visibleVerdicts(
       who,
       await this.#verdictsOf(
@@ -572,6 +575,57 @@ export class Retrieval implements Retriever {
       ...(query.filters && { filters: query.filters }),
       labels,
     };
+  }
+
+  /**
+   * The marks of the Annotated view of one version of a document: every current statement
+   * resting on the version's spans that the asker may read, marked as search marks it, in the
+   * document's reading order; and the statements that hold in place of those outdated or
+   * disputed, wherever they are stated. Nothing when the asker may not read the document.
+   */
+  async annotations(sourceVersionId: string, who: Principal): Promise<DocumentAnnotations> {
+    const none: DocumentAnnotations = { source_version_id: sourceVersionId, statements: [], held: [] };
+    const version = await this.store.getSourceVersion(sourceVersionId);
+    if (!version || version.tenant_id !== who.tenant_id) return none;
+    if (!(await this.#readableDocuments(who, [version])).has(version.id)) return none;
+    const order = new Map<string, number>();
+    for (const b of await this.store.blocksOf(sourceVersionId)) for (const id of b.span_ids) order.set(id, order.size);
+    const filter = await this.#scope(who, undefined);
+    const statements = await this.#statements(
+      new Map([...order.keys()].map((id) => [id, 1])),
+      new Set(),
+      who,
+      filter,
+      {},
+      { limit: Number.POSITIVE_INFINITY },
+    );
+    const verdicts = await this.#visibleVerdicts(
+      who,
+      await this.#verdictsOf(
+        who.tenant_id,
+        [...statements.values()].map((s) => s.claim),
+      ),
+      statements.values(),
+    );
+    for (const s of statements.values()) {
+      const slot = slotOf(s.claim);
+      if (slot) s.verdict = verdicts.get(slot);
+    }
+    const listed = [...statements.values()];
+    const staleness = await this.#staleness(
+      who.tenant_id,
+      listed.map((s) => s.claim.id),
+    );
+    const now = this.clock().toISOString();
+    const first = (h: SearchHit) =>
+      Math.min(...h.citations.map((c) => order.get(c.span_id) ?? Number.POSITIVE_INFINITY));
+    const hits = listed
+      .map((s) => statementHit(s, 0, freshnessOf(staleness.get(s.claim.id), now)))
+      .sort((a, b) => first(a) - first(b) || (a.unit_id < b.unit_id ? -1 : 1));
+    const searched: Searched = { hits, statements, verdicts, filter, labels: new Map() };
+    const all = [...hits];
+    await this.#addHeld(all, searched, who);
+    return { source_version_id: sourceVersionId, statements: hits, held: all.slice(hits.length) };
   }
 
   /** What the asker may read, within the spaces asked for when any are. */
@@ -696,15 +750,13 @@ export class Retrieval implements Retriever {
    * readable evidence as citations. Those sharing most of the query come first.
    */
   async #statements(
-    found: readonly Found[],
+    spanScore: ReadonlyMap<string, number>,
     words: ReadonlySet<string>,
     who: Principal,
     filter: IndexFilter,
     query: Pick<SearchQuery, "filters">,
     options: { limit?: number; slotted?: boolean } = {},
   ): Promise<Map<string, Statement>> {
-    const spanScore = new Map<string, number>();
-    for (const f of found) for (const s of f.spans) spanScore.set(s.id, Math.max(spanScore.get(s.id) ?? 0, f.fused));
     const ids = await this.store.claimsCiting([...spanScore.keys()]);
     const claims = (await this.store.getClaims(ids))
       .filter(asked(filter, query.filters))
@@ -939,7 +991,7 @@ export class Retrieval implements Retriever {
    */
   async #governedEverything(query: AnswerQuery, who: Principal): Promise<{ hits: SearchHit[]; searched: Searched }> {
     const { filter, found } = await this.#all(query, who);
-    const statements = await this.#statements(found, new Set(), who, filter, query, {
+    const statements = await this.#statements(spanScores(found), new Set(), who, filter, query, {
       limit: Number.POSITIVE_INFINITY,
       slotted: true,
     });
@@ -1387,6 +1439,13 @@ function passagesWithoutReplaced(searched: Searched): SearchHit[] {
     else if (kept.length) hits.push({ ...h, citations: kept, snippet: kept.map((c) => c.quote).join(" ") });
   }
   return [...hits, ...brought];
+}
+
+/** Each span of the passages found, with the best fused score of a passage that holds it. */
+function spanScores(found: readonly Found[]): Map<string, number> {
+  const scores = new Map<string, number>();
+  for (const f of found) for (const s of f.spans) scores.set(s.id, Math.max(scores.get(s.id) ?? 0, f.fused));
+  return scores;
 }
 
 function standingOf(claim: Claim, verdict: SlotVerdict | undefined): SearchHit["standing"] {

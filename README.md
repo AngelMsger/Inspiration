@@ -7,14 +7,15 @@ people and to agents with the reader's own permissions.
 
 This repository holds the whole product as one monorepo. The engine (ingestion, the knowledge
 pipeline, storage, permissions, model access and the agent API) is built; the business layer
-(identity, tenants and accounts, publishing policy) and the web app come next, in their own
-folder, and use the engine only through its APIs and events. Checks keep each layer and each
+(identity, tenants and accounts, publishing policy) comes next, in its own folder, and uses
+the engine only through its APIs and events. The web app has its first screens, for a demo. Checks keep each layer and each
 component inside its boundaries (see [Architecture](docs/architecture.md)).
 
 ## Status
 
 The engine's foundations and its knowledge pipeline are built and tested; the business layer
-and the web app are not started. [`components.yaml`](components.yaml) lists every component
+is not started. The web app shows the reading screens of the design canvas over the engine's
+HTTP API, with a stand-in for sign-in, for demos. [`components.yaml`](components.yaml) lists every component
 with its status (built, in progress or planned), and each package's `src/index.ts` says what
 it does. The [overview](docs/overview.md) says what is built, what comes next and what is
 still open.
@@ -55,6 +56,15 @@ pnpm bench ask examples/kubernetes-docs "How many nodes can a Kubernetes cluster
 [`examples/README.md`](examples/README.md) lists every corpus, what it measures, how to run
 it and which test holds it to its answers.
 
+To see the product, run the demo. It reads the demo tenant with the development models, so it
+costs nothing, then serves the web app at http://127.0.0.1:5173 (the account menu switches
+the person you act as and the interface language):
+
+```bash
+pnpm demo                                    # the engine on port 4100, the web app on 5173
+pnpm engine serve examples/corpus            # the engine's HTTP API alone
+```
+
 To try the model gateway without a model server, run it with the fake providers:
 
 ```bash
@@ -71,7 +81,8 @@ libs/eventbus       transactional outbox, relay to Valkey Streams, consumers, in
 libs/testkit        fixtures for tests against the compose stack
 engine/<component>  one package per engine component (see components.yaml)
 business/           business-layer packages (none yet); engine/ and libs/ never depend on them
-apps/engine         the engine process: wires the components to the store, the bus and the blob store
+apps/engine         the engine process: wires the components to the store, the bus and the blob store; HTTP API
+apps/web            the product web app over the engine's HTTP API, and a stand-in backend (pnpm demo)
 apps/bench          the measurement harness (pnpm bench): runs the engine over a corpus, reports, checks answers
 examples/<corpus>   corpora with the answers runs are checked against (see examples/README.md)
 infra/              docker compose for the prototype stack, and a local embedding server for runs

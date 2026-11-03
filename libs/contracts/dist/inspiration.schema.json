@@ -66,6 +66,13 @@
       "AgentRunStatus",
       "AgentResult"
     ],
+    "api": [
+      "SpaceList",
+      "DocumentTree",
+      "DocumentView",
+      "ApiErrorCode",
+      "ApiError"
+    ],
     "authz": [
       "PrincipalKind",
       "Principal",
@@ -352,7 +359,8 @@
       "AnswerNote",
       "IndexHit",
       "FeedbackKind",
-      "Feedback"
+      "Feedback",
+      "DocumentAnnotations"
     ],
     "source": [
       "SourceStatus",
@@ -395,7 +403,10 @@
       "SpanLocator",
       "SourceBlock",
       "Span",
-      "Chunk"
+      "Chunk",
+      "DocumentEntry",
+      "DocumentTreeNodeKind",
+      "DocumentTreeNode"
     ]
   },
   "$defs": {
@@ -841,6 +852,40 @@
           "minimum": 50
         }
       }
+    },
+    "ApiError": {
+      "description": "The body of every error response.",
+      "type": "object",
+      "required": [
+        "error"
+      ],
+      "properties": {
+        "error": {
+          "type": "object",
+          "required": [
+            "code",
+            "message"
+          ],
+          "properties": {
+            "code": {
+              "$ref": "#/$defs/ApiErrorCode"
+            },
+            "message": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "ApiErrorCode": {
+      "type": "string",
+      "enum": [
+        "bad_request",
+        "unauthenticated",
+        "forbidden",
+        "not_found",
+        "internal"
+      ]
     },
     "ApprovalAction": {
       "type": "string",
@@ -3221,6 +3266,77 @@
         "other"
       ]
     },
+    "DocumentAnnotations": {
+      "description": "The marks of the Annotated view of one version of a document: the current statements resting on its spans that the reader may read, each marked as search marks it (where its value stands with governance, and the statement that holds instead), and those statements that hold in place of an outdated or disputed one. A statement cites only documents the reader may read.\n",
+      "type": "object",
+      "required": [
+        "source_version_id",
+        "statements",
+        "held"
+      ],
+      "properties": {
+        "source_version_id": {
+          "$ref": "#/$defs/SourceVersionId"
+        },
+        "statements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SearchHit"
+          }
+        },
+        "held": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SearchHit"
+          }
+        }
+      }
+    },
+    "DocumentEntry": {
+      "description": "One document as the Documents tree lists it: its source item and the latest version the engine holds. Built by source sync from what it last stored; listed only to a principal who may read the document.\n",
+      "type": "object",
+      "required": [
+        "source_id",
+        "external_id",
+        "title",
+        "source_version_id",
+        "governance_level",
+        "fetched_at"
+      ],
+      "properties": {
+        "source_id": {
+          "$ref": "#/$defs/SourceId"
+        },
+        "external_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "source_version_id": {
+          "$ref": "#/$defs/SourceVersionId"
+        },
+        "mime_type": {
+          "type": "string"
+        },
+        "language": {
+          "$ref": "#/$defs/Locale"
+        },
+        "governance_level": {
+          "$ref": "#/$defs/GovernanceLevel"
+        },
+        "approval_state": {
+          "$ref": "#/$defs/ApprovalState"
+        },
+        "modified_at": {
+          "description": "When the source last changed the document, where it says.",
+          "$ref": "#/$defs/Instant"
+        },
+        "fetched_at": {
+          "$ref": "#/$defs/Instant"
+        }
+      }
+    },
     "DocumentFetched": {
       "type": "object",
       "required": [
@@ -3289,6 +3405,122 @@
         },
         "extra": {
           "type": "object"
+        }
+      }
+    },
+    "DocumentTree": {
+      "description": "A space's Documents tree as the member may see it, one node per source.",
+      "type": "object",
+      "required": [
+        "space_id",
+        "sources"
+      ],
+      "properties": {
+        "space_id": {
+          "$ref": "#/$defs/SpaceId"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DocumentTreeNode"
+          }
+        }
+      }
+    },
+    "DocumentTreeNode": {
+      "description": "A source, a folder in it or a document, in a space's Documents tree. Sources and folders hold their children and count the documents below them; a folder with nothing the reader may open is left out, never shown as empty or counted.\n",
+      "type": "object",
+      "required": [
+        "kind",
+        "name",
+        "source_id",
+        "path"
+      ],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/DocumentTreeNodeKind"
+        },
+        "name": {
+          "type": "string"
+        },
+        "source_id": {
+          "$ref": "#/$defs/SourceId"
+        },
+        "path": {
+          "description": "The folders from the source's root to this node, the node's own name last; empty for a source.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "source_type": {
+          "description": "For a source, its connector plugin name.",
+          "$ref": "#/$defs/PluginName"
+        },
+        "document_count": {
+          "description": "For a source or folder, the documents below it the reader may open.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DocumentTreeNode"
+          }
+        },
+        "document": {
+          "description": "For a document, its entry.",
+          "$ref": "#/$defs/DocumentEntry"
+        }
+      }
+    },
+    "DocumentTreeNodeKind": {
+      "type": "string",
+      "enum": [
+        "source",
+        "folder",
+        "document"
+      ]
+    },
+    "DocumentView": {
+      "description": "One document for its Original and Annotated views: the version shown, its blocks in reading order, and the marks on them.\n",
+      "type": "object",
+      "required": [
+        "document",
+        "source_name",
+        "version",
+        "blocks",
+        "annotations"
+      ],
+      "properties": {
+        "document": {
+          "$ref": "#/$defs/DocumentEntry"
+        },
+        "source_name": {
+          "type": "string"
+        },
+        "space_id": {
+          "$ref": "#/$defs/SpaceId"
+        },
+        "path": {
+          "description": "The folders from the source's root to the document.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "version": {
+          "description": "The version shown, without its stored blob.",
+          "$ref": "#/$defs/SourceVersion"
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SourceBlock"
+          }
+        },
+        "annotations": {
+          "$ref": "#/$defs/DocumentAnnotations"
         }
       }
     },
@@ -6924,6 +7156,25 @@
         "org",
         "source_mirror"
       ]
+    },
+    "SpaceList": {
+      "description": "The spaces of the tenant the member may read.",
+      "type": "object",
+      "required": [
+        "tenant",
+        "spaces"
+      ],
+      "properties": {
+        "tenant": {
+          "$ref": "#/$defs/Tenant"
+        },
+        "spaces": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Space"
+          }
+        }
+      }
     },
     "Span": {
       "description": "An exact passage, table cell or form field. Every claim points to spans. A span's ID depends only on its block and text, so a span that did not change keeps its ID in later versions of the document; it is stored once, with the version that introduced it.\n",

@@ -1,0 +1,86 @@
+# The web app's words in Japanese. Keys are shared by every pack; {name} is filled in.
+
+language.name: 日本語
+
+top.search: 検索、質問、コマンド
+top.account: "アカウント、{name}"
+account.acting_as: デモ：表示するユーザー
+account.language: 表示言語
+
+nav.label: ナレッジ
+nav.home: ホーム
+nav.spaces: スペース
+nav.documents: ドキュメント
+
+home.morning: "おはようございます、{name}さん"
+home.afternoon: "こんにちは、{name}さん"
+home.evening: "こんばんは、{name}さん"
+home.ask: 質問するか、探しているものを入力してください
+home.recent: 最近見たもの
+home.recent_none: 開いたドキュメントがここに表示されます。
+home.spaces: あなたのスペース
+home.documents: "{count} 件のドキュメント"
+
+ask.answer: 回答
+ask.reading: 閲覧できる内容を読んでいます…
+ask.none: 閲覧できるドキュメントには、この質問の答えがありません。
+ask.sources: 出典
+ask.results: "結果 · {count}"
+ask.gaps: 扱われていない点
+note.outdated: 置き換えられた値
+note.conflict: 判断待ち
+note.thin_evidence: 出典が一つだけ
+
+hit.claim: 記述
+hit.chunk: 段落
+hit.section: セクション
+hit.page: ナレッジページ
+hit.sop: 手順
+hit.entity: カード
+hit.knowledge_model: ナレッジモデル
+
+standing.holds: 現行
+standing.outdated: 古い値
+standing.disputed: 判断待ち
+standing.differs: 相違あり
+
+level.governed: 厳格
+level.reference: 緩やか
+level.search_only: 検索のみ
+
+source.folder: フォルダー
+source.feishu.docx: Feishu Wiki
+source.feishu.approval: Feishu 承認
+
+folder.name: 名前
+folder.level: ガバナンスレベル
+folder.modified: 更新日時
+folder.count: "{count} 件のドキュメント"
+folder.empty: ここには開ける内容がありません。
+folder.not_found: このスペースは存在しないか、閲覧する権限がありません。
+
+doc.original: 原文
+doc.annotated: 注釈
+doc.views: 表示
+doc.back: 回答に戻る
+doc.synced: "{date} に同期"
+doc.level: "ガバナンスレベル：{level}"
+doc.summary: "{statements} 件の記述"
+doc.outdated: "{count} 件が古い値"
+doc.passage: 選択した段落
+doc.close: 閉じる
+doc.says: この段落に書かれていること
+doc.none: この段落からはまだ記述が読み取られていません。
+doc.holds_instead: 現行の値
+doc.from: "出典：『{title}』"
+doc.reading: ドキュメントを開いています…
+doc.not_found: このドキュメントは存在しないか、開く権限がありません。
+
+palette.label: 検索、質問、移動
+palette.ask: "「{text}」と質問する"
+palette.act_as: "{name}として表示"
+palette.language: "表示言語：{name}"
+palette.none: 一致するものがありません。
+
+failure.engine: エンジンが応答しません。pnpm demo は実行中ですか？
+failure.other: "問題が発生しました：{message}"

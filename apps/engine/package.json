@@ -7,6 +7,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "bin": {
+    "inspiration-engine": "./src/serve.ts"
+  },
   "dependencies": {
     "@inspiration/access-control": "workspace:*",
     "@inspiration/collaboration": "workspace:*",
