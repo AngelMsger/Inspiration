@@ -82,6 +82,9 @@
       "InboxTodo",
       "TodoChoice",
       "ResolveTodo",
+      "SpaceOverview",
+      "SpaceChange",
+      "SyncReport",
       "ApiErrorCode",
       "ApiError"
     ],
@@ -7267,6 +7270,26 @@
         }
       }
     },
+    "SpaceChange": {
+      "description": "A document as the latest sync left it, new to the space or an updated version.",
+      "type": "object",
+      "required": [
+        "document",
+        "kind"
+      ],
+      "properties": {
+        "document": {
+          "$ref": "#/$defs/DocumentEntry"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "created",
+            "updated"
+          ]
+        }
+      }
+    },
     "SpaceId": {
       "type": "string",
       "pattern": "^spc_[0-9A-Za-z]{8,64}$"
@@ -7295,6 +7318,98 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/Space"
+          }
+        }
+      }
+    },
+    "SpaceOverview": {
+      "description": "What a space's maintainers see first: the work waiting in the space, the facts its readers see in dispute, and its documents by governance level with the latest changes, counting only the documents the member may open. Only a member who may administer the space reads it.\n",
+      "type": "object",
+      "required": [
+        "space",
+        "work",
+        "unassigned",
+        "disputed",
+        "documents",
+        "levels",
+        "changes"
+      ],
+      "properties": {
+        "space": {
+          "$ref": "#/$defs/Space"
+        },
+        "work": {
+          "description": "The space's open todos by kind, the most common first.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "kind",
+              "count"
+            ],
+            "properties": {
+              "kind": {
+                "$ref": "#/$defs/TodoKind"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        },
+        "unassigned": {
+          "description": "Open todos about topics nobody owns, which fall to the space's maintainers.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "disputed": {
+          "description": "The facts with an open conflict todo in the space whose readers see a dispute until someone decides, each with its label in the tenant's predicate catalogue.\n",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "slot_key"
+            ],
+            "properties": {
+              "slot_key": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "documents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "levels": {
+          "description": "How many documents each governance level holds, in the order governed, reference, search_only.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "level",
+              "documents"
+            ],
+            "properties": {
+              "level": {
+                "$ref": "#/$defs/GovernanceLevel"
+              },
+              "documents": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "changes": {
+          "description": "The documents fetched most recently, newest first, at most ten.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpaceChange"
           }
         }
       }
@@ -7471,6 +7586,80 @@
         },
         "expires_at": {
           "$ref": "#/$defs/Instant"
+        }
+      }
+    },
+    "SyncReport": {
+      "description": "What syncing a source did: how many items it listed and what became of them. The response to syncing a source now, once the engine has read everything the sync changed.\n",
+      "type": "object",
+      "required": [
+        "source_id",
+        "listed",
+        "outcomes",
+        "errors"
+      ],
+      "properties": {
+        "source_id": {
+          "$ref": "#/$defs/SourceId"
+        },
+        "listed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "outcomes": {
+          "type": "object",
+          "required": [
+            "created",
+            "updated",
+            "acl_changed",
+            "unchanged",
+            "deleted",
+            "failed"
+          ],
+          "properties": {
+            "created": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "updated": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "acl_changed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "unchanged": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "deleted": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "failed": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "external_id",
+              "error"
+            ],
+            "properties": {
+              "external_id": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              }
+            }
+          }
         }
       }
     },

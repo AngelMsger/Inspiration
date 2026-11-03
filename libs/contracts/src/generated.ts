@@ -2805,6 +2805,13 @@ export interface Space {
   created_at: Instant;
 }
 /**
+ * A document as the latest sync left it, new to the space or an updated version.
+ */
+export interface SpaceChange {
+  document: DocumentEntry;
+  kind: "created" | "updated";
+}
+/**
  * The spaces of the tenant the member may read.
  */
 export interface SpaceList {
@@ -2815,6 +2822,44 @@ export interface Tenant {
   id: TenantId;
   name: string;
   created_at: Instant;
+}
+/**
+ * What a space's maintainers see first: the work waiting in the space, the facts its readers see in dispute, and its documents by governance level with the latest changes, counting only the documents the member may open. Only a member who may administer the space reads it.
+ *
+ */
+export interface SpaceOverview {
+  space: Space;
+  /**
+   * The space's open todos by kind, the most common first.
+   */
+  work: {
+    kind: TodoKind;
+    count: number;
+  }[];
+  /**
+   * Open todos about topics nobody owns, which fall to the space's maintainers.
+   */
+  unassigned: number;
+  /**
+   * The facts with an open conflict todo in the space whose readers see a dispute until someone decides, each with its label in the tenant's predicate catalogue.
+   *
+   */
+  disputed: {
+    slot_key: string;
+    label?: string;
+  }[];
+  documents: number;
+  /**
+   * How many documents each governance level holds, in the order governed, reference, search_only.
+   */
+  levels: {
+    level: GovernanceLevel;
+    documents: number;
+  }[];
+  /**
+   * The documents fetched most recently, newest first, at most ten.
+   */
+  changes: SpaceChange[];
 }
 /**
  * An exact passage, table cell or form field. Every claim points to spans. A span's ID depends only on its block and text, so a span that did not change keeps its ID in later versions of the document; it is stored once, with the version that introduced it.
@@ -2852,6 +2897,26 @@ export interface SubscriptionInfo {
   subscription_id: string;
   scope_ids: string[];
   expires_at?: Instant;
+}
+/**
+ * What syncing a source did: how many items it listed and what became of them. The response to syncing a source now, once the engine has read everything the sync changed.
+ *
+ */
+export interface SyncReport {
+  source_id: SourceId;
+  listed: number;
+  outcomes: {
+    created: number;
+    updated: number;
+    acl_changed: number;
+    unchanged: number;
+    deleted: number;
+    failed: number;
+  };
+  errors: {
+    external_id: string;
+    error: string;
+  }[];
 }
 export interface TodoCreated {
   todo_id: TodoId;

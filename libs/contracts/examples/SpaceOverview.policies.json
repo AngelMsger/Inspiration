@@ -1,0 +1,38 @@
+{
+  "space": {
+    "id": "spc_01QINGHE000000000000POLICY",
+    "tenant_id": "ten_01QINGHE000000000000000001",
+    "kind": "team",
+    "name": "公司制度",
+    "owner_id": "mem_01QINGHE0000000000ZHOUMIN",
+    "default_sensitivity": "internal",
+    "created_at": "2026-09-01T00:00:00Z"
+  },
+  "work": [{ "kind": "conflict", "count": 2 }, { "kind": "note", "count": 1 }],
+  "unassigned": 0,
+  "disputed": [{ "slot_key": "annual_leave_days|工龄 1 至 10 年", "label": "年休假天数" }],
+  "documents": 9,
+  "levels": [
+    { "level": "governed", "documents": 6 },
+    { "level": "reference", "documents": 3 },
+    { "level": "search_only", "documents": 0 }
+  ],
+  "changes": [
+    {
+      "kind": "updated",
+      "document": {
+        "source_id": "src_01QINGHE00000000000POLICIES",
+        "external_id": "财务/差旅费管理办法.md",
+        "title": "差旅费管理办法",
+        "source_version_id": "sv_01M6GS4ZAEGEGFY659VAME7509",
+        "previous_version_id": "sv_01M6G2RZ5BW44M458V3TVZKSGS",
+        "governance_level": "governed",
+        "approval_state": "approved",
+        "mime_type": "text/markdown",
+        "language": "zh-CN",
+        "modified_at": "2026-11-03T13:21:34Z",
+        "fetched_at": "2026-11-03T13:21:35Z"
+      }
+    }
+  ]
+}

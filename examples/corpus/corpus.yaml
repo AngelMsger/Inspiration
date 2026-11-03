@@ -6,11 +6,14 @@ tenant:
   id: ten_01QINGHE000000000000000001
   name: 青禾科技
 
+# owner: the member who maintains the space (周敏 in people.yaml).
 spaces:
   - id: spc_01QINGHE000000000000POLICY
     name: 公司制度
+    owner: mem_01QINGHE0000000000ZHOUMIN
   - id: spc_01QINGHE00000000000000TEAM
     name: 团队知识
+    owner: mem_01QINGHE0000000000ZHOUMIN
 
 # What the business layer's directory would answer: the sources' own principal IDs mapped
 # to engine principals. Unmapped entries stay in the ACL snapshot as they are.
