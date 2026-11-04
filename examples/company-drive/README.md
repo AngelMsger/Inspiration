@@ -120,10 +120,11 @@ the stand-in quotes more of each passage, older values included.
   finds the right value in what governance keeps for all 135 questions with one, from a
   document the key cites, and no document beyond what the reader may read. So reading
   everything after governance loses no value or document the audit sees, and answers 52
-  against the raw drive's 49. The audit also reads what a sentence says about the value
-  ([#68](https://github.com/AngelMsger/Inspiration/issues/68)): for every one of those
-  questions a source states it denied and narrowed no more than the key's quotes, and names
-  the key's condition for the two values that have one.
+  against the raw drive's 49. The audit also reads, word by word, what a sentence says
+  about the value ([#68](https://github.com/AngelMsger/Inspiration/issues/68)): for every
+  one of those questions a source states it denied and narrowed as the key's quotes do, and
+  names the key's condition beside it for the two values that have one. Being lexical, it
+  misses a denial or a narrowing its language packs do not list.
 - In English, where the stand-ins can read the documents, the engine answers 10 of 22
   questions on changed facts right and 4 stale, the mature RAG 8 and 5, the model reading
   everything 11 and 5, and reading it after governance 10 and 3; on unchanged facts 19, 17,

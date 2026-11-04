@@ -162,3 +162,35 @@ test("a question without a key names no meaning, so a source stating its value k
     "changed_meaning",
   );
 });
+
+describe("what the words around a value do to it", () => {
+  const texts = ["120"];
+  const quote = "Meals are covered up to $120 a day.";
+
+  test("words before a quote that deny or narrow it count against it", () => {
+    expect(keepsMeaning("The following statement is false: Meals are covered up to $120 a day.", texts, [quote])).toBe(
+      false,
+    );
+    expect(keepsMeaning("Only for executives: Meals are covered up to $120 a day.", texts, [quote])).toBe(false);
+  });
+
+  test("a value keeps its polarity: a quote that denies it is not kept by a source that grants it", () => {
+    const denied = "Meals are not covered up to $120 a day.";
+    expect(keepsMeaning(quote, texts, [denied])).toBe(false);
+    expect(keepsMeaning("Meals are never covered up to $120 a day.", texts, [denied])).toBe(true);
+  });
+
+  test("a value that holds for someone loses its condition when the source drops it", () => {
+    const executives = "Meals are covered up to $120 a day only for executives.";
+    expect(keepsMeaning("Meals are covered up to $120 a day.", texts, [executives])).toBe(false);
+  });
+
+  test("the condition must be in the clause that states the value", () => {
+    const executives = "Meals are covered up to $120 a day only for executives.";
+    const elsewhere = "Executives have parking. Meals are covered up to $120 a day only for interns.";
+    expect(keepsMeaning(elsewhere, texts, [executives], ["executives"])).toBe(false);
+    expect(keepsMeaning("Executives may claim meals up to $120 a day.", texts, [executives], ["executives"])).toBe(
+      true,
+    );
+  });
+});

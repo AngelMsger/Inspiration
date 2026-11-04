@@ -7,7 +7,7 @@
 # values are the fact's values.
 
 # The evidence audit (src/audit.ts): a source keeps a value only in a clause that denies it
-# and narrows it no more than the answer key's own quotes do. Every pack is read at once,
+# and narrows it as the answer key's own quotes do. Every pack is read at once,
 # since documents carry no language tag, so this list also serves the kanji Japanese shares.
 audit:
   # Where a clause ends. The comma (，) does not end one.
@@ -21,6 +21,9 @@ audit:
     - "禁止"
     - "不得"
     - "不予"
+    - "错误"
+    - "有误"
+    - "虚假"
   # Phrases with a negation that bound or widen the value rather than deny it, and words that
   # hold a negation's character without being one.
   not_negations:
