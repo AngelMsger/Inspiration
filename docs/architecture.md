@@ -155,7 +155,7 @@ has a governance level that source sync resolves onto every version (`SourceVers
 | Level | Extraction | Governance | Freshness |
 | --- | --- | --- | --- |
 | `governed` | in full | its values decide a slot; owners get todos | review clocks and copy reviews |
-| `reference` | where a block names a catalogue fact, slot claims only; a passage in full once a page or an answer uses it | its values never outvote or hold up a governed one; a value only it states is a note | none |
+| `reference` | where a block names a catalogue fact, slot claims only; a passage in full once a page or an answer uses it | its values never outvote or hold up a governed one, except a change it dates that is in effect and later than the governed value (an announcement the page has not caught up with), which holds and asks the page's owner; a value only it states is a note | none |
 | `search_only` | never | none | none |
 
 Claims about one single-valued fact share a slot key (`Claim.slot_key`: subject entity when

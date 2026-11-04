@@ -31,6 +31,7 @@ export async function exportReplies(cache: ValkeyCache, file: string): Promise<n
   for await (const [key, value] of cache.entries()) lines.push(JSON.stringify({ key, reply: JSON.parse(value) }));
   lines.sort(); // the same replies make the same file
   // Line by line: the decisive test's 1.2 GB of replies is past the longest string V8 allows.
+  // The lines are still held to sort them, so memory grows with the cache.
   const out = createWriteStream(file);
   for (const line of lines) if (!out.write(`${line}\n`)) await once(out, "drain");
   out.end();
@@ -42,7 +43,8 @@ export async function exportReplies(cache: ValkeyCache, file: string): Promise<n
  * Puts every reply in file back in the cache for ttlS seconds and returns how many there were.
  * When any line does not parse, or lacks a key or a reply, it writes nothing and names them all.
  * The file is checked in a first pass and written in a second, so the decisive test's 1.2 GB of
- * replies, past the longest string V8 allows, is never held at once.
+ * replies, past the longest string V8 allows, is never held at once; it must not change between
+ * the passes.
  */
 export async function importReplies(cache: ValkeyCache, file: string, ttlS: number): Promise<number> {
   const broken: string[] = [];

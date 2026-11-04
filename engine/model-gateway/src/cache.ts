@@ -32,6 +32,30 @@ export class MemoryCache implements ResponseCache {
   }
 }
 
+/**
+ * A shared cache read but never written: a hit replays what real runs saved, and what this
+ * process puts stays in its memory. A dry run on stand-ins reads the shared cache through it,
+ * so it prices only the calls a real run would pay for now, and no stand-in reply reaches the
+ * cache that real runs share.
+ */
+export class ReadOnlyCache implements ResponseCache {
+  readonly shared: ResponseCache;
+  readonly local: MemoryCache;
+
+  constructor(shared: ResponseCache, maxEntries?: number) {
+    this.shared = shared;
+    this.local = new MemoryCache(maxEntries);
+  }
+
+  async get(key: string): Promise<string | undefined> {
+    return (await this.local.get(key)) ?? (await this.shared.get(key));
+  }
+
+  async set(key: string, value: string): Promise<void> {
+    await this.local.set(key, value);
+  }
+}
+
 /** Shared by every gateway process, at "<prefix>:gw:cache:<key>". */
 export class ValkeyCache implements ResponseCache {
   readonly client: Redis;

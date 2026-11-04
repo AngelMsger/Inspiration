@@ -13,10 +13,11 @@
  *   only takes effect after today.
  * - A slot that governed documents state is decided among their values, and a group there is
  *   in force by its governed members' dates alone. A value only reference documents state,
- *   whether as a fact or a plan, is a note against it, settled without a person, and a change
- *   a reference document states moves nothing. The case names that change, so the owner
- *   learns of it. When every such document is older than the governed one that holds (an
- *   old copy of the policy kept on a drive), the value is simply out of date: no note.
+ *   whether as a fact or a plan, is a note against it, settled without a person: a draft, a
+ *   proposal or a FAQ never outvotes the policy. When every such document is older than the
+ *   governed one that holds (an old copy of the policy kept on a drive), the value is simply
+ *   out of date: no note. A dated change is the one thing a reference document can bring,
+ *   below.
  * - The leader is the in-force group whose best member in effect today is the most
  *   authoritative; between equally authoritative ones, the value more independent governed
  *   sources in effect today state, then the one from the newer document, then the one more
@@ -31,14 +32,23 @@
  * - A change beats the leader when it took effect after the leader's own date, the later of
  *   its document's effective date and any change it states, and no later than today: a
  *   notice that the cap is 650 from October outranks the policy that says 600 from January
- *   until the policy is revised.
+ *   until the policy is revised. A change a reference document states counts too, such as an
+ *   announcement exported from a channel or minutes that record a decision: the governed page
+ *   has not caught up, its owner is asked to update it or reject the change, and until then
+ *   the announced value holds. An answer that gave the page's value would be wrong from the
+ *   change's first day (the decisive test, docs/design/validation.md). A reference value
+ *   without a day, a plan or a change still ahead moves nothing.
  * Every other group becomes a case against the proposed value: superseded (only archived
  * documents state it, or it predates the change), plan versus fact (only plans state it, or
  * it takes effect later), or a contradiction. The change is the one that beat the leader,
  * else a dated change the proposed value's own documents state: once the revised policy says
  * 650 as well, a guide that said 600 before October is out of date (an open case, so its
  * owner is still asked), while a document dated after the change that still says 600 is a
- * contradiction.
+ * contradiction. Of two governed documents that disagree with no change between them, the
+ * newer one is proposed; the older one is superseded only when it had not changed for
+ * IN_USE_DAYS when the newer one did (a backup, an old page left at an old path). Two
+ * documents both in use are a contradiction: being a few weeks newer does not show that
+ * another document is wrong, so both values stand, disputed, until a person decides.
  *
  * A person settles the open cases by choosing a value on the slot's todo (withChoice): that
  * value holds, the cases are resolved and the values chosen against are outdated. The choice
@@ -308,6 +318,22 @@ function newer(a: ValueGroup, b: ValueGroup, today: string): boolean {
   return dateOf(x) > dateOf(y);
 }
 
+/** How long a governed document can go unchanged and still be in use: the yearly review a policy gets (freshness). */
+export const IN_USE_DAYS = 365;
+
+/**
+ * True when b's document is newer than a's by IN_USE_DAYS or more, or a's has no date: a's is
+ * a copy left behind (a backup, an old page at an old path), not a document still in use
+ * beside b's that a person must weigh against it.
+ */
+function leftBehind(a: ValueGroup, b: ValueGroup): boolean {
+  const [x, y] = [dateOf(a.best), dateOf(b.best)];
+  if (!x) return true;
+  return (
+    Date.parse(`${y.slice(0, 10)}T00:00:00Z`) - Date.parse(`${x.slice(0, 10)}T00:00:00Z`) >= IN_USE_DAYS * 86_400_000
+  );
+}
+
 /** A document's own date: the day it takes effect, else the day it was last changed. */
 function dateOf(m: Member): string {
   return m.document_from ?? m.modified ?? "";
@@ -456,11 +482,9 @@ function since(g: ValueGroup, today: string, governed: boolean): string {
   return changed > documented ? changed : documented;
 }
 
-/** A change to the group's value that only a reference document states, after the proposed value's own date. */
-function referenceChange(g: ValueGroup, proposed: ValueGroup, today: string): string | undefined {
-  const change = changeAsOf(g, today);
-  if (!change?.reference || (change.stated_from as string) <= since(proposed, today, true)) return undefined;
-  return `${change.document}, a reference document, says ${g.value} from ${change.stated_from}`;
+/** The proposed value as the case against another names it: "the governed 600 CNY/night" when governed documents state it. */
+function heldValue(g: ValueGroup): string {
+  return governedIn(g) > 0 ? `the governed ${g.value}` : g.value;
 }
 
 function documents(g: ValueGroup): string {
@@ -517,10 +541,11 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
   const pool = current.length ? current : groups;
   const leader = pool.reduce((a, b) => (leads(b, a, today) ? b : a));
   const baseline = since(leader, today, governedSlot);
-  // The latest change in effect after the leader's own date; on a tie, the better source.
+  // The latest change in effect after the leader's own date; on a tie, the better source. A
+  // value only a reference document states is in force from its change's day.
   let changed: { group: ValueGroup; change: Member } | undefined;
-  for (const group of current) {
-    const change = changeAsOf(group, today, governedSlot);
+  for (const group of groups) {
+    const change = changeAsOf(group, today);
     if (group === leader || !change || (change.stated_from as string) <= baseline) continue;
     const day = change.stated_from as string;
     const best = changed?.change.stated_from as string | undefined;
@@ -548,7 +573,6 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
           rationale: `Only archived documents state ${g.value}.`,
         };
       }
-      const said = governedSlot ? referenceChange(g, proposed, today) : undefined;
       if (governedSlot && referenceOnly(g) && g.live === 0) {
         return {
           ...base,
@@ -557,19 +581,19 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
           priority: "low",
           confidence: 0.6,
           note: true,
-          rationale: `Only reference documents plan ${g.value}; the governed ${proposed.value} holds. A note for the owner, not a todo.`,
+          rationale: `Only reference documents plan ${g.value}; ${heldValue(proposed)} holds. A note for the owner, not a todo.`,
         };
       }
       if (governedSlot && governedIn(g) === 0 && g.live > 0) {
         const held = dateOf(proposed.best);
-        if (!said && g.newest && held && g.newest < held) {
+        if (g.newest && held && g.newest < held) {
           return {
             ...base,
             classification: "supersession",
             status: "auto_resolved",
             priority: "low",
             confidence: 0.8,
-            rationale: `Only reference documents state ${g.value}, the newest from ${g.newest}; the governed ${proposed.value} from ${held} holds, and an older document that says otherwise is out of date.`,
+            rationale: `Only reference documents state ${g.value}, the newest from ${g.newest}; ${heldValue(proposed)} from ${held} holds, and an older document that says otherwise is out of date.`,
           };
         }
         return {
@@ -579,9 +603,7 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
           priority: "low",
           confidence: 0.6,
           note: true,
-          rationale: said
-            ? `${said}; the governed ${proposed.value} holds until a governed document says so. A note for the owner, not a todo.`
-            : `Only reference documents state ${g.value}; the governed ${proposed.value} holds. A note for the owner, not a todo.`,
+          rationale: `Only reference documents state ${g.value}; ${heldValue(proposed)} holds. A note for the owner, not a todo.`,
         };
       }
       if (g.live === 0) {
@@ -622,10 +644,10 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
           status: "open",
           priority: stale && g.best.authority >= GOVERNED ? "high" : "normal",
           confidence: 0.8,
-          rationale: `${g.value} (${documents(g)}, the most authoritative ${g.best.document}) predates the change to ${proposed.value} on ${day} in ${shift.document}.`,
+          rationale: `${g.value} (${documents(g)}, the most authoritative ${g.best.document}) predates the change to ${proposed.value} on ${day} in ${shift.document}.${shift.reference ? ` ${shift.document} is a reference document: the change holds until a governed document states it or a person rejects it.` : ""}`,
         };
       }
-      if (!changed && newer(proposed, g, today)) {
+      if (!changed && newer(proposed, g, today) && leftBehind(g, proposed)) {
         return {
           ...base,
           classification: "supersession",
@@ -642,7 +664,10 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
         status: "open",
         priority: governed ? "high" : "normal",
         confidence: 0.6,
-        rationale: `${proposed.value} comes from the more authoritative ${proposed.best.document} (${proposed.best.authority}); ${g.value} from ${g.best.document} (${g.best.authority}).${said ? ` ${said}.` : ""}`,
+        rationale:
+          !changed && newer(proposed, g, today)
+            ? `${proposed.value} in ${proposed.best.document}, from ${dateOf(proposed.best)}, is newer than ${g.value} (${documents(g)}, the most authoritative ${g.best.document}, from ${dateOf(g.best) || "an earlier date"}), which is as authoritative and has as many independent sources; a newer document does not show that another one is wrong.`
+            : `${proposed.value} comes from the more authoritative ${proposed.best.document} (${proposed.best.authority}); ${g.value} from ${g.best.document} (${g.best.authority}).`,
       };
     });
   return changed

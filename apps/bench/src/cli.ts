@@ -31,7 +31,10 @@
  * calls cost by task and by answering path. A Valkey response cache in it uses --valkey or
  * the stack's. --dry-run keeps that config's models, prices and routes but answers with the
  * stand-ins (standIn), so the cost reported is an estimate of the run, made before paying
- * for it. A real run with --stack or --database also meters into the database, so the
+ * for it. When the config keeps its replies in Valkey and the run can reach it, the dry run
+ * replays the replies saved there and answers only the rest with stand-ins (ReadOnlyCache), so
+ * the estimate is what a real run would pay now, and its stand-in replies stay in process.
+ * A real run with --stack or --database also meters into the database, so the
  * config's day budget counts the day's earlier runs.
  *
  * Before a real run pays, it checks what it can for free (preflight.ts): it names the keyed
@@ -68,7 +71,14 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { Corpus, Engine, type EngineOptions } from "@inspiration/engine";
 import { loadSettings, openPool, type Pool } from "@inspiration/kernel";
-import { Gateway, loadGatewayConfig, PostgresUsage, standIn, ValkeyCache } from "@inspiration/model-gateway";
+import {
+  Gateway,
+  loadGatewayConfig,
+  PostgresUsage,
+  ReadOnlyCache,
+  standIn,
+  ValkeyCache,
+} from "@inspiration/model-gateway";
 import type { Truth } from "./claims.ts";
 import { controlLines, controlReport, loadControl } from "./control.ts";
 import { costLines, costReport, RunUsage } from "./cost.ts";
@@ -102,6 +112,28 @@ const USAGE = [
   "       inspiration-bench ask <corpus> <question> [--stack | --database <url> [--valkey <url>]]",
   "       inspiration-bench cache export|import <file> [--stack | --valkey <url>] [--gateway <file>]",
 ].join("\n");
+
+/** The run's gateway on a --gateway config, or why it cannot start. */
+async function openGateway(
+  file: string,
+  dryRun: boolean,
+  urls: { databaseUrl?: string | undefined; valkeyUrl?: string | undefined },
+): Promise<{ gateway: Gateway; cache?: ValkeyCache; usagePool?: Pool } | string> {
+  const loaded = loadGatewayConfig(file);
+  let cache: ValkeyCache | undefined;
+  if (loaded.cache.backend === "valkey") {
+    if (urls.valkeyUrl) cache = ValkeyCache.fromUrl(urls.valkeyUrl);
+    else if (!dryRun) return `${file} keeps its response cache in Valkey: give --valkey or --stack`;
+  }
+  // A real run on a database meters into gateway.usage, so budgets count the day's earlier
+  // runs; a dry run's stand-in costs never count against them.
+  const usagePool = urls.databaseUrl && !dryRun ? await openPool(urls.databaseUrl) : undefined;
+  const gateway = await Gateway.create(dryRun ? standIn(loaded) : loaded, {
+    ...(cache && { cache: dryRun ? new ReadOnlyCache(cache, loaded.cache.max_entries) : cache }),
+    ...(usagePool && { usage: new RunUsage(new PostgresUsage(usagePool)) }),
+  });
+  return { gateway, ...(cache && { cache }), ...(usagePool && { usagePool }) };
+}
 
 async function main(argv: string[]): Promise<number> {
   const { positionals, values } = parseArgs({
@@ -201,22 +233,12 @@ async function main(argv: string[]): Promise<number> {
   let gateway: Gateway | undefined;
   let usagePool: Pool | undefined;
   if (values.gateway) {
-    const loaded = loadGatewayConfig(values.gateway);
-    const config = values["dry-run"] ? standIn(loaded) : loaded;
-    if (config.cache.backend === "valkey") {
-      if (!valkeyUrl) {
-        console.error(`${values.gateway} keeps its response cache in Valkey: give --valkey or --stack`);
-        return 2;
-      }
-      cache = ValkeyCache.fromUrl(valkeyUrl);
+    const opened = await openGateway(values.gateway, values["dry-run"] === true, { databaseUrl, valkeyUrl });
+    if (typeof opened === "string") {
+      console.error(opened);
+      return 2;
     }
-    // A real run on a database meters into gateway.usage, so budgets count the day's earlier
-    // runs; a dry run's stand-in costs never count against them.
-    if (databaseUrl && !values["dry-run"]) usagePool = await openPool(databaseUrl);
-    gateway = await Gateway.create(config, {
-      ...(cache && { cache }),
-      ...(usagePool && { usage: new RunUsage(new PostgresUsage(usagePool)) }),
-    });
+    ({ gateway, cache, usagePool } = opened);
     options.models = gateway;
   }
   const engine = await Engine.open(options);

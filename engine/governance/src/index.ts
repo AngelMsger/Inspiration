@@ -6,9 +6,10 @@
  * that slot's value group, counted incrementally, and decides the slot again (the rules are
  * in slots.ts):
  * - The proposed value is the most authoritative one in force, unless a statement dated
- *   later than it changed the value ("from 1 October 2026 ... raised to 650 yuan"). A value
- *   is as authoritative as its best statement in effect today: next year's policy lends it
- *   nothing before its day.
+ *   later than it changed the value ("from 1 October 2026 ... raised to 650 yuan"), in a
+ *   governed document or a reference one (an announcement the policy page has not caught up
+ *   with). A value is as authoritative as its best statement in effect today: next year's
+ *   policy lends it nothing before its day.
  *   Between equally authoritative values, the one more independent governed sources in effect
  *   today state is proposed, then the one from the newer document (a 2026 policy against a
  *   2025 handbook; by effective date, else by the day each was last changed, so a backup of
@@ -21,15 +22,19 @@
  * - Every other value gets a ConflictCase from the deterministic tier: a supersession
  *   (auto-resolved when only archived documents state it; open when it predates a dated
  *   change to the proposed value, its own or one that beat the leader), plan versus fact, or
- *   a contradiction, with the proposed value's best claim in effect as proposed_winner_id.
+ *   a contradiction, with the proposed value's best claim in effect as proposed_winner_id. Of
+ *   two governed documents that disagree with no dated change between them, the newer one is
+ *   proposed; the older is superseded only when it had not changed for a year (IN_USE_DAYS)
+ *   when the newer one did, and otherwise stays disputed until a person decides.
  * - Governed documents decide a slot they state. A value only reference documents state is
- *   an auto-resolved contradiction, and a change a reference document dates moves nothing;
- *   the case names that change, so the owner learns of it. Governance publishes a note for
- *   such a value (todo.requested of kind note, dedupe_key "governance:note:<slot>:<value>")
- *   naming the reference document, the date it gives and both values, and again only when
- *   one of those or the statements it points to change. A note asks for no decision. A value
- *   only reference documents older than the governed one state is out of date instead (an
- *   auto-resolved supersession, no note): an old copy of a policy says nothing new.
+ *   an auto-resolved contradiction. Governance publishes a note for such a value
+ *   (todo.requested of kind note, dedupe_key "governance:note:<slot>:<value>") naming the
+ *   reference document, the date it gives and both values, and again only when one of those
+ *   or the statements it points to change. A note asks for no decision. A value only
+ *   reference documents older than the governed one state is out of date instead (an
+ *   auto-resolved supersession, no note): an old copy of a policy says nothing new. A change
+ *   a reference document dates, in effect and later than the governed value, holds instead,
+ *   and the governed value's owner gets the todo: update the page or reject the change.
  * - A case whose value is no longer stated, or is now the proposed one, is auto-resolved.
  * - When a slot's open cases or proposed value change, governance publishes one
  *   todo.requested for the slot (dedupe_key "governance:conflict:<slot>"); a new statement

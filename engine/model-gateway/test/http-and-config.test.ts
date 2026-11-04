@@ -22,6 +22,7 @@ import {
   parseGatewayConfig,
   periodStart,
   preferredModels,
+  ReadOnlyCache,
   standIn,
 } from "../src/index.ts";
 import { completionRequest, makeGateway } from "./fixtures.ts";
@@ -246,6 +247,28 @@ describe("config", () => {
     expect(second.usage.cached_input_tokens).toBeGreaterThan(0.9 * second.usage.input_tokens);
     expect(second.cost.amount).toBeLessThan(first.cost.amount / 10);
     await expect(gateway.complete(completionRequest("x", { sensitivity: "confidential" }))).rejects.toThrow(/no_route/);
+  });
+
+  test("a dry run that reads the shared cache replays saved replies, prices only the rest and writes nothing there", async () => {
+    const config = loadGatewayConfig(DEEPSEEK_CONFIG);
+    const shared = new MemoryCache(10);
+    const usage = new MemoryUsage();
+    const gateway = await Gateway.create(standIn(config), { cache: new ReadOnlyCache(shared), usage });
+    const saved = completionRequest("a question an earlier run answered", { task: "retrieval.answer_question" });
+    const [candidate] = gateway.candidates("complete", saved.sensitivity, { task: saved.task });
+    const key = candidate && gateway.cacheKey(candidate, saved);
+    const reply = { text: "saved reply", finish_reason: "stop", provider: "deepseek", model: "deepseek-flash" };
+    await shared.set(key as string, JSON.stringify(reply));
+    const replayed = await gateway.complete(saved);
+    expect([replayed.text, replayed.cached, replayed.cost.amount]).toEqual(["saved reply", true, 0]);
+    const changed = completionRequest("a question the change asks anew", { task: "retrieval.answer_question" });
+    const priced = await gateway.complete(changed);
+    expect([priced.provider, priced.cached]).toEqual(["deepseek", false]);
+    expect(priced.cost.amount).toBeGreaterThan(0);
+    // The stand-in's reply replays in this process, never from the shared cache.
+    expect(await shared.get((candidate && gateway.cacheKey(candidate, changed)) as string)).toBeUndefined();
+    expect((await gateway.complete(changed)).cached).toBe(true);
+    expect(usage.records.map((r) => r.status)).toEqual(["cached", "ok", "cached"]);
   });
 
   test("globs match like a shell", () => {

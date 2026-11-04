@@ -24,7 +24,7 @@ import {
 } from "@inspiration/contracts";
 import { defineTable, type RecordReader, type Records, type RecordTx } from "@inspiration/eventbus";
 import { logger } from "@inspiration/kernel";
-import { type ChoiceEffect, COMPONENT, decisionOf, noteOf, todoOf, withdrawal } from "./requests.ts";
+import { type ChoiceEffect, COMPONENT, decisionOf, noteOf, ownerSpace, todoOf, withdrawal } from "./requests.ts";
 import {
   asOf,
   type CaseDraft,
@@ -666,9 +666,17 @@ export class Governance implements SlotVerdicts {
 
     // A note is published again only when what it says changed (Note.said), not whenever
     // another document states the governed value.
+    const owner = decision && ownerSpace(decision.proposed, groups);
     const notes = (decision?.cases ?? [])
       .filter((d) => d.note)
-      .map((d) => noteOf(decision?.proposed as ValueGroup, groups.find((g) => g.value === d.value) as ValueGroup, d));
+      .map((d) =>
+        noteOf(
+          decision?.proposed as ValueGroup,
+          groups.find((g) => g.value === d.value) as ValueGroup,
+          d,
+          owner as string,
+        ),
+      );
     const last = new Map((state?.notes ?? []).map((n) => [n.request.dedupe_key, n]));
     const fresh = notes.filter((n) => last.get(n.request.dedupe_key)?.said !== n.said);
     const live = new Set(notes.map((n) => n.request.dedupe_key));
@@ -676,10 +684,11 @@ export class Governance implements SlotVerdicts {
       ...[...last.values()].filter((n) => !live.has(n.request.dedupe_key)).map((n) => withdrawal(n.request)),
     );
 
-    // Only a slot that governed documents state has an owner to ask.
+    // Only a slot that governed documents state has an owner to ask, even when a reference
+    // document's change holds it.
     const open = (decision?.cases ?? []).filter((c) => c.status === "open");
     // A person's choice leaves no case open, so the slot asks nothing while it holds.
-    const asks = decision !== undefined && open.length > 0 && governedIn(decision.proposed) > 0;
+    const asks = decision !== undefined && open.length > 0 && groups.some((g) => governedIn(g) > 0);
     const fingerprint = asks ? question : "";
     // A changed question is asked. The open todo of the same question is sent again, marked a
     // refresh, only when a statement it shows was superseded, so it never shows one that no

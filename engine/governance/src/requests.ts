@@ -26,9 +26,11 @@ function statements(g: ValueGroup): string {
  * the open cases. A person's choice answers it, and a todo is asked again only when it changes.
  * "" when governance asks nothing.
  */
-function questionOf(decision: SlotDecision | undefined): string {
+function questionOf(decision: SlotDecision | undefined, groups: readonly ValueGroup[]): string {
   const open = (decision?.cases ?? []).filter((c) => c.status === "open");
-  if (!decision || !open.length || governedIn(decision.proposed) === 0) return "";
+  // Only a slot that governed documents state has an owner to ask, even when a reference
+  // document's change holds it.
+  if (!decision || !open.length || !groups.some((g) => governedIn(g) > 0)) return "";
   return contentHash(
     JSON.stringify([decision.proposed.value, open.map((c) => [c.value, c.classification, c.priority])]),
   );
@@ -53,13 +55,22 @@ export function decisionOf(
   state: SlotState | undefined,
 ): { decision?: SlotDecision; question: string } {
   const free = decide(stored, today);
-  const question = questionOf(free);
+  const question = questionOf(free, asOf(stored, today));
   const choice = state?.chosen;
   const chosen =
     free && choice && question && choice.question === question
       ? withChoice(free, asOf(stored, today), choice)
       : undefined;
   return { ...((chosen ?? free) && { decision: chosen ?? free }), question };
+}
+
+/**
+ * The space whose owner answers for a slot: the proposed value's, or, when only a reference
+ * document's change holds it, that of the governed value it changed.
+ */
+export function ownerSpace(proposed: ValueGroup, others: Iterable<ValueGroup>): string {
+  if (governedIn(proposed) > 0) return proposed.best.space_id;
+  return [...others].find((g) => governedIn(g) > 0)?.best.space_id ?? proposed.best.space_id;
 }
 
 /** The todo request for a slot's open cases, offering each value to choose. */
@@ -72,7 +83,7 @@ export function todoOf(
   const { proposed } = decision;
   const contenders = open.map((c) => groups.get(c.value) as ValueGroup);
   const why = decision.change
-    ? `changed on ${decision.change.stated_from} in ${decision.change.document}`
+    ? `changed on ${decision.change.stated_from} in ${decision.change.document}${decision.change.reference ? ", a reference document" : ""}`
     : "the most authoritative source";
   const detail = [
     `- **${proposed.value}**, proposed (${why}): ${statements(proposed)}.`,
@@ -88,7 +99,7 @@ export function todoOf(
   const predicate = proposed.slot.split("|")[0] as string;
   return {
     kind: "conflict",
-    space_id: proposed.best.space_id,
+    space_id: ownerSpace(proposed, contenders),
     title: `${slotLabel(proposed.slot)}: ${[proposed, ...contenders].map((g) => g.value).join(" or ")}`,
     detail,
     priority,
@@ -110,11 +121,11 @@ export function withdrawal(request: TodoRequested): TodoRequested {
 }
 
 /** The note for a value only reference documents state: what they say, and the governed value that holds. */
-export function noteOf(proposed: ValueGroup, other: ValueGroup, draft: CaseDraft): Note {
+export function noteOf(proposed: ValueGroup, other: ValueGroup, draft: CaseDraft, space: string): Note {
   const since = other.best.stated_from ?? other.best.document_from;
   const request: TodoRequested = {
     kind: "note",
-    space_id: proposed.best.space_id,
+    space_id: space,
     title: `${slotLabel(proposed.slot)}: ${other.value} in ${other.best.document}, ${proposed.value} holds`,
     detail: [
       `- **${proposed.value}** holds: ${statements(proposed)}.`,

@@ -18,7 +18,7 @@ conflicts:
 # The value governance proposes for each of them.
 proposed:
   "hotel_cap_per_night|一线城市": 650 CNY/night
-  budget_draft_deadline: 11 月 15 日
+  budget_draft_deadline: 11 月 20 日
   "annual_leave_days|工龄 1 至 10 年": 5 day
   meal_allowance_per_day: 100 CNY/day
 
@@ -37,9 +37,9 @@ topics:
 
 # The inbox: [card kind, the titles of its todos].
 cards:
+  - [review, ["budget_draft_deadline: 11 月 20 日 or 11 月 15 日"]]
   - [review, ["annual_leave_days (工龄 1 至 10 年): 5 day or 7 day"]]
   - [review, ["hotel_cap_per_night (一线城市): 650 CNY/night or 600 CNY/night"]]
-  - [notes, ["budget_draft_deadline: 11 月 20 日 in 2026 年 9 月经营会纪要, 11 月 15 日 holds"]]
 
 # The folder only the finance group may read.
 confidential: 财务/内部/

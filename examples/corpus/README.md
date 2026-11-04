@@ -24,10 +24,10 @@ different qualifiers (差旅 and 日常费用), which is what governance has to 
 Governance then proposes 650 for the hotel cap (the notice changed it on 2026-10-01, after
 the policy took effect), a supersession of the policy-library value, and 5 days of
 first-year leave over the guide's 7, a contradiction; it settles the archive's 500 and 80
-alone. The budget deadline stays at the budget note's 11-15: the meeting minutes that moved
-it to 11-20 are a reference document, so their decision is a note for the owner, not a
-todo. That is two todo requests, one of them high priority, and one note. The FAQ's 650 is a
-note too until the notice states it, and then governance withdraws that note.
+alone. It proposes the meeting minutes' 11-20 for the budget deadline: the minutes are a
+reference document, but they record a decision dated 2026-09-26, after the budget note, so
+the note's owner is asked to update it or reject the change. That is three todo requests,
+two of them high priority, and no note.
 
 Freshness keeps review clocks only for the 14 governed documents: eight get a yearly one
 (their claims are policy) and three a 180-day one (process); the archive is retired and two
@@ -47,7 +47,9 @@ in `corpus.yaml`, says how far the engine governs a document:
 - `reference`: the team wiki's minutes and FAQ, the Feishu wiki and the forwarded copy in
   the policy library. Read where a block names a catalogue fact, and only claims that fill a
   slot are kept; the rest of a passage is read when a page or an answer uses it. Their values
-  never outvote or hold up a governed one: a value only they state is a note for the owner.
+  never outvote or hold up a governed one, except a change they date that is in effect and
+  later than it, such as the minutes' decision; a value only they state is a note for the
+  owner.
 - `search_only`: the weekly report. Searchable, never extracted.
 
 Authority is separate and comes from the source defaults: policies 0.9, the Feishu approval
@@ -72,16 +74,15 @@ The demo stands in for the business layer: each topic's owner is the member who 
 of its documents (front matter `owner`), so 9 of the 10 topics get one of two members. The
 bench and `pnpm demo` assign them the same way (`assignOwners` in `apps/engine`). The inbox
 then puts each todo in front of its topic's owner:
-- the two conflicts (hotel cap, first-year leave) on their owners' cards for the week;
-- the minutes' budget deadline on the owner's notes card, outside the weekly budget of 10
-  cards;
-- the withdrawn FAQ note nowhere: it was dismissed when the notice made 650 governed.
+- the three conflicts (hotel cap, budget deadline, first-year leave) on their owners' cards
+  for the week, within the weekly budget of 10 cards.
 
 Over the next sixty days the three process documents come due for review and join their
 owners' cards.
 
-Both conflicts land with 张敏: the notice that raises the hotel cap sits in 团队知识/通知 and
-is placed in the 新人入职指南 topic, which 张敏 owns. In the demo, 张敏 confirms 5 days of
+The hotel cap and the first-year leave land with 张敏: the notice that raises the hotel cap
+sits in 团队知识/通知 and is placed in the 新人入职指南 topic, which 张敏 owns. The budget
+deadline lands with 李娜, who owns the budget note's topic. In the demo, 张敏 confirms 5 days of
 first-year leave; the onboarding guide's 7 days then reads as outdated in the guide, on the
 年休假 topic page and in answers.
 
@@ -135,5 +136,5 @@ next action and reads again, and builds a static page that answers from that rec
 | Travel reimbursement deadline | Travel policy: 30 days after the trip. Expense policy: 60 days (general). FAQ: travel within 60 days. Onboarding guide: 60 days. | The travel policy is specific and wins for travel; the FAQ is wrong for travel. |
 | Annual leave in the first year | Attendance policy: 5 days after one year. Onboarding guide: 7 days in the first year. | The guide is wrong. |
 | Approval thresholds | Travel: 5000 元 department head, then CFO. Expenses: 2000 / 20000 tiers. Feishu approval: CFO from 5000 元. | Different scopes, not a conflict; the approval flow matches the travel policy. |
-| 2027 budget deadline | Budget note: 11-15. Meeting minutes (reference): moved to 11-20. | The note is stale. The engine keeps 11-15 and leaves its owner a note, since only a reference document records the decision. |
+| 2027 budget deadline | Budget note: 11-15. Meeting minutes (reference): moved to 11-20. | The note is stale. The engine proposes 11-20 and asks the note's owner to update it, since only a reference document records the decision. |
 | Meal allowance | 2026 policy: 100 元 a day. Archive: 80 元. | Superseded by the newer version. |
