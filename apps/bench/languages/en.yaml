@@ -2,7 +2,7 @@
 # only in Chinese so far, so this pack holds only the evidence audit's words.
 
 # The evidence audit (src/audit.ts): a source keeps a value only in a clause that denies it
-# and narrows it no more than the answer key's own quotes do. Every pack is read at once,
+# and narrows it as the answer key's own quotes do. Every pack is read at once,
 # since documents carry no language tag, so a word here must not be part of a word in
 # another language.
 audit:
@@ -34,6 +34,9 @@ audit:
     - "excluded"
     - "ineligible"
     - "non-reimbursable"
+    - "false"
+    - "untrue"
+    - "incorrect"
   # Phrases with a negation that bound or widen the value rather than deny it, taken out
   # before negations are looked for.
   not_negations:

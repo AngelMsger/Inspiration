@@ -2,7 +2,7 @@
 # only in Chinese so far, so this pack holds only the evidence audit's words.
 
 # The evidence audit (src/audit.ts): a source keeps a value only in a clause that denies it
-# and narrows it no more than the answer key's own quotes do. Every pack is read at once,
+# and narrows it as the answer key's own quotes do. Every pack is read at once,
 # since documents carry no language tag, so a word here must not be part of a word in
 # another language: kanji shared with Chinese are left to the Chinese pack.
 audit:
@@ -17,6 +17,9 @@ audit:
     - "できず"
     - "られず"
     - "せず"
+    - "誤り"
+    - "間違い"
+    - "偽り"
   # Phrases with a negation that bound or widen the value rather than deny it, and words that
   # hold a negation's kana without being one.
   not_negations:

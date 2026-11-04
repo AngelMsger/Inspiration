@@ -14,16 +14,20 @@
  * search-only check (searchReport) runs it too, whatever the long-context paths would cost.
  *
  * Stating a value is not keeping it: "Meals are not covered up to $120 a day" and "$120 a day,
- * only for executives" both state 120. So a source keeps a value only when the clause that
- * states it denies it no more than the key's own quotes do, and narrows it no more than they
- * do unless the key names who or what the value applies to (`condition`); then the source must
- * state that condition. A source that holds one of the key's quotes keeps the meaning the key
- * reads there, whatever runs on after it; a question written with its answer texts alone, and no
- * key, names no meaning, so its sources are held to the value and its document only. The words that deny or narrow a value are data, in the `audit` section
- * of languages/<tag>.yaml. Documents carry no language tag, so every text is read with all the
- * packs at once; phrases that bound or widen a value rather than deny it ("no more than",
- * "regardless") and the value's own words ("no set limit") are taken out before negations are
- * looked for.
+ * only for executives" both state 120. So a source keeps a value only when a clause that states
+ * it denies it exactly when the key's own quotes do and narrows it exactly when they do, or,
+ * where the key names who or what the value holds for (`condition`), names that condition in
+ * the same clause. A source that holds one of the key's quotes keeps the meaning the key reads
+ * there unless the words before the quote, in its clause, deny or narrow it; what runs on after
+ * the quote is not read. A question written with its answer texts alone, and no key, names no
+ * meaning, so its sources are held to the value and its document only.
+ *
+ * It is a lexical check, not an understanding: the words that deny or narrow a value are data,
+ * in the `audit` section of languages/<tag>.yaml, and a denial or a narrowing those words miss
+ * passes, as does a further narrowing of the key's condition ("only for executives in Paris").
+ * Documents carry no language tag, so every text is read with all the packs at once; phrases
+ * that bound or widen a value rather than deny it ("no more than", "regardless") and the value's
+ * own words ("no set limit") are taken out before negations are looked for.
  */
 
 import type { SearchHit } from "@inspiration/contracts";
@@ -98,24 +102,54 @@ const PACKS = loadLanguages(new URL("../languages/", import.meta.url)).flatMap((
 );
 const cues = (key: string, flags: string) => new RegExp(anyOf(PACKS.flatMap((p) => p.list(key))), flags);
 const CLAUSE_END = cues("clause_ends", "u");
+const CLAUSE_ENDS = cues("clause_ends", "gu");
 const NEGATION = cues("negations", "iu");
 const NOT_NEGATION = cues("not_negations", "giu");
 const RESTRICTION = cues("restrictions", "iu");
 
-/** Whether each clause of the text that states the value denies it, and whether it narrows it; the whole text when no clause states it alone. */
-function meaningsOf(text: string, texts: readonly string[]): { negated: boolean; restricted: boolean }[] {
+interface Meaning {
+  negated: boolean;
+  restricted: boolean;
+}
+
+/** Whether words of a clause, without the value's own, deny it and whether they narrow it. */
+function cuesOf(clause: string, texts: readonly string[]): Meaning {
+  let rest = plain(clause).replaceAll("\u2019", "'");
+  for (const t of texts) rest = rest.replaceAll(plain(t), " ");
+  rest = rest.replace(NOT_NEGATION, " ");
+  return { negated: NEGATION.test(rest), restricted: RESTRICTION.test(rest) };
+}
+
+/** The clauses of the text that state the value; the whole text when no clause states it alone. */
+function clausesOf(text: string, texts: readonly string[]): string[] {
   const clauses = text.split(CLAUSE_END).filter((c) => says(c, texts));
-  return (clauses.length ? clauses : [text]).map((clause) => {
-    let rest = plain(clause).replaceAll("\u2019", "'");
-    for (const t of texts) rest = rest.replaceAll(plain(t), " ");
-    rest = rest.replace(NOT_NEGATION, " ");
-    return { negated: NEGATION.test(rest), restricted: RESTRICTION.test(rest) };
+  return clauses.length ? clauses : [text];
+}
+
+/**
+ * Whether the text holds one of the quotes with nothing before it in its clause that denies or
+ * narrows it, beyond what the key's condition allows: the key read the value's meaning in those
+ * words, and what runs on after them, as a list joined into one line runs into the sentence
+ * after it, is not part of it.
+ */
+function holdsQuote(text: string, texts: readonly string[], quotes: readonly string[], condition?: readonly string[]) {
+  const hay = plain(text);
+  return quotes.some((quote) => {
+    const at = hay.indexOf(plain(quote));
+    if (at < 0) return false;
+    const before = hay.slice(0, at);
+    const start = Math.max(0, ...[...before.matchAll(CLAUSE_ENDS)].map((m) => m.index + m[0].length));
+    const lead = cuesOf(before.slice(start), texts);
+    if (lead.negated) return false;
+    return condition ? says(before.slice(start) + plain(quote), condition) : !lead.restricted;
   });
 }
 
 /**
- * Whether the text states the value with the key's meaning: in a clause denied and narrowed no
- * more than the key's quotes, and naming the key's condition when it has one, which may narrow.
+ * Whether the text states the value with the key's meaning, as far as words can tell it: in a
+ * clause that denies it exactly when one of the key's quotes does, and narrows it exactly when
+ * that quote does, or, where the key names its condition, a clause that names it. A source that
+ * holds a quote keeps it unless the words before the quote deny or narrow it.
  */
 export function keepsMeaning(
   text: string,
@@ -123,15 +157,15 @@ export function keepsMeaning(
   quotes: readonly string[] = [],
   condition?: readonly string[],
 ): boolean {
-  if (condition && !says(text, condition)) return false;
-  // The key reads the value in its quotes, so a source holding one keeps the meaning it gives:
-  // a list item there may run on into a sentence that bounds the whole list.
-  const hay = plain(text);
-  if (quotes.some((quote) => hay.includes(plain(quote)))) return true;
-  const key = quotes.flatMap((quote) => meaningsOf(quote, texts));
-  const negated = key.some((m) => m.negated);
-  const restricted = condition !== undefined || key.some((m) => m.restricted);
-  return meaningsOf(text, texts).some((m) => (negated || !m.negated) && (restricted || !m.restricted));
+  if (holdsQuote(text, texts, quotes, condition)) return true;
+  const key = quotes.length
+    ? quotes.flatMap((quote) => clausesOf(quote, texts).map((c) => cuesOf(c, texts)))
+    : [{ negated: false, restricted: false }];
+  return clausesOf(text, texts).some((clause) => {
+    if (condition && !says(clause, condition)) return false;
+    const m = cuesOf(clause, texts);
+    return key.some((k) => k.negated === m.negated && (condition !== undefined || k.restricted === m.restricted));
+  });
 }
 
 /**
