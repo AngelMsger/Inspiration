@@ -27,10 +27,23 @@ function stored(key: string): string | null {
   }
 }
 
+/** A person's library, read before their shell is shown. */
+interface Entry {
+  member: string;
+  library: Library;
+}
+
+/** Whom the app acts as, with their library when it could be read; the shell reads it again otherwise. */
+async function enter(session: Session): Promise<{ session: Session; entry?: Entry }> {
+  const library = await loadLibrary().catch(() => undefined);
+  return { session, ...(library && { entry: { member: session.person.member, library } }) };
+}
+
 /**
  * The app. `generation` counts the times the data under it changed without its doing, as when
  * a snapshot's guide moves to another step: it reads whom it acts as again, and the screens
- * start over, while the frame stays on screen.
+ * start over. Whoever it acts as next, it reads their library before it shows their shell, so
+ * the old frame stays on screen meanwhile and no one's frame shows another person's spaces.
  */
 export function App(props: { generation?: number }) {
   const generation = props.generation ?? 0;
@@ -41,19 +54,23 @@ export function App(props: { generation?: number }) {
   const [picked, setPicked] = useState(() => stored(LANGUAGE));
   const tag = chooseTag(picked, session?.person.locale);
   const words = useMemo(() => ({ say: wordsOf(tag), tag }), [tag]);
-  // What the last shell showed in its left column, kept while the next one reads its own.
-  const library = useRef<Library>(undefined);
+  // The library the next shell starts with, for the member it was read as.
+  const entry = useRef<Entry>(undefined);
 
   useEffect(() => {
     let current = true;
-    api.session().then(
-      (s) => {
-        if (!current) return;
-        setSession(s);
-        setReadIn(generation);
-      },
-      (e: unknown) => setFailure(failureOf(e)),
-    );
+    api
+      .session()
+      .then(enter)
+      .then(
+        (next) => {
+          if (!current) return;
+          entry.current = next.entry;
+          setSession(next.session);
+          setReadIn(generation);
+        },
+        (e: unknown) => current && setFailure(failureOf(e)),
+      );
     return () => {
       current = false;
     };
@@ -63,7 +80,17 @@ export function App(props: { generation?: number }) {
   }, [tag]);
 
   const actAs = useCallback(
-    (member: string) => api.actAs(member).then(setSession, (e: unknown) => setFailure(failureOf(e))),
+    (member: string) =>
+      api
+        .actAs(member)
+        .then(enter)
+        .then(
+          (next) => {
+            entry.current = next.entry;
+            setSession(next.session);
+          },
+          (e: unknown) => setFailure(failureOf(e)),
+        ),
     [],
   );
   const speak = useCallback((t: Tag) => {
@@ -83,7 +110,7 @@ export function App(props: { generation?: number }) {
         <Shell
           key={`${readIn}:${session.person.member}`}
           session={session}
-          last={library}
+          entry={entry}
           onActAs={actAs}
           onLanguage={speak}
         />
@@ -94,19 +121,26 @@ export function App(props: { generation?: number }) {
 
 function Shell(props: {
   session: Session;
-  /** The library shown while the shell reads its own; the shell leaves its own there for the next. */
-  last: RefObject<Library | undefined>;
+  /** The library already read for this person, if any; the shell keeps its latest there. */
+  entry: RefObject<Entry | undefined>;
   onActAs: (member: string) => Promise<void>;
   onLanguage: (tag: Tag) => void;
 }) {
   const route = useRoute();
   const [palette, setPalette] = useState(false);
-  // A synced source changes the documents; the library is read again, and shown as it was meanwhile.
+  // A synced source changes the documents; the library is read again, and shown as it was
+  // meanwhile. Only this person's library is ever shown, and a failure to read it shows.
+  const member = props.session.person.member;
+  const seed = props.entry.current?.member === member ? props.entry.current.library : undefined;
   const [synced, setSynced] = useState(0);
-  const loaded = useLoad(`library:${synced}`, loadLibrary);
-  const last = props.last;
-  if (loaded.state === "done") last.current = loaded.value;
-  const library: Loaded<Library> = last.current ? { state: "done", value: last.current } : loaded;
+  const loaded = useLoad(`library:${synced}`, () => (synced === 0 && seed ? Promise.resolve(seed) : loadLibrary()));
+  const shown = useRef(seed);
+  if (loaded.state === "done") {
+    shown.current = loaded.value;
+    props.entry.current = { member, library: loaded.value };
+  }
+  const library: Loaded<Library> =
+    loaded.state !== "failed" && shown.current ? { state: "done", value: shown.current } : loaded;
   // Resolving a todo changes the inbox; its count in the left column follows.
   const [changes, setChanges] = useState(0);
   const inbox = useLoad(`inbox:${changes}:${synced}`, api.inbox);
