@@ -259,9 +259,9 @@ a.cite:hover {
    slogan (about 10 em a line in English, 9 in Japanese, 5 in Chinese). */
 .hero-grid {
   display: grid;
-  grid-template-columns: minmax(0, 7fr) minmax(380px, 5fr);
+  grid-template-columns: minmax(0, 7fr) minmax(340px, 5fr);
   grid-template-areas: "copy figure";
-  gap: 48px 72px;
+  gap: 48px clamp(40px, 5vw, 72px);
   align-items: center;
 }
 .hero-copy {
@@ -280,6 +280,9 @@ h1 {
   /* Half-width punctuation, so a footnote number sits next to its comma. */
   font-feature-settings: "halt";
   --cite-lift: 2em;
+  /* The comma or full stop inks only the left of its box, so the number steps back over the
+     blank part to stay with it. */
+  --cite-gap: -1.1em;
   font-weight: 600;
   font-size: clamp(2.6rem, 10.6cqi, 5.6rem);
   line-height: 1.18;
@@ -292,9 +295,9 @@ h1 .run {
   display: block;
 }
 h1 .cite {
-  font-size: 0.24em;
+  font-size: max(0.24em, 13px);
   vertical-align: var(--cite-lift, 2.3em);
-  margin-left: 0.18em;
+  margin-left: var(--cite-gap, 0.06em);
 }
 .hero .lead {
   margin-top: 32px;
@@ -1299,16 +1302,20 @@ main > section {
 }
 
 /* Features */
+/* Each card spans three rows of the grid (illustration, title, text), so cards side by side
+   keep their titles on one line however much an illustration holds in a given language. */
 .cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  column-gap: 20px;
   max-width: 1080px;
-  margin: 44px auto 0;
+  margin: 44px auto -20px;
 }
 .card {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  margin-bottom: 20px;
   background: var(--page);
   border-radius: 10px;
   box-shadow: 0 0 0 1px var(--rule);
@@ -1326,7 +1333,7 @@ main > section {
   color: var(--muted);
 }
 .ill {
-  height: 214px;
+  min-height: 214px;
   border-radius: 8px;
   background: var(--paper);
   padding: 20px;
@@ -1676,13 +1683,6 @@ main > section {
 
 /* Narrow screens */
 @media (max-width: 1080px) {
-  .hero-grid {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "copy" "figure";
-  }
-  .hero-fig {
-    width: min(100%, 640px);
-  }
   .kinds {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1690,12 +1690,8 @@ main > section {
 @media (max-width: 980px) {
   .demo,
   .resolve,
-  .agents-row,
-  .cards {
+  .agents-row {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .cards {
-    max-width: 640px;
   }
   .into {
     justify-self: center;
@@ -1718,6 +1714,19 @@ main > section {
     margin-left: auto;
   }
 }
+/* Below a small laptop the hero's figure goes under its copy, and the feature cards stack;
+   each makes one centred column, so a tablet held upright keeps its balance. */
+@media (max-width: 879px) {
+  .hero-grid,
+  .cards {
+    grid-template-columns: minmax(0, 1fr);
+    max-width: 640px;
+    margin-inline: auto;
+  }
+  .hero-grid {
+    grid-template-areas: "copy" "figure";
+  }
+}
 @media (max-width: 720px) {
   .site {
     font-size: 16px;
@@ -1734,9 +1743,6 @@ main > section {
   .kind {
     padding: 20px 20px 18px;
   }
-  .hero-fig {
-    width: 100%;
-  }
   .feed {
     padding-inline: 3px;
   }
@@ -1744,7 +1750,7 @@ main > section {
     padding: 16px 16px 12px;
   }
   .ill {
-    height: auto;
+    min-height: 0;
     padding: 16px;
   }
   .fresh {
