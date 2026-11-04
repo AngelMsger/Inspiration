@@ -23,7 +23,9 @@ run's paid answers).
   changed or conflicting questions, where the aim is 10. Resampling facts, the 95% interval of that
   gap is +1.5 to +12.7, so the lead is now clear but its size is not. Both answer 70 of the 72
   controls. The decision table says what follows: keep a light layer on a mature RAG or long
-  context. The product owner decides.
+  context. The product owner decided otherwise on 2026-11-04 at 18:03 UTC: accept the lead as
+  stable, keep the 10 points as a long-term goal on a larger dataset close to real use, pause this
+  line and build an MVP next ([the validation spec](../../../docs/design/validation.md#where-we-stand)).
 - **Governance no longer makes long context worse: 257 against 252.** Governed long context
   answers all 27 questions on changes announced outside the policy page (8 before; raw long
   context 16) and all 36 on restated copies that lag. Its lead over raw long context, +1.8 points
