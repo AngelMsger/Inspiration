@@ -144,6 +144,7 @@ function Answer(props: { answer: GroundedAnswer; q: string }) {
             <span key={i}>{part.text}</span>
           ) : (
             part.marks.map((n) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: as above, with the document it marks
               <sup key={`${i}-${n}`}>
                 <Link to={citedAt(cite(n), q)}>{n}</Link>
               </sup>
