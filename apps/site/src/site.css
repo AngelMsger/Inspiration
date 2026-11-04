@@ -104,7 +104,7 @@ kbd {
   line-height: 1.5;
 }
 .wrap {
-  max-width: 1160px;
+  max-width: 1240px;
   margin: 0 auto;
   padding-left: max(24px, env(safe-area-inset-left, 0px));
   padding-right: max(24px, env(safe-area-inset-right, 0px));
@@ -273,12 +273,26 @@ a.cite:hover {
   background: var(--indigo);
   box-shadow: 0 0 0 3px var(--indigo-soft);
 }
+/* The headline shares the row with the figure, so its size follows its column: each line of
+   the slogan stays on one line where the column allows. The factors fit each language's
+   slogan (about 10 em a line in English, 9 in Japanese, 5 in Chinese). */
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
+  grid-template-areas: "copy figure" "notes notes";
+  gap: 0 64px;
+  align-items: center;
+}
+.hero-copy {
+  grid-area: copy;
+  container-type: inline-size;
+}
 h1 {
   margin-top: 28px;
   font-family: var(--serif);
   font-weight: 500;
-  font-size: clamp(2.9rem, 1.4rem + 6.4vw, 6.4rem);
-  line-height: 1;
+  font-size: clamp(2.9rem, 9.6cqi, 6.4rem);
+  line-height: 1.02;
   letter-spacing: -0.028em;
 }
 .site:lang(zh) h1,
@@ -287,9 +301,12 @@ h1 {
   font-feature-settings: "halt";
   --cite-lift: 2em;
   font-weight: 600;
-  font-size: clamp(2.6rem, 1.3rem + 5.6vw, 5.6rem);
+  font-size: clamp(2.6rem, 10.6cqi, 5.6rem);
   line-height: 1.18;
   letter-spacing: 0.01em;
+}
+.site:lang(zh) h1 {
+  font-size: clamp(2.6rem, 17cqi, 5.6rem);
 }
 h1 .run {
   display: block;
@@ -318,6 +335,7 @@ h1 .cite {
   margin-left: 6px;
 }
 .notes {
+  grid-area: notes;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px 40px;
@@ -341,6 +359,221 @@ h1 .cite {
 }
 .notes li:target span:last-child {
   color: var(--ink);
+}
+
+/* The hero figure: four kinds of source above, wires meeting at a hub, the topic below. */
+.hero-fig {
+  grid-area: figure;
+  position: relative;
+  margin-top: 40px;
+}
+.feeds {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding-top: 30px;
+}
+/* Equal quarters with the gap inside them, so each tile's middle is where its wire starts. */
+.feed {
+  position: relative;
+  padding-inline: 5px;
+}
+.feed-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 4px 10px;
+  border-radius: 9px;
+  background: var(--page);
+  box-shadow:
+    0 0 0 1px var(--rule),
+    0 6px 14px -10px rgba(28, 30, 35, 0.3);
+  transition:
+    box-shadow 0.35s,
+    color 0.35s;
+}
+.feed-ico {
+  margin-bottom: 4px;
+  color: var(--ink);
+  transition: color 0.35s;
+}
+.feed-kind {
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: center;
+}
+.feed-place {
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: var(--faint);
+  white-space: nowrap;
+}
+.feed-event {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  translate: -50% 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--indigo);
+  color: var(--page);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+  opacity: 0;
+  transition:
+    opacity 0.3s,
+    translate 0.3s var(--arrive);
+}
+.feed:first-child .feed-event {
+  left: 5px;
+  translate: 0 4px;
+}
+.feed:last-child .feed-event {
+  left: auto;
+  right: 5px;
+  translate: 0 4px;
+}
+.feed.is-live .feed-event {
+  opacity: 1;
+  translate: -50% 0;
+}
+.feed:first-child.is-live .feed-event,
+.feed:last-child.is-live .feed-event {
+  translate: 0 0;
+}
+.feed.is-live .feed-tile {
+  box-shadow:
+    0 0 0 1.5px var(--indigo),
+    0 8px 18px -10px rgba(46, 63, 143, 0.45);
+}
+.feed.is-live .feed-ico {
+  color: var(--indigo);
+}
+.wires {
+  display: block;
+  width: 100%;
+  height: 56px;
+  overflow: visible;
+}
+.wires path {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+.wire {
+  stroke: #c9c6bc;
+  stroke-width: 1.25;
+}
+/* A short dash that runs the length of the wire when its source changes. */
+.flow {
+  stroke: var(--indigo);
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-dasharray: 0.18 1.2;
+  stroke-dashoffset: 0.18;
+  opacity: 0;
+}
+.flow.is-flow {
+  opacity: 1;
+  stroke-dashoffset: -1;
+  transition:
+    stroke-dashoffset 0.9s var(--travel),
+    opacity 0.15s;
+}
+.hub {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 11px;
+  height: 11px;
+  margin: -6px auto -5px;
+  border-radius: 50%;
+  background: var(--indigo);
+  box-shadow: 0 0 0 4px var(--indigo-soft);
+  transition: box-shadow 0.4s var(--arrive);
+}
+.hub.is-hit {
+  box-shadow: 0 0 0 9px rgba(46, 63, 143, 0.14);
+}
+.topic {
+  padding: 20px 20px 14px;
+  border-radius: 11px;
+  background: var(--page);
+  box-shadow: var(--shadow-hero);
+}
+.topic-name {
+  font: 500 23px / 1.2 var(--serif);
+}
+.site:lang(zh) .topic-name,
+.site:lang(ja) .topic-name {
+  font-weight: 600;
+  font-size: 21px;
+}
+.topic-meta {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--faint);
+}
+.facts {
+  margin-top: 12px;
+}
+.topic-fact {
+  position: relative;
+  display: grid;
+  grid-template-columns: 15px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  margin-inline: -8px;
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  line-height: 1.35;
+  transition: background-color 0.6s;
+}
+/* Rules between facts keep to the card's text, while a checked fact's tint reaches past it. */
+.topic-fact + .topic-fact::before {
+  content: "";
+  position: absolute;
+  inset: 0 8px auto;
+  border-top: 1px solid var(--rule);
+}
+.topic-fact-ico {
+  color: var(--faint);
+  transition: color 0.4s;
+}
+.topic-fact-label {
+  color: var(--muted);
+}
+.topic-fact-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.topic-fact.is-hit {
+  background: var(--indigo-soft);
+  transition: background-color 0.2s;
+}
+.topic-fact.is-hit .topic-fact-ico {
+  color: var(--indigo);
+}
+.topic-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.topic-foot .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--indigo);
+  box-shadow: 0 0 0 3px var(--indigo-soft);
 }
 
 /* Sections */
@@ -976,7 +1209,81 @@ main > section {
   width: 316px;
 }
 
+/* Where knowledge comes from */
+.kinds {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 48px;
+}
+.kind {
+  display: flex;
+  flex-direction: column;
+  padding: 24px 26px 22px;
+  border-radius: 10px;
+  background: var(--page);
+  box-shadow: 0 0 0 1px var(--rule);
+}
+.kind-ico {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
+  background: var(--paper);
+  box-shadow: 0 0 0 1px var(--rule);
+}
+.kind h3 {
+  margin-top: 18px;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.kind > p {
+  margin-top: 8px;
+  font-size: 15.5px;
+  color: var(--muted);
+}
+.kind .kind-fresh {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px dashed var(--rule);
+  font-size: 14.5px;
+  color: var(--ink);
+}
+.kind > p:not(.kind-fresh) {
+  margin-bottom: 18px;
+}
+.fresh-ico {
+  flex: none;
+  align-self: flex-start;
+  margin-top: 0.2em;
+  color: var(--indigo);
+}
+.kind-fresh strong {
+  font-weight: 600;
+  color: var(--indigo);
+}
+.upkeep {
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1.5px solid var(--ink);
+  font: 500 clamp(1.25rem, 1.1rem + 0.6vw, 1.6rem) / 1.35 var(--serif);
+  max-width: 36em;
+  text-wrap: balance;
+}
+.site:lang(zh) .upkeep,
+.site:lang(ja) .upkeep {
+  font-weight: 600;
+}
+
 /* Features */
+.features {
+  border-top: 1px solid var(--rule);
+}
 .cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1327,6 +1634,16 @@ main > section {
 }
 
 /* Narrow screens */
+@media (max-width: 1080px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "copy" "figure" "notes";
+  }
+  .hero-fig {
+    width: min(100%, 460px);
+    margin-top: 56px;
+  }
+}
 @media (max-width: 980px) {
   .split,
   .demo {
@@ -1358,9 +1675,23 @@ main > section {
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
   .cards,
+  .kinds,
   .grid4,
   .notes {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .kind {
+    padding: 20px 20px 18px;
+  }
+  .hero-fig {
+    width: 100%;
+    margin-top: 44px;
+  }
+  .feed {
+    padding-inline: 3px;
+  }
+  .topic {
+    padding: 16px 16px 12px;
   }
   .ill {
     height: auto;

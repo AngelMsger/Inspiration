@@ -18,7 +18,7 @@ export interface Pack {
     title: string;
     description: string;
   };
-  nav: { how: string; features: string; agents: string; language: string };
+  nav: { how: string; sources: string; features: string; agents: string; language: string };
   hero: {
     status: string;
     title: TitleRun[];
@@ -26,6 +26,17 @@ export interface Pack {
     primary: string;
     notes: string[];
     download: string;
+    /** The figure beside the headline: four kinds of source feeding one topic. */
+    figure: {
+      label: string;
+      /** In the order of SOURCE_KINDS; `event` shows while that source changes. */
+      feeds: { kind: string; place: string; event: string }[];
+      topic: string;
+      topicMeta: string;
+      /** One fact per feed, in the same order. */
+      facts: { label: string; value: string }[];
+      status: string;
+    };
   };
   problem: {
     kicker: string;
@@ -86,6 +97,15 @@ export interface Pack {
     question: string;
     answer: string;
   };
+  /** Where knowledge comes from: one item per entry of SOURCE_KINDS, in that order. */
+  sources: {
+    kicker: string;
+    title: string;
+    lead: string;
+    items: { title: string; text: string; fresh: string }[];
+    freshLabel: string;
+    upkeep: string;
+  };
   enterprise: { kicker: string; title: string; items: { title: string; text: string }[] };
   access: { kicker: string; title: string; text: string };
   footer: { line: string };
@@ -100,7 +120,8 @@ export interface PageContext {
   /** The link from this page to the page of each language tag. */
   href: (tag: string) => string;
   css: string;
-  script: string;
+  /** Browser scripts, inlined after the part they drive. */
+  scripts: { hero: string; demo: string };
   /** Leave out the document shell, for hosts that add their own (the Artifact preview). */
   fragment: boolean;
 }
@@ -121,6 +142,20 @@ function at<T>(list: T[], i: number, key: string): T {
 const sup = (n: number, href?: string): string =>
   href ? `<a class="cite" href="${href}">${n}</a>` : `<span class="cite">${n}</span>`;
 
+/** Line icons on a 20-unit grid, drawn with the current colour. */
+const ICONS = {
+  document: '<path d="M5 2.5h6.5L15 6v11.5H5z"/><path d="M11.5 2.5V6H15M7.5 10h5M7.5 13h5"/>',
+  approval: '<rect x="3" y="3" width="14" height="14" rx="3.5"/><path d="m6.6 10.2 2.3 2.3 4.5-4.9"/>',
+  code: '<path d="M7 6 3 10l4 4M13 6l4 4-4 4M11.2 4.5l-2.4 11"/>',
+  research: '<circle cx="8.8" cy="8.8" r="5.3"/><path d="m12.7 12.7 4.3 4.3"/>',
+  refresh: '<path d="M16 10a6 6 0 1 1-1.76-4.24M16 3.6v3.3h-3.3"/>',
+};
+const icon = (name: keyof typeof ICONS, size: number, cls: string): string =>
+  `<svg class="${cls}" width="${size}" height="${size}" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
+
+/** The kinds of source the hero figure and the sources section show, in their order. */
+const SOURCE_KINDS = ["document", "approval", "code", "research"] as const;
+
 function header(c: PageContext): string {
   const p = c.pack;
   const langs = c.packs
@@ -135,6 +170,7 @@ function header(c: PageContext): string {
     <a class="wordmark" href="#top">Inspiration</a>
     <nav class="top-nav" aria-label="Inspiration">
       <a href="#how">${esc(p.nav.how)}</a>
+      <a href="#sources">${esc(p.nav.sources)}</a>
       <a href="#features">${esc(p.nav.features)}</a>
       <a href="#agents">${esc(p.nav.agents)}</a>
     </nav>
@@ -150,17 +186,54 @@ function hero(c: PageContext): string {
     .join("");
   const notes = h.notes.map((n, i) => `<li id="note-${i + 1}">${sup(i + 1)}<span>${esc(n)}</span></li>`).join("");
   return `<section class="hero" id="top">
-  <div class="wrap">
-    <p class="status"><span class="dot" aria-hidden="true"></span>${esc(h.status)}</p>
-    <h1>${title}</h1>
-    <p class="lead">${esc(h.lead)}</p>
-    <div class="actions">
-      <a class="button" href="#how">${esc(h.primary)}</a>
-      <span class="aside">${esc(h.download)}</span>
+  <div class="wrap hero-grid">
+    <div class="hero-copy">
+      <p class="status"><span class="dot" aria-hidden="true"></span>${esc(h.status)}</p>
+      <h1>${title}</h1>
+      <p class="lead">${esc(h.lead)}</p>
+      <div class="actions">
+        <a class="button" href="#how">${esc(h.primary)}</a>
+        <span class="aside">${esc(h.download)}</span>
+      </div>
     </div>
+    ${heroFigure(c)}
     <ol class="notes">${notes}</ol>
   </div>
+  <script>${c.scripts.hero}</script>
 </section>`;
+}
+
+/**
+ * Four kinds of source feeding one topic, each fact marked with the kind it came from. The
+ * wires run from the middle of each quarter of the row of feeds to the hub, so the drawing
+ * holds at any width; the script sends a change down one wire at a time.
+ */
+function heroFigure(c: PageContext): string {
+  const f = c.pack.hero.figure;
+  const feeds = SOURCE_KINDS.map((kind, i) => {
+    const feed = at(f.feeds, i, "hero.figure.feeds");
+    return `<li class="feed" data-feed="${i}"><span class="feed-event">${esc(feed.event)}</span><span class="feed-tile">${icon(kind, 20, "feed-ico")}<span class="feed-kind">${esc(feed.kind)}</span><span class="feed-place">${esc(feed.place)}</span></span></li>`;
+  }).join("");
+  const wires = SOURCE_KINDS.map((_, i) => {
+    const x = 50 + i * 100;
+    const d = `M${x} 0C${x} 34 200 26 200 60`;
+    return `<path class="wire" d="${d}"/><path class="flow" data-feed="${i}" d="${d}" pathLength="1"/>`;
+  }).join("");
+  const facts = SOURCE_KINDS.map((kind, i) => {
+    const fact = at(f.facts, i, "hero.figure.facts");
+    return `<li class="topic-fact" data-feed="${i}">${icon(kind, 15, "topic-fact-ico")}<span class="topic-fact-label">${esc(fact.label)}</span><span class="topic-fact-value">${esc(fact.value)}</span></li>`;
+  }).join("");
+  return `<figure class="hero-fig" role="img" aria-label="${esc(f.label)}">
+      <ul class="feeds">${feeds}</ul>
+      <svg class="wires" viewBox="0 0 400 60" preserveAspectRatio="none" aria-hidden="true">${wires}</svg>
+      <span class="hub" aria-hidden="true"></span>
+      <div class="topic">
+        <p class="topic-name">${esc(f.topic)}</p>
+        <p class="topic-meta">${esc(f.topicMeta)}</p>
+        <ul class="facts">${facts}</ul>
+        <p class="topic-foot"><span class="dot" aria-hidden="true"></span>${esc(f.status)}</p>
+      </div>
+    </figure>`;
 }
 
 function problem(c: PageContext): string {
@@ -267,7 +340,24 @@ function how(c: PageContext): string {
       ${stage(c)}
     </div>
   </div>
-  <script>${c.script}</script>
+  <script>${c.scripts.demo}</script>
+</section>`;
+}
+
+function sources(c: PageContext): string {
+  const s = c.pack.sources;
+  const items = SOURCE_KINDS.map((kind, i) => {
+    const it = at(s.items, i, "sources.items");
+    return `<li class="kind"><span class="kind-ico">${icon(kind, 22, "kind-glyph")}</span><h3>${esc(it.title)}</h3><p>${esc(it.text)}</p><p class="kind-fresh">${icon("refresh", 16, "fresh-ico")}<span><strong>${esc(s.freshLabel)}</strong>${esc(it.fresh)}</span></p></li>`;
+  }).join("");
+  return `<section class="origins" id="sources">
+  <div class="wrap">
+    <p class="kicker">${esc(s.kicker)}</p>
+    <h2>${esc(s.title)}</h2>
+    <p class="body">${esc(s.lead)}</p>
+    <ul class="kinds">${items}</ul>
+    <p class="upkeep">${esc(s.upkeep)}</p>
+  </div>
 </section>`;
 }
 
@@ -413,6 +503,7 @@ ${header(c)}
 ${hero(c)}
 ${problem(c)}
 ${how(c)}
+${sources(c)}
 ${features(c)}
 ${agents(c)}
 ${enterprise(c)}

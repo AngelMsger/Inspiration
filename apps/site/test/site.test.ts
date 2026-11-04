@@ -31,11 +31,24 @@ describe("site", () => {
     expect(pages.get("index.html")).toContain('href="ja/"');
   });
 
-  test("the inlined demo script is valid JavaScript", () => {
+  test("the inlined scripts, for the hero figure and the demo, are valid JavaScript", () => {
     const html = build({ root: "en", explicitIndex: false, fragment: false }).get("index.html") ?? "";
-    const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1] ?? "";
-    expect(script.length).toBeGreaterThan(0);
-    expect(() => new Function(script)).not.toThrow();
+    const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1] ?? "");
+    expect(scripts).toHaveLength(2);
+    for (const script of scripts) {
+      expect(script.length).toBeGreaterThan(0);
+      expect(() => new Function(script)).not.toThrow();
+    }
+  });
+
+  test("the hero figure and the sources section show the same four kinds of source", () => {
+    const html = build({ root: "en", explicitIndex: false, fragment: false }).get("index.html") ?? "";
+    const figure = /<figure class="hero-fig"[\s\S]*?<\/figure>/.exec(html)?.[0] ?? "";
+    expect(figure.match(/class="feed"/g)).toHaveLength(4);
+    expect(figure.match(/class="flow"/g)).toHaveLength(4);
+    expect(figure.match(/class="topic-fact"/g)).toHaveLength(4);
+    const sources = /<section class="origins"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
+    expect(sources.match(/class="kind"/g)).toHaveLength(4);
   });
 
   test("a preview puts another language at the root, without its shell, with explicit links", () => {

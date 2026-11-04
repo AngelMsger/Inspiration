@@ -14,12 +14,13 @@ meta:
     - "Noto Serif SC:wght@400"
   title: Inspiration · Governed knowledge for people and agents
   description: >-
-    Inspiration turns scattered documents, approval flows and research into governed knowledge.
-    Every fact keeps its source, stays current as sources change, and reaches people and agents
-    within their own permissions.
+    Inspiration gathers what a company knows from wikis, approval flows, code and research into
+    governed knowledge. Every fact keeps its source, stays current as sources change, and reaches
+    people and agents within their own permissions.
 
 nav:
   how: How it works
+  sources: Sources
   features: Features
   agents: For agents
   language: Language
@@ -32,15 +33,45 @@ hero:
     - text: Every answer current.
       note: 2
   lead: >-
-    Inspiration turns the documents, approval flows and research scattered across your company
-    into governed knowledge. Each fact keeps its exact source and a person who maintains it,
-    stays current as its sources change, and reaches people and agents within their own
-    permissions.
+    What your company knows is spread across wikis, approval flows, code and research.
+    Inspiration gathers it into governed knowledge: each fact keeps its exact source and a person
+    who maintains it, stays current as its sources change, and reaches people and agents within
+    their own permissions.
   primary: See how it works
   notes:
     - Every fact keeps a verbatim quote from the passage it came from.
     - When a source changes, every answer that relies on it follows.
   download: Not available for download while we build it.
+  figure:
+    label: >-
+      Illustration: a wiki, an approval flow, a code repository and a research report feed one
+      topic, Business travel. Each of its facts is marked with the source it came from, and when
+      a source changes, the fact it feeds is checked again.
+    feeds:
+      - kind: Wiki
+        place: Feishu
+        event: Edited
+      - kind: Approvals
+        place: Feishu
+        event: New records
+      - kind: Code
+        place: GitHub
+        event: Merged
+      - kind: Research
+        place: Report
+        event: Re-checked
+    topic: Business travel
+    topicMeta: Topic · maintained by Li Na
+    facts:
+      - label: Hotel cap, tier-1 cities
+        value: 650 a night
+      - label: Trips over 5 days
+        value: Finance also approves
+      - label: Expense check
+        value: By city tier
+      - label: Shenzhen 4-star average
+        value: 610 a night
+    status: All current · checked just now
 
 problem:
   kicker: The problem
@@ -117,6 +148,44 @@ demo:
     confirm: Confirm
     confirmed: Confirmed
     confirmedBy: Confirmed by Li Na · just now
+
+sources:
+  kicker: Where knowledge comes from
+  title: Knowledge lives in more than documents.
+  lead: >-
+    It is in how approvals really go, in what the code actually does, in research someone did
+    last quarter. Inspiration reads each where it lives, and holds all of it to the same standard.
+  items:
+    - title: Wikis and documents
+      text: >-
+        Feishu and Lark docs and wikis and uploaded files, with Confluence and DingTalk next. They
+        are read passage by passage, so every quote points at the paragraph it came from.
+      fresh: An edit re-reads only the passages that changed.
+    - title: Approval flows
+      text: >-
+        A flow's definition and months of its records become a procedure: who approves what, in
+        which order, as it really happens. Each step says whether it was defined, observed or
+        inferred.
+      fresh: >-
+        The procedure owner approves it before anyone reads it, and a redefined flow comes back
+        for review.
+    - title: Code repositories
+      text: >-
+        A connected repository is mirrored, mapped as a code graph and researched topic by topic,
+        so how the expense system really checks a cap sits on the same page as the policy.
+      fresh: >-
+        Each merge is compared on the graph. Only conclusions that rest on changed code are checked
+        again, and a disagreement with a document goes to the person who maintains it.
+    - title: Deep research
+      text: >-
+        The research agent works across your knowledge and approved web sources, and writes a
+        report of conclusions, assumptions and evidence. The report becomes a source like any
+        other.
+      fresh: >-
+        Each assumption carries a date to check it again. When what it cites changes, only the
+        affected conclusions are checked, and a new version is written only if one changes.
+  freshLabel: "Staying current: "
+  upkeep: "Different sources, one upkeep: the same evidence, the same owners, the same inbox."
 
 features:
   kicker: What makes it different
