@@ -9,6 +9,7 @@ import { parse } from "yaml";
 import {
   ingest,
   type Keys,
+  keepsMeaning,
   loadKeys,
   loadQuestions,
   type Question,
@@ -64,6 +65,25 @@ describe("the company drive", () => {
       }
     }
     expect([Object.keys(keys.facts).length, quotes]).toEqual([36, 114]);
+  });
+
+  test("every value keeps the key's meaning, as the evidence audit reads it, in a file that states it", async () => {
+    // Otherwise the audit would count the value as changed where governance gives the model the
+    // document untouched: the key, not governance, would be at fault.
+    const keys = (await loadKeys(DRIVE)) as Keys;
+    const unread: string[] = [];
+    for (const [fact, key] of Object.entries(keys.facts)) {
+      for (const v of [...key.values, ...(key.conflicting ?? [])]) {
+        if (v.value === null || !v.texts) continue;
+        const quotes = v.stated.map((s) => s.quote);
+        const condition = "condition" in v ? v.condition : undefined;
+        const read = await Promise.all(
+          v.stated.map(async (s) => keepsMeaning(await textOf(s.file), v.texts as string[], quotes, condition)),
+        );
+        if (!read.some(Boolean)) unread.push(`${fact}: ${v.value}`);
+      }
+    }
+    expect(unread).toEqual([]);
   });
 
   test("a third of the questions in each language, about as many on changed facts as on unchanged ones", async () => {
