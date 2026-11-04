@@ -2,13 +2,17 @@
 /**
  * pnpm demo [--corpus examples/corpus] [--today YYYY-MM-DD] [--port 5173]
  *
- * Starts the demo: the engine process over a corpus (pnpm engine serve), and once it has read
- * the corpus, the web app's development server in front of it. Models are the development
- * stand-ins, so the demo costs nothing and needs no network. Ctrl-C stops both.
+ * Starts the demo: the engine process over a copy of a corpus (pnpm engine serve), and once it
+ * has read the corpus, the web app's development server in front of it. The copy is what the
+ * demo's upstream edits change (updates.ts), so the corpus in the repository stays as it is.
+ * Models are the development stand-ins, so the demo costs nothing and needs no network. Ctrl-C
+ * stops both and removes the copy.
  */
 
 import { spawn } from "node:child_process";
-import { resolve } from "node:path";
+import { cp, mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { createServer } from "vite";
@@ -37,16 +41,13 @@ async function main(): Promise<void> {
       port: { type: "string", default: "5173" },
     },
   });
+  const copy = await mkdtemp(join(tmpdir(), "inspiration-demo-"));
+  await cp(resolve(values.corpus), copy, { recursive: true });
+  process.env.INSPIRATION_DEMO_CORPUS = copy;
+  process.env.INSPIRATION_PEOPLE ??= join(copy, "people.yaml");
   const engine = spawn(
     process.execPath,
-    [
-      SERVE,
-      "serve",
-      resolve(values.corpus),
-      "--port",
-      String(ENGINE_PORT),
-      ...(values.today ? ["--today", values.today] : []),
-    ],
+    [SERVE, "serve", copy, "--port", String(ENGINE_PORT), ...(values.today ? ["--today", values.today] : [])],
     { stdio: "inherit", env: { INSPIRATION_LOG_LEVEL: "warn", ...process.env } },
   );
   let running = true;
@@ -70,6 +71,7 @@ async function main(): Promise<void> {
   process.on("SIGTERM", stop);
   engine.on("exit", (code) => {
     void web.close();
+    void rm(copy, { recursive: true, force: true });
     process.exitCode = code ?? 0;
   });
 }

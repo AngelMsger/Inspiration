@@ -259,6 +259,8 @@ export class Extraction {
       return { ...result, outdated: true };
     }
     const extracted: Built[] = [];
+    // The spans the model read again: a claim they support that it did not state again is gone.
+    const read = new Set<string>();
     const level = levelOf(version);
     const targets = new Set([...change.added_block_ids, ...change.changed_block_ids]);
     if (!change.deleted && level !== "search_only" && targets.size) {
@@ -275,6 +277,7 @@ export class Extraction {
           result.failed_windows++;
           continue;
         }
+        for (const span of window.spans.values()) read.add(span.id);
         for (const said of output.claims) {
           const claim = fitToCatalogue(said, vocabulary);
           if (claim.predicate === undefined && said.predicate !== undefined) result.unfit = (result.unfit ?? 0) + 1;
@@ -298,7 +301,7 @@ export class Extraction {
     const byId = new Map((await this.#occurrences(version, extracted)).map((e) => [e.claim.id, e]));
     const stored = new Set((await this.store.getClaims([...byId.keys()])).map((c) => c.id));
     const fresh = [...byId.values()].filter((e) => !stored.has(e.claim.id));
-    const lost = await this.#lost(version, change.removed_span_ids, [...byId.values()]);
+    const lost = await this.#lost(version, change.removed_span_ids, [...byId.values()], read);
     const restated = await this.#restated(fresh, new Set(byId.keys()));
     const closing = [...new Map([...lost, ...restated].map((c) => [c.claim.id, c])).values()];
     const before = await this.#unstated(mark, byId, closing);
@@ -708,19 +711,26 @@ export class Extraction {
   }
 
   /**
-   * Current claims whose every supporting span was removed, each with the claim that replaces
-   * it, if any: a new one of the same slot, else the most similar statement cut from the same
-   * block, else one of the same slot that the version still states where it did not change.
+   * Current claims the version no longer states, each with the claim that replaces it, if any:
+   * a new one of the same slot, else the most similar statement cut from the same block, else
+   * one of the same slot that the version still states where it did not change.
+   *
+   * A claim is no longer stated when the version removed one of its supporting spans and none
+   * of the others still says it: a span says it while the version holds it in a passage the
+   * model did not read again. So a table row whose value cell changed loses its claim although
+   * the row's other cells stay, while a claim a passage left untouched still supports stays. A
+   * claim the version states again is never lost.
    */
   async #lost(
     version: SourceVersion,
     removedSpanIds: readonly string[],
     extracted: readonly Built[],
+    read: ReadonlySet<string>,
   ): Promise<{ claim: Claim; by?: string }[]> {
     if (!removedSpanIds.length) return [];
-    const removed = new Set(removedSpanIds);
+    const stated = new Set(extracted.map((e) => e.claim.id));
     const candidates = (await this.store.getClaims(await this.store.claimsCiting(removedSpanIds))).filter(
-      (c) => c.superseded_at === undefined,
+      (c) => c.superseded_at === undefined && !stated.has(c.id),
     );
     if (!candidates.length) return [];
     const evidence = await this.store.evidenceOf(candidates.map((c) => c.id));
@@ -728,7 +738,13 @@ export class Extraction {
     for (const e of evidence) {
       if (e.role === "supports") support.set(e.claim_id, [...(support.get(e.claim_id) ?? []), e.span_id]);
     }
-    const lost = candidates.filter((c) => (support.get(c.id) ?? []).every((id) => removed.has(id)));
+    // This rule depends on a claim's evidence coming from one window of one document (#build):
+    // a span this version no longer holds says nothing, and one it holds says the claim unless
+    // the model read it again and did not. Evidence shared across documents (copies of one
+    // passage) would need a span in another document to keep the claim.
+    const here = new Set((await this.store.spansOf(version.id)).map((s) => s.id));
+    const says = (id: string) => here.has(id) && !read.has(id);
+    const lost = candidates.filter((c) => !(support.get(c.id) ?? []).some(says));
     const blockOf = new Map(
       (await this.store.getSpans([...new Set(lost.flatMap((c) => support.get(c.id) ?? []))])).map((s) => [
         s.id,
@@ -754,8 +770,7 @@ export class Extraction {
     const open = replaced.filter((r) => !r.by && slotOf(r.claim) !== undefined);
     if (!open.length) return replaced;
     const gone = new Set(lost.map((c) => c.id));
-    const spans = (await this.store.spansOf(version.id)).map((s) => s.id);
-    const left = (await this.store.getClaims(await this.store.claimsCiting(spans))).filter(
+    const left = (await this.store.getClaims(await this.store.claimsCiting([...here]))).filter(
       (c) => c.superseded_at === undefined && !gone.has(c.id),
     );
     for (const r of open) {

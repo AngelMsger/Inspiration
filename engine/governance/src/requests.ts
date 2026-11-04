@@ -116,7 +116,8 @@ export function todoOf(
 
 /** The request that withdraws an earlier one. */
 export function withdrawal(request: TodoRequested): TodoRequested {
-  return { ...request, withdrawn: true };
+  const { refresh: _refresh, ...rest } = request;
+  return { ...rest, withdrawn: true };
 }
 
 /** The note for a value only reference documents state: what they say, and the governed value that holds. */

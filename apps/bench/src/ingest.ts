@@ -144,7 +144,8 @@ class EventTally {
       REPORT_GROUP,
       count((e) => {
         const r = payloadOf(e, "todo.requested");
-        (r.withdrawn ? this.withdrawn : r.kind === "note" ? this.notes : this.requests).push(e);
+        // A refresh only shows an open todo's question with current statements: no ask.
+        if (!r.refresh) (r.withdrawn ? this.withdrawn : r.kind === "note" ? this.notes : this.requests).push(e);
       }),
     );
     engine.observe(

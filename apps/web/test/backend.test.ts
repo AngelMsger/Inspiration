@@ -1,11 +1,15 @@
 // The development backend: who the page acts as, and that only the backend names the member
 // the engine reads for.
 
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { backend, loadPeople, type Session } from "../src/backend.ts";
+import { Updates } from "../src/updates.ts";
 
 const PEOPLE = fileURLToPath(new URL("../../../examples/corpus/people.yaml", import.meta.url));
 
@@ -103,5 +107,50 @@ describe("development backend", () => {
     expect(await res.json()).toEqual({
       error: { code: "internal", message: "the engine at http://127.0.0.1:9 did not answer" },
     });
+  });
+});
+
+describe("the demo's upstream edits", () => {
+  const { tenant, people } = loadPeople(PEOPLE);
+  let corpus: string;
+  let demo: Server;
+
+  beforeAll(async () => {
+    corpus = await mkdtemp(join(tmpdir(), "inspiration-updates-"));
+    await mkdir(join(corpus, "updates", "revised", "policies"), { recursive: true });
+    await writeFile(
+      join(corpus, "updates", "revised", "update.yaml"),
+      "title: The revised policy\nsource: src_POLICIES\n",
+    );
+    await writeFile(join(corpus, "updates", "revised", "policies", "travel.md"), "Hotels: 650 a night.\n");
+    const middleware = backend({ engine: urlOf(engine), tenant, people, updates: new Updates(corpus) });
+    demo = createServer((req, res) => middleware(req, res, () => res.end()));
+    await listen(demo);
+  });
+
+  afterAll(async () => {
+    demo?.close();
+    await rm(corpus, { recursive: true, force: true });
+  });
+
+  const list = async () => (await (await fetch(`${urlOf(demo)}/api/demo/updates`)).json()) as { updates: unknown[] };
+
+  test("puts an update's files into the corpus, then syncs its source as the person", async () => {
+    expect(await list()).toEqual({
+      updates: [{ name: "revised", title: "The revised policy", source: "src_POLICIES", applied: false }],
+    });
+    seen = [];
+    const res = await fetch(`${urlOf(demo)}/api/demo/updates/revised`, { method: "POST", body: "{}" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ path: "/v0/sources/src_POLICIES/sync", member: people[0]?.member });
+    expect(seen[0]?.method).toBe("POST");
+    expect(await readFile(join(corpus, "policies", "travel.md"), "utf8")).toBe("Hotels: 650 a night.\n");
+    expect((await list()).updates).toEqual([expect.objectContaining({ applied: true })]);
+  });
+
+  test("an update that is not there is not found, and without a corpus there are none", async () => {
+    expect((await fetch(`${urlOf(demo)}/api/demo/updates/other`, { method: "POST" })).status).toBe(404);
+    expect(await (await fetch(`${urlOf(web)}/api/demo/updates`)).json()).toEqual({ updates: [] });
+    expect((await fetch(`${urlOf(web)}/api/demo/updates/revised`, { method: "POST" })).status).toBe(404);
   });
 });

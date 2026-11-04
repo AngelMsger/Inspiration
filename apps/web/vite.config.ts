@@ -6,6 +6,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 import { parse } from "yaml";
 import { backend, loadPeople } from "./src/backend.ts";
+import { Updates } from "./src/updates.ts";
 
 /** A language pack (languages/<tag>.yaml) imported as a module of its words. */
 const languagePacks: Plugin = {
@@ -23,7 +24,9 @@ const devBackend: Plugin = {
     const people =
       process.env.INSPIRATION_PEOPLE ?? fileURLToPath(new URL("../../examples/corpus/people.yaml", import.meta.url));
     const engine = process.env.INSPIRATION_ENGINE_URL ?? "http://127.0.0.1:4100";
-    server.middlewares.use(backend({ engine, ...loadPeople(people) }));
+    // pnpm demo names the copy of the corpus the engine serves, which its upstream edits change.
+    const corpus = process.env.INSPIRATION_DEMO_CORPUS;
+    server.middlewares.use(backend({ engine, ...loadPeople(people), ...(corpus && { updates: new Updates(corpus) }) }));
   },
 };
 

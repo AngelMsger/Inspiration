@@ -14,6 +14,7 @@ import { TopicScreen, TopicsScreen } from "./knowledge.tsx";
 import { Palette } from "./palette.tsx";
 import { Failure } from "./parts.tsx";
 import { Link, type Route, useRoute } from "./route.tsx";
+import { MaintainColumn, MaintainScreen } from "./space.tsx";
 import { chooseTag, TAGS, type Tag, useWords, Words, wordsOf } from "./words.ts";
 
 const LANGUAGE = "inspiration.language";
@@ -69,11 +70,17 @@ function Shell(props: {
 }) {
   const route = useRoute();
   const [palette, setPalette] = useState(false);
-  const library = useLoad("library", loadLibrary);
+  // A synced source changes the documents; the library is read again, and shown as it was meanwhile.
+  const [synced, setSynced] = useState(0);
+  const loaded = useLoad(`library:${synced}`, loadLibrary);
+  const last = useRef<Library>(undefined);
+  if (loaded.state === "done") last.current = loaded.value;
+  const library: Loaded<Library> = last.current ? { state: "done", value: last.current } : loaded;
   // Resolving a todo changes the inbox; its count in the left column follows.
   const [changes, setChanges] = useState(0);
-  const inbox = useLoad(`inbox:${changes}`, api.inbox);
+  const inbox = useLoad(`inbox:${changes}:${synced}`, api.inbox);
   const changed = useCallback(() => setChanges((n) => n + 1), []);
+  const sourcesChanged = useCallback(() => setSynced((n) => n + 1), []);
   const todos = useRef(0);
   if (inbox.state === "done") todos.current = countTodos(inbox.value);
   useEffect(() => {
@@ -100,14 +107,22 @@ function Shell(props: {
         {library.state === "failed" && <Failure error={library.error} />}
         {library.state === "done" && (
           <>
-            {route.name !== "document" && <LeftColumn route={route} library={library.value} todos={todos.current} />}
+            {route.name === "maintain" ? (
+              <MaintainColumn route={route} library={library.value} />
+            ) : (
+              route.name !== "document" && (
+                <LeftColumn route={route} library={library.value} person={props.session.person} todos={todos.current} />
+              )
+            )}
             <Screen
               route={route}
               library={library.value}
               person={props.session.person}
               people={props.session.people}
               inbox={inbox}
+              version={changes + synced}
               onChanged={changed}
+              onSourcesChanged={sourcesChanged}
             />
           </>
         )}
@@ -131,7 +146,9 @@ function Screen(props: {
   person: Person;
   people: Person[];
   inbox: Loaded<Inbox>;
+  version: number;
   onChanged: () => void;
+  onSourcesChanged: () => void;
 }) {
   const { route, library, person, people } = props;
   switch (route.name) {
@@ -151,6 +168,16 @@ function Screen(props: {
       return <Documents route={route} library={library} />;
     case "document":
       return <DocumentScreen route={route} library={library} person={person} />;
+    case "maintain":
+      return (
+        <MaintainScreen
+          route={route}
+          library={library}
+          people={people}
+          version={props.version}
+          onSourcesChanged={props.onSourcesChanged}
+        />
+      );
   }
 }
 
@@ -222,7 +249,7 @@ function TopBar(props: {
   );
 }
 
-function LeftColumn(props: { route: Route; library: Library; todos: number }) {
+function LeftColumn(props: { route: Route; library: Library; person: Person; todos: number }) {
   const { say } = useWords();
   const { route, library } = props;
   const topicSpace =
@@ -258,6 +285,11 @@ function LeftColumn(props: { route: Route; library: Library; todos: number }) {
             <span>{say("nav.knowledge")}</span>
             <span className="count">{library.topics.get(s.id)?.topics.length ?? 0}</span>
           </Link>
+          {s.owner_id === props.person.member && (
+            <Link to={{ name: "maintain", space: s.id, page: "overview" }} className="nav-item nav-sub nav-maintain">
+              {say("nav.maintain")}
+            </Link>
+          )}
         </div>
       ))}
     </nav>

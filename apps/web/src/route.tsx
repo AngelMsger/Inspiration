@@ -25,6 +25,7 @@ export type Route =
   | { name: "topics"; space: string }
   | { name: "topic"; key: string }
   | { name: "documents"; space: string; source?: string; folders: string[] }
+  | { name: "maintain"; space: string; page: "overview" | "topics" | "documents" }
   | DocumentRoute;
 
 export function parse(url: URL): Route {
@@ -38,6 +39,11 @@ export function parse(url: URL): Route {
       source: get("source"),
       folders: q.getAll("folder"),
     };
+  }
+  const maintain = url.pathname.match(/^\/spaces\/([^/]+)\/maintain(?:\/(topics|documents))?$/);
+  if (maintain?.[1]) {
+    const page = maintain[2] === "topics" || maintain[2] === "documents" ? maintain[2] : "overview";
+    return { name: "maintain", space: decodeURIComponent(maintain[1]), page };
   }
   const knowledge = url.pathname.match(/^\/spaces\/([^/]+)\/knowledge$/);
   if (knowledge?.[1]) return { name: "topics", space: decodeURIComponent(knowledge[1]) };
@@ -82,6 +88,8 @@ export function href(route: Route): string {
       return `/spaces/${encodeURIComponent(route.space)}/knowledge`;
     case "topic":
       return `/topics/${encodeURIComponent(route.key)}`;
+    case "maintain":
+      return `/spaces/${encodeURIComponent(route.space)}/maintain${route.page === "overview" ? "" : `/${route.page}`}`;
     case "documents":
       return `/spaces/${encodeURIComponent(route.space)}/documents${query([
         ["source", route.source],

@@ -33,6 +33,8 @@ ask.gaps: Not covered
 note.outdated: Replaced value
 note.conflict: Being decided
 note.thin_evidence: One source only
+note.outdated_text: "{held} holds; {old} in {documents} was replaced."
+note.conflict_text: "Sources differ: {values}. {held} holds until someone decides."
 
 hit.claim: Statement
 hit.chunk: Passage
@@ -147,6 +149,55 @@ topic.written: "In {title}: "
 topic.on_page: "On this page"
 topic.sources: "Sources"
 topic.places: "{places} passages in {documents} documents"
+
+nav.maintain: "Maintain space"
+
+maintain.title: "Maintaining"
+maintain.back: "← Back to reading"
+maintain.overview: "Overview"
+maintain.structure: "Structure and rules"
+maintain.topics: "Topics and owners"
+maintain.documents: "Documents and governance levels"
+
+space.owner: "Space owner {name}"
+space.loading: "Opening the space…"
+space.not_found: "This space does not exist, or you are not its owner."
+space.work: "Waiting for someone"
+space.unassigned: "{count} without a topic owner fall to you"
+space.disputed: "Disputes readers see"
+space.documents: "Documents"
+space.levels: "Strict {governed} · Loose {reference} · Search only {search_only}"
+space.updated: "Recently updated"
+space.summary_work: "{count} things in the space are waiting for someone. "
+space.summary_quiet: "Nothing in the space is waiting for anyone. "
+space.summary_disputed: "Until someone decides, readers see {facts} marked as disputed. "
+space.summary_updated: "The latest update is “{title}”, {when}."
+space.summary_added: "The latest addition is “{title}”, {when}."
+space.to_inbox: "Go to the inbox"
+space.changes: "Recent changes"
+space.change_created: "Added"
+space.change_updated: "Updated"
+space.topics_about: "{count} topics. A topic's owner settles its conflicts and reviews; the space owner covers topics nobody owns."
+space.statements: "{count} statements"
+space.no_owner: "No topic owner yet · falls to you"
+space.head_topic: "Topic"
+space.head_size: "Size"
+space.head_owner: "Topic owner"
+space.levels_about: "A governance level says how much a document's word counts: strict documents settle values, loose ones are only a reference, and search-only ones can be found but are not turned into knowledge. The level is set on a folder and its documents follow; a document set on its own is named."
+space.head_folder: "Folder"
+space.head_source: "Source"
+space.head_documents: "Documents"
+space.head_level: "Governance level"
+space.top_level: "(top level)"
+space.own: "“{title}” set to {level} on its own"
+
+demo.title: "Demo: update a source live"
+demo.about: "As if someone saved a new version on the drive: the files go into the source, and the engine syncs and reads them at once."
+demo.put: "Put in {title}"
+demo.putting: "Putting it in and reading…"
+demo.applied: "{title} is in"
+demo.done: "The engine has read {title}: {count} documents have a new version."
+demo.ask: "Ask again: {question}"
 
 palette.label: Search, ask, or go somewhere
 palette.ask: "Ask “{text}”"

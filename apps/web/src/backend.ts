@@ -10,11 +10,13 @@
  *     GET  /api/session   Session: who the page acts as, and the people to pick from
  *     POST /api/session   {"member": "<mem_...>"}: act as another person of the tenant
  *     *    /api/v0/...    the engine's HTTP API, as that person
+ *     *    /api/demo/...  the demo's upstream edits (updates.ts), when pnpm demo runs it
  */
 
 import { readFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { parse } from "yaml";
+import type { Updates } from "./updates.ts";
 
 /** One person of the demo tenant, as the business layer's accounts would name them. */
 export interface Person {
@@ -51,11 +53,31 @@ export function loadPeople(path: string): People {
 }
 
 /** Connect-style middleware: answers /api/, passes everything else on. */
-export function backend(options: People & { engine: string }) {
-  const { engine, tenant, people } = options;
+export function backend(options: People & { engine: string; updates?: Updates }) {
+  const { engine, tenant, people, updates } = options;
   const personOf = (req: IncomingMessage): Person => {
     const member = cookie(req, COOKIE);
     return people.find((p) => p.member === member) ?? (people[0] as Person);
+  };
+  // The engine's answer as it is: the status, and the body, which is JSON.
+  const forward = async (
+    res: ServerResponse,
+    path: string,
+    person: Person,
+    method = "GET",
+    body?: Uint8Array<ArrayBuffer>,
+  ) => {
+    const answer = await fetch(`${engine}${path}`, {
+      method,
+      headers: {
+        "content-type": "application/json",
+        "x-inspiration-tenant": tenant,
+        "x-inspiration-member": person.member,
+      },
+      ...(body && { body }),
+    });
+    res.writeHead(answer.status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+    res.end(Buffer.from(await answer.arrayBuffer()));
   };
 
   return async (req: IncomingMessage, res: ServerResponse, next: () => void): Promise<void> => {
@@ -72,24 +94,26 @@ export function backend(options: People & { engine: string }) {
         }
         return send(res, 200, { tenant, people, person: personOf(req) } satisfies Session);
       }
+      if (url.pathname === "/api/demo/updates" && req.method === "GET") {
+        return send(res, 200, { updates: (await updates?.list()) ?? [] });
+      }
+      const put = url.pathname.match(/^\/api\/demo\/updates\/([^/]+)$/);
+      if (put?.[1] && req.method === "POST" && updates) {
+        const update = await updates.apply(decodeURIComponent(put[1]));
+        return await forward(
+          res,
+          `/v0/sources/${encodeURIComponent(update.source)}/sync`,
+          personOf(req),
+          "POST",
+          new TextEncoder().encode("{}"),
+        );
+      }
       if (!url.pathname.startsWith("/api/v0/")) return send(res, 404, error("not_found", "no route"));
-      const person = personOf(req);
-      const forwarded = await fetch(`${engine}${url.pathname.slice("/api".length)}${url.search}`, {
-        method: req.method,
-        headers: {
-          "content-type": "application/json",
-          "x-inspiration-tenant": tenant,
-          "x-inspiration-member": person.member,
-        },
-        ...(req.method === "POST" && { body: new Uint8Array(await body(req)) }),
-      });
-      res.writeHead(forwarded.status, {
-        "content-type": "application/json; charset=utf-8",
-        "cache-control": "no-store",
-      });
-      res.end(Buffer.from(await forwarded.arrayBuffer()));
+      const sent = req.method === "POST" ? new Uint8Array(await body(req)) : undefined;
+      await forward(res, `${url.pathname.slice("/api".length)}${url.search}`, personOf(req), req.method, sent);
     } catch (e) {
       if (e instanceof SyntaxError) return send(res, 400, error("bad_request", e.message));
+      if (e instanceof RangeError) return send(res, 404, error("not_found", e.message));
       send(res, 502, error("internal", `the engine at ${engine} did not answer`));
     }
   };

@@ -29,3 +29,10 @@ leave:
   question: 工作第一年有几天年假？
   values: [5 day, 7 day]
   titles: [考勤与休假管理制度, 新人入职指南]
+
+# The demo's upstream edit (examples/corpus/updates): the revised travel policy and its rate
+# table, after which only the onboarding guide still says 600.
+update:
+  name: travel-policy-revised
+  documents: [差旅费管理办法, 城市住宿标准]
+  still: 新人入职指南

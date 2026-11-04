@@ -19,6 +19,8 @@
   --outdated-bg: #f6ebd3;
   --disputed: #a3341f;
   --disputed-bg: #f5e1dc;
+  --maintain: #e6eaf6;
+  --maintain-strong: #d3daf0;
   --sans: "Instrument Sans", "Noto Sans SC", "Noto Sans JP", system-ui, sans-serif;
   --serif: Newsreader, "Noto Serif SC", Georgia, serif;
   --mono: "Geist Mono", ui-monospace, monospace;
@@ -1070,4 +1072,75 @@ p.against > .standing {
     border-left: 0;
     border-top: 1px solid var(--rule);
   }
+}
+
+/* Maintaining a space: a blue left column, numbers on cards, folders in rows */
+
+.left-maintain {
+  background: var(--maintain);
+  border-right-color: var(--maintain-strong);
+}
+
+.left-maintain .nav-item[aria-current="page"] {
+  background: var(--maintain-strong);
+}
+
+.maintain-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px 12px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--maintain-strong);
+}
+
+.maintain-back {
+  font-size: 13px;
+  color: var(--link);
+  margin-top: 6px;
+}
+
+.nav-maintain {
+  color: var(--link);
+}
+
+.metrics {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.metric {
+  flex: 1 1 180px;
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 12px 14px;
+}
+
+.metric-label {
+  font-size: 12px;
+  color: var(--faint);
+  font-weight: 600;
+}
+
+.metric-value {
+  font-size: 28px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-sub {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.summary {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.panel-demo {
+  background: var(--maintain);
+  border-left-color: var(--maintain-strong);
 }

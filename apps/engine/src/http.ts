@@ -15,10 +15,13 @@
  *     POST /v0/answers   AnswerQuery                  GroundedAnswer
  *     GET  /v0/inbox                                  Inbox, the member's open todos
  *     POST /v0/todos/:todo/resolve  ResolveTodo       Todo, closed
+ *     GET  /v0/spaces/:space/overview                 SpaceOverview, for the space's maintainers
+ *     POST /v0/sources/:source/sync                   SyncReport, the source synced now
  *
- * Resolving a todo is the one write: only its assignee may (a todo of anyone else's answers
- * 404), with a resolution it offers (else 400), and the engine reads everything that caused
- * before it answers, so the next read sees the change.
+ * Resolving a todo and syncing a source are the writes. Only a todo's assignee may resolve it
+ * (a todo of anyone else's answers 404), with a resolution it offers (else 400). Only a member
+ * who may administer a space reads its overview or syncs its sources (spaces.ts). Both writes
+ * answer once the engine has read everything they caused, so the next read sees the change.
  *
  * Identity: until the business layer signs principal tokens, a request names its tenant and
  * member in the x-inspiration-tenant and x-inspiration-member headers. That is a development
@@ -50,6 +53,7 @@ import {
 import { logger } from "@inspiration/kernel";
 import { documentTree, entryOf, foldersOf, type ListedDocument } from "@inspiration/source-sync";
 import type { Engine } from "./engine.ts";
+import { maintains, overviewOf, syncNow } from "./spaces.ts";
 import { factLabels, inboxOf, resolveTodo } from "./todos.ts";
 
 const log = logger("engine.http");
@@ -127,6 +131,24 @@ export function apiHandler(engine: Engine, directory: Directory) {
         if (refused) throw new HttpError(400, "bad_request", refused);
         if (!todo) throw notFound("todo");
         return todo;
+      },
+    },
+    {
+      method: "GET",
+      path: /^\/v0\/spaces\/([^/]+)\/overview$/,
+      run: async (who, m) => {
+        const space = await readableSpace(engine, directory, who, decodeURIComponent(m[1] ?? ""));
+        if (!(await maintains(engine, who, space.id))) throw notFound("space");
+        return overviewOf(engine, who, space);
+      },
+    },
+    {
+      method: "POST",
+      path: /^\/v0\/sources\/([^/]+)\/sync$/,
+      run: async (who, m) => {
+        const report = await syncNow(engine, who, decodeURIComponent(m[1] ?? ""));
+        if (!report) throw notFound("source");
+        return report;
       },
     },
   ];
