@@ -115,9 +115,10 @@ opens and what to look at or do there, in each interface language. Two steps mov
 
 `updates/travel-policy-revised` is the upstream edit: edition 7 of the travel policy, in
 effect from 2026-11-01, with the tier-1 cap at 650. Putting it in copies its files over the
-served copy of the corpus and syncs 财务制度 as 周敏. The policy's 600 row is superseded, the
-hotel todo has nothing left to ask, answers cite the policy, and the space overview lists the
-policy as updated.
+served copy of the corpus and syncs 财务制度 as 周敏. The policy's 600 row is superseded and its
+tier-1 row holds 650, the hotel todo has nothing left to ask, and the space overview lists the
+policy as updated. Answers still give 650 and mark the FAQ's and minutes' 600 as outdated; they
+cite the price list, not yet the revised policy.
 
 `pnpm snapshot` records the script: after reading everything each person can see, it takes the
 next action and reads again, and builds a static page that answers from that recording. The
