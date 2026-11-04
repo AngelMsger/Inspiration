@@ -828,6 +828,24 @@
           "items": {
             "$ref": "#/$defs/UnitId"
           }
+        },
+        "held_value": {
+          "description": "conflict and outdated: the value that holds, as a normalized value key (\"650 CNY/night\"), so a screen can say it in its reader's words.\n",
+          "type": "string"
+        },
+        "values": {
+          "description": "conflict: the values in dispute; outdated: the replaced values the documents still state. Normalized value keys.\n",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "documents": {
+          "description": "outdated: the titles of the documents that still state a replaced value.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     },

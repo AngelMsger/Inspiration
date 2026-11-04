@@ -1,7 +1,8 @@
 // What the inbox shows of a todo: the fact it is about, the sides a person chooses between,
-// and values in the reader's words rather than the engine's normalized keys.
+// and values in the reader's words rather than the engine's normalized keys, as answers' notes
+// name them too.
 
-import type { InboxCard, InboxTodo, SearchHit, TodoChoice } from "@inspiration/contracts";
+import type { AnswerNote, InboxCard, InboxTodo, SearchHit, TodoChoice } from "@inspiration/contracts";
 import type { Say } from "./words.ts";
 
 /** "5 day" in the reader's words ("5 days"); a value whose unit has no words, as it is. */
@@ -12,6 +13,22 @@ export function valueText(say: Say, value: string | undefined): string {
   const key = `unit.${(m[2] as string).toLowerCase().replace("/", "_per_")}`;
   const text = say(key, { n: m[1] as string });
   return text === key ? value : text;
+}
+
+/**
+ * A note in the reader's words when it names its values ("7 days" rather than "7 day"), else as the engine
+ * wrote it, in the question's language.
+ */
+export function noteText(say: Say, note: AnswerNote): string {
+  if (note.held_value === undefined || !note.values?.length) return note.text;
+  const list = (items: string[]) => items.join(say("list.mark"));
+  const held = valueText(say, note.held_value);
+  const values = list(note.values.map((v) => valueText(say, v)));
+  if (note.kind === "conflict") return say("note.conflict_text", { values, held });
+  if (note.kind === "outdated" && note.documents?.length) {
+    return say("note.outdated_text", { documents: list(note.documents), old: values, held });
+  }
+  return note.text;
 }
 
 /**

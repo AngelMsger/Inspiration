@@ -33,6 +33,8 @@ ask.gaps: Not covered
 note.outdated: Replaced value
 note.conflict: Being decided
 note.thin_evidence: One source only
+note.outdated_text: "{held} holds; {old} in {documents} was replaced."
+note.conflict_text: "Sources differ: {values}. {held} holds until someone decides."
 
 hit.claim: Statement
 hit.chunk: Passage

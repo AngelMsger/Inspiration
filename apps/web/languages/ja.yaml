@@ -33,6 +33,8 @@ ask.gaps: 扱われていない点
 note.outdated: 置き換えられた値
 note.conflict: 判断待ち
 note.thin_evidence: 出典が一つだけ
+note.outdated_text: "{documents} にはまだ {old} とあります。この値は置き換えられ、現行は {held} です。"
+note.conflict_text: "出典によって {values} と異なります。誰かが決めるまでは {held} が有効です。"
 
 hit.claim: 記述
 hit.chunk: 段落

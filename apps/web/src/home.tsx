@@ -7,6 +7,7 @@ import { api, type Library, useLoad } from "./api.ts";
 import type { Person } from "./backend.ts";
 import { Failure, Standing } from "./parts.tsx";
 import { Link, navigate, type Route } from "./route.tsx";
+import { noteText } from "./todos.ts";
 import { useWords } from "./words.ts";
 
 interface Recent {
@@ -146,7 +147,7 @@ function Answer(props: { answer: GroundedAnswer; q: string }) {
       </p>
       {(answer.notes ?? []).map((note) => (
         <p key={`${note.kind}-${note.text}`} className={`note note-${note.kind}`}>
-          <b>{say(`note.${note.kind}`)}</b> {note.text}
+          <b>{say(`note.${note.kind}`)}</b> {noteText(say, note)}
         </p>
       ))}
       {answer.gaps.length > 0 && (

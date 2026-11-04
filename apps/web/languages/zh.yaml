@@ -33,6 +33,8 @@ ask.gaps: 没有覆盖到
 note.outdated: 已被取代的值
 note.conflict: 正在决定
 note.thin_evidence: 只有一个出处
+note.outdated_text: "{documents}仍写着 {old}；该值已被取代，现行的是 {held}。"
+note.conflict_text: "各来源说法不一：{values}。在有人决定之前，以 {held}为准。"
 
 hit.claim: 陈述
 hit.chunk: 段落
