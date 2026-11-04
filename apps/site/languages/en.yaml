@@ -14,40 +14,75 @@ meta:
     - "Noto Serif SC:wght@400"
   title: Inspiration · Governed knowledge for people and agents
   description: >-
-    Inspiration turns scattered documents, approval flows and research into governed knowledge.
-    Every fact keeps its source, stays current as sources change, and reaches people and agents
-    within their own permissions.
+    Inspiration gathers what a company knows from wikis, approval flows, code and research into
+    governed knowledge. Every fact keeps its source, stays current as sources change, and reaches
+    people and agents within their own permissions.
 
 nav:
   how: How it works
+  sources: Sources
   features: Features
   agents: For agents
   language: Language
 
 hero:
-  status: In active development
   title:
     - text: Every fact sourced.
       note: 1
     - text: Every answer current.
       note: 2
   lead: >-
-    Inspiration turns the documents, approval flows and research scattered across your company
-    into governed knowledge. Each fact keeps its exact source and a person who maintains it,
-    stays current as its sources change, and reaches people and agents within their own
-    permissions.
+    Inspiration gathers what your company knows, from wikis, approval flows, code and research,
+    into knowledge that **cites its source and keeps itself current**, and gives people and agents
+    the same answer.
   primary: See how it works
-  notes:
-    - Every fact keeps a verbatim quote from the passage it came from.
-    - When a source changes, every answer that relies on it follows.
-  download: Not available for download while we build it.
+  figure:
+    label: >-
+      Illustration: a wiki, an approval flow, a code repository and a research report feed one
+      topic, Business travel, which answers people and agents. Each fact is marked with the source
+      it came from; when a source changes, the fact it feeds is checked again and the change
+      reaches everyone who reads it.
+    feeds:
+      - kind: Wiki
+        place: Feishu
+        event: Edited
+      - kind: Approvals
+        place: Feishu
+        event: New records
+      - kind: Code
+        place: GitHub
+        event: Merged
+      - kind: Research
+        place: Report
+        event: Re-checked
+    topic: Business travel
+    topicMeta: Topic · maintained by Li Na
+    facts:
+      - label: Hotel cap, tier-1 cities
+        value: 650 a night
+      - label: Trips over 5 days
+        value: Finance also approves
+      - label: Expense check
+        value: By city tier
+      - label: Shenzhen 4-star average
+        value: 610 a night
+    status: All current · checked just now
+    readers:
+      - label: People
+        place: Answers and pages
+        says: 650 a night
+      - label: Agents
+        place: MCP and REST
+        says: → 650 · fresh
 
 problem:
   kicker: The problem
   title: Stop guessing which document is right.
-  lead: >-
-    At Hengyuan Machinery, one hotel rule lives in five documents. Search finds all five. A chat
-    assistant quotes whichever ranks first.
+  lead: One hotel rule, five documents. Search finds all five, and nobody can tell which one counts.
+  label: >-
+    Animation: someone asks Inspiration for the Shenzhen hotel cap. Five documents disagree;
+    Inspiration answers 650 yuan a night from 1 October, per the notice of 28 September, and marks
+    three older documents outdated.
   documents:
     - name: Travel expense policy, article 7
       place: Finance policy library
@@ -69,9 +104,12 @@ problem:
       place: HR wiki
       value: "600"
       mark: "old"
-  answerLabel: What Inspiration answers
+  answerLabel: Answer
   answer: 650 yuan a night from 1 October
-  answerMeta: Per the notice of 28 September · confirmed by Li Na · 3 documents marked outdated
+  why: Per the notice of 28 September · confirmed by Li Na, who maintains travel rules
+  docsLabel: Documents
+  conflict: 2 different values
+  settled: 3 marked outdated, none deleted
 
 demo:
   kicker: How it works
@@ -82,18 +120,11 @@ demo:
     outdated, and the topic owner confirms the suggested change with one press.
   steps:
     - title: A source changes
-      text: >-
-        Finance posts a notice in Feishu that raises the hotel cap. Inspiration reads the two
-        passages that changed, not the whole library.
+      text: Finance posts a notice in Feishu. Only the two passages that changed are read.
     - title: Answers follow
-      text: >-
-        Every answer, page and agent now says 650 and cites the notice. The policy's old line is
-        marked outdated, not deleted.
+      text: Answers, pages and agents now say 650 and cite the notice. The old line is marked outdated.
     - title: The owner confirms
-      text: >-
-        Li Na, who maintains the travel rules, gets one todo with the suggestion already
-        selected, and confirms it with one press.
-  replay: Replay
+      text: Li Na, who maintains the travel rules, confirms the suggested change with one press.
   caption: An illustration with a made-up company and sample data.
   ui:
     company: Hengyuan Machinery
@@ -118,30 +149,58 @@ demo:
     confirmed: Confirmed
     confirmedBy: Confirmed by Li Na · just now
 
+sources:
+  kicker: Where knowledge comes from
+  title: Knowledge lives in more than documents.
+  lead: It is also in how approvals really go, in what the code actually does, in last quarter's research.
+  items:
+    - title: Wikis and documents
+      text: Feishu and Lark docs, wikis and uploads, with Confluence and DingTalk next.
+      fresh: An edit re-reads only what changed.
+    - title: Approval flows
+      text: Months of approval records become a procedure, written as things really happen.
+      fresh: Its owner approves it, and again when the flow changes.
+    - title: Code repositories
+      text: A repository mapped as a code graph, so how a system really behaves sits beside the policy.
+      fresh: Each merge re-checks only conclusions that rest on changed code.
+    - title: Deep research
+      text: Reports of conclusions, assumptions and evidence, from your knowledge and approved web sources.
+      fresh: Assumptions carry dates; only affected conclusions are checked again.
+  samples:
+    document:
+      title: Travel expenses
+      line: "Tier-1 cities, managers and below, hotel per night:"
+      value: 650 yuan
+    approval:
+      title: Trip approvals · last 90 days
+      trips:
+        - 7 days · Shanghai
+        - 3 days · Beijing
+        - 6 days · Shenzhen
+      manager: Manager
+      finance: Finance
+      rule: Over 5 days, Finance also approves
+    code:
+      change: "#482 Hotel cap to 650"
+    research:
+      title: Shenzhen 4-star average
+      value: 610 a night
+      basis: 42 hotels · assumes trade-fair weeks run higher
+      due: Re-check 1 Dec
+  upkeep: "Different sources, one upkeep: the same evidence, the same owners, the same inbox."
+
 features:
   kicker: What makes it different
   title: Knowledge you can check, that keeps itself current.
   items:
     - title: Every sentence has a source
-      text: >-
-        Inspiration stores knowledge as single facts, each with a verbatim quote from its source
-        and the dates it holds. Pages and answers are built from those facts, so any sentence
-        opens to the passage behind it.
+      text: Knowledge is kept as single facts, each with a verbatim quote and the dates it holds.
     - title: Changes flow through like a build
-      text: >-
-        When a source changes, Inspiration re-reads only the passages that changed and rebuilds
-        only what cites them. Nothing is imported twice, and nobody is asked about changes that
-        do not matter.
+      text: Only the passages that changed are re-read, and only what cites them is rebuilt.
     - title: People decide, in amounts they can keep up with
-      text: >-
-        The assistant does the reading and sorts what needs a person into a short weekly pile,
-        with its suggestion already filled in. Owners confirm with one press, or let it settle
-        the routine ones. Everything it does has a reason and an undo.
+      text: Suggestions arrive filled in, in a short weekly pile. Confirm with one press, or let routine ones settle.
     - title: One fact, in every language
-      text: >-
-        A policy written in Chinese answers a question asked in English or Japanese, and cites
-        the original. Translations are copies of the same knowledge, never a second version of
-        it.
+      text: A policy written in Chinese answers questions in English or Japanese, and cites the original.
   trace:
     quote: 自 2026 年 10 月 1 日起，一线城市经理及以下人员住宿标准调整为每晚 650 元。
     gloss: >-
@@ -177,14 +236,11 @@ features:
 agents:
   kicker: For agents
   title: One answer, for people and agents.
-  lead: >-
-    Your agents reach the same governed knowledge through MCP and REST. They act as the person
-    they work for and see only what that person may read. They get the value in force with its
-    source and the date it holds, instead of five passages from five versions.
+  lead: Your agents reach the same governed knowledge through MCP and REST, acting as the person they work for.
   points:
-    - "Ask, search, read and follow changes: tools shaped by what an agent is trying to do."
-    - Every result carries its source, version, status and a token estimate.
-    - Agents read and propose. Knowledge changes only when a person approves.
+    - "**Tools shaped by the task:** ask, search, read, follow changes."
+    - Every result carries its **source, version and status**, and a token estimate.
+    - Agents **read and propose**. Only people approve changes.
   note: Illustrative. The agent API is in design.
   question: Hotel cap per night in Shenzhen for a manager?
   answer: 650 yuan a night from 2026-10-01.
@@ -194,27 +250,17 @@ enterprise:
   title: Your company decides who reads what.
   items:
     - title: Spaces with owners
-      text: >-
-        Each space's owner decides who reads it. Source permissions only warn, so access never
-        depends on a dozen apps' settings.
+      text: Each space's owner decides who reads it.
     - title: Private until published
-      text: >-
-        Every member has a private My space. Publishing moves knowledge into a shared space after
-        the space owner's review.
+      text: Every member has a private space; publishing goes through review.
     - title: Your sources, your models
-      text: >-
-        Feishu and Lark first, with more sources to follow. Content goes only to model providers
-        cleared for its sensitivity.
+      text: Content goes only to model providers cleared for its sensitivity.
     - title: Cloud or your own servers
-      text: >-
-        One codebase runs as a hosted service or as a private deployment, in English, Chinese and
-        Japanese.
+      text: Hosted, or deployed privately from the same code.
 
-access:
-  kicker: Early access
-  title: Inspiration is in active development.
-  text: >-
-    There is nothing to download or sign up for yet. Early access will open here once the product is ready for its first teams.
+closing:
+  title: Knowledge that keeps up with your company.
+  note: Inspiration is in active development. Early access will open here once it is ready for its first teams.
 
 footer:
-  line: Inspiration is in active development. The company, people and figures in the examples are made up.
+  line: The company, people and figures in the examples are made up.

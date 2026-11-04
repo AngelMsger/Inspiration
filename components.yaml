@@ -258,4 +258,4 @@ apps:
     owns: The measurement harness and its CLI (pnpm bench); ingest runs and volume reports, the control check, history replay, questions and answers, the reading check, cost, synthetic corpora
     uses: [engine]
   site:
-    owns: The product website (pnpm site); static pages in English, Chinese and Japanese from language packs, a scripted demo of the product, and no download or sign-up while in development
+    owns: The product website (pnpm site); static pages in English, Chinese and Japanese from language packs, a figure of the kinds of source it reads, scripted demos of the product (its search box and its window), and no download or sign-up while in development
