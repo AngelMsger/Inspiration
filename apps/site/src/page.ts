@@ -20,13 +20,10 @@ export interface Pack {
   };
   nav: { how: string; sources: string; features: string; agents: string; language: string };
   hero: {
-    status: string;
     title: TitleRun[];
     lead: string;
     primary: string;
-    notes: string[];
-    download: string;
-    /** The figure beside the headline: four kinds of source feeding one topic. */
+    /** The figure beside the headline: four kinds of source feed one topic, which answers people and agents. */
     figure: {
       label: string;
       /** In the order of SOURCE_KINDS; `event` shows while that source changes. */
@@ -36,6 +33,8 @@ export interface Pack {
       /** One fact per feed, in the same order. */
       facts: { label: string; value: string }[];
       status: string;
+      /** Who reads the topic: people, then agents. */
+      readers: { label: string; place: string }[];
     };
   };
   problem: {
@@ -46,7 +45,7 @@ export interface Pack {
     documents: { name: string; place: string; value: string; mark: "old" | "source" | "" }[];
     answerLabel: string;
     answer: string;
-    answerMeta: string;
+    answerNotes: string[];
   };
   demo: {
     kicker: string;
@@ -103,11 +102,11 @@ export interface Pack {
     title: string;
     lead: string;
     items: { title: string; text: string; fresh: string }[];
-    freshLabel: string;
     upkeep: string;
   };
   enterprise: { kicker: string; title: string; items: { title: string; text: string }[] };
-  access: { kicker: string; title: string; text: string };
+  /** The page's last words; the only place that says the product is still being built. */
+  closing: { title: string; note: string };
   footer: { line: string };
 }
 
@@ -153,6 +152,14 @@ const ICONS = {
 const icon = (name: keyof typeof ICONS, size: number, cls: string): string =>
   `<svg class="${cls}" width="${size}" height="${size}" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
 
+/** Where each footnote number in the headline points: the section that shows the claim. */
+const NOTE_TARGETS = ["#problem", "#how"];
+
+/** A section's opening, centred so every band keeps the same axis. */
+function head(kicker: string, title: string, lead = ""): string {
+  return `<div class="sec-head"><p class="kicker">${esc(kicker)}</p><h2>${esc(title)}</h2>${lead ? `<p class="body">${esc(lead)}</p>` : ""}</div>`;
+}
+
 /** The kinds of source the hero figure and the sources section show, in their order. */
 const SOURCE_KINDS = ["document", "approval", "code", "research"] as const;
 
@@ -182,31 +189,29 @@ function header(c: PageContext): string {
 function hero(c: PageContext): string {
   const h = c.pack.hero;
   const title = h.title
-    .map((run) => `<span class="run">${esc(run.text)}${sup(run.note, `#note-${run.note}`)}</span>`)
+    .map(
+      (run) =>
+        `<span class="run">${esc(run.text)}${sup(run.note, at(NOTE_TARGETS, run.note - 1, "hero.title.note"))}</span>`,
+    )
     .join("");
-  const notes = h.notes.map((n, i) => `<li id="note-${i + 1}">${sup(i + 1)}<span>${esc(n)}</span></li>`).join("");
   return `<section class="hero" id="top">
   <div class="wrap hero-grid">
     <div class="hero-copy">
-      <p class="status"><span class="dot" aria-hidden="true"></span>${esc(h.status)}</p>
       <h1>${title}</h1>
       <p class="lead">${esc(h.lead)}</p>
-      <div class="actions">
-        <a class="button" href="#how">${esc(h.primary)}</a>
-        <span class="aside">${esc(h.download)}</span>
-      </div>
+      <div class="actions"><a class="button" href="#how">${esc(h.primary)}</a></div>
     </div>
     ${heroFigure(c)}
-    <ol class="notes">${notes}</ol>
   </div>
   <script>${c.scripts.hero}</script>
 </section>`;
 }
 
 /**
- * Four kinds of source feeding one topic, each fact marked with the kind it came from. The
- * wires run from the middle of each quarter of the row of feeds to the hub, so the drawing
- * holds at any width; the script sends a change down one wire at a time.
+ * Four kinds of source feed one topic, each fact marked with the kind it came from, and the
+ * topic answers people and agents. Wires run from the middle of each quarter of the row of
+ * feeds to the hub, and from the topic to the middle of each half of the row of readers, so
+ * the drawing holds at any width; the script sends a change through one source at a time.
  */
 function heroFigure(c: PageContext): string {
   const f = c.pack.hero.figure;
@@ -223,6 +228,18 @@ function heroFigure(c: PageContext): string {
     const fact = at(f.facts, i, "hero.figure.facts");
     return `<li class="topic-fact" data-feed="${i}">${icon(kind, 15, "topic-fact-ico")}<span class="topic-fact-label">${esc(fact.label)}</span><span class="topic-fact-value">${esc(fact.value)}</span></li>`;
   }).join("");
+  const out = [100, 300]
+    .map((x, i) => {
+      const d = `M200 0C200 26 ${x} 22 ${x} 44`;
+      return `<path class="wire" d="${d}"/><path class="flow out" data-reader="${i}" d="${d}" pathLength="1"/>`;
+    })
+    .join("");
+  const readers = f.readers
+    .map(
+      (r, i) =>
+        `<li class="reader" data-reader="${i}"><span class="reader-label">${esc(r.label)}</span><span class="reader-place">${esc(r.place)}</span></li>`,
+    )
+    .join("");
   return `<figure class="hero-fig" role="img" aria-label="${esc(f.label)}">
       <ul class="feeds">${feeds}</ul>
       <svg class="wires" viewBox="0 0 400 60" preserveAspectRatio="none" aria-hidden="true">${wires}</svg>
@@ -233,6 +250,8 @@ function heroFigure(c: PageContext): string {
         <ul class="facts">${facts}</ul>
         <p class="topic-foot"><span class="dot" aria-hidden="true"></span>${esc(f.status)}</p>
       </div>
+      <svg class="wires wires-out" viewBox="0 0 400 44" preserveAspectRatio="none" aria-hidden="true">${out}</svg>
+      <ul class="readers">${readers}</ul>
     </figure>`;
 }
 
@@ -249,19 +268,17 @@ function problem(c: PageContext): string {
       </li>`;
     })
     .join("");
+  const arrow = `<svg class="into" width="56" height="20" viewBox="0 0 56 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10h50M45 4l7 6-7 6"/></svg>`;
   return `<section class="problem" id="problem">
-  <div class="wrap split">
-    <div class="copy">
-      <p class="kicker">${esc(p.kicker)}</p>
-      <h2>${esc(p.title)}</h2>
-      <p class="body">${esc(p.lead)}</p>
-    </div>
-    <div class="figure">
+  <div class="wrap">
+    ${head(p.kicker, p.title, p.lead)}
+    <div class="resolve">
       <ul class="sheet docs">${rows}</ul>
+      ${arrow}
       <div class="resolved">
         <p class="label">${esc(p.answerLabel)}</p>
-        <p class="res-answer">${esc(p.answer)}${sup(1)}</p>
-        <p class="meta">${esc(p.answerMeta)}</p>
+        <p class="res-answer">${esc(p.answer.slice(0, p.answer.lastIndexOf(" ") + 1))}<span class="nowrap">${esc(p.answer.slice(p.answer.lastIndexOf(" ") + 1))}${sup(1)}</span></p>
+        <ul class="res-notes">${p.answerNotes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
       </div>
     </div>
   </div>
@@ -330,8 +347,7 @@ function how(c: PageContext): string {
     .join("");
   return `<section class="how" id="how">
   <div class="wrap">
-    <p class="kicker">${esc(d.kicker)}</p>
-    <h2>${esc(d.title)}</h2>
+    ${head(d.kicker, d.title)}
     <div class="demo">
       <div class="demo-copy">
         <ol class="steps">${steps}</ol>
@@ -348,13 +364,11 @@ function sources(c: PageContext): string {
   const s = c.pack.sources;
   const items = SOURCE_KINDS.map((kind, i) => {
     const it = at(s.items, i, "sources.items");
-    return `<li class="kind"><span class="kind-ico">${icon(kind, 22, "kind-glyph")}</span><h3>${esc(it.title)}</h3><p>${esc(it.text)}</p><p class="kind-fresh">${icon("refresh", 16, "fresh-ico")}<span><strong>${esc(s.freshLabel)}</strong>${esc(it.fresh)}</span></p></li>`;
+    return `<li class="kind"><span class="kind-ico">${icon(kind, 22, "kind-glyph")}</span><h3>${esc(it.title)}</h3><p>${esc(it.text)}</p><p class="kind-fresh">${icon("refresh", 16, "fresh-ico")}<span>${esc(it.fresh)}</span></p></li>`;
   }).join("");
   return `<section class="origins" id="sources">
   <div class="wrap">
-    <p class="kicker">${esc(s.kicker)}</p>
-    <h2>${esc(s.title)}</h2>
-    <p class="body">${esc(s.lead)}</p>
+    ${head(s.kicker, s.title, s.lead)}
     <ul class="kinds">${items}</ul>
     <p class="upkeep">${esc(s.upkeep)}</p>
   </div>
@@ -394,8 +408,7 @@ function features(c: PageContext): string {
     .join("");
   return `<section class="features" id="features">
   <div class="wrap">
-    <p class="kicker">${esc(f.kicker)}</p>
-    <h2>${esc(f.title)}</h2>
+    ${head(f.kicker, f.title)}
     <div class="cards">${cards}</div>
   </div>
 </section>`;
@@ -408,11 +421,7 @@ function agents(c: PageContext): string {
   const k = (v: string) => `<span class="tk-k">${v}</span>`;
   const code = [
     `<span class="tk-c">// MCP · knowledge.read</span>`,
-    `<span class="tk-f">ask</span>({`,
-    `  ${k("question")}: ${s(a.question)},`,
-    `  ${k("max_tokens")}: <span class="tk-n">400</span>`,
-    `})`,
-    ``,
+    `<span class="tk-f">ask</span>({ ${k("question")}: ${s(a.question)} })`,
     `<span class="tk-c">// →</span>`,
     `{`,
     `  ${k('"answer"')}: ${s(`${a.answer} [1]`)},`,
@@ -427,39 +436,30 @@ function agents(c: PageContext): string {
     `}`,
   ].join("\n");
   return `<section class="agents" id="agents">
-  <div class="wrap split">
-    <div class="copy">
-      <p class="kicker">${esc(a.kicker)}</p>
-      <h2>${esc(a.title)}</h2>
-      <p class="body">${esc(a.lead)}</p>
-      <ul class="points">${a.points.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>
-    </div>
+  <div class="wrap">
+    ${head(a.kicker, a.title, a.lead)}
+    <div class="agents-row">
+    <ul class="points">${a.points.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>
     <figure class="code">
       <pre><code>${code}</code></pre>
       <figcaption>${esc(a.note)}</figcaption>
     </figure>
+    </div>
   </div>
 </section>`;
 }
 
 function enterprise(c: PageContext): string {
   const e = c.pack.enterprise;
-  return `<section class="enterprise">
+  const close = c.pack.closing;
+  return `<section class="enterprise" id="enterprise">
   <div class="wrap">
-    <p class="kicker">${esc(e.kicker)}</p>
-    <h2>${esc(e.title)}</h2>
+    ${head(e.kicker, e.title)}
     <ul class="grid4">${e.items.map((it) => `<li><h3>${esc(it.title)}</h3><p>${esc(it.text)}</p></li>`).join("")}</ul>
-  </div>
-</section>`;
-}
-
-function access(c: PageContext): string {
-  const a = c.pack.access;
-  return `<section class="access" id="access">
-  <div class="wrap">
-    <p class="kicker">${esc(a.kicker)}</p>
-    <h2>${esc(a.title)}</h2>
-    <p class="body">${esc(a.text)}</p>
+    <div class="closing">
+      <p class="closing-title">${esc(close.title)}</p>
+      <p class="closing-note">${esc(close.note)}</p>
+    </div>
   </div>
 </section>`;
 }
@@ -507,7 +507,6 @@ ${sources(c)}
 ${features(c)}
 ${agents(c)}
 ${enterprise(c)}
-${access(c)}
 </main>
 ${footer(c)}
 </div>`;

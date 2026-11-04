@@ -9,7 +9,8 @@
  * through it and then it rests. Further down, a scripted demo of the product (the hotel cap
  * story of the demo corpus) is drawn in the product's own look. Both are illustrations, not
  * the product, and both hold still with reduced motion or without script. While the product
- * is in active development the site offers no download and no sign-up; it says so.
+ * is in active development the site offers no download and no sign-up, and says so once, in
+ * its closing lines.
  *
  * Usage (`pnpm site` runs this file):
  *

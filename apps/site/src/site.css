@@ -104,7 +104,9 @@ kbd {
   line-height: 1.5;
 }
 .wrap {
-  max-width: 1240px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 1288px;
   margin: 0 auto;
   padding-left: max(24px, env(safe-area-inset-left, 0px));
   padding-right: max(24px, env(safe-area-inset-right, 0px));
@@ -252,35 +254,14 @@ a.cite:hover {
 }
 
 /* Hero */
-.hero {
-  padding-block: clamp(64px, 9vw, 120px) clamp(56px, 7vw, 96px);
-}
-.status {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13.5px;
-  color: var(--muted);
-  border: 1px solid var(--rule);
-  border-radius: 999px;
-  padding: 4px 12px 4px 10px;
-  background: var(--page);
-}
-.status .dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--indigo);
-  box-shadow: 0 0 0 3px var(--indigo-soft);
-}
 /* The headline shares the row with the figure, so its size follows its column: each line of
    the slogan stays on one line where the column allows. The factors fit each language's
    slogan (about 10 em a line in English, 9 in Japanese, 5 in Chinese). */
 .hero-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 420px);
-  grid-template-areas: "copy figure" "notes notes";
-  gap: 0 64px;
+  grid-template-columns: minmax(0, 7fr) minmax(380px, 5fr);
+  grid-template-areas: "copy figure";
+  gap: 48px 72px;
   align-items: center;
 }
 .hero-copy {
@@ -288,7 +269,6 @@ a.cite:hover {
   container-type: inline-size;
 }
 h1 {
-  margin-top: 28px;
   font-family: var(--serif);
   font-weight: 500;
   font-size: clamp(2.9rem, 9.6cqi, 6.4rem);
@@ -329,43 +309,11 @@ h1 .cite {
   gap: 12px 14px;
   margin-top: 36px;
 }
-.actions .aside {
-  font-size: 14px;
-  color: var(--faint);
-  margin-left: 6px;
-}
-.notes {
-  grid-area: notes;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 40px;
-  margin-top: 64px;
-  padding-top: 20px;
-  border-top: 1px solid var(--rule);
-  font-size: 14.5px;
-  color: var(--muted);
-  max-width: 900px;
-}
-.notes li {
-  display: flex;
-  gap: 10px;
-  align-items: baseline;
-}
-.notes .cite {
-  font-size: 11px;
-  vertical-align: 0;
-  margin: 0;
-  flex: none;
-}
-.notes li:target span:last-child {
-  color: var(--ink);
-}
 
 /* The hero figure: four kinds of source above, wires meeting at a hub, the topic below. */
 .hero-fig {
   grid-area: figure;
   position: relative;
-  margin-top: 40px;
 }
 .feeds {
   display: grid;
@@ -576,23 +524,91 @@ h1 .cite {
   box-shadow: 0 0 0 3px var(--indigo-soft);
 }
 
-/* Sections */
-main > section {
-  padding-block: clamp(72px, 9vw, 120px);
+.wires-out {
+  height: 40px;
 }
-.split {
+.readers {
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-  gap: 40px 72px;
-  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  justify-items: center;
 }
-.split > * {
-  min-width: 0;
+.reader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 7px 20px 8px;
+  border-radius: 9px;
+  background: var(--page);
+  box-shadow: 0 0 0 1px var(--rule);
+  transition: box-shadow 0.35s;
+}
+.reader.is-hit {
+  box-shadow: 0 0 0 1.5px var(--indigo);
+}
+.reader-label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.reader-place {
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--faint);
 }
 
-/* The problem */
-.problem {
-  border-top: 1px solid var(--rule);
+/* Sections. On a desktop screen each band is one screen tall with its content centred, so the
+   page moves in even steps whatever a band holds; bands alternate paper and page, and every
+   band opens with a centred head, so the weight stays on one axis. */
+main > section {
+  padding-block: clamp(64px, 8vw, 104px);
+}
+@media (min-width: 1024px) and (min-height: 700px) {
+  main > section {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: min(calc(100svh - 65px), 1000px);
+    box-sizing: border-box;
+    padding-block: 64px;
+  }
+  /* The first screen's content sits a little above the middle, where the eye expects it. */
+  main > .hero {
+    padding-block: 40px 104px;
+  }
+}
+.problem,
+.origins {
+  background: var(--page);
+}
+.sec-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 860px;
+  margin-inline: auto;
+  text-align: center;
+}
+.sec-head .body {
+  max-width: 40em;
+  margin-top: 16px;
+  text-wrap: balance;
+}
+/* Japanese breaks lines between phrases, not inside them. */
+.site:lang(ja) :is(h1, h2, .body, .upkeep, .closing-title) {
+  word-break: auto-phrase;
+}
+
+/* The problem: five documents, and the one answer drawn from them */
+.resolve {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+  max-width: 1080px;
+  margin: 48px auto 0;
+}
+.into {
+  color: var(--indigo);
 }
 .sheet {
   background: var(--page);
@@ -645,19 +661,10 @@ main > section {
 }
 .resolved {
   position: relative;
-  margin-top: 28px;
-  padding: 20px 22px;
+  padding: 24px 26px;
   border-radius: 8px;
   background: var(--page);
   box-shadow: 0 0 0 1.5px var(--indigo);
-}
-.resolved::before {
-  content: "";
-  position: absolute;
-  left: 32px;
-  top: -29px;
-  height: 28px;
-  border-left: 1.5px dashed var(--indigo);
 }
 .resolved .label {
   font-size: 13px;
@@ -667,22 +674,38 @@ main > section {
 .resolved .res-answer {
   margin-top: 4px;
   font: 500 clamp(1.4rem, 1.2rem + 0.8vw, 1.85rem) / 1.25 var(--serif);
+  text-wrap: balance;
 }
 .site:lang(zh) .resolved .res-answer,
 .site:lang(ja) .resolved .res-answer {
   font-weight: 600;
 }
-.resolved .meta {
-  margin-top: 6px;
-  font-size: 13.5px;
+.res-notes {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+  font-size: 14px;
   color: var(--muted);
+}
+.res-notes li {
+  position: relative;
+  padding-left: 22px;
+}
+.res-notes li::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0.5em;
+  width: 9px;
+  height: 5px;
+  border-left: 1.5px solid var(--indigo);
+  border-bottom: 1.5px solid var(--indigo);
+  transform: rotate(-45deg);
 }
 
 /* How it works: the steps beside the demo */
-.how {
-  background: var(--page);
-  border-block: 1px solid var(--rule);
-}
 .demo {
   display: grid;
   grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
@@ -1212,16 +1235,16 @@ main > section {
 /* Where knowledge comes from */
 .kinds {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
   margin-top: 48px;
 }
 .kind {
   display: flex;
   flex-direction: column;
-  padding: 24px 26px 22px;
+  padding: 22px 22px 18px;
   border-radius: 10px;
-  background: var(--page);
+  background: var(--paper);
   box-shadow: 0 0 0 1px var(--rule);
 }
 .kind-ico {
@@ -1230,32 +1253,32 @@ main > section {
   width: 42px;
   height: 42px;
   border-radius: 9px;
-  background: var(--paper);
+  background: var(--page);
   box-shadow: 0 0 0 1px var(--rule);
 }
 .kind h3 {
-  margin-top: 18px;
-  font-size: 19px;
+  margin-top: 16px;
+  font-size: 17px;
   font-weight: 600;
   line-height: 1.35;
 }
 .kind > p {
-  margin-top: 8px;
-  font-size: 15.5px;
+  margin-top: 6px;
+  font-size: 14.5px;
   color: var(--muted);
 }
 .kind .kind-fresh {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: baseline;
   margin-top: auto;
-  padding-top: 16px;
+  padding-top: 14px;
   border-top: 1px dashed var(--rule);
-  font-size: 14.5px;
+  font-size: 13.5px;
   color: var(--ink);
 }
 .kind > p:not(.kind-fresh) {
-  margin-bottom: 18px;
+  margin-bottom: 16px;
 }
 .fresh-ico {
   flex: none;
@@ -1263,16 +1286,11 @@ main > section {
   margin-top: 0.2em;
   color: var(--indigo);
 }
-.kind-fresh strong {
-  font-weight: 600;
-  color: var(--indigo);
-}
 .upkeep {
-  margin-top: 40px;
-  padding-top: 24px;
-  border-top: 1.5px solid var(--ink);
-  font: 500 clamp(1.25rem, 1.1rem + 0.6vw, 1.6rem) / 1.35 var(--serif);
   max-width: 36em;
+  margin: 44px auto 0;
+  text-align: center;
+  font: 500 clamp(1.2rem, 1.05rem + 0.6vw, 1.5rem) / 1.4 var(--serif);
   text-wrap: balance;
 }
 .site:lang(zh) .upkeep,
@@ -1281,14 +1299,12 @@ main > section {
 }
 
 /* Features */
-.features {
-  border-top: 1px solid var(--rule);
-}
 .cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 24px;
-  margin-top: 48px;
+  gap: 20px;
+  max-width: 1080px;
+  margin: 44px auto 0;
 }
 .card {
   display: flex;
@@ -1531,21 +1547,32 @@ main > section {
 .agents .body {
   color: var(--night-muted);
 }
+.agents-row {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 32px 64px;
+  align-items: center;
+  max-width: 1080px;
+  margin: 48px auto 0;
+}
 .points {
   display: grid;
-  gap: 10px;
-  margin-top: 28px;
-  font-size: 15.5px;
+  font-size: 17px;
+  line-height: 1.5;
 }
 .points li {
   position: relative;
-  padding-left: 24px;
+  padding: 20px 0 20px 30px;
+  border-top: 1px solid var(--night-rule);
+}
+.points li:last-child {
+  border-bottom: 1px solid var(--night-rule);
 }
 .points li::before {
   content: "";
   position: absolute;
-  left: 2px;
-  top: 0.55em;
+  left: 4px;
+  top: calc(20px + 0.55em);
   width: 10px;
   height: 6px;
   border-left: 1.6px solid var(--night-accent);
@@ -1606,11 +1633,25 @@ main > section {
   font-size: 15px;
   color: var(--muted);
 }
-
-/* Early access */
-.access {
-  background: var(--page);
-  border-top: 1px solid var(--rule);
+.closing {
+  margin-top: 80px;
+  text-align: center;
+}
+.closing-title {
+  font: 500 clamp(1.9rem, 1.3rem + 1.8vw, 2.8rem) / 1.15 var(--serif);
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+.site:lang(zh) .closing-title,
+.site:lang(ja) .closing-title {
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: 0;
+}
+.closing-note {
+  margin-top: 14px;
+  font-size: 14.5px;
+  color: var(--faint);
 }
 
 /* Footer */
@@ -1637,17 +1678,28 @@ main > section {
 @media (max-width: 1080px) {
   .hero-grid {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "copy" "figure" "notes";
+    grid-template-areas: "copy" "figure";
   }
   .hero-fig {
-    width: min(100%, 460px);
-    margin-top: 56px;
+    width: min(100%, 640px);
+  }
+  .kinds {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-width: 980px) {
-  .split,
-  .demo {
+  .demo,
+  .resolve,
+  .agents-row,
+  .cards {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .cards {
+    max-width: 640px;
+  }
+  .into {
+    justify-self: center;
+    rotate: 90deg;
   }
   .demo .stage-wrap {
     order: -1;
@@ -1676,8 +1728,7 @@ main > section {
   }
   .cards,
   .kinds,
-  .grid4,
-  .notes {
+  .grid4 {
     grid-template-columns: minmax(0, 1fr);
   }
   .kind {
@@ -1685,7 +1736,6 @@ main > section {
   }
   .hero-fig {
     width: 100%;
-    margin-top: 44px;
   }
   .feed {
     padding-inline: 3px;

@@ -26,6 +26,12 @@ describe("site", () => {
       // No download or sign-up is offered while the product is in development.
       expect(html, path).not.toMatch(/download=|\.dmg|\.exe|\.zip|mailto:|<form/);
     }
+    // The page says once, at its end, that the product is still being built.
+    for (const { tag, pack } of loadPacks()) {
+      const html = pages.get(tag === "en" ? "index.html" : `${tag}/index.html`) ?? "";
+      expect(html.split(pack.closing.note).length - 1, tag).toBe(1);
+      expect(html.indexOf(pack.closing.note), tag).toBeGreaterThan(html.indexOf('id="enterprise"'));
+    }
     expect(pages.get("zh/index.html")).toContain('<html lang="zh-CN">');
     expect(pages.get("ja/index.html")).toContain('href="../zh/"');
     expect(pages.get("index.html")).toContain('href="ja/"');
