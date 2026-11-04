@@ -51,7 +51,9 @@ history: for the policy, the version of GitLab's history in which the value firs
 ("fiscal 2023" is 2024-03-31, "in 2024" is 2024-01-01), else the earliest revision on the
 drive that states it. A value of `null` means no document in use states the fact from that
 day, though an old copy may: the 2021 download still lists monitor caps that left the
-policy that December.
+policy that December. A value that holds only for some people names them (`condition`), in
+words each of its quotes states: the receipt threshold of US team members and the E-Group
+members' monthly limit.
 
 | Facts | Unchanged | Changed |
 | --- | --- | --- |
@@ -118,9 +120,10 @@ the stand-in quotes more of each passage, older values included.
   finds the right value in what governance keeps for all 135 questions with one, from a
   document the key cites, and no document beyond what the reader may read. So reading
   everything after governance loses no value or document the audit sees, and answers 52
-  against the raw drive's 49. The audit matches a value and its document only: it does
-  not yet tell a sentence that negates the value or narrows it to a condition
-  ([#68](https://github.com/AngelMsger/Inspiration/issues/68)).
+  against the raw drive's 49. The audit also reads what a sentence says about the value
+  ([#68](https://github.com/AngelMsger/Inspiration/issues/68)): for every one of those
+  questions a source states it denied and narrowed no more than the key's quotes, and names
+  the key's condition for the two values that have one.
 - In English, where the stand-ins can read the documents, the engine answers 10 of 22
   questions on changed facts right and 4 stale, the mature RAG 8 and 5, the model reading
   everything 11 and 5, and reading it after governance 10 and 3; on unchanged facts 19, 17,

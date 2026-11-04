@@ -1,5 +1,6 @@
+import { testData } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
-import { beyondRaw, type InputSource, type Question, retentionOf, says } from "../src/index.ts";
+import { beyondRaw, type InputSource, keepsMeaning, type Question, retentionOf, says } from "../src/index.ts";
 
 // The audit reads what each long context gives its model, never an answer: these fixtures carry
 // the governed answer only to show the two can disagree.
@@ -93,4 +94,71 @@ describe("the evidence audit", () => {
     expect(beyondRaw(raw, raw)).toEqual([]);
     expect(beyondRaw(null, raw)).toBeNull();
   });
+});
+
+interface MeaningCases {
+  answer: string[];
+  quote: string;
+  kept: string[];
+  apart: string;
+  denied: string[];
+  narrowed: string[];
+  condition: string[];
+}
+
+const LANGUAGES = ["en", "ja", "zh"].map((tag) => ({
+  tag,
+  ...testData<{ audit: MeaningCases }>(import.meta.url, `${tag}.yaml`).audit,
+}));
+
+describe.each(LANGUAGES)("the evidence audit reads what a value means in $tag", (c) => {
+  const quotes = [c.quote];
+
+  test("a value stated with the key's meaning keeps it, bounded or widened, beside a negation of its own", () => {
+    for (const text of [c.quote, ...c.kept, c.apart]) expect(keepsMeaning(text, c.answer, quotes), text).toBe(true);
+  });
+
+  test("a value stated only denied, or narrowed where the key does not narrow it, does not", () => {
+    for (const text of [...c.denied, ...c.narrowed]) expect(keepsMeaning(text, c.answer, quotes), text).toBe(false);
+  });
+
+  test("a key that names the value's condition keeps it only where the source names it", () => {
+    for (const text of c.narrowed) expect(keepsMeaning(text, c.answer, quotes, c.condition), text).toBe(true);
+    expect(keepsMeaning(c.quote, c.answer, quotes, c.condition)).toBe(false);
+  });
+
+  test("governance that gives the value only with another meaning changes it", () => {
+    const q: Question = {
+      question: "?",
+      answer: c.answer,
+      cites: ["handbook/travel"],
+      quotes: [quotes],
+      kind: "unchanged",
+    };
+    const of = (text: string): InputSource => ({ text, documents: ["handbook/travel.md"] });
+    const changed = { status: "changed_meaning", documents: ["handbook/travel.md"] };
+    expect(retentionOf(q, [of(c.quote)], c.denied.map(of))).toEqual(changed);
+    expect(retentionOf(q, null, c.narrowed.map(of))).toEqual(changed);
+    expect(retentionOf(q, null, [...c.denied.map(of), of(c.apart)])?.status).toBe("kept");
+    const only = { ...q, condition: c.condition };
+    expect(retentionOf(only, null, [of(c.quote)])).toEqual(changed);
+    expect(retentionOf(only, null, c.narrowed.map(of))?.status).toBe("kept");
+  });
+});
+
+test("a source that holds the key's quote keeps its meaning, whatever the sentence after it says", () => {
+  // A list joined into one line runs on into the sentence that bounds the whole list.
+  const text =
+    "The kubelet has the following default hard eviction thresholds: nodefs.available<10% imagefs.available<15% " +
+    "These defaults are only set if none of the parameters is changed.";
+  expect(keepsMeaning(text, ["15%"], ["imagefs.available<15%"])).toBe(true);
+  expect(keepsMeaning(text, ["15%"], ["The default threshold is 15%."])).toBe(false);
+});
+
+test("a question without a key names no meaning, so a source stating its value keeps it", () => {
+  const denied: InputSource = { text: "Meals are not covered up to $120 a day.", documents: ["handbook/travel.md"] };
+  expect(retentionOf(meals, null, [denied])?.status).toBe("kept");
+  expect(retentionOf({ ...meals, quotes: [["Meals are covered up to $120 a day."]] }, null, [denied])?.status).toBe(
+    "changed_meaning",
+  );
 });

@@ -1,0 +1,19 @@
+# The evidence audit's cases in English (retention.test.ts): a key quote of a daily meal
+# allowance, sentences that state the value with the quote's meaning, and sentences that
+# state it only denied, or narrowed to someone the key does not name unless it names them.
+audit:
+  answer: ["120"]
+  quote: "Meals are covered up to $120 a day."
+  kept:
+    - "Meals cost no more than $120 a day."
+    - "Every team member may spend $120 a day on meals, whether or not they travel."
+  # A negation in the next sentence does not deny the value.
+  apart: "Meals cost up to $120 a day. Alcohol is not covered."
+  denied:
+    - "Meals are not covered up to $120 a day."
+    - "Meals don't count toward the $120 a day."
+    - "Meals don’t count toward the $120 a day."
+  narrowed:
+    - "Only executives may claim meals up to $120 a day."
+    - "Meals up to $120 a day are reserved for executives."
+  condition: ["executives"]

@@ -81,7 +81,8 @@ const sameWord = (said: string, unit: string) =>
  * ("5,000 USD" for USD/transaction). An enum takes the one listed value the key names
  * ("stable since v1.25" is "stable"). A negation, a second number or enum value, brackets,
  * other units or currencies keep the key's words. A bound ("more than", "up to") is dropped as
- * extraction drops it: conditions a slot's value cannot hold are not checked here (issue #68).
+ * extraction drops it: conditions a slot's value cannot hold are not checked here, and the
+ * evidence audit (audit.ts) checks that what governance gives its model still states them.
  */
 export function keyedForm(entry: Pick<PredicateEntry, "value"> | undefined, value: string): string {
   const v = entry?.value;

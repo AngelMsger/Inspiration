@@ -6,6 +6,51 @@
 # appear. A fact's slot is how the tenant's predicate catalogue names it; an enum slot's
 # values are the fact's values.
 
+# The evidence audit (src/audit.ts): a source keeps a value only in a clause that denies it
+# and narrows it no more than the answer key's own quotes do. Every pack is read at once,
+# since documents carry no language tag, so this list also serves the kanji Japanese shares.
+audit:
+  # Where a clause ends. The comma (，) does not end one.
+  clause_ends: ["。", "；", "！", "？"]
+  negations:
+    - "不"
+    - "没"
+    - "无"
+    - "未"
+    - "并非"
+    - "禁止"
+    - "不得"
+    - "不予"
+  # Phrases with a negation that bound or widen the value rather than deny it, and words that
+  # hold a negation's character without being one.
+  not_negations:
+    - "不超过"
+    - "不高于"
+    - "不多于"
+    - "不少于"
+    - "不低于"
+    - "不迟于"
+    - "不晚于"
+    - "不早于"
+    - "不仅"
+    - "不同"
+    - "不断"
+    - "不论"
+    - "不管"
+    - "无论"
+    - "无线"
+    - "未来"
+  restrictions:
+    - "仅"
+    - "只"
+    - "限于"
+    - "仅限"
+    - "除外"
+    - "除了"
+    - "以外"
+    - "但"
+    - "例外"
+
 tenant: "合成企业"
 language: "zh-CN"
 spaces:

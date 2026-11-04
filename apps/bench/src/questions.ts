@@ -14,7 +14,9 @@
  * that has had one value is `unchanged`, one that has had more is `changed`, and one stated
  * on that day by no document in use is `not_stated` (old copies may still state it). Texts
  * match without case or thousands separators, and a number only whole: "30" is not in "300".
- * Totals are given by kind and by the question's language, for the engine and the rivals.
+ * A value that holds only for someone or something names them (`condition`), in words each of
+ * its quotes states. Totals are given by kind and by the question's language, for the engine
+ * and the rivals.
  *
  * A key may also say how its case was built: the fact's `topic`, its `pattern` (how the
  * corpus misleads about it) and its `case` (found in the documents or written for the test).
@@ -44,21 +46,8 @@
  * response cache is the cache's, not a model's: it is marked (`cached`), and the medians
  * leave it out.
  *
- * Apart from the answers, an offline audit checks what governance keeps (`retention`, bar 1
- * of docs/design/validation.md): for each question with an answer key, whether what the
- * governed long context gives its model still states the right value, from a document the
- * key cites, and not as a value that no longer holds. It is `kept` when it does, `demoted`
- * when it does but governance holds another value over it (an announced change held back until
- * a person decides), `dropped` when only the raw long context's input states it, and `absent`
- * when neither does. Where governed documents disagree, each of their values
- * must be kept. The audit
- * reads inputs, never answers: an answer that differs over kept evidence is no loss it can
- * see, and a right answer over dropped evidence is still a loss. Both inputs are read as the
- * corpus's reader, so the totals also list any document the governed input cites that the
- * raw one, everything the reader may read, does not (`beyond_raw`). It matches a value and
- * its document only: a sentence that negates the value or narrows it to a condition still
- * counts as kept, and the keys name no conditions yet (issue #68). It calls no model, so the
- * search-only check (searchReport) runs it too, whatever the long-context paths would cost.
+ * Apart from the answers, the evidence audit (audit.ts) checks what governance keeps for each
+ * question with an answer key (`retention`, bar 1 of docs/design/validation.md).
  *
  * Like the control check, each question may record where the engine answers it otherwise
  * today and why (`engine`), and the test holds the run to it.
@@ -82,6 +71,17 @@ import { languageOf } from "@inspiration/kernel";
 import { Gateway } from "@inspiration/model-gateway";
 import { ANSWER_TASK, ContextTooLong, type Retrieval, TRANSLATE_TASK } from "@inspiration/retrieval";
 import { parse } from "yaml";
+import {
+  auditLines,
+  auditRemark,
+  citesExpected,
+  type InputSource,
+  type Retention,
+  type RetentionTotals,
+  retentionOf,
+  retentionTotals,
+  says,
+} from "./audit.ts";
 import { usageMark } from "./claims.ts";
 import { type Spend, spendLine, spendOf, usageSince } from "./cost.ts";
 
@@ -134,6 +134,10 @@ export interface Question {
   cites?: string[];
   /** Further texts a right answer contains one of each: the values other governed documents state. */
   also?: string[][];
+  /** The key's quotes of the value in effect, then of each of also's: the meaning the audit holds a source to. */
+  quotes?: string[][];
+  /** Texts one of which a source keeping the value in effect states: who or what it applies to. */
+  condition?: string[];
   /** The fact of keys.yaml it asks about. */
   fact?: string;
   kind: Kind;
@@ -181,6 +185,8 @@ export interface KeyValue {
   value: string | null;
   /** Texts one of which an answer giving this value contains. */
   texts?: string[];
+  /** Who or what the value holds for, when it does not hold for all: texts one of which each quote states. */
+  condition?: string[];
   /** Where the corpus states it: the file (a corpus path), its revision, and the words, verbatim. */
   stated: { file: string; revision: string; quote: string }[];
 }
@@ -288,7 +294,13 @@ const KEYS_SCHEMA = {
               type: "object",
               required: ["from", "value", "stated"],
               additionalProperties: false,
-              properties: { from: DAY, value: { type: ["string", "null"] }, texts: TEXTS, stated: STATED },
+              properties: {
+                from: DAY,
+                value: { type: ["string", "null"] },
+                texts: TEXTS,
+                condition: TEXTS,
+                stated: STATED,
+              },
             },
           },
           misleading: {
@@ -338,6 +350,9 @@ export async function loadKeys(dir: string): Promise<Keys | undefined> {
     key.values.forEach((v, i) => {
       if (i && v.from <= (key.values[i - 1] as KeyValue).from) errors.push(`${fact}: values out of order`);
       if (v.value !== null && (!v.texts || !v.stated.length)) errors.push(`${fact}: ${v.value} needs texts and stated`);
+      if (v.condition && v.stated.some((s) => !says(s.quote, v.condition))) {
+        errors.push(`${fact}: every quote of ${v.value} must name its condition`);
+      }
     });
   }
   if (errors.length) throw new QuestionsError(`keys.yaml: ${errors.join("; ")}`);
@@ -371,6 +386,10 @@ function expand(entry: Extract<Entry, { fact: string }>, keys: Keys | undefined)
     ),
   ];
   const spaces = key.topic === undefined ? undefined : keys.topics?.[key.topic];
+  const quotes = answer && [
+    (now?.stated ?? []).map((s) => s.quote),
+    ...(also ? (key.conflicting ?? []).map((c) => c.stated.map((s) => s.quote)) : []),
+  ];
   return entry.ask.map((a) => {
     const { question, engine } = typeof a === "string" ? { question: a, engine: undefined } : a;
     return {
@@ -379,6 +398,8 @@ function expand(entry: Extract<Entry, { fact: string }>, keys: Keys | undefined)
       ...(stale.length && { stale }),
       ...(cites && { cites }),
       ...(also && { also }),
+      ...(quotes && { quotes }),
+      ...(now?.condition && { condition: now.condition }),
       fact: entry.fact,
       kind,
       ...(key.topic !== undefined && { topic: key.topic }),
@@ -425,25 +446,6 @@ export interface QuestionResult {
   search_latency: Latency;
   /** Whether governance kept the right value in what its model reads; null when not audited. */
   retention: Retention | null;
-}
-
-/**
- * What the evidence audit found for a question with an answer key, and the documents whose
- * sources state the right value: the governed input's when kept, the raw input's when dropped.
- */
-export interface Retention {
-  status: "kept" | "demoted" | "dropped" | "absent";
-  documents: string[];
-}
-
-/** A source a long context gives its model: the text it reads, the documents it cites, and where its value stands. */
-export interface InputSource {
-  text: string;
-  documents: string[];
-  standing?: SearchHit["standing"];
-  /** The statement's unit, and for a value that does not hold, the unit stating the one that does. */
-  unit?: string;
-  held?: string;
 }
 
 export interface Rival {
@@ -544,19 +546,6 @@ export interface QuestionsReport {
   cost?: { currency: string } & Record<Path | "search", Spend>;
 }
 
-/** The evidence audit's questions by what it found, apart from the answers. */
-export interface RetentionTotals {
-  kept: number;
-  /** Kept, but with another value held over it. */
-  demoted: number;
-  dropped: number;
-  absent: number;
-  /** Questions without an answer key, or whose governed input does not fit one context. */
-  not_audited: number;
-  /** Documents the governed input cites that the raw input does not; null when the raw input does not fit. */
-  beyond_raw: string[] | null;
-}
-
 /**
  * n questions spread evenly over the list, which questions.yaml orders by fact and language,
  * so a sample keeps their mix; all of them when n is not smaller.
@@ -565,34 +554,6 @@ export function sampleQuestions(questions: readonly Question[], n: number): Ques
   if (n >= questions.length) return [...questions];
   return Array.from({ length: n }, (_, i) => questions[Math.floor((i * questions.length) / n)] as Question);
 }
-
-/** The path without its language suffix and extension: docs/a.zh-cn.html is docs/a. */
-const stem = (path: string) => path.replace(/(\.[a-z]{2}(-[a-z]{2,4})?)?\.[a-z0-9]+$/i, "");
-
-/** Lower case, without thousands separators or runs of spaces: "$5,000  USD" is "$5000 usd". */
-const plain = (text: string) =>
-  text
-    .toLowerCase()
-    .replace(/(\d)[,\uff0c](?=\d{3}(?!\d))/g, "$1")
-    .replace(/\s+/g, " ");
-const SPECIAL = /[.*+?^${}()|[\]\\]/g;
-
-/**
- * Whether the text says any of the texts, a number only whole: "30" is not in "300", "1.30"
- * or "30.5", but "100" is in "$100.00".
- */
-export function says(text: string, texts: readonly string[] | undefined): boolean {
-  const hay = plain(text);
-  return (texts ?? []).some((t) => {
-    const p = plain(t);
-    const edge = `${/^\d/.test(p) ? "(?<![\\d.])" : ""}${p.replace(SPECIAL, "\\$&")}${/\d$/.test(p) ? "(?!\\d|[.,]\\d*[1-9])" : ""}`;
-    return new RegExp(edge).test(hay);
-  });
-}
-
-/** Whether one of the documents is one the question expects cited; any is when it names none. */
-const citesExpected = (q: Question, documents: readonly string[]) =>
-  !q.cites?.length || documents.some((p) => q.cites?.some((c) => stem(p) === stem(c) || p === c));
 
 /** How an answer turned out, given the documents its citations are in. */
 export function outcomeOf(q: Question, a: GroundedAnswer, cited: readonly string[]): Outcome {
@@ -609,90 +570,6 @@ export function outcomeOf(q: Question, a: GroundedAnswer, cited: readonly string
   if (said && cites) return "right";
   if (said) return "wrong_citations";
   return cites ? "wrong_answer" : "wrong";
-}
-
-/**
- * Whether the governed input keeps the right value that the raw one states: the audit reads
- * only what each long context gives its model, never an answer. A source keeps it when it
- * states an expected text, cites an expected document and does not mark the value as one that
- * no longer holds. Where governed documents disagree, every value they state must be kept. The
- * value in effect is demoted when it reaches the model but governance holds another value over
- * it: on 2026-11-03 announced changes were held back that way until a person decided. Null without an answer key, or without a governed input,
- * or when the governed input lacks a value and the raw input does not fit to tell dropped from
- * absent.
- */
-export function retentionOf(
-  q: Question,
-  raw: readonly InputSource[] | null,
-  governed: readonly InputSource[] | null,
-): Retention | null {
-  const expected = q.answer;
-  if (!expected || !governed) return null;
-  const stating = (sources: readonly InputSource[], texts: readonly string[]) => [
-    ...new Set(
-      sources
-        .filter((s) => s.standing !== "outdated" && says(s.text, texts) && citesExpected(q, s.documents))
-        .flatMap((s) => s.documents),
-    ),
-  ];
-  const sides = [expected, ...(q.also ?? [])];
-  const kept = sides.map((texts) => stating(governed, texts));
-  if (kept.every((documents) => documents.length)) {
-    // Demoted: a statement of the value, from a document the key cites, gives way to one that
-    // holds another value, and none of its statements holds. A long context holds a whole topic,
-    // where another fact may name the same number, and an older edition's statement gives way to
-    // its newer edition stating the same value, which is no loss. Governed documents that
-    // disagree leave each value disputed until a person decides, as they should.
-    const units = new Map(governed.flatMap((s) => (s.unit ? [[s.unit, s] as const] : [])));
-    const of = governed.filter(
-      (s) => s.standing && q.cites?.length && says(s.text, expected) && citesExpected(q, s.documents),
-    );
-    const yields = of.some((s) => {
-      const held = s.held === undefined ? undefined : units.get(s.held);
-      return s.standing !== "holds" && held !== undefined && !says(held.text, expected);
-    });
-    const demoted = !q.also?.length && yields && !of.some((s) => s.standing === "holds");
-    return { status: demoted ? "demoted" : "kept", documents: [...new Set(kept.flat())] };
-  }
-  if (!raw) return null;
-  const dropped = [...new Set(sides.flatMap((texts, i) => (kept[i]?.length ? [] : stating(raw, texts))))];
-  return dropped.length ? { status: "dropped", documents: dropped } : { status: "absent", documents: [] };
-}
-
-/** The evidence audit's counts over questions, each with its retention, and each topic's inputs. */
-function retentionTotals(
-  results: readonly { retention: Retention | null }[],
-  inputs: readonly { raw: InputSource[] | null; governed: InputSource[] | null }[],
-): RetentionTotals {
-  return {
-    kept: results.filter((r) => r.retention?.status === "kept").length,
-    demoted: results.filter((r) => r.retention?.status === "demoted").length,
-    dropped: results.filter((r) => r.retention?.status === "dropped").length,
-    absent: results.filter((r) => r.retention?.status === "absent").length,
-    not_audited: results.filter((r) => !r.retention).length,
-    beyond_raw: beyondAll(inputs),
-  };
-}
-
-/** The documents governed sources cite that no raw source does, in order; null without a raw input. */
-export function beyondRaw(
-  raw: readonly InputSource[] | null,
-  governed: readonly InputSource[] | null,
-): string[] | null {
-  if (!raw) return null;
-  const read = new Set(raw.flatMap((s) => s.documents));
-  return [...new Set((governed ?? []).flatMap((s) => s.documents))].filter((d) => !read.has(d));
-}
-
-/** beyondRaw over each topic's inputs: every document any of them cites beyond its raw input; null when one does not fit. */
-function beyondAll(inputs: readonly { raw: InputSource[] | null; governed: InputSource[] | null }[]): string[] | null {
-  const all = new Set<string>();
-  for (const { raw, governed } of inputs) {
-    const beyond = beyondRaw(raw, governed);
-    if (!beyond) return null;
-    for (const d of beyond) all.add(d);
-  }
-  return [...all];
 }
 
 /** What the model calls an answer made took, and whether its answering model's reply was cached. */
@@ -1125,17 +1002,6 @@ export async function searchReport(
   };
 }
 
-function auditLines(t: RetentionTotals): string[] {
-  return [
-    `  evidence audit, apart from the answers: what governance gives its model keeps the right value for ${t.kept} questions, keeps it marked as not holding for ${t.demoted}, drops one the raw documents state for ${t.dropped}, and neither states it for ${t.absent}; ${t.not_audited} not audited`,
-    ...(t.beyond_raw?.length
-      ? [
-          `  governance cites ${t.beyond_raw.length} documents the raw input does not read, each to check the reader may: ${t.beyond_raw.join(", ")}`,
-        ]
-      : []),
-  ];
-}
-
 export function searchLines(r: SearchReport): string[] {
   const depths = (counts: Record<string, number>) =>
     Object.entries(counts)
@@ -1154,13 +1020,8 @@ export function searchLines(r: SearchReport): string[] {
     const mark = q.found ? "given" : q.found_whole ? "in passage" : "missed";
     const where = q.rank === null ? `no hit in the first ${SEARCH_DEPTH}` : `first hit ${q.rank}`;
     const document = q.document_rank === null ? "no document" : `document ${q.document_rank}`;
-    const dropped =
-      q.retention?.status === "dropped"
-        ? `; governance dropped the right value ${q.retention.documents.join(", ")} states`
-        : q.retention?.status === "demoted"
-          ? "; governance marked the right value as not holding"
-          : "";
-    lines.push(`  ${mark.padEnd(10)} ${q.question} (${where}, ${document}${dropped})`);
+    const loss = auditRemark(q.retention);
+    lines.push(`  ${mark.padEnd(10)} ${q.question} (${where}, ${document}${loss && `; ${loss}`})`);
   }
   return lines;
 }
@@ -1239,9 +1100,7 @@ export function questionLines(r: QuestionsReport): string[] {
     const mark = q.outcome === q.expected ? (q.outcome === "right" ? "right" : "known gap") : "differs";
     const remarks = [
       ...(q.found === false ? ["not found by search"] : []),
-      ...(q.retention?.status === "dropped"
-        ? [`governance dropped the right value ${q.retention.documents.join(", ")} states`]
-        : []),
+      ...[auditRemark(q.retention)].filter(Boolean),
       ...(["compact", "mature", "long_context", "governed_long_context"] as const).flatMap((p) => {
         const other = q.baselines[p];
         return other && other.outcome !== q.outcome ? [`${NAMES[p]}: ${other.outcome}`] : [];

@@ -86,7 +86,7 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
       found: 11,
       notes: 3,
       baselines: { compact: 10, mature: 8, long_context: 8, governed_long_context: 8 },
-      retention: { kept: 11, demoted: 0, dropped: 0, absent: 0, not_audited: 1, beyond_raw: [] },
+      retention: { kept: 11, demoted: 0, changed_meaning: 0, dropped: 0, absent: 0, not_audited: 1, beyond_raw: [] },
       by_kind: {
         unchanged: { questions: 11, ...paths(8, 9, 7, 7, 7) },
         not_stated: { questions: 1, ...paths(1, 1, 1, 1, 1) },

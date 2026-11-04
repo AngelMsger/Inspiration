@@ -158,12 +158,20 @@ describe("the company drive", () => {
         found: 79,
         notes: 64,
         baselines: { compact: 52, mature: 44, long_context: 49, governed_long_context: 52 },
-        // What governance gives its model states every right value the drive states, and reading
-        // it after governance answers three more right than reading it raw. For 24 Shinkansen
-        // questions the stand-ins hold another value over the right one (the top-speed slot drawn
-        // too wide, two speed records disputed, the maglev's planned opening), which the audit
-        // counts as demoted. It does not yet read negation or conditions (issue #68).
-        retention: { kept: 111, demoted: 24, dropped: 0, absent: 0, not_audited: 15, beyond_raw: [] },
+        // What governance gives its model states every right value the drive states, with the
+        // key's meaning, and reading it after governance answers three more right than reading it
+        // raw. For 24 Shinkansen questions the stand-ins hold another value over the right one (the
+        // top-speed slot drawn too wide, two speed records disputed, the maglev's planned opening),
+        // which the audit counts as demoted.
+        retention: {
+          kept: 111,
+          demoted: 24,
+          changed_meaning: 0,
+          dropped: 0,
+          absent: 0,
+          not_audited: 15,
+          beyond_raw: [],
+        },
         by_kind: {
           changed: { questions: 66, ...paths([16, 6], [18, 5], [10, 6], [13, 6], [17, 5]) },
           not_stated: { questions: 15, ...paths([2, 0], [3, 0], [2, 1], [2, 2], [2, 0]) },

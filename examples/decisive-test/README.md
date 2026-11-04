@@ -78,7 +78,13 @@ question; an answer that gives an older value, or a `misleading` one (a draft's,
 summary's), and not the value in effect is stale. For a fact whose governed pages disagree,
 `conflicting` lists the other value: an answer that names only some of them is `one_sided`.
 `topics` names each topic's spaces. `questions.yaml` asks each fact once in each language.
-A Kubernetes value took effect on the day its release came out.
+A Kubernetes value took effect on the day its release came out. A value that holds only for
+someone or something names them (`condition`), in words each of its quotes states, so the
+evidence audit counts a source only when it names them too: eight do (the receipt rules of US
+and non-US team members and US cash tips, the E-Group limit, gifts to US and to foreign
+government officials, the new-hire stipend, the EBS volumes of M5 nodes). They were added on
+2026-11-04 with the audit's reading of negation and conditions (#68), after the paid run and
+before its audit was recounted; they change no value and no answer.
 
 ## The fact catalogue
 

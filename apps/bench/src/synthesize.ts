@@ -12,7 +12,7 @@
  * cannot do at this size. Generation is deterministic for a seed.
  *
  * The tenant's names, departments, facts and the text of its documents come from a pack in
- * languages/ (zh, the only one so far); this file holds the shape of the corpus and the draws.
+ * languages/ (zh, the only one that has a tenant so far); this file holds the shape of the corpus and the draws.
  */
 
 import { mkdir, readdir, readFile, utimes, writeFile } from "node:fs/promises";
@@ -68,7 +68,7 @@ interface Tenant {
   slots: Record<string, Slot>;
 }
 
-const PACKS = loadLanguages(new URL("../languages/", import.meta.url));
+const PACKS = loadLanguages(new URL("../languages/", import.meta.url)).filter((p) => p.has("tenant"));
 
 function places(pack: LanguagePack, key: string): Places {
   const p = pack.section(key);

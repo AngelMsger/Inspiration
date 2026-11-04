@@ -1,0 +1,17 @@
+# The evidence audit's cases in Chinese (retention.test.ts): a key quote of a daily meal
+# allowance, sentences that state the value with the quote's meaning, and sentences that
+# state it only denied, or narrowed to someone the key does not name unless it names them.
+audit:
+  answer: ["120"]
+  quote: "出差餐费每天最多报销 120 美元。"
+  kept:
+    - "出差餐费每天不超过 120 美元。"
+    - "无论是否出差，餐费每天最多 120 美元。"
+  apart: "餐费每天可报销 120 美元。酒水不予报销。"
+  denied:
+    - "出差餐费每天 120 美元的标准不予报销。"
+    - "出差餐费没有每天 120 美元的额度。"
+  narrowed:
+    - "仅限高管：餐费每天可报销 120 美元。"
+    - "只有高管的出差餐费每天可报销 120 美元。"
+  condition: ["高管"]

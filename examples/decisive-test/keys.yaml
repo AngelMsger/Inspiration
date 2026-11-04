@@ -562,6 +562,7 @@ facts:
       - from: "2023-02-08"
         value: "1500 USD"
         texts: ["1500"]
+        condition: ["new hire"]
         stated:
           - file: "gitlab/handbook/finance/expenses.md"
             revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
@@ -868,6 +869,7 @@ facts:
       - from: "2023-08-29"
         value: "all expenses"
         texts: ["all expenses", "every expense", "every business expense", "any amount", "all business", "regardless", "所有费用", "所有的费用", "全部费用", "任何金额", "无论金额", "不论金额", "すべての経費", "全ての経費", "金額にかかわらず", "金額に関係なく", "金額を問わず"]
+        condition: ["non-us"]
         stated:
           - file: "gitlab/handbook/finance/expenses.md"
             revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
@@ -896,6 +898,7 @@ facts:
       - from: "2023-08-29"
         value: "20000 USD/month"
         texts: ["20K", "20000", "2万"]
+        condition: ["e-group"]
         stated:
           - file: "gitlab/handbook/finance/expenses.md"
             revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
@@ -959,6 +962,7 @@ facts:
       - from: "2025-10-14"
         value: "20 USD per person per event"
         texts: ["20"]
+        condition: ["u.s. government", "us government"]
         stated:
           - file: "gitlab/handbook/legal/policies/gifts-contributions.md"
             revision: "3643eb9e2a76b6b43e2cd19ce4ff6e0c89afa639"
@@ -980,6 +984,7 @@ facts:
       - from: "2023-08-29"
         value: "50 USD"
         texts: ["50"]
+        condition: ["us team members"]
         stated:
           - file: "gitlab/handbook/finance/expenses.md"
             revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
@@ -993,6 +998,7 @@ facts:
       - from: "2023-11-21"
         value: "under 50 USD"
         texts: ["50"]
+        condition: ["us team members"]
         stated:
           - file: "gitlab/handbook/finance/expenses.md"
             revision: "9075de885f64c9e2c0fe885629daaa0faee0c21e"
@@ -1074,6 +1080,7 @@ facts:
       - from: "2025-10-14"
         value: "80 USD per person per event"
         texts: ["80"]
+        condition: ["foreign government"]
         stated:
           - file: "gitlab/handbook/legal/policies/gifts-contributions.md"
             revision: "3643eb9e2a76b6b43e2cd19ce4ff6e0c89afa639"
@@ -1541,6 +1548,7 @@ facts:
       - from: "2019-12-09"
         value: "25"
         texts: ["25"]
+        condition: ["m5"]
         stated:
           - file: "kubernetes/docs/concepts/storage/storage-limits.html"
             revision: "d525c3e37502acd9d59d1746872dd7cd88b75fac"

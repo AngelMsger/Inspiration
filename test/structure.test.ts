@@ -17,7 +17,7 @@ const MAX_LINES = 800;
  */
 const CEILINGS: Record<string, number> = {
   "engine/retrieval/src/retrieval.ts": 1350,
-  "apps/bench/src/questions.ts": 1300,
+  "apps/bench/src/questions.ts": 1120,
   "engine/page-compiler/src/topics.ts": 1100,
 };
 const GENERATED = new Set(["libs/contracts/src/generated.ts", "libs/contracts/src/events.ts"]);
