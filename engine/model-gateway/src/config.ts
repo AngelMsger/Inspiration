@@ -276,7 +276,8 @@ export function loadGatewayConfig(path: string): GatewayConfig {
  * model_mocks stand-ins: models, prices, clearances, routes and budgets stay, so a dry run
  * meters what a real run would send and prices it, without a model server or a key. Its
  * prefix cache reports what a provider's would serve. The response cache stays in memory,
- * so stand-in replies never reach a cache that real runs share.
+ * so stand-in replies never reach a cache that real runs share; a caller can still read that
+ * cache through a ReadOnlyCache, to price only what a real run would not replay.
  */
 export function standIn(config: GatewayConfig): GatewayConfig {
   return {
