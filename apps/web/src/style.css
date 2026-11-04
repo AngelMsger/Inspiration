@@ -1399,9 +1399,11 @@ body:has(.guide) {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/* The actions sit on the bar's bottom edge, so a step whose words take another line does not
+   move them. */
 .guide-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 24px;
   max-width: 1200px;
   margin: 0 auto;
@@ -1422,7 +1424,14 @@ body:has(.guide) {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 14px;
+}
+
+/* Wide enough for the longest label in every language, so its size never changes. */
+.guide-go {
+  min-width: 15em;
+  text-align: center;
 }
 
 .guide-all {
@@ -1472,7 +1481,7 @@ body:has(.guide) {
 
 @media (max-width: 600px) {
   body:has(.guide) {
-    padding-bottom: 180px;
+    padding-bottom: 230px;
   }
 
   .guide-bar {
@@ -1480,6 +1489,15 @@ body:has(.guide) {
     align-items: stretch;
     gap: 10px;
     padding: 10px 16px;
+  }
+
+  .guide-actions {
+    justify-content: flex-start;
+  }
+
+  /* On a phone the main button takes the bottom line to itself. */
+  .guide-go {
+    flex: 1 1 100%;
   }
 
   .guide-all {
