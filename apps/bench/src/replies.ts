@@ -12,7 +12,10 @@
  * and writes nothing when one is broken.
  */
 
-import { readFile, writeFile } from "node:fs/promises";
+import { once } from "node:events";
+import { createReadStream, createWriteStream } from "node:fs";
+import { createInterface } from "node:readline";
+import { finished } from "node:stream/promises";
 import { schemaErrors } from "@inspiration/contracts";
 import type { ValkeyCache } from "@inspiration/model-gateway";
 
@@ -27,32 +30,54 @@ export async function exportReplies(cache: ValkeyCache, file: string): Promise<n
   const lines: string[] = [];
   for await (const [key, value] of cache.entries()) lines.push(JSON.stringify({ key, reply: JSON.parse(value) }));
   lines.sort(); // the same replies make the same file
-  await writeFile(file, lines.map((l) => `${l}\n`).join(""));
+  // Line by line: the decisive test's 1.2 GB of replies is past the longest string V8 allows.
+  const out = createWriteStream(file);
+  for (const line of lines) if (!out.write(`${line}\n`)) await once(out, "drain");
+  out.end();
+  await finished(out);
   return lines.length;
 }
 
 /**
  * Puts every reply in file back in the cache for ttlS seconds and returns how many there were.
  * When any line does not parse, or lacks a key or a reply, it writes nothing and names them all.
+ * The file is checked in a first pass and written in a second, so the decisive test's 1.2 GB of
+ * replies, past the longest string V8 allows, is never held at once.
  */
 export async function importReplies(cache: ValkeyCache, file: string, ttlS: number): Promise<number> {
-  const entries: { key: string; reply: unknown }[] = [];
   const broken: string[] = [];
-  (await readFile(file, "utf8")).split("\n").forEach((line, i) => {
-    if (!line.trim()) return;
-    let entry: unknown;
-    try {
-      entry = JSON.parse(line);
-    } catch {
-      broken.push(`line ${i + 1}: not JSON`);
-      return;
-    }
-    const errors = schemaErrors(ENTRY, entry);
-    if (errors.length) broken.push(`line ${i + 1}: ${errors.join(", ")}`);
-    else entries.push(entry as { key: string; reply: unknown });
-  });
+  for await (const [n, line] of linesOf(file)) {
+    const entry = entryOf(line);
+    if (typeof entry === "string") broken.push(`line ${n}: ${entry}`);
+  }
   if (broken.length)
     throw new RepliesError(`${file}: nothing imported, ${broken.length} broken lines (${broken.join("; ")})`);
-  for (const { key, reply } of entries) await cache.set(key, JSON.stringify(reply), ttlS);
-  return entries.length;
+  let count = 0;
+  for await (const [, line] of linesOf(file)) {
+    const { key, reply } = entryOf(line) as { key: string; reply: unknown };
+    await cache.set(key, JSON.stringify(reply), ttlS);
+    count++;
+  }
+  return count;
+}
+
+/** The file's non-empty lines with their numbers, read as a stream. */
+async function* linesOf(file: string): AsyncGenerator<[number, string]> {
+  let n = 0;
+  for await (const line of createInterface({ input: createReadStream(file), crlfDelay: Number.POSITIVE_INFINITY })) {
+    n++;
+    if (line.trim()) yield [n, line];
+  }
+}
+
+/** A line's entry, or what is wrong with it. */
+function entryOf(line: string): { key: string; reply: unknown } | string {
+  let entry: unknown;
+  try {
+    entry = JSON.parse(line);
+  } catch {
+    return "not JSON";
+  }
+  const errors = schemaErrors(ENTRY, entry);
+  return errors.length ? errors.join(", ") : (entry as { key: string; reply: unknown });
 }

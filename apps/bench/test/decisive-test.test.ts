@@ -213,6 +213,9 @@ describe("misleading and conflicting values", () => {
       expect(outcomeOf(lead, answer("7 days."), ["policy.md"])).toBe("one_sided");
       expect(outcomeOf(lead, answer("14 days."), ["travel.md"])).toBe("one_sided");
       expect(outcomeOf(lead, answer("The policy says 7 days, the travel page 14."), ["travel.md"])).toBe("right");
+      // A citation marker is not a value: "[14]" names no 14-day lead time.
+      expect(outcomeOf(lead, answer("7 days.[14]"), ["policy.md"])).toBe("one_sided");
+      expect(outcomeOf(cap, answer("$350 a night.[300]"), ["draft.md"])).toBe("stale");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
