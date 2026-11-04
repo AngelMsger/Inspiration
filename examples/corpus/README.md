@@ -126,9 +126,10 @@ engine's day stands still while it records, so identical pages are stored once. 
 question is put in Chinese, English and Japanese, and the guide opens the one in the language
 the page shows. With `--gateway config/gateway.demo.yaml --valkey <url>`, DeepSeek writes the
 answers and translates the questions, while reading stays on the stand-ins, so the story above
-holds exactly; the guide names the model the config prefers for answers (an answer from
-confidential content would be written by a local stand-in; in the recording below, DeepSeek wrote
-every answer). The recording of 2026-11-04 made 12
+holds exactly. The guide names the model the config prefers for answers and says that any
+answer may still come from another model or a local stand-in: the gateway falls back on a
+retryable error, and an answer from confidential content goes to a model cleared for it. In the
+recording below, DeepSeek wrote every answer. The recording of 2026-11-04 made 12
 DeepSeek calls for about CNY 0.03, off-peak. Its replies are kept in the project files
 (demo/recording-2026-11-04/replies.jsonl): `pnpm bench cache import` puts them back, and
 recording again then pays only for answers that changed.
