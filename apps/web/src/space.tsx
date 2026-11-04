@@ -158,9 +158,13 @@ function Overview(props: { overview: SpaceOverview }) {
         </Metric>
       </div>
       <p className="summary">{summary.join("")}</p>
-      {work > 0 && <Link to={{ name: "inbox" }}>{say("space.to_inbox")}</Link>}
+      {work > 0 && (
+        <Link to={{ name: "inbox" }} className="secondary">
+          {say("space.to_inbox")}
+        </Link>
+      )}
       <h2 className="section">{say("space.changes")}</h2>
-      <ul className="rows">
+      <ul className="rows changes">
         {overview.changes.map((c) => (
           <li key={`${c.document.source_id}:${c.document.external_id}`}>
             <Link
@@ -173,9 +177,8 @@ function Overview(props: { overview: SpaceOverview }) {
             >
               {c.document.title}
             </Link>
-            <span className="quiet">
-              {say(`space.change_${c.kind}`)} · {formatDate(tag, c.document.fetched_at, true)}
-            </span>
+            <span className={`kind kind-${c.kind}`}>{say(`space.change_${c.kind}`)}</span>
+            <span className="quiet when">{formatDate(tag, c.document.fetched_at, true)}</span>
           </li>
         ))}
       </ul>
@@ -302,25 +305,31 @@ function DemoPanel(props: { changes: SpaceChange[]; onApplied: () => void }) {
   };
   return (
     <aside className="panel panel-demo" aria-label={say("demo.title")}>
-      <div className="panel-title">{say("demo.title")}</div>
-      <p className="excerpt">{say("demo.about")}</p>
-      {updates.current.map((u) => (
-        <button
-          key={u.name}
-          type="button"
-          className="primary"
-          disabled={u.applied || busy !== undefined}
-          onClick={() => put(u)}
-        >
-          {busy === u.name
-            ? say("demo.putting")
-            : u.applied
-              ? say("demo.applied", { title: u.title })
-              : say("demo.put", { title: u.title })}
-        </button>
-      ))}
-      {done && <Done {...done} changes={props.changes} />}
-      {failure && <Failure error={failure} />}
+      <div className="demo-card">
+        <div className="demo-head">
+          <span className="kind">{say("demo.tag")}</span>
+          <span className="panel-title">{say("demo.title")}</span>
+        </div>
+        <p className="excerpt">{say("demo.about")}</p>
+        {updates.current.map((u) => (
+          <div key={u.name} className="demo-update">
+            <div className="demo-file">
+              <b>{u.title}</b>
+              <span className="quiet">{say(u.applied ? "demo.file_in" : "demo.file")}</span>
+            </div>
+            <button
+              type="button"
+              className={busy === u.name ? "primary demo-busy" : "primary"}
+              disabled={u.applied || busy !== undefined}
+              onClick={() => put(u)}
+            >
+              {busy === u.name ? say("demo.putting") : u.applied ? say("demo.applied") : say("demo.put")}
+            </button>
+          </div>
+        ))}
+        {done && <Done {...done} changes={props.changes} />}
+        {failure && <Failure error={failure} />}
+      </div>
     </aside>
   );
 }
@@ -330,9 +339,9 @@ function Done(props: { update: Update; report: SyncReport; changes: SpaceChange[
   const { say } = useWords();
   const count = props.report.outcomes.updated + props.report.outcomes.created;
   return (
-    <div role="status">
-      <p className="excerpt">{say("demo.done", { title: props.update.title, count })}</p>
-      <ul className="rows">
+    <div className="demo-done" role="status">
+      <p>{say("demo.done", { title: props.update.title, count })}</p>
+      <ul className="demo-next">
         {props.changes.slice(0, count).map((c) => (
           <li key={`${c.document.source_id}:${c.document.external_id}`}>
             <Link

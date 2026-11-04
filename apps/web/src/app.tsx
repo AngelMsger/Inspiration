@@ -99,6 +99,7 @@ function Shell(props: {
       <TopBar
         company={library.state === "done" ? library.value.tenant.name : ""}
         session={props.session}
+        todos={todos.current}
         onSearch={() => setPalette(true)}
         onActAs={props.onActAs}
         onLanguage={props.onLanguage}
@@ -184,6 +185,8 @@ function Screen(props: {
 function TopBar(props: {
   company: string;
   session: Session;
+  /** Open todos, shown in the bar while the left column is hidden (phones). */
+  todos: number;
   onSearch: () => void;
   onActAs: (member: string) => Promise<void>;
   onLanguage: (tag: Tag) => void;
@@ -207,6 +210,12 @@ function TopBar(props: {
         <kbd>⌘K</kbd>
       </button>
       <span className="grow" />
+      {props.todos > 0 && (
+        <Link to={{ name: "inbox" }} className="top-inbox">
+          {say("nav.inbox")}
+          <span className="badge">{props.todos}</span>
+        </Link>
+      )}
       <details className="account" ref={menu}>
         <summary aria-label={say("top.account", { name: person.name })}>{person.name.slice(0, 1)}</summary>
         <div className="menu">
@@ -261,9 +270,17 @@ function LeftColumn(props: { route: Route; library: Library; person: Person; tod
       <Link to={{ name: "home" }} className="nav-item" current={route.name === "home"}>
         {say("nav.home")}
       </Link>
-      <Link to={{ name: "inbox" }} className="nav-item" current={route.name === "inbox" || route.name === "todo"}>
+      <Link
+        to={{ name: "inbox" }}
+        className={props.todos > 0 ? "nav-item nav-todos" : "nav-item"}
+        current={route.name === "inbox" || route.name === "todo"}
+      >
         <span>{say("nav.inbox")}</span>
-        {props.todos > 0 && <span className="count">{props.todos}</span>}
+        {props.todos > 0 && (
+          <span key={props.todos} className="badge">
+            {props.todos}
+          </span>
+        )}
       </Link>
       <div className="nav-heading">{say("nav.spaces")}</div>
       {library.spaces.map((s) => (

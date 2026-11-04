@@ -24,6 +24,12 @@
   --sans: "Instrument Sans", "Noto Sans SC", "Noto Sans JP", system-ui, sans-serif;
   --serif: Newsreader, "Noto Serif SC", Georgia, serif;
   --mono: "Geist Mono", ui-monospace, monospace;
+  /* Motion: short, eased out, and only to show where something came from. */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --fast: 120ms;
+  --enter: 220ms;
+  --drop: 160ms;
+  --pop: 320ms;
 }
 
 html[lang="ja"] {
@@ -40,6 +46,7 @@ body {
 
 a {
   color: var(--link);
+  transition: color var(--fast) ease;
 }
 
 a:hover {
@@ -205,8 +212,16 @@ kbd {
   padding: 6px 8px;
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 8px;
   border-radius: 4px;
+  transition:
+    background-color var(--fast) ease,
+    color var(--fast) ease;
+}
+
+.nav-item:hover {
+  background: rgb(28 30 35 / 4%);
 }
 
 .nav-item[aria-current="page"] {
@@ -235,6 +250,43 @@ kbd {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   font-weight: 400;
+}
+
+/* Open todos: the one number in the frame that asks for something, so it is filled. */
+.badge {
+  min-width: 20px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--link);
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 20px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  animation: pop var(--pop) var(--ease-out) both;
+}
+
+.nav-todos {
+  font-weight: 600;
+}
+
+.heading-count {
+  color: var(--link);
+  font-weight: 600;
+  animation: rise var(--enter) var(--ease-out) both;
+}
+
+.top-inbox {
+  display: none;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
 }
 
 /* The centre */
@@ -520,6 +572,9 @@ kbd {
   padding: 3px 12px;
   cursor: pointer;
   color: var(--muted);
+  transition:
+    background-color var(--fast) ease,
+    color var(--fast) ease;
 }
 
 .tabs button[aria-selected="true"] {
@@ -572,6 +627,9 @@ kbd {
   border-left: 3px solid transparent;
   border-radius: 2px;
   cursor: pointer;
+  transition:
+    background-color var(--fast) ease,
+    border-color var(--fast) ease;
 }
 
 .passage + .passage {
@@ -954,6 +1012,25 @@ p.against > .standing {
   border-radius: 4px;
   padding: 6px 14px;
   cursor: pointer;
+  text-decoration: none;
+  transition:
+    background-color var(--fast) ease,
+    border-color var(--fast) ease,
+    color var(--fast) ease,
+    transform var(--fast) ease;
+}
+
+.primary:active:not(:disabled),
+.secondary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+a.primary:hover {
+  color: var(--white);
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: var(--muted);
 }
 
 .primary {
@@ -970,6 +1047,10 @@ p.against > .standing {
   color: var(--ink);
   background: var(--paper);
   border: 1px solid var(--rule-strong);
+}
+
+a.secondary {
+  align-self: flex-start;
 }
 
 .primary:disabled,
@@ -1061,6 +1142,42 @@ p.against > .standing {
     display: none;
   }
 
+  .top-inbox {
+    display: flex;
+  }
+
+  .top {
+    gap: 12px;
+    padding: 10px 16px;
+  }
+
+  .search {
+    min-width: 0;
+  }
+
+  .search .grow {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .search kbd {
+    display: none;
+  }
+
+  .with-panel:has(.panel-demo) {
+    flex-direction: column;
+  }
+
+  .with-panel > .panel-demo {
+    order: -1;
+    flex: none;
+    position: static;
+    max-height: none;
+    border-top: 0;
+    padding: 16px 16px 0;
+  }
+
   .paper {
     padding: 20px;
   }
@@ -1140,9 +1257,127 @@ p.against > .standing {
   line-height: 1.7;
 }
 
+.summary-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Changes: what happened, then when, aligned so a column of times reads at a glance. */
+.changes li {
+  align-items: center;
+}
+
+.changes .when {
+  margin-left: auto;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.kind-updated {
+  color: var(--link);
+  background: var(--selected);
+}
+
+/* The demo's controls stand apart from the product: a card of their own beside the page. */
 .panel-demo {
-  background: var(--maintain);
-  border-left-color: var(--maintain-strong);
+  background: none;
+  border-left: 0;
+  padding: 20px 20px 20px 0;
+}
+
+.demo-card {
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgb(28 30 35 / 5%);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.demo-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.demo-card .excerpt {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.demo-update {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px dashed var(--rule-strong);
+  border-radius: 4px;
+  background: var(--paper);
+}
+
+.demo-file {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.demo-file b {
+  font-weight: 600;
+}
+
+.demo-update .primary {
+  width: 100%;
+}
+
+.demo-busy::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: currentcolor;
+  vertical-align: middle;
+  animation: pulse 900ms ease-in-out infinite;
+}
+
+.demo-done {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+
+.demo-done > p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--holds);
+  font-weight: 600;
+}
+
+.demo-done > p::before {
+  content: "✓ ";
+}
+
+.demo-next {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.demo-next a::before {
+  content: "→ ";
+  text-decoration: none;
 }
 
 /* A snapshot's guide to the demo script (guide.tsx), a strip along the bottom of the app that
@@ -1249,5 +1484,84 @@ body:has(.guide) {
 
   .guide-all {
     padding: 10px 16px 4px 34px;
+  }
+}
+
+/* Motion. What appears rises into place; what is chosen shades in. Elements animate when they
+   mount, so a new screen, a loaded answer or a resolved todo eases in, and a re-render does not. */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+@keyframes drop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.12);
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.centre > *,
+.reading > *,
+.guide-all,
+.guide-now {
+  animation: rise var(--enter) var(--ease-out) both;
+}
+
+.panel,
+.demo-card {
+  animation: slide-in var(--enter) var(--ease-out) both;
+}
+
+.menu,
+.palette {
+  animation: drop var(--drop) var(--ease-out) both;
+}
+
+.palette::backdrop {
+  animation: fade var(--drop) ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --fast: 0ms;
+    --enter: 0ms;
+    --drop: 0ms;
+    --pop: 0ms;
+  }
+
+  .demo-busy::after {
+    animation: none;
   }
 }
