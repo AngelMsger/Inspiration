@@ -1,4 +1,4 @@
-# 青禾科技's predicate catalogue: the single-valued facts extraction normalizes into slots,
+# 恒远机械's predicate catalogue: the single-valued facts extraction normalizes into slots,
 # so governance can compare values across documents. Aliases and unit words are how the
 # documents write them; qualifiers separate facts that differ by scope.
 predicates:
@@ -8,7 +8,7 @@ predicates:
     aliases: [住宿限额, 住宿上限, 住宿标准, 住宿费, 住宿]
     qualifiers:
       - name: 一线城市
-        aliases: [一线城市, 北京、上海, 深圳的住宿]
+        aliases: [一线城市, 北京、上海, 深圳]
       - name: 新一线城市
         aliases: [新一线城市]
       - name: 其他城市
@@ -50,6 +50,12 @@ predicates:
     knowledge_class: policy
     aliases: [出租车, 网约车, 打车]
     value: {kind: money, unit: CNY/day, currency: CNY, words: [元]}
+
+  - predicate: loan_settlement_days
+    label: 出差借款核销时限
+    knowledge_class: policy
+    aliases: [核销借款]
+    value: {kind: duration, unit: day, words: [日, 天]}
 
   - predicate: reimbursement_payment_day
     label: 报销付款日

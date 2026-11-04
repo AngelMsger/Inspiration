@@ -24,7 +24,8 @@ describe("the demo script", async () => {
   test("puts in upstream edits the corpus has, and asks its questions", async () => {
     const updates = await readdir(`${CORPUS}updates`);
     for (const step of steps.filter((s) => s.do?.update)) expect(updates).toContain(step.do?.update);
-    expect(questionsOf(steps)).toHaveLength(2);
+    // Every ask in the demo is the one hotel question, put again after each change.
+    expect(questionsOf(steps)).toHaveLength(1);
   });
 
   test("refuses steps without a member, an address and words", () => {

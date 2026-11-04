@@ -4,7 +4,7 @@
 
 | 语料 | 文本 | 测量什么 | 运行 | 测试 |
 | --- | --- | --- | --- | --- |
-| [corpus](corpus/README.zh.md) | 为演示编写的中文文档：19 篇，带文件夹 ACL 和飞书样例 | 摄取流水线端到端，埋有重复和冲突 | `pnpm bench ingest examples/corpus` | `engine.test.ts` |
+| [corpus](corpus/README.zh.md) | 为演示编写的中文文档：一家虚构制造企业的 38 篇，带文件夹 ACL、飞书样例和每个文件的修改日期 | 摄取流水线端到端，埋有重复和冲突 | `pnpm bench ingest examples/corpus` | `engine.test.ts` |
 | [control](control/README.zh.md) | 为对照检查编写的英文文档：14 篇，8 个样例 | 逐个样例检查治理，每个样例只有一个正确答案 | `pnpm bench ingest examples/control` | `control.test.ts` |
 | [gitlab-expenses](gitlab-expenses/README.zh.md) | 真实文本：GitLab 报销政策的 21 个版本，2020 至 2026 年 | 在不断变化的知识上测量抽取和治理，对照人工整理的时间线 | `pnpm bench replay examples/gitlab-expenses` | `history.test.ts` |
 | [kubernetes-docs](kubernetes-docs/README.zh.md) | 真实文本：五个 Kubernetes 英文页面及其官方中文、日文译本 | 跨语言时每个事实只有一个值和一个来源；12 个问题 | `pnpm bench ingest examples/kubernetes-docs` | `kubernetes.test.ts` |

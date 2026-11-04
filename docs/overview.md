@@ -58,23 +58,24 @@ Four bets set Inspiration apart, each answering a failure of today's tools:
 
 ## 2. The problem
 
-Take Qinghe Technology (青禾科技), the fictional company in our demo corpus. Its rules for business travel live in six places:
+Take Hengyuan Machinery (恒远机械), the fictional company in our demo corpus. Its rules for business travel live in seven places:
 
 | Where | What it says about a hotel in a tier-1 city such as Shenzhen |
 | --- | --- |
-| Travel expense policy, Finance policy library | 600 yuan a night |
+| Travel reimbursement policy, edition 6, Finance policies | 600 yuan a night |
+| Shenzhen hotel price list, Finance policies, written in October | 650 yuan a night in Shenzhen |
 | Forwarded copy of the policy, HR folder | 600 yuan a night |
-| Onboarding guide, team wiki | 600 yuan a night |
-| Minutes of the September business meeting | 650 yuan a night from 2026-10-01, and Finance is to revise the policy |
-| Notice on tier-1 hotel rates | 650 yuan a night from 2026-10-01 |
+| Reimbursement FAQ, Finance team notes | 600 yuan a night |
+| Travel FAQ, Feishu wiki | 600 yuan a night |
+| Minutes of the August, September and October meetings | 600 yuan a night; in October, Shenzhen hotels cost about 650 and 600 holds until the policy is revised |
 | Archived 2023 edition of the policy | 500 yuan a night |
 
-The same company has three more planted disagreements: the meal allowance, the first-year leave (the onboarding guide says 7 days, the HR policy 5) and a budget deadline that only the meeting minutes moved. This is ordinary. What goes wrong today:
+The same company has four more planted disagreements: the meal allowance, the annual leave (the onboarding guide says 7 days, the HR policy 5), the loan settlement period (the loan FAQ says 30 days, the policy 15) and a budget deadline that only the meeting minutes moved. This is ordinary. What goes wrong today:
 
-1. **Nobody can tell which value holds.** Search returns all six documents. The reader has to work out that the notice changed the policy on 2026-10-01.
+1. **Nobody can tell which value holds.** Search returns all seven documents. The reader has to work out that the price list is newer than the policy, and that the policy's owner has not decided yet.
 2. **Assistants answer with confidence from whatever ranks first.** A chat assistant over chunks may quote the 2023 edition, or the copy in HR's folder.
-3. **Nobody maintains a fact.** Documents have authors, but a fact restated in six documents has no one responsible for it.
-4. **Changes do not propagate.** When Finance revises the policy, nobody updates the HR copy, the onboarding guide or the FAQ.
+3. **Nobody maintains a fact.** Documents have authors, but a fact restated in seven documents has no one responsible for it.
+4. **Changes do not propagate.** When Finance revises the policy, nobody updates the HR copy, the FAQ or the minutes.
 5. **Agents need the same answers, within the same permissions, in a token budget.** A procurement bot in Feishu or a coding agent needs the current procedure, with its sources, for the person it acts for.
 
 How existing approaches handle this:
@@ -175,9 +176,9 @@ Each scenario says what happens, why the product works that way, and how far it 
 
 ### 5.1 A member asks a question
 
-A sales manager asks: "May I book a 700-yuan hotel in Shenzhen next week?" The answer comes in the asker's language: "No. The cap for tier-1 cities is 650 yuan a night from 2026-10-01 [1], raised from 600 [2]." Citation 1 opens the notice beside the answer at the exact passage; citation 2 opens the policy. The HR copy, the onboarding guide and the 2023 edition are not cited, because their statements are superseded or are copies.
+A sales manager asks: "May I book a 700-yuan hotel in Shenzhen next week?" The answer comes in the asker's language: "No. The cap for tier-1 cities is 650 yuan a night from 2026-11-01 [1], raised from 600 [2]." Citation 1 opens edition 7 of the policy beside the answer at the exact passage; citation 2 opens edition 6. The HR copy, the FAQ, the minutes and the 2023 edition are not cited, because their statements are superseded or are copies.
 
-- **Why.** The hotel cap is one fact slot holding every value over time, so the answer takes the value in force on the travel date, with its evidence. Retrieval over chunks would return all six documents and leave the reader to sort them out.
+- **Why.** The hotel cap is one fact slot holding every value over time, so the answer takes the value in force on the travel date, with its evidence. Retrieval over chunks would return all seven documents and leave the reader to sort them out.
 - **What the reader sees.** A plain answer and a page with small citation numbers. Only Outdated and Disputed appear in the text; Review due appears in the citation popover. If relevant material sits in a space the asker cannot read, the answer says it may be incomplete and whom to ask (section 15).
 - **State.** Statements, slots and the proposal of 650 are built and run on the demo corpus. Search and answers that give the value that holds are built, on stand-ins for the models; taking the value in force on a given date and the reading UI are designed.
 
@@ -210,7 +211,7 @@ sequenceDiagram
 
 *Figure 4. A change flows through only as far as it matters. Each arrow is an event; nothing re-reads an unchanged block.*
 
-- **What happens.** Only the changed blocks are read again. A value the policy changed itself is a correction, so it syncs silently and the Trace view keeps the history. Copies that now disagree (the HR copy, the onboarding guide) produce reviews that ride on one card. Because 41 changes from one cause would flood the topic owner, they become one change review: what happened, grouped by topic, with bulk actions such as "follow the source everywhere".
+- **What happens.** Only the changed blocks are read again. A value the policy changed itself is a correction, so it syncs silently and the Trace view keeps the history. Copies that now disagree (the HR copy, the FAQ) produce reviews that ride on one card. Because 41 changes from one cause would flood the topic owner, they become one change review: what happened, grouped by topic, with bulk actions such as "follow the source everywhere".
 - **Why.** A source correcting itself is not a conflict; only sources that disagree need a person. A cause that would produce more than 20 todos or touch more than 3 topics is reviewed once, as a whole, with a record per item.
 - **State.** Block diff, incremental extraction, silent self-correction and review clocks are built. In the measured edit round, 1 of 175 source updates asked a person anything. Change reviews and page rebuilds are designed.
 
@@ -309,13 +310,13 @@ sequenceDiagram
 
 A member comments on a page: "This is outdated; the cap has been 650 since October."
 
-- **What happens.** The assistant checks the claim against the sources, finds the notice, and proposes an edit. If the member asked it to make the change and may edit the page, the assistant makes it at once, recorded under the member's name, marked as done by the assistant, and undoable. Where the member may only propose, it files a proposal for the owner. A person's edit is a pinned override that a rebuild never overwrites; if the sources later disagree with it, its author gets a todo.
+- **What happens.** The assistant checks the claim against the sources, finds the price list, and proposes an edit. If the member asked it to make the change and may edit the page, the assistant makes it at once, recorded under the member's name, marked as done by the assistant, and undoable. Where the member may only propose, it files a proposal for the owner. A person's edit is a pinned override that a rebuild never overwrites; if the sources later disagree with it, its author gets a todo.
 - **Why.** Making people retype what they just asked an assistant to change is painful, and the request itself is the approval. Agents running on their own (in the background, on a schedule or on an event) still only read or propose, because nobody asked them.
 - **State.** Decided; comments, overrides and the edit path are designed.
 
 ### 5.9 The same policy in Chinese and Japanese
 
-Qinghe's Japanese subsidiary keeps a Japanese travel regulation that repeats the hotel caps.
+Hengyuan's Japanese subsidiary keeps a Japanese travel regulation that repeats the hotel caps.
 
 - **What happens.** The Japanese and Chinese statements of the same cap land in one fact slot, because slots key on language-neutral predicates, qualifiers and typed values, not on words. If the Japanese text is a translation, it counts with its original rather than as a second source. When the original changes and the translation does not, the translation gets a "translation out of date" review instead of a conflict. A Japanese reader reads pages in Japanese, compiled from the same statements, with quotes in their original language.
 - **Why.** Knowledge is language-neutral; language is only how it is expressed. The same knowledge in two languages must never become a duplicate or a false conflict.
@@ -323,7 +324,7 @@ Qinghe's Japanese subsidiary keeps a Japanese travel regulation that repeats the
 
 ### 5.10 An approval flow becomes a procedure
 
-Qinghe's travel request approval runs in Feishu.
+Hengyuan's travel request approval runs in Feishu.
 
 - **What happens.** A procedure is built from the flow definition, from process mining over 90 to 180 days of approval logs, and from a model's write-up. Each step is tagged "from the definition", "mined" or "inferred", and the procedure owner approves it before anyone reads it. Agents get it with `ask`, or by reading its handle, and it can be exported as an Agent Skill.
 - **Why.** The formal definition says who approves; the logs say what really happens (for example that amounts over 5,000 yuan always go to Finance). Tagging keeps inferred steps from passing as facts.
@@ -803,17 +804,17 @@ flowchart TB
 - **The knowledge layer is derived.** Statements, slots, topics and pages are computed from source versions and rebuilt when they change.
 - **The human layer is kept apart.** Annotations, corrections, decisions, rules and statements a person added are stored separately, with author and time, anchored to stable IDs (Feishu block IDs, statement IDs). When a new version arrives, an annotation whose anchor is unchanged moves with it; a correction the source now agrees with retires itself; a correction the source contradicts gives its author a todo; an annotation whose anchor is gone is kept in the margin as orphaned. So the system can never drift away from the source in a way nobody can explain.
 
-**Anatomy of a statement.** The Shenzhen hotel cap from the notice:
+**Anatomy of a statement.** The Shenzhen hotel cap from the price list:
 
 | Field | Value |
 | --- | --- |
 | Subject, predicate | Business travel, hotel cap per night |
 | Value | 650 CNY per night (typed money) |
 | Qualifiers | City tier: tier 1; grade: managers and below |
-| Valid time | From 2026-10-01 |
-| Known time | From the sync that read the notice |
+| Valid time | From 2026-10-18 |
+| Known time | From the sync that read the price list |
 | Class | Policy |
-| Evidence | Verbatim quote from the notice, with its version and span |
+| Evidence | Verbatim quote from the price list, with its version and span |
 | Slot key | Predicate + qualifiers, language-neutral |
 
 **Statements carry knowledge; queries carry data at scale.** A statement is more than subject, predicate and object: its typed value, qualifiers that work as dimensions (city, grade, period) and valid time mean the statements of one predicate form a small fact table, such as hotel caps by city and grade, that stays cited and governed. That suits rules and facts, from hundreds to a few thousand per subject, because each can be reviewed. Business data at scale (daily sales, stock, transactions) is never turned into statements: it stays in its system of record and reaches a chart through a registered, parameterized query that a `data_providers` plugin runs with that system's permissions and caches as a snapshot the chart cites. A large table inside a document, such as a price list of thousands of items, stays a source whose rows can be cited; a row becomes a statement only when a page or an answer uses it.
@@ -1037,7 +1038,7 @@ The prototype runs on mocked models on purpose: it proves the pipeline, the volu
 - **Boundaries are checked, not trusted.** A package sits in its layer's folder and depends only on the libraries and the components in its `calls`; dependencies between the layers point one way.
 - **Plugins by registry.** Connectors, agent tools, parsers, diagram compilers, index backends, data providers, model providers, model mocks, view templates and migrations register by name in fixed plugin groups. A new source or model is a new plugin, not a core change.
 - **Tests on both backends.** Unit tests use in-memory doubles; code with a Postgres, Valkey or SpiceDB implementation runs the same tests against the real stack. `make check` runs Biome, strict `tsc`, contract freshness and every test with the stack up.
-- **A demo tenant and a scale generator.** `examples/corpus` is Qinghe Technology, with planted duplicates and conflicts; `pnpm bench synthesize` writes synthetic tenants of any size, and `pnpm bench ingest` prints a volume report.
+- **A demo tenant and a scale generator.** `examples/corpus` is Hengyuan Machinery, with planted duplicates and conflicts; `pnpm bench synthesize` writes synthetic tenants of any size, and `pnpm bench ingest` prints a volume report.
 - **Every change lands through a pull request.** The product owner's local Codex reviews it; findings are fixed and the PR is merged. Correctness comes first, then layering, clear component boundaries and explicit contracts.
 - **Complexity is kept down on purpose.** Build only what a requirement in force needs; an abstraction needs two users; reuse before adding a helper or a package; files at most 800 lines and functions at most a cognitive complexity of 40, both checked; at most one folder level under a package's `src/` and no grab-bag files; a new folder, library, app, component or plugin group needs the product owner's agreement first. [AGENTS.md](../AGENTS.md), "Keeping the code simple", has the rules.
 - **Names describe what things do.** No plan numbers in code, docs or events. [AGENTS.md](../AGENTS.md) has the full rules for anyone, human or agent, building a component.

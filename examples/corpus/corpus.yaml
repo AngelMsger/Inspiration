@@ -1,70 +1,90 @@
-# A small demo tenant for the ingest prototype: one fictional company (青禾科技) with a
-# policy library, a team wiki, an archive folder and Feishu fixtures. README.md lists the
-# duplicates and conflicts planted in it.
+# A small demo tenant for the ingest prototype: one fictional manufacturer (恒远机械) with
+# the finance department's policies and team notes, the company-wide policies, an archive
+# folder and Feishu fixtures. README.md lists the duplicates and conflicts planted in it.
 
 tenant:
-  id: ten_01QINGHE000000000000000001
-  name: 青禾科技
+  id: ten_01HENGYUAN0000000000000001
+  name: 恒远机械
 
-# owner: the member who maintains the space (周敏 in people.yaml).
+# owner: the member who maintains the space (周敏 and 张敏 in people.yaml).
 spaces:
-  - id: spc_01QINGHE000000000000POLICY
+  - id: spc_01HENGYUAN000000000FINANCE
+    name: 财务部
+    owner: mem_01HENGYUAN000000000ZHOUMIN
+  - id: spc_01HENGYUAN0000000000POLICY
     name: 公司制度
-    owner: mem_01QINGHE0000000000ZHOUMIN
-  - id: spc_01QINGHE00000000000000TEAM
-    name: 团队知识
-    owner: mem_01QINGHE0000000000ZHOUMIN
+    owner: mem_01HENGYUAN00000000ZHANGMIN
+
+# The member questions are asked as: 陈晨, who reads what the whole tenant may.
+reader: mem_01HENGYUAN00000000CHENCHEN
 
 # What the business layer's directory would answer: the sources' own principal IDs mapped
 # to engine principals. Unmapped entries stay in the ACL snapshot as they are.
 directory:
   folder:
-    group:finance: grp_01QINGHE00000000000FINANCE
-    group:hr: grp_01QINGHE000000000000000HR
-    group:admin-office: grp_01QINGHE0000000000000ADMIN
-    user:li.na: mem_01QINGHE00000000000000LINA
-    user:zhang.min: mem_01QINGHE000000000ZHANGMIN
+    group:finance: grp_01HENGYUAN000000000FINANCE
+    group:hr: grp_01HENGYUAN000000000000000HR
+    group:admin-office: grp_01HENGYUAN000000000000ADMIN
+    user:li.na: mem_01HENGYUAN000000000000LINA
+    user:wang.lei: mem_01HENGYUAN000000000WANGLEI
+    user:zhou.min: mem_01HENGYUAN000000000ZHOUMIN
+    user:gao.yan: mem_01HENGYUAN0000000000GAOYAN
+    user:liu.yang: mem_01HENGYUAN000000000LIUYANG
+    user:sun.qian: mem_01HENGYUAN000000000SUNQIAN
+    user:zhang.min: mem_01HENGYUAN00000000ZHANGMIN
+    user:lin.xiao: mem_01HENGYUAN000000000LINXIAO
+    user:zhao.lin: mem_01HENGYUAN000000000ZHAOLIN
   feishu:
-    department:od_finance: dep_01QINGHE00000000000FINANCE
-    department:od_admin: dep_01QINGHE0000000000000ADMIN
-    user:ou_wang_wei: mem_01QINGHE0000000000WANGWEI
-    user:ou_li_na: mem_01QINGHE00000000000000LINA
+    department:od_finance: dep_01HENGYUAN000000000FINANCE
+    department:od_admin: dep_01HENGYUAN000000000000ADMIN
+    user:ou_li_na: mem_01HENGYUAN000000000000LINA
+    user:ou_wang_lei: mem_01HENGYUAN000000000WANGLEI
+    user:ou_gao_yan: mem_01HENGYUAN0000000000GAOYAN
+    user:ou_liu_yang: mem_01HENGYUAN000000000LIUYANG
+    user:ou_chen_chen: mem_01HENGYUAN00000000CHENCHEN
 
 sources:
-  - id: src_01QINGHE00000000000POLICIES
+  - id: src_01HENGYUAN0000000FINPOLICY
     type: folder
-    space: spc_01QINGHE000000000000POLICY
-    name: 制度库
-    root: 制度库
+    space: spc_01HENGYUAN000000000FINANCE
+    name: 财务制度
+    root: 财务制度
     directory: folder
     default_authority: 0.9
-  - id: src_01QINGHE0000000000TEAMWIKI
+  - id: src_01HENGYUAN000000000FINTEAM
     type: folder
-    space: spc_01QINGHE00000000000000TEAM
-    name: 团队知识
-    root: 团队知识
+    space: spc_01HENGYUAN000000000FINANCE
+    name: 财务团队
+    root: 财务团队
     directory: folder
     default_authority: 0.5
-  - id: src_01QINGHE000000000000ARCHIVE
+  - id: src_01HENGYUAN000000000ARCHIVE
     type: folder
-    space: spc_01QINGHE000000000000POLICY
+    space: spc_01HENGYUAN000000000FINANCE
     name: 历史归档
     root: 归档
     directory: folder
     default_authority: 0.3
-  - id: src_01QINGHE000000000FEISHUDOC
+  - id: src_01HENGYUAN0000000FEISHUDOC
     type: feishu.docx
-    space: spc_01QINGHE00000000000000TEAM
+    space: spc_01HENGYUAN000000000FINANCE
     name: 飞书知识库
     root: feishu
     directory: feishu
     default_authority: 0.6
     governance_level: reference
-  - id: src_01QINGHE00000000FEISHUFLOW
+  - id: src_01HENGYUAN000000FEISHUFLOW
     type: feishu.approval
-    space: spc_01QINGHE000000000000POLICY
+    space: spc_01HENGYUAN000000000FINANCE
     name: 飞书审批
     root: feishu
     directory: feishu
     default_authority: 0.7
     governance_level: governed
+  - id: src_01HENGYUAN00000000POLICIES
+    type: folder
+    space: spc_01HENGYUAN0000000000POLICY
+    name: 公司制度
+    root: 公司制度
+    directory: folder
+    default_authority: 0.9

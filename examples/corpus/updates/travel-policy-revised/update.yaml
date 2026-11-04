@@ -1,9 +1,9 @@
-# An upstream edit the demo puts into the policy library (step 5 of script.yaml): the
-# finance department saves the revised travel policy and its rate table, which raise the
-# tier-1 city hotel cap from 600 to 650 yuan a night as the notice of 2026-10-01 announced.
-# The files below this folder replace the corpus's files at the same paths; then the source
-# is synced. See README.md, "The demo's upstream edit".
-title: 新版《差旅费管理办法》
-source: src_01QINGHE00000000000POLICIES
-# Asked again once the update is in: the answer now cites 650.
+# An upstream edit the demo puts into the finance policies (step 5 of script.yaml): 李娜
+# saves edition 7 of the travel policy, which raises the tier-1 city hotel cap from 600 to
+# 650 yuan a night from 2026-11-01, as the Shenzhen hotel price list already charges. The
+# files below this folder replace the corpus's files at the same paths; then the source is
+# synced. See README.md, "The demo's upstream edit".
+title: 新版《差旅报销管理办法》
+source: src_01HENGYUAN0000000FINPOLICY
+# Asked again once the update is in: the answer cites the policy's 650.
 question: 去深圳出差住宿每晚能报多少？

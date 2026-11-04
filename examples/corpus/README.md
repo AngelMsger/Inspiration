@@ -1,140 +1,141 @@
-# Demo corpus: 青禾科技
+# Demo corpus: 恒远机械
 
-A small, hand-written tenant for the ingest prototype and for design work: 19 documents
-across a policy library, a team wiki, an archive folder, one Feishu wiki document and one
-Feishu approval definition (its four instances are read with it). `corpus.yaml` declares
-the tenant, its two spaces, its five sources and the directory that maps source principals
-to engine principals. `vocabulary.yaml` is the tenant's predicate catalogue: the
-single-valued facts (hotel caps, deadlines, leave days ...) that extraction puts into slots
-so governance can compare values across documents. A Chinese copy is in
-[README.zh.md](README.zh.md); if the two differ, this English version wins.
+A small, hand-written tenant for the ingest prototype, the demo and design work: one
+fictional machinery maker, 恒远机械, with 38 documents. The finance department's space holds
+its policies (财务制度, 18 files), its team notes (财务团队: minutes, FAQs, a manual, a notice
+and a weekly report), an archive folder, one Feishu wiki document and one Feishu approval
+definition (its four instances are read with it). The company policies (公司制度, 8 files:
+HR, administration, purchasing and information security) are a second space. A Chinese copy
+is in [README.zh.md](README.zh.md); if the two differ, this English version wins.
 
-It is also the tenant of the demo (`pnpm demo`, see `apps/web`): `people.yaml` names four of
-its members, whom the web app's stand-in backend offers to act as in place of signing in.
-`updates/` holds the demo's upstream edit (below); no source reads it.
+- `corpus.yaml` declares the tenant, its two spaces, its six sources and the directory that
+  maps source principals to engine principals.
+- `vocabulary.yaml` is the tenant's predicate catalogue: the single-valued facts (hotel caps,
+  deadlines, leave days, loan settlement ...) that extraction puts into slots, so governance
+  can compare values across documents.
+- `files.yaml` says when each file last changed, as the company drive would report it.
+  `Corpus.stamp` gives each file that time on ingest and serve, so governance and freshness see
+  the same ages on every checkout.
+- `people.yaml` names eight members, whom the web app's stand-in backend offers to act as in
+  place of signing in; `script.yaml` is the demo in order (below).
+- `updates/` holds the demo's upstream edit (below); no source reads it.
 
-Run it through the engine with `pnpm bench ingest examples/corpus` (see `apps/bench`).
-With the mocked extraction model it gives about 120 claims, 58 of them in 15 slots, and
-finds the four planted value conflicts below (hotel cap, meal allowance, first-year leave,
-budget deadline). Reference documents are read only where they name a catalogue fact, so 8
-of their claims outside any slot are left unused, and the weekly report is not read at all.
-The travel reimbursement deadline is not among the conflicts because its statements carry
-different qualifiers (差旅 and 日常费用), which is what governance has to reconcile.
+Run it through the engine with `pnpm bench ingest examples/corpus` (see `apps/bench`). With
+the mocked extraction model it gives 183 claims, 60 of them in 16 slots, and finds the five
+planted value conflicts below. Reference documents are read only where they name a catalogue
+fact, so 11 of their claims outside any slot are left unused, and the weekly report is not
+read at all.
 
-Governance then proposes 650 for the hotel cap (the notice changed it on 2026-10-01, after
-the policy took effect), a supersession of the policy-library value, and 5 days of
-first-year leave over the guide's 7, a contradiction; it settles the archive's 500 and 80
-alone. It proposes the meeting minutes' 11-20 for the budget deadline: the minutes are a
-reference document, but they record a decision dated 2026-09-26, after the budget note, so
-the note's owner is asked to update it or reject the change. That is three todo requests,
-two of them high priority, and no note.
+## The story
 
-Freshness keeps review clocks only for the 14 governed documents: eight get a yearly one
-(their claims are policy) and three a 180-day one (process); the archive is retired and two
-documents hold only general knowledge, so none of those is ever due by age. When the travel
-policy changes, its forwarded copy in the HR folder no longer matches it; the copy is a
-reference document, so nobody is asked to review it, and the archived 2023 edition is left
-alone.
+Sales staff travel to Shenzhen often, and the hotels there cost about 650 yuan a night. The
+travel policy (差旅报销管理办法, edition 6, from 2026-07-01, owned by 李娜) caps tier-1 cities
+at 600. In October 王磊 wrote the Shenzhen hotel price list (深圳协议酒店价目表), a governed
+document that sets 650 for Shenzhen; the October travel meeting noted the gap, and 李娜 said
+600 holds until the policy is revised. The FAQ, the August and September minutes, the Feishu
+FAQ and the copy forwarded to HR still say 600.
+
+So when 陈晨 from Sales asks how much a night in Shenzhen may cost, the answer goes by the
+price list's 650 and says the sources disagree. 李娜 decides in the inbox, and edition 7 of the
+policy, which 李娜 revises, puts 650 in the policy itself.
+
+## Governance
+
+Two governed documents that disagree propose the newer one's value; the older one is only
+superseded when it has gone unchanged for a year. A reference document never outvotes a
+governed one, except with a dated change that is in effect.
+
+| Slot | Statements | What governance does |
+| --- | --- | --- |
+| Tier-1 hotel cap | Travel policy 600 (changed 2026-06-20). Price list 650 (2026-10-18). October minutes 650 and 600. FAQ, Feishu FAQ, forwarded copy, August and September minutes 600. Archive 500. | Proposes 650 and asks 李娜, who owns the travel topic. Settles the archive's 500 alone. |
+| 2027 budget deadline | Budget note 11-15 (confidential). September minutes, a reference document: moved to 11-20. | The minutes' dated change is in effect, so 11-20 holds; 周敏 is asked to update the note or reject the change. |
+| Annual leave, 1 to 10 years | Attendance policy 5 days (from 2026-01-01). Onboarding guide 7 days (changed 2025-11-10). | Proposes 5 and asks 张敏. |
+| Loan settlement | Loan policy 15 days. Loan FAQ 30 days. | The policy holds; 王磊 gets a note that the FAQ says otherwise. |
+| Meal allowance | Policy, its forwarded copy and the Feishu FAQ 100 a day. Archive 80. | Settled alone: the archive is superseded. |
+
+That is three todo requests, all high priority, and one note. Two cases are not conflicts:
+the travel reimbursement deadline (30 days for travel, 60 for daily expenses) carries
+different qualifiers, and the approval thresholds differ by scope (travel and loans 5000,
+expenses 2000 and 20000), with the Feishu approval matching the travel policy.
 
 ## Governance levels
 
 `governance_level` in front matter, `.meta.yaml` or the Feishu properties, else the source's
 in `corpus.yaml`, says how far the engine governs a document:
 
-- `governed`: the policy library, the notice folder (团队知识/通知), the onboarding guide,
-  the approval definition and the archive (governed, but archived). Extracted in full; their
+- `governed` (28): the finance and company policies, the notice folder (财务团队/通知), the
+  approval definition and the archive (governed, but archived). Extracted in full; their
   values decide a slot and their owners get reviews and todos.
-- `reference`: the team wiki's minutes and FAQ, the Feishu wiki and the forwarded copy in
-  the policy library. Read where a block names a catalogue fact, and only claims that fill a
-  slot are kept; the rest of a passage is read when a page or an answer uses it. Their values
-  never outvote or hold up a governed one, except a change they date that is in effect and
-  later than it, such as the minutes' decision; a value only they state is a note for the
-  owner.
-- `search_only`: the weekly report. Searchable, never extracted.
+- `reference` (9): the team's minutes, FAQs and manual, the Feishu wiki and the copy of the
+  travel policy forwarded to HR. Read where a block names a catalogue fact, and only claims
+  that fill a slot are kept.
+- `search_only` (1): the weekly report. Searchable, never extracted.
 
 Authority is separate and comes from the source defaults: policies 0.9, the Feishu approval
-0.7, the Feishu wiki 0.6, the team wiki 0.5, the archive 0.3.
+0.7, the Feishu wiki 0.6, the team notes 0.5, the archive 0.3.
 
-## Topics
+## Topics, owners and the inbox
 
-Page-compiler clusters the 34 sections of current governed documents into 9 topics and one
-area, using the fake embeddings, which only see shared characters:
-- Similar headings across documents make topics: 住宿, 报销 and 审批权限.
-- What is left of a document makes a topic when it holds five statements or more:
-  差旅费管理办法, 新人入职指南, IT 设备申领说明 and so on.
-- 报销 and 费用报销管理规定 form the area 报销相关.
-- 17 of the 87 governed statements stay unfiled, those of the small documents
-  (会议室管理规定, 薪酬管理办法, 数据分级与保护规范).
-- The reference statements of a slot (the forwarded copy, the FAQ, the minutes) join the
-  slot's topic.
+Page-compiler clusters the 69 sections of current governed documents into 16 topics and two
+areas (报销相关 and 固定资产), using the fake embeddings, which only see shared characters.
+Similar headings across documents make topics (住宿, 交通, 报销, 审批), and what is left of a
+document makes one when it holds five statements or more. 44 of the 142 governed statements
+stay unfiled, those of the small documents.
 
-## Owners and the inbox
+The demo stands in for the business layer: each topic's owner is the member who wrote most of
+its governed documents (front matter `owner`), so 16 of the 18 topics get one of seven
+members. The bench and `pnpm demo` assign them the same way (`assignOwners` in
+`apps/engine`). The inbox puts the hotel cap on 李娜's card, the budget deadline on 周敏's and
+the annual leave on 张敏's, and the loan note on 王磊's.
 
-The demo stands in for the business layer: each topic's owner is the member who wrote most
-of its documents (front matter `owner`), so 9 of the 10 topics get one of two members. The
-bench and `pnpm demo` assign them the same way (`assignOwners` in `apps/engine`). The inbox
-then puts each todo in front of its topic's owner:
-- the three conflicts (hotel cap, budget deadline, first-year leave) on their owners' cards
-  for the week, within the weekly budget of 10 cards.
+Freshness keeps review clocks for the 28 governed documents: policies yearly, processes every
+180 days, the archive and four documents of general knowledge never by age. Two documents are
+past their review date on the first day; over the next sixty days four more come due and one
+rests on an assumption that has drifted.
 
-Over the next sixty days the three process documents come due for review and join their
-owners' cards.
+## Space owners
 
-The hotel cap and the first-year leave land with 张敏: the notice that raises the hotel cap
-sits in 团队知识/通知 and is placed in the 新人入职指南 topic, which 张敏 owns. The budget
-deadline lands with 李娜, who owns the budget note's topic. In the demo, 张敏 confirms 5 days of
-first-year leave; the onboarding guide's 7 days then reads as outdated in the guide, on the
-年休假 topic page and in answers.
+周敏 owns the finance space and 张敏 the company policies (`owner` in `corpus.yaml`). The web
+app offers a space owner a way to maintain the space: what is waiting in it, its topics and
+their owners, its folders and the governance level each is read at. Todos of topics nobody
+owns go on the space owner's steward card.
 
-## The space owner and the demo's upstream edit
-
-周敏 is the space owner of both spaces (`owner` in `corpus.yaml`): the web app offers 周敏 a
-way to maintain each space (what is waiting in it, its topics and their owners, its folders
-and the governance level each is read at), and the todos of topics nobody owns go on 周敏's
-steward card.
-
-`updates/travel-policy-revised` is the demo's upstream edit: the revised 差旅费管理办法 (in
-effect from 2026-10-01, the tier-1 cap at 650, and an article saying the September management
-meeting revised it) and its rate table at 650. `pnpm demo` serves a copy of the corpus, and
-putting the edit in copies its files over that copy and syncs 制度库 as 周敏. The engine has
-read both new versions within a second, and then:
-- the policy's 600 row and the table's four 600 rows are superseded: a table row whose value
-  cell changed no longer states the old value;
-- answers about the hotel cap cite the policy at 650, with one note: 新人入职指南 still says
-  600. Governance reads the guide as out of date rather than in contradiction, because the
-  policy itself now dates the change and the guide is older;
-- the hotel-cap todo stays with 张敏, now showing the policy for 650 and the guide for 600;
-- the space overview lists both documents as updated.
-
-## The demo script
+## The demo script and the upstream edit
 
 `script.yaml` is the demo in order: each step names the person who takes it, the page it
-opens and what to look at or do there, in each interface language, and the two steps that move
-the demo on say so (`do`): 张敏 confirms the leave suggestion, and 周敏 puts in the upstream
-edit. `pnpm snapshot` records it: after reading everything each person can see, it takes the
-next action and reads again, and builds a static page that answers from that recording.
+opens and what to look at or do there, in each interface language. Two steps move the demo on
+(`do`): 李娜 confirms 650 for tier-1 cities, and 周敏 puts in the upstream edit.
+
+1. 陈晨 asks about the Shenzhen hotel: the answer gives 650 and says the sources disagree.
+2. 陈晨 opens edition 6 of the policy in its Annotated view: the tier-1 row is disputed.
+3. 李娜 confirms the suggestion in the inbox.
+4. 陈晨 asks again: the FAQ's and minutes' 600 reads as outdated.
+5. 周敏 looks over the finance space and puts in edition 7.
+6. 陈晨 opens the policy again: the tier-1 row says 650 and is current.
+
+`updates/travel-policy-revised` is the upstream edit: edition 7 of the travel policy, in
+effect from 2026-11-01, with the tier-1 cap at 650. Putting it in copies its files over the
+served copy of the corpus and syncs 财务制度 as 周敏. The policy's 600 row is superseded, the
+hotel todo has nothing left to ask, answers cite the policy, and the space overview lists the
+policy as updated.
+
+`pnpm snapshot` records the script: after reading everything each person can see, it takes the
+next action and reads again, and builds a static page that answers from that recording. The
+engine's day stands still while it records, so identical pages are stored once.
 
 ## Permissions
 
-- `制度库` is readable by the whole tenant; finance and HR folders add their editors.
-- `制度库/财务/内部` is finance only (`group:finance`), its budget note `confidential`.
-- `制度库/人事/薪酬` is HR only, its payroll policy `confidential`.
+- `财务制度` is readable by the whole tenant and edited by the finance group.
+- `财务制度/预算/内部` is finance only (`group:finance`), its budget note `confidential`.
+- `财务团队` is readable by the whole tenant.
+- `公司制度` is readable by the whole tenant and edited by the administration office; `人事`
+  adds HR editors, and `人事/薪酬` is HR only, its payroll policy `confidential`.
 - The Feishu FAQ is shared with the finance department and readable by the tenant by link.
 
-## Planted duplicates
+## Planted duplicate
 
 | Document | Duplicate of | Kind |
 | --- | --- | --- |
-| 制度库/人事/转发-差旅费管理办法.md | 制度库/财务/差旅费管理办法.md | exact (only front matter differs) |
-| 归档/差旅费管理办法（2023 版）.md | 制度库/财务/差旅费管理办法.md | near (older numbers, archived) |
+| 公司制度/人事/转发-差旅报销管理办法.md | 财务制度/差旅/差旅报销管理办法.md | exact (only front matter differs) |
 
-## Planted conflicts and stale statements
-
-| Topic | Statements | What a reviewer should conclude |
-| --- | --- | --- |
-| First-tier city hotel cap | Policy: 600 元 (approved, from 2026-01-01). Notice, meeting minutes (2026-09-26), FAQ and Feishu FAQ: 650 元 from 2026-10-01. Archive: 500 元. | The policy is stale: a newer decision supersedes it until the revision is published. The archive is superseded, not a conflict. |
-| Travel reimbursement deadline | Travel policy: 30 days after the trip. Expense policy: 60 days (general). FAQ: travel within 60 days. Onboarding guide: 60 days. | The travel policy is specific and wins for travel; the FAQ is wrong for travel. |
-| Annual leave in the first year | Attendance policy: 5 days after one year. Onboarding guide: 7 days in the first year. | The guide is wrong. |
-| Approval thresholds | Travel: 5000 元 department head, then CFO. Expenses: 2000 / 20000 tiers. Feishu approval: CFO from 5000 元. | Different scopes, not a conflict; the approval flow matches the travel policy. |
-| 2027 budget deadline | Budget note: 11-15. Meeting minutes (reference): moved to 11-20. | The note is stale. The engine proposes 11-20 and asks the note's owner to update it, since only a reference document records the decision. |
-| Meal allowance | 2026 policy: 100 元 a day. Archive: 80 元. | Superseded by the newer version. |
+The archived 2023 edition differs in too many numbers to count as a copy.

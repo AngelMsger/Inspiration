@@ -25,25 +25,28 @@ import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { Corpus, Engine, seed, serveApi } from "../src/index.ts";
 
 const CORPUS = fileURLToPath(new URL("../../../examples/corpus/", import.meta.url));
-const POLICY = "spc_01QINGHE000000000000POLICY";
-const POLICIES = "src_01QINGHE00000000000POLICIES";
+const FINANCE = "spc_01HENGYUAN000000000FINANCE";
+const POLICY = "spc_01HENGYUAN0000000000POLICY";
+const FIN_POLICIES = "src_01HENGYUAN0000000FINPOLICY";
 const DATA = testData<{
   spaces: string[];
-  travel: { item: string; title: string; folder: string; outdated: string; held: string; held_by: string };
-  budget: { item: string; title: string; folder: string };
+  travel: { item: string; title: string; folder: string; disputed: string; held: string; held_by: string };
+  budget: { item: string; title: string; folder: string; parent: string };
   question: string;
   search: string;
+  hotel: { slot: string; fact: string };
   leave: { topic: string; fact: string; slot: string; question: string; values: string[]; titles: string[] };
   update: { name: string; documents: string[]; still: string };
 }>(import.meta.url, "corpus.yaml");
 const TRAVEL = DATA.travel.item;
 const BUDGET = DATA.budget.item;
-// In the finance group, which alone reads the internal budget note.
-const LI_NA = "mem_01QINGHE00000000000000LINA";
-// Wrote the attendance policy and the onboarding guide, so owns their topics.
-const ZHANG_MIN = "mem_01QINGHE000000000ZHANGMIN";
-// Maintains both spaces.
-const ZHOU_MIN = "mem_01QINGHE0000000000ZHOUMIN";
+// Wrote the travel policy, so owns the hotel cap's topic.
+const LI_NA = "mem_01HENGYUAN000000000000LINA";
+// Wrote the attendance policy and the onboarding guide, so owns their topics; maintains the
+// company-wide space.
+const ZHANG_MIN = "mem_01HENGYUAN00000000ZHANGMIN";
+// Maintains the finance space and edits the internal budget folder, which only she may open.
+const ZHOU_MIN = "mem_01HENGYUAN000000000ZHOUMIN";
 
 let engine: Engine;
 let server: Server;
@@ -61,7 +64,7 @@ beforeAll(async () => {
     blobDir: blobs,
     resolvePrincipal: corpus.resolvePrincipal,
     vocabulary: () => corpus.vocabulary,
-    clock: () => new Date("2026-10-27T09:00:00Z"),
+    clock: () => new Date("2026-11-04T09:00:00Z"),
   });
   await seed(engine, corpus);
   server = await serveApi(
@@ -103,31 +106,32 @@ describe("engine HTTP API", () => {
   });
 
   test("builds the Documents tree without the folders a member cannot open", async () => {
-    const reader = await call(`/v0/spaces/${POLICY}/documents`);
+    const reader = await call(`/v0/spaces/${FINANCE}/documents`);
     expect(contractErrors("DocumentTree", reader.body)).toEqual([]);
     const tree = reader.body as unknown as DocumentTree;
-    const policies = tree.sources.find((s) => s.source_id === POLICIES) as DocumentTreeNode;
+    const policies = tree.sources.find((s) => s.source_id === FIN_POLICIES) as DocumentTreeNode;
     expect(titles(policies)).toContain(DATA.travel.title);
     expect(titles(policies)).not.toContain(DATA.budget.title);
-    const finance = policies.children?.find((c) => c.name === DATA.travel.folder);
-    expect(finance?.children?.map((c) => c.name)).not.toContain(DATA.budget.folder);
+    const budget = policies.children?.find((c) => c.name === DATA.budget.parent);
+    expect(budget?.children?.map((c) => c.name)).not.toContain(DATA.budget.folder);
 
-    const member = (await call(`/v0/spaces/${POLICY}/documents`, { member: LI_NA })).body as unknown as DocumentTree;
-    const theirs = member.sources.find((s) => s.source_id === POLICIES) as DocumentTreeNode;
+    const member = (await call(`/v0/spaces/${FINANCE}/documents`, { member: ZHOU_MIN }))
+      .body as unknown as DocumentTree;
+    const theirs = member.sources.find((s) => s.source_id === FIN_POLICIES) as DocumentTreeNode;
     expect(titles(theirs)).toContain(DATA.budget.title);
     expect(theirs.document_count).toBe((policies.document_count ?? 0) + 1);
   });
 
   test("shows a document with its blocks and the marks on them", async () => {
-    const { status, body } = await call(`/v0/documents?source=${POLICIES}&item=${encodeURIComponent(TRAVEL)}`);
+    const { status, body } = await call(`/v0/documents?source=${FIN_POLICIES}&item=${encodeURIComponent(TRAVEL)}`);
     expect(status).toBe(200);
     expect(contractErrors("DocumentView", body)).toEqual([]);
     const view = body as unknown as DocumentView;
     expect(view.path).toEqual([DATA.travel.folder]);
     expect(view.blocks.length).toBeGreaterThan(10);
-    const outdated = view.annotations.statements.find((s) => s.standing === "outdated");
-    expect(outdated?.snippet).toContain(DATA.travel.outdated);
-    const held = view.annotations.held.find((h) => h.unit_id === outdated?.held_unit_id);
+    const disputed = view.annotations.statements.find((s) => s.standing === "disputed");
+    expect(disputed?.snippet).toContain(DATA.travel.disputed);
+    const held = view.annotations.held.find((h) => h.unit_id === disputed?.held_unit_id);
     expect(held?.snippet).toContain(DATA.travel.held);
     expect(held?.citations[0]?.source_title).toBe(DATA.travel.held_by);
   });
@@ -144,12 +148,12 @@ describe("engine HTTP API", () => {
     expect((await call("/v0/documents")).status).toBe(400);
   });
 
-  test("answers a question with citations and a note on the replaced value", async () => {
+  test("answers a question with citations and a note on the values in dispute", async () => {
     const { status, body } = await call("/v0/answers", { body: { question: DATA.question } });
     expect(status).toBe(200);
     expect(contractErrors("GroundedAnswer", body)).toEqual([]);
     expect(body.answer).toContain(DATA.travel.held);
-    expect((body.notes as { kind: string }[]).map((n) => n.kind)).toContain("outdated");
+    expect((body.notes as { kind: string }[]).map((n) => n.kind)).toContain("conflict");
   });
 
   test("searches", async () => {
@@ -160,13 +164,14 @@ describe("engine HTTP API", () => {
   });
 
   test("a document the member may not read is not found, as an unknown one is", async () => {
-    const hidden = await call(`/v0/documents?source=${POLICIES}&item=${encodeURIComponent(BUDGET)}`);
-    const unknown = await call(`/v0/documents?source=${POLICIES}&item=nothing.md`);
+    const hidden = await call(`/v0/documents?source=${FIN_POLICIES}&item=${encodeURIComponent(BUDGET)}`);
+    const unknown = await call(`/v0/documents?source=${FIN_POLICIES}&item=nothing.md`);
     expect([hidden.status, unknown.status]).toEqual([404, 404]);
     expect(hidden.body).toEqual({ error: { code: "not_found", message: "no document" } });
     expect(unknown.body).toEqual(hidden.body);
     expect(
-      (await call(`/v0/documents?source=${POLICIES}&item=${encodeURIComponent(BUDGET)}`, { member: LI_NA })).status,
+      (await call(`/v0/documents?source=${FIN_POLICIES}&item=${encodeURIComponent(BUDGET)}`, { member: ZHOU_MIN }))
+        .status,
     ).toBe(200);
   });
 
@@ -197,19 +202,22 @@ describe("engine HTTP API", () => {
   });
 
   test("shows a space's maintainer what is waiting in it and how its documents stand", async () => {
-    expect((await call(`/v0/spaces/${POLICY}/overview`)).status).toBe(404);
-    const { status, body } = await call(`/v0/spaces/${POLICY}/overview`, { member: ZHOU_MIN });
+    expect((await call(`/v0/spaces/${FINANCE}/overview`)).status).toBe(404);
+    const { status, body } = await call(`/v0/spaces/${FINANCE}/overview`, { member: ZHOU_MIN });
     expect(status).toBe(200);
     expect(contractErrors("SpaceOverview", body)).toEqual([]);
     const overview = body as unknown as SpaceOverview;
-    expect(overview.space.id).toBe(POLICY);
-    // Three conflicts: the first-year leave, the budget deadline the minutes moved and the hotel
-    // cap. The forwarded copy in the policy library dates the hotel cap's change, and is read
-    // before the notice, so the policy's space is asked first and keeps the todo.
-    expect(overview.work).toEqual([{ kind: "conflict", count: 3 }]);
-    expect(overview.disputed).toEqual([{ slot_key: DATA.leave.slot, label: DATA.leave.fact }]);
-    // Counted as the maintainer may open them: not the finance-only budget note.
-    const tree = (await call(`/v0/spaces/${POLICY}/documents`, { member: ZHOU_MIN })).body as unknown as DocumentTree;
+    expect(overview.space.id).toBe(FINANCE);
+    // Two conflicts, the hotel cap and the budget deadline the minutes moved, and a note on the
+    // loan deadline the team's FAQ gives otherwise. Readers see only the hotel cap in dispute:
+    // the minutes date the budget deadline's change, so the later day holds.
+    expect(overview.work).toEqual([
+      { kind: "conflict", count: 2 },
+      { kind: "note", count: 1 },
+    ]);
+    expect(overview.disputed).toEqual([{ slot_key: DATA.hotel.slot, label: DATA.hotel.fact }]);
+    // Counted as the maintainer may open them, the internal budget folder among them.
+    const tree = (await call(`/v0/spaces/${FINANCE}/documents`, { member: ZHOU_MIN })).body as unknown as DocumentTree;
     const count = tree.sources.reduce((n, s) => n + (s.document_count ?? 0), 0);
     expect(overview.documents).toBe(count);
     expect(overview.levels.map((l) => l.level)).toEqual(["governed", "reference", "search_only"]);
@@ -281,37 +289,33 @@ describe("engine HTTP API", () => {
     expect(await call("/v0/health", { anonymous: true })).toEqual({ status: 200, body: { ok: true } });
   });
 
-  // Last of all: the policy library changes.
+  // Last of all: the finance policies change.
   test("syncs a source now for its maintainer, and the engine reads the new version before answering", async () => {
     const edit = join(CORPUS, "updates", DATA.update.name);
     await cp(edit, work, { recursive: true, filter: (from) => !from.endsWith("update.yaml") });
-    expect((await call(`/v0/sources/${POLICIES}/sync`, { body: {} })).status).toBe(404);
-    const { status, body } = await call(`/v0/sources/${POLICIES}/sync`, { member: ZHOU_MIN, body: {} });
+    expect((await call(`/v0/sources/${FIN_POLICIES}/sync`, { body: {} })).status).toBe(404);
+    const { status, body } = await call(`/v0/sources/${FIN_POLICIES}/sync`, { member: ZHOU_MIN, body: {} });
     expect(status).toBe(200);
     expect(contractErrors("SyncReport", body)).toEqual([]);
-    expect(body).toMatchObject({ source_id: POLICIES, outcomes: { created: 0, updated: 2, deleted: 0, failed: 0 } });
+    expect(body).toMatchObject({
+      source_id: FIN_POLICIES,
+      outcomes: { created: 0, updated: 1, deleted: 0, failed: 0 },
+    });
 
-    // Only the onboarding guide still says 600; the policy and its rate table say 650.
+    // Edition 7 says 650 from 2026-11-01. Only notes older than it still say 600: out of date.
     const answer = (await call("/v0/answers", { body: { question: DATA.question } })).body as unknown as GroundedAnswer;
     expect(answer.notes?.map((n) => n.kind)).toEqual(["outdated"]);
     expect(answer.notes?.[0]?.text).toContain(DATA.update.still);
     for (const title of DATA.update.documents) expect(answer.notes?.[0]?.text).not.toContain(title);
-    const view = (await call(`/v0/documents?source=${POLICIES}&item=${encodeURIComponent(TRAVEL)}`))
+    const view = (await call(`/v0/documents?source=${FIN_POLICIES}&item=${encodeURIComponent(TRAVEL)}`))
       .body as unknown as DocumentView;
     expect(view.annotations.statements.filter((h) => h.standing && h.standing !== "holds")).toEqual([]);
     expect(view.annotations.statements.some((h) => h.snippet.includes(DATA.travel.held))).toBe(true);
-    // The hotel-cap todo still asks its owner, now showing the guide for 600, not the policy's old row.
-    const inbox = (await call("/v0/inbox", { member: ZHANG_MIN })).body as unknown as Inbox;
-    const hotel = inbox.cards
-      .flatMap((c) => c.todos)
-      .find((t) => t.choices.some((c) => c.value?.startsWith(`${DATA.travel.outdated} `))) as InboxTodo;
-    const titleOf = new Map(hotel.statements.map((h) => [h.unit_id, h.title]));
-    expect(hotel.choices.map((c) => [c.value?.split(" ")[0], titleOf.get(c.unit_id ?? "")])).toEqual([
-      [DATA.travel.held, DATA.travel.title],
-      [DATA.travel.outdated, DATA.update.still],
-    ]);
+    // Nothing is left to decide about the hotel cap: the todo its owner had is withdrawn.
+    const inbox = (await call("/v0/inbox", { member: LI_NA })).body as unknown as Inbox;
+    expect(inbox.cards.flatMap((c) => c.todos).map((t) => t.todo.slot_key)).not.toContain(DATA.hotel.slot);
 
-    const overview = (await call(`/v0/spaces/${POLICY}/overview`, { member: ZHOU_MIN }))
+    const overview = (await call(`/v0/spaces/${FINANCE}/overview`, { member: ZHOU_MIN }))
       .body as unknown as SpaceOverview;
     const updated = overview.changes.filter((c) => c.kind === "updated").map((c) => c.document.title);
     expect(updated.sort()).toEqual([...DATA.update.documents].sort());

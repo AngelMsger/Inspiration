@@ -5,7 +5,7 @@
     "title": "差旅报销答疑",
     "modified_at": "2026-10-08T09:30:00Z",
     "path": ["财务部", "报销"],
-    "owner_id": "ou_wang_wei"
+    "owner_id": "ou_li_na"
   },
   "blocks": [
     {
@@ -44,7 +44,7 @@
         "elements": [
           {
             "text_run": {
-              "content": "一线城市每晚 650 元，自 2026 年 10 月 1 日起执行；新一线城市每晚 450 元；其他城市每晚 350 元。"
+              "content": "一线城市每晚 600 元；新一线城市每晚 450 元；其他城市每晚 350 元。到深圳出差优先订协议酒店，房价见《深圳协议酒店价目表》。"
             }
           }
         ]
@@ -261,7 +261,7 @@
     },
     {
       "member_type": "openid",
-      "member_id": "ou_wang_wei",
+      "member_id": "ou_li_na",
       "perm": "full_access"
     }
   ],

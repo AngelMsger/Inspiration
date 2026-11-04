@@ -8,7 +8,7 @@ source and date, so runs repeat without the network. A Chinese copy is in
 
 | Corpus | Text | What it measures | Run | Test |
 | --- | --- | --- | --- | --- |
-| [corpus](corpus/README.md) | Written for the demo, in Chinese: 19 documents, folder ACLs, Feishu fixtures | The ingest pipeline end to end, with planted duplicates and conflicts | `pnpm bench ingest examples/corpus` | `engine.test.ts` |
+| [corpus](corpus/README.md) | Written for the demo, in Chinese: 38 documents of a fictional manufacturer, folder ACLs, Feishu fixtures, the days each file changed | The ingest pipeline end to end, with planted duplicates and conflicts | `pnpm bench ingest examples/corpus` | `engine.test.ts` |
 | [control](control/README.md) | Written for the check, in English: 14 documents, 8 cases | Governance case by case, where every case has one right answer | `pnpm bench ingest examples/control` | `control.test.ts` |
 | [gitlab-expenses](gitlab-expenses/README.md) | Real: GitLab's expense policy at 21 versions, 2020 to 2026 | Extraction and governance on knowledge that changes, against a timeline read by hand | `pnpm bench replay examples/gitlab-expenses` | `history.test.ts` |
 | [kubernetes-docs](kubernetes-docs/README.md) | Real: five Kubernetes pages in English with their official Chinese and Japanese translations | One value and one source per fact across languages; 12 questions | `pnpm bench ingest examples/kubernetes-docs` | `kubernetes.test.ts` |

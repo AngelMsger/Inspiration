@@ -1,0 +1,42 @@
+# When each file of the demo tenant was last changed, as the company drive would report it
+# (Corpus.stamp gives each file this modified time on ingest and serve). A checkout dates
+# every file the day it was made, which would make every team note look newer than the
+# policies it repeats. All files are written for the demo (kind constructed); 恒远机械 and
+# its people are fictional.
+files:
+  - {path: 财务制度/差旅/差旅报销管理办法.md, modified: 2026-06-20, kind: constructed}
+  - {path: 财务制度/差旅/深圳协议酒店价目表.md, modified: 2026-10-18, kind: constructed}
+  - {path: 财务制度/差旅/出差酒店预订指南.md, modified: 2026-02-25, kind: constructed}
+  - {path: 财务制度/差旅/境外差旅管理细则.md, modified: 2026-03-20, kind: constructed}
+  - {path: 财务制度/报销/费用报销管理规定.md, modified: 2025-12-20, kind: constructed}
+  - {path: 财务制度/报销/发票与单据要求.md, modified: 2026-01-20, kind: constructed}
+  - {path: 财务制度/报销/业务招待费管理办法.md, modified: 2025-12-15, kind: constructed}
+  - {path: 财务制度/借款与预付/备用金与员工借款管理办法.md, modified: 2026-02-20, kind: constructed}
+  - {path: 财务制度/借款与预付/供应商预付款管理规定.md, modified: 2026-04-20, kind: constructed}
+  - {path: 财务制度/预算/预算执行与调整管理办法.md, modified: 2025-12-20, kind: constructed}
+  - {path: 财务制度/预算/内部/2027 年度预算编制说明.md, modified: 2026-08-25, kind: constructed}
+  - {path: 财务制度/资产/固定资产管理办法.md, modified: 2026-02-15, kind: constructed}
+  - {path: 财务制度/资产/固定资产折旧年限表.csv, modified: 2026-02-15, kind: constructed}
+  - {path: 财务制度/资产/资产盘点操作指引.md, modified: 2026-04-20, kind: constructed}
+  - {path: 财务制度/税务/增值税发票管理规定.md, modified: 2025-12-20, kind: constructed}
+  - {path: 财务制度/税务/个人所得税代扣代缴说明.md, modified: 2025-12-22, kind: constructed}
+  - {path: 财务制度/资金/银行账户与资金管理办法.md, modified: 2026-01-20, kind: constructed}
+  - {path: 财务制度/资金/月度结账日历.md, modified: 2025-12-28, kind: constructed}
+  - {path: 财务团队/会议纪要/2026-08 财务部例会纪要.md, modified: 2026-08-28, kind: constructed}
+  - {path: 财务团队/会议纪要/2026-09 经营会纪要.md, modified: 2026-09-26, kind: constructed}
+  - {path: 财务团队/会议纪要/2026-10 差旅专题会纪要.md, modified: 2026-10-20, kind: constructed}
+  - {path: 财务团队/常见问题/报销常见问题.md, modified: 2026-08-20, kind: constructed}
+  - {path: 财务团队/常见问题/借款常见问题.md, modified: 2026-10-12, kind: constructed}
+  - {path: 财务团队/常见问题/差旅保险说明.md, modified: 2026-05-10, kind: constructed}
+  - {path: 财务团队/操作手册/费控系统操作手册.md, modified: 2026-09-05, kind: constructed}
+  - {path: 财务团队/通知/关于启用新版费控系统的通知.txt, modified: 2026-09-01, kind: constructed}
+  - {path: 财务团队/项目/星火项目周报-第 12 周.md, modified: 2026-10-16, kind: constructed}
+  - {path: 公司制度/人事/考勤与休假管理制度.md, modified: 2025-12-20, kind: constructed}
+  - {path: 公司制度/人事/薪酬/薪酬管理办法.md, modified: 2026-03-15, kind: constructed}
+  - {path: 公司制度/人事/转发-差旅报销管理办法.md, modified: 2026-07-03, kind: constructed, note: a copy of the travel policy edition 6 forwarded to HR}
+  - {path: 公司制度/信息安全/数据分级与保护规范.md, modified: 2026-03-10, kind: constructed}
+  - {path: 公司制度/新人入职指南.md, modified: 2025-11-10, kind: constructed}
+  - {path: 公司制度/行政/IT 设备申领说明.html, modified: 2026-02-10, kind: constructed}
+  - {path: 公司制度/行政/会议室管理规定.md, modified: 2026-04-08, kind: constructed}
+  - {path: 公司制度/采购/采购管理办法.md, modified: 2026-01-15, kind: constructed}
+  - {path: 归档/差旅报销管理办法（2023 版）.md, modified: 2023-03-01, kind: constructed}
