@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import type { Citation, InboxTodo, SearchHit, TopicView } from "@inspiration/contracts";
 import { describe, expect, test } from "vitest";
 import { parse } from "yaml";
-import { factOf, sidesOf, valueText } from "../src/todos.ts";
+import { factOf, noteText, sidesOf, valueText } from "../src/todos.ts";
 import { pageOf } from "../src/topics.ts";
 import type { Say } from "../src/words.ts";
 
@@ -41,6 +41,23 @@ const conflict: InboxTodo = {
     { key: "choose:9 day", label: "Choose 9 day", value: "9 day", unit_id: "clm_hidden" },
   ],
 };
+
+describe("an answer's notes", () => {
+  test("name their values in the reader's words, else read as the engine wrote them", () => {
+    const outdated = {
+      kind: "outdated" as const,
+      text: "Onboarding guide still state 7 day; that value was replaced, and 5 day holds.",
+      unit_ids: ["clm_seven", "clm_five"],
+    };
+    expect(noteText(say, outdated)).toBe(outdated.text);
+    expect(
+      noteText(say, { ...outdated, held_value: "5 day", values: ["7 day"], documents: ["Onboarding guide"] }),
+    ).toBe("5 days holds; 7 days in Onboarding guide was replaced.");
+    expect(
+      noteText(say, { kind: "conflict", text: "", unit_ids: [], held_value: "5 day", values: ["5 day", "7 day"] }),
+    ).toBe("Sources differ: 5 days, 7 days. 5 days holds until someone decides.");
+  });
+});
 
 describe("the inbox", () => {
   test("says values in the reader's words, and an unknown unit as it is", () => {

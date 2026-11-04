@@ -56,8 +56,10 @@
  * replaced values is left out of its passage. A sentence of the answer that cites nothing
  * given is dropped, and one that quotes some of a passage's sentences cites those. Notes in
  * the question's language, on the values the answer gives, say when sources differ and a
- * person has yet to decide, and when a source found states a replaced value; another says
- * when a statement rests on one weakly read source. sources(query, principal) gives the
+ * person has yet to decide, and when a source found states a replaced value, each also
+ * naming the value that holds, the other values and the documents as data, so a screen can
+ * say them in its reader's words; another says when a statement rests on one weakly read
+ * source. sources(query, principal) gives the
  * hits an answer reads, in the order the model gets them.
  *
  * An answer reads the latest edition of a document the asker can read. An edition replaces

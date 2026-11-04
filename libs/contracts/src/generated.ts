@@ -622,6 +622,20 @@ export interface AnswerNote {
    * The units the note is about.
    */
   unit_ids: UnitId[];
+  /**
+   * conflict and outdated: the value that holds, as a normalized value key ("650 CNY/night"), so a screen can say it in its reader's words.
+   *
+   */
+  held_value?: string;
+  /**
+   * conflict: the values in dispute; outdated: the replaced values the documents still state. Normalized value keys.
+   *
+   */
+  values?: string[];
+  /**
+   * outdated: the titles of the documents that still state a replaced value.
+   */
+  documents?: string[];
 }
 export interface AnswerQuery {
   question: string;

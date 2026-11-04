@@ -218,19 +218,25 @@ export function notesOf(
           held: verdict.held_value,
         }),
         unit_ids: [...new Set(disputed.flatMap((v) => v.claim_ids))],
+        ...(verdict.held_value !== undefined && { held_value: verdict.held_value }),
+        values: disputed.map((v) => v.value),
       });
     }
     const outdated = mine.filter((h) => h.standing === "outdated");
     if (outdated.length) {
       const old = [...new Set(outdated.map((h) => valueKeyOf(searched.statements.get(h.unit_id)?.claim ?? {}) ?? ""))];
+      const documents = [...new Set(outdated.map((h) => h.title))];
       notes.push({
         kind: "outdated",
         text: fill(pack.text("outdated"), {
-          documents: [...new Set(outdated.map((h) => h.title))].join(mark),
+          documents: documents.join(mark),
           old: old.join(mark),
           held: verdict.held_value,
         }),
         unit_ids: [...outdated.map((h) => h.unit_id), ...(verdict.values[0]?.claim_ids ?? [])],
+        ...(verdict.held_value !== undefined && { held_value: verdict.held_value }),
+        values: old,
+        documents,
       });
     }
   }
