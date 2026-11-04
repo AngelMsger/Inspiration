@@ -3,7 +3,7 @@
 
 import type { Citation, GroundedAnswer, SearchHit } from "@inspiration/contracts";
 import { useState } from "react";
-import { type CitedDocument, readAnswer } from "./answers.ts";
+import { readAnswer } from "./answers.ts";
 import { api, type Library, useLoad } from "./api.ts";
 import type { Person } from "./backend.ts";
 import { Failure, Standing } from "./parts.tsx";
@@ -134,7 +134,6 @@ function Answer(props: { answer: GroundedAnswer; q: string }) {
   const { answer, q } = props;
   if (!answer.answer.trim()) return <p className="quiet">{say("ask.none")}</p>;
   const { parts, documents } = readAnswer(answer);
-  const cite = (n: number) => (documents[n - 1] as CitedDocument).first;
   return (
     <>
       <p className="answer-text">
@@ -143,10 +142,10 @@ function Answer(props: { answer: GroundedAnswer; q: string }) {
             // biome-ignore lint/suspicious/noArrayIndexKey: the parts of one answer, in order
             <span key={i}>{part.text}</span>
           ) : (
-            part.marks.map((n) => (
+            part.marks.map((m) => (
               // biome-ignore lint/suspicious/noArrayIndexKey: as above, with the document it marks
-              <sup key={`${i}-${n}`}>
-                <Link to={citedAt(cite(n), q)}>{n}</Link>
+              <sup key={`${i}-${m.n}`}>
+                <Link to={citedAt(m.cited, q)}>{m.n}</Link>
               </sup>
             ))
           ),

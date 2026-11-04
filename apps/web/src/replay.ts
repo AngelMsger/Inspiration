@@ -44,8 +44,11 @@ export interface Recording {
   steps: ScriptStep[];
   /** The questions the script asks, which are the ones the recording can answer. */
   questions: string[];
-  /** The model that wrote the answers, when it was not a development stand-in. */
-  answered_by?: string;
+  /**
+   * The model the recording's gateway config prefers for answers, when it is not a development
+   * stand-in. An answer from content that model is not cleared for is written by a local stand-in.
+   */
+  answer_model?: string;
   /** Each response body once, by a hash of its JSON. */
   bodies: Record<string, unknown>;
   /** By state, then member: each call ("GET /v0/spaces", "POST /v0/answers {...}") and its reply. */

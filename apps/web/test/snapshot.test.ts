@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { loadPeople } from "../src/backend.ts";
 import { addressOf, answer, callKey, type Recording, savedPlace, startOf } from "../src/replay.ts";
-import { answeredBy, loadScript, questionsOf } from "../src/snapshot.ts";
+import { answerModel, loadScript, questionsOf } from "../src/snapshot.ts";
 
 const CORPUS = fileURLToPath(new URL("../../../examples/corpus/", import.meta.url));
 
@@ -49,12 +49,12 @@ describe("the demo script", async () => {
 describe("the model a recording names", () => {
   test("is the one a gateway config prefers for answers, unless it is a stand-in", async () => {
     const demo = await readFile(fileURLToPath(new URL("../../../config/gateway.demo.yaml", import.meta.url)), "utf8");
-    expect(answeredBy(demo)).toBe("deepseek-flash");
+    expect(answerModel(demo)).toBe("deepseek-flash");
     const dev = await readFile(fileURLToPath(new URL("../../../config/gateway.dev.yaml", import.meta.url)), "utf8");
-    expect(answeredBy(dev)).toBeUndefined();
+    expect(answerModel(dev)).toBeUndefined();
     const faked =
       "providers: [{name: cloud, kind: fake}]\nroutes: [{match: 'retrieval.*', prefer: [cloud/fake-flash]}]";
-    expect(answeredBy(faked)).toBeUndefined();
+    expect(answerModel(faked)).toBeUndefined();
   });
 });
 
