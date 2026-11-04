@@ -3,6 +3,7 @@
 
 import type { Citation, GroundedAnswer, SearchHit } from "@inspiration/contracts";
 import { useState } from "react";
+import { type CitedDocument, readAnswer } from "./answers.ts";
 import { api, type Library, useLoad } from "./api.ts";
 import type { Person } from "./backend.ts";
 import { Failure, Standing } from "./parts.tsx";
@@ -132,18 +133,23 @@ function Answer(props: { answer: GroundedAnswer; q: string }) {
   const { say } = useWords();
   const { answer, q } = props;
   if (!answer.answer.trim()) return <p className="quiet">{say("ask.none")}</p>;
-  // The answer marks each sentence's source as [n], counting citations from 1.
-  const parts = answer.answer.split(/\s*\[(\d+)\]/);
+  const { parts, documents } = readAnswer(answer);
+  const cite = (n: number) => (documents[n - 1] as CitedDocument).first;
   return (
     <>
       <p className="answer-text">
-        {parts.map((part, i) => {
-          // biome-ignore lint/suspicious/noArrayIndexKey: the parts of one answer, in order
-          if (i % 2 === 0) return <span key={i}>{part}</span>;
-          const c = answer.citations[Number(part) - 1];
-          // biome-ignore lint/suspicious/noArrayIndexKey: as above
-          return <sup key={i}>{c ? <Link to={citedAt(c, q)}>{part}</Link> : part}</sup>;
-        })}
+        {parts.map((part, i) =>
+          "text" in part ? (
+            // biome-ignore lint/suspicious/noArrayIndexKey: the parts of one answer, in order
+            <span key={i}>{part.text}</span>
+          ) : (
+            part.marks.map((n) => (
+              <sup key={`${i}-${n}`}>
+                <Link to={citedAt(cite(n), q)}>{n}</Link>
+              </sup>
+            ))
+          ),
+        )}
       </p>
       {(answer.notes ?? []).map((note) => (
         <p key={`${note.kind}-${note.text}`} className={`note note-${note.kind}`}>
@@ -156,8 +162,8 @@ function Answer(props: { answer: GroundedAnswer; q: string }) {
         </p>
       )}
       <ol className="sources" aria-label={say("ask.sources")}>
-        {answer.citations.map((c) => (
-          <li key={`${c.span_id}-${c.quote}`}>
+        {documents.map(({ first: c }) => (
+          <li key={c.source_version_id}>
             <Link to={citedAt(c, q)}>{c.source_title}</Link>
             <span className="quiet"> · {c.quote.length > 48 ? `${c.quote.slice(0, 48)}…` : c.quote}</span>
           </li>

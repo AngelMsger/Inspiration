@@ -216,6 +216,7 @@ failure.recorded_questions: " You can ask: {questions}"
 
 guide.title: Demo script
 guide.about: "A recording of a real run on {date}, with the development stand-ins for models: {count} steps, each as the person who takes it."
+guide.about_answered: "A recording of a real run on {date}: {model} wrote the answers, and the development stand-ins did the rest: {count} steps, each as the person who takes it."
 guide.step: "Step {n} of {count} · {name}"
 guide.start: "Start as {name}"
 guide.next: "Next, as {name}"

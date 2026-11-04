@@ -4,8 +4,8 @@ import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { loadPeople } from "../src/backend.ts";
-import { answer, callKey, type Recording, savedPlace, startOf } from "../src/replay.ts";
-import { loadScript, questionsOf } from "../src/snapshot.ts";
+import { addressOf, answer, callKey, type Recording, savedPlace, startOf } from "../src/replay.ts";
+import { answeredBy, loadScript, questionsOf } from "../src/snapshot.ts";
 
 const CORPUS = fileURLToPath(new URL("../../../examples/corpus/", import.meta.url));
 
@@ -24,13 +24,37 @@ describe("the demo script", async () => {
   test("puts in upstream edits the corpus has, and asks its questions", async () => {
     const updates = await readdir(`${CORPUS}updates`);
     for (const step of steps.filter((s) => s.do?.update)) expect(updates).toContain(step.do?.update);
-    // Every ask in the demo is the one hotel question, put again after each change.
-    expect(questionsOf(steps)).toHaveLength(1);
+    // Every ask in the demo is the one hotel question, put again after each change, in each
+    // language the app speaks, so the answer comes in the language the page shows.
+    expect(questionsOf(steps)).toHaveLength(3);
+    for (const step of steps.filter((s) => typeof s.open !== "string"))
+      expect(Object.keys(step.open).sort()).toEqual(["en", "ja", "zh"]);
+  });
+
+  test("opens a step in the page's language, else in English", () => {
+    const [step] = loadScript("steps: [{as: mem_x, open: {en: /ask?q=hotel, ja: /ask?q=hoteru}, text: {en: Ask}}]");
+    expect(step && addressOf(step, "ja")).toBe("/ask?q=hoteru");
+    expect(step && addressOf(step, "zh")).toBe("/ask?q=hotel");
+    expect(addressOf({ as: "mem_x", open: "/inbox", text: {} }, "ja")).toBe("/inbox");
   });
 
   test("refuses steps without a member, an address and words", () => {
     expect(() => loadScript("steps: [{as: mem_x, open: inbox, text: {}}]")).toThrow(RangeError);
+    expect(() => loadScript("steps: [{as: mem_x, open: {en: inbox}, text: {}}]")).toThrow(RangeError);
+    expect(() => loadScript("steps: [{as: mem_x, open: {}, text: {}}]")).toThrow(RangeError);
     expect(() => loadScript("steps: []")).toThrow(RangeError);
+  });
+});
+
+describe("the model a recording names", () => {
+  test("is the one a gateway config prefers for answers, unless it is a stand-in", async () => {
+    const demo = await readFile(fileURLToPath(new URL("../../../config/gateway.demo.yaml", import.meta.url)), "utf8");
+    expect(answeredBy(demo)).toBe("deepseek-flash");
+    const dev = await readFile(fileURLToPath(new URL("../../../config/gateway.dev.yaml", import.meta.url)), "utf8");
+    expect(answeredBy(dev)).toBeUndefined();
+    const faked =
+      "providers: [{name: cloud, kind: fake}]\nroutes: [{match: 'retrieval.*', prefer: [cloud/fake-flash]}]";
+    expect(answeredBy(faked)).toBeUndefined();
   });
 });
 

@@ -1,12 +1,16 @@
 # The demo script: who does what, in order. pnpm snapshot records it (apps/web/src/snapshot.ts)
 # and the snapshot's guide walks a visitor through it. `as` is the member who takes a step,
-# `open` the page's address it starts at, `text` what to look at or do, and `do` the action
+# `open` the page's address it starts at (one per language for a question, so the answer comes
+# in the language the page shows), `text` what to look at or do, and `do` the action
 # that moves the demo on: confirming the suggestion of the todo about a slot, or putting in an
 # upstream edit from updates/.
 
 steps:
   - as: mem_01HENGYUAN00000000CHENCHEN
-    open: /ask?q=去深圳出差住宿每晚能报多少？
+    open:
+      zh: /ask?q=去深圳出差住宿每晚能报多少？
+      en: /ask?q=How much can I claim for a hotel night on a business trip to Shenzhen?
+      ja: /ask?q=深圳出張のホテル代は1泊いくらまで精算できますか？
     text:
       zh: 销售部的陈晨要去深圳出差，问住宿能报多少。回答以王磊的《深圳协议酒店价目表》的 650 元为准，并提示各处说法不一：差旅制度第 6 版还写着 600 元，等负责人定。
       en: 陈晨 from Sales is going to Shenzhen and asks how much a hotel night may cost. The answer goes by the 650 in 王磊's Shenzhen hotel price list, and says the sources disagree; edition 6 of the travel policy still says 600 until its owner decides.
@@ -29,7 +33,10 @@ steps:
       resolve: hotel_cap_per_night|一线城市
 
   - as: mem_01HENGYUAN00000000CHENCHEN
-    open: /ask?q=去深圳出差住宿每晚能报多少？
+    open:
+      zh: /ask?q=去深圳出差住宿每晚能报多少？
+      en: /ask?q=How much can I claim for a hotel night on a business trip to Shenzhen?
+      ja: /ask?q=深圳出張のホテル代は1泊いくらまで精算できますか？
     text:
       zh: 切回陈晨再问一次：答案按李娜的决定，答疑和会议纪要里还写着的 600 元都标为已过时。
       en: Back as 陈晨, ask again. The answer follows 李娜's decision, and the 600 that the FAQ and the meeting notes still give reads as outdated.

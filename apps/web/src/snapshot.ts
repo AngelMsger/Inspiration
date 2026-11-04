@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 /**
- * pnpm snapshot <dir> [--corpus examples/corpus] [--today YYYY-MM-DD]
+ * pnpm snapshot <dir> [--corpus examples/corpus] [--today YYYY-MM-DD] [--gateway <file> [--valkey <url>]]
  *
  * Records the demo script (<corpus>/script.yaml) and builds a snapshot of the web app into
  * <dir>: index.html, its assets and snapshot.json, a static page that answers from the
  * recording (replay.ts) and guides a visitor through the script (guide.tsx), so anyone can
  * walk it without the engine. It runs the engine over a copy of the corpus with the
- * development models, as pnpm demo does, with the web app's backend in front (backend.ts).
+ * development models, as pnpm demo does, with the web app's backend in front (backend.ts), or
+ * with the models a --gateway file configures (engine serve), such as config/gateway.demo.yaml,
+ * where DeepSeek writes the answers; the guide then names the model that did. A script step
+ * may put its question in each language, so answers come in the language the page shows.
  * As each person it reads everything the page can show; then it takes the script's next
  * action and reads again, so every action leads to a recorded state. The engine takes the
  * day given, else today, as its day while it records.
@@ -41,17 +44,34 @@ const fetchFromNetwork = globalThis.fetch;
 /** The script file: steps, each taken by a member, starting at an address. */
 export function loadScript(text: string): ScriptStep[] {
   const steps = (parse(text) as { steps?: ScriptStep[] } | null)?.steps ?? [];
-  const valid = (s: ScriptStep) =>
-    typeof s?.as === "string" && typeof s.open === "string" && s.open.startsWith("/") && typeof s.text === "object";
+  const address = (a: unknown) => typeof a === "string" && a.startsWith("/");
+  const opens = (open: unknown) =>
+    address(open) ||
+    (typeof open === "object" && open !== null && Object.keys(open).length > 0 && Object.values(open).every(address));
+  const valid = (s: ScriptStep) => typeof s?.as === "string" && opens(s.open) && typeof s.text === "object";
   if (!steps.length || !steps.every(valid))
     throw new RangeError("script.yaml does not list steps with as, open and text");
   return steps;
 }
 
-/** The questions a script asks: its steps that open the ask page. */
+/** The questions a script asks: its steps that open the ask page, in each language they are put in. */
 export function questionsOf(steps: readonly ScriptStep[]): string[] {
-  const asked = steps.flatMap((s) => new URL(s.open, "http://page").searchParams.get("q") ?? []);
+  const addresses = steps.flatMap((s) => (typeof s.open === "string" ? [s.open] : Object.values(s.open)));
+  const asked = addresses.flatMap((a) => new URL(a, "http://page").searchParams.get("q") ?? []);
   return [...new Set(asked)];
+}
+
+/** The model a gateway config has write the answers, unless that is a development stand-in. */
+export function answeredBy(config: string): string | undefined {
+  const { providers = [], routes = [] } = (parse(config) ?? {}) as {
+    providers?: { name: string; kind: string }[];
+    routes?: { match: string; prefer?: string[] }[];
+  };
+  const literal = (part: string) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
+  const glob = (match: string) => new RegExp(`^${match.split("*").map(literal).join(".*")}$`);
+  const ref = routes.find((r) => glob(r.match).test("retrieval.answer_question"))?.prefer?.[0];
+  const [provider, model] = ref?.split("/") ?? [];
+  return providers.find((p) => p.name === provider && p.kind !== "fake") ? model : undefined;
 }
 
 function documentsOf(tree: DocumentTree): { source: string; item: string }[] {
@@ -174,10 +194,18 @@ const snapshotPage: Plugin = {
 async function main(): Promise<void> {
   const { values, positionals } = parseArgs({
     allowPositionals: true,
-    options: { corpus: { type: "string", default: "examples/corpus" }, today: { type: "string" } },
+    options: {
+      corpus: { type: "string", default: "examples/corpus" },
+      today: { type: "string" },
+      gateway: { type: "string" },
+      valkey: { type: "string" },
+    },
   });
   const out = positionals[0];
-  if (!out) throw new RangeError("usage: pnpm snapshot <dir> [--corpus examples/corpus] [--today YYYY-MM-DD]");
+  if (!out)
+    throw new RangeError(
+      "usage: pnpm snapshot <dir> [--corpus examples/corpus] [--today YYYY-MM-DD] [--gateway <file> [--valkey <url>]]",
+    );
   const steps = loadScript(await readFile(join(values.corpus, "script.yaml"), "utf8"));
   const questions = questionsOf(steps);
   const copy = await mkdtemp(join(tmpdir(), "inspiration-snapshot-"));
@@ -186,13 +214,17 @@ async function main(): Promise<void> {
   // The engine's clock stands still while it records, so a page that does not change between
   // people and steps is the same body, stored once, and not one per instant it was read.
   const today = values.today ?? new Date().toISOString().slice(0, 10);
-  const engine = spawn(process.execPath, [SERVE, "serve", copy, "--port", String(ENGINE_PORT), "--today", today], {
+  const models = values.gateway ? ["--gateway", resolve(values.gateway)] : [];
+  if (values.valkey) models.push("--valkey", values.valkey);
+  const answered = values.gateway ? answeredBy(await readFile(values.gateway, "utf8")) : undefined;
+  const serve = [SERVE, "serve", copy, "--port", String(ENGINE_PORT), "--today", today, ...models];
+  const engine = spawn(process.execPath, serve, {
     stdio: "inherit",
     env: { INSPIRATION_LOG_LEVEL: "warn", ...process.env },
   });
   let server: Server | undefined;
   try {
-    console.log(`reading ${values.corpus} with the development models…`);
+    console.log(`reading ${values.corpus} with the models of ${values.gateway ?? "the development stand-ins"}…`);
     await healthy(`http://127.0.0.1:${ENGINE_PORT}/v0/health`, engine);
     const middleware = backend({ engine: `http://127.0.0.1:${ENGINE_PORT}`, ...people, updates: new Updates(copy) });
     server = createServer((req, res) => void middleware(req, res, () => res.writeHead(404).end()));
@@ -218,6 +250,7 @@ async function main(): Promise<void> {
       people,
       steps,
       questions,
+      ...(answered && { answered_by: answered }),
       bodies: recorder.bodies,
       states: recorder.states,
     };
