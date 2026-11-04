@@ -100,6 +100,18 @@ The same structure serves two very different uses, and only the density changes:
 - **Reading** is calm. A page or document fills the centre, the left column folds away, and only the Outdated and Disputed marks show in the text. Most members only ever read.
 - **Working** is dense. Owners and the super admin clear queues, so compact mode shows tables, keyboard shortcuts and an inspector on the right. A queue is still introduced by its overview (section 7).
 
+### In reserve: key phrases in bold
+
+Not scheduled. The product owner proposed it on 2026-11-04: set the phrases that carry a paragraph's point in bold, so a reader can skim the paragraph and still get what it says. V2-skim on the canvas draws this recommendation.
+
+- **Where.** Knowledge pages, procedures, the text on cards, and answers, on by default. Never in the Original view, which shows a document as its author wrote it; the author's own bold stays as it is. In the Annotated view, only the value inside each quote. A card's value is already prominent and gets no more.
+- **What is bold.** What the reader is looking for: the value of a fact (an amount, a limit, a period, a date) and the condition that changes it (a city, a grade). At most one phrase in a sentence, never a whole sentence, and no more than about a tenth of a paragraph's characters.
+- **Who picks.** Knowledge first: when a sentence states a statement, that statement's value and condition are bold, so every language emphasises the same fact. The same model call that writes the page marks the rest; there is no extra call. Neither readers nor owners mark phrases by hand.
+- **Next to the marks.** A Disputed or Outdated value is not bold; it keeps only its mark, so emphasis never makes an unsettled value look settled. Bold in page text means a key phrase and nothing else, so the switch can turn it off cleanly. Bold has no colour and screen readers do not announce it, so it never carries meaning alone.
+- **The reader's switch.** "Key phrases in bold" in the page's Aa menu, on by default. It is kept in the account, so it is the same in every company, and is also in Account › Profile and language and in ⌘K.
+- **Three languages.** Lengths count characters, since Chinese and Japanese have no spaces, and a phrase never splits a word. Bold only, never italics, which Chinese and Japanese fonts only fake by slanting. A Chinese or Japanese serif at weight 600 barely differs from 400 on screen, so key phrases take 700. Japanese could later use emphasis dots (bouten) instead, set in its language pack; it starts with bold until a Japanese reader has looked.
+- **Cost and timing.** About 1.5 to 2 person-weeks, built together with knowledge pages, which do not exist yet. PageSpec's inline text already allows strong emphasis, so the page contract does not change. The Annotated view needs one additive field: where a value sits in its quote. Writing the rule into the page prompt from its first version costs less than adding it later. A short reading test, the time to find an answer with and without bold, decides whether it stays on by default.
+
 ## 5. Settings follow who answers for them
 
 | Who answers for it | Settings | Where |
@@ -180,6 +192,8 @@ Canvas version 80 applies the product owner's next three comments to every secon
 
 Canvas version 81 renames the standing delegations page, which the product owner found hard to understand, to **Always decide for me**, after the action people already know: Decide for me is this once, Always decide for me is from now on. Each kind is written as a rule in two columns, "when this comes up" and "the assistant does this", and the page shows where a kind comes from: the one-line question under a decision in the inbox. "Standing delegation" stays the name in the [Decide for me](decide-for-me.md) spec.
 
+Canvas version 86 adds V2-skim, the key phrases in bold that section 4 keeps in reserve.
+
 ## 9. What the UI needs from the engine
 
 Checked against the engine on 2026-10-27 (`main` after pull request #24, and the engine thread's validation work):
@@ -189,6 +203,7 @@ Checked against the engine on 2026-10-27 (`main` after pull request #24, and the
 - **Decide for me.** The delegation contract and the change to AG-4 are in [Decide for me](decide-for-me.md), and need agreement before they are built.
 - **Left for you.** A todo needs the reason it was left for a person. This is additive.
 - **Undo.** Decisions are records (GV-7) and knowledge is never deleted, so an undo is a new decision that restores the earlier state.
+- **Key phrases in bold (in reserve, section 4).** Page synthesis, once it is built, marks key phrases with strong emphasis and uses it for nothing else. The Annotated view needs one additive field on each quote: where the statement's value sits in it.
 - **What the engine decides, said in words.** The engine now orders documents without a date by when they last changed, and holds an original over its translations. What this says and the Documents tree say so in words, such as "newer than" and "translation of".
 
 ## Still open
@@ -196,3 +211,4 @@ Checked against the engine on 2026-10-27 (`main` after pull request #24, and the
 - Whether owners are 维护人 or 负责人 in Chinese.
 - Which numbers each overview's cards show. The canvas draws a first choice per screen.
 - The Japanese terms for Suggested, Decided for you and Left for you.
+- Whether Japanese key phrases stay bold or use emphasis dots (section 4).
