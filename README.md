@@ -66,7 +66,14 @@ answers cite 650 and only the onboarding guide still says 600:
 ```bash
 pnpm demo                                    # the engine on port 4100, the web app on 5173
 pnpm engine serve examples/corpus            # the engine's HTTP API alone
+pnpm snapshot dist/snapshot                  # record the demo script as a static page
 ```
+
+The demo script (`examples/corpus/script.yaml`) lists those steps, each with the person who
+takes it. `pnpm snapshot` walks it against the engine and writes a static page that answers
+from the recording, with a guide along the bottom that opens each step as its person, so anyone
+can follow the demo from a link, without the engine. A question the script does not ask, or a
+step it does not take, says it was not recorded.
 
 To try the model gateway without a model server, run it with the fake providers:
 
@@ -85,7 +92,7 @@ libs/testkit        fixtures for tests against the compose stack
 engine/<component>  one package per engine component (see components.yaml)
 business/           business-layer packages (none yet); engine/ and libs/ never depend on them
 apps/engine         the engine process: wires the components to the store, the bus and the blob store; HTTP API
-apps/web            the product web app over the engine's HTTP API, and a stand-in backend (pnpm demo)
+apps/web            the product web app over the engine's HTTP API, a stand-in backend (pnpm demo) and snapshots (pnpm snapshot)
 apps/bench          the measurement harness (pnpm bench): runs the engine over a corpus, reports, checks answers
 apps/site           the product website (pnpm site): static pages in three languages with a scripted demo
 examples/<corpus>   corpora with the answers runs are checked against (see examples/README.md)

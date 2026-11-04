@@ -1144,3 +1144,110 @@ p.against > .standing {
   background: var(--maintain);
   border-left-color: var(--maintain-strong);
 }
+
+/* A snapshot's guide to the demo script (guide.tsx), a strip along the bottom of the app that
+   the page leaves room for. */
+body:has(.guide) {
+  padding-bottom: 120px;
+}
+
+.guide {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  background: var(--paper);
+  border-top: 1px solid var(--rule-strong);
+  box-shadow: 0 -4px 18px rgb(28 30 35 / 0.08);
+  font-size: 13px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.guide-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 12px 20px;
+}
+
+.guide-now {
+  flex: 1;
+  min-width: 0;
+}
+
+.guide-now p {
+  margin: 2px 0 0;
+  font-size: 14px;
+}
+
+.guide-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.guide-all {
+  max-width: 1200px;
+  max-height: 50vh;
+  overflow: auto;
+  margin: 0 auto;
+  padding: 12px 20px 4px 40px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.guide-all li {
+  margin-bottom: 10px;
+}
+
+.guide-all p {
+  margin: 0 0 2px;
+}
+
+.guide-at p {
+  font-weight: 600;
+}
+
+.guide-link {
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--link);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.guide-show {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 50;
+  padding: 6px 12px;
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  color: var(--link);
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  body:has(.guide) {
+    padding-bottom: 180px;
+  }
+
+  .guide-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 10px 16px;
+  }
+
+  .guide-all {
+    padding: 10px 16px 4px 34px;
+  }
+}

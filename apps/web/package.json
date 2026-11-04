@@ -1,7 +1,7 @@
 {
   "name": "@inspiration/web",
   "version": "0.1.0",
-  "description": "The product web app: a React page over the engine's HTTP API, with a development stand-in for its backend; pnpm demo",
+  "description": "The product web app: a React page over the engine's HTTP API, with a development stand-in for its backend; pnpm demo, and pnpm snapshot to record the demo as a static page",
   "private": true,
   "type": "module",
   "scripts": {

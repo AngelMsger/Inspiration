@@ -3,7 +3,7 @@
 import type { SlotStanding } from "@inspiration/contracts";
 import { Fragment, type ReactNode } from "react";
 import type { ApiFailure } from "./api.ts";
-import { type Tag, useWords } from "./words.ts";
+import { type Say, type Tag, useWords } from "./words.ts";
 
 /** Breadcrumbs from the area to the thing shown; the last one is where you are. */
 export function Crumbs(props: { back?: ReactNode; children: ReactNode[] }) {
@@ -46,13 +46,23 @@ export function formatDate(tag: Tag, iso: string | undefined, time = false): str
   }).format(new Date(iso));
 }
 
+/** In a snapshot, a call its recording lacks; for a question, the ones it can answer. */
+function notRecorded(say: Say, questions: string): string {
+  const can = questions
+    ? say("failure.recorded_questions", { questions: questions.split("\n").join(say("list.mark")) })
+    : "";
+  return `${say("failure.not_recorded")}${can}`;
+}
+
 export function Failure(props: { error: ApiFailure; notFound?: string }) {
   const { say } = useWords();
   const text =
-    props.error.status === 404 && props.notFound
-      ? props.notFound
-      : props.error.status === 502 || props.error.status === 0
-        ? say("failure.engine")
-        : say("failure.other", { message: props.error.message });
+    props.error.code === "not_recorded"
+      ? notRecorded(say, props.error.message)
+      : props.error.status === 404 && props.notFound
+        ? props.notFound
+        : props.error.status === 502 || props.error.status === 0
+          ? say("failure.engine")
+          : say("failure.other", { message: props.error.message });
   return <p className="failure">{text}</p>;
 }
