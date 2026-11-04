@@ -12,7 +12,9 @@ version wins.
 Nothing here has been run with paid models yet: the paid run waits for the product owner's
 yes, at the size the free size check picks (the spec says how). The checks that need no model
 run in `apps/bench/test/decisive-test.test.ts`: every key quote is in its file, verbatim, at
-the revision `files.yaml` gives, and every file of the topics is listed.
+the revision `files.yaml` gives; every value keeps the key's meaning, as the evidence audit
+reads it, in a file that states it, so the audit never blames governance for the key; and
+every file of the topics is listed.
 
 ## The topics
 
@@ -85,6 +87,17 @@ and non-US team members and US cash tips, the E-Group limit, gifts to US and to 
 government officials, the new-hire stipend, the EBS volumes of M5 nodes). They were added on
 2026-11-04 with the audit's reading of negation and conditions (#68), after the paid run and
 before its audit was recounted; they change no value and no answer.
+
+### Corrections
+
+The key is never edited to match a result. When a run shows the key missed what a file says,
+the key is corrected from the file, the correction is listed here, and the run keeps its score.
+
+- 2026-11-04, found by the audit's recount with #68: GitLab's $20,000 of life insurance holds
+  only "Where local life insurance benefits aren't available", as the fact's own description
+  says, but its quote began after those words and named no condition, so the audit read the
+  file itself as changing the value (3 `changed_meaning`). The quote now starts at "Where" and
+  the value names its condition.
 
 ## The fact catalogue
 
