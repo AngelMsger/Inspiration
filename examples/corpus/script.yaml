@@ -15,9 +15,9 @@ steps:
   - as: mem_01QINGHE000000000000000001
     open: /document?source=src_01QINGHE00000000000POLICIES&item=%E8%B4%A2%E5%8A%A1%2F%E5%B7%AE%E6%97%85%E8%B4%B9%E7%AE%A1%E7%90%86%E5%8A%9E%E6%B3%95.md&view=annotated
     text:
-      zh: 打开《差旅费管理办法》的标注视图：住宿那一条标着已过时，右侧说明现行值和依据。
-      en: The travel policy in its Annotated view. The hotel row is marked outdated, and the right panel says what holds instead and why.
-      ja: 《差旅费管理办法》を注釈ビューで開きます。宿泊の条は古い値として示され、右側に現行の値とその根拠が出ます。
+      zh: 《差旅费管理办法》的标注视图。往下找到住宿费那张表，它标着已过时；点一下，右侧说明一线城市现行的是 650 元，以及依据。
+      en: The travel policy in its Annotated view. Scroll to the hotel rate table, which is marked outdated, and click it. The right panel says 650 holds for tier-1 cities, and why.
+      ja: 《差旅费管理办法》の注釈ビューです。宿泊費の表までスクロールすると、古い値として示されています。クリックすると、右側に一線都市では 650 元が現行であることとその根拠が出ます。
 
   - as: mem_01QINGHE000000000ZHANGMIN
     open: /inbox

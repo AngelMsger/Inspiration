@@ -159,14 +159,11 @@ async function healthy(url: string, engine: ChildProcess): Promise<void> {
   throw new Error(`the engine did not answer at ${url}`);
 }
 
-/** The built page answers from snapshot.json and keeps its address after "#". */
+/** The built page starts from recorded.tsx, which answers from snapshot.json. */
 const snapshotPage: Plugin = {
   name: "inspiration-snapshot-page",
   // Before Vite bundles the page's entry, so that the entry is recorded.tsx.
-  transformIndexHtml: {
-    order: "pre",
-    handler: (html) => html.replace("<html", '<html data-routes="hash"').replace("/src/main.tsx", "/src/recorded.tsx"),
-  },
+  transformIndexHtml: { order: "pre", handler: (html) => html.replace("/src/main.tsx", "/src/recorded.tsx") },
 };
 
 async function main(): Promise<void> {

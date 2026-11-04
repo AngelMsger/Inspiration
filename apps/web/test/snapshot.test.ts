@@ -4,7 +4,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { loadPeople } from "../src/backend.ts";
-import { answer, callKey, type Recording, savedPlace } from "../src/replay.ts";
+import { answer, callKey, type Recording, savedPlace, startOf } from "../src/replay.ts";
 import { loadScript, questionsOf } from "../src/snapshot.ts";
 
 const CORPUS = fileURLToPath(new URL("../../../examples/corpus/", import.meta.url));
@@ -74,8 +74,7 @@ describe("a snapshot's page", () => {
     });
   });
 
-  test("starts at the beginning when the tab keeps nothing", () => {
-    expect(savedPlace(recording)).toEqual(start);
-    expect(savedPlace(recording, { state: 1, member: "mem_B" })).toEqual({ state: 1, member: "mem_B" });
+  test("starts at the beginning, as the first person, when the tab keeps nothing", () => {
+    expect([startOf(recording), savedPlace(recording)]).toEqual([start, start]);
   });
 });

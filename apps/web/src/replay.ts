@@ -93,14 +93,18 @@ const failure = (code: string, message: string) => ({ error: { code, message } }
 
 const PLACE = "inspiration.snapshot.place";
 
-/** The tab's place in the script; the start when it keeps none, or `otherwise` when it can keep nothing. */
-export function savedPlace(recording: Recording, otherwise?: Place): Place {
-  const start = { state: 0, member: (recording.people.people[0] as Person).member };
+/** The start of the script: its first state, as the first person. */
+export function startOf(recording: Recording): Place {
+  return { state: 0, member: (recording.people.people[0] as Person).member };
+}
+
+/** The tab's place in the script, so a reload carries on; the start when it keeps none. */
+export function savedPlace(recording: Recording): Place {
   try {
     const saved = JSON.parse(sessionStorage.getItem(PLACE) ?? "null") as Place | null;
-    return saved && recording.states[saved.state] ? saved : start;
+    return saved && recording.states[saved.state] ? saved : startOf(recording);
   } catch {
-    return otherwise ?? start;
+    return startOf(recording);
   }
 }
 
@@ -113,28 +117,34 @@ export function savePlace(place: Place | undefined): void {
   }
 }
 
-/** Fired on window when the demo moves to another state or person. */
+/** Fired on window when the demo moves to another state, person or step. */
 export const MOVED = "inspiration:snapshot-moved";
 
-/**
- * Answer the page's /api calls from the recording, as fetch would from the backend. The place
- * is read from the tab on every call, since the guide changes it there before it reloads the page.
- */
-export function install(recording: Recording): void {
+/** Where the demo is: the page's calls move it, and so does the guide. */
+export interface Replay {
+  place(): Place;
+  moveTo(place: Place): void;
+}
+
+/** Answer the page's /api calls from the recording, as fetch would from the backend. */
+export function install(recording: Recording): Replay {
   const fetchFromNetwork = window.fetch.bind(window);
   let place = savedPlace(recording);
+  const moveTo = (next: Place) => {
+    const moved = next.state !== place.state || next.member !== place.member || next.step !== place.step;
+    place = next;
+    savePlace(place);
+    if (moved) window.dispatchEvent(new Event(MOVED));
+  };
   window.fetch = async (input, init) => {
     if (typeof input !== "string" || !input.startsWith("/api/")) return fetchFromNetwork(input, init);
     const body = typeof init?.body === "string" ? init.body : undefined;
-    place = savedPlace(recording, place);
     const reply = answer(recording, place, init?.method ?? "GET", input.slice("/api".length), body);
-    const moved = reply.place.state !== place.state || reply.place.member !== place.member;
-    place = reply.place;
-    savePlace(place);
-    if (moved) window.dispatchEvent(new Event(MOVED));
+    moveTo(reply.place);
     return new Response(JSON.stringify(reply.json), {
       status: reply.status,
       headers: { "content-type": "application/json; charset=utf-8" },
     });
   };
+  return { place: () => place, moveTo };
 }

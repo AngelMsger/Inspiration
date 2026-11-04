@@ -1,7 +1,7 @@
 // Every state of the page has its own address, so the browser's Back always works and any
 // screen can be linked to. A route is parsed from the address and written back to it. A
 // snapshot (snapshot.ts) is served as one static page, so there the address is the part after
-// "#" (<html data-routes="hash">).
+// "#" (<html data-routes="hash">, which recorded.tsx sets).
 
 import { type MouseEvent, type ReactNode, useEffect, useState } from "react";
 
@@ -126,7 +126,9 @@ function here(): URL {
 
 export function navigate(route: Route, options: { replace?: boolean } = {}): void {
   const to = addressOf(route);
-  if (options.replace) history.replaceState(null, "", to);
+  // A snapshot changes only the part after "#", which any frame it is shown in allows.
+  if (inHash()) location[options.replace ? "replace" : "assign"](to);
+  else if (options.replace) history.replaceState(null, "", to);
   else history.pushState(null, "", to);
   window.dispatchEvent(new Event(CHANGED));
 }
