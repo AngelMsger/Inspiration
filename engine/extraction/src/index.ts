@@ -31,7 +31,9 @@
  * claim with a predicate gets its slot_key (subject entity, predicate and qualifiers). A
  * claim that was closed and is stated again (a value changed back, a document restored) is
  * a new occurrence with an ID from the version, so the earlier interval stays as it was. A
- * claim whose every supporting span the version removed is:
+ * claim the version no longer states (it removed one of the claim's supporting spans, does
+ * not state the claim again, and holds none of its other spans in a passage it did not read
+ * again, so a table row whose value cell changed no longer states the old value) is:
  * - superseded by a new claim of the same slot (predicate and qualifiers);
  * - else superseded by the most similar new statement cut from the same block, at
  *   SAME_CLAIM or above;

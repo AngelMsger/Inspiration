@@ -1,7 +1,7 @@
 // The HTTP API over the demo corpus, in memory: every route, its contract, and that a member
 // sees only what they may read.
 
-import { mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdtemp, rm } from "node:fs/promises";
 import { request, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -16,6 +16,8 @@ import {
   type GroundedAnswer,
   type Inbox,
   type InboxTodo,
+  type SpaceOverview,
+  type SyncReport,
   type TopicList,
   type TopicView,
 } from "@inspiration/contracts";
@@ -33,6 +35,7 @@ const DATA = testData<{
   question: string;
   search: string;
   leave: { topic: string; fact: string; slot: string; question: string; values: string[]; titles: string[] };
+  update: { name: string; documents: string[]; still: string };
 }>(import.meta.url, "corpus.yaml");
 const TRAVEL = DATA.travel.item;
 const BUDGET = DATA.budget.item;
@@ -40,14 +43,20 @@ const BUDGET = DATA.budget.item;
 const LI_NA = "mem_01QINGHE00000000000000LINA";
 // Wrote the attendance policy and the onboarding guide, so owns their topics.
 const ZHANG_MIN = "mem_01QINGHE000000000ZHANGMIN";
+// Maintains both spaces.
+const ZHOU_MIN = "mem_01QINGHE0000000000ZHOUMIN";
 
 let engine: Engine;
 let server: Server;
 let corpus: Corpus;
 let blobs: string;
+let work: string;
 
 beforeAll(async () => {
-  corpus = await Corpus.load(CORPUS);
+  // A copy, so the last test can put a new version of documents into the folders it syncs.
+  work = await mkdtemp(join(tmpdir(), "inspiration-corpus-"));
+  await cp(CORPUS, work, { recursive: true });
+  corpus = await Corpus.load(work);
   blobs = await mkdtemp(join(tmpdir(), "inspiration-http-"));
   engine = await Engine.open({
     blobDir: blobs,
@@ -67,6 +76,7 @@ afterAll(async () => {
   server?.close();
   await engine?.close();
   await rm(blobs, { recursive: true, force: true });
+  await rm(work, { recursive: true, force: true });
 });
 
 async function call(path: string, options: { member?: string; body?: unknown; anonymous?: boolean } = {}) {
@@ -187,6 +197,28 @@ describe("engine HTTP API", () => {
     expect((await call("/v0/topics/t-nothing")).status).toBe(404);
   });
 
+  test("shows a space's maintainer what is waiting in it and how its documents stand", async () => {
+    expect((await call(`/v0/spaces/${POLICY}/overview`)).status).toBe(404);
+    const { status, body } = await call(`/v0/spaces/${POLICY}/overview`, { member: ZHOU_MIN });
+    expect(status).toBe(200);
+    expect(contractErrors("SpaceOverview", body)).toEqual([]);
+    const overview = body as unknown as SpaceOverview;
+    expect(overview.space.id).toBe(POLICY);
+    // The first-year leave conflict and the budget note; the hotel cap's todo is in the notice's space.
+    expect(overview.work).toEqual([
+      { kind: "conflict", count: 1 },
+      { kind: "note", count: 1 },
+    ]);
+    expect(overview.disputed).toEqual([{ slot_key: DATA.leave.slot, label: DATA.leave.fact }]);
+    // Counted as the maintainer may open them: not the finance-only budget note.
+    const tree = (await call(`/v0/spaces/${POLICY}/documents`, { member: ZHOU_MIN })).body as unknown as DocumentTree;
+    const count = tree.sources.reduce((n, s) => n + (s.document_count ?? 0), 0);
+    expect(overview.documents).toBe(count);
+    expect(overview.levels.map((l) => l.level)).toEqual(["governed", "reference", "search_only"]);
+    expect(overview.levels.reduce((n, l) => n + l.documents, 0)).toBe(count);
+    expect(overview.changes.map((c) => c.kind)).not.toContain("updated");
+  });
+
   // Last: the choice changes what the tenant knows.
   test("a todo's owner sees what it asks them to choose, and the choice changes the answer", async () => {
     const reader = await call("/v0/inbox");
@@ -249,5 +281,41 @@ describe("engine HTTP API", () => {
     });
     expect(status).toBe(400);
     expect(await call("/v0/health", { anonymous: true })).toEqual({ status: 200, body: { ok: true } });
+  });
+
+  // Last of all: the policy library changes.
+  test("syncs a source now for its maintainer, and the engine reads the new version before answering", async () => {
+    const edit = join(CORPUS, "updates", DATA.update.name);
+    await cp(edit, work, { recursive: true, filter: (from) => !from.endsWith("update.yaml") });
+    expect((await call(`/v0/sources/${POLICIES}/sync`, { body: {} })).status).toBe(404);
+    const { status, body } = await call(`/v0/sources/${POLICIES}/sync`, { member: ZHOU_MIN, body: {} });
+    expect(status).toBe(200);
+    expect(contractErrors("SyncReport", body)).toEqual([]);
+    expect(body).toMatchObject({ source_id: POLICIES, outcomes: { created: 0, updated: 2, deleted: 0, failed: 0 } });
+
+    // Only the onboarding guide still says 600; the policy and its rate table say 650.
+    const answer = (await call("/v0/answers", { body: { question: DATA.question } })).body as unknown as GroundedAnswer;
+    expect(answer.notes?.map((n) => n.kind)).toEqual(["outdated"]);
+    expect(answer.notes?.[0]?.text).toContain(DATA.update.still);
+    for (const title of DATA.update.documents) expect(answer.notes?.[0]?.text).not.toContain(title);
+    const view = (await call(`/v0/documents?source=${POLICIES}&item=${encodeURIComponent(TRAVEL)}`))
+      .body as unknown as DocumentView;
+    expect(view.annotations.statements.filter((h) => h.standing && h.standing !== "holds")).toEqual([]);
+    expect(view.annotations.statements.some((h) => h.snippet.includes(DATA.travel.held))).toBe(true);
+    // The hotel-cap todo still asks its owner, now showing the guide for 600, not the policy's old row.
+    const inbox = (await call("/v0/inbox", { member: ZHANG_MIN })).body as unknown as Inbox;
+    const hotel = inbox.cards
+      .flatMap((c) => c.todos)
+      .find((t) => t.choices.some((c) => c.value?.startsWith(`${DATA.travel.outdated} `))) as InboxTodo;
+    const titleOf = new Map(hotel.statements.map((h) => [h.unit_id, h.title]));
+    expect(hotel.choices.map((c) => [c.value?.split(" ")[0], titleOf.get(c.unit_id ?? "")])).toEqual([
+      [DATA.travel.held, DATA.travel.title],
+      [DATA.travel.outdated, DATA.update.still],
+    ]);
+
+    const overview = (await call(`/v0/spaces/${POLICY}/overview`, { member: ZHOU_MIN }))
+      .body as unknown as SpaceOverview;
+    const updated = overview.changes.filter((c) => c.kind === "updated").map((c) => c.document.title);
+    expect(updated.sort()).toEqual([...DATA.update.documents].sort());
   });
 });

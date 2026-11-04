@@ -12,9 +12,9 @@
  * (kind constructed), with what it changes and the file it is based on, if any.
  *
  * provision() writes what the business layer would into access control: the directory's
- * members and the corpus's reader as members of the tenant, every space owned by the reader
- * and readable by the whole tenant, and each source in its space. Questions (questions.ts)
- * are asked as the reader.
+ * members, the spaces' maintainers and the corpus's reader as members of the tenant, every
+ * space owned by its maintainer (owner in corpus.yaml, else the reader) and readable by the
+ * whole tenant, and each source in its space. Questions (questions.ts) are asked as the reader.
  */
 
 import { createHash } from "node:crypto";
@@ -57,7 +57,8 @@ interface SourceSpec {
 
 export interface CorpusManifest {
   tenant: { id: string; name: string };
-  spaces: { id: string; name: string }[];
+  /** owner: the member who maintains the space; the reader when not given. */
+  spaces: { id: string; name: string; owner?: string }[];
   /** Section name, then "<principal kind>:<source principal ID>", then the engine principal. */
   directory?: Record<string, Record<string, string>>;
   sources: SourceSpec[];
@@ -233,14 +234,14 @@ export class Corpus {
     return { id: this.tenantId, name: this.manifest.tenant.name, created_at: new Date(0).toISOString() };
   }
 
-  /** The corpus's spaces as the business layer would describe them, each owned by the reader. */
+  /** The corpus's spaces as the business layer would describe them, each owned by its maintainer. */
   get spaces(): Space[] {
     return this.manifest.spaces.map((s) => ({
       id: s.id,
       tenant_id: this.tenantId,
       kind: "team",
       name: s.name,
-      owner_id: this.reader.id,
+      owner_id: s.owner ?? this.reader.id,
       default_sensitivity: "internal",
       created_at: new Date(0).toISOString(),
     }));
@@ -251,13 +252,14 @@ export class Corpus {
     const tenantId = this.tenantId;
     const members = new Set([
       this.reader.id,
+      ...this.manifest.spaces.flatMap((s) => s.owner ?? []),
       ...Object.values(this.manifest.directory ?? {}).flatMap((section) =>
         Object.values(section).filter((id) => id.startsWith("mem_")),
       ),
     ]);
     for (const id of [...members].sort()) await authz.addTenantMember(tenantId, id);
     for (const space of this.manifest.spaces) {
-      await authz.createSpace(space.id, { tenantId, ownerId: this.reader.id });
+      await authz.createSpace(space.id, { tenantId, ownerId: space.owner ?? this.reader.id });
       await authz.grantSpace(space.id, "viewer", tenantId);
     }
     for (const source of this.sources) await authz.registerSource(source.id, source.space_id);

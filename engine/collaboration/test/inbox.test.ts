@@ -149,6 +149,33 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
       expect(await world.created()).toHaveLength(2);
     });
 
+    test("a refresh replaces its open todo and keeps what it swapped in, and opens nothing when there is none", async ({
+      world,
+    }) => {
+      await world.topics({ key: "t-hotel", owner_id: LI });
+      const { claims } = await world.document(
+        [
+          "The hotel cap in tier-1 cities is 650 yuan a night.",
+          "Hotels in Beijing 600 yuan a night.",
+          "Beijing hotels: 600 yuan a night at most.",
+        ],
+        "t-hotel",
+      );
+      const [policy, guide, wiki] = claims.map((c) => c.id) as [string, string, string];
+      const conflict = { unit_ids: [policy, guide], dedupe_key: "governance:conflict:hotel" };
+      await world.request({ ...conflict, refresh: true });
+      expect(await world.inbox.items(TENANT)).toEqual([]);
+
+      await world.request(conflict);
+      await world.request({ ...conflict, unit_ids: [policy, wiki], refresh: true });
+      const [item] = await world.inbox.items(TENANT);
+      expect([item?.todo.unit_ids, item?.refreshed]).toEqual([[policy, wiki], [wiki]]);
+      expect(await world.created()).toHaveLength(1);
+      // A new ask clears it.
+      await world.request({ ...conflict, unit_ids: [policy, guide, wiki] });
+      expect((await world.inbox.items(TENANT))[0]?.refreshed).toBeUndefined();
+    });
+
     test("first reviews go to a campaign, unowned topics to the steward, copy reviews ride on their conflict's card", async ({
       world,
     }) => {

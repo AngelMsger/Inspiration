@@ -1,4 +1,5 @@
 import {
+  type Claim,
   type ClaimsUpdated,
   newEvent,
   payloadOf,
@@ -8,7 +9,7 @@ import {
 } from "@inspiration/contracts";
 import type { FakeProvider } from "@inspiration/model-gateway";
 import { describe, expect } from "vitest";
-import { BACKENDS, extractionTest, type Para, TENANT } from "./fixtures.ts";
+import { BACKENDS, extractionTest, type Para, TENANT, type World } from "./fixtures.ts";
 
 const HEADING = ["Travel policy", "Chapter 3 Lodging"];
 
@@ -448,6 +449,80 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       expect(edited.change.changed_block_ids).toHaveLength(1);
       expect(edited.result.added).toHaveLength(2);
       expect(edited.result.superseded.sort()).toEqual([...result.added].sort());
+    });
+
+    test("a table row whose value changed supersedes its claim, though its other cells stay", async ({ world }) => {
+      const rates = (beijing: number): Para[] => [
+        { id: "t", kind: "table", text: "", header_rows: 1 },
+        { id: "r0", kind: "table_row", table: "t", text: "City\tTier\tHotel cap (yuan/night)" },
+        { id: "r1", kind: "table_row", table: "t", text: `Beijing\ttier-1 city\t${beijing}` },
+        { id: "r2", kind: "table_row", table: "t", text: "Chengdu\tnew tier-1 city\t450" },
+      ];
+      const first = await world.version("hotel-rates.csv", rates(600));
+      const old = (await world.store.getClaims(first.result.added)).find((c) => c.value?.number === 600)?.id;
+      const second = await world.version("hotel-rates.csv", rates(650));
+      expect(second.change.removed_span_ids).toHaveLength(1);
+      expect(second.result).toMatchObject({ superseded: [old], unstated: [], retracted: [] });
+      const [now] = await world.store.getClaims(second.result.added);
+      expect(now?.value?.number).toBe(650);
+      expect((await world.store.getClaims([old as string]))[0]).toMatchObject({
+        status: "superseded",
+        superseded_by: now?.id,
+      });
+      const all = { source_version_ids: [first.version.id, second.version.id] };
+      expect((await world.store.asOf(all)).map((c) => c.value?.number).sort()).toEqual([450, 650]);
+      expect(todoRequests(await world.events())).toEqual([]);
+    });
+
+    describe("a claim two sentences support, when one goes", () => {
+      const cap = "Hotels in tier-1 cities cost at most 600 yuan a night.";
+      const scope = "The cap applies to every trip.";
+      const both = (world: World) => {
+        const reply = JSON.stringify({
+          claims: [
+            {
+              statement: "Hotels in tier-1 cities cost at most 600 yuan a night, on every trip.",
+              claim_type: "rule",
+              predicate: "hotel_cap_per_night",
+              qualifiers: ["tier-1 cities"],
+              value: { kind: "number", number: 600 },
+              evidence: [
+                { span: "s1", quote: cap },
+                { span: "s2", quote: scope },
+              ],
+            },
+          ],
+        });
+        for (const name of ["cloud", "local"])
+          world.gateway.provider<FakeProvider>(name).script("extraction.extract_claims", reply);
+      };
+
+      test("stays while the other sentence is left untouched, and nobody is asked", async ({ world }) => {
+        both(world);
+        const first = await world.version("travel.md", [
+          { id: "p1", heading: HEADING, text: cap },
+          { id: "p2", heading: HEADING, text: scope },
+        ]);
+        expect(first.result.added).toHaveLength(1);
+        const second = await world.version("travel.md", [{ id: "p1", heading: HEADING, text: cap }]);
+        expect(second.change.removed_span_ids).toHaveLength(1);
+        expect(second.result).toMatchObject({ added: [], superseded: [], retracted: [], unstated: [] });
+        expect((await world.store.getClaims(first.result.added))[0]?.superseded_at).toBeUndefined();
+        expect(todoRequests(await world.events())).toEqual([]);
+      });
+
+      test("is replaced by the same value when its passage is read again, and nobody is asked", async ({ world }) => {
+        both(world);
+        const first = await world.version("travel.md", [{ id: "p1", heading: HEADING, text: `${cap} ${scope}` }]);
+        const second = await world.version("travel.md", [{ id: "p1", heading: HEADING, text: cap }]);
+        expect(second.result).toMatchObject({ superseded: first.result.added, retracted: [], unstated: [] });
+        const [now] = await world.store.getClaims(second.result.added);
+        expect([slotOf(now as Claim), valueKeyOf(now as Claim)]).toEqual([
+          "hotel_cap_per_night|tier-1 city",
+          "600 CNY/night",
+        ]);
+        expect(todoRequests(await world.events())).toEqual([]);
+      });
     });
 
     test("a deleted document keeps its claims, marked, and asks its owner once", async ({ world }) => {

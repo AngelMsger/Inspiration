@@ -34,7 +34,11 @@
  *   until the policy is revised.
  * Every other group becomes a case against the proposed value: superseded (only archived
  * documents state it, or it predates the change), plan versus fact (only plans state it, or
- * it takes effect later), or a contradiction.
+ * it takes effect later), or a contradiction. The change is the one that beat the leader,
+ * else a dated change the proposed value's own documents state: once the revised policy says
+ * 650 as well, a guide that said 600 before October is out of date (an open case, so its
+ * owner is still asked), while a document dated after the change that still says 600 is a
+ * contradiction.
  *
  * A person settles the open cases by choosing a value on the slot's todo (withChoice): that
  * value holds, the cases are resolved and the values chosen against are outdated. The choice
@@ -525,7 +529,10 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
     }
   }
   const proposed = changed?.group ?? leader;
-  const day = changed?.change.stated_from;
+  // Without a change that beat the leader, the proposed value's own dated change says what it
+  // replaced: a value stated only before it is out of date, not in dispute.
+  const shift = changed?.change ?? changeAsOf(proposed, today, governedSlot);
+  const day = shift?.stated_from;
 
   const cases = groups
     .filter((g) => g !== proposed)
@@ -607,7 +614,7 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
           rationale: `Only translations (${documents(g)}) state ${g.value}, of documents that state ${proposed.value}: the original holds, and a translation that says otherwise is out of date.`,
         };
       }
-      if (changed && day && since(g, today, governedSlot) < day) {
+      if (shift && day && since(g, today, governedSlot) < day) {
         const stale = g === leader;
         return {
           ...base,
@@ -615,7 +622,7 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
           status: "open",
           priority: stale && g.best.authority >= GOVERNED ? "high" : "normal",
           confidence: 0.8,
-          rationale: `${g.value} (${documents(g)}, the most authoritative ${g.best.document}) predates the change to ${proposed.value} on ${day} in ${changed.change.document}.`,
+          rationale: `${g.value} (${documents(g)}, the most authoritative ${g.best.document}) predates the change to ${proposed.value} on ${day} in ${shift.document}.`,
         };
       }
       if (!changed && newer(proposed, g, today)) {

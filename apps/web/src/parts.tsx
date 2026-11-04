@@ -37,9 +37,13 @@ export function Standing(props: { value: SlotStanding | undefined; quiet?: boole
   return <span className={`standing standing-${props.value}`}>{say(`standing.${props.value}`)}</span>;
 }
 
-export function formatDate(tag: Tag, iso: string | undefined): string {
+/** A day, or with `time` the minute too, for changes that happen within a day. */
+export function formatDate(tag: Tag, iso: string | undefined, time = false): string {
   if (!iso) return "";
-  return new Intl.DateTimeFormat(tag === "zh" ? "zh-CN" : tag, { dateStyle: "medium" }).format(new Date(iso));
+  return new Intl.DateTimeFormat(tag === "zh" ? "zh-CN" : tag, {
+    dateStyle: "medium",
+    ...(time && { timeStyle: "short" }),
+  }).format(new Date(iso));
 }
 
 export function Failure(props: { error: ApiFailure; notFound?: string }) {

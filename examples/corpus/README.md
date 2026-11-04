@@ -9,8 +9,9 @@ single-valued facts (hotel caps, deadlines, leave days ...) that extraction puts
 so governance can compare values across documents. A Chinese copy is in
 [README.zh.md](README.zh.md); if the two differ, this English version wins.
 
-It is also the tenant of the demo (`pnpm demo`, see `apps/web`): `people.yaml` names three of
+It is also the tenant of the demo (`pnpm demo`, see `apps/web`): `people.yaml` names four of
 its members, whom the web app's stand-in backend offers to act as in place of signing in.
+`updates/` holds the demo's upstream edit (below); no source reads it.
 
 Run it through the engine with `pnpm bench ingest examples/corpus` (see `apps/bench`).
 With the mocked extraction model it gives about 120 claims, 58 of them in 15 slots, and
@@ -83,6 +84,26 @@ Both conflicts land with 张敏: the notice that raises the hotel cap sits in �
 is placed in the 新人入职指南 topic, which 张敏 owns. In the demo, 张敏 confirms 5 days of
 first-year leave; the onboarding guide's 7 days then reads as outdated in the guide, on the
 年休假 topic page and in answers.
+
+## The space owner and the demo's upstream edit
+
+周敏 is the space owner of both spaces (`owner` in `corpus.yaml`): the web app offers 周敏 a
+way to maintain each space (what is waiting in it, its topics and their owners, its folders
+and the governance level each is read at), and the todos of topics nobody owns go on 周敏's
+steward card.
+
+`updates/travel-policy-revised` is the demo's upstream edit: the revised 差旅费管理办法 (in
+effect from 2026-10-01, the tier-1 cap at 650, and an article saying the September management
+meeting revised it) and its rate table at 650. `pnpm demo` serves a copy of the corpus, and
+putting the edit in copies its files over that copy and syncs 制度库 as 周敏. The engine has
+read both new versions within a second, and then:
+- the policy's 600 row and the table's four 600 rows are superseded: a table row whose value
+  cell changed no longer states the old value;
+- answers about the hotel cap cite the policy at 650, with one note: 新人入职指南 still says
+  600. Governance reads the guide as out of date rather than in contradiction, because the
+  policy itself now dates the change and the guide is older;
+- the hotel-cap todo stays with 张敏, now showing the policy for 650 and the guide for 600;
+- the space overview lists both documents as updated.
 
 ## Permissions
 
