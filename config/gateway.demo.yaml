@@ -1,0 +1,62 @@
+# Model gateway config for recording the demo with real answers (examples/corpus, "The demo
+# script and the upstream edit"): `pnpm snapshot <dir> --gateway config/gateway.demo.yaml
+# --valkey <url>`. DeepSeek writes the answers and translates the questions, so a visitor reads
+# an answer in the words a person would write, in the question's language. Everything else,
+# reading the corpus included, stays on the development stand-ins: the demo's story rests on
+# exactly what they extract, and the topics on what their embeddings group.
+#
+# Prices are DeepSeek's peak prices in CNY (twice what the first run measured off-peak,
+# apps/bench/runs/2026-10-27-deepseek.md), so an estimate made with them errs high; record
+# off-peak, outside weekdays 01-04 and 06-10 UTC.
+currency: CNY
+
+providers:
+  # First, so every task without a route below takes a stand-in.
+  - name: local
+    kind: fake
+    max_sensitivity: secret
+    options: {mocks: true}
+    models:
+      - name: fake-local-chat
+        operations: [complete]
+        tiers: [flash, standard, flagship]
+        json_schema: true
+      - {name: fake-embedding, operations: [embed], dimensions: 1024}
+      - {name: fake-reranker, operations: [rerank]}
+      - {name: fake-ocr, operations: [ocr]}
+
+  - name: deepseek
+    kind: openai_compatible
+    base_url: https://api.deepseek.com/v1
+    api_key_env: INSPIRATION_DEEPSEEK_API_KEY
+    # A cloud API: an answer from confidential passages is written by the stand-in instead.
+    max_sensitivity: internal
+    timeout_s: 120
+    models:
+      - name: deepseek-flash
+        operations: [complete]
+        tiers: [flash, standard, flagship]
+        json_schema: false
+        request: {thinking: {type: disabled}}
+        price: {input: 2.0, output: 8.0, cached_input: 0.04}
+
+routes:
+  - match: "retrieval.answer_question"
+    prefer: [deepseek/deepseek-flash]
+  - match: "retrieval.translate_question"
+    prefer: [deepseek/deepseek-flash]
+
+budgets:
+  # The owner approved one recording under CNY 1 (2026-11-04); a soft stop at the peak prices
+  # above, so the real spend off-peak stays near half of it.
+  - match: "*"
+    period: day
+    limit: 1
+    pooled: true
+
+cache:
+  # Kept in Valkey and exported to project files after a recording (pnpm bench cache export),
+  # so recording again after a change to the page pays only for answers that changed.
+  backend: valkey
+  ttl_s: 2592000
+  operations: [complete]

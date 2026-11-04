@@ -13,12 +13,21 @@ import type { People, Person, Session } from "./backend.ts";
 export interface ScriptStep {
   /** The member who takes it. */
   as: string;
-  /** Where it starts, as the page's address ("/inbox", "/ask?q=..."). */
-  open: string;
+  /**
+   * Where it starts, as the page's address ("/inbox", "/ask?q=..."), or an address by language
+   * tag, as for a question put in each language the app speaks.
+   */
+  open: string | Record<string, string>;
   /** What to look at or do, by language tag. */
   text: Record<string, string>;
   /** The action that moves the demo on: confirm the suggestion of the todo about a slot, or put in an upstream edit. */
   do?: { resolve?: string; update?: string };
+}
+
+/** A step's address in a language: its only one, else the one in that language, else the English. */
+export function addressOf(step: ScriptStep, tag: string): string {
+  if (typeof step.open === "string") return step.open;
+  return step.open[tag] ?? step.open.en ?? Object.values(step.open)[0] ?? "/";
 }
 
 export interface Reply {
@@ -35,6 +44,8 @@ export interface Recording {
   steps: ScriptStep[];
   /** The questions the script asks, which are the ones the recording can answer. */
   questions: string[];
+  /** The model that wrote the answers, when it was not a development stand-in. */
+  answered_by?: string;
   /** Each response body once, by a hash of its JSON. */
   bodies: Record<string, unknown>;
   /** By state, then member: each call ("GET /v0/spaces", "POST /v0/answers {...}") and its reply. */

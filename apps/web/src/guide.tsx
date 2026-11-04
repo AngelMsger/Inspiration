@@ -3,7 +3,7 @@
 // the steps are a click away, and so is starting over. It speaks the language the app shows.
 
 import { useEffect, useState } from "react";
-import { MOVED, type Place, type Recording, type Replay, type ScriptStep, startOf } from "./replay.ts";
+import { addressOf, MOVED, type Place, type Recording, type Replay, type ScriptStep, startOf } from "./replay.ts";
 import { chooseTag, type Tag, wordsOf } from "./words.ts";
 
 const textOf = (step: ScriptStep, tag: Tag) => step.text[tag] ?? step.text.en ?? Object.values(step.text)[0];
@@ -29,6 +29,8 @@ export function Guide(props: {
     const html = document.documentElement;
     const observer = new MutationObserver(() => setLang(html.lang));
     observer.observe(html, { attributes: true, attributeFilter: ["lang"] });
+    // The app may have marked it already, as for a visitor who picked a language before.
+    if (html.lang) setLang(html.lang);
     return () => observer.disconnect();
   }, []);
   const name = (member: string) => recording.people.people.find((p) => p.member === member)?.name ?? member;
@@ -47,7 +49,7 @@ export function Guide(props: {
     const state = recording.steps.slice(0, index).filter((s) => s.do).length;
     const now = replay.place();
     setAll(false);
-    open({ state, member: step.as, step: index }, step.open, step.as !== now.member || state !== now.state);
+    open({ state, member: step.as, step: index }, addressOf(step, tag), step.as !== now.member || state !== now.state);
   };
   const startOver = () => open(startOf(recording), "/", true);
 
@@ -65,13 +67,17 @@ export function Guide(props: {
   const at = place.step ?? -1;
   const current = recording.steps[at];
   const next = recording.steps[at + 1];
+  const date = recording.recorded_at.slice(0, 10);
+  const about = recording.answered_by
+    ? say("guide.about_answered", { date, count, model: recording.answered_by })
+    : say("guide.about", { date, count });
   return (
     <aside className="guide" aria-label={say("guide.title")}>
       {all && (
         <ol className="guide-all">
           {recording.steps.map((step, i) => (
             <li
-              key={`${step.open} ${Object.values(step.text).join(" ")}`}
+              key={`${JSON.stringify(step.open)} ${Object.values(step.text).join(" ")}`}
               className={i === at ? "guide-at" : undefined}
             >
               <p>{textOf(step, tag)}</p>
@@ -89,9 +95,7 @@ export function Guide(props: {
             {current ? say("guide.step", { n: at + 1, count, name: name(current.as) }) : say("guide.title")}
             {done[at] && ` · ${say("guide.done")}`}
           </span>
-          <p>
-            {current ? textOf(current, tag) : say("guide.about", { date: recording.recorded_at.slice(0, 10), count })}
-          </p>
+          <p>{current ? textOf(current, tag) : about}</p>
         </div>
         {/* The main button comes last and keeps one place and size, so a visitor who clicks
             through without moving the pointer never lands on a link that moved under it. */}
