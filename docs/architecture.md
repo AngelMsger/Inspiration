@@ -33,7 +33,9 @@ its web app and agents all use the same surface.
 
 The web app reads the engine through its HTTP API, version 0 (`apps/engine/src/http.ts`): the
 spaces a member may read, a space's Documents tree, one document with the marks of its
-Annotated view, search and answers. Every read is checked against the member's permissions,
+Annotated view, search and answers, a space's knowledge outline and each topic with the values
+that hold for its facts, and the member's inbox with the choices each todo offers. Resolving a
+todo is the one write so far. Every read is checked against the member's permissions,
 and anything the member may not read answers as if it did not exist. Until the business layer
 signs principal tokens, a request names its tenant and member in the `x-inspiration-tenant`
 and `x-inspiration-member` headers, a development stand-in that listens on localhost only. The
@@ -193,6 +195,11 @@ the people who own the topics, in amounts a person can keep up with.
   part when the card is full), in whichever order the two arrive, until that conflict
   closes. Reviews already due when a document is first seen go to a first-review campaign
   per topic. The todos of topics nobody owns go to the space's steward.
+- A todo may offer resolutions, each with an effect its requester applies: a conflict offers
+  one per value. Resolving a todo publishes `todo.resolved` with the choice, in the same
+  transaction. Governance then holds the chosen value (`SlotVerdict.chosen_by`), marks every
+  other value outdated, and keeps the choice until a new value comes in. A choice made on a
+  conflict that has changed since it was asked is asked again.
 
 ## Storage
 

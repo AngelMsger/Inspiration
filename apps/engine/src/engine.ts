@@ -88,6 +88,8 @@ export class Engine {
   readonly topics: Topics;
   readonly inbox: Inbox;
   readonly authz: AuthzService;
+  /** Each tenant's predicate catalogue, as extraction reads it; the inbox names facts by it. */
+  readonly vocabulary: NonNullable<ExtractionOptions["vocabulary"]>;
   readonly retrieval: Retrieval;
   /**
    * The rivals answers are measured against, over the same documents and model: a mature
@@ -144,6 +146,7 @@ export class Engine {
       blobs: this.blobs,
       models: this.models,
     });
+    this.vocabulary = parts.vocabulary ?? (() => undefined);
     this.extraction = new Extraction({
       store: this.store,
       records: this.records,

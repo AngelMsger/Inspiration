@@ -226,6 +226,19 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
         statements: [],
         held: [],
       });
+
+      // The two values a todo asks about, in the order asked; only the readable one for Bob.
+      const asked = await world.retrieval.statementsOf([old.id, held.id], ALICE);
+      expect(asked.statements.map((s) => [s.unit_id, s.standing, s.title])).toEqual([
+        [old.id, "outdated", "Old handbook"],
+        [held.id, "holds", "Travel policy"],
+      ]);
+      expect(asked.held).toEqual([]);
+      const bob = await world.retrieval.statementsOf([old.id, held.id], BOB);
+      expect(bob.statements.map((s) => s.unit_id)).toEqual([held.id]);
+      // Asked for the outdated value alone, the one that holds comes with it.
+      const alone = await world.retrieval.statementsOf([old.id], ALICE);
+      expect(alone.held.map((h) => h.unit_id)).toEqual([held.id]);
     });
 
     test("nobody finds what they cannot read, and a statement cites only readable evidence", async ({ world }) => {

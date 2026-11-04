@@ -37,6 +37,17 @@
  * - When the reason for a request or a note goes away (the slot stops asking, or the value
  *   is no longer stated by reference documents alone), governance publishes it again marked
  *   withdrawn, and collaboration dismisses the open todo.
+ * - A conflict todo offers each value as a resolution ("Keep 650 CNY/night", "Choose 600
+ *   CNY/night"), with the slot, the value and the question as its effect: a hash of the
+ *   proposed value and the open cases. On todo.resolved governance keeps the choice
+ *   (SlotState.chosen): the chosen value holds, the open cases are resolved, the values chosen
+ *   against stand outdated, and verdicts name who chose (chosen_by). The choice holds while
+ *   governance would ask the same question: another document repeating a value the person
+ *   saw changes nothing, but a new value, or a change that moves what governance proposes,
+ *   drops it and asks again. A choice on a question governance no longer asks asks the
+ *   current one; a todo dismissed or closed without a choice is not asked again until the
+ *   question changes. The person may be an agent deciding for one; joint approval is the
+ *   business layer's.
  *
  * Updates of one tenant run one at a time in a process, and the inbox mark commits with the
  * rows, so a redelivered event changes nothing. Run one governance consumer per tenant.

@@ -37,6 +37,9 @@ x-events:
   todo.created:
     payload: TodoCreated
     version: 1
+  todo.resolved:
+    payload: TodoResolved
+    version: 1
   page.rendered:
     payload: PageRendered
     version: 1
@@ -375,11 +378,50 @@ $defs:
         type: string
       suggested_assignee_id:
         $ref: "common.yaml#/$defs/PrincipalId"
+      resolutions:
+        description: >
+          What the person may choose, each with an effect the requester applies when the todo
+          is resolved with it (todo.resolved). Without them, any resolution closes the todo.
+        type: array
+        items:
+          $ref: "collab.yaml#/$defs/TodoResolution"
       withdrawn:
         description: >
           The reason went away: collaboration dismisses the open todo with this key, and
           creates none when there is no open one. A later request with the key opens a new todo.
         type: boolean
+
+  TodoResolved:
+    description: >
+      A person, or an agent acting for one, closed a todo. The component that asked for it
+      applies the chosen resolution's effect; the others ignore it. A todo the requester
+      withdrew is dismissed without this event.
+    type: object
+    required: [todo_id, kind, space_id, dedupe_key, created_by, status, resolved_by]
+    properties:
+      todo_id:
+        $ref: "common.yaml#/$defs/TodoId"
+      kind:
+        $ref: "collab.yaml#/$defs/TodoKind"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      dedupe_key:
+        type: string
+        minLength: 1
+      slot_key:
+        type: string
+      created_by:
+        $ref: "common.yaml#/$defs/ComponentName"
+      status:
+        $ref: "collab.yaml#/$defs/TodoStatus"
+      resolved_by:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      resolved_with:
+        description: Key of the chosen resolution.
+        type: string
+      effect:
+        description: The chosen resolution's effect, as the requester offered it.
+        type: object
 
   TodoCreated:
     type: object

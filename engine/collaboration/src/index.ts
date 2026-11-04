@@ -33,14 +33,21 @@
  * - Campaign and steward cards hold at most `cardSize` todos too; the rest start a next card
  *   ("<card>:2").
  *
+ * Resolutions. A request may offer resolutions, each with an effect its requester applies; a
+ * later request with its key replaces them. resolve(tenant, todo, {by, with}) closes a todo,
+ * done or dismissed, accepting only a key the todo offers when it offers any, and publishes
+ * todo.resolved with the chosen effect in the same transaction. `by` is the person, or the
+ * agent deciding for one. Closing a closed todo changes nothing and publishes nothing; a
+ * withdrawn todo is dismissed without the event.
+ *
  * A todo stays in its week until it is resolved; nothing moves it on when the week passes.
  * Updates of one tenant run one at a time in a process, and the inbox mark commits with the
  * rows, so a redelivered event changes nothing. Run one collaboration consumer per tenant.
  *
- * Not yet built: comments and anchoring, agent replies, overrides, the resolutions a todo
- * offers and what choosing one does, the publish state machine, quality gates, verification
- * expiry, stewards and admins as assignees (the business layer provisions them), and an event
- * that tells the inbox when topics or owners change.
+ * Not yet built: comments and anchoring, agent replies, overrides, joint approval (the
+ * business layer's), the publish state machine, quality gates, verification expiry, stewards
+ * and admins as assignees (the business layer provisions them), and an event that tells the
+ * inbox when topics or owners change.
  */
 
 export * from "./inbox.ts";

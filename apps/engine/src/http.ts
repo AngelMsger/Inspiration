@@ -7,10 +7,18 @@
  *
  *     GET  /v0/spaces                                 SpaceList
  *     GET  /v0/spaces/:space/documents                DocumentTree
+ *     GET  /v0/spaces/:space/topics                   TopicList, the space's knowledge outline
+ *     GET  /v0/topics/:topic                          TopicView
  *     GET  /v0/documents?source=<id>&item=<external>  DocumentView, the latest version
  *     GET  /v0/documents?version=<id>                 DocumentView, the version a citation names
  *     POST /v0/search    SearchQuery                  SearchResult
  *     POST /v0/answers   AnswerQuery                  GroundedAnswer
+ *     GET  /v0/inbox                                  Inbox, the member's open todos
+ *     POST /v0/todos/:todo/resolve  ResolveTodo       Todo, closed
+ *
+ * Resolving a todo is the one write: only its assignee may (a todo of anyone else's answers
+ * 404), with a resolution it offers (else 400), and the engine reads everything that caused
+ * before it answers, so the next read sees the change.
  *
  * Identity: until the business layer signs principal tokens, a request names its tenant and
  * member in the x-inspiration-tenant and x-inspiration-member headers. That is a development
@@ -30,14 +38,19 @@ import {
   type DocumentView,
   type Principal,
   parseAs,
+  type ResolveTodo,
   type SearchQuery,
   type Space,
   type SpaceList,
+  slotOf,
   type Tenant,
+  type TopicList,
+  type TopicView,
 } from "@inspiration/contracts";
 import { logger } from "@inspiration/kernel";
 import { documentTree, entryOf, foldersOf, type ListedDocument } from "@inspiration/source-sync";
 import type { Engine } from "./engine.ts";
+import { factLabels, inboxOf, resolveTodo } from "./todos.ts";
 
 const log = logger("engine.http");
 
@@ -76,6 +89,16 @@ export function apiHandler(engine: Engine, directory: Directory) {
     },
     {
       method: "GET",
+      path: /^\/v0\/spaces\/([^/]+)\/topics$/,
+      run: (who, m) => outline(engine, directory, who, decodeURIComponent(m[1] ?? "")),
+    },
+    {
+      method: "GET",
+      path: /^\/v0\/topics\/([^/]+)$/,
+      run: (who, m) => topic(engine, directory, who, decodeURIComponent(m[1] ?? "")),
+    },
+    {
+      method: "GET",
       path: /^\/v0\/documents$/,
       run: (who, _m, req) => document(engine, directory, who, req.query),
     },
@@ -88,6 +111,23 @@ export function apiHandler(engine: Engine, directory: Directory) {
       method: "POST",
       path: /^\/v0\/answers$/,
       run: async (who, _m, req) => engine.retrieval.answer(parseAs<AnswerQuery>("AnswerQuery", await req.json()), who),
+    },
+    { method: "GET", path: /^\/v0\/inbox$/, run: (who) => inboxOf(engine, who) },
+    {
+      method: "POST",
+      path: /^\/v0\/todos\/([^/]+)\/resolve$/,
+      run: async (who, m, req) => {
+        const id = decodeURIComponent(m[1] ?? "");
+        const { todo, refused } = await resolveTodo(
+          engine,
+          who,
+          id,
+          parseAs<ResolveTodo>("ResolveTodo", await req.json()),
+        );
+        if (refused) throw new HttpError(400, "bad_request", refused);
+        if (!todo) throw notFound("todo");
+        return todo;
+      },
     },
   ];
 
@@ -194,6 +234,50 @@ async function tree(engine: Engine, directory: Directory, who: Principal, spaceI
       sources,
       documents.filter((_, i) => decisions[i]?.allow),
     ),
+  };
+}
+
+/** The live topics of a space the member may read. */
+async function outline(engine: Engine, directory: Directory, who: Principal, spaceId: string): Promise<TopicList> {
+  await readableSpace(engine, directory, who, spaceId);
+  const topics = (await engine.store.topics(who.tenant_id, spaceId)).filter((n) => n.status !== "retired");
+  return { space_id: spaceId, topics };
+}
+
+/**
+ * A topic's statements and its subtopics', as the member may read them, with every value the
+ * facts they fill have elsewhere, so a fact shows what holds and what stands against it.
+ */
+async function topic(engine: Engine, directory: Directory, who: Principal, key: string): Promise<TopicView> {
+  const all = (await engine.store.topics(who.tenant_id)).filter((n) => n.status !== "retired");
+  const node = all.find((n) => n.key === key);
+  if (!node) throw notFound("topic");
+  await readableSpace(engine, directory, who, node.space_id);
+  const keys = [key];
+  for (let i = 0; i < keys.length; i++) keys.push(...all.filter((n) => n.parent_key === keys[i]).map((n) => n.key));
+  const placed = (await Promise.all(keys.map((k) => engine.store.placementsIn(who.tenant_id, k)))).flat();
+  const claims = await engine.store.getClaims(placed.map((p) => p.claim_id));
+  const slots = [...new Set(claims.flatMap((c) => slotOf(c) ?? []))].sort();
+  const elsewhere: string[] = [];
+  for (const slot of slots) {
+    for (const v of (await engine.store.slot(who.tenant_id, slot))?.variants ?? []) elsewhere.push(...v.claim_ids);
+  }
+  const { statements, held } = await engine.retrieval.statementsOf(
+    [...new Set([...claims.map((c) => c.id), ...elsewhere])],
+    who,
+  );
+  const labelOf = await factLabels(engine, who.tenant_id);
+  const parent = all.find((n) => n.key === node.parent_key);
+  return {
+    topic: node,
+    ...(parent && { parent }),
+    subtopics: all.filter((n) => n.parent_key === key),
+    statements,
+    held,
+    facts: slots.map((slot_key) => {
+      const label = labelOf(slot_key);
+      return { slot_key, ...(label && { label }) };
+    }),
   };
 }
 

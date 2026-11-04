@@ -40,6 +40,10 @@
       "payload": "TodoCreated",
       "version": 1
     },
+    "todo.resolved": {
+      "payload": "TodoResolved",
+      "version": 1
+    },
     "page.rendered": {
       "payload": "PageRendered",
       "version": 1
@@ -70,6 +74,14 @@
       "SpaceList",
       "DocumentTree",
       "DocumentView",
+      "TopicList",
+      "TopicView",
+      "Inbox",
+      "InboxCardKind",
+      "InboxCard",
+      "InboxTodo",
+      "TodoChoice",
+      "ResolveTodo",
       "ApiErrorCode",
       "ApiError"
     ],
@@ -176,6 +188,7 @@
       "ReviewDueKind",
       "ReviewDue",
       "TodoRequested",
+      "TodoResolved",
       "TodoCreated",
       "PageRendered",
       "CommentCreated",
@@ -4258,6 +4271,91 @@
         }
       }
     },
+    "Inbox": {
+      "description": "A member's open todos on the cards the inbox puts them on, most urgent card first, with what each todo asks them to choose between.\n",
+      "type": "object",
+      "required": [
+        "cards"
+      ],
+      "properties": {
+        "cards": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/InboxCard"
+          }
+        }
+      }
+    },
+    "InboxCard": {
+      "type": "object",
+      "required": [
+        "batch_key",
+        "kind",
+        "todos"
+      ],
+      "properties": {
+        "batch_key": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/InboxCardKind"
+        },
+        "week": {
+          "$ref": "#/$defs/IsoWeek"
+        },
+        "topic": {
+          "description": "The topic the card is about, when it has one.",
+          "$ref": "#/$defs/TaxonomyNode"
+        },
+        "todos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/InboxTodo"
+          }
+        }
+      }
+    },
+    "InboxCardKind": {
+      "description": "review: an owner's todos about one topic in one week. notes: an owner's notes of one week. campaign: a space's first reviews of one topic. steward: todos of a topic nobody owns.\n",
+      "type": "string",
+      "enum": [
+        "review",
+        "notes",
+        "campaign",
+        "steward"
+      ]
+    },
+    "InboxTodo": {
+      "type": "object",
+      "required": [
+        "todo",
+        "statements",
+        "choices"
+      ],
+      "properties": {
+        "todo": {
+          "$ref": "#/$defs/Todo"
+        },
+        "fact_label": {
+          "description": "What the fact a conflict or a note is about is called in the tenant's predicate catalogue (\"Hotel cap per night\"); the slot's qualifiers are its scope.\n",
+          "type": "string"
+        },
+        "statements": {
+          "description": "The statements the todo is about (its claims), as the member may read them, in the todo's order: for a conflict, the best statement of each value, the proposed one first.\n",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SearchHit"
+          }
+        },
+        "choices": {
+          "description": "The resolutions the todo offers, in its order; for a conflict, the proposed value first.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TodoChoice"
+          }
+        }
+      }
+    },
     "IndexFilter": {
       "description": "Pushed into the search index as a pre-filter. A row matches when its space is in space_ids, its acl_tokens overlap principal_tokens, and its sensitivity is at most max_sensitivity. Results are still re-checked before they leave the server.\n",
       "type": "object",
@@ -6015,6 +6113,24 @@
         }
       }
     },
+    "ResolveTodo": {
+      "description": "How the member resolves a todo assigned to them: done with one of the resolutions it offers, or dismissed. The response is the closed Todo.\n",
+      "type": "object",
+      "properties": {
+        "with": {
+          "description": "The key of the chosen resolution.",
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "done",
+            "dismissed"
+          ]
+        }
+      }
+    },
     "ResourceRef": {
       "type": "object",
       "required": [
@@ -6371,7 +6487,7 @@
       ]
     },
     "SlotStanding": {
-      "description": "Where one value of a fact slot stands with governance today. holds: the value governance proposes. outdated: a supersession puts the held value in its place (an older edition, a translation behind its original). disputed: an open contradiction with the held value, for a person to decide. differs: another difference, such as a scope, a plan or a value only reference documents state.\n",
+      "description": "Where one value of a fact slot stands with governance today. holds: the value governance proposes. outdated: a supersession puts the held value in its place (an older edition, a translation behind its original), or a person chose the held value over it. disputed: an open contradiction with the held value, for a person to decide. differs: another difference, such as a scope, a plan or a value only reference documents state.\n",
       "type": "string",
       "enum": [
         "holds",
@@ -6488,6 +6604,13 @@
           "description": "The day governance decided as of.",
           "type": "string",
           "format": "date"
+        },
+        "chosen_by": {
+          "description": "The person, or the agent acting for one, who chose the held value on a conflict todo. The choice holds while governance would ask the same question.\n",
+          "$ref": "#/$defs/PrincipalId"
+        },
+        "chosen_at": {
+          "$ref": "#/$defs/Instant"
         }
       }
     },
@@ -7631,6 +7754,28 @@
         }
       }
     },
+    "TodoChoice": {
+      "description": "One resolution a todo offers. For a conflict it chooses a value: the value, and the statement of it to show (one of the todo's statements, when the member may read it).\n",
+      "type": "object",
+      "required": [
+        "key",
+        "label"
+      ],
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "unit_id": {
+          "$ref": "#/$defs/UnitId"
+        }
+      }
+    },
     "TodoCreated": {
       "type": "object",
       "required": [
@@ -7735,6 +7880,13 @@
         "suggested_assignee_id": {
           "$ref": "#/$defs/PrincipalId"
         },
+        "resolutions": {
+          "description": "What the person may choose, each with an effect the requester applies when the todo is resolved with it (todo.resolved). Without them, any resolution closes the todo.\n",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TodoResolution"
+          }
+        },
         "withdrawn": {
           "description": "The reason went away: collaboration dismisses the open todo with this key, and creates none when there is no open one. A later request with the key opens a new todo.\n",
           "type": "boolean"
@@ -7760,6 +7912,54 @@
         },
         "effect": {
           "description": "Machine-readable effect, interpreted by the todo's producer.",
+          "type": "object"
+        }
+      }
+    },
+    "TodoResolved": {
+      "description": "A person, or an agent acting for one, closed a todo. The component that asked for it applies the chosen resolution's effect; the others ignore it. A todo the requester withdrew is dismissed without this event.\n",
+      "type": "object",
+      "required": [
+        "todo_id",
+        "kind",
+        "space_id",
+        "dedupe_key",
+        "created_by",
+        "status",
+        "resolved_by"
+      ],
+      "properties": {
+        "todo_id": {
+          "$ref": "#/$defs/TodoId"
+        },
+        "kind": {
+          "$ref": "#/$defs/TodoKind"
+        },
+        "space_id": {
+          "$ref": "#/$defs/SpaceId"
+        },
+        "dedupe_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "slot_key": {
+          "type": "string"
+        },
+        "created_by": {
+          "$ref": "#/$defs/ComponentName"
+        },
+        "status": {
+          "$ref": "#/$defs/TodoStatus"
+        },
+        "resolved_by": {
+          "$ref": "#/$defs/PrincipalId"
+        },
+        "resolved_with": {
+          "description": "Key of the chosen resolution.",
+          "type": "string"
+        },
+        "effect": {
+          "description": "The chosen resolution's effect, as the requester offered it.",
           "type": "object"
         }
       }
@@ -7842,6 +8042,25 @@
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9._/-]{0,199}$"
     },
+    "TopicList": {
+      "description": "The live topics of a space's knowledge outline, ordered by key; areas have no parent.",
+      "type": "object",
+      "required": [
+        "space_id",
+        "topics"
+      ],
+      "properties": {
+        "space_id": {
+          "$ref": "#/$defs/SpaceId"
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaxonomyNode"
+          }
+        }
+      }
+    },
     "TopicStatus": {
       "description": "proposed: made by clustering and not yet confirmed; readers never see it, owners do. confirmed: an owner confirmed it, so re-clustering keeps it and never moves its confirmed placements. retired: it has no statements left; its key is not reused.\n",
       "type": "string",
@@ -7850,6 +8069,61 @@
         "confirmed",
         "retired"
       ]
+    },
+    "TopicView": {
+      "description": "One topic as the member may read it: its current statements and its subtopics', and those of every other value of the facts they fill, wherever they are stated, all marked as search marks them; the statements that hold in place of the outdated and disputed ones; and the facts.\n",
+      "type": "object",
+      "required": [
+        "topic",
+        "subtopics",
+        "statements",
+        "held",
+        "facts"
+      ],
+      "properties": {
+        "topic": {
+          "$ref": "#/$defs/TaxonomyNode"
+        },
+        "parent": {
+          "$ref": "#/$defs/TaxonomyNode"
+        },
+        "subtopics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaxonomyNode"
+          }
+        },
+        "statements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SearchHit"
+          }
+        },
+        "held": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SearchHit"
+          }
+        },
+        "facts": {
+          "description": "The fact slots the statements fill, each with its label in the tenant's predicate catalogue.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "slot_key"
+            ],
+            "properties": {
+              "slot_key": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
     },
     "Unchanged": {
       "description": "Connector.fetch result when the known version is still current.",
