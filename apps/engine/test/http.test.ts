@@ -203,11 +203,10 @@ describe("engine HTTP API", () => {
     expect(contractErrors("SpaceOverview", body)).toEqual([]);
     const overview = body as unknown as SpaceOverview;
     expect(overview.space.id).toBe(POLICY);
-    // The first-year leave conflict and the budget note; the hotel cap's todo is in the notice's space.
-    expect(overview.work).toEqual([
-      { kind: "conflict", count: 1 },
-      { kind: "note", count: 1 },
-    ]);
+    // Three conflicts: the first-year leave, the budget deadline the minutes moved and the hotel
+    // cap. The forwarded copy in the policy library dates the hotel cap's change, and is read
+    // before the notice, so the policy's space is asked first and keeps the todo.
+    expect(overview.work).toEqual([{ kind: "conflict", count: 3 }]);
     expect(overview.disputed).toEqual([{ slot_key: DATA.leave.slot, label: DATA.leave.fact }]);
     // Counted as the maintainer may open them: not the finance-only budget note.
     const tree = (await call(`/v0/spaces/${POLICY}/documents`, { member: ZHOU_MIN })).body as unknown as DocumentTree;
