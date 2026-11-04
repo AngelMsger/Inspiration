@@ -5,10 +5,12 @@
  * `index.html`; every other language is `<tag>/index.html`.
  *
  * Beside the headline, a figure shows four kinds of source (a wiki, an approval flow, a code
- * repository, a research report) feeding one topic; while it is in view, a few changes run
- * through it and then it rests. Further down, a scripted demo of the product (the hotel cap
- * story of the demo corpus) is drawn in the product's own look. Both are illustrations, not
- * the product, and both hold still with reduced motion or without script. While the product
+ * repository, a research report) feeding one topic that answers people and agents; while it is
+ * in view, a few changes run through it and then it rests. Further down, two scripted demos tell
+ * the hotel cap story of the demo corpus in the product's own look: its search box, asked where
+ * five documents disagree, and its window, as a new notice changes the answer. They repeat while
+ * in view. All three are illustrations, not the product, and hold still on their result with
+ * reduced motion or without script. While the product
  * is in active development the site offers no download and no sign-up, and says so once, in
  * its closing lines.
  *
@@ -90,7 +92,7 @@ export function build(options: BuildOptions): Map<string, string> {
     throw new RangeError(`site: no language pack for root ${options.root}`);
   const css = readFileSync(join(SITE, "src/site.css"), "utf8");
   const client = (name: string) => stripTypeScriptTypes(readFileSync(join(SITE, `src/client/${name}.ts`), "utf8"));
-  const scripts = { hero: client("hero"), demo: client("demo") };
+  const scripts = { hero: client("hero"), ask: client("ask"), demo: client("demo") };
   const pages = new Map<string, string>();
   for (const { tag, pack } of packs) {
     const depth = tag === options.root ? 0 : 1;

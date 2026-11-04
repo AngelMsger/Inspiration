@@ -28,7 +28,7 @@ hero:
     - text: 常读常新。
       note: 2
   lead: >-
-    Inspiration 把散落在知识库、审批流、代码和调研里的知识汇到一起：每条都有出处，来源一变就跟着更新，人和智能体读到同一个答案。
+    Inspiration 把散落在知识库、审批流、代码和调研里的知识汇到一起：**每条都有出处，来源一变就跟着更新**，人和智能体读到同一个答案。
   primary: 看看怎么工作
   figure:
     label: >-
@@ -61,13 +61,17 @@ hero:
     readers:
       - label: 人
         place: 回答与知识页
+        says: 每晚 650 元
       - label: 智能体
         place: MCP 与 REST
+        says: → 650 · fresh
 
 problem:
   kicker: 问题
   title: 别再猜哪份文档才是对的。
   lead: 同一条住宿标准写在五份文档里。搜索全都找得到，却没人说得清哪份算数。
+  label: >-
+    动画：有人在 Inspiration 里问深圳的住宿上限。五份文档说法不一，Inspiration 依据 9 月 28 日的通知，答 10 月 1 日起每晚 650 元，并把三份旧文档标为已过时。
   documents:
     - name: 差旅费管理办法 第七条
       place: 财务部制度库
@@ -89,12 +93,12 @@ problem:
       place: 人力资源部知识库
       value: 600 元
       mark: "old"
-  answerLabel: Inspiration 的回答
+  answerLabel: 答案
   answer: 10 月 1 日起每晚 650 元
-  answerNotes:
-    - 依据 9 月 28 日的通知
-    - 差旅主题维护人李娜已确认
-    - 3 份文档标为已过时，没有删除
+  why: 依据 9 月 28 日的通知 · 差旅主题维护人李娜已确认
+  docsLabel: 文档
+  conflict: 2 种说法
+  settled: 3 份标为已过时，没有删除
 
 demo:
   kicker: 工作方式
@@ -108,7 +112,6 @@ demo:
       text: 回答、知识页和智能体都改成 650 元并引用通知，旧条款标为已过时。
     - title: 维护人确认
       text: 差旅主题维护人李娜按一下，确认建议的修改。
-  replay: 重播
   caption: 示意动画，公司和数据均为虚构。
   ui:
     company: 恒远机械
@@ -150,6 +153,27 @@ sources:
     - title: 深度调研
       text: 在公司知识和获准的网络来源里调研，写成有结论、假设和证据的报告。
       fresh: 假设带着复核日期，只复查受影响的结论。
+  samples:
+    document:
+      title: 差旅报销标准
+      line: 一线城市经理及以下，住宿每晚
+      value: 650 元
+    approval:
+      title: 出差审批 · 近 90 天
+      trips:
+        - 7 天 · 上海
+        - 3 天 · 北京
+        - 6 天 · 深圳
+      manager: 经理
+      finance: 财务
+      rule: 超过 5 天要财务加签
+    code:
+      change: "#482 住宿上限改为 650"
+    research:
+      title: 深圳四星酒店均价
+      value: 每晚 610 元
+      basis: 42 家酒店 · 假设会展周上浮
+      due: 12 月 1 日复核
   upkeep: 来源各不相同，保鲜和治理是同一套：同样的证据，同样的维护人，同样的待办。
 
 features:
@@ -199,9 +223,9 @@ agents:
   title: 人和智能体，读到同一个答案。
   lead: 智能体通过 MCP 和 REST 读取同一份治理过的知识，以所代表的那个人的身份工作。
   points:
-    - 按任务设计的工具：提问、搜索、阅读、跟踪变化。
-    - 每个结果都带着出处、版本、状态和 token 估算。
-    - 智能体只读取和提议，改动由人批准。
+    - "**按任务设计的工具**：提问、搜索、阅读、跟踪变化。"
+    - 每个结果都带着**出处、版本和状态**，以及 token 估算。
+    - 智能体**只读取和提议**，改动由人批准。
   note: 示意。智能体接口还在设计中。
   question: 深圳出差，经理住宿每晚上限？
   answer: 2026-10-01 起每晚 650 元。

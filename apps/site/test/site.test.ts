@@ -37,10 +37,10 @@ describe("site", () => {
     expect(pages.get("index.html")).toContain('href="ja/"');
   });
 
-  test("the inlined scripts, for the hero figure and the demo, are valid JavaScript", () => {
+  test("the inlined scripts, for the hero figure, the search box and the demo, are valid JavaScript", () => {
     const html = build({ root: "en", explicitIndex: false, fragment: false }).get("index.html") ?? "";
     const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1] ?? "");
-    expect(scripts).toHaveLength(2);
+    expect(scripts).toHaveLength(3);
     for (const script of scripts) {
       expect(script.length).toBeGreaterThan(0);
       expect(() => new Function(script)).not.toThrow();
@@ -55,6 +55,20 @@ describe("site", () => {
     expect(figure.match(/class="topic-fact"/g)).toHaveLength(4);
     const sources = /<section class="origins"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
     expect(sources.match(/class="kind"/g)).toHaveLength(4);
+    expect(sources.match(/class="smp smp-/g)).toHaveLength(4);
+  });
+
+  test("the search box lists every document of the story and is rendered answered", () => {
+    for (const { tag, pack } of loadPacks()) {
+      const html = build({ root: "en", explicitIndex: false, fragment: false }).get(
+        tag === "en" ? "index.html" : `${tag}/index.html`,
+      );
+      const box = /<div class="palette"[\s\S]*?<\/ul>/.exec(html ?? "")?.[0] ?? "";
+      expect(box.match(/<li class="pal-doc[ "]/g), tag).toHaveLength(pack.problem.documents.length);
+      expect(box.match(/class="pill old mark"/g), tag).toHaveLength(
+        pack.problem.documents.filter((d) => d.mark === "old").length,
+      );
+    }
   });
 
   test("a preview puts another language at the root, without its shell, with explicit links", () => {

@@ -137,9 +137,14 @@ h2 {
 }
 .body {
   color: var(--muted);
-  font-size: 1.075rem;
+  font-size: 19px;
   max-width: 34em;
   margin-top: 20px;
+}
+/* The words a long line should not lose. */
+strong {
+  font-weight: 600;
+  color: var(--ink);
 }
 
 /* Buttons */
@@ -317,6 +322,7 @@ h1 .cite {
 .hero-fig {
   grid-area: figure;
   position: relative;
+  container-type: inline-size;
 }
 .feeds {
   display: grid;
@@ -533,49 +539,86 @@ h1 .cite {
 .readers {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  justify-items: center;
 }
+/* Each reader sits in the middle of its half, where its wire ends. */
 .reader {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 7px 20px 8px;
-  border-radius: 9px;
+  justify-self: center;
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  box-sizing: border-box;
+  width: min(90%, 230px);
+  padding: 10px 14px 12px;
+  border-radius: 10px;
   background: var(--page);
-  box-shadow: 0 0 0 1px var(--rule);
+  box-shadow:
+    0 0 0 1px var(--rule),
+    0 6px 14px -10px rgba(28, 30, 35, 0.3);
   transition: box-shadow 0.35s;
 }
 .reader.is-hit {
-  box-shadow: 0 0 0 1.5px var(--indigo);
+  box-shadow:
+    0 0 0 1.5px var(--indigo),
+    0 8px 18px -10px rgba(46, 63, 143, 0.45);
 }
-.reader-label {
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.35;
-}
-.reader-place {
-  font-size: 11.5px;
+.reader-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
   line-height: 1.35;
   color: var(--faint);
+  white-space: nowrap;
+}
+.reader-ico {
+  flex: none;
+  color: var(--ink);
+}
+.reader-label {
+  font-weight: 600;
+  color: var(--ink);
+}
+.reader-place {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* In a narrow figure each reader keeps its name and what it is given. */
+@container (max-width: 440px) {
+  .reader-place {
+    display: none;
+  }
+}
+.reader-says {
+  font: 600 17px / 1.3 var(--serif);
+  transition: color 0.35s;
+}
+code.reader-says {
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--paper);
+  font: 500 12px / 1.6 var(--mono);
+  color: var(--indigo);
+}
+.reader.is-hit .reader-says {
+  color: var(--indigo);
 }
 
 /* Sections. On a desktop screen each band is one screen tall with its content centred, so the
    page moves in even steps whatever a band holds; bands alternate paper and page, and every
    band opens with a centred head, so the weight stays on one axis. */
 main > section {
-  padding-block: clamp(64px, 8vw, 104px);
+  padding-block: clamp(72px, 8vw, 112px);
 }
+/* The first screen is the hero alone; every other band is as tall as what it shows. */
 @media (min-width: 1024px) and (min-height: 700px) {
-  main > section {
+  main > .hero {
     display: flex;
     flex-direction: column;
     justify-content: center;
     min-height: min(calc(100svh - 65px), 1000px);
     box-sizing: border-box;
-    padding-block: 64px;
-  }
-  /* The first screen's content sits a little above the middle, where the eye expects it. */
-  main > .hero {
+    /* Its content sits a little above the middle, where the eye expects it. */
     padding-block: 40px 104px;
   }
 }
@@ -588,7 +631,7 @@ main > section {
   flex-direction: column;
   align-items: center;
   max-width: 860px;
-  margin-inline: auto;
+  margin: 0 auto clamp(40px, 4vw, 56px);
   text-align: center;
 }
 .sec-head .body {
@@ -601,111 +644,257 @@ main > section {
   word-break: auto-phrase;
 }
 
-/* The problem: five documents, and the one answer drawn from them */
-.resolve {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  gap: 28px;
-  align-items: center;
-  max-width: 1080px;
-  margin: 48px auto 0;
+/* The problem: the product's search box, open over a dimmed window of the app */
+.ask-stage {
+  position: relative;
+  max-width: 980px;
+  margin-inline: auto;
+  padding: 52px 24px;
+  border-radius: 14px;
+  background: var(--well);
+  overflow: hidden;
 }
-.into {
+.ask-app {
+  position: absolute;
+  inset: 24px -28px -28px 72px;
+  border-radius: 10px;
+  background: var(--page);
+  opacity: 0.6;
+}
+.ask-app-top {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  height: 44px;
+  padding-inline: 18px;
+  border-bottom: 1px solid var(--rule);
+  font: 500 15px / 1 var(--serif);
+}
+.ask-app-co {
+  font: 13px / 1 var(--sans);
+  color: var(--faint);
+}
+.ask-app-body {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  height: 100%;
+}
+.ask-app-body > div {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 22px 18px;
+}
+.ask-app-body > div:first-child {
+  border-right: 1px solid var(--rule);
+}
+.ask-app-body i {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--old-bg);
+}
+.palette {
+  position: relative;
+  max-width: 680px;
+  margin-inline: auto;
+  border-radius: 12px;
+  background: var(--page);
+  box-shadow: var(--shadow-hero);
+  overflow: hidden;
+}
+.pal-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 17px;
+}
+.pal-search {
+  flex: none;
+  color: var(--faint);
+}
+.pal-q {
+  flex: 1;
+  min-width: 0;
+}
+.pal-enter {
+  transition:
+    background 0.2s,
+    color 0.2s,
+    border-color 0.2s;
+}
+.pal-answer {
+  display: grid;
+  padding: 18px 20px 20px;
+  border-bottom: 1px solid var(--rule);
+}
+.pal-answer > * {
+  grid-area: 1 / 1;
+}
+.pal-wait {
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.pal-wait i {
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--old-bg) 30%, var(--paper) 50%, var(--old-bg) 70%) 0 0 / 300% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+.pal-wait i:last-child {
+  width: 46%;
+}
+@keyframes shimmer {
+  to {
+    background-position: -150% 0;
+  }
+}
+.pal-said {
+  transition:
+    opacity 0.45s var(--arrive),
+    translate 0.45s var(--arrive);
+}
+.pal-label {
+  font-size: 13px;
+  font-weight: 600;
   color: var(--indigo);
 }
-.sheet {
-  background: var(--page);
-  border-radius: 8px;
-  box-shadow: 0 0 0 1px var(--rule);
+.pal-a {
+  margin-top: 4px;
+  font: 500 25px / 1.3 var(--serif);
 }
-.docs li {
+.site:lang(zh) .pal-a,
+.site:lang(ja) .pal-a {
+  font-weight: 600;
+  font-size: 23px;
+}
+.pal-why {
+  margin-top: 6px;
+  font-size: 14.5px;
+  color: var(--muted);
+}
+.pal-docs {
+  padding: 12px 12px 10px;
+}
+.pal-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
-  padding: 14px 18px;
-  border-top: 1px solid var(--rule);
+  gap: 12px;
+  padding: 2px 8px 6px;
 }
-.docs li:first-child {
-  border-top: 0;
-}
-.doc {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.doc-name {
-  font-size: 15.5px;
-  font-weight: 500;
-}
-.doc-place {
-  font-size: 13px;
+.pal-head .pal-label {
   color: var(--faint);
 }
-.doc-value {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: none;
-  font-variant-numeric: tabular-nums;
-  font-size: 15px;
-  font-weight: 600;
-}
-.doc-value .cite {
-  vertical-align: 0;
-  font-size: 11px;
-  margin: 0;
-}
-.docs .is-old .v {
-  color: var(--old);
-  font-weight: 500;
-  text-decoration: line-through;
-  text-decoration-thickness: 1.5px;
-}
-.resolved {
-  position: relative;
-  padding: 24px 26px;
-  border-radius: 8px;
-  background: var(--page);
-  box-shadow: 0 0 0 1.5px var(--indigo);
-}
-.resolved .label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--indigo);
-}
-.resolved .res-answer {
-  margin-top: 4px;
-  font: 500 clamp(1.4rem, 1.2rem + 0.8vw, 1.85rem) / 1.25 var(--serif);
-  text-wrap: balance;
-}
-.site:lang(zh) .resolved .res-answer,
-.site:lang(ja) .resolved .res-answer {
-  font-weight: 600;
-}
-.res-notes {
+.pal-state {
   display: grid;
-  gap: 8px;
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--rule);
-  font-size: 14px;
+  justify-items: end;
+}
+.pal-state > * {
+  grid-area: 1 / 1;
+  transition: opacity 0.3s;
+}
+.pal-conflict {
+  padding: 0 8px;
+  border-radius: 3px;
+  background: #f3e6c6;
+  color: #74520f;
+  font: 600 12px / 1.7 var(--sans);
+  opacity: 0;
+}
+.pal-settled {
+  font-size: 13px;
   color: var(--muted);
 }
-.res-notes li {
-  position: relative;
-  padding-left: 22px;
+/* Marks keep a column of their own, so values line up before and after they appear. */
+.pal-doc {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto 4.4em;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  font-size: 15px;
+  line-height: 1.4;
+  transition:
+    opacity 0.35s var(--arrive) calc(var(--i) * 70ms),
+    translate 0.35s var(--arrive) calc(var(--i) * 70ms);
 }
-.res-notes li::before {
-  content: "";
-  position: absolute;
-  left: 3px;
-  top: 0.5em;
-  width: 9px;
-  height: 5px;
-  border-left: 1.5px solid var(--indigo);
-  border-bottom: 1.5px solid var(--indigo);
-  transform: rotate(-45deg);
+.pal-doc + .pal-doc {
+  box-shadow: inset 0 1px var(--rule);
+}
+.pal-ico {
+  color: var(--faint);
+}
+.pal-doc-name {
+  min-width: 0;
+  font-weight: 500;
+}
+.pal-doc-place {
+  margin-left: 10px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--faint);
+}
+.pal-doc-mark {
+  display: flex;
+}
+.pal-doc .v {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition:
+    color 0.3s,
+    text-decoration-color 0.3s;
+}
+.pal-doc.is-old .v {
+  color: var(--old);
+  font-weight: 500;
+  text-decoration: line-through 1.5px;
+}
+.pal-doc .mark {
+  transition: opacity 0.3s;
+}
+.pal-doc .cite {
+  margin: 0;
+  font-size: 11px;
+  vertical-align: 0;
+}
+/* The asking, as the script plays it: the opening frame holds the question alone; then the
+   documents arrive disagreeing, the answer replaces its placeholder, and the marks settle. */
+.palette.is-asked:not(.is-results) .pal-enter {
+  border-color: var(--indigo);
+  background: var(--indigo);
+  color: var(--page);
+}
+.palette.is-live:not(.is-results) .pal-doc {
+  opacity: 0;
+  translate: 0 8px;
+  transition: none;
+}
+.palette.is-live.is-asked:not(.is-answer) .pal-wait,
+.palette.is-live.is-results:not(.is-marked) .pal-conflict {
+  opacity: 1;
+}
+.palette.is-live:not(.is-answer) .pal-said {
+  opacity: 0;
+  translate: 0 6px;
+}
+.palette.is-live:not(.is-marked) .pal-settled,
+.palette.is-live:not(.is-marked) .pal-doc .mark {
+  opacity: 0;
+}
+.palette.is-live:not(.is-marked) .pal-doc.is-old .v {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration-color: transparent;
+}
+.palette.is-leaving :is(.pal-said, .pal-doc, .pal-state > *) {
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 
 /* How it works: the steps beside the demo */
@@ -714,7 +903,6 @@ main > section {
   grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
   gap: 32px 56px;
   align-items: center;
-  margin-top: 48px;
 }
 .steps {
   display: grid;
@@ -742,16 +930,15 @@ main > section {
     color 0.3s,
     border-color 0.3s;
 }
-.steps strong {
+.step-title {
   display: block;
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 18px;
   line-height: 1.4;
 }
 .step-text {
   display: block;
   margin-top: 4px;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--muted);
 }
 .steps.is-playing li:not([aria-current]) {
@@ -763,29 +950,9 @@ main > section {
   color: var(--page);
 }
 .demo-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 14px;
   margin-top: 28px;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--faint);
-}
-.replay {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font: 500 13.5px / 1 var(--sans);
-  color: var(--ink);
-  background: var(--paper);
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  padding: 7px 10px;
-  cursor: pointer;
-}
-.replay:hover {
-  background: var(--page);
-  border-color: var(--faint);
 }
 
 /* The stage: a fixed design size, scaled to its column by the script. */
@@ -1239,59 +1406,219 @@ main > section {
 .kinds {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 20px;
-  margin-top: 48px;
+  column-gap: 20px;
+  margin-bottom: -20px;
 }
+/* Four rows per card (sample, title, text, upkeep), shared across a row of cards. */
 .kind {
-  display: flex;
-  flex-direction: column;
-  padding: 22px 22px 18px;
-  border-radius: 10px;
+  display: grid;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
+  margin-bottom: 20px;
+  padding: 12px 12px 20px;
+  border-radius: 12px;
   background: var(--paper);
   box-shadow: 0 0 0 1px var(--rule);
 }
-.kind-ico {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 9px;
-  background: var(--page);
-  box-shadow: 0 0 0 1px var(--rule);
-}
 .kind h3 {
-  margin-top: 16px;
-  font-size: 17px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 8px 0;
+  font-size: 18px;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.4;
+}
+.kind-glyph {
+  flex: none;
+  color: var(--indigo);
 }
 .kind > p {
-  margin-top: 6px;
-  font-size: 14.5px;
+  margin: 8px 8px 0;
+  font-size: 16px;
   color: var(--muted);
 }
 .kind .kind-fresh {
   display: flex;
   gap: 8px;
   align-items: baseline;
-  margin-top: auto;
+  margin-top: 16px;
   padding-top: 14px;
   border-top: 1px dashed var(--rule);
-  font-size: 13.5px;
+  font-size: 15px;
   color: var(--ink);
-}
-.kind > p:not(.kind-fresh) {
-  margin-bottom: 16px;
 }
 .fresh-ico {
   flex: none;
   align-self: flex-start;
-  margin-top: 0.2em;
+  margin-top: 0.25em;
   color: var(--indigo);
+}
+.smp {
+  min-height: 142px;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--page);
+  box-shadow: 0 0 0 1px var(--rule);
+  font-size: 12.5px;
+  line-height: 1.5;
+  overflow: hidden;
+}
+.smp-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.smp-tag {
+  flex: none;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--indigo);
+  color: var(--page);
+  font: 600 11px / 1.7 var(--sans);
+  white-space: nowrap;
+}
+.smp-bar {
+  display: block;
+  height: 7px;
+  margin-block: 8px;
+  border-radius: 4px;
+  background: var(--old-bg);
+}
+.smp-line {
+  margin-inline: -6px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  background: var(--indigo-soft);
+}
+.smp-line mark {
+  background: none;
+  color: var(--indigo);
+  font-weight: 700;
+}
+.smp-flow ul {
+  display: grid;
+  gap: 5px;
+}
+.smp-flow li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--paper);
+  white-space: nowrap;
+}
+.smp-steps {
+  display: flex;
+  gap: 4px;
+}
+.smp-step {
+  padding: 0 5px;
+  border-radius: 3px;
+  background: var(--page);
+  box-shadow: 0 0 0 1px var(--rule);
+  font-size: 11px;
+}
+.smp-step::before {
+  content: "\2713\00a0";
+  color: var(--indigo);
+}
+.smp-rule {
+  margin-top: 8px;
+  font-weight: 600;
+  color: var(--indigo);
+}
+.smp-rule::before {
+  content: "\2192\00a0";
+}
+.smp-file {
+  margin-bottom: 8px;
+  font: 500 11.5px / 1.4 var(--mono);
+  color: var(--faint);
+}
+.smp-diff {
+  margin-inline: -14px;
+  font: 400 12px / 1.75 var(--mono);
+  white-space: pre;
+}
+.smp-ln {
+  display: block;
+  padding-inline: 14px;
+}
+.smp-diff .del {
+  background: #f6e4e1;
+  color: #8a3226;
+}
+.smp-diff .add {
+  background: #e2eee1;
+  color: #2b5a2d;
+}
+.smp-pr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 12px;
+}
+.smp-pr > span:not(.smp-tag) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.smp-merge {
+  flex: none;
+  color: var(--indigo);
+}
+.smp-research .smp-title {
+  margin-bottom: 2px;
+}
+.smp-value {
+  font: 600 25px / 1.25 var(--serif);
+}
+.smp-basis {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.smp-spread {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 22px;
+  margin-top: 8px;
+}
+.smp-spread i {
+  flex: 1;
+  border-radius: 2px 2px 0 0;
+  background: var(--old-bg);
+}
+.smp-spread .on {
+  background: var(--indigo);
+}
+.smp-due {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--indigo-soft);
+  color: var(--indigo);
+  font-size: 11.5px;
+  font-weight: 600;
 }
 .upkeep {
   max-width: 36em;
-  margin: 44px auto 0;
+  margin: 56px auto 0;
   text-align: center;
   font: 500 clamp(1.2rem, 1.05rem + 0.6vw, 1.5rem) / 1.4 var(--serif);
   text-wrap: balance;
@@ -1309,7 +1636,7 @@ main > section {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 20px;
   max-width: 1080px;
-  margin: 44px auto -20px;
+  margin: 0 auto -20px;
 }
 .card {
   display: grid;
@@ -1323,13 +1650,13 @@ main > section {
 }
 .card h3 {
   margin-top: 22px;
-  font-size: 19px;
+  font-size: 18px;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.4;
 }
 .card p {
   margin-top: 8px;
-  font-size: 15.5px;
+  font-size: 16px;
   color: var(--muted);
 }
 .ill {
@@ -1560,12 +1887,16 @@ main > section {
   gap: 32px 64px;
   align-items: center;
   max-width: 1080px;
-  margin: 48px auto 0;
+  margin-inline: auto;
 }
 .points {
   display: grid;
-  font-size: 17px;
-  line-height: 1.5;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--night-muted);
+}
+.agents strong {
+  color: var(--night-ink);
 }
 .points li {
   position: relative;
@@ -1623,25 +1954,36 @@ main > section {
 .grid4 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 32px;
-  margin-top: 48px;
+  gap: 20px;
 }
 .grid4 li {
-  padding-top: 18px;
-  border-top: 1.5px solid var(--ink);
+  padding: 22px 22px 24px;
+  border-radius: 12px;
+  background: var(--page);
+  box-shadow: 0 0 0 1px var(--rule);
+}
+.ent-ico {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 18px;
+  border-radius: 10px;
+  background: var(--indigo-soft);
+  color: var(--indigo);
 }
 .grid4 h3 {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 600;
   line-height: 1.4;
 }
 .grid4 p {
   margin-top: 8px;
-  font-size: 15px;
+  font-size: 16px;
   color: var(--muted);
 }
 .closing {
-  margin-top: 80px;
+  margin-top: clamp(72px, 8vw, 112px);
   text-align: center;
 }
 .closing-title {
@@ -1656,9 +1998,9 @@ main > section {
   letter-spacing: 0;
 }
 .closing-note {
-  margin-top: 14px;
-  font-size: 14.5px;
-  color: var(--faint);
+  margin-top: 16px;
+  font-size: 16px;
+  color: var(--muted);
 }
 
 /* Footer */
@@ -1689,13 +2031,8 @@ main > section {
 }
 @media (max-width: 980px) {
   .demo,
-  .resolve,
   .agents-row {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .into {
-    justify-self: center;
-    rotate: 90deg;
   }
   .demo .stage-wrap {
     order: -1;
@@ -1731,6 +2068,11 @@ main > section {
   .site {
     font-size: 16px;
   }
+  /* A Chinese or Japanese heading that fits one line is not split inside a word. */
+  .site:lang(zh) h2,
+  .site:lang(ja) h2 {
+    font-size: 1.75rem;
+  }
   .wrap {
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
@@ -1739,9 +2081,6 @@ main > section {
   .kinds,
   .grid4 {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .kind {
-    padding: 20px 20px 18px;
   }
   .feed {
     padding-inline: 3px;
@@ -1770,8 +2109,43 @@ main > section {
   .fact::before {
     display: none;
   }
-  .docs li {
-    padding: 12px 14px;
+  .ask-stage {
+    padding: 24px 12px;
+  }
+  .ask-app {
+    inset: 12px -20px -20px 28px;
+  }
+  .pal-input {
+    padding: 14px 16px;
+    font-size: 16px;
+  }
+  .pal-answer {
+    padding: 14px 16px 16px;
+  }
+  .pal-a,
+  .site:lang(zh) .pal-a,
+  .site:lang(ja) .pal-a {
+    font-size: 21px;
+  }
+  .pal-doc-place {
+    display: block;
+    margin-left: 0;
+  }
+  /* On a phone the value goes under the document's name, so the name keeps the width. */
+  .pal-doc {
+    grid-template-columns: 16px minmax(0, 1fr) 4.4em;
+    align-items: start;
+  }
+  .pal-doc .v {
+    grid-area: 2 / 2;
+    justify-self: start;
+  }
+  .pal-doc-mark {
+    grid-area: 1 / 3 / 3;
+    align-self: center;
+  }
+  .pal-ico {
+    margin-top: 0.15em;
   }
 }
 

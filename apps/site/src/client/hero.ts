@@ -12,7 +12,7 @@
   /** When, within a turn, each part of the change happens. */
   const AT = { wire: 450, fact: 1350, out: 1750, readers: 2400, done: 3400 };
 
-  const fig = document.currentScript?.closest("section")?.querySelector<HTMLElement>(".hero-fig");
+  const fig = document.querySelector<HTMLElement>("#top .hero-fig");
   if (!fig || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
   const figure = fig;
 

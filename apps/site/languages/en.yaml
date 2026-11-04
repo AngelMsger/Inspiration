@@ -33,8 +33,8 @@ hero:
       note: 2
   lead: >-
     Inspiration gathers what your company knows, from wikis, approval flows, code and research,
-    into knowledge that cites its source, keeps itself current, and gives people and agents the
-    same answer.
+    into knowledge that **cites its source and keeps itself current**, and gives people and agents
+    the same answer.
   primary: See how it works
   figure:
     label: >-
@@ -70,13 +70,19 @@ hero:
     readers:
       - label: People
         place: Answers and pages
+        says: 650 a night
       - label: Agents
         place: MCP and REST
+        says: → 650 · fresh
 
 problem:
   kicker: The problem
   title: Stop guessing which document is right.
   lead: One hotel rule, five documents. Search finds all five, and nobody can tell which one counts.
+  label: >-
+    Animation: someone asks Inspiration for the Shenzhen hotel cap. Five documents disagree;
+    Inspiration answers 650 yuan a night from 1 October, per the notice of 28 September, and marks
+    three older documents outdated.
   documents:
     - name: Travel expense policy, article 7
       place: Finance policy library
@@ -98,12 +104,12 @@ problem:
       place: HR wiki
       value: "600"
       mark: "old"
-  answerLabel: What Inspiration answers
+  answerLabel: Answer
   answer: 650 yuan a night from 1 October
-  answerNotes:
-    - Per the notice of 28 September
-    - Confirmed by Li Na, who maintains travel rules
-    - 3 documents marked outdated, none deleted
+  why: Per the notice of 28 September · confirmed by Li Na, who maintains travel rules
+  docsLabel: Documents
+  conflict: 2 different values
+  settled: 3 marked outdated, none deleted
 
 demo:
   kicker: How it works
@@ -119,7 +125,6 @@ demo:
       text: Answers, pages and agents now say 650 and cite the notice. The old line is marked outdated.
     - title: The owner confirms
       text: Li Na, who maintains the travel rules, confirms the suggested change with one press.
-  replay: Replay
   caption: An illustration with a made-up company and sample data.
   ui:
     company: Hengyuan Machinery
@@ -161,6 +166,27 @@ sources:
     - title: Deep research
       text: Reports of conclusions, assumptions and evidence, from your knowledge and approved web sources.
       fresh: Assumptions carry dates; only affected conclusions are checked again.
+  samples:
+    document:
+      title: Travel expenses
+      line: "Tier-1 cities, managers and below, hotel per night:"
+      value: 650 yuan
+    approval:
+      title: Trip approvals · last 90 days
+      trips:
+        - 7 days · Shanghai
+        - 3 days · Beijing
+        - 6 days · Shenzhen
+      manager: Manager
+      finance: Finance
+      rule: Over 5 days, Finance also approves
+    code:
+      change: "#482 Hotel cap to 650"
+    research:
+      title: Shenzhen 4-star average
+      value: 610 a night
+      basis: 42 hotels · assumes trade-fair weeks run higher
+      due: Re-check 1 Dec
   upkeep: "Different sources, one upkeep: the same evidence, the same owners, the same inbox."
 
 features:
@@ -212,9 +238,9 @@ agents:
   title: One answer, for people and agents.
   lead: Your agents reach the same governed knowledge through MCP and REST, acting as the person they work for.
   points:
-    - "Tools shaped by the task: ask, search, read, follow changes."
-    - Every result carries its source, version, status and a token estimate.
-    - Agents read and propose. Only people approve changes.
+    - "**Tools shaped by the task:** ask, search, read, follow changes."
+    - Every result carries its **source, version and status**, and a token estimate.
+    - Agents **read and propose**. Only people approve changes.
   note: Illustrative. The agent API is in design.
   question: Hotel cap per night in Shenzhen for a manager?
   answer: 650 yuan a night from 2026-10-01.

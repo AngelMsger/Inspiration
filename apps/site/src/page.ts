@@ -33,26 +33,31 @@ export interface Pack {
       /** One fact per feed, in the same order. */
       facts: { label: string; value: string }[];
       status: string;
-      /** Who reads the topic: people, then agents. */
-      readers: { label: string; place: string }[];
+      /** Who reads the topic, people then agents, and what each is given. */
+      readers: { label: string; place: string; says: string }[];
     };
   };
   problem: {
     kicker: string;
     title: string;
     lead: string;
+    /** What the animated search box shows, for screen readers. */
+    label: string;
     /** `old`: the notice replaced this value; `source`: the notice itself. */
     documents: { name: string; place: string; value: string; mark: "old" | "source" | "" }[];
     answerLabel: string;
     answer: string;
-    answerNotes: string[];
+    why: string;
+    docsLabel: string;
+    /** Above the documents while they disagree, then once the answer has marked them. */
+    conflict: string;
+    settled: string;
   };
   demo: {
     kicker: string;
     title: string;
     label: string;
     steps: { title: string; text: string }[];
-    replay: string;
     caption: string;
     ui: {
       company: string;
@@ -102,6 +107,13 @@ export interface Pack {
     title: string;
     lead: string;
     items: { title: string; text: string; fresh: string }[];
+    /** A small picture of each kind of source as it looks where it lives. */
+    samples: {
+      document: { title: string; line: string; value: string };
+      approval: { title: string; trips: string[]; manager: string; finance: string; rule: string };
+      code: { change: string };
+      research: { title: string; value: string; basis: string; due: string };
+    };
     upkeep: string;
   };
   enterprise: { kicker: string; title: string; items: { title: string; text: string }[] };
@@ -120,13 +132,15 @@ export interface PageContext {
   href: (tag: string) => string;
   css: string;
   /** Browser scripts, inlined after the part they drive. */
-  scripts: { hero: string; demo: string };
+  scripts: { hero: string; ask: string; demo: string };
   /** Leave out the document shell, for hosts that add their own (the Artifact preview). */
   fragment: boolean;
 }
 
 const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ESCAPES[c] ?? c);
+/** Pack text, with `**…**` around the words a reader should not miss. */
+const rich = (s: string): string => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 
 /** The language of the source documents in the story; their titles and quotes stay in it. */
 const SOURCE_LANG = "zh-CN";
@@ -148,6 +162,15 @@ const ICONS = {
   code: '<path d="M7 6 3 10l4 4M13 6l4 4-4 4M11.2 4.5l-2.4 11"/>',
   research: '<circle cx="8.8" cy="8.8" r="5.3"/><path d="m12.7 12.7 4.3 4.3"/>',
   refresh: '<path d="M16 10a6 6 0 1 1-1.76-4.24M16 3.6v3.3h-3.3"/>',
+  person: '<circle cx="10" cy="6.8" r="3.3"/><path d="M3.8 17.2c.9-3.4 3.3-5.3 6.2-5.3s5.3 1.9 6.2 5.3"/>',
+  agent: '<rect x="3.5" y="6" width="13" height="10.5" rx="3"/><path d="M10 3v3M7.6 11.2h0M12.4 11.2h0"/>',
+  merge:
+    '<circle cx="6" cy="4.5" r="1.8"/><circle cx="6" cy="15.5" r="1.8"/><circle cx="14" cy="10" r="1.8"/><path d="M6 6.3v7.4M6 6.5c0 2.6 2.4 3.5 6.2 3.5"/>',
+  key: '<circle cx="6.8" cy="10" r="3.4"/><path d="M10.2 10h7M14.6 10v3M17.2 10v2.4"/>',
+  lock: '<rect x="4.5" y="9" width="11" height="8" rx="2"/><path d="M7 9V6.6a3 3 0 0 1 6 0V9"/>',
+  shield:
+    '<path d="M10 2.8 4.2 5v4.5c0 3.6 2.5 6.2 5.8 7.6 3.3-1.4 5.8-4 5.8-7.6V5z"/><path d="m7.5 10 1.8 1.8 3.3-3.5"/>',
+  cloud: '<path d="M6.2 15.5h8a3.3 3.3 0 0 0 .4-6.6 4.7 4.7 0 0 0-9 .9 2.9 2.9 0 0 0 .6 5.7z"/>',
 };
 const icon = (name: keyof typeof ICONS, size: number, cls: string): string =>
   `<svg class="${cls}" width="${size}" height="${size}" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
@@ -157,7 +180,13 @@ const NOTE_TARGETS = ["#problem", "#how"];
 
 /** A section's opening, centred so every band keeps the same axis. */
 function head(kicker: string, title: string, lead = ""): string {
-  return `<div class="sec-head"><p class="kicker">${esc(kicker)}</p><h2>${esc(title)}</h2>${lead ? `<p class="body">${esc(lead)}</p>` : ""}</div>`;
+  return `<div class="sec-head"><p class="kicker">${esc(kicker)}</p><h2>${esc(title)}</h2>${lead ? `<p class="body">${rich(lead)}</p>` : ""}</div>`;
+}
+
+/** A line whose last word keeps the citation number with it. */
+function cited(text: string): string {
+  const cut = text.lastIndexOf(" ") + 1;
+  return `${esc(text.slice(0, cut))}<span class="nowrap">${esc(text.slice(cut))}<span class="cite">1</span></span>`;
 }
 
 /** The kinds of source the hero figure and the sources section show, in their order. */
@@ -198,7 +227,7 @@ function hero(c: PageContext): string {
   <div class="wrap hero-grid">
     <div class="hero-copy">
       <h1>${title}</h1>
-      <p class="lead">${esc(h.lead)}</p>
+      <p class="lead">${rich(h.lead)}</p>
       <div class="actions"><a class="button" href="#how">${esc(h.primary)}</a></div>
     </div>
     ${heroFigure(c)}
@@ -234,10 +263,11 @@ function heroFigure(c: PageContext): string {
       return `<path class="wire" d="${d}"/><path class="flow out" data-reader="${i}" d="${d}" pathLength="1"/>`;
     })
     .join("");
+  // People are given a cited answer, agents the same fact as data.
   const readers = f.readers
     .map(
       (r, i) =>
-        `<li class="reader" data-reader="${i}"><span class="reader-label">${esc(r.label)}</span><span class="reader-place">${esc(r.place)}</span></li>`,
+        `<li class="reader" data-reader="${i}"><span class="reader-head">${icon(i === 0 ? "person" : "agent", 15, "reader-ico")}<span class="reader-label">${esc(r.label)}</span><span class="reader-place">${esc(r.place)}</span></span>${i === 0 ? `<span class="reader-says">${cited(r.says)}</span>` : `<code class="reader-says">${esc(r.says)}</code>`}</li>`,
     )
     .join("");
   return `<figure class="hero-fig" role="img" aria-label="${esc(f.label)}">
@@ -255,33 +285,52 @@ function heroFigure(c: PageContext): string {
     </figure>`;
 }
 
+/**
+ * The problem, as the product shows it: its search box, asked a question five documents answer
+ * differently. It lists them, answers on top with the source it trusts, and marks the rest.
+ * The answered frame is the default; the script plays the asking while the box is in view.
+ */
 function problem(c: PageContext): string {
   const p = c.pack.problem;
-  const outdated = c.pack.demo.ui.outdated;
+  const u = c.pack.demo.ui;
   const rows = p.documents
-    .map((d) => {
+    .map((d, i) => {
       const mark =
-        d.mark === "old" ? `<span class="pill old">${esc(outdated)}</span>` : d.mark === "source" ? sup(1) : "";
-      return `<li class="${d.mark === "old" ? "is-old" : ""}">
-        <span class="doc"><span class="doc-name">${esc(d.name)}</span><span class="doc-place">${esc(d.place)}</span></span>
-        <span class="doc-value"><span class="v">${esc(d.value)}</span>${mark}</span>
-      </li>`;
+        d.mark === "old"
+          ? `<span class="pill old mark">${esc(u.outdated)}</span>`
+          : d.mark === "source"
+            ? '<span class="cite mark">1</span>'
+            : "";
+      return `<li class="pal-doc${d.mark === "old" ? " is-old" : ""}" style="--i:${i}">${icon("document", 16, "pal-ico")}<span class="pal-doc-name">${esc(d.name)}<span class="pal-doc-place">${esc(d.place)}</span></span><span class="v">${esc(d.value)}</span><span class="pal-doc-mark">${mark}</span></li>`;
     })
     .join("");
-  const arrow = `<svg class="into" width="56" height="20" viewBox="0 0 56 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10h50M45 4l7 6-7 6"/></svg>`;
+  const bars = (widths: number[]) => widths.map((w) => `<i style="width:${w}%"></i>`).join("");
   return `<section class="problem" id="problem">
   <div class="wrap">
     ${head(p.kicker, p.title, p.lead)}
-    <div class="resolve">
-      <ul class="sheet docs">${rows}</ul>
-      ${arrow}
-      <div class="resolved">
-        <p class="label">${esc(p.answerLabel)}</p>
-        <p class="res-answer">${esc(p.answer.slice(0, p.answer.lastIndexOf(" ") + 1))}<span class="nowrap">${esc(p.answer.slice(p.answer.lastIndexOf(" ") + 1))}${sup(1)}</span></p>
-        <ul class="res-notes">${p.answerNotes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>
+    <div class="ask-stage">
+      <div class="ask-app" aria-hidden="true">
+        <div class="ask-app-top"><span>Inspiration</span><span class="ask-app-co">${esc(u.company)}</span></div>
+        <div class="ask-app-body"><div>${bars([70, 52, 64, 46, 58])}</div><div>${bars([90, 76, 84, 40, 88, 66])}</div></div>
+      </div>
+      <div class="palette" role="img" aria-label="${esc(p.label)}">
+        <div class="pal-input">${icon("research", 18, "pal-search")}<span class="pal-q">${esc(u.question)}</span><kbd class="pal-enter">⏎</kbd></div>
+        <div class="pal-answer">
+          <span class="pal-wait" aria-hidden="true"><i></i><i></i></span>
+          <div class="pal-said">
+            <p class="pal-label">${esc(p.answerLabel)}</p>
+            <p class="pal-a">${cited(p.answer)}</p>
+            <p class="pal-why">${esc(p.why)}</p>
+          </div>
+        </div>
+        <div class="pal-docs">
+          <p class="pal-head"><span class="pal-label">${esc(p.docsLabel)} · ${p.documents.length}</span><span class="pal-state"><span class="pal-conflict">${esc(p.conflict)}</span><span class="pal-settled">${esc(p.settled)}</span></span></p>
+          <ul>${rows}</ul>
+        </div>
       </div>
     </div>
   </div>
+  <script>${c.scripts.ask}</script>
 </section>`;
 }
 
@@ -289,9 +338,6 @@ function problem(c: PageContext): string {
 function stage(c: PageContext): string {
   const u = c.pack.demo.ui;
   const orig = u.original ? `<span class="orig">${esc(u.original)}</span>` : "";
-  // The citation number stays on the line of the word it follows.
-  const cut = u.answerAfter.lastIndexOf(" ") + 1;
-  const after = `${esc(u.answerAfter.slice(0, cut))}<span class="nowrap">${esc(u.answerAfter.slice(cut))}<span class="cite">1</span></span>`;
   const bars = (widths: number[]) => widths.map((w) => `<i class="bar" style="width:${w}%"></i>`).join("");
   // The final frame is the default, so a page without script, or with reduced motion, shows
   // the result; the script rewinds it before it is seen and plays it once in view.
@@ -309,7 +355,7 @@ function stage(c: PageContext): string {
         <div class="win-main">
           <div class="ask"><span class="ask-q">${esc(u.question)}</span><kbd>⏎</kbd></div>
           <div class="st-answer">
-            <p class="answer-line">${esc(u.answerBefore)}<span class="value">6<span class="roll"><span class="roll-col"><span>0</span><span>5</span></span></span>0</span>${after}</p>
+            <p class="answer-line">${esc(u.answerBefore)}<span class="value">6<span class="roll"><span class="roll-col"><span>0</span><span>5</span></span></span>0</span>${cited(u.answerAfter)}</p>
             <div class="grow note"><div><p class="answer-note">${esc(u.note)}</p></div></div>
             <ol class="sources">
               <li class="grow src-new"><div><span class="src"><span class="cite">1</span><span class="src-title" lang="${SOURCE_LANG}">${esc(u.notice)}</span>${orig}</span></div></li>
@@ -342,7 +388,7 @@ function how(c: PageContext): string {
   const steps = d.steps
     .map(
       (s, i) =>
-        `<li data-step="${i + 1}"><span class="step-n">${i + 1}</span><span><strong>${esc(s.title)}</strong><span class="step-text">${esc(s.text)}</span></span></li>`,
+        `<li data-step="${i + 1}"><span class="step-n">${i + 1}</span><span><strong class="step-title">${esc(s.title)}</strong><span class="step-text">${rich(s.text)}</span></span></li>`,
     )
     .join("");
   return `<section class="how" id="how">
@@ -351,7 +397,7 @@ function how(c: PageContext): string {
     <div class="demo">
       <div class="demo-copy">
         <ol class="steps">${steps}</ol>
-        <p class="demo-foot"><button type="button" class="replay" hidden><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M2.5 7a4.5 4.5 0 1 0 1.4-3.3M2.5 1.5v2.6h2.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>${esc(d.replay)}</button><span>${esc(d.caption)}</span></p>
+        <p class="demo-foot">${esc(d.caption)}</p>
       </div>
       ${stage(c)}
     </div>
@@ -360,11 +406,45 @@ function how(c: PageContext): string {
 </section>`;
 }
 
+/** The spread of hotel prices behind the research figure; the fourth bar holds the average. */
+const SPREAD = [28, 46, 72, 100, 84, 52, 30];
+
+/** Which trips in the approvals sample went past five days and so needed Finance as well. */
+const FINANCE_SIGNED = [true, false, true];
+
+/**
+ * Each kind of source as it looks where it lives, holding one of the topic's facts: the wiki
+ * page with its edited line, the approvals the rule was read from, the merged change to the
+ * code, and the research figure with the date it is checked again.
+ */
+function sample(c: PageContext, kind: (typeof SOURCE_KINDS)[number]): string {
+  const s = c.pack.sources.samples;
+  const event = (i: number) => esc(at(c.pack.hero.figure.feeds, i, "hero.figure.feeds").event);
+  const bar = (w: number) => `<i class="smp-bar" style="width:${w}%"></i>`;
+  switch (kind) {
+    case "document":
+      return `<div class="smp smp-doc"><p class="smp-title">${esc(s.document.title)}<span class="smp-tag">${event(0)}</span></p>${bar(88)}${bar(64)}<p class="smp-line">${esc(s.document.line)} <mark>${esc(s.document.value)}</mark></p>${bar(80)}${bar(52)}</div>`;
+    case "approval": {
+      const trips = s.approval.trips
+        .map(
+          (t, i) =>
+            `<li><span>${esc(t)}</span><span class="smp-steps"><span class="smp-step">${esc(s.approval.manager)}</span>${FINANCE_SIGNED[i] ? `<span class="smp-step">${esc(s.approval.finance)}</span>` : ""}</span></li>`,
+        )
+        .join("");
+      return `<div class="smp smp-flow"><p class="smp-title">${esc(s.approval.title)}</p><ul>${trips}</ul><p class="smp-rule">${esc(s.approval.rule)}</p></div>`;
+    }
+    case "code":
+      return `<div class="smp smp-code"><p class="smp-file">expense/limits.ts</p><div class="smp-diff"><span class="smp-ln del">-  tier1: 600,</span><span class="smp-ln add">+  tier1: 650,</span><span class="smp-ln">   tier2: 450,</span></div><p class="smp-pr">${icon("merge", 14, "smp-merge")}<span>${esc(s.code.change)}</span><span class="smp-tag">${event(2)}</span></p></div>`;
+    case "research":
+      return `<div class="smp smp-research"><p class="smp-title">${esc(s.research.title)}</p><p class="smp-value">${esc(s.research.value)}</p><p class="smp-basis">${esc(s.research.basis)}</p><span class="smp-spread" aria-hidden="true">${SPREAD.map((h, i) => `<i style="height:${h}%"${i === 3 ? ' class="on"' : ""}></i>`).join("")}</span><p class="smp-due">${icon("refresh", 13, "smp-due-ico")}${esc(s.research.due)}</p></div>`;
+  }
+}
+
 function sources(c: PageContext): string {
   const s = c.pack.sources;
   const items = SOURCE_KINDS.map((kind, i) => {
     const it = at(s.items, i, "sources.items");
-    return `<li class="kind"><span class="kind-ico">${icon(kind, 22, "kind-glyph")}</span><h3>${esc(it.title)}</h3><p>${esc(it.text)}</p><p class="kind-fresh">${icon("refresh", 16, "fresh-ico")}<span>${esc(it.fresh)}</span></p></li>`;
+    return `<li class="kind">${sample(c, kind)}<h3>${icon(kind, 18, "kind-glyph")}${esc(it.title)}</h3><p>${rich(it.text)}</p><p class="kind-fresh">${icon("refresh", 16, "fresh-ico")}<span>${rich(it.fresh)}</span></p></li>`;
   }).join("");
   return `<section class="origins" id="sources">
   <div class="wrap">
@@ -403,7 +483,7 @@ function features(c: PageContext): string {
   const cards = f.items
     .map(
       (it, i) =>
-        `<article class="card">${at(art, i, "features.items")}<h3>${esc(it.title)}</h3><p>${esc(it.text)}</p></article>`,
+        `<article class="card">${at(art, i, "features.items")}<h3>${esc(it.title)}</h3><p>${rich(it.text)}</p></article>`,
     )
     .join("");
   return `<section class="features" id="features">
@@ -439,7 +519,7 @@ function agents(c: PageContext): string {
   <div class="wrap">
     ${head(a.kicker, a.title, a.lead)}
     <div class="agents-row">
-    <ul class="points">${a.points.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>
+    <ul class="points">${a.points.map((p) => `<li>${rich(p)}</li>`).join("")}</ul>
     <figure class="code">
       <pre><code>${code}</code></pre>
       <figcaption>${esc(a.note)}</figcaption>
@@ -449,13 +529,22 @@ function agents(c: PageContext): string {
 </section>`;
 }
 
+/** One mark for each of the enterprise items, in their order. */
+const ENTERPRISE_ICONS = ["key", "lock", "shield", "cloud"] as const;
+
 function enterprise(c: PageContext): string {
   const e = c.pack.enterprise;
   const close = c.pack.closing;
+  const items = e.items
+    .map(
+      (it, i) =>
+        `<li><span class="ent-ico">${icon(at([...ENTERPRISE_ICONS], i, "enterprise.items"), 20, "ent-glyph")}</span><h3>${esc(it.title)}</h3><p>${rich(it.text)}</p></li>`,
+    )
+    .join("");
   return `<section class="enterprise" id="enterprise">
   <div class="wrap">
     ${head(e.kicker, e.title)}
-    <ul class="grid4">${e.items.map((it) => `<li><h3>${esc(it.title)}</h3><p>${esc(it.text)}</p></li>`).join("")}</ul>
+    <ul class="grid4">${items}</ul>
     <div class="closing">
       <p class="closing-title">${esc(close.title)}</p>
       <p class="closing-note">${esc(close.note)}</p>
