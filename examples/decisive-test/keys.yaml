@@ -1041,10 +1041,11 @@ facts:
       - from: "2025-09-24"
         value: "20000 USD"
         texts: ["20000", "2万"]
+        condition: ["local life insurance"]
         stated:
           - file: "gitlab/handbook/total-rewards/benefits/general-and-entity-benefits/_index.md"
             revision: "f96a52e1999a607c5a21c464ad44b7dcf3f8a350"
-            quote: "GitLab provides $20,000 in life insurance coverage"
+            quote: "Where local life insurance benefits aren't available, GitLab provides $20,000 in life insurance coverage"
   "growth_development_budget":
     about: "Growth and development budget, per year"
     topic: "gitlab"

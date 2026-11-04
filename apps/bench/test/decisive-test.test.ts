@@ -7,7 +7,7 @@ import { Corpus } from "@inspiration/engine";
 import { languageOf } from "@inspiration/kernel";
 import { describe, expect, test } from "vitest";
 import { parse } from "yaml";
-import { type Keys, loadKeys, loadQuestions, outcomeOf, PATTERNS, type Question } from "../src/index.ts";
+import { type Keys, keepsMeaning, loadKeys, loadQuestions, outcomeOf, PATTERNS, type Question } from "../src/index.ts";
 import { catalogueCoverage } from "../src/preflight.ts";
 
 const DECISIVE = fileURLToPath(new URL("../../../examples/decisive-test/", import.meta.url));
@@ -65,6 +65,25 @@ describe("the decisive test's cases", () => {
       }
     }
     expect([Object.keys(keys.facts).length, quotes]).toEqual([92, 217]);
+  });
+
+  test("every value keeps the key's meaning, as the evidence audit reads it, in a file that states it", async () => {
+    // Otherwise the audit would count the value as changed where governance gives the model the
+    // document untouched: the key, not governance, would be at fault.
+    const keys = (await loadKeys(DECISIVE)) as Keys;
+    const unread: string[] = [];
+    for (const [fact, key] of Object.entries(keys.facts)) {
+      for (const v of [...key.values, ...(key.conflicting ?? [])]) {
+        if (v.value === null || !v.texts) continue;
+        const quotes = v.stated.map((s) => s.quote);
+        const condition = "condition" in v ? v.condition : undefined;
+        const read = await Promise.all(
+          v.stated.map(async (s) => keepsMeaning(await textOf(s.file), v.texts as string[], quotes, condition)),
+        );
+        if (!read.some(Boolean)) unread.push(`${fact}: ${v.value}`);
+      }
+    }
+    expect(unread).toEqual([]);
   });
 
   test("the catalogue names every keyed fact, by a word found near each place the key cites", async () => {

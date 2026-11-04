@@ -64,8 +64,9 @@ members' monthly limit.
 To check an entry, open the URL `files.yaml` gives for the file (it names the revision),
 find the quote and read the value and its conditions. The test checks that every quote is
 in its file, with runs of spaces as one space and HTML tags removed, and that the revision
-matches `files.yaml` or `examples/kubernetes-docs/sources.yaml`; whether the quote says what
-the key says is a reader's check.
+matches `files.yaml` or `examples/kubernetes-docs/sources.yaml`, and that each value keeps the
+key's meaning, as the evidence audit reads it, in a file that states it; whether the quote
+says what the key says is a reader's check.
 
 ### Corrections
 
