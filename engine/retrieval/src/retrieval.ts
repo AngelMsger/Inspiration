@@ -574,15 +574,49 @@ export class Retrieval implements Retriever {
     if (!(await this.#readableDocuments(who, [version])).has(version.id)) return none;
     const order = new Map<string, number>();
     for (const b of await this.store.blocksOf(sourceVersionId)) for (const id of b.span_ids) order.set(id, order.size);
-    const filter = await this.#scope(who, undefined);
-    const statements = await this.#statements(
-      new Map([...order.keys()].map((id) => [id, 1])),
-      new Set(),
+    const first = (h: SearchHit) =>
+      Math.min(...h.citations.map((c) => order.get(c.span_id) ?? Number.POSITIVE_INFINITY));
+    const { hits, held } = await this.#marked(who, new Map([...order.keys()].map((id) => [id, 1])), (a, b) => {
+      return first(a) - first(b) || (a.unit_id < b.unit_id ? -1 : 1);
+    });
+    return { source_version_id: sourceVersionId, statements: hits, held };
+  }
+
+  /**
+   * The current statements with these IDs that the asker may read, marked as search marks
+   * them, in the order asked, and the statements that hold in place of the outdated and
+   * disputed ones: what a todo asks a person to choose between, or what a topic holds. A
+   * statement the asker may not read is left out.
+   */
+  async statementsOf(
+    claimIds: readonly string[],
+    who: Principal,
+  ): Promise<{ statements: SearchHit[]; held: SearchHit[] }> {
+    const asked = new Map(claimIds.map((id, i) => [id, i]));
+    const evidence = (await this.store.evidenceOf([...asked.keys()])).filter((e) => e.role === "supports");
+    const { hits, held } = await this.#marked(
       who,
-      filter,
-      {},
-      { limit: Number.POSITIVE_INFINITY },
+      new Map(evidence.map((e) => [e.span_id, 1])),
+      (a, b) => (asked.get(a.unit_id) as number) - (asked.get(b.unit_id) as number),
+      (id) => asked.has(id),
     );
+    return { statements: hits, held };
+  }
+
+  /**
+   * The readable current statements resting on these spans (those `keep` keeps), marked with
+   * their verdicts and freshness and sorted, and the statements that hold in place of the
+   * outdated and disputed ones.
+   */
+  async #marked(
+    who: Principal,
+    spanScore: ReadonlyMap<string, number>,
+    order: (a: SearchHit, b: SearchHit) => number,
+    keep: (claimId: string) => boolean = () => true,
+  ): Promise<{ hits: SearchHit[]; held: SearchHit[] }> {
+    const filter = await this.#scope(who, undefined);
+    const found = await this.#statements(spanScore, new Set(), who, filter, {}, { limit: Number.POSITIVE_INFINITY });
+    const statements = new Map([...found].filter(([id]) => keep(id)));
     const verdicts = await this.#visibleVerdicts(
       who,
       await this.#verdictsOf(
@@ -601,15 +635,11 @@ export class Retrieval implements Retriever {
       listed.map((s) => s.claim.id),
     );
     const now = this.clock().toISOString();
-    const first = (h: SearchHit) =>
-      Math.min(...h.citations.map((c) => order.get(c.span_id) ?? Number.POSITIVE_INFINITY));
-    const hits = listed
-      .map((s) => statementHit(s, 0, freshnessOf(staleness.get(s.claim.id), now)))
-      .sort((a, b) => first(a) - first(b) || (a.unit_id < b.unit_id ? -1 : 1));
+    const hits = listed.map((s) => statementHit(s, 0, freshnessOf(staleness.get(s.claim.id), now))).sort(order);
     const searched: Searched = { hits, statements, verdicts, filter, labels: new Map() };
     const all = [...hits];
     await this.#addHeld(all, searched, who);
-    return { source_version_id: sourceVersionId, statements: hits, held: all.slice(hits.length) };
+    return { hits, held: all.slice(hits.length) };
   }
 
   /** What the asker may read, within the spaces asked for when any are. */

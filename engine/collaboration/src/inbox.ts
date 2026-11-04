@@ -11,6 +11,7 @@ import {
   type TaxonomyNode,
   type Todo,
   type TodoKind,
+  type TodoResolution,
   type TodoStatus,
 } from "@inspiration/contracts";
 import { defineTable, type Records, type RecordTx } from "@inspiration/eventbus";
@@ -98,6 +99,7 @@ interface Request {
   unit_ids: string[];
   dedupe_key: string;
   slot_key?: string;
+  resolutions?: TodoResolution[];
   due_at?: string;
   campaign?: boolean;
 }
@@ -141,6 +143,28 @@ export function cardKind(batchKey: string): CardKind {
   throw new RangeError(`not an inbox card: ${batchKey}`);
 }
 
+/** todo.resolved for a todo a person, or an agent for one, just closed. */
+function resolvedEvent(item: Item, at: Date): EventEnvelope {
+  const t = item.todo;
+  const effect = t.resolutions?.find((r) => r.key === t.resolved_with)?.effect;
+  return newEvent(
+    "todo.resolved",
+    {
+      todo_id: t.id,
+      kind: t.kind,
+      space_id: t.space_id,
+      dedupe_key: item.dedupe_key,
+      ...(t.slot_key !== undefined && { slot_key: t.slot_key }),
+      created_by: t.created_by,
+      status: t.status,
+      resolved_by: t.resolved_by as string,
+      ...(t.resolved_with !== undefined && { resolved_with: t.resolved_with }),
+      ...(effect && { effect }),
+    },
+    { tenantId: t.tenant_id, producer: COMPONENT, subject: t.id, occurredAt: at },
+  );
+}
+
 export interface InboxOptions {
   store: KnowledgeStore;
   records: Records;
@@ -180,6 +204,7 @@ export class Inbox {
       unit_ids: r.unit_ids,
       dedupe_key: r.dedupe_key,
       ...(r.slot_key !== undefined && { slot_key: r.slot_key }),
+      ...(r.resolutions?.length && { resolutions: r.resolutions }),
     });
   };
 
@@ -251,7 +276,10 @@ export class Inbox {
     });
   }
 
-  /** Close a todo: done (with the key of the resolution chosen, if any) or dismissed. */
+  /**
+   * Close a todo: done (with the key of the resolution chosen, if any) or dismissed. A key the
+   * todo does not offer raises RangeError. todo.resolved tells its requester.
+   */
   async resolve(
     tenantId: string,
     todoId: string,
@@ -264,6 +292,12 @@ export class Inbox {
   /** Acknowledge notes, as one action: they are done. */
   async acknowledge(tenantId: string, todoIds: readonly string[], by: string): Promise<Todo[]> {
     return this.#close(tenantId, todoIds, { by, with: "acknowledged" }, "note");
+  }
+
+  /** One of the tenant's todos; undefined for an unknown ID. */
+  async todo(tenantId: string, todoId: string): Promise<Todo | undefined> {
+    const item = await this.records.get(ITEMS, todoId);
+    return item?.todo.tenant_id === tenantId ? item.todo : undefined;
   }
 
   /** The tenant's todos as the inbox keeps them, optionally only open ones. */
@@ -335,7 +369,7 @@ export class Inbox {
         const [open] = await tx.find(ITEMS, { tenant_id: tenantId, dedupe_key: request.dedupe_key, status: OPEN });
         if (open) {
           // A later request replaces what the todo says; where it sits stays.
-          const { detail: _detail, slot_key: _slot, ...todo } = open.todo;
+          const { detail: _detail, slot_key: _slot, resolutions: _resolutions, ...todo } = open.todo;
           open.todo = {
             ...todo,
             title: request.title,
@@ -343,6 +377,7 @@ export class Inbox {
             unit_ids: request.unit_ids,
             ...(request.detail !== undefined && { detail: request.detail }),
             ...(request.slot_key !== undefined && { slot_key: request.slot_key }),
+            ...(request.resolutions && { resolutions: request.resolutions }),
           };
           await tx.put(ITEMS, [open]);
           this.totals.merged++;
@@ -363,6 +398,7 @@ export class Inbox {
             created_at: now.toISOString(),
             ...(request.detail !== undefined && { detail: request.detail }),
             ...(request.slot_key !== undefined && { slot_key: request.slot_key }),
+            ...(request.resolutions && { resolutions: request.resolutions }),
             ...(request.due_at !== undefined && { due_at: request.due_at }),
           },
           dedupe_key: request.dedupe_key,
@@ -517,8 +553,10 @@ export class Inbox {
       this.records.transaction(async (tx) => {
         const items = await tx.getMany(ITEMS, todoIds);
         const found = new Map(items.filter((i) => i.todo.tenant_id === tenantId).map((i) => [i.todo.id, i]));
-        const at = this.clock().toISOString();
+        const now = this.clock();
+        const at = now.toISOString();
         const out: Todo[] = [];
+        const closed: Item[] = [];
         for (const id of todoIds) {
           const item = found.get(id);
           if (!item) throw new RangeError(`unknown todo ${id}`);
@@ -526,6 +564,10 @@ export class Inbox {
           if (!OPEN.includes(item.todo.status)) {
             out.push(item.todo);
             continue;
+          }
+          const offered = item.todo.resolutions;
+          if (how.with !== undefined && offered?.length && !offered.some((r) => r.key === how.with)) {
+            throw new RangeError(`todo ${id} offers no resolution ${how.with}`);
           }
           item.todo = {
             ...item.todo,
@@ -535,8 +577,11 @@ export class Inbox {
             ...(how.with !== undefined && { resolved_with: how.with }),
           };
           out.push(item.todo);
+          closed.push(item);
         }
         await tx.put(ITEMS, [...found.values()]);
+        // The requester applies what was chosen; the event commits with the close.
+        if (closed.length) await tx.publish(...closed.map((i) => resolvedEvent(i, now)));
         return out;
       }),
     );

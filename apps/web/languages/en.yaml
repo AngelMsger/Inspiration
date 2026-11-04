@@ -9,6 +9,9 @@ account.language: Interface language
 
 nav.label: Knowledge
 nav.home: Home
+nav.inbox: "Inbox"
+nav.knowledge: "Knowledge"
+nav.topics: "{count} topics"
 nav.spaces: Spaces
 nav.documents: Documents
 
@@ -75,6 +78,75 @@ doc.holds_instead: Holds instead
 doc.from: "From {title}"
 doc.reading: Opening the document…
 doc.not_found: This document does not exist, or you cannot open it.
+
+inbox.title: "Inbox"
+inbox.week: "Week {week}"
+inbox.loading: "Opening your inbox…"
+inbox.empty: "Nothing is waiting for you."
+inbox.suggested: "Suggested: {value}, as {title} says"
+inbox.confirm: "Confirm: {value}"
+inbox.open: "Open"
+inbox.acknowledge: "Got it"
+inbox.noted: "Noted."
+inbox.decided: "{value} confirmed. Readers and agents now see it as current."
+inbox.see_marks: "See the marks in {title}"
+inbox.see_topic: "See the topic {title}"
+inbox.hidden: "a document you cannot open"
+
+inbox.side: "{value} in {title}"
+quote.title: "{title}"
+list.mark: ", "
+fact.scoped: "{topic} ({scope})"
+
+todo.conflict: "Conflict"
+todo.stale: "Copy to check"
+todo.override_conflict: "Override conflict"
+todo.review_due: "Review due"
+todo.assumption_drift: "Assumption changed"
+todo.comment_followup: "Comment"
+todo.publish_review: "Publish review"
+todo.coverage_gap: "Gap"
+todo.extraction_review: "Reading check"
+todo.feedback: "Feedback"
+todo.note: "Note"
+todo.unstated: "No longer stated"
+todo.source_deleted: "Source deleted"
+
+decision.now_disputed: "Readers now see {value}, marked disputed."
+decision.now_outdated: "Readers now see {value}; {others} is marked outdated."
+decision.yours: "Your decision"
+decision.choice: "{value}, as {title} says"
+decision.suggested: "Suggested"
+decision.confirm: "Confirm"
+decision.dismiss: "Not now"
+decision.confirming: "Confirming…"
+decision.about: "About this conflict"
+decision.topic: "Topic"
+decision.after: "Once confirmed"
+decision.after_text: "Readers and agents see {value}. The other values are marked outdated where they are written, and answers stop saying it is being decided."
+decision.not_found: "This todo is no longer waiting for you."
+decision.back: "Back to the inbox"
+
+unit.day: "{n} days"
+unit.cny_per_night: "¥{n} a night"
+unit.cny_per_day: "¥{n} a day"
+unit.cny: "¥{n}"
+
+knowledge.title: "Knowledge"
+knowledge.empty: "No topics in this space yet."
+knowledge.loading: "Opening the topic…"
+knowledge.not_found: "This topic does not exist, or you cannot read it."
+topic.owner: "Topic owner {name}"
+topic.no_owner: "No topic owner yet"
+topic.others: "More on this topic"
+topic.subtopics: "Subtopics"
+topic.about: "This topic"
+topic.pending: "Waiting for your decision"
+topic.none: "Nothing here you can read yet."
+topic.written: "In {title}: "
+topic.on_page: "On this page"
+topic.sources: "Sources"
+topic.places: "{places} passages in {documents} documents"
 
 palette.label: Search, ask, or go somewhere
 palette.ask: "Ask “{text}”"

@@ -6,10 +6,15 @@ import type {
   DocumentTree,
   DocumentView,
   GroundedAnswer,
+  Inbox,
+  ResolveTodo,
   SearchResult,
   Space,
   SpaceList,
   Tenant,
+  Todo,
+  TopicList,
+  TopicView,
 } from "@inspiration/contracts";
 import { useEffect, useState } from "react";
 import type { Session } from "./backend.ts";
@@ -57,6 +62,10 @@ export const api = {
     ),
   search: (text: string) => call<SearchResult>("/v0/search", { text }),
   answer: (question: string) => call<GroundedAnswer>("/v0/answers", { question }),
+  topics: (space: string) => call<TopicList>(`/v0/spaces/${encodeURIComponent(space)}/topics`),
+  topic: (key: string) => call<TopicView>(`/v0/topics/${encodeURIComponent(key)}`),
+  inbox: () => call<Inbox>("/v0/inbox"),
+  resolve: (todo: string, how: ResolveTodo) => call<Todo>(`/v0/todos/${encodeURIComponent(todo)}/resolve`, how),
 };
 
 export type Loaded<T> = { state: "loading" } | { state: "done"; value: T } | { state: "failed"; error: ApiFailure };
@@ -87,15 +96,27 @@ export function useLoad<T>(key: string, load: () => Promise<T>): Loaded<T> {
   return loaded.key === key ? loaded.value : { state: "loading" };
 }
 
-/** What the left column, home and the palette show: the spaces the person reads, with their trees. */
+/**
+ * What the left column, home and the palette show: the spaces the person reads, with their
+ * Documents trees and knowledge outlines.
+ */
 export interface Library {
   tenant: Tenant;
   spaces: Space[];
   trees: Map<string, DocumentTree>;
+  topics: Map<string, TopicList>;
 }
 
 export async function loadLibrary(): Promise<Library> {
   const { tenant, spaces } = await api.spaces();
-  const trees = await Promise.all(spaces.map((s) => api.tree(s.id)));
-  return { tenant, spaces, trees: new Map(trees.map((t) => [t.space_id, t])) };
+  const [trees, topics] = await Promise.all([
+    Promise.all(spaces.map((s) => api.tree(s.id))),
+    Promise.all(spaces.map((s) => api.topics(s.id))),
+  ]);
+  return {
+    tenant,
+    spaces,
+    trees: new Map(trees.map((t) => [t.space_id, t])),
+    topics: new Map(topics.map((t) => [t.space_id, t])),
+  };
 }

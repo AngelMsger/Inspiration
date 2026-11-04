@@ -60,6 +60,147 @@ $defs:
       annotations:
         $ref: "retrieval.yaml#/$defs/DocumentAnnotations"
 
+  TopicList:
+    description: The live topics of a space's knowledge outline, ordered by key; areas have no parent.
+    type: object
+    required: [space_id, topics]
+    properties:
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      topics:
+        type: array
+        items:
+          $ref: "page.yaml#/$defs/TaxonomyNode"
+
+  TopicView:
+    description: >
+      One topic as the member may read it: its current statements and its subtopics', and those
+      of every other value of the facts they fill, wherever they are stated, all marked as
+      search marks them; the statements that hold in place of the outdated and disputed ones;
+      and the facts.
+    type: object
+    required: [topic, subtopics, statements, held, facts]
+    properties:
+      topic:
+        $ref: "page.yaml#/$defs/TaxonomyNode"
+      parent:
+        $ref: "page.yaml#/$defs/TaxonomyNode"
+      subtopics:
+        type: array
+        items:
+          $ref: "page.yaml#/$defs/TaxonomyNode"
+      statements:
+        type: array
+        items:
+          $ref: "retrieval.yaml#/$defs/SearchHit"
+      held:
+        type: array
+        items:
+          $ref: "retrieval.yaml#/$defs/SearchHit"
+      facts:
+        description: The fact slots the statements fill, each with its label in the tenant's predicate catalogue.
+        type: array
+        items:
+          type: object
+          required: [slot_key]
+          properties:
+            slot_key:
+              type: string
+            label:
+              type: string
+
+  Inbox:
+    description: >
+      A member's open todos on the cards the inbox puts them on, most urgent card first, with
+      what each todo asks them to choose between.
+    type: object
+    required: [cards]
+    properties:
+      cards:
+        type: array
+        items:
+          $ref: "#/$defs/InboxCard"
+
+  InboxCardKind:
+    description: >
+      review: an owner's todos about one topic in one week. notes: an owner's notes of one
+      week. campaign: a space's first reviews of one topic. steward: todos of a topic nobody
+      owns.
+    type: string
+    enum: [review, notes, campaign, steward]
+
+  InboxCard:
+    type: object
+    required: [batch_key, kind, todos]
+    properties:
+      batch_key:
+        type: string
+      kind:
+        $ref: "#/$defs/InboxCardKind"
+      week:
+        $ref: "collab.yaml#/$defs/IsoWeek"
+      topic:
+        description: The topic the card is about, when it has one.
+        $ref: "page.yaml#/$defs/TaxonomyNode"
+      todos:
+        type: array
+        items:
+          $ref: "#/$defs/InboxTodo"
+
+  InboxTodo:
+    type: object
+    required: [todo, statements, choices]
+    properties:
+      todo:
+        $ref: "collab.yaml#/$defs/Todo"
+      fact_label:
+        description: >
+          What the fact a conflict or a note is about is called in the tenant's predicate
+          catalogue ("Hotel cap per night"); the slot's qualifiers are its scope.
+        type: string
+      statements:
+        description: >
+          The statements the todo is about (its claims), as the member may read them, in the
+          todo's order: for a conflict, the best statement of each value, the proposed one first.
+        type: array
+        items:
+          $ref: "retrieval.yaml#/$defs/SearchHit"
+      choices:
+        description: The resolutions the todo offers, in its order; for a conflict, the proposed value first.
+        type: array
+        items:
+          $ref: "#/$defs/TodoChoice"
+
+  TodoChoice:
+    description: >
+      One resolution a todo offers. For a conflict it chooses a value: the value, and the
+      statement of it to show (one of the todo's statements, when the member may read it).
+    type: object
+    required: [key, label]
+    properties:
+      key:
+        type: string
+      label:
+        type: string
+      value:
+        type: string
+      unit_id:
+        $ref: "common.yaml#/$defs/UnitId"
+
+  ResolveTodo:
+    description: >
+      How the member resolves a todo assigned to them: done with one of the resolutions it
+      offers, or dismissed. The response is the closed Todo.
+    type: object
+    properties:
+      with:
+        description: The key of the chosen resolution.
+        type: string
+        minLength: 1
+      status:
+        type: string
+        enum: [done, dismissed]
+
   ApiErrorCode:
     type: string
     enum: [bad_request, unauthenticated, forbidden, not_found, internal]

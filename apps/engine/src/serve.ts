@@ -5,7 +5,7 @@
  * Runs the engine in memory over a corpus and serves its HTTP API (http.ts) on localhost, for
  * the web app to read. The corpus stands in for the business layer: it provisions the tenant,
  * its spaces and members, and its sources are synced once at start and read to the end (every
- * event delivered, topics clustered) before the API answers. Models are the development
+ * event delivered, topics clustered and given owners) before the API answers. Models are the development
  * stand-ins of config/gateway.dev.yaml. --today sets the day governance and freshness take as
  * now; without it, the real day.
  */
@@ -18,10 +18,11 @@ import { logger } from "@inspiration/kernel";
 import { Corpus } from "./corpus.ts";
 import { Engine } from "./engine.ts";
 import { serveApi } from "./http.ts";
+import { assignOwners } from "./owners.ts";
 
 const log = logger("engine.serve");
 
-/** Provision the corpus, sync every source and read it all, as the demo starts. */
+/** Provision the corpus, sync every source, read it all and give its topics owners, as the demo starts. */
 export async function seed(engine: Engine, corpus: Corpus): Promise<void> {
   await corpus.provision(engine.authz);
   await corpus.stamp();
@@ -31,6 +32,8 @@ export async function seed(engine: Engine, corpus: Corpus): Promise<void> {
   }
   await engine.settle();
   await engine.topics.recluster(corpus.tenantId);
+  await engine.settle();
+  await assignOwners(engine, corpus);
   await engine.settle();
 }
 

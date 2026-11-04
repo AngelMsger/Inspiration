@@ -1,4 +1,4 @@
-import { mkdtemp, readFile } from "node:fs/promises";
+import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FakeProvider, Gateway, parseGatewayConfig, ValkeyCache } from "@inspiration/model-gateway";
@@ -45,5 +45,18 @@ describe.skipIf(!hasStack())("replies kept beyond the cache", () => {
     const ttl = await valkey.ttl(`${streamPrefix}:b:gw:cache:${JSON.parse(lines[0] as string).key}`);
     expect(ttl).toBeGreaterThan(0);
     expect(ttl).toBeLessThanOrEqual(60);
+  });
+
+  test("a file with a broken line imports nothing and names every broken line", async ({ valkey, streamPrefix }) => {
+    const file = join(await mkdtemp(join(tmpdir(), "replies-")), "replies.jsonl");
+    const whole = JSON.stringify({ key: "k1", reply: { text: "kept" } });
+    await writeFile(file, `${whole}\n{"key": "k2", "reply":\n\n${JSON.stringify({ reply: { text: "no key" } })}\n`);
+    const cache = new ValkeyCache(valkey, { prefix: `${streamPrefix}:c` });
+    const imported = importReplies(cache, file, 60);
+    await expect(imported).rejects.toMatchObject({ name: "RepliesError" });
+    await expect(imported).rejects.toThrow(/2 broken lines \(line 2: not JSON; line 4: .*key/);
+    const left: string[] = [];
+    for await (const [key] of cache.entries()) left.push(key);
+    expect(left).toEqual([]);
   });
 });

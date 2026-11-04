@@ -1,12 +1,18 @@
 /**
  * The product website: one static page per language, built from the language packs in
- * `apps/site/languages/`. Each page is a single HTML file with its styles and its script
+ * `apps/site/languages/`. Each page is a single HTML file with its styles and its scripts
  * inlined, so it can be served from any static host. The page for the root language is
  * `index.html`; every other language is `<tag>/index.html`.
  *
- * The page carries a scripted demo of the product (the hotel cap story of the demo corpus),
- * drawn in the product's own look; it is an illustration, not the product. While the product
- * is in active development the site offers no download and no sign-up; it says so.
+ * Beside the headline, a figure shows four kinds of source (a wiki, an approval flow, a code
+ * repository, a research report) feeding one topic that answers people and agents; while it is
+ * in view, a few changes run through it and then it rests. Further down, two scripted demos tell
+ * the hotel cap story of the demo corpus in the product's own look: its search box, asked where
+ * five documents disagree, and its window, as a new notice changes the answer. They repeat while
+ * in view. All three are illustrations, not the product, and hold still on their result with
+ * reduced motion or without script. While the product
+ * is in active development the site offers no download and no sign-up, and says so once, in
+ * its closing lines.
  *
  * Usage (`pnpm site` runs this file):
  *
@@ -85,7 +91,8 @@ export function build(options: BuildOptions): Map<string, string> {
   if (!packs.some((p) => p.tag === options.root))
     throw new RangeError(`site: no language pack for root ${options.root}`);
   const css = readFileSync(join(SITE, "src/site.css"), "utf8");
-  const script = stripTypeScriptTypes(readFileSync(join(SITE, "src/client/demo.ts"), "utf8"));
+  const client = (name: string) => stripTypeScriptTypes(readFileSync(join(SITE, `src/client/${name}.ts`), "utf8"));
+  const scripts = { hero: client("hero"), ask: client("ask"), demo: client("demo") };
   const pages = new Map<string, string>();
   for (const { tag, pack } of packs) {
     const depth = tag === options.root ? 0 : 1;
@@ -94,7 +101,7 @@ export function build(options: BuildOptions): Map<string, string> {
       "./";
     const path = tag === options.root ? "index.html" : `${tag}/index.html`;
     const fragment = options.fragment && tag === options.root;
-    pages.set(path, renderPage({ tag, pack, packs, href, css, script, fragment }));
+    pages.set(path, renderPage({ tag, pack, packs, href, css, scripts, fragment }));
   }
   return pages;
 }

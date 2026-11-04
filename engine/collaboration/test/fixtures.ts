@@ -8,6 +8,7 @@ import {
   type TaxonomyNode,
   type TodoCreated,
   type TodoRequested,
+  type TodoResolved,
 } from "@inspiration/contracts";
 import { MemoryRecords, PgRecords, type Records } from "@inspiration/eventbus";
 import { openPool } from "@inspiration/kernel";
@@ -50,6 +51,8 @@ export interface World {
   setToday: (day: string) => void;
   /** Every todo.created the inbox published, in order. */
   created: () => Promise<TodoCreated[]>;
+  /** Every todo.resolved the inbox published, in order. */
+  resolved: () => Promise<TodoResolved[]>;
 }
 
 export const inboxTest = (backend: Backend, settings: Partial<InboxSettings> = {}) =>
@@ -150,6 +153,8 @@ export const inboxTest = (backend: Backend, settings: Partial<InboxSettings> = {
     };
     const created = async () =>
       (await outbox()).filter((e) => e.type === "todo.created").map((e) => e.data as unknown as TodoCreated);
+    const resolved = async () =>
+      (await outbox()).filter((e) => e.type === "todo.resolved").map((e) => e.data as unknown as TodoResolved);
     return {
       store,
       records,
@@ -163,5 +168,6 @@ export const inboxTest = (backend: Backend, settings: Partial<InboxSettings> = {
       deliver,
       setToday,
       created,
+      resolved,
     };
   });
