@@ -1,0 +1,77 @@
+# What the bench needs to read English. The synthetic tenant (src/synthesize.ts) is written
+# only in Chinese so far, so this pack holds only the evidence audit's words.
+
+# The evidence audit (src/audit.ts): a source keeps a value only in a clause that denies it
+# and narrows it no more than the answer key's own quotes do. Every pack is read at once,
+# since documents carry no language tag, so a word here must not be part of a word in
+# another language.
+audit:
+  # Where a clause ends: a sentence, a semicolon, a line. A comma does not end one, so "$120
+  # a day, only for executives" stays one clause.
+  clause_ends: [". ", "; ", "! ", "? ", "\n"]
+  # Words that deny what the clause states. Contractions are listed whole: a word that starts
+  # with a letter matches only from the start of a word, so "n't" alone would not.
+  negations:
+    - "not"
+    - "no"
+    - "never"
+    - "none"
+    - "neither"
+    - "nor"
+    - "cannot"
+    - "can't"
+    - "don't"
+    - "doesn't"
+    - "didn't"
+    - "isn't"
+    - "aren't"
+    - "wasn't"
+    - "weren't"
+    - "won't"
+    - "wouldn't"
+    - "shouldn't"
+    - "mustn't"
+    - "excluded"
+    - "ineligible"
+    - "non-reimbursable"
+  # Phrases with a negation that bound or widen the value rather than deny it, taken out
+  # before negations are looked for.
+  not_negations:
+    - "no more than"
+    - "not more than"
+    - "no less than"
+    - "not less than"
+    - "no fewer than"
+    - "no greater than"
+    - "no higher than"
+    - "no later than"
+    - "not later than"
+    - "no longer than"
+    - "no earlier than"
+    - "not until"
+    - "not before"
+    - "not exceed"
+    - "not to exceed"
+    - "not exceeding"
+    - "cannot exceed"
+    - "can't exceed"
+    - "don't exceed"
+    - "doesn't exceed"
+    - "won't exceed"
+    - "shouldn't exceed"
+    - "not only"
+    - "whether or not"
+    - "regardless"
+    - "no matter"
+  # Words that narrow the value to someone or something: who it is for, or what is left out.
+  # A plain "if" is not one: it more often sets the case a policy covers than narrows a value.
+  restrictions:
+    - "only"
+    - "solely"
+    - "exclusively"
+    - "except"
+    - "excluding"
+    - "unless"
+    - "provided that"
+    - "limited to"
+    - "reserved for"

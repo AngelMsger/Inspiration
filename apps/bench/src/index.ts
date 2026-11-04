@@ -35,6 +35,15 @@
  */
 
 export {
+  beyondRaw,
+  type InputSource,
+  keepsMeaning,
+  type Retention,
+  type RetentionTotals,
+  retentionOf,
+  says,
+} from "./audit.ts";
+export {
   type CaseResult,
   type Control,
   type ControlCase,
@@ -69,10 +78,8 @@ export { daysSummary, type IngestReport, ingest, plantedDuplicates, type Spread,
 export { type OutlineReport, type OutlineRun, outlineReport } from "./outline.ts";
 export { assignOwners, type OwnersReport } from "./owners.ts";
 export {
-  beyondRaw,
   type Case,
   type FactKey,
-  type InputSource,
   type Keys,
   type KeyValue,
   type Kind,
@@ -88,15 +95,11 @@ export {
   type QuestionsReport,
   questionLines,
   questionsReport,
-  type Retention,
-  type RetentionTotals,
-  retentionOf,
   type Score,
   type SearchReport,
   type SearchResult,
   type SearchTally,
   sampleQuestions,
-  says,
   searchLines,
   searchReport,
   type Tally,

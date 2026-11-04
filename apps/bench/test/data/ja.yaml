@@ -1,0 +1,17 @@
+# The evidence audit's cases in Japanese (retention.test.ts): a key quote of a daily meal
+# allowance, sentences that state the value with the quote's meaning, and sentences that
+# state it only denied, or narrowed to someone the key does not name unless it names them.
+audit:
+  answer: ["120"]
+  quote: "出張中の食事は 1 日 120 米ドルまで精算できます。"
+  kept:
+    - "出張中の食事は 1 日 120 米ドルを超えない範囲で精算できます。"
+    - "出張の有無にかかわらず、食事は 1 日 120 米ドルまで精算できます。"
+  apart: "食事は 1 日 120 米ドルまで精算できます。アルコールは対象外です。"
+  denied:
+    - "出張中の食事は 1 日 120 米ドルまでの精算はできません。"
+    - "出張中の食事 1 日 120 米ドルは精算の対象外です。"
+  narrowed:
+    - "役員のみ、食事を 1 日 120 米ドルまで精算できます。"
+    - "食事は役員に限り 1 日 120 米ドルまで精算できます。"
+  condition: ["役員"]

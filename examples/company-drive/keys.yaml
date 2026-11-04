@@ -39,6 +39,7 @@ facts:
       - from: 2023-08-29
         value: "50 USD"
         texts: ["50"]
+        condition: ["us team members"]
         stated:
           - file: handbook/finance/expenses-backup-2024.md
             revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
@@ -52,6 +53,7 @@ facts:
       - from: 2023-08-29
         value: "20000 USD/month"
         texts: ["20K", "20,000", "2万"]
+        condition: ["e-group"]
         stated:
           - file: handbook/finance/expenses-backup-2024.md
             revision: "1c4339e028d965e69e6d41b5d41b3e3d6d43701d"
