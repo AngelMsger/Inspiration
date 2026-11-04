@@ -1,6 +1,6 @@
 # 对照语料
 
-一个小租户，每个样例都只有一个正确答案，用来逐个样例衡量流水线，而不是只看一个 truth 总数。它有 14 份文档，分属三个来源：制度库和团队手册，都是受治理文档，权威度 0.9；团队 wiki 是参考文档，权威度 0.5。除一份中文译本外，文档都是英文。`expected.yaml` 是答案，`vocabulary.yaml` 是抽取放入槽位的事实目录。英文版见 [README.md](README.md)；两者不一致时以英文版为准。
+一个小租户，每个样例都只有一个正确答案，用来逐个样例衡量流水线，而不是只看一个 truth 总数。它有 14 份文档，分属三个来源：制度库和团队手册，都是受治理文档，权威度 0.9；团队 wiki 是参考文档，权威度 0.5。除一份中文译本外，文档都是英文。`expected.yaml` 是答案，`vocabulary.yaml` 是抽取放入槽位的事实目录，`files.yaml` 记录每个文件最后修改的日期，与共享盘报告的一致，因为检出代码时每个文件的日期都是检出当天。英文版见 [README.md](README.md)；两者不一致时以英文版为准。
 
 用 `pnpm bench ingest examples/control` 运行。在常规报告之后，对照检查把每个样例标为 **right**（正确）、**known gap**（已知差距：与 `expected.yaml` 记录的方式一致地不同）或 **differs**（不同）。槽位中的每个值显示四项：
 
@@ -39,22 +39,22 @@
 同等权威的受治理值之间，governance 提议独立来源更多的值；再相同，则提议来自较新文档的值；再相同，则提议陈述更多的值。有三个样例取决于这一点：
 
 - **reposted-notice：** 通知和它的两份完全相同的副本全文相同，所以是一个来源，45 以两个来源成立。按陈述计数时，40 以三比二胜出。
-- **pasted-paragraph：** 三本手册共享粘贴的那一段，所以 50 只有一个来源，与 60 相同；差旅制度 2026 年生效，手册 2025 年生效，所以 60 成立，50 成为一个待人决定的取代案例。按陈述计数时，50 以三比一胜出。
+- **pasted-paragraph：** 三本手册共享粘贴的那一段，所以 50 只有一个来源，与 60 相同；差旅制度 2026 年生效，手册 2025 年生效，所以 60 成立。手册最后修改的时间比制度早一年，所以 50 成为一个待人决定的取代案例；如果两者的修改相隔不到一年，两份文档都算在用，50 就会是一个待人决定的矛盾案例。按陈述计数时，50 以三比一胜出。
 - **translated-policy：** 文件夹把 `leave-policy.zh.md` 读作 `leave-policy.md` 的中文译本，所以两者是一个来源。知识不依赖于语言。
 
 一段文字至少有 40 个字母和数字（比较时忽略大小写、空白和标点）才算被复制；两份文档碰巧用相同措辞写了一条简短规则时，仍然是两个来源。参考文档永远压不过受治理文档，所以无论 FAQ 被复制多少次，copied-faq 都正确。
 
 ## 文档
 
-| 文档 | 级别 | 生效日 | 内容 |
-| --- | --- | --- | --- |
-| policies/travel-policy.md | 受治理 | 2026-01-01 | 住宿 200，餐补 60，报销期限 30 天（差旅）和 60 天（其他） |
-| policies/customer-policy.md | 受治理 | 2026-01-01 | 退款 14，异议 30，退货 30（损坏 7，不在目录中），发货 3 和 1 |
-| policies/leave-policy.md | 受治理 | 2026-01-01 | 年假 20 天 |
-| policies/leave-policy.zh.md | 受治理 | 2026-01-01 | 同上，中文 |
-| policies/taxi-notice.md | 受治理 | 2025-01-01 | 打车每天 40 |
-| handbooks/sales/taxi-notice.md、handbooks/support/taxi-notice.md | 受治理 | 2025-01-01 | 通知的完全相同的副本 |
-| handbooks/sales.md、handbooks/engineering.md | 受治理 | 2025-01-01 | 打车每天 45，各用自己的话；餐补 50（粘贴） |
-| handbooks/support.md | 受治理 | 2025-01-01 | 餐补 50（粘贴） |
-| wiki/travel-faq.md 及其在 wiki/sales、wiki/support 中的副本 | 参考 | | 住宿 180 |
-| wiki/onboarding.md | 参考 | | 年假 20 天 |
+| 文档 | 级别 | 生效日 | 最后修改 | 内容 |
+| --- | --- | --- | --- | --- |
+| policies/travel-policy.md | 受治理 | 2026-01-01 | 2025-12-15 | 住宿 200，餐补 60，报销期限 30 天（差旅）和 60 天（其他） |
+| policies/customer-policy.md | 受治理 | 2026-01-01 | 2025-12-15 | 退款 14，异议 30，退货 30（损坏 7，不在目录中），发货 3 和 1 |
+| policies/leave-policy.md | 受治理 | 2026-01-01 | 2025-12-15 | 年假 20 天 |
+| policies/leave-policy.zh.md | 受治理 | 2026-01-01 | 2025-12-15 | 同上，中文 |
+| policies/taxi-notice.md | 受治理 | 2025-01-01 | 2024-12-09 | 打车每天 40 |
+| handbooks/sales/taxi-notice.md、handbooks/support/taxi-notice.md | 受治理 | 2025-01-01 | 2024-12-09 | 通知的完全相同的副本 |
+| handbooks/sales.md、handbooks/engineering.md | 受治理 | 2025-01-01 | 2024-12-09 | 打车每天 45，各用自己的话；餐补 50（粘贴） |
+| handbooks/support.md | 受治理 | 2025-01-01 | 2024-12-09 | 餐补 50（粘贴） |
+| wiki/travel-faq.md 及其在 wiki/sales、wiki/support 中的副本 | 参考 | | 2026-03-10 | 住宿 180 |
+| wiki/onboarding.md | 参考 | | 2026-02-02 | 年假 20 天 |

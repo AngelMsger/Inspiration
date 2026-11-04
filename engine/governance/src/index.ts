@@ -21,8 +21,9 @@
  *   or punctuation) are one source.
  * - Every other value gets a ConflictCase from the deterministic tier: a supersession
  *   (auto-resolved when only archived documents state it; open when it predates a dated
- *   change to the proposed value, its own or one that beat the leader), plan versus fact, or
- *   a contradiction, with the proposed value's best claim in effect as proposed_winner_id. Of
+ *   change to the proposed value, its own, a reference document's included, or one that beat
+ *   the leader), plan versus fact, or a contradiction, with the proposed value's best claim
+ *   in effect as proposed_winner_id. Of
  *   two governed documents that disagree with no dated change between them, the newer one is
  *   proposed; the older is superseded only when it had not changed for a year (IN_USE_DAYS)
  *   when the newer one did, and otherwise stays disputed until a person decides.

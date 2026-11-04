@@ -1,0 +1,48 @@
+# When each file of the control corpus was last changed, as a drive would report it, so a run
+# does not depend on the day of the checkout. Every file is written for the corpus. The governed
+# documents were last changed a few weeks before they took effect, and the wiki pages after the
+# travel policy did.
+
+files:
+  - path: handbooks/engineering.md
+    modified: 2024-12-09T09:00:00Z
+    kind: constructed
+  - path: handbooks/sales.md
+    modified: 2024-12-09T09:00:00Z
+    kind: constructed
+  - path: handbooks/sales/taxi-notice.md
+    modified: 2024-12-09T09:00:00Z
+    kind: constructed
+  - path: handbooks/support.md
+    modified: 2024-12-09T09:00:00Z
+    kind: constructed
+  - path: handbooks/support/taxi-notice.md
+    modified: 2024-12-09T09:00:00Z
+    kind: constructed
+  - path: policies/customer-policy.md
+    modified: 2025-12-15T09:00:00Z
+    kind: constructed
+  - path: policies/leave-policy.md
+    modified: 2025-12-15T09:00:00Z
+    kind: constructed
+  - path: policies/leave-policy.zh.md
+    modified: 2025-12-15T09:00:00Z
+    kind: constructed
+  - path: policies/taxi-notice.md
+    modified: 2024-12-09T09:00:00Z
+    kind: constructed
+  - path: policies/travel-policy.md
+    modified: 2025-12-15T09:00:00Z
+    kind: constructed
+  - path: wiki/onboarding.md
+    modified: 2026-02-02T09:00:00Z
+    kind: constructed
+  - path: wiki/sales/travel-faq.md
+    modified: 2026-03-10T09:00:00Z
+    kind: constructed
+  - path: wiki/support/travel-faq.md
+    modified: 2026-03-10T09:00:00Z
+    kind: constructed
+  - path: wiki/travel-faq.md
+    modified: 2026-03-10T09:00:00Z
+    kind: constructed
