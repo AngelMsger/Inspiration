@@ -9,6 +9,10 @@
  * development models, as pnpm demo does, with the web app's backend in front (backend.ts).
  * As each person it reads everything the page can show; then it takes the script's next
  * action and reads again, so every action leads to a recorded state.
+ *
+ * The snapshot holds what every person of the tenant could read, for whoever opens it: acting
+ * as someone in it is a simulation, not access control. Record only a corpus whose whole
+ * contents its recipients may read, such as the synthetic demo corpus.
  */
 
 import { type ChildProcess, spawn } from "node:child_process";

@@ -73,7 +73,10 @@ The demo script (`examples/corpus/script.yaml`) lists those steps, each with the
 takes it. `pnpm snapshot` walks it against the engine and writes a static page that answers
 from the recording, with a guide along the bottom that opens each step as its person, so anyone
 can follow the demo from a link, without the engine. A question the script does not ask, or a
-step it does not take, says it was not recorded.
+step it does not take, says it was not recorded. The page holds everything each person of the
+demo tenant could read, for whoever opens it: acting as someone there is a simulation, not
+access control. So record only the synthetic demo corpus, or a corpus whose whole contents
+everyone who gets the link may read.
 
 To try the model gateway without a model server, run it with the fake providers:
 
