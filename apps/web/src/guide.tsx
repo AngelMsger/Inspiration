@@ -40,9 +40,14 @@ export function Guide(props: {
     location.hash = address;
     if (restart) props.onRestart();
   };
+  // A step opens the state the script recorded it in, the one its earlier steps' actions lead
+  // to, whether or not the visitor took them, so a skipped or repeated action never strands a step.
   const go = (index: number) => {
     const step = recording.steps[index] as ScriptStep;
-    open({ ...replay.place(), member: step.as, step: index }, step.open, step.as !== replay.place().member);
+    const state = recording.steps.slice(0, index).filter((s) => s.do).length;
+    const now = replay.place();
+    setAll(false);
+    open({ state, member: step.as, step: index }, step.open, step.as !== now.member || state !== now.state);
   };
   const startOver = () => open(startOf(recording), "/", true);
 
@@ -79,7 +84,7 @@ export function Guide(props: {
         </ol>
       )}
       <div className="guide-bar">
-        <div className="guide-now">
+        <div key={at} className="guide-now">
           <span className="quiet">
             {current ? say("guide.step", { n: at + 1, count, name: name(current.as) }) : say("guide.title")}
             {done[at] && ` · ${say("guide.done")}`}

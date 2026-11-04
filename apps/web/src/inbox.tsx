@@ -47,10 +47,16 @@ export function InboxScreen(props: { person: Person; inbox: Loaded<Inbox>; onCha
     .map((c) => ({ ...c, todos: c.todos.filter((t) => !done.has(t.todo.id)) }))
     .filter((c) => c.todos.length);
   const week = weekOf(inbox?.cards[0]?.week);
+  const open = cards.reduce((n, c) => n + c.todos.length, 0);
   return (
     <main className="centre">
       <div className="heading">
         <h1 className="title">{say("inbox.title")}</h1>
+        {open > 0 && (
+          <span key={open} className="heading-count">
+            {say("inbox.count", { count: open })}
+          </span>
+        )}
         <span className="quiet">
           {[week && say("inbox.week", { week }), props.person.name].filter(Boolean).join(" · ")}
         </span>
