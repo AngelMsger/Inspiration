@@ -4,8 +4,9 @@ A small tenant built so that every case has one right answer, for measuring the 
 case by case instead of by a single truth count. It has 14 documents in three sources: a
 policy library and team handbooks, both governed with authority 0.9, and a team wiki of
 reference documents with authority 0.5. All are in English except one Chinese translation.
-`expected.yaml` holds the answers, and `vocabulary.yaml` the catalogue of facts extraction
-puts into slots. A Chinese copy is in [README.zh.md](README.zh.md); if the two differ, this
+`expected.yaml` holds the answers, `vocabulary.yaml` the catalogue of facts extraction
+puts into slots, and `files.yaml` the day each file was last changed, as a drive would report
+it, since a checkout dates every file the day it was made. A Chinese copy is in [README.zh.md](README.zh.md); if the two differ, this
 English version wins.
 
 Run it with `pnpm bench ingest examples/control`. After the usual report, the control check
@@ -60,8 +61,10 @@ cases turn on it:
 - **reposted-notice:** the notice and its two exact copies share their whole text, so they are
   one source, and 45 holds with two. Counting statements, 40 won three to two.
 - **pasted-paragraph:** the three handbooks share the pasted paragraph, so 50 has one source,
-  as 60 does; the travel policy took effect in 2026 and the handbooks in 2025, so 60 holds and
-  50 is an open supersession for a person to decide. Counting statements, 50 won three to one.
+  as 60 does; the travel policy took effect in 2026 and the handbooks in 2025, so 60 holds.
+  The handbooks were last changed a year before the policy was, so 50 is an open supersession
+  for a person to decide; had they changed within a year of it, both documents would be in use
+  and 50 an open contradiction. Counting statements, 50 won three to one.
 - **translated-policy:** the folder reads `leave-policy.zh.md` as the Chinese translation of
   `leave-policy.md`, so the two are one source. Knowledge does not depend on its language.
 
@@ -72,15 +75,15 @@ FAQ is copied.
 
 ## Documents
 
-| Document | Level | Effective | States |
-| --- | --- | --- | --- |
-| policies/travel-policy.md | governed | 2026-01-01 | hotel 200, meals 60, claims within 30 days (travel) and 60 (other) |
-| policies/customer-policy.md | governed | 2026-01-01 | refunds 14, objections 30, returns 30 (damage 7, not in the catalogue), shipping 3 and 1 |
-| policies/leave-policy.md | governed | 2026-01-01 | annual leave 20 days |
-| policies/leave-policy.zh.md | governed | 2026-01-01 | the same, in Chinese |
-| policies/taxi-notice.md | governed | 2025-01-01 | taxi 40 a day |
-| handbooks/sales/taxi-notice.md, handbooks/support/taxi-notice.md | governed | 2025-01-01 | exact copies of the notice |
-| handbooks/sales.md, handbooks/engineering.md | governed | 2025-01-01 | taxi 45 a day, each in its own words; meals 50 (pasted) |
-| handbooks/support.md | governed | 2025-01-01 | meals 50 (pasted) |
-| wiki/travel-faq.md and its copies in wiki/sales and wiki/support | reference | | hotel 180 |
-| wiki/onboarding.md | reference | | annual leave 20 days |
+| Document | Level | Effective | Last changed | States |
+| --- | --- | --- | --- | --- |
+| policies/travel-policy.md | governed | 2026-01-01 | 2025-12-15 | hotel 200, meals 60, claims within 30 days (travel) and 60 (other) |
+| policies/customer-policy.md | governed | 2026-01-01 | 2025-12-15 | refunds 14, objections 30, returns 30 (damage 7, not in the catalogue), shipping 3 and 1 |
+| policies/leave-policy.md | governed | 2026-01-01 | 2025-12-15 | annual leave 20 days |
+| policies/leave-policy.zh.md | governed | 2026-01-01 | 2025-12-15 | the same, in Chinese |
+| policies/taxi-notice.md | governed | 2025-01-01 | 2024-12-09 | taxi 40 a day |
+| handbooks/sales/taxi-notice.md, handbooks/support/taxi-notice.md | governed | 2025-01-01 | 2024-12-09 | exact copies of the notice |
+| handbooks/sales.md, handbooks/engineering.md | governed | 2025-01-01 | 2024-12-09 | taxi 45 a day, each in its own words; meals 50 (pasted) |
+| handbooks/support.md | governed | 2025-01-01 | 2024-12-09 | meals 50 (pasted) |
+| wiki/travel-faq.md and its copies in wiki/sales and wiki/support | reference | | 2026-03-10 | hotel 180 |
+| wiki/onboarding.md | reference | | 2026-02-02 | annual leave 20 days |

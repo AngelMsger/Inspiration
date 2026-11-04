@@ -41,10 +41,11 @@
  * Every other group becomes a case against the proposed value: superseded (only archived
  * documents state it, or it predates the change), plan versus fact (only plans state it, or
  * it takes effect later), or a contradiction. The change is the one that beat the leader,
- * else a dated change the proposed value's own documents state: once the revised policy says
- * 650 as well, a guide that said 600 before October is out of date (an open case, so its
- * owner is still asked), while a document dated after the change that still says 600 is a
- * contradiction. Of two governed documents that disagree with no change between them, the
+ * else a dated change the proposed value's own documents state, a reference document's
+ * included: once the revised policy says 650 as well, a guide that said 600 before October is
+ * out of date (an open case, so its owner is still asked), and so is the old edition once a
+ * new one adopts an announced change, while a document dated after the change that still says
+ * 600 is a contradiction. Of two governed documents that disagree with no change between them, the
  * newer one is proposed; the older one is superseded only when it had not changed for
  * IN_USE_DAYS when the newer one did (a backup, an old page left at an old path). Two
  * documents both in use are a contradiction: being a few weeks newer does not show that
@@ -488,6 +489,15 @@ function since(g: ValueGroup, today: string, governed: boolean): string {
   return changed > documented ? changed : documented;
 }
 
+/**
+ * Why a value is out of date: it predates a change to the proposed value. A reference
+ * document's change is said to hold for now while no governed document states the value.
+ */
+function predates(g: ValueGroup, proposed: ValueGroup, shift: Member, today: string): string {
+  const pending = shift.reference && governedAsOf(proposed, today) === 0;
+  return `${g.value} (${documents(g)}, the most authoritative ${g.best.document}) predates the change to ${proposed.value} on ${shift.stated_from} in ${shift.document}.${pending ? ` ${shift.document} is a reference document: the change holds until a governed document states it or a person rejects it.` : ""}`;
+}
+
 /** The proposed value as the case against another names it: "the governed 600 CNY/night" when governed documents state it. */
 function heldValue(g: ValueGroup): string {
   return governedIn(g) > 0 ? `the governed ${g.value}` : g.value;
@@ -561,8 +571,10 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
   }
   const proposed = changed?.group ?? leader;
   // Without a change that beat the leader, the proposed value's own dated change says what it
-  // replaced: a value stated only before it is out of date, not in dispute.
-  const shift = changed?.change ?? changeAsOf(proposed, today, governedSlot);
+  // replaced: a value stated only before it is out of date, not in dispute. A reference
+  // document's change counts as it does above, so a value it moved stays moved once a governed
+  // document adopts the new one.
+  const shift = changed?.change ?? changeAsOf(proposed, today);
   const day = shift?.stated_from;
 
   const cases = groups
@@ -650,7 +662,7 @@ export function decide(stored: readonly ValueGroup[], today: string): SlotDecisi
           status: "open",
           priority: stale && g.best.authority >= GOVERNED ? "high" : "normal",
           confidence: 0.8,
-          rationale: `${g.value} (${documents(g)}, the most authoritative ${g.best.document}) predates the change to ${proposed.value} on ${day} in ${shift.document}.${shift.reference ? ` ${shift.document} is a reference document: the change holds until a governed document states it or a person rejects it.` : ""}`,
+          rationale: predates(g, proposed, shift, today),
         };
       }
       if (!changed && newer(proposed, g, today) && leftBehind(g, proposed)) {

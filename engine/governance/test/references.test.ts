@@ -198,13 +198,26 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         "proposed (changed on 2026-10-01 in #finance-announcements, a reference document)",
       );
 
-      // The policy's next edition takes the change in: the governed page holds it now.
+      // The policy's next edition takes the change in: the governed page holds it now, and the
+      // announcement still says why 600 is out of date rather than disputed.
       await world.state({ ...POLICY, title: "Travel policy (October)", effective_from: "2026-10-15" }, [
         { text: "The hotel cap in tier-1 cities is 800 yuan a night.", value: 800 },
       ]);
-      expect((await world.governance.slot(TENANT, HOTEL)).decision?.proposed.best.document).toBe(
-        "Travel policy (October)",
-      );
+      const adopted = (await world.governance.slot(TENANT, HOTEL)).decision;
+      expect(adopted?.proposed.best.document).toBe("Travel policy (October)");
+      expect(adopted?.cases.map((c) => [c.value, c.classification, c.status, c.rationale])).toEqual([
+        [
+          "600 CNY/night",
+          "supersession",
+          "open",
+          "600 CNY/night (1 document, the most authoritative Travel policy) predates the change to 800 CNY/night on 2026-10-01 in #finance-announcements.",
+        ],
+      ]);
+      const [after] = await world.governance.verdicts(TENANT, [HOTEL]);
+      expect(after?.values.map((v) => [v.value, v.standing])).toEqual([
+        ["800 CNY/night", "holds"],
+        ["600 CNY/night", "outdated"],
+      ]);
     });
 
     test("a reference document's change still ahead, or older than the policy, moves nothing", async ({ world }) => {
