@@ -11,7 +11,7 @@ const textOf = (step: ScriptStep, tag: Tag) => step.text[tag] ?? step.text.en ??
 export function Guide(props: {
   recording: Recording;
   replay: Replay;
-  /** Start the app again, as the person the demo is at now. */
+  /** Have the app read the demo again, as the person and state it is at now. */
   onRestart: () => void;
 }) {
   const { recording, replay } = props;
@@ -93,16 +93,9 @@ export function Guide(props: {
             {current ? textOf(current, tag) : say("guide.about", { date: recording.recorded_at.slice(0, 10), count })}
           </p>
         </div>
+        {/* The main button comes last and keeps one place and size, so a visitor who clicks
+            through without moving the pointer never lands on a link that moved under it. */}
         <div className="guide-actions">
-          {next ? (
-            <button type="button" className="primary" onClick={() => go(at + 1)}>
-              {say(current ? "guide.next" : "guide.start", { name: name(next.as) })}
-            </button>
-          ) : (
-            <button type="button" className="primary" onClick={startOver}>
-              {say("guide.restart")}
-            </button>
-          )}
           <button type="button" className="guide-link" onClick={() => setAll(!all)}>
             {say(all ? "guide.fewer" : "guide.all")}
           </button>
@@ -114,6 +107,15 @@ export function Guide(props: {
           <button type="button" className="guide-link" onClick={() => setShown(false)}>
             {say("guide.hide")}
           </button>
+          {next ? (
+            <button type="button" className="primary guide-go" onClick={() => go(at + 1)}>
+              {say(current ? "guide.next" : "guide.start", { name: name(next.as) })}
+            </button>
+          ) : (
+            <button type="button" className="primary guide-go" onClick={startOver}>
+              {say("guide.restart")}
+            </button>
+          )}
         </div>
       </div>
     </aside>

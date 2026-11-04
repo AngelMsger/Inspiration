@@ -3,7 +3,7 @@
 // folds the left column away.
 
 import type { Inbox } from "@inspiration/contracts";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type ApiFailure, api, failureOf, type Library, type Loaded, loadLibrary, useLoad } from "./api.ts";
 import type { Person, Session } from "./backend.ts";
 import { DocumentScreen } from "./document.tsx";
@@ -27,16 +27,37 @@ function stored(key: string): string | null {
   }
 }
 
-export function App() {
+/**
+ * The app. `generation` counts the times the data under it changed without its doing, as when
+ * a snapshot's guide moves to another step: it reads whom it acts as again, and the screens
+ * start over, while the frame stays on screen.
+ */
+export function App(props: { generation?: number }) {
+  const generation = props.generation ?? 0;
   const [session, setSession] = useState<Session>();
+  // The generation the session was read in; the shell starts over when it changes.
+  const [readIn, setReadIn] = useState(generation);
   const [failure, setFailure] = useState<ApiFailure>();
   const [picked, setPicked] = useState(() => stored(LANGUAGE));
   const tag = chooseTag(picked, session?.person.locale);
   const words = useMemo(() => ({ say: wordsOf(tag), tag }), [tag]);
+  // What the last shell showed in its left column, kept while the next one reads its own.
+  const library = useRef<Library>(undefined);
 
   useEffect(() => {
-    api.session().then(setSession, (e: unknown) => setFailure(failureOf(e)));
-  }, []);
+    let current = true;
+    api.session().then(
+      (s) => {
+        if (!current) return;
+        setSession(s);
+        setReadIn(generation);
+      },
+      (e: unknown) => setFailure(failureOf(e)),
+    );
+    return () => {
+      current = false;
+    };
+  }, [generation]);
   useEffect(() => {
     document.documentElement.lang = tag === "zh" ? "zh-CN" : tag;
   }, [tag]);
@@ -58,13 +79,23 @@ export function App() {
     <Words.Provider value={words}>
       {failure && <Failure error={failure} />}
       {/* Acting as someone else starts over with what they may see. */}
-      {session && <Shell key={session.person.member} session={session} onActAs={actAs} onLanguage={speak} />}
+      {session && (
+        <Shell
+          key={`${readIn}:${session.person.member}`}
+          session={session}
+          last={library}
+          onActAs={actAs}
+          onLanguage={speak}
+        />
+      )}
     </Words.Provider>
   );
 }
 
 function Shell(props: {
   session: Session;
+  /** The library shown while the shell reads its own; the shell leaves its own there for the next. */
+  last: RefObject<Library | undefined>;
   onActAs: (member: string) => Promise<void>;
   onLanguage: (tag: Tag) => void;
 }) {
@@ -73,7 +104,7 @@ function Shell(props: {
   // A synced source changes the documents; the library is read again, and shown as it was meanwhile.
   const [synced, setSynced] = useState(0);
   const loaded = useLoad(`library:${synced}`, loadLibrary);
-  const last = useRef<Library>(undefined);
+  const last = props.last;
   if (loaded.state === "done") last.current = loaded.value;
   const library: Loaded<Library> = last.current ? { state: "done", value: last.current } : loaded;
   // Resolving a todo changes the inbox; its count in the left column follows.

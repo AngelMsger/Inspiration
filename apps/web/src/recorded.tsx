@@ -16,12 +16,12 @@ const recording = (await (await fetch("./snapshot.json")).json()) as Recording;
 const replay = install(recording);
 
 function Snapshot() {
-  // The app reads whom it acts as once, so the guide starts it again for another person.
-  const [run, setRun] = useState(0);
+  // Each time the guide moves the demo to another person or state, the app reads it again.
+  const [generation, setGeneration] = useState(0);
   return (
     <>
-      <App key={run} />
-      <Guide recording={recording} replay={replay} onRestart={() => setRun((n) => n + 1)} />
+      <App generation={generation} />
+      <Guide recording={recording} replay={replay} onRestart={() => setGeneration((n) => n + 1)} />
     </>
   );
 }
