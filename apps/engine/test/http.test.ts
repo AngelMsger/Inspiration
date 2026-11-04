@@ -17,7 +17,6 @@ import {
   type Inbox,
   type InboxTodo,
   type SpaceOverview,
-  type SyncReport,
   type TopicList,
   type TopicView,
 } from "@inspiration/contracts";
