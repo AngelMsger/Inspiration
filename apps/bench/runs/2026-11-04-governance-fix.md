@@ -41,8 +41,9 @@ run's paid answers).
   is the likely fix; it is not tested.
 - **Inspiration and the compact answer each gain 9 and lose none,** 7 and 8 of them on changes
   announced elsewhere (`frequent_traveler_trips`, `coworking_approval_days`, `flight_upgrade_hours`
-  and others). The compact answer now leads the mature RAG by 8 questions, at a seventh of its
-  cost.
+  and others). The compact answer now leads the mature RAG by 8 questions. At the cost per
+  answer measured on 2026-11-03 it costs about a seventh as much; this run's charges cover only the
+  calls that changed, so they give no cost per answer of their own.
 - **Review load rose: 60 todos and 4 notes for 183 read documents, against 52 and 13.** A
   reference document's dated change now holds and asks the governed page's owner, a todo rather
   than a note, and decides 13 values against 4. That is 33 todos per 100 documents, with no
@@ -120,9 +121,12 @@ Against the pass bars:
    before); the bar is 5 per 100 after it.
 5. **Cost, at most a third of the mature RAG's input:** unchanged, since the arms' inputs are the
    same size as on 2026-11-03: Inspiration 56%, missed; compact 22%, met.
-6. **Speed, the answering model faster than the mature RAG and long context:** met. On this run's
-   uncached calls the answering model took a median 1.60 s for Inspiration (80 timed), 1.47 s for
-   compact (64), 1.71 s for the mature RAG (51) and 2.83 s for governed long context (276).
+6. **Speed, the answering model faster than the mature RAG and long context:** not tested again.
+   This run timed only the calls that missed the cache, a different subset for each arm, and none
+   for raw long context, so its medians describe those subsets and do not test the bar: the
+   answering model took 1.60 s for Inspiration (80 timed), 1.47 s for compact (64), 1.71 s for the
+   mature RAG (51) and 2.83 s for governed long context (276). The 2026-11-03 result stands: met,
+   narrowly.
 
 ## What changed in governance
 
