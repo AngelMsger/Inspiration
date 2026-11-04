@@ -15,6 +15,7 @@ import { Palette } from "./palette.tsx";
 import { Failure } from "./parts.tsx";
 import { Link, type Route, useRoute } from "./route.tsx";
 import { MaintainColumn, MaintainScreen } from "./space.tsx";
+import { type Switched, switcher } from "./switching.ts";
 import { chooseTag, TAGS, type Tag, useWords, Words, wordsOf } from "./words.ts";
 
 const LANGUAGE = "inspiration.language";
@@ -44,6 +45,7 @@ async function enter(session: Session): Promise<{ session: Session; entry?: Entr
  * a snapshot's guide moves to another step: it reads whom it acts as again, and the screens
  * start over. Whoever it acts as next, it reads their library before it shows their shell, so
  * the old frame stays on screen meanwhile and no one's frame shows another person's spaces.
+ * When people are picked in quick succession, the last one picked is shown (`switcher`).
  */
 export function App(props: { generation?: number }) {
   const generation = props.generation ?? 0;
@@ -57,41 +59,30 @@ export function App(props: { generation?: number }) {
   // The library the next shell starts with, for the member it was read as.
   const entry = useRef<Entry>(undefined);
 
+  // Every change of whom the app acts as, the generation's reads among them; only the latest shows.
+  const [change] = useState(switcher);
+  // The generation of the latest read, so a person picked meanwhile starts the screens over too.
+  const latest = useRef(generation);
+  const show = useCallback((next: Switched<{ session: Session; entry?: Entry }>) => {
+    if (!next) return;
+    entry.current = next.value.entry;
+    setFailure(undefined);
+    setSession(next.value.session);
+    setReadIn(latest.current);
+  }, []);
+  const fail = useCallback((e: unknown) => setFailure(failureOf(e)), []);
+
   useEffect(() => {
-    let current = true;
-    api
-      .session()
-      .then(enter)
-      .then(
-        (next) => {
-          if (!current) return;
-          entry.current = next.entry;
-          setSession(next.session);
-          setReadIn(generation);
-        },
-        (e: unknown) => current && setFailure(failureOf(e)),
-      );
-    return () => {
-      current = false;
-    };
-  }, [generation]);
+    latest.current = generation;
+    change(api.session, enter).then(show, fail);
+  }, [generation, change, show, fail]);
   useEffect(() => {
     document.documentElement.lang = tag === "zh" ? "zh-CN" : tag;
   }, [tag]);
 
   const actAs = useCallback(
-    (member: string) =>
-      api
-        .actAs(member)
-        .then(enter)
-        .then(
-          (next) => {
-            entry.current = next.entry;
-            setSession(next.session);
-          },
-          (e: unknown) => setFailure(failureOf(e)),
-        ),
-    [],
+    (member: string) => change(() => api.actAs(member), enter).then(show, fail),
+    [change, show, fail],
   );
   const speak = useCallback((t: Tag) => {
     setPicked(t);
