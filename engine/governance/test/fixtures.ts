@@ -59,6 +59,8 @@ export interface Doc {
   external_id?: string;
   /** The external ID of the document it translates, in the same source. */
   translation_of?: string;
+  /** The space the document is in; SPACE when not given. */
+  space_id?: string;
 }
 
 export interface World {
@@ -119,7 +121,7 @@ export const governanceTest = (backend: Backend) =>
         id: newId("source_version"),
         tenant_id: TENANT,
         source_id: SOURCE,
-        space_id: SPACE,
+        space_id: doc.space_id ?? SPACE,
         external_id: doc.external_id ?? `${doc.title}.md`,
         version: {
           content_hash: contentHash(JSON.stringify([doc, said])),
@@ -174,7 +176,7 @@ export const governanceTest = (backend: Backend) =>
         const claim: Claim = {
           id: stableId("claim", version.id, s.text),
           tenant_id: TENANT,
-          space_id: SPACE,
+          space_id: doc.space_id ?? SPACE,
           statement: s.text,
           claim_type: s.type ?? "rule",
           knowledge_class: "policy",

@@ -151,28 +151,28 @@ describe("the company drive", () => {
       ]);
       expect(totals).toEqual({
         questions: 150,
-        right: 47,
+        right: 50,
         stale: 6,
-        as_recorded: 47,
-        cited_right: 87,
+        as_recorded: 50,
+        cited_right: 86,
         found: 79,
-        notes: 55,
-        baselines: { compact: 47, mature: 44, long_context: 49, governed_long_context: 48 },
+        notes: 64,
+        baselines: { compact: 52, mature: 44, long_context: 49, governed_long_context: 52 },
         // What governance gives its model states every right value the drive states, and reading
-        // it after governance answers one fewer right than reading it raw. For 24 Shinkansen
+        // it after governance answers three more right than reading it raw. For 24 Shinkansen
         // questions the stand-ins hold another value over the right one (the top-speed slot drawn
         // too wide, two speed records disputed, the maglev's planned opening), which the audit
         // counts as demoted. It does not yet read negation or conditions (issue #68).
         retention: { kept: 111, demoted: 24, dropped: 0, absent: 0, not_audited: 15, beyond_raw: [] },
         by_kind: {
-          changed: { questions: 66, ...paths([15, 6], [15, 5], [10, 6], [13, 6], [16, 5]) },
+          changed: { questions: 66, ...paths([16, 6], [18, 5], [10, 6], [13, 6], [17, 5]) },
           not_stated: { questions: 15, ...paths([2, 0], [3, 0], [2, 1], [2, 2], [2, 0]) },
-          unchanged: { questions: 69, ...paths([30, 0], [29, 0], [32, 0], [34, 0], [30, 0]) },
+          unchanged: { questions: 69, ...paths([32, 0], [31, 0], [32, 0], [34, 0], [33, 0]) },
         },
         by_language: {
-          en: { questions: 50, ...paths([28, 4], [27, 4], [25, 6], [31, 7], [29, 3]) },
-          ja: { questions: 50, ...paths([6, 1], [7, 0], [8, 1], [8, 1], [7, 1]) },
-          zh: { questions: 50, ...paths([13, 1], [13, 1], [11, 0], [10, 0], [12, 1]) },
+          en: { questions: 50, ...paths([29, 4], [29, 4], [25, 6], [31, 7], [30, 3]) },
+          ja: { questions: 50, ...paths([9, 1], [11, 0], [8, 1], [8, 1], [10, 1]) },
+          zh: { questions: 50, ...paths([12, 1], [12, 1], [11, 0], [10, 0], [12, 1]) },
         },
       });
       const answerTo = (start: string) =>

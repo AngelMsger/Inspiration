@@ -75,10 +75,9 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
     "acl.changed": 19,
     "blocks.changed": 19,
     "claims.updated": 18,
-    // Two conflicts and two notes. The note on the 650 is published again when the FAQ
-    // becomes the statement it cites in place of the minutes, then withdrawn once the notice
-    // makes 650 the governed value.
-    "todo.requested": 6,
+    // Three conflicts: the hotel cap and the budget deadline changed after the documents that
+    // state them, and the guide contradicts the leave policy.
+    "todo.requested": 3,
   });
   expect(first.dead_letters).toBe(0);
   expect(first.acl.unmapped).toEqual([]);
@@ -97,19 +96,19 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
   });
   expect(Object.fromEntries(first.claims.conflicts.top.map((t) => [t.slot, t.values]))).toEqual(FOUND.conflicts);
 
-  // Governance settles the archived values alone and asks about two slots: the notice changed
-  // a value after the policy, and the guide contradicts one. The meeting minutes are a
-  // reference document, so the deadline they moved is a note for the owner, not a todo; the
-  // 650 of the minutes and the FAQ was a note too (published twice, once citing each) until
-  // the notice made it the governed value.
+  // Governance settles the archived values alone and asks about three slots: the notice
+  // changed a value after the policy, the meeting minutes moved the budget deadline after the
+  // budget note, and the guide contradicts the leave policy. The minutes are a reference
+  // document, but their decision is dated and in effect, so it holds until the note's owner
+  // updates it or rejects it.
   expect(first.governance).toMatchObject({
-    cases: { total: 6, by_class: { supersession: 3, contradiction: 3 }, by_status: { open: 2, auto_resolved: 4 } },
-    todos: 2,
-    todos_by_priority: { high: 1, normal: 1 },
-    proposed_by: { changed: 1, authority: 3 },
-    requests: 2,
-    notes: 3,
-    withdrawn: 1,
+    cases: { total: 5, by_class: { supersession: 4, contradiction: 1 }, by_status: { open: 3, auto_resolved: 2 } },
+    todos: 3,
+    todos_by_priority: { high: 2, normal: 1 },
+    proposed_by: { changed: 2, authority: 2 },
+    requests: 3,
+    notes: 0,
+    withdrawn: 0,
   });
   // Only the 14 governed documents keep review clocks. Policies are reviewed yearly and
   // processes every 180 days; the archive and general notes never by age. Nothing is due
@@ -141,18 +140,18 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
   expect(first.outline.again).toMatchObject({ churn: { before: 70, moved: 0, deferred: 0 }, topics: { created: 0 } });
   const outline = await engine.store.topics(corpus.tenantId);
   expect(outline.map((n) => [n.title, n.statement_count]).sort()).toEqual(FOUND.topics);
-  // Each topic's owner is the member who wrote most of its documents. The inbox puts the two
-  // conflicts on their owners' cards and the minutes' note on a notes card; nothing waits.
+  // Each topic's owner is the member who wrote most of its documents. The inbox puts the three
+  // conflicts on their owners' cards; nothing waits.
   expect(first.owners).toMatchObject({ topics: 10, owned: 9, assigned: 9, owners: 2, rerouted: 3 });
   expect(first.inbox).toMatchObject({
-    todos: 4,
+    todos: 3,
     open: 3,
-    withdrawn: 1,
-    by_kind: { conflict: 2, note: 2 },
+    withdrawn: 0,
+    by_kind: { conflict: 3 },
     owners: 2,
-    cards: { total: 2, over_budget: 0 },
+    cards: { total: 3, over_budget: 0 },
     deferred: { todos: 0 },
-    notes: { total: 1 },
+    notes: { total: 0 },
     campaign: { todos: 0 },
     steward: { todos: 0 },
   });
@@ -194,7 +193,7 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
     "blocks.changed": 1,
     "claims.updated": 1,
   });
-  expect(edited.governance).toMatchObject({ requests: 0, todos: 2 });
+  expect(edited.governance).toMatchObject({ requests: 0, todos: 3 });
   expect(edited.claims).toMatchObject({ added: 3, closed: 3, windows: 1 });
   expect(edited.freshness).toMatchObject({
     reviews: {},
@@ -211,7 +210,7 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
   expect(later).toMatchObject({ backlog: {}, reviews: { ttl: 3 }, rechecked_slots: 0 });
   expect(await inboxReport(engine, corpus.tenantId)).toMatchObject({
     open: 6,
-    by_kind: { conflict: 2, note: 2, review_due: 3 },
+    by_kind: { conflict: 3, review_due: 3 },
   });
 }
 

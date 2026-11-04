@@ -100,13 +100,13 @@ the stand-in quotes more of each passage, older values included.
 
 | Questions | Engine right, stale | Engine, compact | Mature RAG | Reading everything | Reading everything after governance |
 | --- | --- | --- | --- | --- | --- |
-| All 150 | 47, 6 | 47, 5 | 44, 7 | 49, 8 | 48, 5 |
-| Unchanged, 69 | 30, 0 | 29, 0 | 32, 0 | 34, 0 | 30, 0 |
-| Changed, 66 | 15, 6 | 15, 5 | 10, 6 | 13, 6 | 16, 5 |
+| All 150 | 50, 6 | 52, 5 | 44, 7 | 49, 8 | 52, 5 |
+| Unchanged, 69 | 32, 0 | 31, 0 | 32, 0 | 34, 0 | 33, 0 |
+| Changed, 66 | 16, 6 | 18, 5 | 10, 6 | 13, 6 | 17, 5 |
 | Not answered by the drive, 15 | 2, 0 | 3, 0 | 2, 1 | 2, 2 | 2, 0 |
-| In English, 50 | 28, 4 | 27, 4 | 25, 6 | 31, 7 | 29, 3 |
-| In Chinese, 50 | 13, 1 | 13, 1 | 11, 0 | 10, 0 | 12, 1 |
-| In Japanese, 50 | 6, 1 | 7, 0 | 8, 1 | 8, 1 | 7, 1 |
+| In English, 50 | 29, 4 | 29, 4 | 25, 6 | 31, 7 | 30, 3 |
+| In Chinese, 50 | 12, 1 | 12, 1 | 11, 0 | 10, 0 | 12, 1 |
+| In Japanese, 50 | 9, 1 | 11, 0 | 8, 1 | 8, 1 | 10, 1 |
 
 - The mature RAG reads 16 passages where the engine reads 8 beside its statements, and is
   told each passage's level and date, which the stand-in answer does not weigh. The engine's
@@ -116,15 +116,15 @@ the stand-in quotes more of each passage, older values included.
   only replaced values, and marks those values beside the ones that hold.
 - The evidence audit, which reads what each long context gives its model and no answer,
   finds the right value in what governance keeps for all 135 questions with one, from a
-  document the key cites, and no document beyond what the reader may read. So the gap
-  between reading everything after governance (48) and the raw drive (49) is no value or
-  document the audit sees lost. The audit matches a value and its document only: it does
+  document the key cites, and no document beyond what the reader may read. So reading
+  everything after governance loses no value or document the audit sees, and answers 52
+  against the raw drive's 49. The audit matches a value and its document only: it does
   not yet tell a sentence that negates the value or narrows it to a condition
   ([#68](https://github.com/AngelMsger/Inspiration/issues/68)).
 - In English, where the stand-ins can read the documents, the engine answers 10 of 22
   questions on changed facts right and 4 stale, the mature RAG 8 and 5, the model reading
-  everything 11 and 5, and reading it after governance 10 and 3; on unchanged facts 18, 17,
-  20 and 19 of 23.
+  everything 11 and 5, and reading it after governance 10 and 3; on unchanged facts 19, 17,
+  20 and 20 of 23.
 - The engine answers from the latest edition of a document. Normalization pairs the
   documents that are editions of one text: the policy and its backup, the three copies on
   the drive, which share a fifth to two fifths of their sentences under the title they kept
