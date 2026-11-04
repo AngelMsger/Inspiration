@@ -9,6 +9,9 @@ account.language: 界面语言
 
 nav.label: 知识
 nav.home: 首页
+nav.inbox: "待办"
+nav.knowledge: "知识"
+nav.topics: "{count} 个主题"
 nav.spaces: 空间
 nav.documents: 文档
 
@@ -75,6 +78,75 @@ doc.holds_instead: 现行的是
 doc.from: "来自《{title}》"
 doc.reading: 正在打开文档…
 doc.not_found: 这篇文档不存在，或者你没有打开它的权限。
+
+inbox.title: "待办"
+inbox.week: "第 {week} 周"
+inbox.loading: "正在打开待办…"
+inbox.empty: "没有等你处理的事。"
+inbox.suggested: "建议以《{title}》的 {value} 为准"
+inbox.confirm: "确认建议：{value}"
+inbox.open: "打开"
+inbox.acknowledge: "知道了"
+inbox.noted: "已记下。"
+inbox.decided: "已确认 {value}。读者和智能体现在看到的是它。"
+inbox.see_marks: "看看《{title}》里的标注"
+inbox.see_topic: "看看“{title}”主题页"
+inbox.hidden: "一份你打不开的文档"
+
+inbox.side: "{value}：《{title}》"
+quote.title: "《{title}》"
+list.mark: "、"
+fact.scoped: "{topic}（{scope}）"
+
+todo.conflict: "冲突"
+todo.stale: "副本待核对"
+todo.override_conflict: "覆盖冲突"
+todo.review_due: "到期复核"
+todo.assumption_drift: "前提有变"
+todo.comment_followup: "评论跟进"
+todo.publish_review: "发布审核"
+todo.coverage_gap: "缺口"
+todo.extraction_review: "抽取复核"
+todo.feedback: "反馈"
+todo.note: "备注"
+todo.unstated: "不再写明"
+todo.source_deleted: "来源已删除"
+
+decision.now_disputed: "读者现在看到 {value}，标为有争议。"
+decision.now_outdated: "读者现在看到 {value}；{others} 已标为已过时。"
+decision.yours: "你的决定"
+decision.choice: "{value}，以《{title}》为准"
+decision.suggested: "建议"
+decision.confirm: "确认"
+decision.dismiss: "暂不处理"
+decision.confirming: "正在确认…"
+decision.about: "关于这个冲突"
+decision.topic: "所在主题"
+decision.after: "确认后"
+decision.after_text: "读者和智能体看到 {value}。其他取值在原文里标为已过时，回答里不再提示“正在决定”。"
+decision.not_found: "这件待办已经不在你这里了。"
+decision.back: "回到待办"
+
+unit.day: "{n} 天"
+unit.cny_per_night: "{n} 元/晚"
+unit.cny_per_day: "{n} 元/天"
+unit.cny: "{n} 元"
+
+knowledge.title: "知识"
+knowledge.empty: "这个空间还没有整理出主题。"
+knowledge.loading: "正在打开主题…"
+knowledge.not_found: "这个主题不存在，或者你没有读取权限。"
+topic.owner: "主题负责人 {name}"
+topic.no_owner: "还没有主题负责人"
+topic.others: "其他"
+topic.subtopics: "子主题"
+topic.about: "这个主题"
+topic.pending: "等你决定"
+topic.none: "这里还没有你能读的内容。"
+topic.written: "《{title}》写的是："
+topic.on_page: "本页"
+topic.sources: "出处"
+topic.places: "{places} 处，来自 {documents} 份文档"
 
 palette.label: 搜索、提问或前往
 palette.ask: "提问“{text}”"

@@ -98,7 +98,7 @@ components:
     owns: Fact-slot values counted by independent source, the value that holds, conflict cases and todo requests from the deterministic tier, notes on values only reference documents state, daily rechecks of dated changes. Planned are the semantic, NLI and model-judge tiers (through model-gateway and agent-runtime), citation audit, claim merge (claims.updated), coverage gaps and the taxonomy gardener, each with a token budget
     plugins: [migrations]
     publishes: [todo.requested, claims.updated]
-    subscribes: [claims.updated]
+    subscribes: [claims.updated, todo.resolved]
     calls: [knowledge-store, model-gateway, agent-runtime]
 
   page-compiler:
@@ -119,7 +119,7 @@ components:
     runtime: node
     owns: The inbox, with todos merged by dedupe key, routed to topic owners, on weekly cards within a budget; notes; first-review campaigns. Planned are comments and anchoring (comment.created), agent replies, overrides (claims.updated), the publish state machine (unit.published), quality gates, verification expiry, reacting to page.rendered
     plugins: [migrations]
-    publishes: [comment.created, unit.published, todo.created, claims.updated]
+    publishes: [comment.created, unit.published, todo.created, todo.resolved, claims.updated]
     subscribes: [page.rendered, comment.created, todo.requested, todo.created, review.due]
     calls: [knowledge-store, access-control, model-gateway, agent-runtime, retrieval]
 
@@ -251,11 +251,11 @@ libraries:
 # it lists that app under `uses`.
 apps:
   engine:
-    owns: The engine process; corpus manifests, standing in for the business layer's provisioning; its HTTP API, version 0 (pnpm engine serve)
+    owns: The engine process; corpus manifests and topic owners, standing in for the business layer's provisioning; its HTTP API, version 0 (pnpm engine serve)
   web:
     owns: The product web app (React, Vite) over the engine's HTTP API, its language packs, and a development stand-in for its backend; the demo (pnpm demo)
   bench:
     owns: The measurement harness and its CLI (pnpm bench); ingest runs and volume reports, the control check, history replay, questions and answers, the reading check, cost, synthetic corpora
     uses: [engine]
   site:
-    owns: The product website (pnpm site); static pages in English, Chinese and Japanese from language packs, a scripted demo of the product, and no download or sign-up while in development
+    owns: The product website (pnpm site); static pages in English, Chinese and Japanese from language packs, a figure of the kinds of source it reads, scripted demos of the product (its search box and its window), and no download or sign-up while in development

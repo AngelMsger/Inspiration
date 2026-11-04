@@ -1,0 +1,194 @@
+{
+  "cards": [
+    {
+      "batch_key": "card:mem_01QINGHE000000000ZHANGMIN:t-9dd9798c9aad:2026-W45",
+      "kind": "review",
+      "week": "2026-W45",
+      "topic": {
+        "key": "t-9dd9798c9aad",
+        "tenant_id": "ten_01QINGHE000000000000000001",
+        "space_id": "spc_01QINGHE00000000000000TEAM",
+        "title": "新人入职指南",
+        "ordinal": 4,
+        "statement_count": 10,
+        "status": "proposed",
+        "summary": "新人入职指南相关的规定与说明，见新人入职指南等文档。",
+        "owner_id": "mem_01QINGHE000000000ZHANGMIN"
+      },
+      "todos": [
+        {
+          "todo": {
+            "id": "todo_01M6GMTA0P3RCBDEPFTQXYACGP",
+            "tenant_id": "ten_01QINGHE000000000000000001",
+            "space_id": "spc_01QINGHE00000000000000TEAM",
+            "kind": "conflict",
+            "title": "hotel_cap_per_night (一线城市): 650 CNY/night or 600 CNY/night",
+            "priority": "high",
+            "status": "open",
+            "unit_ids": ["clm_64c53e3f93042344d32b5ef33ca44317", "clm_1466345df539dd1d31fc11cca21ae284"],
+            "created_by": "governance",
+            "created_at": "2026-11-03T09:00:00Z",
+            "detail": "- **650 CNY/night**, proposed (changed on 2026-10-01 in 关于调整一线城市住宿标准的通知): 3 statements in 3 documents, the most authoritative 关于调整一线城市住宿标准的通知.\n- 600 CNY/night, supersession: 7 statements in 4 documents, the most authoritative 城市住宿标准. 600 CNY/night (4 documents, the most authoritative 城市住宿标准) predates the change to 650 CNY/night on 2026-10-01 in 关于调整一线城市住宿标准的通知.",
+            "slot_key": "hotel_cap_per_night|一线城市",
+            "resolutions": [
+              {
+                "key": "choose:650 CNY/night",
+                "label": "Keep 650 CNY/night",
+                "effect": {
+                  "slot_key": "hotel_cap_per_night|一线城市",
+                  "value": "650 CNY/night",
+                  "question": "sha256:0b4a3c856c0dbd249ffe5f37fb6437109fb9553d7df503e2735cc258289d7421",
+                  "claim_id": "clm_64c53e3f93042344d32b5ef33ca44317"
+                }
+              },
+              {
+                "key": "choose:600 CNY/night",
+                "label": "Choose 600 CNY/night",
+                "effect": {
+                  "slot_key": "hotel_cap_per_night|一线城市",
+                  "value": "600 CNY/night",
+                  "question": "sha256:0b4a3c856c0dbd249ffe5f37fb6437109fb9553d7df503e2735cc258289d7421",
+                  "claim_id": "clm_1466345df539dd1d31fc11cca21ae284"
+                }
+              }
+            ],
+            "taxonomy_key": "t-9dd9798c9aad",
+            "assignee_id": "mem_01QINGHE000000000ZHANGMIN",
+            "week": "2026-W45",
+            "batch_key": "card:mem_01QINGHE000000000ZHANGMIN:t-9dd9798c9aad:2026-W45"
+          },
+          "fact_label": "住宿限额（每晚）",
+          "statements": [
+            {
+              "unit_id": "clm_64c53e3f93042344d32b5ef33ca44317",
+              "kind": "claim",
+              "title": "关于调整一线城市住宿标准的通知",
+              "snippet": "根据 2026 年 9 月经营会决议，自 2026 年 10 月 1 日起，北京、上海、广州、深圳的住宿限额由每晚 600 元调整为每晚 650 元。",
+              "score": 0,
+              "citations": [
+                {
+                  "span_id": "spn_2fc90845281f6b55926d4e4232236208",
+                  "source_version_id": "sv_01M6GMT9JKEPDE2E038K3H4J5Z",
+                  "source_title": "关于调整一线城市住宿标准的通知",
+                  "uri": "file:///examples/corpus/团队知识/通知/关于调整一线城市住宿标准的通知.txt",
+                  "quote": "根据 2026 年 9 月经营会决议，自 2026 年 10 月 1 日起，北京、上海、广州、深圳的住宿限额由每晚 600 元调整为每晚 650 元。",
+                  "locator": {
+                    "block_anchor": "L5",
+                    "kind": "text_range",
+                    "char_start": 0,
+                    "char_end": 75
+                  },
+                  "fetched_at": "2026-11-03T09:00:00Z"
+                }
+              ],
+              "freshness": {
+                "state": "fresh",
+                "as_of": "2026-11-03T09:00:00Z",
+                "staleness": 0,
+                "review_due": "2027-11-03T00:00:00Z"
+              },
+              "confidence": 0.9,
+              "review_status": "unreviewed",
+              "token_estimate": 92,
+              "space_id": "spc_01QINGHE00000000000000TEAM",
+              "language": "zh-CN",
+              "slot_key": "hotel_cap_per_night|一线城市",
+              "standing": "holds"
+            },
+            {
+              "unit_id": "clm_1466345df539dd1d31fc11cca21ae284",
+              "kind": "claim",
+              "title": "城市住宿标准",
+              "snippet": "城市：北京，城市级别：一线城市，每晚限额（元）：600。",
+              "score": 0,
+              "citations": [
+                {
+                  "span_id": "spn_21066bb12c1de4e70c03e477e9e6a48e",
+                  "source_version_id": "sv_01M6GMT9H8PT694G5768F63PQE",
+                  "source_title": "城市住宿标准",
+                  "uri": "file:///examples/corpus/制度库/财务/城市住宿标准.csv",
+                  "quote": "600",
+                  "locator": {
+                    "block_anchor": "r2",
+                    "kind": "table_cell",
+                    "char_start": 8,
+                    "char_end": 11,
+                    "cell": {
+                      "col": 2,
+                      "row": 1
+                    }
+                  },
+                  "fetched_at": "2026-11-03T09:00:00Z"
+                },
+                {
+                  "span_id": "spn_2714c98018b925f6e6909d2194c7abbd",
+                  "source_version_id": "sv_01M6GMT9H8PT694G5768F63PQE",
+                  "source_title": "城市住宿标准",
+                  "uri": "file:///examples/corpus/制度库/财务/城市住宿标准.csv",
+                  "quote": "一线城市",
+                  "locator": {
+                    "block_anchor": "r2",
+                    "kind": "table_cell",
+                    "char_start": 3,
+                    "char_end": 7,
+                    "cell": {
+                      "col": 1,
+                      "row": 1
+                    }
+                  },
+                  "fetched_at": "2026-11-03T09:00:00Z"
+                },
+                {
+                  "span_id": "spn_e198dfca8fccf68d2027e8e717631407",
+                  "source_version_id": "sv_01M6GMT9H8PT694G5768F63PQE",
+                  "source_title": "城市住宿标准",
+                  "uri": "file:///examples/corpus/制度库/财务/城市住宿标准.csv",
+                  "quote": "北京",
+                  "locator": {
+                    "block_anchor": "r2",
+                    "kind": "table_cell",
+                    "char_start": 0,
+                    "char_end": 2,
+                    "cell": {
+                      "col": 0,
+                      "row": 1
+                    }
+                  },
+                  "fetched_at": "2026-11-03T09:00:00Z"
+                }
+              ],
+              "freshness": {
+                "state": "fresh",
+                "as_of": "2026-11-03T09:00:00Z",
+                "staleness": 0,
+                "review_due": "2027-11-03T00:00:00Z"
+              },
+              "confidence": 0.9,
+              "review_status": "unreviewed",
+              "token_estimate": 28,
+              "space_id": "spc_01QINGHE000000000000POLICY",
+              "language": "zh-CN",
+              "slot_key": "hotel_cap_per_night|一线城市",
+              "standing": "outdated",
+              "held_unit_id": "clm_64c53e3f93042344d32b5ef33ca44317"
+            }
+          ],
+          "choices": [
+            {
+              "key": "choose:650 CNY/night",
+              "label": "Keep 650 CNY/night",
+              "value": "650 CNY/night",
+              "unit_id": "clm_64c53e3f93042344d32b5ef33ca44317"
+            },
+            {
+              "key": "choose:600 CNY/night",
+              "label": "Choose 600 CNY/night",
+              "value": "600 CNY/night",
+              "unit_id": "clm_1466345df539dd1d31fc11cca21ae284"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -323,14 +323,18 @@ kbd {
 }
 
 .rows a,
-.files a {
+.files a,
+.topic-row a,
+.toc a {
   color: var(--ink);
   text-decoration: none;
   font-weight: 500;
 }
 
 .rows a:hover,
-.files a:hover {
+.files a:hover,
+.topic-row a:hover,
+.toc a:hover {
   text-decoration: underline;
 }
 
@@ -723,6 +727,80 @@ kbd {
   margin: 2px 0 4px;
 }
 
+/* Knowledge: the outline and topic pages */
+
+.outline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 18px;
+}
+
+.outline-top {
+  padding: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.outline li {
+  padding: 8px 0 0;
+}
+
+.outline-top > li {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.topic-row {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.topic-summary {
+  margin: 2px 0 0;
+  font-size: 13px;
+}
+
+.fact p {
+  margin: 0 0 8px;
+}
+
+.fact sup a {
+  font-family: var(--sans);
+  font-size: 11px;
+  text-decoration: none;
+  padding: 0 1px;
+}
+
+.fact p > .standing {
+  font-family: var(--sans);
+  margin-left: 8px;
+}
+
+.against {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+p.against > .standing {
+  margin: 0 8px 0 0;
+}
+
+.subtopics {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.toc {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 10px;
+  border-left: 2px solid var(--rule);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 /* Command palette */
 
 .palette {
@@ -784,6 +862,195 @@ kbd {
 .palette > p {
   margin: 0;
   padding: 12px 16px;
+}
+
+/* The inbox and decisions */
+
+.heading {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.todo-card,
+.outcome {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.todo-card h2 {
+  margin: 0;
+  font: 600 19px / 1.4 var(--serif);
+}
+
+.todo-meta {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 13px;
+}
+
+.kind {
+  font-size: 12px;
+  border-radius: 3px;
+  padding: 1px 7px;
+  color: var(--muted);
+  background: var(--rule);
+  white-space: nowrap;
+}
+
+.kind-conflict {
+  color: var(--disputed);
+  background: var(--disputed-bg);
+}
+
+.kind-note {
+  color: var(--outdated);
+  background: var(--outdated-bg);
+}
+
+.todo-sides,
+.suggest {
+  margin: 0;
+  font-size: 13.5px;
+}
+
+.suggest {
+  color: var(--outdated);
+}
+
+.todo-statements {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13.5px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.todo-statements li > .standing {
+  margin: 0 6px 0 0;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.primary,
+.secondary {
+  font: inherit;
+  font-weight: 600;
+  border-radius: 4px;
+  padding: 6px 14px;
+  cursor: pointer;
+}
+
+.primary {
+  color: var(--white);
+  background: var(--link);
+  border: 1px solid var(--link);
+}
+
+.primary:hover {
+  background: var(--link-hover);
+}
+
+.secondary {
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+}
+
+.primary:disabled,
+.secondary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.outcome {
+  border-color: var(--holds);
+  background: var(--holds-bg);
+}
+
+.outcome p {
+  margin: 0;
+  color: var(--holds);
+  font-weight: 600;
+}
+
+.sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.side {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.side > span.standing {
+  margin: 0;
+}
+
+.side-value {
+  font: 500 24px / 1.3 var(--serif);
+}
+
+.side blockquote {
+  margin: 4px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--rule-strong);
+  font-size: 13.5px;
+  color: var(--muted);
+}
+
+.choices {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.choices legend {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.choice-picked {
+  background: var(--selected);
+}
+
+.tag {
+  font-size: 12px;
+  color: var(--link);
+  font-weight: 600;
 }
 
 @media (max-width: 760px) {

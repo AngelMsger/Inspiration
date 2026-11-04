@@ -14,6 +14,7 @@ import {
   type Span,
   stableId,
   type TodoRequested,
+  type TodoResolved,
 } from "@inspiration/contracts";
 import { MemoryRecords, PgRecords, type Records } from "@inspiration/eventbus";
 import { openPool } from "@inspiration/kernel";
@@ -76,6 +77,14 @@ export interface World {
   close: (claims: readonly Claim[]) => Promise<GovernanceResult>;
   /** Every todo request governance published, in order. */
   requests: () => Promise<TodoRequested[]>;
+  /**
+   * Resolve a conflict todo as collaboration would report it: choosing the request's
+   * resolution for `value`, or closing it without one (dismissed).
+   */
+  resolve: (
+    request: TodoRequested,
+    how: { value?: string; status?: "done" | "dismissed"; by?: string },
+  ) => Promise<{ event: EventEnvelope; result: GovernanceResult }>;
   /** Move governance's clock. */
   setToday: (day: string) => void;
   /** Run SQL against the test database; Postgres only. */
@@ -83,6 +92,7 @@ export interface World {
 }
 
 export const HOTEL = "hotel_cap_per_night|tier-1 city";
+export const LI = "mem_01JC000000000000000000LINA";
 
 export const governanceTest = (backend: Backend) =>
   // biome-ignore lint/correctness/noEmptyPattern: Vitest reads fixture dependencies from this pattern
@@ -253,8 +263,25 @@ export const governanceTest = (backend: Backend) =>
     const requests = async () =>
       (await outbox()).filter((e) => e.type === "todo.requested").map((e) => e.data as unknown as TodoRequested);
 
+    const resolve: World["resolve"] = async (request, how) => {
+      const chosen = request.resolutions?.find((r) => r.effect?.value === how.value);
+      const data: TodoResolved = {
+        todo_id: newId("todo"),
+        kind: request.kind,
+        space_id: request.space_id,
+        dedupe_key: request.dedupe_key,
+        ...(request.slot_key && { slot_key: request.slot_key }),
+        created_by: "governance",
+        status: how.status ?? "done",
+        resolved_by: how.by ?? LI,
+        ...(chosen && { resolved_with: chosen.key, ...(chosen.effect && { effect: chosen.effect }) }),
+      };
+      const event = newEvent("todo.resolved", data, { tenantId: TENANT, producer: "collaboration", occurredAt: now });
+      return { event, result: await governance.resolved(event) };
+    };
+
     const setToday = (day: string) => {
       now = new Date(`${day}T09:00:00Z`);
     };
-    return { store, records, governance, state, close, requests, setToday, ...(sql && { sql }) };
+    return { store, records, governance, state, close, requests, resolve, setToday, ...(sql && { sql }) };
   });

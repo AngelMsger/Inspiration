@@ -1,8 +1,9 @@
 // The demo on the product website, inlined into each page right after its stage. It is a
 // scripted illustration, not the product: it sets states on the stage, and the stylesheet
-// animates between them. It plays once when half of it is in view, ends on the result and
-// holds it; Replay plays it again. With reduced motion, or without script, the page keeps the
-// final frame it was rendered with. Words come from the page, never from here.
+// animates between them. While half of it is in view it plays, holds the result, fades and
+// plays again; off screen it stops and waits at the opening frame. With reduced motion, or
+// without script, the page keeps the final frame it was rendered with. Words come from the
+// page, never from here.
 
 (() => {
   /** Design sizes of the two compositions; the stage is scaled to its column. */
@@ -16,13 +17,12 @@
     return value;
   }
 
-  const section = must(document.currentScript?.closest("section"), "section");
+  const section = must(document.getElementById("how"), "section");
   const wrap = must(section.querySelector<HTMLElement>(".stage-wrap"), "stage wrap");
   const stage = must(wrap.querySelector<HTMLElement>(".stage"), "stage");
   const cursor = must(stage.querySelector<SVGElement>(".cursor"), "cursor");
   const confirm = must(stage.querySelector<HTMLElement>("[data-target=confirm]"), "confirm button");
   const steps = must(section.querySelector<HTMLElement>(".steps"), "steps");
-  const replay = must(section.querySelector<HTMLButtonElement>(".replay"), "replay button");
   const still = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   let scale = 1;
@@ -69,11 +69,6 @@
     setStep(step);
   }
 
-  function end(): void {
-    replay.hidden = false;
-    setStep(0);
-  }
-
   function rewind(): void {
     stage.classList.remove("is-live", ...STATES);
     const b = confirm.getBoundingClientRect();
@@ -84,10 +79,14 @@
     stage.classList.add("is-live");
   }
 
-  function play(): void {
+  function stop(): void {
     for (const t of timers) window.clearTimeout(t);
     timers = [];
-    replay.hidden = true;
+  }
+
+  function play(): void {
+    stop();
+    stage.style.opacity = "";
     rewind();
     const cues: [number, () => void][] = [
       [700, () => beat(1, ["is-notice"])],
@@ -98,7 +97,16 @@
       [7550, () => set(["is-pressing"])],
       [7700, () => set(["is-confirmed"], ["is-pressing"])],
       [9300, () => set([], ["is-cursor"])],
-      [10000, end],
+      [10000, () => setStep(0)],
+      // The result holds, fades out, goes back to the opening frame unseen, and plays again.
+      [
+        12800,
+        () => {
+          stage.style.opacity = "0";
+        },
+      ],
+      [13150, rewind],
+      [13700, play],
     ];
     timers = cues.map(([at, run]) => window.setTimeout(run, at));
   }
@@ -109,25 +117,15 @@
 
   // Show the opening frame now, so the result is never seen rewinding.
   stage.classList.remove(...STATES);
-  // Replay fades the stage out, rewinds it unseen, and fades the opening frame back in.
-  replay.addEventListener("click", () => {
-    stage.style.opacity = "0";
-    window.setTimeout(() => {
-      play();
-      window.requestAnimationFrame(() => {
-        stage.style.opacity = "";
-      });
-    }, 220);
-  });
-  stage.style.transition = "opacity 0.2s";
-  const seen = new IntersectionObserver(
+  stage.style.transition = "opacity 0.3s";
+  new IntersectionObserver(
     (entries) => {
-      if (entries.some((e) => e.isIntersecting)) {
-        seen.disconnect();
-        play();
-      }
+      if (!entries.some((e) => e.isIntersecting)) {
+        stop();
+        setStep(0);
+        stage.classList.remove(...STATES);
+      } else if (timers.length === 0) play();
     },
     { threshold: 0.5 },
-  );
-  seen.observe(wrap);
+  ).observe(wrap);
 })();

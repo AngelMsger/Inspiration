@@ -39,9 +39,11 @@
  *
  * Before a real run pays, it checks what it can for free (preflight.ts): it names the keyed
  * facts the corpus's catalogue lacks before the first call, and refuses to start when the
- * catalogue names none of them, unless --allow-uncatalogued. Before questions, any run stops
- * when the reader may read none of the indexed documents, as after a run resumed on an
- * existing database, whose permissions were in memory.
+ * catalogue names none of them, unless --allow-uncatalogued; nothing has run then, so there
+ * is no report. Later, before questions, any run stops when the reader may read none of the
+ * indexed documents, as after a run resumed on an existing database, whose permissions were
+ * in memory. Reading has run by then, maybe paid for, so the run still prints its cost and
+ * writes its report, whose `stopped` says where it stopped and why, and exits 1.
  *
  * synthesize writes a synthetic corpus of about n documents, with truth.json listing every
  * fact it states, for scale runs.
@@ -289,11 +291,13 @@ async function main(argv: string[]): Promise<number> {
     if (questions) {
       const seen = await readableDocuments(engine, corpus);
       if (seen.indexed && !seen.readable) {
-        console.error(
-          `preflight: the reader may read none of the ${seen.indexed} indexed documents, so every search would find ` +
-            "nothing; a run resumed on an existing database has no permissions (they live in memory), so replay " +
-            "into a fresh one, where saved replies cost nothing",
-        );
+        const reason =
+          `the reader may read none of the ${seen.indexed} indexed documents, so every search would find nothing; ` +
+          "a run resumed on an existing database has no permissions (they live in memory), so replay into a " +
+          "fresh one, where saved replies cost nothing";
+        console.error(`stopped before questions: ${reason}`);
+        out.stopped = { before: "questions", reason, ...seen };
+        await writeReport(engine, gateway, out, values);
         return 1;
       }
     }
@@ -330,12 +334,7 @@ async function main(argv: string[]): Promise<number> {
       console.log(`\n${daysSummary(simulated)}\n${inboxLines(inbox).join("\n")}`);
       out.days = { ...simulated, inbox };
     }
-    const cost = gateway && costReport(engine);
-    if (cost) {
-      console.log(`\n${costLines(cost, values["dry-run"] === true).join("\n")}`);
-      out.cost = cost;
-    }
-    if (values.json) await writeFile(values.json, `${JSON.stringify(out, null, 2)}\n`);
+    await writeReport(engine, gateway, out, values);
     return deadLetters ? 1 : 0;
   } finally {
     await engine.close();
@@ -343,6 +342,21 @@ async function main(argv: string[]): Promise<number> {
     await cache?.close();
     await usagePool?.end();
   }
+}
+
+/** Prints what the run's calls cost when it ran on --gateway, and writes its report to --json. */
+async function writeReport(
+  engine: Engine,
+  gateway: Gateway | undefined,
+  out: Record<string, unknown>,
+  values: { json?: string | undefined; "dry-run"?: boolean | undefined },
+): Promise<void> {
+  const cost = gateway && costReport(engine);
+  if (cost) {
+    console.log(`\n${costLines(cost, values["dry-run"] === true).join("\n")}`);
+    out.cost = cost;
+  }
+  if (values.json) await writeFile(values.json, `${JSON.stringify(out, null, 2)}\n`);
 }
 
 process.exitCode = await main(process.argv.slice(2));

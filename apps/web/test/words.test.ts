@@ -50,6 +50,7 @@ describe("language packs", () => {
       ...valuesOf("SlotStanding").map((v) => `standing.${v}`),
       ...valuesOf("HitKind").map((v) => `hit.${v}`),
       ...valuesOf("AnswerNoteKind").map((v) => `note.${v}`),
+      ...valuesOf("TodoKind").map((v) => `todo.${v}`),
     ];
     expect(named.length).toBeGreaterThan(15);
     expect(named.filter((k) => !(k in en))).toEqual([]);

@@ -2,12 +2,15 @@
 // left column of the Knowledge area, then the screen the address names. Reading a document
 // folds the left column away.
 
+import type { Inbox } from "@inspiration/contracts";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type ApiFailure, api, failureOf, type Library, loadLibrary, useLoad } from "./api.ts";
+import { type ApiFailure, api, failureOf, type Library, type Loaded, loadLibrary, useLoad } from "./api.ts";
 import type { Person, Session } from "./backend.ts";
 import { DocumentScreen } from "./document.tsx";
 import { Documents } from "./documents.tsx";
 import { Ask, countOf, Home } from "./home.tsx";
+import { countTodos, DecisionScreen, InboxScreen } from "./inbox.tsx";
+import { TopicScreen, TopicsScreen } from "./knowledge.tsx";
 import { Palette } from "./palette.tsx";
 import { Failure } from "./parts.tsx";
 import { Link, type Route, useRoute } from "./route.tsx";
@@ -67,6 +70,12 @@ function Shell(props: {
   const route = useRoute();
   const [palette, setPalette] = useState(false);
   const library = useLoad("library", loadLibrary);
+  // Resolving a todo changes the inbox; its count in the left column follows.
+  const [changes, setChanges] = useState(0);
+  const inbox = useLoad(`inbox:${changes}`, api.inbox);
+  const changed = useCallback(() => setChanges((n) => n + 1), []);
+  const todos = useRef(0);
+  if (inbox.state === "done") todos.current = countTodos(inbox.value);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -91,8 +100,15 @@ function Shell(props: {
         {library.state === "failed" && <Failure error={library.error} />}
         {library.state === "done" && (
           <>
-            {route.name !== "document" && <LeftColumn route={route} library={library.value} />}
-            <Screen route={route} library={library.value} person={props.session.person} />
+            {route.name !== "document" && <LeftColumn route={route} library={library.value} todos={todos.current} />}
+            <Screen
+              route={route}
+              library={library.value}
+              person={props.session.person}
+              people={props.session.people}
+              inbox={inbox}
+              onChanged={changed}
+            />
           </>
         )}
       </div>
@@ -109,13 +125,28 @@ function Shell(props: {
   );
 }
 
-function Screen(props: { route: Route; library: Library; person: Person }) {
-  const { route, library, person } = props;
+function Screen(props: {
+  route: Route;
+  library: Library;
+  person: Person;
+  people: Person[];
+  inbox: Loaded<Inbox>;
+  onChanged: () => void;
+}) {
+  const { route, library, person, people } = props;
   switch (route.name) {
     case "home":
       return <Home person={person} library={library} />;
     case "ask":
       return <Ask key={route.q} q={route.q} />;
+    case "inbox":
+      return <InboxScreen person={person} inbox={props.inbox} onChanged={props.onChanged} />;
+    case "todo":
+      return <DecisionScreen key={route.id} id={route.id} inbox={props.inbox} onChanged={props.onChanged} />;
+    case "topics":
+      return <TopicsScreen space={route.space} library={library} people={people} />;
+    case "topic":
+      return <TopicScreen key={route.key} topicKey={route.key} library={library} people={people} inbox={props.inbox} />;
     case "documents":
       return <Documents route={route} library={library} />;
     case "document":
@@ -191,13 +222,21 @@ function TopBar(props: {
   );
 }
 
-function LeftColumn(props: { route: Route; library: Library }) {
+function LeftColumn(props: { route: Route; library: Library; todos: number }) {
   const { say } = useWords();
   const { route, library } = props;
+  const topicSpace =
+    route.name === "topic"
+      ? [...library.topics.values()].find((l) => l.topics.some((t) => t.key === route.key))?.space_id
+      : undefined;
   return (
     <nav className="left" aria-label={say("nav.label")}>
       <Link to={{ name: "home" }} className="nav-item" current={route.name === "home"}>
         {say("nav.home")}
+      </Link>
+      <Link to={{ name: "inbox" }} className="nav-item" current={route.name === "inbox" || route.name === "todo"}>
+        <span>{say("nav.inbox")}</span>
+        {props.todos > 0 && <span className="count">{props.todos}</span>}
       </Link>
       <div className="nav-heading">{say("nav.spaces")}</div>
       {library.spaces.map((s) => (
@@ -210,6 +249,14 @@ function LeftColumn(props: { route: Route; library: Library }) {
           >
             <span>{say("nav.documents")}</span>
             <span className="count">{countOf(library, s.id)}</span>
+          </Link>
+          <Link
+            to={{ name: "topics", space: s.id }}
+            className="nav-item nav-sub"
+            current={(route.name === "topics" && route.space === s.id) || topicSpace === s.id}
+          >
+            <span>{say("nav.knowledge")}</span>
+            <span className="count">{library.topics.get(s.id)?.topics.length ?? 0}</span>
           </Link>
         </div>
       ))}

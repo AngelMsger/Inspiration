@@ -80,6 +80,7 @@ SpiceDB 中以 `documentObjectId(sourceId, externalId)` 保存它们。
 | `review.due` | freshness | collaboration、research |
 | `todo.requested` | extraction、governance、views | collaboration |
 | `todo.created` | collaboration | collaboration |
+| `todo.resolved` | collaboration | governance |
 | `page.rendered` | page-compiler | collaboration、retrieval、views |
 | `comment.created` | collaboration | extraction、collaboration |
 | `unit.published` | collaboration | retrieval、agent-api |

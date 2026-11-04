@@ -46,6 +46,11 @@
  * old path). Two documents both in use are a contradiction: being a few weeks newer does not
  * show that another document is wrong, so both values stand, disputed, until a person
  * decides.
+ *
+ * A person settles the open cases by choosing a value on the slot's todo (withChoice): that
+ * value holds, the cases are resolved and the values chosen against are outdated. The choice
+ * answers one question, what governance proposed and which cases were open; governance keeps
+ * it while it would ask the same question, and decides afresh, asking again, once it would not.
  */
 
 import type { ConflictClass, ConflictStatus, Priority } from "@inspiration/contracts";
@@ -152,11 +157,27 @@ export interface CaseDraft {
 
 export interface SlotDecision {
   proposed: ValueGroup;
-  /** Why the proposed value holds: "changed" by a dated statement, or the "authority" of its source. */
-  basis: "changed" | "authority";
+  /**
+   * Why the proposed value holds: "changed" by a dated statement, the "authority" of its
+   * source, or "chosen" by a person over the value governance proposed.
+   */
+  basis: "changed" | "authority" | "chosen";
   /** The change that made it hold, for basis "changed". */
   change?: Member;
+  /** The person's choice that settled the slot's open cases. */
+  chosen?: Choice;
   cases: CaseDraft[];
+}
+
+/**
+ * A person's choice on a slot's conflict todo, or an agent's for one: the value that holds,
+ * and the question it answered (the hash of what governance proposed and the open cases).
+ */
+export interface Choice {
+  value: string;
+  by: string;
+  at: string;
+  question: string;
 }
 
 /** Authority from which a source counts as governed (approved policies are 0.9). */
@@ -465,6 +486,44 @@ function heldValue(g: ValueGroup): string {
 
 function documents(g: ValueGroup): string {
   return g.versions.length === 1 ? "1 document" : `${g.versions.length} documents`;
+}
+
+/**
+ * The decision once a person chose a value on the slot's todo: that value holds and every open
+ * case is resolved. Choosing the proposed value keeps what governance settled alone (archived
+ * copies, notes); choosing another value resolves a case against every other one. `groups` are
+ * the groups the decision was made over (asOf). Undefined when nobody states the value any more.
+ */
+export function withChoice(
+  decision: SlotDecision,
+  groups: readonly ValueGroup[],
+  choice: Choice,
+): SlotDecision | undefined {
+  const proposed = groups.find((g) => g.value === choice.value);
+  if (!proposed) return undefined;
+  const over = (value: string) => `${choice.value} was chosen over ${value} on ${choice.at.slice(0, 10)}.`;
+  if (proposed.value === decision.proposed.value) {
+    const cases = decision.cases.map(
+      (c): CaseDraft =>
+        c.status === "open"
+          ? { ...c, status: "resolved", confidence: 1, rationale: `${over(c.value)} ${c.rationale}` }
+          : c,
+    );
+    return { ...decision, chosen: choice, cases };
+  }
+  const cases = groups
+    .filter((g) => g !== proposed)
+    .map(
+      (g): CaseDraft => ({
+        value: g.value,
+        classification: g.live === 0 && g.archived === g.count ? "supersession" : "contradiction",
+        status: "resolved",
+        priority: "low",
+        confidence: 1,
+        rationale: over(g.value),
+      }),
+    );
+  return { proposed, basis: "chosen", chosen: choice, cases };
 }
 
 /**

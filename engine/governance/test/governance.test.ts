@@ -133,6 +133,14 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
           dedupe_key: "governance:conflict:hotel_cap_per_night|tier-1 city",
           batch_key: "governance:conflict:hotel_cap_per_night",
           slot_key: HOTEL,
+          resolutions: [
+            ["Keep", "650 CNY/night", notice.claims[0]?.id],
+            ["Choose", "600 CNY/night", policy.claims[0]?.id],
+          ].map(([verb, value, claim]) => ({
+            key: `choose:${value}`,
+            label: `${verb} ${value}`,
+            effect: { slot_key: HOTEL, value, question: expect.stringMatching(/^sha256:/), claim_id: claim },
+          })),
         },
       ]);
     });
