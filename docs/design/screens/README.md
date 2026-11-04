@@ -2,7 +2,7 @@
 
 Status: a snapshot of the product owner's design canvas, "Inspiration UI"
 (https://claude.ai/artifact/GYXc5GBY3bPq1XGuMUGwAk), taken on 2026-10-26 and updated on
-2026-10-27 (canvas version 81). Screens are drawn and changed on the canvas. This folder holds a copy so reviewers
+2026-11-04 (canvas version 86). Screens are drawn and changed on the canvas. This folder holds a copy so reviewers
 and team members can read the screens next to the docs. Where the two differ, the canvas wins.
 A Chinese copy of this README is in
 [docs/zh/design/screens/README.md](../../zh/design/screens/README.md).
@@ -43,6 +43,7 @@ Structure, reading, account and admin:
 | [V2-admin](V2-admin.dc.html) | Admin grouped by concern: members, search first |
 | [V2-sources](V2-sources.dc.html) | Admin: source connections, the company's and the members' |
 | [V2-tree](V2-tree.dc.html) | Four options for a space's documents and knowledge in the left column, compared with today's shape; the product owner kept today's shape |
+| [V2-skim](V2-skim.dc.html) | In reserve, not scheduled: key phrases in bold on knowledge pages and answers, the reader's switch, the same facts in three languages, and the original left as written |
 
 Working:
 

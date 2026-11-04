@@ -1,7 +1,7 @@
 # 界面稿
 
 状态：产品负责人设计画布 “Inspiration UI”（https://claude.ai/artifact/GYXc5GBY3bPq1XGuMUGwAk）的快照，
-取于 2026-10-26，2026-10-27 更新（画布第 81 版）。界面稿在画布上绘制和修改；这个文件夹保存一份副本，方便评审者和团队成员对照文档阅读。两者不一致时，
+取于 2026-10-26，2026-11-04 更新（画布第 86 版）。界面稿在画布上绘制和修改；这个文件夹保存一份副本，方便评审者和团队成员对照文档阅读。两者不一致时，
 以画布为准。本 README 的英文原文在 [docs/design/screens/README.md](../../../design/screens/README.md)；
 两者不一致时，以英文版为准。
 
@@ -38,6 +38,7 @@
 | [V2-admin](../../../design/screens/V2-admin.dc.html) | 管理后台按关注点分组：成员，先搜索 |
 | [V2-sources](../../../design/screens/V2-sources.dc.html) | 管理后台：来源连接，企业的和成员的 |
 | [V2-tree](../../../design/screens/V2-tree.dc.html) | 空间的文档和知识在左侧栏里怎么放：四个备选和今天的样子对照；产品负责人选择保留今天的样子 |
+| [V2-skim](../../../design/screens/V2-skim.dc.html) | 储备，没有排期：知识页和回答里加粗关键短语、读者的开关、三种语言加粗同一件事、原文保持作者写的样子 |
 
 处理工作：
 
