@@ -1,5 +1,7 @@
 // Every state of the page has its own address, so the browser's Back always works and any
-// screen can be linked to. A route is parsed from the address and written back to it.
+// screen can be linked to. A route is parsed from the address and written back to it. A
+// snapshot (snapshot.ts) is served as one static page, so there the address is the part after
+// "#" (<html data-routes="hash">).
 
 import { type MouseEvent, type ReactNode, useEffect, useState } from "react";
 
@@ -110,22 +112,32 @@ export function href(route: Route): string {
 
 const CHANGED = "inspiration:navigate";
 
+const inHash = () => document.documentElement.dataset.routes === "hash";
+
+/** Where a route lives in this page's address bar. */
+function addressOf(route: Route): string {
+  return inHash() ? `#${href(route)}` : href(route);
+}
+
+/** The address the route is read from. */
+function here(): URL {
+  return inHash() ? new URL(location.hash.slice(1) || "/", location.origin) : new URL(location.href);
+}
+
 export function navigate(route: Route, options: { replace?: boolean } = {}): void {
-  const to = href(route);
+  const to = addressOf(route);
   if (options.replace) history.replaceState(null, "", to);
   else history.pushState(null, "", to);
   window.dispatchEvent(new Event(CHANGED));
 }
 
 export function useRoute(): Route {
-  const [route, setRoute] = useState(() => parse(new URL(location.href)));
+  const [route, setRoute] = useState(() => parse(here()));
   useEffect(() => {
-    const update = () => setRoute(parse(new URL(location.href)));
-    window.addEventListener("popstate", update);
-    window.addEventListener(CHANGED, update);
+    const update = () => setRoute(parse(here()));
+    for (const event of ["popstate", "hashchange", CHANGED]) window.addEventListener(event, update);
     return () => {
-      window.removeEventListener("popstate", update);
-      window.removeEventListener(CHANGED, update);
+      for (const event of ["popstate", "hashchange", CHANGED]) window.removeEventListener(event, update);
     };
   }, []);
   return route;
@@ -140,7 +152,7 @@ export function Link(props: { to: Route; className?: string; children: ReactNode
   };
   return (
     <a
-      href={href(props.to)}
+      href={addressOf(props.to)}
       className={props.className}
       onClick={onClick}
       aria-current={props.current ? "page" : undefined}

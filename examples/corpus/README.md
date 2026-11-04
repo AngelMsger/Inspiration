@@ -105,6 +105,14 @@ read both new versions within a second, and then:
 - the hotel-cap todo stays with 张敏, now showing the policy for 650 and the guide for 600;
 - the space overview lists both documents as updated.
 
+## The demo script
+
+`script.yaml` is the demo in order: each step names the person who takes it, the page it
+opens and what to look at or do there, in each interface language, and the two steps that move
+the demo on say so (`do`): 张敏 confirms the leave suggestion, and 周敏 puts in the upstream
+edit. `pnpm snapshot` records it: after reading everything each person can see, it takes the
+next action and reads again, and builds a static page that answers from that recording.
+
 ## Permissions
 
 - `制度库` is readable by the whole tenant; finance and HR folders add their editors.

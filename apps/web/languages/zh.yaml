@@ -207,3 +207,17 @@ palette.none: 没有匹配的内容。
 
 failure.engine: 引擎没有响应。pnpm demo 在运行吗？
 failure.other: "出了点问题：{message}"
+failure.not_recorded: "这份演示是录好的，这一步没有录。"
+failure.recorded_questions: "可以问：{questions}"
+
+guide.title: 演示脚本
+guide.about: "这是 {date} 一次真实运行的录像，模型用的是开发替身。共 {count} 步，每一步以做这件事的人的身份打开。"
+guide.step: "第 {n} 步，共 {count} 步 · {name}"
+guide.start: "开始：以{name}的身份打开"
+guide.next: "下一步：以{name}的身份打开"
+guide.open: "以{name}的身份打开"
+guide.all: 全部步骤
+guide.fewer: 收起步骤
+guide.done: 已完成
+guide.restart: 重新开始
+guide.hide: 收起

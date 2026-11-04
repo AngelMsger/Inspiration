@@ -1,0 +1,52 @@
+# The demo script: who does what, in order. pnpm snapshot records it (apps/web/src/snapshot.ts)
+# and the snapshot's guide walks a visitor through it. `as` is the member who takes a step,
+# `open` the page's address it starts at, `text` what to look at or do, and `do` the action
+# that moves the demo on: confirming the suggestion of the todo about a slot, or putting in an
+# upstream edit from updates/.
+
+steps:
+  - as: mem_01QINGHE000000000000000001
+    open: /ask?q=去深圳出差住宿每晚能报多少？
+    text:
+      zh: 陈晨问住宿限额。回答给出现行的 650 元一晚和出处，并提示还有文档写着 600 元。
+      en: 陈晨 asks about the hotel cap. The answer gives the 650 a night that holds, with its source, and notes the documents that still say 600.
+      ja: 陈晨が出張の宿泊費の上限を尋ねます。回答は現行の 1 泊 650 元を出典つきで示し、まだ 600 元と書いている文書があることも伝えます。
+
+  - as: mem_01QINGHE000000000000000001
+    open: /document?source=src_01QINGHE00000000000POLICIES&item=%E8%B4%A2%E5%8A%A1%2F%E5%B7%AE%E6%97%85%E8%B4%B9%E7%AE%A1%E7%90%86%E5%8A%9E%E6%B3%95.md&view=annotated
+    text:
+      zh: 打开《差旅费管理办法》的标注视图：住宿那一条标着已过时，右侧说明现行值和依据。
+      en: The travel policy in its Annotated view. The hotel row is marked outdated, and the right panel says what holds instead and why.
+      ja: 《差旅费管理办法》を注釈ビューで開きます。宿泊の条は古い値として示され、右側に現行の値とその根拠が出ます。
+
+  - as: mem_01QINGHE000000000ZHANGMIN
+    open: /inbox
+    text:
+      zh: 张敏是主题负责人。在待办里确认建议：首年年假以《考勤与休假管理制度》的 5 天为准。
+      en: 张敏 owns the topic. In the inbox, confirm the suggestion that first-year leave is the attendance policy's 5 days.
+      ja: 张敏はトピック責任者です。受信トレイで、1 年目の年休は《考勤与休假管理制度》の 5 日とする提案を確定します。
+    do:
+      resolve: annual_leave_days|工龄 1 至 10 年
+
+  - as: mem_01QINGHE000000000000000001
+    open: /ask?q=工作第一年有几天年假？
+    text:
+      zh: 切回陈晨再问一次：答案按张敏的决定改变，新人入职指南里的 7 天标为已过时。
+      en: Back as 陈晨, ask again. The answer follows 张敏's decision, and the onboarding guide's 7 days read as outdated.
+      ja: 陈晨に戻ってもう一度尋ねます。回答は张敏の決定に従い、新人入职指南の 7 日は古い値として示されます。
+
+  - as: mem_01QINGHE0000000000ZHOUMIN
+    open: /spaces/spc_01QINGHE000000000000POLICY/maintain
+    text:
+      zh: 周敏是空间负责人。维护空间：看看概览、主题和负责人、文件夹的治理级别。然后在右侧放入新版《差旅费管理办法》。
+      en: 周敏 is the space owner. Look at the overview, the topics and their owners, and the folders' governance levels. Then put in the revised travel policy on the right.
+      ja: 周敏はスペース責任者です。スペースの管理画面で、概要、トピックと責任者、フォルダーの統制レベルを見てから、右側で改訂版の《差旅费管理办法》を入れます。
+    do:
+      update: travel-policy-revised
+
+  - as: mem_01QINGHE000000000000000001
+    open: /ask?q=去深圳出差住宿每晚能报多少？
+    text:
+      zh: 新版放进来就生效了：回答引用新版住宿标准表里的 650 元，只剩新人入职指南还写着 600 元。最后可以在右上角的账户菜单里把界面换成英语或日语。
+      en: The new version holds as soon as it is in. The answer cites 650 from the revised rate table, and only the onboarding guide still says 600. Finally, switch the interface to English or Japanese in the account menu.
+      ja: 新しい版は入れた時点で有効になります。回答は改訂後の宿泊基準表の 650 元を引用し、600 元のままなのは新人入职指南だけになります。最後に、右上のアカウントメニューで表示言語を英語か日本語に切り替えられます。

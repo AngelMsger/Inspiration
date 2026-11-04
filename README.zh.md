@@ -45,7 +45,12 @@ pnpm bench ask examples/kubernetes-docs "Kubernetes 集群最多可以有多少�
 ```bash
 pnpm demo                                    # 引擎在 4100 端口，Web 应用在 5173 端口
 pnpm engine serve examples/corpus            # 只启动引擎的 HTTP API
+pnpm snapshot dist/snapshot                  # 把演示脚本录成一个静态页面
 ```
+
+演示脚本（`examples/corpus/script.yaml`）列出这些步骤，以及每一步由谁来做。`pnpm snapshot` 对着引擎走一遍脚本，
+写出一个从录像作答的静态页面，页面底部有一条向导，按步骤以相应的人的身份打开，所以任何人拿到链接就能跟着演示走，
+不需要引擎。脚本没有问的问题、没有做的操作，页面会说明这一步没有录。
 
 不启动模型服务也可以试用模型网关，用假的模型提供方运行它：
 
@@ -64,7 +69,7 @@ libs/testkit        针对 compose 运行环境的测试夹具
 engine/<component>  每个引擎组件一个包（见 components.yaml）
 business/           业务层的包（尚无）；engine/ 和 libs/ 从不依赖它们
 apps/engine         引擎进程：把组件接到存储、事件总线和 blob 存储上；HTTP API
-apps/web            产品 Web 应用，基于引擎的 HTTP API，带一个替身后端（pnpm demo）
+apps/web            产品 Web 应用，基于引擎的 HTTP API，带一个替身后端（pnpm demo）和录像（pnpm snapshot）
 apps/bench          测量工具（pnpm bench）：在语料上运行引擎、生成报告、核对答案
 apps/site           产品官网（pnpm site）：三种语言的静态页面和一段演示动画
 examples/<corpus>   语料，以及核对运行结果所用的答案（见 examples/README.zh.md）

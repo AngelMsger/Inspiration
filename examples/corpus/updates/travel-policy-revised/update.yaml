@@ -1,4 +1,4 @@
-# An upstream edit the demo puts into the policy library (step 6 of the demo script): the
+# An upstream edit the demo puts into the policy library (step 5 of script.yaml): the
 # finance department saves the revised travel policy and its rate table, which raise the
 # tier-1 city hotel cap from 600 to 650 yuan a night as the notice of 2026-10-01 announced.
 # The files below this folder replace the corpus's files at the same paths; then the source

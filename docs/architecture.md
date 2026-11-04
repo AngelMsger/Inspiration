@@ -43,7 +43,9 @@ and anything the member may not read answers as if it did not exist. Until the b
 signs principal tokens, a request names its tenant and member in the `x-inspiration-tenant`
 and `x-inspiration-member` headers, a development stand-in that listens on localhost only. The
 web app's own backend is a stand-in too (`apps/web/src/backend.ts`): a person picks whom to act
-as, and only the backend sets those headers. `pnpm demo` runs both over the demo tenant.
+as, and only the backend sets those headers. `pnpm demo` runs both over the demo tenant, and
+`pnpm snapshot` records the demo script through both into a static page that answers from the
+recording (`apps/web/src/replay.ts`).
 
 ## One repository, a folder per layer
 

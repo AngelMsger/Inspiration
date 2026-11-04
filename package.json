@@ -18,6 +18,7 @@
     "bench": "node apps/bench/src/cli.ts",
     "engine": "node apps/engine/src/serve.ts",
     "demo": "node apps/web/src/demo.ts",
+    "snapshot": "node apps/web/src/snapshot.ts",
     "site": "node apps/site/src/build.ts"
   },
   "dependencies": {

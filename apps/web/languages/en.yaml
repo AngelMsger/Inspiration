@@ -207,3 +207,17 @@ palette.none: Nothing matches.
 
 failure.engine: The engine did not answer. Is pnpm demo running?
 failure.other: "Something went wrong: {message}"
+failure.not_recorded: "This demo is a recording, and this step was not recorded."
+failure.recorded_questions: " You can ask: {questions}"
+
+guide.title: Demo script
+guide.about: "A recording of a real run on {date}, with the development stand-ins for models: {count} steps, each as the person who takes it."
+guide.step: "Step {n} of {count} · {name}"
+guide.start: "Start as {name}"
+guide.next: "Next, as {name}"
+guide.open: "Open as {name}"
+guide.all: All steps
+guide.fewer: Fewer
+guide.done: Done
+guide.restart: Start over
+guide.hide: Hide

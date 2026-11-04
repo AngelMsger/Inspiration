@@ -207,3 +207,17 @@ palette.none: 一致するものがありません。
 
 failure.engine: エンジンが応答しません。pnpm demo は実行中ですか？
 failure.other: "問題が発生しました：{message}"
+failure.not_recorded: "このデモは録画で、この操作は記録されていません。"
+failure.recorded_questions: "質問できるのは：{questions}"
+
+guide.title: デモの台本
+guide.about: "{date} に実際に動かした記録です。モデルは開発用の代役です。全 {count} ステップを、それぞれ担当する人として開きます。"
+guide.step: "ステップ {n}/{count} · {name}"
+guide.start: "{name}として始める"
+guide.next: "次へ：{name}として開く"
+guide.open: "{name}として開く"
+guide.all: すべてのステップ
+guide.fewer: 閉じる
+guide.done: 完了
+guide.restart: 最初から
+guide.hide: 隠す
