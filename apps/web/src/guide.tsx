@@ -68,8 +68,8 @@ export function Guide(props: {
   const current = recording.steps[at];
   const next = recording.steps[at + 1];
   const date = recording.recorded_at.slice(0, 10);
-  const about = recording.answered_by
-    ? say("guide.about_answered", { date, count, model: recording.answered_by })
+  const about = recording.answer_model
+    ? say("guide.about_model", { date, count, model: recording.answer_model })
     : say("guide.about", { date, count });
   return (
     <aside className="guide" aria-label={say("guide.title")}>

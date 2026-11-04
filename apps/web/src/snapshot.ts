@@ -8,7 +8,7 @@
  * walk it without the engine. It runs the engine over a copy of the corpus with the
  * development models, as pnpm demo does, with the web app's backend in front (backend.ts), or
  * with the models a --gateway file configures (engine serve), such as config/gateway.demo.yaml,
- * where DeepSeek writes the answers; the guide then names the model that did. A script step
+ * where DeepSeek writes the answers; the guide then names the model the config prefers for them. A script step
  * may put its question in each language, so answers come in the language the page shows.
  * As each person it reads everything the page can show; then it takes the script's next
  * action and reads again, so every action leads to a recorded state. The engine takes the
@@ -61,8 +61,12 @@ export function questionsOf(steps: readonly ScriptStep[]): string[] {
   return [...new Set(asked)];
 }
 
-/** The model a gateway config has write the answers, unless that is a development stand-in. */
-export function answeredBy(config: string): string | undefined {
+/**
+ * The model a gateway config prefers for answers, unless that is a development stand-in. It is
+ * the config's preference, not a record of each answer: one from content the model is not
+ * cleared for goes to another.
+ */
+export function answerModel(config: string): string | undefined {
   const { providers = [], routes = [] } = (parse(config) ?? {}) as {
     providers?: { name: string; kind: string }[];
     routes?: { match: string; prefer?: string[] }[];
@@ -216,7 +220,7 @@ async function main(): Promise<void> {
   const today = values.today ?? new Date().toISOString().slice(0, 10);
   const models = values.gateway ? ["--gateway", resolve(values.gateway)] : [];
   if (values.valkey) models.push("--valkey", values.valkey);
-  const answered = values.gateway ? answeredBy(await readFile(values.gateway, "utf8")) : undefined;
+  const answerer = values.gateway ? answerModel(await readFile(values.gateway, "utf8")) : undefined;
   const serve = [SERVE, "serve", copy, "--port", String(ENGINE_PORT), "--today", today, ...models];
   const engine = spawn(process.execPath, serve, {
     stdio: "inherit",
@@ -250,7 +254,7 @@ async function main(): Promise<void> {
       people,
       steps,
       questions,
-      ...(answered && { answered_by: answered }),
+      ...(answerer && { answer_model: answerer }),
       bodies: recorder.bodies,
       states: recorder.states,
     };

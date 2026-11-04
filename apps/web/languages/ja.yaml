@@ -216,7 +216,7 @@ failure.recorded_questions: "質問できるのは：{questions}"
 
 guide.title: デモの台本
 guide.about: "{date} に実際に動かした記録です。モデルは開発用の代役です。全 {count} ステップを、それぞれ担当する人として開きます。"
-guide.about_answered: "{date} に実際に動かした記録です。回答は {model} が書き、ほかのモデルは開発用の代役です。全 {count} ステップを、それぞれ担当する人として開きます。"
+guide.about_model: "{date} に実際に動かした記録です。回答は {model} が書き、機密の内容に基づく回答はローカルの代役が書きます。ほかのモデルは開発用の代役です。全 {count} ステップを、それぞれ担当する人として開きます。"
 guide.step: "ステップ {n}/{count} · {name}"
 guide.start: "{name}として始める"
 guide.next: "次へ：{name}として開く"
