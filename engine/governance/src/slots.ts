@@ -322,12 +322,13 @@ function newer(a: ValueGroup, b: ValueGroup, today: string): boolean {
 export const IN_USE_DAYS = 365;
 
 /**
- * True when b's document is newer than a's by IN_USE_DAYS or more, or a's has no date: a's is
- * a copy left behind (a backup, an old page at an old path), not a document still in use
- * beside b's that a person must weigh against it.
+ * True when b's document last changed IN_USE_DAYS or more after a's did, or a's has no date:
+ * a's is a copy left behind (a backup, an old page at an old path), not a document still in
+ * use beside b's that a person must weigh against it. What counts is when a document was last
+ * changed, not when it took effect: a policy in effect since 2020 and edited last week is in use.
  */
 function leftBehind(a: ValueGroup, b: ValueGroup): boolean {
-  const [x, y] = [dateOf(a.best), dateOf(b.best)];
+  const [x, y] = [changedOn(a.best), changedOn(b.best)];
   if (!x) return true;
   return (
     Date.parse(`${y.slice(0, 10)}T00:00:00Z`) - Date.parse(`${x.slice(0, 10)}T00:00:00Z`) >= IN_USE_DAYS * 86_400_000
@@ -337,6 +338,11 @@ function leftBehind(a: ValueGroup, b: ValueGroup): boolean {
 /** A document's own date: the day it takes effect, else the day it was last changed. */
 function dateOf(m: Member): string {
   return m.document_from ?? m.modified ?? "";
+}
+
+/** The day a document was last changed, else its own date. */
+function changedOn(m: Member): string {
+  return m.modified || dateOf(m);
 }
 
 /** The group with one more member. */
