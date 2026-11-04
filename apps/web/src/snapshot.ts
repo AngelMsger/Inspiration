@@ -8,7 +8,8 @@
  * walk it without the engine. It runs the engine over a copy of the corpus with the
  * development models, as pnpm demo does, with the web app's backend in front (backend.ts).
  * As each person it reads everything the page can show; then it takes the script's next
- * action and reads again, so every action leads to a recorded state.
+ * action and reads again, so every action leads to a recorded state. The engine takes the
+ * day given, else today, as its day while it records.
  *
  * The snapshot holds what every person of the tenant could read, for whoever opens it: acting
  * as someone in it is a simulation, not access control. Record only a corpus whose whole
@@ -182,11 +183,13 @@ async function main(): Promise<void> {
   const copy = await mkdtemp(join(tmpdir(), "inspiration-snapshot-"));
   await cp(resolve(values.corpus), copy, { recursive: true });
   const people = loadPeople(join(copy, "people.yaml"));
-  const engine = spawn(
-    process.execPath,
-    [SERVE, "serve", copy, "--port", String(ENGINE_PORT), ...(values.today ? ["--today", values.today] : [])],
-    { stdio: "inherit", env: { INSPIRATION_LOG_LEVEL: "warn", ...process.env } },
-  );
+  // The engine's clock stands still while it records, so a page that does not change between
+  // people and steps is the same body, stored once, and not one per instant it was read.
+  const today = values.today ?? new Date().toISOString().slice(0, 10);
+  const engine = spawn(process.execPath, [SERVE, "serve", copy, "--port", String(ENGINE_PORT), "--today", today], {
+    stdio: "inherit",
+    env: { INSPIRATION_LOG_LEVEL: "warn", ...process.env },
+  });
   let server: Server | undefined;
   try {
     console.log(`reading ${values.corpus} with the development models…`);

@@ -2,21 +2,37 @@
 # app's development backend (apps/web/src/backend.ts) offers each one to act as, in place of
 # signing in; the first is the default. Their member IDs are the ones corpus.yaml provisions.
 
-tenant: ten_01QINGHE000000000000000001
+tenant: ten_01HENGYUAN0000000000000001
 people:
-  - member: mem_01QINGHE000000000000000001
+  - member: mem_01HENGYUAN00000000CHENCHEN
     name: 陈晨
-    about: 市场部 · 成员
+    about: 销售部 · 成员
     locale: zh-CN
-  - member: mem_01QINGHE00000000000000LINA
+  - member: mem_01HENGYUAN000000000000LINA
     name: 李娜
-    about: 财务部 · 差旅制度负责人
+    about: 财务部 · 差旅主题负责人
     locale: zh-CN
-  - member: mem_01QINGHE000000000ZHANGMIN
-    name: 张敏
-    about: 人力资源部 · 薪酬负责人
+  - member: mem_01HENGYUAN000000000WANGLEI
+    name: 王磊
+    about: 财务部 · 借款与预付主题负责人
     locale: zh-CN
-  - member: mem_01QINGHE0000000000ZHOUMIN
+  - member: mem_01HENGYUAN000000000ZHOUMIN
     name: 周敏
     about: 财务部 · 空间负责人
+    locale: zh-CN
+  - member: mem_01HENGYUAN0000000000GAOYAN
+    name: 高燕
+    about: 财务部 · 费用报销主题负责人
+    locale: zh-CN
+  - member: mem_01HENGYUAN000000000LIUYANG
+    name: 刘洋
+    about: 财务部 · 资产主题负责人
+    locale: zh-CN
+  - member: mem_01HENGYUAN00000000ZHANGMIN
+    name: 张敏
+    about: 人力资源部 · 公司制度空间负责人
+    locale: zh-CN
+  - member: mem_01HENGYUAN000000000LINXIAO
+    name: 林晓
+    about: 行政部 · 采购与行政主题负责人
     locale: zh-CN

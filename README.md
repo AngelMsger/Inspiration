@@ -58,10 +58,11 @@ it and which test holds it to its answers.
 
 To see the product, run the demo. It reads the demo tenant with the development models, so it
 costs nothing, then serves the web app at http://127.0.0.1:5173 (the account menu switches
-the person you act as and the interface language). Act as 张敏 to decide the first-year leave
-conflict in the inbox, then see the onboarding guide's 7 days marked outdated. Act as 周敏,
-the space owner, to maintain 公司制度 and put in the revised travel policy: within a second
-answers cite 650 and only the onboarding guide still says 600:
+the person you act as and the interface language). As 陈晨, ask how much a night in Shenzhen
+may cost: the answer gives the hotel price list's 650 and says the travel policy still says
+600. As 李娜, confirm 650 in the inbox, and the FAQ's and minutes' 600 reads as outdated. As
+周敏, the finance space owner, put in edition 7 of the travel policy: within a second its
+tier-1 row says 650:
 
 ```bash
 pnpm demo                                    # the engine on port 4100, the web app on 5173

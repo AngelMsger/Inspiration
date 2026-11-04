@@ -1,38 +1,45 @@
 # The demo corpus (examples/corpus) in its own words, as the HTTP API test reads it.
 
-spaces: [公司制度, 团队知识]
+spaces: [财务部, 公司制度]
 
-# The travel policy, the finance folder it sits in, and what its marks say.
+# The travel policy (edition 6), the folder it sits in, and what its marks say: its 600 for
+# tier-1 cities stands against the Shenzhen hotel price list's 650 until 李娜 decides.
 travel:
-  item: 财务/差旅费管理办法.md
-  title: 差旅费管理办法
-  folder: 财务
-  outdated: "600"
+  item: 差旅/差旅报销管理办法.md
+  title: 差旅报销管理办法
+  folder: 差旅
+  disputed: "600"
   held: "650"
-  held_by: 关于调整一线城市住宿标准的通知
+  held_by: 深圳协议酒店价目表
 
-# The finance-only budget note and the folder only finance may open.
+# The finance-only budget note, the folder only finance may open and the folder above it.
 budget:
-  item: 财务/内部/2027 年度预算编制说明.md
+  item: 预算/内部/2027 年度预算编制说明.md
   title: 2027 年度预算编制说明
   folder: 内部
+  parent: 预算
 
 question: 去深圳出差住宿每晚能报多少？
 search: 住宿限额
 
+# The finance space's maintainer sees the hotel cap disputed among its facts.
+hotel:
+  slot: hotel_cap_per_night|一线城市
+  fact: 住宿限额（每晚）
+
 # First-year leave: the attendance policy's 5 days against the onboarding guide's 7, a
 # contradiction its owner decides.
 leave:
-  topic: 年休假
+  topic: 休假
   fact: 年休假天数
   slot: annual_leave_days|工龄 1 至 10 年
   question: 工作第一年有几天年假？
   values: [5 day, 7 day]
   titles: [考勤与休假管理制度, 新人入职指南]
 
-# The demo's upstream edit (examples/corpus/updates): the revised travel policy and its rate
-# table, after which only the onboarding guide still says 600.
+# The demo's upstream edit (examples/corpus/updates): edition 7 of the travel policy, after
+# which only reference notes older than it, such as the reimbursement FAQ, still say 600.
 update:
   name: travel-policy-revised
-  documents: [差旅费管理办法, 城市住宿标准]
-  still: 新人入职指南
+  documents: [差旅报销管理办法]
+  still: 报销常见问题
