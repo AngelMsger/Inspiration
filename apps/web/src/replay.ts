@@ -46,7 +46,8 @@ export interface Recording {
   questions: string[];
   /**
    * The model the recording's gateway config prefers for answers, when it is not a development
-   * stand-in. An answer from content that model is not cleared for is written by a local stand-in.
+   * stand-in. It is not who wrote each answer: the gateway falls back to another model on a
+   * retryable error, and an answer from content that model is not cleared for goes to one that is.
    */
   answer_model?: string;
   /** Each response body once, by a hash of its JSON. */

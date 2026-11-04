@@ -63,8 +63,8 @@ export function questionsOf(steps: readonly ScriptStep[]): string[] {
 
 /**
  * The model a gateway config prefers for answers, unless that is a development stand-in. It is
- * the config's preference, not a record of each answer: one from content the model is not
- * cleared for goes to another.
+ * the config's preference, not a record of each answer: one goes to another model on a
+ * retryable error, or when its content is more sensitive than the model is cleared for.
  */
 export function answerModel(config: string): string | undefined {
   const { providers = [], routes = [] } = (parse(config) ?? {}) as {
