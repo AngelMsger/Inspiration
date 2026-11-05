@@ -3,20 +3,29 @@
 // selected passage only.
 
 import type { DocumentView, SourceBlock } from "@inspiration/contracts";
-import { type KeyboardEvent, type ReactNode, useEffect, useMemo } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { api, type Library, useLoad } from "./api.ts";
 import { citedAt, remember } from "./home.tsx";
 import { highlight, type Mark, marksOf, type Passage, passages, type Quote, weakest } from "./marks.ts";
 import { Crumbs, Failure, formatDate, Standing } from "./parts.tsx";
 import type { Person } from "./people.ts";
 import { type DocumentRoute, Link, navigate } from "./route.tsx";
+import { NewVersion, UPLOADS } from "./upload.tsx";
+import { mayUpload } from "./uploads.ts";
 import { useWords } from "./words.ts";
 
-export function DocumentScreen(props: { route: DocumentRoute; library: Library; person: Person }) {
+export function DocumentScreen(props: {
+  route: DocumentRoute;
+  library: Library;
+  person: Person;
+  onSourcesChanged: () => void;
+}) {
   const { say } = useWords();
   const { route } = props;
+  // A new version is read again; the documents list follows.
+  const [versions, setVersions] = useState(0);
   const key = route.version ?? `${route.source}|${route.item}`;
-  const loaded = useLoad(`document:${key}`, () => api.document(route));
+  const loaded = useLoad(`document:${key}:${versions}`, () => api.document(route));
   if (loaded.state !== "done") {
     return (
       <main className="reading">
@@ -28,10 +37,20 @@ export function DocumentScreen(props: { route: DocumentRoute; library: Library; 
       </main>
     );
   }
-  return <Reading {...props} view={loaded.value} />;
+  const changed = () => {
+    setVersions((n) => n + 1);
+    props.onSourcesChanged();
+  };
+  return <Reading {...props} view={loaded.value} onNewVersion={changed} />;
 }
 
-function Reading(props: { route: DocumentRoute; library: Library; person: Person; view: DocumentView }) {
+function Reading(props: {
+  route: DocumentRoute;
+  library: Library;
+  person: Person;
+  view: DocumentView;
+  onNewVersion: () => void;
+}) {
   const { say, tag } = useWords();
   const { route, view, library, person } = props;
   const list = useMemo(() => passages(view.blocks), [view]);
@@ -43,6 +62,10 @@ function Reading(props: { route: DocumentRoute; library: Library; person: Person
       : route.span && [p.block, ...p.rows].some((b) => b.span_ids.includes(route.span as string)),
   );
   const space = library.spaces.find((s) => s.id === view.space_id);
+  // Only an uploaded document takes a new version here; a connected source brings its own.
+  const uploaded = library.trees
+    .get(view.space_id ?? "")
+    ?.sources.some((s) => s.source_id === view.document.source_id && s.source_type === UPLOADS);
   const outdated = view.annotations.statements.filter((s) => s.standing === "outdated").length;
 
   useEffect(() => {
@@ -112,6 +135,9 @@ function Reading(props: { route: DocumentRoute; library: Library; person: Person
             <span>{[view.source_name, ...folders].join(" · ")}</span>
             <span>{say("doc.level", { level: say(`level.${view.document.governance_level}`) })}</span>
             <span>{say("doc.synced", { date: formatDate(tag, view.document.fetched_at) })}</span>
+            {uploaded && space && mayUpload(space) && !route.version && (
+              <NewVersion space={space.id} path={view.document.external_id} onChanged={props.onNewVersion} />
+            )}
             {annotated && (
               <span>
                 {say("doc.summary", { statements: view.annotations.statements.length })}

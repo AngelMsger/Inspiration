@@ -13,6 +13,7 @@ import type {
   CreateSpace,
   DocumentTree,
   DocumentView,
+  FileWritten,
   GroundedAnswer,
   Inbox,
   PatchSpace,
@@ -88,11 +89,14 @@ async function send<T>(
 ) {
   const named = IN_COMPANY.test(path) ? company : undefined;
   const headers: Record<string, string> = { ...extra, ...(named && { "x-inspiration-company": named }) };
+  // A file goes as its bytes; anything else as JSON.
   const res = await fetch(
     `/api${path}`,
     body === undefined
       ? { method, headers }
-      : { method, headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(body) },
+      : body instanceof Blob
+        ? { method, headers: { ...headers, "content-type": body.type || "application/octet-stream" }, body }
+        : { method, headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(body) },
   );
   const json = (await res.json().catch(() => undefined)) as unknown;
   if (!res.ok) {
@@ -166,6 +170,15 @@ function apiOf(company: () => string | undefined, frame: boolean) {
     audience: (id: string) => call<SpaceAudience>(`${space(id)}/audience`),
     setAudience: (id: string, audience: PutSpaceAudience) =>
       call<SpaceAudience>(`${space(id)}/audience`, audience, "PUT"),
+    /** One file into the space's uploads at `path`, its folders first; a retry changes nothing. */
+    putFile: (id: string, path: readonly string[], file: Blob) =>
+      call<FileWritten>(
+        `${space(id)}/files/${path.map(encodeURIComponent).join("/")}`,
+        file,
+        "PUT",
+        // When the file was last changed where it came from, which the document keeps.
+        file instanceof File ? { "x-inspiration-modified": new Date(file.lastModified).toISOString() } : {},
+      ),
     updates: () => call<{ updates: Update[] }>("/demo/updates"),
     putUpdate: (name: string) => call<SyncReport>(`/demo/updates/${encodeURIComponent(name)}`, {}),
   };

@@ -1561,6 +1561,65 @@ a.secondary {
   gap: 10px;
 }
 
+/* Uploads: the Documents list is also where files are dropped, outlined while one is held over it. */
+.uploads {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-radius: 6px;
+  outline: 2px dashed transparent;
+  outline-offset: 6px;
+  transition: outline-color var(--fast) var(--ease-out);
+}
+
+.uploads.dropping {
+  outline-color: var(--link);
+  background: var(--selected);
+}
+
+.upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.upload-outcomes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+
+.upload-outcomes p {
+  margin: 0;
+}
+
+.upload-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+}
+
+.upload-failures {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upload-failures li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-top: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+}
+
 /* On a phone the admin column becomes a row above the page, since its pages have no other way in. */
 @media (max-width: 760px) {
   .body:has(.left-admin) {

@@ -26,7 +26,8 @@
  *     GET    /api/join/<code>          JoinPreview, for anyone holding the link
  *     POST   /api/join/<code>          Session, in the company the link joins
  *     *      /api/v0/...               the engine's HTTP API, as the signed-in member, with any
- *                                      body and Idempotency-Key the page sends
+ *                                      body and its type, Idempotency-Key and file time the page
+ *                                      sends; a file into a space's uploads up to 50 MiB
  *     GET    /api/demo/people          {people}: whom to act as, with their team and role
  *     POST   /api/demo/act-as          {"member"}: Session, as that person
  *     *      /api/demo/updates/...     the demo's upstream edits (updates.ts), when pnpm demo runs it
@@ -40,9 +41,12 @@ import { parse } from "yaml";
 import { Company, Refused } from "./company.ts";
 import type { People, Person } from "./people.ts";
 import type { Updates } from "./updates.ts";
+import { MAX_FILE } from "./uploads.ts";
 
 const COOKIE = "inspiration_member";
 const MAX_BODY = 64 * 1024;
+/** A file uploaded into a space may be as large as the engine takes (MAX_FILE). */
+const FILE_ROUTE = /^\/api\/v0\/spaces\/[^/]+\/files\//;
 
 /** The people file: a tenant ID and at least one person, each with a member ID and a name. */
 export function loadPeople(path: string): People {
@@ -95,20 +99,26 @@ export function backend(options: People & { engine: string; updates?: Updates })
     person: Person,
     method = "GET",
     sent?: Uint8Array<ArrayBuffer>,
-    key?: string,
+    extra: Record<string, string> = {},
   ) => {
-    const headers = { ...headersOf(person), ...(key && { "idempotency-key": key }) };
+    const headers = { ...headersOf(person), ...extra };
     const answer = await fetch(`${engine}${path}`, { method, headers, ...(sent && { body: sent }) });
     res.writeHead(answer.status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
     res.end(Buffer.from(await answer.arrayBuffer()));
   };
 
-  // A call under /api/v0/ as the page made it: its method, its body and its Idempotency-Key.
+  // A call under /api/v0/ as the page made it: its method, its body with its type, its
+  // Idempotency-Key, and when a file was last changed. A file may be larger than other bodies.
   const forwardCall = async (url: URL, req: IncomingMessage, res: ServerResponse, person: Person) => {
-    const sent = req.method === "GET" ? undefined : new Uint8Array(await body(req));
-    const key = req.headers["idempotency-key"];
+    const max = FILE_ROUTE.test(url.pathname) ? MAX_FILE : MAX_BODY;
+    const sent = req.method === "GET" ? undefined : new Uint8Array(await body(req, max));
+    const extra: Record<string, string> = {};
+    for (const name of ["idempotency-key", "content-type", "x-inspiration-modified"]) {
+      const value = req.headers[name];
+      if (typeof value === "string") extra[name] = value;
+    }
     const path = `${url.pathname.slice("/api".length)}${url.search}`;
-    await forward(res, path, person, req.method, sent, typeof key === "string" ? key : undefined);
+    await forward(res, path, person, req.method, sent, extra);
   };
 
   // The business backend's routes for whoever is signed in; false for any other route.
@@ -244,14 +254,15 @@ function cookie(req: IncomingMessage, name: string): string | undefined {
   return undefined;
 }
 
-async function body(req: IncomingMessage): Promise<Buffer> {
+/** A body of at most `max` bytes; a larger one is read to its end, so the page hears the answer. */
+async function body(req: IncomingMessage, max = MAX_BODY): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > MAX_BODY) throw new SyntaxError(`body over ${MAX_BODY} bytes`);
-    chunks.push(chunk as Buffer);
+    if (size <= max) chunks.push(chunk as Buffer);
   }
+  if (size > max) throw new Refused(413, "too_large", `body over ${max} bytes`);
   return Buffer.concat(chunks);
 }
 
