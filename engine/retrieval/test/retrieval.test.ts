@@ -358,6 +358,59 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       expect(alice.notes?.find((n) => n.kind === "conflict")?.text).toContain("987654");
     });
 
+    test("both sides of a disagreement are marked in what an answer reads", async ({ world }) => {
+      const policy = await world.document("travel.md", POLICY, { title: "Travel policy" });
+      const rule = "Hotels in tier-1 cities cost at most 700 yuan a night.";
+      const handbook = await world.document("handbook.md", [{ id: "p1", text: rule }], { title: "Employee handbook" });
+      const held = await world.claim(POLICY[1]?.text as string, policy.spansOf("p1")[0] as never, {
+        ...cap(650),
+        quote: "Hotels in tier-1 cities cost at most 650 yuan a night.",
+      });
+      const other = await world.claim(rule, handbook.spansOf("p1")[0] as never, cap(700));
+      const disputed: SlotVerdict = {
+        tenant_id: TENANT,
+        slot_key: HOTEL,
+        held_value: "650 CNY/night",
+        disputed: true,
+        values: [
+          { value: "650 CNY/night", standing: "holds", claim_ids: [held.id] },
+          { value: "700 CNY/night", standing: "disputed", claim_ids: [other.id] },
+        ],
+        decided_on: "2026-10-01",
+      };
+      const question = { question: "How much can a hotel in a tier-1 city cost a night?" };
+      const complete = vi.spyOn(world.gateway, "complete");
+      const read = async () => {
+        complete.mockClear();
+        const answer = await world.retrieval.answer(question, ALICE);
+        const asked = complete.mock.calls.find(([req]) => req.task === ANSWER_TASK)?.[0];
+        const input = inputOf<AnswerInput>(asked?.messages.map((m) => m.content).join("\n") ?? "");
+        return { answer, sources: input?.sources ?? [] };
+      };
+
+      world.verdicts.set(HOTEL, disputed);
+      const { answer, sources } = await read();
+      const statement = (text: string) => sources.find((s) => s.kind === "statement" && s.text === text);
+      const [ours, theirs] = [statement(held.statement), statement(rule)];
+      expect(ours).toMatchObject({ standing: "holds", disputed_with: [theirs?.ref] });
+      expect(theirs).toMatchObject({ standing: "disputed", held_ref: ours?.ref, disputed_with: [ours?.ref] });
+      // The passages that state either value point to their side.
+      const passage = (title: string) => sources.find((s) => s.kind === "passage" && s.title.startsWith(title));
+      expect(passage("Travel policy")?.disputed).toEqual([ours?.ref]);
+      expect(passage("Employee handbook")?.disputed).toEqual([theirs?.ref]);
+      expect(answer.answer).toContain("650");
+      expect(answer.answer).toContain("700");
+
+      // A value replaced is no disagreement: nothing is marked.
+      world.verdicts.set(
+        HOTEL,
+        verdict({ value: "650 CNY/night", claim: held.id }, { value: "700 CNY/night", claim: other.id }),
+      );
+      const settled = await read();
+      expect(settled.sources.some((s) => s.disputed_with || s.disputed)).toBe(false);
+      complete.mockRestore();
+    });
+
     test("the value that holds joins an answer as the search's filters allow, with its freshness", async ({
       world,
     }) => {

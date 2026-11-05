@@ -45,7 +45,7 @@ export const CONTEXT_SCHEMA: Record<string, unknown> = {
 };
 
 export const ANSWER_TASK = "retrieval.answer_question";
-export const ANSWER_PROMPT_VERSION = "answer_question@3";
+export const ANSWER_PROMPT_VERSION = "answer_question@4";
 
 export interface AnswerSource {
   /** "1", "2", ...: what a sentence cites. */
@@ -58,6 +58,13 @@ export interface AnswerSource {
   standing?: "holds" | "outdated" | "disputed" | "differs";
   /** For a value that does not hold: the source with the value that holds instead. */
   held_ref?: string;
+  /**
+   * For a statement on one side of a disagreement no person has settled: the statements that
+   * state the other values.
+   */
+  disputed_with?: string[];
+  /** For a passage: the statements of such a disagreement that its lines state. */
+  disputed?: string[];
   /** For a passage: its document's governance level, by which sources that disagree are weighed. */
   level?: "governed" | "reference" | "search_only";
   /** For a passage: the day its document last changed, by the date its source gives. */
