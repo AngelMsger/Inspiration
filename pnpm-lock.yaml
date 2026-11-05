@@ -11,6 +11,9 @@ importers:
       '@inspiration/access-control':
         specifier: workspace:*
         version: link:engine/access-control
+      '@inspiration/access-grants':
+        specifier: workspace:*
+        version: link:business/access-grants
       '@inspiration/accounts':
         specifier: workspace:*
         version: link:business/accounts
