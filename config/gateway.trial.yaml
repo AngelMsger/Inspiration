@@ -2,9 +2,12 @@
 # companies that sign up read their documents and get their answers on DeepSeek, within CNY 100
 # a month for the whole trial and a day budget per company. Run the engine with
 # `pnpm engine serve examples/corpus --gateway config/gateway.trial.yaml --valkey <url>
-# --corpus-gateway config/gateway.demo.yaml ...`, so the sample company keeps the stand-ins its
-# story rests on. Embeddings and rerank scores come from the local model server
-# (infra/local-embeddings), which must be running; the work on fast answers may change them.
+# --usage <postgres url> --corpus-gateway config/gateway.demo.yaml ...`, so the sample company
+# keeps the models its story rests on. Its calls count against the budgets below as well, in
+# the one usage ledger that --usage keeps in Postgres, so a restart spends nothing twice; the
+# server will not start without it. Embeddings and rerank scores come from the local model
+# server (infra/local-embeddings), which must be running; the work on fast answers may change
+# them.
 #
 # Prices are DeepSeek's peak prices in CNY, twice what the first run measured off-peak
 # (apps/bench/runs/2026-10-27-deepseek.md), so the budgets stop early rather than late.
