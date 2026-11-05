@@ -154,6 +154,8 @@ async function readAll(recorder: Recorder, questions: readonly string[]): Promis
   for (const tree of library.trees.values()) for (const d of documentsOf(tree)) await api.document(d);
   for (const q of questions) {
     await quietly(api.answer(q));
+    // The fuller answer a reader may ask for under it.
+    await quietly(api.answer(q, "standard"));
     await quietly(api.search(q));
   }
   // A citation opens the version it names; so does a version a document view links to.
