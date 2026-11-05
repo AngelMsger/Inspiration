@@ -45,3 +45,9 @@ people:
     name: 林晓
     about: 行政部 · 采购与行政主题负责人
     locale: zh-CN
+  - member: mem_01HENGYUAN000000000ZHAOLIN
+    email: zhao.lin@hengyuan.example
+    name: 赵琳
+    about: 信息技术部 · 超级管理员
+    locale: zh-CN
+    role: super_admin

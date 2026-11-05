@@ -5,6 +5,7 @@
 import type { Inbox } from "@inspiration/contracts";
 import type { CompanyMember, Session, UiLocale } from "@inspiration/contracts/business";
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AdminArea } from "./admin.tsx";
 import {
   type ApiFailure,
   api,
@@ -24,8 +25,8 @@ import { TopicScreen, TopicsScreen } from "./knowledge.tsx";
 import { Palette } from "./palette.tsx";
 import { Failure } from "./parts.tsx";
 import { type Person, tagLocale } from "./people.ts";
-import { Link, type Route, useRoute } from "./route.tsx";
-import { NoCompany, SignedOut } from "./signin.tsx";
+import { Link, navigate, type Route, useRoute } from "./route.tsx";
+import { Join, NoCompany, SignedOut } from "./signin.tsx";
 import { MaintainColumn, MaintainScreen } from "./space.tsx";
 import { keptFor, type ReadFor, type Switched, switcher } from "./switching.ts";
 import { chooseTag, TAGS, type Tag, useWords, Words, wordsOf } from "./words.ts";
@@ -98,7 +99,8 @@ function personOf(session: Session, demo: Person[] | undefined): Person {
  * it, as from another tab, it reads the session again (api.ts). When a change fails, the backend
  * may have made it all the same, so the page reads the session before the frame takes clicks
  * again, and shows the failure only if the session stayed where it was. Signed out, it shows how
- * to sign in; signed in to no company yet, how to make one.
+ * to sign in; signed in to no company yet, how to make one; on an invite link, whom it is from
+ * and the company it joins, signed in or not.
  */
 export function App(props: { generation?: number }) {
   const generation = props.generation ?? 0;
@@ -108,6 +110,8 @@ export function App(props: { generation?: number }) {
   const [readIn, setReadIn] = useState(generation);
   const [failure, setFailure] = useState<ApiFailure>();
   const [picked, setPicked] = useState(() => stored(LANGUAGE));
+  const route = useRoute();
+  const joining = route.name === "join" ? route.code : undefined;
   const tag = chooseTag(picked, session?.account.locale);
   const words = useMemo(() => ({ say: wordsOf(tag), tag }), [tag]);
   // The library the next shell starts with, for the member it was read as.
@@ -157,20 +161,38 @@ export function App(props: { generation?: number }) {
   }, [tag]);
 
   // A change of person or company; when its request fails, the session says where it stands.
+  // It gives whether the change was made as asked.
   const switchTo = useCallback(
     (ask: () => Promise<Session>) => {
       const before = onScreen.current;
-      return change(ask, enter, api.session).then((next) => {
-        show(next);
-        const now = next?.value.session.current;
-        const stayed = now?.tenant_id === before?.tenant_id && now?.member_id === before?.member_id;
-        if (next?.lost && stayed) setFailure(failureOf(next.lost.error));
-      }, fail);
+      return change(ask, enter, api.session).then(
+        (next) => {
+          show(next);
+          const now = next?.value.session.current;
+          const stayed = now?.tenant_id === before?.tenant_id && now?.member_id === before?.member_id;
+          if (next?.lost && stayed) setFailure(failureOf(next.lost.error));
+          return next !== undefined && !next.lost;
+        },
+        (e: unknown) => {
+          fail(e);
+          return false;
+        },
+      );
     },
     [change, show, fail],
   );
-  const actAs = useCallback((member: string) => switchTo(() => api.actAs(member)), [switchTo]);
-  const enterCompany = useCallback((tenant: string) => switchTo(() => api.enterCompany(tenant)), [switchTo]);
+  const actAs = useCallback(async (member: string) => void (await switchTo(() => api.actAs(member))), [switchTo]);
+  const enterCompany = useCallback(
+    async (tenant: string) => void (await switchTo(() => api.enterCompany(tenant))),
+    [switchTo],
+  );
+  // Joined, the person lands on the company's home.
+  const join = useCallback(
+    async (code: string) => {
+      if (await switchTo(() => api.join(code))) navigate({ name: "home" }, { replace: true });
+    },
+    [switchTo],
+  );
   const speak = useCallback(
     (t: Tag) => {
       setPicked(t);
@@ -185,7 +207,8 @@ export function App(props: { generation?: number }) {
     [session, fail],
   );
   const createCompany = useCallback(
-    (name: string, locale: UiLocale) => switchTo(() => api.createCompany({ name, default_locale: locale })),
+    async (name: string, locale: UiLocale) =>
+      void (await switchTo(() => api.createCompany({ name, default_locale: locale }))),
     [switchTo],
   );
   const signOut = useCallback(() => {
@@ -195,10 +218,22 @@ export function App(props: { generation?: number }) {
   return (
     <Words.Provider value={words}>
       {failure && <Failure error={failure} />}
-      {signedOut && <SignedOut onLanguage={speak} />}
-      {session && !session.current && <NoCompany session={session} onCreate={createCompany} onSignOut={signOut} />}
+      {joining !== undefined && (
+        <Join
+          code={joining}
+          session={session}
+          signedOut={signedOut}
+          onJoin={() => join(joining)}
+          onLanguage={speak}
+          onSignOut={signOut}
+        />
+      )}
+      {joining === undefined && signedOut && <SignedOut onLanguage={speak} />}
+      {joining === undefined && session && !session.current && (
+        <NoCompany session={session} onCreate={createCompany} onSignOut={signOut} />
+      )}
       {/* Acting as someone else starts over with what they may see. */}
-      {session?.current && (
+      {joining === undefined && session?.current && (
         <Shell
           key={`${readIn}:${session.current.tenant_id}:${session.current.member_id}`}
           session={session}
@@ -276,8 +311,9 @@ function Shell(props: {
         onSignOut={props.onSignOut}
       />
       <div className="body">
-        {library.state === "failed" && <Failure error={library.error} />}
-        {library.state === "done" && (
+        {route.name === "admin" && <AdminArea route={route} session={props.session} />}
+        {route.name !== "admin" && library.state === "failed" && <Failure error={library.error} />}
+        {route.name !== "admin" && library.state === "done" && (
           <>
             {route.name === "maintain" ? (
               <MaintainColumn route={route} library={library.value} />
@@ -350,6 +386,10 @@ function Screen(props: {
           onSourcesChanged={props.onSourcesChanged}
         />
       );
+    // The shell shows the admin area itself, and the app the join screen.
+    case "admin":
+    case "join":
+      return null;
   }
 }
 
@@ -439,6 +479,17 @@ function TopBar(props: {
                 </button>
               ))}
             </>
+          )}
+          {current.role === "super_admin" && (
+            <button
+              type="button"
+              onClick={() => {
+                close();
+                navigate({ name: "admin", page: "members" });
+              }}
+            >
+              {say("account.admin")}
+            </button>
           )}
           <div className="menu-heading">{say("account.language")}</div>
           {TAGS.map((t) => (

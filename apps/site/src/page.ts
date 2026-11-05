@@ -18,7 +18,15 @@ export interface Pack {
     title: string;
     description: string;
   };
-  nav: { how: string; sources: string; features: string; agents: string; language: string };
+  nav: {
+    how: string;
+    sources: string;
+    features: string;
+    results: string;
+    agents: string;
+    language: string;
+    github: string;
+  };
   hero: {
     title: TitleRun[];
     lead: string;
@@ -92,6 +100,23 @@ export interface Pack {
     govern: { heading: string; rows: { label: string; value: string }[]; action: string };
     language: { fact: string; holds: string; source: string };
   };
+  /** Measured results: one item per entry of RESULTS, in that order. */
+  results: {
+    kicker: string;
+    title: string;
+    lead: string;
+    /** A figure, with its unit set smaller after it where it has one. */
+    items: { value: string; unit: string; label: string; bars: string[]; foot: string }[];
+    /** How a count of right answers reads, with {value} and {of}; and an amount in yuan, with {value}. */
+    right: string;
+    money: string;
+    why: string;
+    source: string;
+    note: string;
+    method: string;
+    /** The method's document in the repository, in this language where it has a copy. */
+    methodPath: string;
+  };
   agents: {
     kicker: string;
     title: string;
@@ -132,7 +157,7 @@ export interface PageContext {
   href: (tag: string) => string;
   css: string;
   /** Browser scripts, inlined after the part they drive. */
-  scripts: { hero: string; ask: string; demo: string };
+  scripts: { hero: string; ask: string; demo: string; menu: string };
   /** Leave out the document shell, for hosts that add their own (the Artifact preview). */
   fragment: boolean;
 }
@@ -171,9 +196,19 @@ const ICONS = {
   shield:
     '<path d="M10 2.8 4.2 5v4.5c0 3.6 2.5 6.2 5.8 7.6 3.3-1.4 5.8-4 5.8-7.6V5z"/><path d="m7.5 10 1.8 1.8 3.3-3.5"/>',
   cloud: '<path d="M6.2 15.5h8a3.3 3.3 0 0 0 .4-6.6 4.7 4.7 0 0 0-9 .9 2.9 2.9 0 0 0 .6 5.7z"/>',
+  globe:
+    '<circle cx="10" cy="10" r="7.2"/><path d="M2.8 10h14.4M10 2.8c1.9 2 2.9 4.4 2.9 7.2s-1 5.2-2.9 7.2c-1.9-2-2.9-4.4-2.9-7.2s1-5.2 2.9-7.2z"/>',
+  chevron: '<path d="m6 8 4 4 4-4"/>',
+  check: '<path d="m5 10.4 3.3 3.3L15.2 7"/>',
 };
 const icon = (name: keyof typeof ICONS, size: number, cls: string): string =>
   `<svg class="${cls}" width="${size}" height="${size}" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
+
+/** Where the source code lives; linked from the header and the footer. */
+const REPOSITORY = "https://github.com/AngelMsger/Inspiration";
+/** GitHub's mark (Octicons, MIT licence), filled rather than stroked like the other icons. */
+const GITHUB_MARK =
+  '<svg class="gh-mark" width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>';
 
 /** Where each footnote number in the headline points: the section that shows the claim. */
 const NOTE_TARGETS = ["#problem", "#how"];
@@ -194,11 +229,12 @@ const SOURCE_KINDS = ["document", "approval", "code", "research"] as const;
 
 function header(c: PageContext): string {
   const p = c.pack;
+  // A menu rather than a row of names, so the header holds however many languages there are.
   const langs = c.packs
     .map(({ tag, pack }) =>
       tag === c.tag
-        ? `<a aria-current="true" lang="${pack.meta.htmlLang}">${esc(pack.meta.name)}</a>`
-        : `<a href="${c.href(tag)}" hreflang="${pack.meta.htmlLang}" lang="${pack.meta.htmlLang}">${esc(pack.meta.name)}</a>`,
+        ? `<li><a href="${c.href(tag)}" aria-current="page" lang="${pack.meta.htmlLang}">${esc(pack.meta.name)}${icon("check", 16, "lang-check")}</a></li>`
+        : `<li><a href="${c.href(tag)}" hreflang="${pack.meta.htmlLang}" lang="${pack.meta.htmlLang}">${esc(pack.meta.name)}</a></li>`,
     )
     .join("");
   return `<header class="top">
@@ -208,9 +244,17 @@ function header(c: PageContext): string {
       <a href="#how">${esc(p.nav.how)}</a>
       <a href="#sources">${esc(p.nav.sources)}</a>
       <a href="#features">${esc(p.nav.features)}</a>
+      <a href="#results">${esc(p.nav.results)}</a>
       <a href="#agents">${esc(p.nav.agents)}</a>
     </nav>
-    <nav class="langs" aria-label="${esc(p.nav.language)}">${langs}</nav>
+    <div class="top-tools">
+      <a class="gh" href="${REPOSITORY}" aria-label="${esc(p.nav.github)}" title="${esc(p.nav.github)}">${GITHUB_MARK}<span>GitHub</span></a>
+      <details class="lang-menu">
+        <summary aria-label="${esc(`${p.nav.language}: ${p.meta.name}`)}">${icon("globe", 17, "lang-globe")}<span>${esc(p.meta.name)}</span>${icon("chevron", 14, "lang-chevron")}</summary>
+        <ul>${langs}</ul>
+      </details>
+      <script>${c.scripts.menu}</script>
+    </div>
   </div>
 </header>`;
 }
@@ -494,6 +538,50 @@ function features(c: PageContext): string {
 </section>`;
 }
 
+/**
+ * The bars beside each result, from docs/design/validation.md; the first of each pair is
+ * Inspiration's. Right answers on the 204 changed or conflicting questions of the decisive test
+ * after the governance fix (2026-11-04); right answers on its 27 changes announced in another
+ * document, against the same documents read without governance; and the model cost of an
+ * answer in yuan, measured on 2026-11-03.
+ */
+const RESULTS: { format: "right" | "money"; bars: [number, number]; of: number }[] = [
+  { format: "right", bars: [178, 164], of: 204 },
+  { format: "right", bars: [27, 16], of: 27 },
+  { format: "money", bars: [0.0012, 0.0083], of: 0.0083 },
+];
+
+/** Where the mechanism behind the results is shown; cited as the preprint it is. */
+const PAPER = "https://arxiv.org/abs/2611.04169v1";
+
+function results(c: PageContext): string {
+  const r = c.pack.results;
+  const amount = (format: "right" | "money", value: number, of: number) =>
+    format === "right"
+      ? r.right.replace("{value}", String(value)).replace("{of}", String(of))
+      : r.money.replace("{value}", String(value));
+  const tiles = RESULTS.map((res, i) => {
+    const it = at(r.items, i, "results.items");
+    const bars = res.bars
+      .map(
+        (v, j) =>
+          `<div class="res-bar${j === 0 ? " ours" : ""}"><p class="res-bar-h"><span>${esc(at(it.bars, j, "results.items.bars"))}</span><span class="res-num">${esc(amount(res.format, v, res.of))}</span></p><span class="res-track" aria-hidden="true"><i style="width:${((v / res.of) * 100).toFixed(1)}%"></i></span></div>`,
+      )
+      .join("");
+    return `<li class="result"><p class="res-value">${esc(it.value)}${it.unit ? ` <span class="res-unit">${esc(it.unit)}</span>` : ""}</p><p class="res-label">${esc(it.label)}</p><div class="res-bars">${bars}</div><p class="res-foot">${esc(it.foot)}</p></li>`;
+  }).join("");
+  return `<section class="results" id="results">
+  <div class="wrap">
+    ${head(r.kicker, r.title, r.lead)}
+    <ul class="result-row">${tiles}</ul>
+    <div class="res-more">
+      <p class="res-why">${rich(r.why)} <a class="res-link" href="${PAPER}">${esc(r.source)}</a></p>
+      <p class="res-note">${esc(r.note)} <a class="res-link" href="${REPOSITORY}/blob/main/${esc(r.methodPath)}">${esc(r.method)}</a></p>
+    </div>
+  </div>
+</section>`;
+}
+
 function agents(c: PageContext): string {
   const a = c.pack.agents;
   const u = c.pack.demo.ui;
@@ -561,6 +649,7 @@ function footer(c: PageContext): string {
   <div class="wrap foot-row">
     <span class="wordmark">Inspiration</span>
     <p>${esc(c.pack.footer.line)}</p>
+    <a class="foot-gh" href="${REPOSITORY}">${GITHUB_MARK}GitHub</a>
     <nav class="langs" aria-label="${esc(c.pack.nav.language)}">${langs}</nav>
   </div>
 </footer>`;
@@ -595,6 +684,7 @@ ${problem(c)}
 ${how(c)}
 ${sources(c)}
 ${features(c)}
+${results(c)}
 ${agents(c)}
 ${enterprise(c)}
 </main>

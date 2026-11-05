@@ -1,0 +1,19 @@
+{
+  "name": "@inspiration/business",
+  "version": "0.1.0",
+  "description": "The business backend: the browser API for sign-in, companies, members and invite links; principal tokens and the engine's provisioning; the built web app",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "inspiration-business": "./src/serve.ts"
+  },
+  "dependencies": {
+    "@inspiration/accounts": "workspace:*",
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/kernel": "workspace:*",
+    "@inspiration/tenancy": "workspace:*"
+  }
+}

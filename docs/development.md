@@ -71,6 +71,23 @@ demo tenant could read, for whoever opens it: acting as someone there is a simul
 access control. So record only the synthetic demo corpus, or a corpus whose whole contents
 everyone who gets the link may read.
 
+## Sign in for real
+
+To sign in for real, with email and password, run Logto and the business backend in front of
+the engine. Logto runs in the compose file under its own profile. Once, in its console at
+http://localhost:3002, create a "Traditional web" application with the redirect URI
+`http://localhost:4200/api/auth/callback` and the post sign-out redirect URI
+`http://localhost:4200/`, and put its ID and secret in `.env` as `INSPIRATION_LOGTO_APP_ID` and
+`INSPIRATION_LOGTO_APP_SECRET`, with `INSPIRATION_LOGTO_ISSUER=http://localhost:3001/oidc`.
+`apps/business/src/serve.ts` lists the other settings.
+
+```bash
+docker compose -f infra/compose.yaml --profile auth up -d --wait   # make up, and Logto on 3001
+pnpm --dir apps/web exec vite build                                 # the web app, into apps/web/dist
+pnpm engine serve examples/corpus --issuer http://localhost:4200 --audience http://127.0.0.1:4100
+pnpm business serve --web apps/web/dist                             # the site at http://localhost:4200
+```
+
 ## Try the model gateway
 
 To try the model gateway without a model server, run it with the fake providers:

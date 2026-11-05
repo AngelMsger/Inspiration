@@ -28,6 +28,8 @@ export type Route =
   | { name: "topic"; key: string }
   | { name: "documents"; space: string; source?: string; folders: string[] }
   | { name: "maintain"; space: string; page: "overview" | "topics" | "documents" }
+  | { name: "admin"; page: "members" | "invites" }
+  | { name: "join"; code: string }
   | DocumentRoute;
 
 export function parse(url: URL): Route {
@@ -51,6 +53,10 @@ export function parse(url: URL): Route {
   if (knowledge?.[1]) return { name: "topics", space: decodeURIComponent(knowledge[1]) };
   const topic = url.pathname.match(/^\/topics\/([^/]+)$/);
   if (topic?.[1]) return { name: "topic", key: decodeURIComponent(topic[1]) };
+  const admin = url.pathname.match(/^\/admin(?:\/(members|invites))?$/);
+  if (admin) return { name: "admin", page: admin[1] === "invites" ? "invites" : "members" };
+  const join = url.pathname.match(/^\/join\/([^/]+)$/);
+  if (join?.[1]) return { name: "join", code: decodeURIComponent(join[1]) };
   if (url.pathname === "/ask") return { name: "ask", q: get("q") ?? "" };
   if (url.pathname === "/inbox") return { name: "inbox" };
   const todo = url.pathname.match(/^\/inbox\/([^/]+)$/);
@@ -92,6 +98,10 @@ export function href(route: Route): string {
       return `/topics/${encodeURIComponent(route.key)}`;
     case "maintain":
       return `/spaces/${encodeURIComponent(route.space)}/maintain${route.page === "overview" ? "" : `/${route.page}`}`;
+    case "admin":
+      return `/admin/${route.page}`;
+    case "join":
+      return `/join/${encodeURIComponent(route.code)}`;
     case "documents":
       return `/spaces/${encodeURIComponent(route.space)}/documents${query([
         ["source", route.source],

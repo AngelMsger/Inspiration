@@ -17,6 +17,7 @@
     "test:unit": "INSPIRATION_STACK=off vitest run",
     "bench": "node apps/bench/src/cli.ts",
     "engine": "node apps/engine/src/serve.ts",
+    "business": "node apps/business/src/serve.ts",
     "demo": "node apps/web/src/demo.ts",
     "snapshot": "node apps/web/src/snapshot.ts",
     "site": "node apps/site/src/build.ts"
@@ -26,6 +27,7 @@
     "@inspiration/accounts": "workspace:*",
     "@inspiration/agent-runtime": "workspace:*",
     "@inspiration/bench": "workspace:*",
+    "@inspiration/business": "workspace:*",
     "@inspiration/collaboration": "workspace:*",
     "@inspiration/connectors": "workspace:*",
     "@inspiration/contracts": "workspace:*",

@@ -1,5 +1,5 @@
-// The development backend: signing in and out, the session and members it answers as the
-// business backend would, and that only the backend names the member the engine reads for.
+// The development backend: signing in and out, the session, members and invite links it answers
+// as the business backend would, and that only the backend names the member the engine reads for.
 
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server } from "node:http";
@@ -201,6 +201,99 @@ describe("development backend", () => {
     expect(await res.json()).toEqual({
       error: { code: "internal", message: "the engine at http://127.0.0.1:9 did not answer" },
     });
+  });
+});
+
+describe("the company's people and invite links", () => {
+  const { tenant, people } = loadPeople(PEOPLE);
+  const first = people[0] as Person;
+  const admin = people.find((p) => p.role === "super_admin") as Person;
+  // A backend of its own, since these tests change the company.
+  let company: Server;
+  const as = (person?: Person): Record<string, string> =>
+    person ? { cookie: `inspiration_member=${person.member}` } : {};
+  const ask = async (person: Person | undefined, method: string, path: string, body?: unknown) => {
+    const res = await fetch(`${urlOf(company)}${path}`, {
+      method,
+      headers: as(person),
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    const text = await res.text();
+    return { status: res.status, body: text ? JSON.parse(text) : undefined };
+  };
+
+  beforeAll(async () => {
+    const middleware = backend({ engine: urlOf(engine), tenant, people });
+    company = createServer((req, res) => middleware(req, res, () => res.end()));
+    await listen(company);
+  });
+
+  afterAll(() => {
+    company?.close();
+  });
+
+  test("the demo has a super admin who is not the first person", () => {
+    expect(admin).toBeDefined();
+    expect(admin).not.toBe(first);
+  });
+
+  test("a member sees the members, and is refused what only a super admin may do", async () => {
+    expect((await ask(first, "GET", "/api/members")).status).toBe(200);
+    for (const [method, path, body] of [
+      ["GET", "/api/invites"],
+      ["POST", "/api/invites", {}],
+      ["PUT", `/api/members/${admin.member}/role`, { role: "member" }],
+      ["DELETE", `/api/members/${admin.member}`],
+    ] as const) {
+      const refused = await ask(first, method, path, body);
+      expect([path, refused.status, refused.body?.error.code]).toEqual([path, 403, "forbidden"]);
+    }
+  });
+
+  test("a super admin changes roles, and the company keeps a super admin", async () => {
+    const last = await ask(admin, "PUT", `/api/members/${admin.member}/role`, { role: "member" });
+    expect([last.status, last.body.error.code]).toEqual([409, "conflict"]);
+    const wrong = await ask(admin, "PUT", `/api/members/${first.member}/role`, { role: "owner" });
+    expect(wrong.status).toBe(400);
+    const nobody = await ask(admin, "PUT", "/api/members/mem_01NOBODY0000/role", { role: "member" });
+    expect(nobody.status).toBe(404);
+    const promoted = await ask(admin, "PUT", `/api/members/${first.member}/role`, { role: "super_admin" });
+    expect(contractErrors("CompanyMember", promoted.body)).toEqual([]);
+    expect((await ask(first, "GET", "/api/session")).body.current.role).toBe("super_admin");
+    await ask(admin, "PUT", `/api/members/${first.member}/role`, { role: "member" });
+  });
+
+  test("a link is shown to anyone holding it, joins someone who left, and stops once revoked", async () => {
+    const made = await ask(admin, "POST", "/api/invites", {});
+    expect(made.status).toBe(201);
+    expect(contractErrors("InviteLink", made.body)).toEqual([]);
+    const url = new URL(made.body.url);
+    expect([url.host, url.pathname]).toEqual([new URL(urlOf(company)).host, expect.stringMatching(/^\/join\//)]);
+    const preview = await ask(undefined, "GET", `/api${url.pathname}`);
+    expect(contractErrors("JoinPreview", preview.body)).toEqual([]);
+    expect(preview.body).toMatchObject({ company: { name: "Hengyuan" }, invited_by: { display_name: admin.name } });
+    expect((await ask(undefined, "POST", `/api${url.pathname}`, {})).status).toBe(401);
+
+    // The member leaves: they keep their account, with no company to act in.
+    expect((await ask(admin, "DELETE", `/api/members/${first.member}`)).status).toBe(204);
+    const outside = await ask(first, "GET", "/api/session");
+    expect([outside.body.companies, outside.body.current]).toEqual([[], undefined]);
+    expect((await ask(first, "GET", "/api/v0/inbox")).status).toBe(400);
+    expect((await ask(first, "GET", "/api/members")).status).toBe(400);
+    const listed = (await ask(admin, "GET", "/api/members")).body.members as { member_id: string }[];
+    expect(listed.map((m) => m.member_id)).not.toContain(first.member);
+
+    // They come back by the link, and the link counts them.
+    const joined = await ask(first, "POST", `/api${url.pathname}`, {});
+    expect(contractErrors("Session", joined.body)).toEqual([]);
+    expect(joined.body.current).toMatchObject({ tenant_id: tenant, member_id: first.member, role: "member" });
+    const open = await ask(admin, "GET", "/api/invites");
+    expect(contractErrors("InviteList", open.body)).toEqual([]);
+    expect(open.body.invites).toMatchObject([{ id: made.body.invite.id, joined: 1 }]);
+
+    expect((await ask(admin, "DELETE", `/api/invites/${made.body.invite.id}`)).status).toBe(204);
+    expect((await ask(undefined, "GET", `/api${url.pathname}`)).status).toBe(404);
+    expect((await ask(admin, "GET", "/api/invites")).body.invites).toEqual([]);
   });
 });
 

@@ -30,7 +30,8 @@ const json = (value: unknown, status = 200) =>
 
 /**
  * The backend: the session's company, every call as it arrived, what it did, calls to hold back,
- * calls whose answer is lost after they are done, and calls that fail once.
+ * calls whose answer is lost after they are done, calls that fail once, and calls the company's
+ * rules refuse with 409 conflict, as making its last super admin a member.
  */
 function backend() {
   const server = {
@@ -40,6 +41,7 @@ function backend() {
     held: new Map<string, Promise<void>>(),
     lost: new Set<string>(),
     failOnce: new Set<string>(),
+    refused: new Set<string>(),
   };
   globalThis.fetch = (async (input: string, init?: RequestInit) => {
     const path = input.slice("/api".length);
@@ -56,6 +58,7 @@ function backend() {
     if (route === "GET /session") return json({ current: { tenant_id: server.current, member_id: SAME } });
     if (company && company !== server.current) return json({ error: { code: "conflict", message: "moved" } }, 409);
     if (server.failOnce.delete(route)) return json({ error: { code: "internal", message: "engine down" } }, 502);
+    if (server.refused.has(route)) return json({ error: { code: "conflict", message: "needs a super admin" } }, 409);
     server.done.push(`${route} in ${server.current}`);
     return json({ tenant: { id: server.current, name: server.current }, spaces: [], items: [] });
   }) as typeof fetch;
@@ -86,6 +89,15 @@ describe("calls while the company changes", () => {
       { route: "GET /session", company: null },
       { route: "GET /v0/spaces", company: QINGHE },
     ]);
+  });
+
+  test("a change the company's rules refuse with 409 conflict reaches the page, which stays where it is", async () => {
+    const server = backend();
+    server.refused.add(`PUT /members/${SAME}/role`);
+    const failed = await api.setRole(SAME, "member").catch((e: unknown) => e);
+    expect(failed).toBeInstanceOf(ApiFailure);
+    expect([(failed as ApiFailure).status, (failed as ApiFailure).code]).toEqual([409, "conflict"]);
+    expect(moved).toBe(0);
   });
 
   test("once the session is in the next company, the old frame reads nothing there", async () => {

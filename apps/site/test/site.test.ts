@@ -41,10 +41,22 @@ describe("site", () => {
     expect(pages.get("index.html")).toContain('href="ja/"');
   });
 
-  test("the inlined scripts, for the hero figure, the search box and the demo, are valid JavaScript", () => {
+  test("the header offers every language in a menu, marks the current one, and links to the source", () => {
+    const pages = build({ root: "en", explicitIndex: false, fragment: false });
+    for (const [path, html] of pages) {
+      const header = /<header class="top">[\s\S]*?<\/header>/.exec(html)?.[0] ?? "";
+      const menu = /<details class="lang-menu">[\s\S]*?<\/details>/.exec(header)?.[0] ?? "";
+      expect(menu.match(/<li>/g), path).toHaveLength(LANGUAGES.length);
+      expect(menu.match(/aria-current="page"/g), path).toHaveLength(1);
+      expect(header, path).toContain('class="gh" href="https://github.com/');
+    }
+    expect(pages.get("zh/index.html")).toMatch(/<a href="\.\.\/zh\/" aria-current="page" lang="zh-CN">/);
+  });
+
+  test("the inlined scripts, for the language menu, the hero figure, the search box and the demo, are valid JavaScript", () => {
     const html = build({ root: "en", explicitIndex: false, fragment: false }).get("index.html") ?? "";
     const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1] ?? "");
-    expect(scripts).toHaveLength(3);
+    expect(scripts).toHaveLength(4);
     for (const script of scripts) {
       expect(script.length).toBeGreaterThan(0);
       expect(() => new Function(script)).not.toThrow();
@@ -60,6 +72,23 @@ describe("site", () => {
     const sources = /<section class="origins"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
     expect(sources.match(/class="kind"/g)).toHaveLength(4);
     expect(sources.match(/class="smp smp-/g)).toHaveLength(4);
+  });
+
+  test("the results show three measured figures, Inspiration's bar first, and link to their method", () => {
+    const pages = build({ root: "en", explicitIndex: false, fragment: false });
+    for (const [path, html] of pages) {
+      const section = /<section class="results"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
+      expect(section.match(/class="result"/g), path).toHaveLength(3);
+      expect(section.match(/class="res-track"/g), path).toHaveLength(6);
+      expect(section.match(/class="res-bar ours"/g), path).toHaveLength(3);
+      expect(section, path).toContain('href="https://arxiv.org/abs/2611.04169v1"');
+    }
+    const en = pages.get("index.html") ?? "";
+    for (const shown of ["178 of 204", "164 of 204", "27 of 27", "16 of 27", "CNY 0.0012", "CNY 0.0083"])
+      expect(en).toContain(shown);
+    // Each language links to the method in its own copy where there is one, and the file exists.
+    for (const { tag, pack } of loadPacks())
+      expect(existsSync(new URL(`../../../${pack.results.methodPath}`, import.meta.url)), tag).toBe(true);
   });
 
   test("the search box lists every document of the story and is rendered answered", () => {

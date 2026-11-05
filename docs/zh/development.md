@@ -46,6 +46,17 @@ pnpm snapshot dist/snapshot                        # 把演示脚本录制成静
 
 演示脚本（`examples/corpus/script.yaml`）列出这些步骤，每一步都写明由谁来做。`pnpm snapshot` 对着引擎走一遍脚本，写出一个从录制结果作答的静态页面，底部有一条引导，以对应的人打开每一步，所以任何人拿到链接就能跟着演示走，不需要引擎。脚本没问过的问题、没做过的步骤，页面会说明没有录制。这个页面包含演示租户里每个人能读的全部内容，打开它的任何人都能看到：在页面里扮演某个人只是模拟，不是访问控制。所以只录制合成的演示语料，或者拿到链接的每个人都可以读全部内容的语料。
 
+## 真正登录
+
+要用邮箱和密码真正登录，就在引擎前面运行 Logto 和业务后端。Logto 在 compose 文件里，属于单独的 profile。第一次需要在它的控制台（http://localhost:3002）里创建一个“Traditional web”应用，重定向 URI 填 `http://localhost:4200/api/auth/callback`，退出登录后的重定向 URI 填 `http://localhost:4200/`，然后把它的 ID 和密钥写进 `.env`，分别是 `INSPIRATION_LOGTO_APP_ID` 和 `INSPIRATION_LOGTO_APP_SECRET`，再加上 `INSPIRATION_LOGTO_ISSUER=http://localhost:3001/oidc`。其他设置见 `apps/business/src/serve.ts`。
+
+```bash
+docker compose -f infra/compose.yaml --profile auth up -d --wait   # 即 make up，再加上 3001 端口的 Logto
+pnpm --dir apps/web exec vite build                                 # 构建 Web 应用，输出到 apps/web/dist
+pnpm engine serve examples/corpus --issuer http://localhost:4200 --audience http://127.0.0.1:4100
+pnpm business serve --web apps/web/dist                             # 网站在 http://localhost:4200
+```
+
 ## 试用模型网关
 
 不需要模型服务器也可以试用模型网关，用假的提供方运行它：

@@ -27,8 +27,14 @@ import type {
 } from "@inspiration/contracts";
 import type {
   AccountChange,
+  CompanyMember,
+  InviteLink,
+  InviteList,
+  JoinPreview,
   MemberList,
   NewCompany,
+  ProductRole,
+  RoleChange,
   Session,
   SignOut,
   SwitchCompany,
@@ -72,7 +78,7 @@ async function send<T>(path: string, body: unknown, method: string, company: str
   const res = await fetch(
     `/api${path}`,
     body === undefined
-      ? { headers }
+      ? { method, headers }
       : { method, headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify(body) },
   );
   const json = (await res.json().catch(() => undefined)) as unknown;
@@ -80,7 +86,9 @@ async function send<T>(path: string, body: unknown, method: string, company: str
     const e = (json as ApiError | undefined)?.error;
     // The business backend's code, which the engine's ApiErrorCode does not list yet.
     const code: string | undefined = e?.code;
-    if (frame && named && res.status === 409 && code === "conflict") {
+    // A 409 conflict also refuses what the company's rules forbid, such as leaving it with no
+    // super admin; it says the session moved on only when the session is in another company now.
+    if (frame && named && res.status === 409 && code === "conflict" && !(await stillIn(named))) {
       moved();
       return new Promise<T>(() => {});
     }
@@ -89,9 +97,17 @@ async function send<T>(path: string, body: unknown, method: string, company: str
   return json as T;
 }
 
+/** Whether the session still works in `tenant`; when it cannot be read, it is taken to have moved. */
+async function stillIn(tenant: string): Promise<boolean> {
+  const res = await fetch("/api/session").catch(() => undefined);
+  const session = res?.ok ? ((await res.json().catch(() => undefined)) as Session | undefined) : undefined;
+  return session?.current?.tenant_id === tenant;
+}
+
 /** The calls, made in the company `company` names when they are made. */
 function apiOf(company: () => string | undefined, frame: boolean) {
-  const call = <T>(path: string, body?: unknown, method = "POST") => send<T>(path, body, method, company(), frame);
+  const call = <T>(path: string, body?: unknown, method = body === undefined ? "GET" : "POST") =>
+    send<T>(path, body, method, company(), frame);
   return {
     session: () => call<Session>("/session"),
     enterCompany: (tenant: string) => call<Session>("/session", { tenant_id: tenant } satisfies SwitchCompany),
@@ -99,6 +115,14 @@ function apiOf(company: () => string | undefined, frame: boolean) {
     signOut: () => call<SignOut>("/auth/sign-out", {}),
     createCompany: (company: NewCompany) => call<Session>("/companies", company),
     members: () => call<MemberList>("/members"),
+    setRole: (member: string, role: ProductRole) =>
+      call<CompanyMember>(`/members/${encodeURIComponent(member)}/role`, { role } satisfies RoleChange, "PUT"),
+    removeMember: (member: string) => call<void>(`/members/${encodeURIComponent(member)}`, undefined, "DELETE"),
+    invites: () => call<InviteList>("/invites"),
+    invite: () => call<InviteLink>("/invites", {}),
+    revoke: (invite: string) => call<void>(`/invites/${encodeURIComponent(invite)}`, undefined, "DELETE"),
+    joinPreview: (code: string) => call<JoinPreview>(`/join/${encodeURIComponent(code)}`),
+    join: (code: string) => call<Session>(`/join/${encodeURIComponent(code)}`, {}),
     /** Whom the demo lets the page act as; the business backend has no such route. */
     demoPeople: () => call<{ people: Person[] }>("/demo/people"),
     actAs: (member: string) => call<Session>("/demo/act-as", { member }),
