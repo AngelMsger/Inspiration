@@ -275,6 +275,32 @@ invites.expires: Expires
 invites.joined: Joined
 invites.revoke: Revoke
 invites.confirm_revoke: Revoke this link? Nobody else can join with it.
+admin.knowledge: Knowledge
+admin.spaces: Spaces
+spaces.count: "{count} spaces"
+spaces.lede: "Create the company's spaces and name each one's space owners. Who can read a space is for its space owners to decide, in the space itself."
+spaces.new: New space
+spaces.none: No spaces yet. Create the first, and name its space owners.
+spaces.name: Name
+spaces.description: Description
+spaces.owners: Space owners
+spaces.grants: Read by
+spaces.gone: This space is not one you administer, or it no longer exists.
+spaces.pick_owner: Pick at least one space owner.
+spaces.save: Save
+spaces.create: Create space
+access.title: Who can read
+access.lede: "Everyone listed reads this space's documents and knowledge. Space owners always can; the super admin of {company} names them."
+access.lede_admin: As super admin you can take readers out of a space. Adding them is for its space owners.
+access.everyone: "Everyone in {company}"
+access.owner: Space owner
+access.remove: Take out
+access.owners_only: Nobody but its space owners reads this space.
+access.add: Add a reader
+access.pick: Choose…
+access.forbidden: Only this space's owners can add readers.
+maintain.access_heading: Access
+maintain.access: Who can read
 
 join.loading: Reading the invite link…
 join.title: "{name} invited you to {company}"

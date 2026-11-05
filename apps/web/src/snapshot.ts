@@ -145,8 +145,11 @@ async function readAll(recorder: Recorder, questions: readonly string[]): Promis
   const library = await loadLibrary();
   await api.inbox();
   await api.updates();
-  const quietly = (p: Promise<unknown>) => p.catch(() => undefined);
+  const quietly = <T>(p: Promise<T>) => p.catch(() => undefined);
   for (const space of library.spaces) await quietly(api.overview(space.id));
+  // The admin pages' spaces and who reads each, for whoever administers them.
+  const managed = await quietly(api.managedSpaces());
+  for (const space of managed?.spaces ?? []) await quietly(api.audience(space.id));
   for (const list of library.topics.values()) for (const t of list.topics) await api.topic(t.key);
   for (const tree of library.trees.values()) for (const d of documentsOf(tree)) await api.document(d);
   for (const q of questions) {

@@ -273,7 +273,7 @@ apps:
   business:
     owns: The business backend, the browser's only server (pnpm business serve); the browser API for sign-in, companies, members and invite links over accounts and tenancy; principal tokens and their JWKS; the engine's provisioning and its /v0 API passed on as the member; the built web app
   web:
-    owns: The product web app (React, Vite) over the business backend's browser API and, through it, the engine's HTTP API; signing in, the account menu and a first company; the admin area for a company's members and invite links, and joining by a link; its language packs, and a development stand-in for the business backend; the demo (pnpm demo) and its recorded page (pnpm snapshot). Planned are the spaces screens, uploads, Decide for me, Apps with access and the usage page
+    owns: The product web app (React, Vite) over the business backend's browser API and, through it, the engine's HTTP API; signing in, the account menu and a first company; the admin area for a company's members, invite links and spaces with their space owners, and joining by a link; who reads a space, for its space owners; its language packs, and a development stand-in for the business backend; the demo (pnpm demo) and its recorded page (pnpm snapshot). Planned are creating a company, uploads, Decide for me, Apps with access and the usage page
   bench:
     owns: The measurement harness and its CLI (pnpm bench); ingest runs and volume reports, the control check, history replay, questions and answers, the evidence audit, the reading check, cost, synthetic corpora
     uses: [engine]

@@ -275,6 +275,32 @@ invites.expires: 有効期限
 invites.joined: 参加者
 invites.revoke: 取り消す
 invites.confirm_revoke: このリンクを取り消しますか？以後このリンクでは参加できません。
+admin.knowledge: ナレッジ
+admin.spaces: スペース
+spaces.count: "{count} 件のスペース"
+spaces.lede: "会社のスペースを作り、それぞれのスペース責任者を決めます。誰が読めるかは、スペース責任者がスペースの中で決めます。"
+spaces.new: スペースを作成
+spaces.none: まだスペースがありません。最初のスペースを作り、スペース責任者を決めてください。
+spaces.name: 名前
+spaces.description: 説明
+spaces.owners: スペース責任者
+spaces.grants: 閲覧の許可
+spaces.gone: このスペースはあなたの管理対象ではないか、もう存在しません。
+spaces.pick_owner: スペース責任者を一人以上選んでください。
+spaces.save: 保存
+spaces.create: 作成
+access.title: 閲覧できる人
+access.lede: "ここにいる人は、このスペースの文書とナレッジを読めます。スペース責任者はいつでも読めます。責任者は {company} のスーパー管理者が決めます。"
+access.lede_admin: スーパー管理者は閲覧者を外せます。追加はスペース責任者が行います。
+access.everyone: "{company} の全員"
+access.owner: スペース責任者
+access.remove: 外す
+access.owners_only: スペース責任者以外は誰も読めません。
+access.add: 閲覧者を追加
+access.pick: 選択…
+access.forbidden: 閲覧者を追加できるのは、このスペースの責任者だけです。
+maintain.access_heading: アクセス
+maintain.access: 閲覧できる人
 
 join.loading: 招待リンクを読み込んでいます…
 join.title: "{name} さんから {company} への招待"

@@ -565,7 +565,7 @@ function LeftColumn(props: { route: Route; library: Library; person: Person; tod
             <span>{say("nav.knowledge")}</span>
             <span className="count">{library.topics.get(s.id)?.topics.length ?? 0}</span>
           </Link>
-          {s.owner_id === props.person.member && (
+          {(s.role === "owner" || s.owner_id === props.person.member) && (
             <Link to={{ name: "maintain", space: s.id, page: "overview" }} className="nav-item nav-sub nav-maintain">
               {say("nav.maintain")}
             </Link>

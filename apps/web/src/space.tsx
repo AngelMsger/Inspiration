@@ -1,10 +1,11 @@
-// Maintaining a space, which only its owner enters: an overview of what is waiting in it and
-// how its documents stand, its topics with their owners, and its folders with the governance
-// level each is read at. The left column turns blue there, so maintaining never looks like
+// Maintaining a space, which only its space owners enter: an overview of what is waiting in it
+// and how its documents stand, its topics with their owners, its folders with the governance
+// level each is read at, and who can read it (access.tsx). The left column turns blue there, so maintaining never looks like
 // reading. Levels and owners are shown, not changed: changing them is a batch change, later.
 
 import type { SpaceChange, SpaceOverview, SyncReport, TaxonomyNode } from "@inspiration/contracts";
 import { type ReactNode, useRef, useState } from "react";
+import { SpaceAccess } from "./access.tsx";
 import { api, failureOf, type Library, type Loaded, useLoad } from "./api.ts";
 import { folderRows } from "./folders.ts";
 import { Crumbs, Failure, formatDate } from "./parts.tsx";
@@ -44,6 +45,8 @@ export function MaintainColumn(props: { route: MaintainRoute; library: Library }
       <div className="nav-heading">{say("maintain.structure")}</div>
       {item("topics", say("maintain.topics"))}
       {item("documents", say("maintain.documents"))}
+      <div className="nav-heading">{say("maintain.access_heading")}</div>
+      {item("access", say("maintain.access"))}
     </nav>
   );
 }
@@ -112,6 +115,14 @@ export function MaintainScreen(props: {
           {crumbs}
           {heading}
           <Folders library={props.library} space={route.space} overview={overview.value} />
+        </main>
+      );
+    case "access":
+      return (
+        <main className="centre">
+          {crumbs}
+          {heading}
+          <SpaceAccess space={route.space} company={props.library.tenant.name} />
         </main>
       );
   }

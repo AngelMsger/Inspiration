@@ -25,7 +25,8 @@
  *     DELETE /api/invites/<inv>        204: the link is revoked
  *     GET    /api/join/<code>          JoinPreview, for anyone holding the link
  *     POST   /api/join/<code>          Session, in the company the link joins
- *     *      /api/v0/...               the engine's HTTP API, as the signed-in member
+ *     *      /api/v0/...               the engine's HTTP API, as the signed-in member, with any
+ *                                      body and Idempotency-Key the page sends
  *     GET    /api/demo/people          {people}: whom to act as, with their team and role
  *     POST   /api/demo/act-as          {"member"}: Session, as that person
  *     *      /api/demo/updates/...     the demo's upstream edits (updates.ts), when pnpm demo runs it
@@ -93,11 +94,21 @@ export function backend(options: People & { engine: string; updates?: Updates })
     path: string,
     person: Person,
     method = "GET",
-    body?: Uint8Array<ArrayBuffer>,
+    sent?: Uint8Array<ArrayBuffer>,
+    key?: string,
   ) => {
-    const answer = await fetch(`${engine}${path}`, { method, headers: headersOf(person), ...(body && { body }) });
+    const headers = { ...headersOf(person), ...(key && { "idempotency-key": key }) };
+    const answer = await fetch(`${engine}${path}`, { method, headers, ...(sent && { body: sent }) });
     res.writeHead(answer.status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
     res.end(Buffer.from(await answer.arrayBuffer()));
+  };
+
+  // A call under /api/v0/ as the page made it: its method, its body and its Idempotency-Key.
+  const forwardCall = async (url: URL, req: IncomingMessage, res: ServerResponse, person: Person) => {
+    const sent = req.method === "GET" ? undefined : new Uint8Array(await body(req));
+    const key = req.headers["idempotency-key"];
+    const path = `${url.pathname.slice("/api".length)}${url.search}`;
+    await forward(res, path, person, req.method, sent, typeof key === "string" ? key : undefined);
   };
 
   // The business backend's routes for whoever is signed in; false for any other route.
@@ -208,8 +219,7 @@ export function backend(options: People & { engine: string; updates?: Updates })
       if (outside) return send(res, 400, error("bad_request", "no current company"));
       if ((await companyRoute(url, req, res, person)) || (await demoRoute(url, req, res, person))) return;
       if (!url.pathname.startsWith("/api/v0/")) return send(res, 404, error("not_found", "no route"));
-      const sent = req.method === "POST" ? new Uint8Array(await body(req)) : undefined;
-      await forward(res, `${url.pathname.slice("/api".length)}${url.search}`, person, req.method, sent);
+      await forwardCall(url, req, res, person);
     } catch (e) {
       if (e instanceof Refused) return send(res, e.status, error(e.code, e.message));
       const refused = e instanceof SyntaxError || e instanceof ContractError;
