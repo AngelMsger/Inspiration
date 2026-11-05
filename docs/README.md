@@ -29,6 +29,7 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 | [Contracts](contracts.md) | Reference | Changing schemas, code generation, IDs, events, versioning |
 | [PageSpec and views](pagespec.md) | Reference | How pages match Claude Artifacts, and the view sandbox |
 | [Licensing](licensing.md) | Reference | Licences of the stack and what they mean for delivery |
+| [Development](development.md) | Reference | Building, testing and running everything from source: the stack, the checks, the bench, the demo |
 
 ## Design
 

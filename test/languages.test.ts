@@ -1,8 +1,9 @@
 // Code, comments and configuration are in English; text in the other languages the product
 // serves lives in data. Han and kana are allowed only in language packs (languages/*.yaml),
 // test data (test/data/), sample data (examples/), the Chinese copies of the docs
-// (docs/zh/, *.zh.md) and the screens copied from the design canvas (docs/design/screens/),
-// which show the product in each language it serves. Docs are written in English and every
+// (docs/zh/, *.zh.md), the screens copied from the design canvas (docs/design/screens/) and
+// the READMEs' images in Chinese and Japanese (docs/assets/), which show the product in each
+// language it serves. Docs are written in English and every
 // one has a Chinese copy.
 
 import { execFileSync } from "node:child_process";
@@ -25,6 +26,7 @@ const DATA = [
   /^docs\/zh\//,
   /\.zh\.md$/,
   /^docs\/design\/screens\/.+\.html$/,
+  /^docs\/assets\/[^/]+\.(zh|ja)\.svg$/,
 ];
 
 /** Files in the checkout, tracked or new, without the ignored ones. */
