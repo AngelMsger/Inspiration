@@ -8,7 +8,7 @@
  *     GET    /api/auth/callback                    the cookie, then 302 to return_to (failures: /?sign_in=failed)
  *     POST   /api/auth/sign-out                    SignOut, the provider's own sign-out URL
  *     GET    /api/session                          Session, 401 when signed out
- *     POST   /api/session     SwitchCompany        Session working in that company
+ *     POST   /api/session     SwitchCompany        Session working in that company, or in the sample company
  *     PATCH  /api/account     AccountChange        Session
  *     POST   /api/companies   NewCompany           201 Session; the account is its super admin
  *     GET    /api/members                          MemberList
@@ -25,6 +25,9 @@
  * - The session is an HttpOnly, SameSite=Lax cookie (Secure when the public URL is https);
  *   accounts keeps only its hash. POST, PUT and PATCH need an application/json body, which a
  *   form on another site cannot send.
+ * - With a sample company (serve --sample), Session.sample names it, and switching to it
+ *   joins the account as a member. Its tokens carry knowledge.read alone, so the engine
+ *   refuses every change there; its members are not listed.
  * - A session works in one company at a time, its first by name until it switches. A call
  *   that acts in a company and names the one the page shows (x-inspiration-company) is
  *   answered 409 when the session works in another, as after a switch in a second tab.

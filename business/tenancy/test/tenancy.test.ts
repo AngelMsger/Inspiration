@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { assignMemberId, engineRoles, INVITE_DAYS } from "../src/index.ts";
-import { BACKENDS, LI, tenancyTest, ZHANG, ZHOU } from "./fixtures.ts";
+import { assignMemberId, engineRoles, INVITE_DAYS, Tenancy } from "../src/index.ts";
+import { BACKENDS, LI, SAMPLE, tenancyTest, ZHANG, ZHOU } from "./fixtures.ts";
 
 const refused = (code: string) => expect.objectContaining({ name: "TenancyError", code });
 
@@ -164,5 +164,39 @@ describe.each(BACKENDS)("tenancy on $backend", ({ backend, skip }) => {
     engine.failing = false;
     await tenancy.resync();
     expect(engine.member(zhang.id)?.status).toBe("left");
+  });
+
+  it.skipIf(skip)("opens the sample company to anyone, as a member, and never sends its record", async ({ setup }) => {
+    const { tenancy, engine } = setup;
+    const { company, member } = await tenancy.visit(ZHOU);
+    expect(company).toMatchObject({ ...SAMPLE, sample: true });
+    expect(member).toMatchObject({ id: assignMemberId(ZHOU.userId), role: "member", status: "active" });
+    expect((await tenancy.visit(ZHOU)).member).toEqual(member);
+    expect(engine.calls).toEqual([
+      ["member", member],
+      ["member", member],
+    ]);
+    expect(await tenancy.companiesOf(ZHOU.userId)).toEqual([]);
+    expect((await tenancy.membership(SAMPLE.id, ZHOU.userId))?.company).toMatchObject({ sample: true });
+
+    const { member: zhang } = await tenancy.visit(ZHANG);
+    await expect(tenancy.members(zhang)).rejects.toEqual(refused("forbidden"));
+    await expect(tenancy.invite(zhang)).rejects.toEqual(refused("forbidden"));
+    await tenancy.create(ZHOU, { name: "Qinghe", default_locale: "zh-CN" });
+    engine.calls.length = 0;
+    expect(await tenancy.resync()).toBe(4);
+    expect(engine.calls.filter(([kind, r]) => kind === "tenant" && r.id === SAMPLE.id)).toEqual([]);
+  });
+
+  it.skipIf(skip)("leaves a sample company alone once the site stops offering it", async ({ setup }) => {
+    const { tenancy, engine } = setup;
+    await tenancy.visit(ZHOU);
+    const without = new Tenancy(tenancy.store, engine);
+    await expect(without.visit(ZHANG)).rejects.toThrow(RangeError);
+    expect(await without.membership(SAMPLE.id, ZHOU.userId)).toBeUndefined();
+    engine.calls.length = 0;
+    await without.rename({ ...ZHOU, name: "Zhou Min" });
+    expect(await without.resync()).toBe(0);
+    expect(engine.calls).toEqual([]);
   });
 });

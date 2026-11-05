@@ -9,7 +9,7 @@ import type {
 } from "@inspiration/contracts/business";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { COMPANY_HEADER, SIGN_IN_FAILED, TENANCY_SERVICE } from "../src/index.ts";
-import { type Backend, PUBLIC_URL, startBackend, ZHANG, ZHOU } from "./fixtures.ts";
+import { type Backend, PUBLIC_URL, SAMPLE, startBackend, ZHANG, ZHOU } from "./fixtures.ts";
 
 let site: Backend;
 beforeEach(async () => {
@@ -51,7 +51,11 @@ describe("signing in", () => {
     for (const attribute of ["HttpOnly", "SameSite=Lax", "Path=/", "Secure"]) expect(set).toContain(attribute);
 
     const { body } = await b.call<Session>("GET", "/api/session");
-    expect(body).toEqual({ account: { name: "Zhou", email: "zhou@example.com", locale: "en" }, companies: [] });
+    expect(body).toEqual({
+      account: { name: "Zhou", email: "zhou@example.com", locale: "en" },
+      companies: [],
+      sample: { tenant_id: SAMPLE.id, name: SAMPLE.name },
+    });
   });
 
   test("sends every failed sign-in to the page that says so, with no cookie", async () => {

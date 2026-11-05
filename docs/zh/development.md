@@ -54,11 +54,11 @@ pnpm snapshot dist/snapshot                        # 把演示脚本录制成静
 ```bash
 docker compose -f infra/compose.yaml --profile auth up -d --wait   # 即 make up，再加上 3001 端口的 Logto
 pnpm --dir apps/web exec vite build                                 # 构建 Web 应用，输出到 apps/web/dist
-pnpm engine serve --issuer http://localhost:4200 --audience http://127.0.0.1:4100   # 一个空的引擎
-pnpm business serve --web apps/web/dist                             # 网站在 http://localhost:4200
+pnpm engine serve examples/corpus --issuer http://localhost:4200 --audience http://127.0.0.1:4100
+pnpm business serve --web apps/web/dist --sample examples/corpus    # 网站在 http://localhost:4200
 ```
 
-这样启动的引擎没有文档，一切都放在内存里：企业和成员来自业务后端，空间在 Web 应用里创建。重启引擎之后，也要重启业务后端，它启动时会把所有企业和成员重新发给引擎；重启前创建的空间就没有了。
+这里的演示语料就是示例企业：任何登录的人都可以打开它，读到全企业可读的内容，但谁也不能修改它。两条命令都去掉语料，就是一个没有文档的引擎。无论哪种方式，引擎都把一切放在内存里：企业和成员来自业务后端，空间在 Web 应用里创建。重启引擎之后，也要重启业务后端，它启动时会把所有企业和成员，以及示例企业的每位访客，重新发给引擎；重启前创建的空间就没有了。
 
 ## 试用模型网关
 

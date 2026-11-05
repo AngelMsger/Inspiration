@@ -3,11 +3,18 @@ import type { AddressInfo } from "node:net";
 import { Accounts, MemoryAccounts, type ProviderIdentity } from "@inspiration/accounts";
 import { FakeProvider } from "@inspiration/accounts/testing";
 import { type Ed25519Jwk, generateSigningKey, publicKeyOf, verifyJwt } from "@inspiration/kernel";
-import { MemoryTenancy, Tenancy } from "@inspiration/tenancy";
+import { MemoryTenancy, type SampleCompany, Tenancy } from "@inspiration/tenancy";
 import { backendHandler, EngineClient, SESSION_COOKIE, Tokens } from "../src/index.ts";
 
 export const PUBLIC_URL = "https://inspiration.example";
 export const ENGINE_AUDIENCE = "https://engine.example";
+
+/** The sample company the test site offers. */
+export const SAMPLE: SampleCompany = {
+  id: "ten_01SAMPLE00000000000000000001",
+  name: "Hengyuan",
+  default_locale: "zh-CN",
+};
 
 export const ZHOU: ProviderIdentity = {
   subject: "idp-zhou",
@@ -152,7 +159,7 @@ export async function startBackend(options: { webDir?: string } = {}): Promise<B
   const tokens = new Tokens({ issuer: PUBLIC_URL, audience: ENGINE_AUDIENCE, key: generateSigningKey("test-1") });
   const engine = await FakeEngine.start(() => tokens.jwks());
   const client = new EngineClient(engine.url, tokens);
-  const tenancy = new Tenancy(new MemoryTenancy(), client);
+  const tenancy = new Tenancy(new MemoryTenancy(), client, { sample: SAMPLE });
   const server = createServer(
     backendHandler({
       accounts: new Accounts(new MemoryAccounts(), provider),

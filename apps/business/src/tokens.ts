@@ -15,6 +15,8 @@ export const TENANCY_SERVICE = "svc_01TENANCY0000000000000000";
 
 /** What a member may do through the web app. Edits on a member's request (knowledge.write) are for agents, later. */
 const MEMBER_SCOPES: readonly Scope[] = ["knowledge.read", "knowledge.propose"];
+/** What a visitor may do in the sample company: read, so the engine refuses every change. */
+const READER_SCOPES: readonly Scope[] = ["knowledge.read"];
 
 export class Tokens {
   readonly issuer: string;
@@ -35,13 +37,16 @@ export class Tokens {
     return { keys: [this.#key.jwk] };
   }
 
-  /** A token for the member in their company, in the account's language. signedInAt is when the session began. */
-  member(member: Member, locale: string, signedInAt: string): string {
+  /**
+   * A token for the member in their company, in the account's language. signedInAt is when the
+   * session began; a read-only token, as in the sample company, only reads.
+   */
+  member(member: Member, locale: string, signedInAt: string, options: { readOnly?: boolean } = {}): string {
     return this.#sign({
       sub: member.id,
       tid: member.tenant_id,
       kind: "member",
-      scope: MEMBER_SCOPES.join(" "),
+      scope: (options.readOnly ? READER_SCOPES : MEMBER_SCOPES).join(" "),
       locale,
       auth: { method: "password", mfa: false, at: signedInAt },
     });

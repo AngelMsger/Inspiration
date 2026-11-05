@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 /**
- * inspiration-business serve [--port 4200] [--web <dir>]
+ * inspiration-business serve [--port 4200] [--web <dir>] [--sample <corpus>]
  *
  * Runs the business backend (index.ts) on localhost, behind the site's TLS proxy. It migrates
  * the accounts and tenancy schemas, sends every company and member to the engine again (so
  * the engine's copy catches up with any call that failed), and serves the browser API, the
- * JWKS the engine checks its tokens with, and, with --web, the built web app.
+ * JWKS the engine checks its tokens with, and, with --web, the built web app. With --sample,
+ * the tenant of that corpus is the sample company anyone may open; the engine must be started
+ * with the same corpus, since it holds the company's record and documents.
  *
  * Settings come from the environment, or a .env file in the working directory:
  *
@@ -27,6 +29,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { join } from "node:path";
 import { parseArgs, parseEnv } from "node:util";
 import { MIGRATIONS as ACCOUNTS, Accounts, OidcProvider, PostgresAccounts } from "@inspiration/accounts";
 import {
@@ -37,14 +40,15 @@ import {
   openPool,
   signingKeyFromPem,
 } from "@inspiration/kernel";
-import { PostgresTenancy, MIGRATIONS as TENANCY, Tenancy } from "@inspiration/tenancy";
+import { PostgresTenancy, type SampleCompany, MIGRATIONS as TENANCY, Tenancy } from "@inspiration/tenancy";
+import { parse } from "yaml";
 import { EngineClient } from "./engine.ts";
 import { backendHandler } from "./routes.ts";
 import { Tokens } from "./tokens.ts";
 
 const log = logger("business.serve");
 
-const USAGE = "usage: inspiration-business serve [--port 4200] [--web <dir>]";
+const USAGE = "usage: inspiration-business serve [--port 4200] [--web <dir>] [--sample <corpus>]";
 
 /** The settings above, from the environment over .env. */
 function settingsOf(env: Record<string, string | undefined>) {
@@ -71,11 +75,25 @@ function settingsOf(env: Record<string, string | undefined>) {
   };
 }
 
+/** The tenant a corpus declares (its corpus.yaml), as the sample company. */
+function sampleOf(corpus: string): SampleCompany {
+  const { tenant } = parse(readFileSync(join(corpus, "corpus.yaml"), "utf8")) as {
+    tenant: { id: string; name: string; locale?: string };
+  };
+  const locale = tenant.locale === "zh-CN" || tenant.locale === "ja" ? tenant.locale : "en";
+  return { id: tenant.id, name: tenant.name, default_locale: locale };
+}
+
 async function main(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
     allowPositionals: true,
-    options: { port: { type: "string", default: "4200" }, web: { type: "string" }, help: { type: "boolean" } },
+    options: {
+      port: { type: "string", default: "4200" },
+      web: { type: "string" },
+      sample: { type: "string" },
+      help: { type: "boolean" },
+    },
   });
   if (positionals[0] !== "serve" || values.help) {
     console.error(USAGE);
@@ -92,7 +110,11 @@ async function main(argv: string[]): Promise<number> {
   const tokens = new Tokens({ issuer: settings.publicUrl, audience: settings.audience, key });
   const engine = new EngineClient(settings.engineUrl, tokens);
   const accounts = new Accounts(new PostgresAccounts(pool), new OidcProvider(settings.logto));
-  const tenancy = new Tenancy(new PostgresTenancy(pool), engine);
+  const tenancy = new Tenancy(
+    new PostgresTenancy(pool),
+    engine,
+    values.sample ? { sample: sampleOf(values.sample) } : {},
+  );
 
   const server = createServer(
     backendHandler({

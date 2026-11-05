@@ -45,8 +45,13 @@ $defs:
         items:
           $ref: "companies.yaml#/$defs/CompanyEntry"
       current:
-        description: The company the person works in now; absent until they create or join one.
+        description: >
+          The company the person works in now; absent until they create or join one, or open
+          the sample company.
         $ref: "companies.yaml#/$defs/CurrentMember"
+      sample:
+        description: The sample company anyone signed in may open, when this site has one.
+        $ref: "companies.yaml#/$defs/SampleCompany"
 
   AccountChange:
     description: PATCH /api/account.

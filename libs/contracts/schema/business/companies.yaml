@@ -32,6 +32,21 @@ $defs:
       role:
         $ref: "#/$defs/ProductRole"
 
+  SampleCompany:
+    description: >
+      A company with sample documents, to look around before uploading one's own. POST
+      /api/session with its tenant_id opens it: the account joins it as a member who only
+      reads, so the engine refuses every change there. It is never one of the account's
+      companies, and its members are not listed.
+    type: object
+    required: [tenant_id, name]
+    additionalProperties: false
+    properties:
+      tenant_id:
+        $ref: "../common.yaml#/$defs/TenantId"
+      name:
+        type: string
+
   CurrentMember:
     description: The account as a member of the company it works in now.
     type: object
