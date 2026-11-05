@@ -263,6 +263,9 @@ $defs:
       score:
         type: number
       rank:
+        description: >
+          1 for the best hit. Hits with the same score, within float noise, share the rank of
+          the first of them.
         type: integer
         minimum: 1
 

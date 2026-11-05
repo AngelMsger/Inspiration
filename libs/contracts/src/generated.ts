@@ -2371,6 +2371,10 @@ export interface IndexFilter {
 export interface IndexHit {
   chunk_id: ChunkId;
   score: number;
+  /**
+   * 1 for the best hit. Hits with the same score, within float noise, share the rank of the first of them.
+   *
+   */
   rank?: number;
 }
 /**
