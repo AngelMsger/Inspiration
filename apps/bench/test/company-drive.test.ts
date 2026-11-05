@@ -195,9 +195,9 @@ describe("the company drive", () => {
           beyond_raw: [],
         },
         by_kind: {
-          changed: { questions: 66, ...paths([16, 6], [18, 5], [10, 6], [13, 6], [17, 5]) },
+          changed: { questions: 66, ...paths([16, 6], [18, 5], [11, 6], [13, 6], [17, 5]) },
           not_stated: { questions: 15, ...paths([2, 0], [3, 0], [2, 1], [2, 2], [2, 0]) },
-          unchanged: { questions: 69, ...paths([32, 0], [31, 0], [32, 0], [34, 0], [33, 0]) },
+          unchanged: { questions: 69, ...paths([32, 0], [31, 0], [31, 0], [34, 0], [33, 0]) },
         },
         by_language: {
           en: { questions: 50, ...paths([29, 4], [29, 4], [25, 6], [31, 7], [30, 3]) },

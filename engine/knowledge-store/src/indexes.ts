@@ -19,11 +19,26 @@ import { searchText, vectorLiteral, writeEmbeddings } from "./postgres.ts";
 /** The size the partial HNSW index in 0001_kb.sql covers. */
 export const HNSW_DIMS = 1024;
 
+/**
+ * Scores closer than this, relative to the larger one and to 1, are one score. pgvector's
+ * float4 sums leave noise in the last digits, and differently on each CPU.
+ */
+const SAME_SCORE = 1e-6;
+
+const same = (a: number, b: number) => Math.abs(a - b) <= SAME_SCORE * Math.max(1, Math.abs(a), Math.abs(b));
+
+/**
+ * The k best, best first. Hits with one score share the rank of the first of them, so a
+ * fusion of ranks gives ties the same weight, whichever order they come in.
+ */
 function hits(scored: readonly [string, number][], k: number): IndexHit[] {
-  return [...scored]
-    .sort(([a, x], [b, y]) => y - x || (a < b ? -1 : a > b ? 1 : 0))
-    .slice(0, k)
-    .map(([chunk_id, score], i) => ({ chunk_id, score, rank: i + 1 }));
+  const best = [...scored].sort(([a, x], [b, y]) => y - x || (a < b ? -1 : a > b ? 1 : 0)).slice(0, k);
+  let rank = 1;
+  return best.map(([chunk_id, score], i) => {
+    const before = best[i - 1];
+    if (before && !same(before[1], score)) rank = i + 1;
+    return { chunk_id, score, rank };
+  });
 }
 
 const empty = (filter: IndexFilter) => !filter.space_ids.length || !filter.principal_tokens.length;

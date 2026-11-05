@@ -104,8 +104,8 @@ the stand-in quotes more of each passage, older values included.
 | Questions | Engine right, stale | Engine, compact | Mature RAG | Reading everything | Reading everything after governance |
 | --- | --- | --- | --- | --- | --- |
 | All 150 | 50, 6 | 52, 5 | 44, 7 | 49, 8 | 52, 5 |
-| Unchanged, 69 | 32, 0 | 31, 0 | 32, 0 | 34, 0 | 33, 0 |
-| Changed, 66 | 16, 6 | 18, 5 | 10, 6 | 13, 6 | 17, 5 |
+| Unchanged, 69 | 32, 0 | 31, 0 | 31, 0 | 34, 0 | 33, 0 |
+| Changed, 66 | 16, 6 | 18, 5 | 11, 6 | 13, 6 | 17, 5 |
 | Not answered by the drive, 15 | 2, 0 | 3, 0 | 2, 1 | 2, 2 | 2, 0 |
 | In English, 50 | 29, 4 | 29, 4 | 25, 6 | 31, 7 | 30, 3 |
 | In Chinese, 50 | 12, 1 | 12, 1 | 11, 0 | 10, 0 | 12, 1 |
