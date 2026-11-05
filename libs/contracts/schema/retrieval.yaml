@@ -178,6 +178,16 @@ $defs:
       max_answer_tokens:
         type: integer
         minimum: 50
+      depth:
+        $ref: "#/$defs/AnswerDepth"
+
+  AnswerDepth:
+    description: >
+      How much an answer reads. compact, the default: the statements governance kept with
+      their quotes and a few passages, a short input that a small model answers fast. standard:
+      as many passages as statements, for a question the compact sources leave open.
+    type: string
+    enum: [compact, standard]
 
   GroundedAnswer:
     type: object
