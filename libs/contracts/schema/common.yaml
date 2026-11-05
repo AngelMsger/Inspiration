@@ -70,6 +70,9 @@ $defs:
   ConflictId:
     type: string
     pattern: "^cfl_[0-9A-Za-z]{8,64}$"
+  DecisionId:
+    type: string
+    pattern: "^dcn_[0-9A-Za-z]{8,64}$"
   PublishRequestId:
     type: string
     pattern: "^pub_[0-9A-Za-z]{8,64}$"

@@ -54,7 +54,7 @@
 | --- | --- | --- |
 | [业务层](design/business-layer.md) | 已采纳，2026-10-24 | 引擎之上的账号、企业、发布和审批 |
 | [业务层与引擎契约](design/business-engine-contract.md) | 已采纳，2026-10-24 | 两层之间的契约，以及它需要的 schema 变更 |
-| [替我决定](design/decide-for-me.md) | 提议中，2026-10-27 | 人做的每一个决定都可以交给助手 |
+| [替我决定](design/decide-for-me.md) | 已采纳，2026-11-05 | 人做的每一个决定都可以交给助手 |
 
 ## 设计：界面
 

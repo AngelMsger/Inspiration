@@ -23,6 +23,7 @@ export const PREFIXES = {
   proposal: "prp",
   todo: "todo",
   conflict: "cfl",
+  decision: "dcn",
   publish_request: "pub",
   view: "view",
   event: "evt",

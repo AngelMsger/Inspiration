@@ -425,7 +425,7 @@ States: **Built** (on `main`, with tests), **Designed** (decided, not built), **
 | AG-1 | One governed endpoint: a remote MCP server and a REST API from one schema; verified procedures exportable as Agent Skills | Planned |
 | AG-2 | Four tools shaped by what an agent is doing (`ask`, `search`, `read`, `get_changes`) and one for feedback, sized for agent budgets, every result carrying source, version, freshness, confidence, review status and a token estimate | Proposed |
 | AG-3 | An agent always acts for a member, with that member's rights cut down to its scopes and spaces | Designed |
-| AG-4 | Agents running on their own only read or propose; a member's explicit request is the approval for an edit within that member's rights | Decided |
+| AG-4 | Agents running on their own only read or propose; a member's explicit request is the approval for an edit within that member's rights, and so is a standing "Decide for me" the member set up and can pause | Decided |
 | AG-5 | OAuth with PKCE for MCP clients, the device flow for the CLI; company agents registered by the super admin | Designed |
 
 ### 6.8 Administration and usage
