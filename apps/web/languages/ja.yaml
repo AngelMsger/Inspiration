@@ -38,6 +38,8 @@ home.ask: 質問するか、探しているものを入力してください
 home.recent: 最近見たもの
 home.recent_none: 開いたドキュメントがここに表示されます。
 home.spaces: あなたのスペース
+home.no_spaces_admin: まだスペースがありません。最初のスペースを作り、スペース責任者を決めてください。
+home.no_spaces: まだ読めるスペースがありません。誰が読めるかは、各スペースの責任者が決めます。
 home.documents: "{count} 件のドキュメント"
 
 ask.answer: 回答

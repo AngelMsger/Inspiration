@@ -77,6 +77,7 @@
       "SpaceOwnerIds",
       "PutSpaceOwners",
       "PatchSpace",
+      "FileWritten",
       "SpaceWritten",
       "SpaceAudience",
       "PutSpaceAudience",
@@ -1003,13 +1004,15 @@
     },
     "ApiErrorCode": {
       "type": "string",
-      "description": "forbidden is a token whose scopes do not cover the route, or an admin write on a space the member may read but not administer; conflict is a directory command older than the engine's copy.\n",
+      "description": "forbidden is a token whose scopes do not cover the route, or an admin write on a space the member may read but not administer; conflict is a directory command older than the engine's copy; too_large is an upload over the size a file may have (status 413), and unsupported_type a file of a type the engine does not read (status 415).\n",
       "enum": [
         "bad_request",
         "unauthenticated",
         "forbidden",
         "not_found",
         "conflict",
+        "too_large",
+        "unsupported_type",
         "internal"
       ]
     },
@@ -4267,6 +4270,22 @@
         },
         "language": {
           "$ref": "#/$defs/Locale"
+        }
+      }
+    },
+    "FileWritten": {
+      "description": "The answer to PUT /v0/spaces/{space}/files/{path}, which uploads one file into the space's uploads: the document the file is now, with its latest version, and whether this upload changed it. The same bytes at the same path change nothing, so a retry is safe; other bytes make a new version. Reading runs in the background.\n",
+      "type": "object",
+      "required": [
+        "document",
+        "changed"
+      ],
+      "properties": {
+        "document": {
+          "$ref": "#/$defs/DocumentEntry"
+        },
+        "changed": {
+          "type": "boolean"
         }
       }
     },

@@ -38,6 +38,8 @@ home.ask: 问一个问题，或输入要找的东西
 home.recent: 最近看过
 home.recent_none: 打开过的文档会出现在这里。
 home.spaces: 你的空间
+home.no_spaces_admin: 还没有空间。创建第一个空间，并指定它的负责人。
+home.no_spaces: 你还不能阅读任何空间。谁能阅读一个空间，由它的负责人决定。
 home.documents: "{count} 篇文档"
 
 ask.answer: 回答
