@@ -18,6 +18,8 @@ make check         # Biome、tsc、契约是否最新、所有测试（要求运
 
 需要运行环境的测试在环境未启动时会跳过，除非设置了 `INSPIRATION_REQUIRE_STACK=1`（CI 中就是这样）。每个测试都有自己的数据库（从已迁移的模板复制）和自己的 Valkey 键前缀。`make test-unit` 只运行什么都不需要的测试。
 
+密钥和密码不进仓库。配置里只写存放密钥的环境变量名（`api_key_env`），`.env` 被 git 忽略。CI 的 `secrets` 任务用 Gitleaks 扫描所有分支的每一个提交，规则是它的默认规则加上 DeepSeek、OpenAI 和 Anthropic 密钥的格式（`.github/gitleaks.toml`）；发现任何一处就失败，输出时隐去密钥内容。
+
 除解析 worker 外全部是 Node 22 上的 TypeScript；解析 worker 用 Python，因为最好的文档解析器是 Python 的。引擎把 Word、PowerPoint、Excel 和 PDF 文件发给 `INSPIRATION_PARSING_URL` 上的 worker；`pnpm parsing` 在默认的 8790 端口启动它。没有它时，这些文件读取失败并说明 worker 连不上；其他格式不需要它。[`components.yaml`](../../components.yaml) 列出每个组件及其状态（已构建、进行中或已计划），每个包的 `src/index.ts` 说明它做什么。
 
 ## 在语料上运行引擎

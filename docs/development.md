@@ -31,6 +31,11 @@ Tests that need the stack skip when it is not running, unless `INSPIRATION_REQUI
 is set, as it is in CI. Each one gets its own database copied from a migrated template and
 its own Valkey key prefix. `make test-unit` runs only the tests that need nothing.
 
+Keys and passwords stay out of the repository. A config names the environment variable that
+holds a key (`api_key_env`), and `.env` is ignored. CI's `secrets` job runs Gitleaks over every
+commit of every branch, with its default rules and the shapes of the DeepSeek, OpenAI and
+Anthropic keys (`.github/gitleaks.toml`), and fails on any finding, which it prints redacted.
+
 Everything is TypeScript on Node 22 except the parsing worker, which is Python because the
 best document parsers are. The engine sends it Word, PowerPoint, Excel and PDF files at
 `INSPIRATION_PARSING_URL`; `pnpm parsing` starts it there, on port 8790. Without it, those
