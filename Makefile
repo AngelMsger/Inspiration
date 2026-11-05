@@ -50,7 +50,7 @@ check: lint typecheck contracts-check  ## everything with the stack required, bu
 	INSPIRATION_REQUIRE_STACK=1 INSPIRATION_QUICK=1 pnpm test
 
 check-full: lint typecheck contracts-check  ## what CI runs: everything, the long corpus runs too
-	INSPIRATION_REQUIRE_STACK=1 pnpm test
+	INSPIRATION_REQUIRE_STACK=1 INSPIRATION_QUICK=0 pnpm test
 
 gateway:          ## serve the model gateway with the fake providers on port 8100
 	pnpm exec inspiration-gateway --config config/gateway.dev.yaml
