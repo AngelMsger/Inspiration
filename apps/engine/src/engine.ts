@@ -111,6 +111,10 @@ export class Engine {
   readonly #relay: OutboxRelay | undefined;
   readonly #pool: Pool | undefined;
   readonly #closers: (() => Promise<unknown>)[] = [];
+  /** Deliveries run one at a time: two at once could hand both the same event. */
+  #delivering: Promise<unknown> = Promise.resolve();
+  /** Whether a background delivery waits to start; one waiting covers every later ask. */
+  #queued = false;
 
   private constructor(parts: {
     store: KnowledgeStore;
@@ -271,10 +275,30 @@ export class Engine {
   }
 
   /**
-   * Relay the outbox and deliver to every consumer group until a full round moves nothing.
-   * Returns the number of deliveries.
+   * Relay the outbox and deliver to every consumer group until a full round moves nothing,
+   * after any delivery already running. Returns the number of deliveries.
    */
-  async settle(maxRounds = 10_000): Promise<number> {
+  settle(maxRounds = 10_000): Promise<number> {
+    return this.#serially(() => this.#deliver(maxRounds));
+  }
+
+  /** Settle in the background, as an upload asks: its answer does not wait for the reading. */
+  settleLater(): void {
+    if (this.#queued) return;
+    this.#queued = true;
+    this.#serially(() => {
+      this.#queued = false;
+      return this.#deliver(10_000);
+    }).catch((error: unknown) => log.warn("background delivery failed", { error }));
+  }
+
+  #serially<T>(run: () => Promise<T>): Promise<T> {
+    const next = this.#delivering.then(run);
+    this.#delivering = next.catch(() => undefined);
+    return next;
+  }
+
+  async #deliver(maxRounds: number): Promise<number> {
     const client = this.#pool ? await this.#pool.connect() : undefined;
     try {
       let total = 0;
@@ -294,6 +318,7 @@ export class Engine {
   }
 
   async close(): Promise<void> {
+    await this.#delivering;
     for (const close of this.#closers) {
       await close().catch((error: unknown) => log.warn("close failed", { error }));
     }

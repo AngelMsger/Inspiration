@@ -29,7 +29,7 @@ components:
     layer: ingest
     status: built
     runtime: node
-    owns: One integration per vendor (Feishu first) for sync and agent tools alike, which enumerates, fetches and reads ACLs; built for local folders, and for Feishu documents and approvals against recorded fixtures. Planned are the typed client over the live vendor API, with one scope set and one rate budget per connection and a share kept for interactive tool calls; webhooks, which publish source.changed; Feishu wiki and upload connectors; registered queries for QueryData; agent tools (agent_tools plugins), each acting as the member with the member's own connection; credentials only as leases from the credential broker
+    owns: One integration per vendor (Feishu first) for sync and agent tools alike, which enumerates, fetches and reads ACLs; built for local folders, and for Feishu documents and approvals against recorded fixtures. Planned are the typed client over the live vendor API, with one scope set and one rate budget per connection and a share kept for interactive tool calls; webhooks, which publish source.changed; the Feishu wiki connector; registered queries for QueryData; agent tools (agent_tools plugins), each acting as the member with the member's own connection; credentials only as leases from the credential broker
     plugins: [connectors]
     publishes: [source.changed]
     subscribes: []
@@ -40,7 +40,7 @@ components:
     layer: ingest
     status: built
     runtime: node
-    owns: Lists a source page by page, fetches the items whose hashes changed, and stores source versions, tombstones and ACL snapshots with each version's governance level; syncs a source or one item when asked. Planned are 15-minute polls and the nightly reconcile as schedules, rate budgets, subscription upkeep, debounce, publishing source.changed, SourceSync.fetch_now, the Documents tree
+    owns: Lists a source page by page, fetches the items whose hashes changed, and stores source versions, tombstones and ACL snapshots with each version's governance level; syncs a source or one item when asked; the Documents tree; uploads, each space's upload area of files people put in (sync.uploads), stored as a source's items are. Planned are 15-minute polls and the nightly reconcile as schedules, rate budgets, subscription upkeep, debounce, publishing source.changed, SourceSync.fetch_now, removing an upload
     plugins: [migrations]
     publishes: [source.changed, document.fetched, acl.changed]
     subscribes: [source.changed]
@@ -269,7 +269,7 @@ business:
 # it lists that app under `uses`.
 apps:
   engine:
-    owns: The engine process; corpus manifests and topic owners, standing in for the business layer's provisioning, which they send through access control's directory; its HTTP API, version 0 (pnpm engine serve), with the routes for provisioning tenants and members and for administering spaces
+    owns: The engine process; corpus manifests and topic owners, standing in for the business layer's provisioning, which they send through access control's directory; its HTTP API, version 0 (pnpm engine serve), with the routes for provisioning tenants and members, for administering spaces and for uploading files, whose reading runs in the background
   business:
     owns: The business backend, the browser's only server (pnpm business serve); the browser API for sign-in, companies, members and invite links over accounts and tenancy; the sample company, read only; principal tokens and their JWKS; the engine's provisioning and its /v0 API passed on as the member; the built web app
   web:
