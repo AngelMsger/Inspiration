@@ -54,6 +54,9 @@ ask.none: 你能读的文档里没有这个问题的答案。
 ask.sources: 出处
 ask.results: "结果 · {count}"
 ask.gaps: 没有覆盖到
+ask.fuller: 读更多资料，回答得更完整
+ask.fuller_reading: "正在读更多资料…"
+ask.fuller_shown: 这个回答比第一次读了更多资料。
 note.outdated: 已被取代的值
 note.conflict: 正在决定
 note.thin_evidence: 只有一个出处

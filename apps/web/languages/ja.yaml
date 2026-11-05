@@ -54,6 +54,9 @@ ask.none: 閲覧できるドキュメントには、この質問の答えがあ�
 ask.sources: 出典
 ask.results: "結果 · {count}"
 ask.gaps: 扱われていない点
+ask.fuller: より多くの資料から詳しく答える
+ask.fuller_reading: "さらに資料を読んでいます…"
+ask.fuller_shown: この回答は最初の回答より多くの資料を読んでいます。
 note.outdated: 置き換えられた値
 note.conflict: 判断待ち
 note.thin_evidence: 出典が一つだけ
