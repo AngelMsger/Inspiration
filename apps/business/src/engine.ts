@@ -21,7 +21,7 @@ export interface Forwarded {
 }
 
 /** Headers of the browser's request that reach the engine; everything else stays behind. */
-const PASSED_ON = ["content-type", "idempotency-key", "accept"];
+const PASSED_ON = ["content-type", "idempotency-key", "accept", "x-inspiration-modified"];
 /** How many companies' consistency tokens are remembered. */
 const REMEMBERED = 10_000;
 
@@ -61,11 +61,16 @@ export class EngineClient implements EngineDirectory {
 
   /**
    * Pass a browser's call under /api/v0/ on to the engine as the member, with the newest
-   * consistency token of their company, so a grant made a moment ago already shows.
+   * consistency token of their company, so a grant made a moment ago already shows. A body
+   * given as a stream, as a file is, goes on as it arrives.
    */
   async forward(
     path: string,
-    request: { method: string; headers: Record<string, string | string[] | undefined>; body?: Uint8Array },
+    request: {
+      method: string;
+      headers: Record<string, string | string[] | undefined>;
+      body?: Uint8Array | AsyncIterable<Uint8Array>;
+    },
     member: { tenantId: string; token: string },
   ): Promise<Forwarded> {
     const headers: Record<string, string> = { authorization: `Bearer ${member.token}` };
@@ -78,7 +83,7 @@ export class EngineClient implements EngineDirectory {
     const answer = await this.#call(`${this.url}${path}`, {
       method: request.method,
       headers,
-      ...(request.body && { body: request.body }),
+      ...(request.body && { body: request.body, duplex: "half" }),
     });
     const body = new Uint8Array(await answer.arrayBuffer());
     const contentType = answer.headers.get("content-type") ?? "application/json; charset=utf-8";

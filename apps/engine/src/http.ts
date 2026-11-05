@@ -19,6 +19,7 @@
  *     POST /v0/todos/:todo/resolve  ResolveTodo       Todo, closed
  *     GET  /v0/spaces/:space/overview                 SpaceOverview, for the space's maintainers
  *     POST /v0/sources/:source/sync                   SyncReport, the source synced now
+ *     PUT  /v0/spaces/:space/files/:path  the file's bytes  FileWritten, the file in the space's uploads
  *
  * Space administration (space-admin.ts), on access control's directory:
  *
@@ -34,7 +35,10 @@
  *     PUT /v0/tenants/:tenant/members/:member  PutMember  MemberWritten
  *     GET /v0/tenants/:tenant/members                     DirectoryMemberList
  *
- * Resolving a todo and syncing a source are the knowledge writes. Only a todo's assignee may
+ * Resolving a todo, syncing a source and uploading a file are the knowledge writes. An upload
+ * (uploads.ts) needs editor or above on the space (else 403); its body is the file's bytes,
+ * at most 50 MiB (else 413), of a type the engine reads by the name's extension (else 415).
+ * It answers once the document is stored and reads it in the background. Only a todo's assignee may
  * resolve it (a todo of anyone else's answers 404), with a resolution it offers (else 400).
  * Only a member who may administer a space and read it reads its overview or syncs its sources
  * (spaces.ts). Both answer once the engine has read everything they caused, so the next read
@@ -55,7 +59,8 @@
  * body or header that is not valid, 401 without a valid token, 403 for a token whose scopes do
  * not cover the route or an admin write the member may not make, 404 for anything unknown or
  * not readable (the two look the same, so a reader never learns what exists), 409 for a
- * directory command that an earlier one supersedes.
+ * directory command that an earlier one supersedes, 413 and 415 for an upload too large or of
+ * a type the engine does not read.
  */
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
@@ -87,6 +92,7 @@ import { members, putMember, putTenant } from "./provisioning.ts";
 import { audienceOf, createSpace, patchSpace, putAudience, putOwners, spaceList } from "./space-admin.ts";
 import { maintains, overviewOf, syncNow } from "./spaces.ts";
 import { factLabels, inboxOf, resolveTodo } from "./todos.ts";
+import { putFile } from "./uploads.ts";
 
 const log = logger("engine.http");
 
@@ -193,6 +199,12 @@ function routesOf(engine: Engine): Route[] {
     },
     {
       method: "PUT",
+      path: /^\/v0\/spaces\/([^/]+)\/files\/(.+)$/,
+      scope: "knowledge.propose",
+      run: async (who, m, req) => putFile(engine, who, await readableSpace(engine, who, param(m)), m[2] as string, req),
+    },
+    {
+      method: "PUT",
       path: /^\/v0\/tenants\/([^/]+)$/,
       scope: "provision.directory",
       run: async (who, m, req) => putTenant(engine, who, param(m), await req.json()),
@@ -235,7 +247,13 @@ export function apiHandler(engine: Engine, identity: Identity) {
         const value = incoming.headers[name];
         return typeof value === "string" ? value : undefined;
       };
-      send(res, 200, await route.run(who, m, { query: url.searchParams, header, json: () => readJson(incoming) }));
+      const req: Request = {
+        query: url.searchParams,
+        header,
+        json: async () => JSON.parse((await readBody(incoming, MAX_BODY, badRequest)).toString("utf8")),
+        bytes: (limit) => readBody(incoming, limit, (message) => new HttpError(413, "too_large", message)),
+      };
+      send(res, 200, await route.run(who, m, req));
     } catch (error) {
       const e = httpErrorOf(error);
       if (!e) log.error("request failed", { method: incoming.method, path, error });
@@ -267,6 +285,8 @@ interface Request {
   /** A header sent once, by its lower-case name. */
   header(name: string): string | undefined;
   json(): Promise<unknown>;
+  /** The body, or HttpError 413 once it passes limit bytes. */
+  bytes(limit: number): Promise<Buffer>;
 }
 
 async function principalOf(req: IncomingMessage, identity: Identity): Promise<Principal> {
@@ -314,15 +334,18 @@ function fromDevHeaders(req: IncomingMessage, identity: Identity): Principal {
   return parseAs<Principal>("Principal", { id: member, kind: "member", tenant_id: tenant, scopes: [...DEV_SCOPES] });
 }
 
-async function readJson(req: IncomingMessage): Promise<unknown> {
+/** The body, refused as soon as its declared or counted size passes limit. */
+async function readBody(req: IncomingMessage, limit: number, tooLarge: (message: string) => HttpError) {
+  const message = `body over ${limit} bytes`;
+  if (Number(req.headers["content-length"]) > limit) throw tooLarge(message);
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > MAX_BODY) throw badRequest(`body over ${MAX_BODY} bytes`);
+    if (size > limit) throw tooLarge(message);
     chunks.push(chunk as Buffer);
   }
-  return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  return Buffer.concat(chunks);
 }
 
 function send(res: ServerResponse, status: number, body: unknown): void {
@@ -436,7 +459,7 @@ async function document(engine: Engine, who: Principal, query: URLSearchParams):
   ]);
   if (!decision?.allow) throw notFound("document");
   // The check reads the latest version's label; a citation may name an older one.
-  if (who.max_sensitivity && !allows(who.max_sensitivity, listed.version.sensitivity)) throw notFound("document");
+  if (!allows(await engine.authz.clearance(who), listed.version.sensitivity)) throw notFound("document");
   await readableSpace(engine, who, source.space_id);
   // Where the engine keeps the stored copy is its own business, not the reader's.
   const {

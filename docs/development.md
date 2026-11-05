@@ -89,14 +89,17 @@ http://localhost:3002, create a "Traditional web" application with the redirect 
 ```bash
 docker compose -f infra/compose.yaml --profile auth up -d --wait   # make up, and Logto on 3001
 pnpm --dir apps/web exec vite build                                 # the web app, into apps/web/dist
-pnpm engine serve --issuer http://localhost:4200 --audience http://127.0.0.1:4100   # an empty engine
-pnpm business serve --web apps/web/dist                             # the site at http://localhost:4200
+pnpm engine serve examples/corpus --issuer http://localhost:4200 --audience http://127.0.0.1:4100
+pnpm business serve --web apps/web/dist --sample examples/corpus    # the site at http://localhost:4200
 ```
 
-The engine started this way has no documents and keeps everything in memory: companies and
+The demo corpus is the sample company here: anyone signed in can open it and read what its
+whole company may, and nobody can change it. Leave the corpus out of both commands for an
+engine with no documents. Either way the engine keeps everything in memory: companies and
 members come from the business backend, and spaces are made in the web app. After restarting
-the engine, restart the business backend too, which sends every company and member to it
-again when it starts; spaces made before the restart are gone.
+the engine, restart the business backend too, which sends every company and member, and every
+visitor of the sample company, to it again when it starts; spaces made before the restart are
+gone.
 
 ## Try the model gateway
 

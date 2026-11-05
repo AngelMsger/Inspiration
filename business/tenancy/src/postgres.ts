@@ -12,6 +12,7 @@ interface CompanyRow {
   default_locale: Company["default_locale"];
   version: number;
   created_at: Date;
+  sample: boolean;
 }
 
 interface MemberRow extends Omit<Member, "tenant_id" | "id" | "joined_at"> {
@@ -33,6 +34,7 @@ const companyOf = (r: CompanyRow): Company => ({
   default_locale: r.default_locale,
   version: r.version,
   created_at: iso(r.created_at),
+  ...(r.sample && { sample: true }),
 });
 
 const memberOf = ({ member_id, joined_at, ...r }: MemberRow): Member => ({
@@ -75,11 +77,11 @@ class Records implements TenancyRecords {
 
   async putCompany(c: Company) {
     await this.db.query(
-      `INSERT INTO tenancy.companies (tenant_id, name, default_locale, version, created_at)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO tenancy.companies (tenant_id, name, default_locale, version, created_at, sample)
+       VALUES ($1, $2, $3, $4, $5, $6)
        ON CONFLICT (tenant_id) DO UPDATE SET name = excluded.name, default_locale = excluded.default_locale,
-         version = excluded.version`,
-      [c.id, c.name, c.default_locale, c.version, c.created_at],
+         version = excluded.version, sample = excluded.sample`,
+      [c.id, c.name, c.default_locale, c.version, c.created_at, c.sample === true],
     );
   }
 

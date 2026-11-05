@@ -11,6 +11,11 @@ export interface Company {
   /** Raised on every change; the engine keeps the highest it has seen. */
   version: number;
   created_at: string;
+  /**
+   * The sample company anyone may open (Tenancy's sample option). The engine keeps its record,
+   * from a corpus, so it is never sent; its members only read, and nobody lists them.
+   */
+  sample?: true;
 }
 
 export type MemberStatus = "active" | "left";

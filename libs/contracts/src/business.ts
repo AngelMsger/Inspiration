@@ -124,6 +124,14 @@ export interface RoleChange {
   role: ProductRole;
 }
 /**
+ * A company with sample documents, to look around before uploading one's own. POST /api/session with its tenant_id opens it: the account joins it as a member who only reads, so the engine refuses every change there. It is never one of the account's companies, and its members are not listed.
+ *
+ */
+export interface SampleCompany {
+  tenant_id: TenantId;
+  name: string;
+}
+/**
  * Who is signed in, the companies they belong to, and the one they are working in. GET /api/session answers it, or 401 when nobody is signed in; every call that changes the account or the current company answers it too.
  *
  */
@@ -134,6 +142,7 @@ export interface Session {
    */
   companies: CompanyEntry[];
   current?: CurrentMember;
+  sample?: SampleCompany;
 }
 /**
  * The answer to POST /api/auth/sign-out. The session is over; the page goes to next, the identity provider's own sign-out, so a shared computer is signed out there too.

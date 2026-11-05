@@ -19,9 +19,9 @@
  *   in every tenant they join). Members, services, groups and departments are therefore
  *   keyed by tenant in the graph, and a principal only ever gets rights in its own tenant.
  * - Clearance comes from the graph (internal for every member, confidential or secret where
- *   granted) and bounds search. A token may lower it (the principal's max_sensitivity); then
- *   a document (by its latest version), a claim or a page labelled above that ceiling is
- *   hidden from direct reads too.
+ *   granted), and a token may lower it (the principal's max_sensitivity). It bounds every
+ *   read: search, and a document (by its latest version), a claim or a page labelled above
+ *   it is hidden from a direct read as one the principal may not read.
  * - Search indexes get an IndexFilter (spaces, the tenant's token, clearance) so ranking only
  *   ever sees rows the viewer may read; results are still re-checked before they leave.
  *
@@ -240,12 +240,12 @@ export class AuthzService implements AuthZ {
     }
   }
 
-  /** options.memo: per-request cache of source read checks, shared by checkMany. */
+  /** options.memo and options.clearance: per-request caches, shared by checkMany. */
   async check(
     who: Principal,
     perm: Permission,
     res: ResourceRef,
-    options: { memo?: Map<string, boolean> } = {},
+    options: { memo?: Map<string, boolean>; clearance?: Promise<SensitivityLabel> } = {},
   ): Promise<Decision> {
     const limit = AuthzService.#agentLimit(who, perm);
     if (limit) return { allow: false, reason: limit };
@@ -264,9 +264,8 @@ export class AuthzService implements AuthZ {
       if (!READ_ONLY.has(perm)) return { allow: false, reason: "source documents are read-only in Inspiration" };
       const [sourceId = "", ...rest] = res.id.split(":");
       if (!(await this.graph.check(obj("source", sourceId), "read", s))) return this.#decision(false);
-      if (!who.max_sensitivity) return this.#decision(true);
       const latest = await this.store.latestSourceVersion(sourceId, rest.join(":"));
-      return this.#withinCeiling(who, latest?.sensitivity);
+      return this.#cleared(who, latest?.sensitivity, options);
     }
     if (res.type === "source") {
       const permission = perm === "admin" ? "admin" : READ_ONLY.has(perm) ? "read" : undefined;
@@ -281,19 +280,23 @@ export class AuthzService implements AuthZ {
       const derived = await this.canReadDerived(who, res.id, options);
       if (!derived.allow) return { allow: false, reason: "no readable source supports it" };
     }
-    if (who.max_sensitivity && res.type === "claim") {
-      return this.#withinCeiling(who, (await this.store.getClaims([res.id]))[0]?.sensitivity);
+    if (res.type === "claim") {
+      return this.#cleared(who, (await this.store.getClaims([res.id]))[0]?.sensitivity, options);
     }
-    if (who.max_sensitivity && res.type === "page") {
-      return this.#withinCeiling(who, (await this.store.getPage(res.id))?.spec.sensitivity);
-    }
+    if (res.type === "page") return this.#cleared(who, (await this.store.getPage(res.id))?.spec.sensitivity, options);
     return this.#decision(true);
   }
 
-  /** Whether a label is within the ceiling the principal's token sets. */
-  #withinCeiling(who: Principal, label: SensitivityLabel | undefined): Decision {
-    if (!who.max_sensitivity || label === undefined || allows(who.max_sensitivity, label)) return this.#decision(true);
-    return { ...this.#decision(false), reason: `labelled ${label}, above the token's max_sensitivity` };
+  /** Whether a label is within the principal's clearance, as the graph grants it and the token lowers it. */
+  async #cleared(
+    who: Principal,
+    label: SensitivityLabel | undefined,
+    options: { clearance?: Promise<SensitivityLabel> },
+  ): Promise<Decision> {
+    if (label === undefined) return this.#decision(true);
+    options.clearance ??= this.clearance(who);
+    if (allows(await options.clearance, label)) return this.#decision(true);
+    return { ...this.#decision(false), reason: `labelled ${label}, above the principal's clearance` };
   }
 
   #decision(allow: boolean): Decision {
@@ -306,8 +309,8 @@ export class AuthzService implements AuthZ {
   }
 
   async checkMany(who: Principal, perm: Permission, resources: readonly ResourceRef[]): Promise<Decision[]> {
-    const memo = new Map<string, boolean>();
-    return Promise.all(resources.map((r) => this.check(who, perm, r, { memo })));
+    const shared = { memo: new Map<string, boolean>() };
+    return Promise.all(resources.map((r) => this.check(who, perm, r, shared)));
   }
 
   /** The chunk tokens (chunkTokens) the principal matches: its tenant's, if it belongs to the tenant. */

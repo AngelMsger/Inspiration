@@ -1561,6 +1561,100 @@ a.secondary {
   gap: 10px;
 }
 
+/* The sample company: a quiet band under the top bar, and a tag beside its name. */
+.sample-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+  padding: 8px max(16px, env(safe-area-inset-right, 0px)) 8px max(20px, env(safe-area-inset-left, 0px));
+  background: var(--selected);
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+}
+
+.sample-tag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.gate-sample {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
+}
+
+.gate-sample p {
+  margin: 0;
+}
+
+/* Uploads: the Documents list is also where files are dropped, outlined while one is held over it. */
+.uploads {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-radius: 6px;
+  outline: 2px dashed transparent;
+  outline-offset: 6px;
+  transition: outline-color var(--fast) var(--ease-out);
+}
+
+.uploads.dropping {
+  outline-color: var(--link);
+  background: var(--selected);
+}
+
+.upload-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.upload-outcomes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+
+.upload-outcomes p {
+  margin: 0;
+}
+
+.upload-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 14px;
+}
+
+.upload-failures {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.upload-failures li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-top: 1px solid var(--rule);
+  overflow-wrap: anywhere;
+}
+
 /* On a phone the admin column becomes a row above the page, since its pages have no other way in. */
 @media (max-width: 760px) {
   .body:has(.left-admin) {

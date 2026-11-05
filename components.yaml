@@ -29,7 +29,7 @@ components:
     layer: ingest
     status: built
     runtime: node
-    owns: One integration per vendor (Feishu first) for sync and agent tools alike, which enumerates, fetches and reads ACLs; built for local folders, and for Feishu documents and approvals against recorded fixtures. Planned are the typed client over the live vendor API, with one scope set and one rate budget per connection and a share kept for interactive tool calls; webhooks, which publish source.changed; Feishu wiki and upload connectors; registered queries for QueryData; agent tools (agent_tools plugins), each acting as the member with the member's own connection; credentials only as leases from the credential broker
+    owns: One integration per vendor (Feishu first) for sync and agent tools alike, which enumerates, fetches and reads ACLs; built for local folders, and for Feishu documents and approvals against recorded fixtures. Planned are the typed client over the live vendor API, with one scope set and one rate budget per connection and a share kept for interactive tool calls; webhooks, which publish source.changed; the Feishu wiki connector; registered queries for QueryData; agent tools (agent_tools plugins), each acting as the member with the member's own connection; credentials only as leases from the credential broker
     plugins: [connectors]
     publishes: [source.changed]
     subscribes: []
@@ -40,7 +40,7 @@ components:
     layer: ingest
     status: built
     runtime: node
-    owns: Lists a source page by page, fetches the items whose hashes changed, and stores source versions, tombstones and ACL snapshots with each version's governance level; syncs a source or one item when asked. Planned are 15-minute polls and the nightly reconcile as schedules, rate budgets, subscription upkeep, debounce, publishing source.changed, SourceSync.fetch_now, the Documents tree
+    owns: Lists a source page by page, fetches the items whose hashes changed, and stores source versions, tombstones and ACL snapshots with each version's governance level; syncs a source or one item when asked; the Documents tree; uploads, each space's upload area of files people put in (sync.uploads), stored as a source's items are. Planned are 15-minute polls and the nightly reconcile as schedules, rate budgets, subscription upkeep, debounce, publishing source.changed, SourceSync.fetch_now, removing an upload
     plugins: [migrations]
     publishes: [source.changed, document.fetched, acl.changed]
     subscribes: [source.changed]
@@ -260,7 +260,7 @@ business:
   tenancy:
     title: Tenancy
     status: built
-    owns: Companies (tenants) and their members, the one rule that assigns member IDs, the product roles super admin and member, and invite links; provisions tenants and members in the engine as a service. Planned are joining by verified email domain, transfers from the personal library, and offboarding with handovers
+    owns: Companies (tenants) and their members, the one rule that assigns member IDs, the product roles super admin and member, and invite links; the sample company's visitors; provisions tenants and members in the engine as a service. Planned are joining by verified email domain, transfers from the personal library, and offboarding with handovers
     calls: [engine]
 
 # Composition roots: deployable processes that wire components to the store, the bus and
@@ -269,11 +269,11 @@ business:
 # it lists that app under `uses`.
 apps:
   engine:
-    owns: The engine process; corpus manifests and topic owners, standing in for the business layer's provisioning, which they send through access control's directory; its HTTP API, version 0 (pnpm engine serve), with the routes for provisioning tenants and members and for administering spaces
+    owns: The engine process; corpus manifests and topic owners, standing in for the business layer's provisioning, which they send through access control's directory; its HTTP API, version 0 (pnpm engine serve), with the routes for provisioning tenants and members, for administering spaces and for uploading files, whose reading runs in the background
   business:
-    owns: The business backend, the browser's only server (pnpm business serve); the browser API for sign-in, companies, members and invite links over accounts and tenancy; principal tokens and their JWKS; the engine's provisioning and its /v0 API passed on as the member; the built web app
+    owns: The business backend, the browser's only server (pnpm business serve); the browser API for sign-in, companies, members and invite links over accounts and tenancy; the sample company, read only; principal tokens and their JWKS; the engine's provisioning and its /v0 API passed on as the member; the built web app
   web:
-    owns: The product web app (React, Vite) over the business backend's browser API and, through it, the engine's HTTP API; signing in, the account menu and a first company; the admin area for a company's members, invite links and spaces with their space owners, and joining by a link; who reads a space, for its space owners; its language packs, and a development stand-in for the business backend; the demo (pnpm demo) and its recorded page (pnpm snapshot). Planned are creating a company, uploads, Decide for me, Apps with access and the usage page
+    owns: The product web app (React, Vite) over the business backend's browser API and, through it, the engine's HTTP API; signing in, the account menu and a first company; the admin area for a company's members, invite links and spaces with their space owners, and joining by a link; who reads a space, for its space owners; uploads of files and folders into a space, and new versions; opening the sample company, which only reads, and making a company from it; its language packs, and a development stand-in for the business backend; the demo (pnpm demo) and its recorded page (pnpm snapshot). Planned are reading progress, Decide for me, Apps with access and the usage page
   bench:
     owns: The measurement harness and its CLI (pnpm bench); ingest runs and volume reports, the control check, history replay, questions and answers, the evidence audit, the reading check, cost, synthetic corpora
     uses: [engine]

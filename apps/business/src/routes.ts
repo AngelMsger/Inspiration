@@ -60,8 +60,10 @@ export const SIGN_IN_COOKIE = "inspiration_sign_in";
 export const SIGN_IN_FAILED = "/?sign_in=failed";
 /** The company the page shows, sent with calls that act in one. */
 export const COMPANY_HEADER = "x-inspiration-company";
-/** The largest body passed on to the engine. */
+/** The largest body passed on to the engine, but for a file. */
 const FORWARD_LIMIT = 1024 * 1024;
+/** The largest file passed on, as the engine allows: the backend answers 413 itself, since the engine's early answer would not reach it. */
+const FILE_LIMIT = 50 * 1024 * 1024;
 
 export interface BackendOptions {
   accounts: Accounts;
@@ -91,6 +93,11 @@ interface Route {
   method: string;
   path: RegExp;
   needs: Needs;
+  /**
+   * A file's bytes, of any type, instead of a JSON body. Such a call names the page's company
+   * (COMPANY_HEADER), which a form on another site cannot send.
+   */
+  file?: true;
   run(call: Call): Promise<void>;
 }
 
@@ -159,7 +166,11 @@ class Backend {
         needs: "account",
         run: async ({ req, res, signedIn }) => {
           const { tenant_id } = parseAs<SwitchCompany>("SwitchCompany", await readJson(req));
-          if (!(await tenancy.membership(tenant_id, signedIn.user.id))) throw new RangeError(`no company ${tenant_id}`);
+          const opened =
+            tenant_id === tenancy.sample?.id
+              ? await tenancy.visit(personOf(signedIn))
+              : await tenancy.membership(tenant_id, signedIn.user.id);
+          if (!opened) throw new RangeError(`no company ${tenant_id}`);
           const session = await accounts.workIn(signedIn.session, tenant_id);
           sendJson(res, 200, await this.#session({ ...signedIn, session }));
         },
@@ -278,6 +289,13 @@ class Backend {
           sendJson(res, 204);
         },
       },
+      {
+        method: "PUT",
+        path: /^\/api\/v0\/spaces\/[^/]+\/files\/.+$/,
+        needs: "member",
+        file: true,
+        run: (c) => this.#forward(c, true),
+      },
       { method: "*", path: /^\/api\/v0\/.+$/, needs: "member", run: (c) => this.#forward(c) },
       {
         method: "GET",
@@ -304,7 +322,8 @@ class Backend {
         }
         return await serveWeb(this.#o.webDir, path, req, res);
       }
-      if (["POST", "PUT", "PATCH"].includes(method) && !sendsJson(req)) {
+      if (route.file) fileGuard(req);
+      else if (["POST", "PUT", "PATCH"].includes(method) && !sendsJson(req)) {
         throw new HttpError(400, "bad_request", "send the body as application/json");
       }
       const params = (path.match(route.path) ?? []).slice(1).map((p) => decodeURIComponent(p));
@@ -353,8 +372,9 @@ class Backend {
 
   async #session(signedIn: SignedIn): Promise<Session> {
     const { user, session } = signedIn;
-    const companies = await this.#o.tenancy.companiesOf(user.id);
-    let current = companies.find((m) => m.company.id === session.tenant_id);
+    const { tenancy } = this.#o;
+    const companies = await tenancy.companiesOf(user.id);
+    let current = session.tenant_id ? await tenancy.membership(session.tenant_id, user.id) : undefined;
     if (!current && companies[0]) {
       current = companies[0];
       await this.#o.accounts.workIn(session, current.company.id);
@@ -366,6 +386,7 @@ class Backend {
         name: company.name,
         role: member.role,
       })),
+      ...(tenancy.sample && { sample: { tenant_id: tenancy.sample.id, name: tenancy.sample.name } }),
       ...(current && {
         current: {
           tenant_id: current.company.id,
@@ -424,20 +445,44 @@ class Backend {
     });
   }
 
-  /** /api/v0/… on to the engine's /v0/… as the current member; provisioning stays the backend's own. */
-  async #forward({ req, res, url, signedIn, current }: Call): Promise<void> {
+  /**
+   * /api/v0/… on to the engine's /v0/… as the current member; provisioning stays the backend's
+   * own. A file streams through as it arrives; any other body is read first.
+   */
+  async #forward({ req, res, url, signedIn, current }: Call, file = false): Promise<void> {
     const path = url.pathname.slice("/api".length);
     if (/^\/v0\/tenants(\/|$)/.test(path))
       throw new HttpError(404, "not_found", `no route ${req.method} ${url.pathname}`);
     const method = req.method ?? "GET";
-    const body = method === "GET" || method === "HEAD" ? undefined : await readBody(req, FORWARD_LIMIT);
-    const token = this.#o.tokens.member(current.member, signedIn.user.locale, signedIn.session.created_at);
+    const body = file
+      ? (req as AsyncIterable<Uint8Array>)
+      : method === "GET" || method === "HEAD"
+        ? undefined
+        : new Uint8Array(await readBody(req, FORWARD_LIMIT));
+    const token = this.#o.tokens.member(current.member, signedIn.user.locale, signedIn.session.created_at, {
+      readOnly: current.company.sample,
+    });
     const answer = await this.#o.engine.forward(
       `${path}${url.search}`,
-      { method, headers: req.headers, ...(body && { body: new Uint8Array(body) }) },
+      { method, headers: req.headers, ...(body && { body }) },
       { tenantId: current.company.id, token },
     );
     sendRaw(res, answer.status, answer.contentType, answer.body);
+  }
+}
+
+/**
+ * A file call names the page's company and gives its length, at most FILE_LIMIT: Node then
+ * reads exactly that many bytes, so the stream to the engine never passes the limit.
+ */
+function fileGuard(req: IncomingMessage): void {
+  if (typeof req.headers[COMPANY_HEADER] !== "string") {
+    throw new HttpError(400, "bad_request", `name the company the page shows in ${COMPANY_HEADER}`);
+  }
+  const length = req.headers["content-length"];
+  if (length === undefined) throw new HttpError(400, "bad_request", "send the file's length in content-length");
+  if (Number(length) > FILE_LIMIT) {
+    throw new HttpError(413, "too_large", `a file may have at most ${FILE_LIMIT / 1024 / 1024} MiB`);
   }
 }
 

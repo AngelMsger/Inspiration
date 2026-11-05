@@ -23,6 +23,7 @@ import {
 import { defineTable, type Records } from "@inspiration/eventbus";
 import { logger, registry } from "@inspiration/kernel";
 import { entryOf } from "./tree.ts";
+import { recordOf, UPLOAD_TYPE, UPLOADS, type Upload, uploadArea, uploadAreaId, uploadConnector } from "./uploads.ts";
 
 const log = logger("source-sync");
 
@@ -179,8 +180,9 @@ export class SourceSync {
   async #connector(source: Source): Promise<Connector> {
     let c = this.#connectors.get(source.id);
     if (!c) {
-      const factory = await this.#connectorFactory(source.type);
-      c = factory(source, { blobs: this.blobs, secret: this.#secret });
+      // An upload area's system is source sync's own record of the files.
+      if (source.type === UPLOAD_TYPE) c = uploadConnector(this.records, source);
+      else c = (await this.#connectorFactory(source.type))(source, { blobs: this.blobs, secret: this.#secret });
       this.#connectors.set(source.id, c);
     }
     return c;
@@ -193,6 +195,45 @@ export class SourceSync {
       run.catch(() => undefined),
     );
     return run;
+  }
+
+  // ------------------------------------------------------------ uploads
+
+  /** A space's upload area, created with its first file. The caller registers it with access control. */
+  async uploadArea(tenantId: string, spaceId: string): Promise<Source> {
+    const existing = await this.getSource(uploadAreaId(spaceId));
+    if (existing) {
+      if (existing.tenant_id !== tenantId) throw new RangeError(`space ${spaceId} is in another tenant`);
+      return existing;
+    }
+    const area = uploadArea(tenantId, spaceId, this.#now());
+    await this.addSource(area);
+    return area;
+  }
+
+  /**
+   * Put a file into an upload area and store it as the item at its path: a new document, or
+   * a new version of the one there. The same bytes at the same path change nothing.
+   */
+  upload(sourceId: string, file: Upload): Promise<{ document: DocumentEntry; changed: boolean }> {
+    return this.#serialized(sourceId, async () => {
+      const source = await this.#source(sourceId);
+      if (source.type !== UPLOAD_TYPE) throw new RangeError(`${sourceId} is not an upload area`);
+      const record = await recordOf(this.records, this.blobs, sourceId, file, this.#now());
+      if (record) await this.records.transaction((tx) => tx.put(UPLOADS, [record]));
+      const ref = { source_id: sourceId, external_id: file.path };
+      const state = await this.records.get(ITEMS, itemKey(sourceId, file.path));
+      let changed = false;
+      // Without a new record the item is stored already, unless storing it failed last time.
+      if (record || !state || state.deleted) {
+        const { outcome, error } = await this.#fetchItem(source, await this.#connector(source), ref, state, "manual");
+        if (error) throw new Error(error);
+        changed = outcome !== "unchanged";
+      }
+      const listed = await this.document(sourceId, file.path);
+      if (!listed) throw new Error(`upload ${file.path} was not stored`);
+      return { document: listed.entry, changed };
+    });
   }
 
   // ------------------------------------------------------------ syncing

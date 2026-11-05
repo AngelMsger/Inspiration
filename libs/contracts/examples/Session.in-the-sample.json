@@ -1,0 +1,18 @@
+{
+  "account": {
+    "name": "张敏",
+    "email": "zhang.min@qinghe.example",
+    "locale": "zh-CN"
+  },
+  "companies": [],
+  "sample": {
+    "tenant_id": "ten_01HENGYUAN0000000000000001",
+    "name": "恒远机械"
+  },
+  "current": {
+    "tenant_id": "ten_01HENGYUAN0000000000000001",
+    "member_id": "mem_01QINGHE00000000ZHANGMIN",
+    "display_name": "张敏",
+    "role": "member"
+  }
+}

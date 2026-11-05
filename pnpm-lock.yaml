@@ -154,6 +154,9 @@ importers:
       '@inspiration/tenancy':
         specifier: workspace:*
         version: link:../../business/tenancy
+      yaml:
+        specifier: ^2.9.1
+        version: 2.9.1
 
   apps/engine:
     dependencies:

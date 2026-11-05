@@ -67,32 +67,63 @@ export function engineRoles(role: ProductRole): string[] {
 
 const hashOf = (code: string) => createHash("sha256").update(code).digest("hex");
 
+/** The sample company as configured: the engine already holds its record and its knowledge. */
+export type SampleCompany = Pick<Company, "id" | "name" | "default_locale">;
+
 export class Tenancy {
   readonly store: TenancyStore;
   readonly engine: EngineDirectory;
+  /** The sample company anyone may open on this site, if it has one. */
+  readonly sample?: Company;
   readonly #now: () => Date;
 
-  constructor(store: TenancyStore, engine: EngineDirectory, options: { clock?: () => Date } = {}) {
+  constructor(
+    store: TenancyStore,
+    engine: EngineDirectory,
+    options: { clock?: () => Date; sample?: SampleCompany } = {},
+  ) {
     this.store = store;
     this.engine = engine;
     this.#now = options.clock ?? (() => new Date());
+    if (options.sample) {
+      this.sample = { ...options.sample, version: 1, created_at: this.#now().toISOString(), sample: true };
+    }
   }
 
-  /** The companies the account is an active member of, by name. */
+  /** The companies the account is an active member of, by name; the sample company is not one of them. */
   async companiesOf(userId: string): Promise<Membership[]> {
     const out: Membership[] = [];
     for (const member of await this.store.membershipsOf(userId)) {
       const company = member.status === "active" ? await this.store.company(member.tenant_id) : undefined;
-      if (company) out.push({ company, member });
+      if (company && !company.sample) out.push({ company, member });
     }
     return out.sort((a, b) => a.company.name.localeCompare(b.company.name) || a.company.id.localeCompare(b.company.id));
   }
 
-  /** The account's membership of one company, if it is active. */
+  /** The account's membership of one company, if it is active; of the sample company, while this site offers it. */
   async membership(tenantId: string, userId: string): Promise<Membership | undefined> {
     const member = await this.store.memberByUser(tenantId, userId);
     const company = member?.status === "active" ? await this.store.company(tenantId) : undefined;
-    return company && member && { company, member };
+    return company && member && this.#offered(company) ? { company, member } : undefined;
+  }
+
+  /**
+   * Open the sample company: the account joins it as a member the first time, and its member
+   * is sent to the engine every time, so it is there again after the engine restarted.
+   */
+  async visit(person: Person): Promise<Membership> {
+    const sample = this.sample;
+    if (!sample) throw new RangeError("this site has no sample company");
+    const member = await this.store.transaction(async (tx) => {
+      const before = await tx.memberByUser(sample.id, person.userId);
+      if (before) return before;
+      await tx.putCompany(sample);
+      const member = this.#newMember(sample.id, person, "member", this.#now().toISOString());
+      await tx.putMember(member);
+      return member;
+    });
+    await this.engine.putMember(member);
+    return { company: sample, member };
   }
 
   /** A new company, with the account as its first super admin. */
@@ -109,9 +140,12 @@ export class Tenancy {
     return { company, member };
   }
 
-  /** The active members of the actor's company, by name. */
+  /** The active members of the actor's company, by name. The sample company's visitors are not listed. */
   async members(actor: Member): Promise<Member[]> {
     await this.#active(this.store, actor);
+    if ((await this.store.company(actor.tenant_id))?.sample) {
+      throw new TenancyError("forbidden", "the sample company's members are not listed");
+    }
     return (await this.store.members(actor.tenant_id))
       .filter((m) => m.status === "active")
       .sort((a, b) => a.display_name.localeCompare(b.display_name) || a.id.localeCompare(b.id));
@@ -159,7 +193,8 @@ export class Tenancy {
         if (!current || current.display_name === person.name) return undefined;
         const next = { ...current, display_name: person.name, version: current.version + 1 };
         await tx.putMember(next);
-        return next;
+        const company = await tx.company(member.tenant_id);
+        return company && this.#offered(company) ? next : undefined;
       }, member.tenant_id);
       if (renamed?.status === "active") await this.engine.putMember(renamed);
     }
@@ -247,13 +282,17 @@ export class Tenancy {
 
   /**
    * Send every company and member to the engine again, as the backend does when it starts, so
-   * the engine's copy catches up with any call that failed. Answers how many records it sent.
+   * the engine's copy catches up with any call that failed. The sample company's visitors are
+   * sent, never its record. Answers how many records it sent.
    */
   async resync(): Promise<number> {
     let sent = 0;
     for (const company of await this.store.companies()) {
-      await this.engine.putTenant(company);
-      sent++;
+      if (!this.#offered(company)) continue;
+      if (!company.sample) {
+        await this.engine.putTenant(company);
+        sent++;
+      }
       for (const member of await this.store.members(company.id)) {
         await this.engine.putMember(member);
         sent++;
@@ -275,6 +314,11 @@ export class Tenancy {
       version: 1,
       joined_at: now,
     };
+  }
+
+  /** Whether the engine holds the company: every company but a sample one this site no longer offers. */
+  #offered(company: Company): boolean {
+    return !company.sample || company.id === this.sample?.id;
   }
 
   /** The actor as stored now: still an active member of their company. */

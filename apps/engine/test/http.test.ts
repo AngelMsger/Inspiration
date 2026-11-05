@@ -216,6 +216,23 @@ describe("engine HTTP API", () => {
     ).toBe(200);
   });
 
+  test("hides a confidential document from a reader of its space who is not cleared for it", async () => {
+    const budget = `/v0/documents?source=${FIN_BUDGET}&item=${encodeURIComponent(BUDGET)}`;
+    // Li Na reads the finance-only space, but only Zhou Min is cleared for confidential.
+    expect((await call("/v0/spaces", { member: LI_NA })).body.spaces).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: BUDGET_SPACE })]),
+    );
+    const hidden = await call(budget, { member: LI_NA });
+    expect([hidden.status, hidden.body]).toEqual([404, { error: { code: "not_found", message: "no document" } }]);
+    const tree = (await call(`/v0/spaces/${BUDGET_SPACE}/documents`, { member: LI_NA }))
+      .body as unknown as DocumentTree;
+    expect(tree.sources.flatMap(titles)).not.toContain(DATA.budget.title);
+    const cleared = (await call(`/v0/spaces/${BUDGET_SPACE}/documents`, { member: ZHOU_MIN }))
+      .body as unknown as DocumentTree;
+    expect(cleared.sources.flatMap(titles)).toContain(DATA.budget.title);
+    expect((await call(budget, { member: ZHOU_MIN })).body).toMatchObject({ version: { sensitivity: "confidential" } });
+  });
+
   test("hides from a token's max_sens what is labelled above it", async () => {
     const travel = `/v0/documents?source=${FIN_POLICIES}&item=${encodeURIComponent(TRAVEL)}`;
     expect((await call(travel)).body).toMatchObject({ version: { sensitivity: "internal" } });

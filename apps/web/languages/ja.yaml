@@ -22,6 +22,12 @@ company.name: 会社名
 company.language: 既定の言語
 company.super_admin: あなたがスーパー管理者になり、スペースを作って責任者を決め、メンバーを招待します。
 company.create: 会社を作成
+company.new: 会社を作成
+sample.offer: "まずはサンプルの会社「{name}」とその文書を見てみることもできます。"
+sample.open: サンプルの会社を開く
+sample.tag: サンプル
+sample.banner: これはサンプルの会社です。全社が読める内容を読めますが、ここで何をしても変わりません。
+sample.create: 自分の会社を作成
 
 nav.label: ナレッジ
 nav.home: ホーム
@@ -74,6 +80,29 @@ level.search_only: 検索のみ
 source.folder: フォルダー
 source.feishu.docx: Feishu Wiki
 source.feishu.approval: Feishu 承認
+source.upload: アップロード
+uploads.name: アップロード
+upload.files: ファイルをアップロード
+upload.folder: フォルダーをアップロード
+upload.hint: "ファイルやフォルダーをここにドロップすることもできます。「{folder}」に入ります。"
+upload.sending: "アップロード中 {done} / {count}…"
+upload.added: "{count} 件を追加"
+upload.version: "{count} 件の新しい版"
+upload.same: "{count} 件は変更なし"
+upload.failed: "{count} 件はアップロードされませんでした"
+upload.retry: もう一度
+upload.clear: クリア
+upload.reading: ファイルはスペースに入りました。読み込みはバックグラウンドで進みます。
+upload.reason.too_large: 50 MB を超えています。これが 1 ファイルの上限です。
+upload.reason.unsupported: この種類のファイルはまだ読めません。読めるのは Word、PowerPoint、Excel、PDF、Markdown、テキスト、HTML、CSV です。
+upload.reason.forbidden: このスペースにはファイルを追加できません。
+upload.reason.network: 接続が切れました。もう一度お試しください。
+upload.reason.recorded: このデモは録画なので、新しいファイルは受け付けません。
+upload.reason.other: "{message}"
+upload.new_version: 新しい版をアップロード
+upload.sending_one: アップロード中…
+upload.same_version: このファイルは今の版と同じです。
+upload.other_kind: "新しい版も {ext} ファイルにしてください。"
 
 folder.name: 名前
 folder.level: ガバナンスレベル

@@ -17,7 +17,7 @@ import { LocalBlobStore, openPool } from "@inspiration/kernel";
 import { MemoryStore, PostgresStore } from "@inspiration/knowledge-store";
 import { createTestDatabase, hasStack } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
-import { documentTree, SourceSync } from "../src/index.ts";
+import { documentTree, pathParts, SourceSync, uploadAreaId } from "../src/index.ts";
 
 const TENANT = "ten_01JC0000000000000000TENANT";
 const FINANCE = "grp_01JC0000000000000FINANCE1";
@@ -288,6 +288,52 @@ describe.each<{ backend: Backend; skip: boolean }>([
     await world.sync.onSourceChanged(changed("deleted"));
     expect((await world.sync.items(SOURCE))[0]?.deleted).toBe(true);
   });
+
+  it.skipIf(skip)(
+    "an upload is a document at once; the same bytes change nothing, others make a version",
+    async ({ world }) => {
+      const space = "spc_01JC00000000000000000SPACE";
+      const area = await world.sync.uploadArea(TENANT, space);
+      expect(area).toMatchObject({ id: uploadAreaId(space), type: "upload", name: "Uploads" });
+      expect((await world.sync.uploadArea(TENANT, space)).id).toBe(area.id);
+      await expect(world.sync.uploadArea("ten_01JC00000000000000OTHER1", space)).rejects.toThrow(/another tenant/);
+      const file = (text: string) => ({
+        path: "policies/travel/Travel policy.md",
+        bytes: new TextEncoder().encode(text),
+        mime_type: "text/markdown",
+        modified_at: "2026-11-04T09:12:00.000Z",
+        uploaded_by: "mem_01JC00000000000000000ALICE",
+      });
+
+      const first = await world.sync.upload(area.id, file("# Travel\n\nEconomy class."));
+      expect(first.changed).toBe(true);
+      expect(first.document).toMatchObject({
+        source_id: area.id,
+        external_id: "policies/travel/Travel policy.md",
+        title: "Travel policy",
+        governance_level: "reference",
+        mime_type: "text/markdown",
+        modified_at: "2026-11-04T09:12:00.000Z",
+      });
+      const fetched = (await world.events()).filter((e) => e.type === "document.fetched");
+      expect(fetched.map((e) => payloadOf(e, "document.fetched").needs_parsing)).toEqual([true]);
+      const { sources, documents } = await world.sync.documents(TENANT, space);
+      const tree = documentTree(
+        sources.filter((s) => s.type === "upload"),
+        documents.filter((d) => d.entry.source_id === area.id),
+      );
+      expect(tree[0]?.children?.[0]).toMatchObject({ name: "policies", path: ["policies"], document_count: 1 });
+
+      const again = await world.sync.upload(area.id, file("# Travel\n\nEconomy class."));
+      expect(again).toEqual({ document: first.document, changed: false });
+      const next = await world.sync.upload(area.id, file("# Travel\n\nBusiness class."));
+      expect(next.changed).toBe(true);
+      expect(next.document.source_version_id).not.toBe(first.document.source_version_id);
+      const version = await world.store.getSourceVersion(next.document.source_version_id);
+      expect(version?.previous_version_id).toBe(first.document.source_version_id);
+      expect((await world.sync.sync(area.id)).outcomes).toMatchObject({ unchanged: 1, created: 0, updated: 0 });
+    },
+  );
 });
 
 test("one failing item does not stop the others", async () => {
@@ -315,4 +361,13 @@ test("one failing item does not stop the others", async () => {
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test("a file path names every folder and the file, without . or .., control characters or backslashes", () => {
+  expect(pathParts("a/b/c.md")).toEqual({ folders: ["a", "b"], name: "c.md" });
+  expect(pathParts("c.md")).toEqual({ folders: [], name: "c.md" });
+  for (const bad of ["", "/c.md", "a//c.md", "a/", "./c.md", "a/../c.md", "a\\c.md", "a/c\u0007.md"]) {
+    expect(() => pathParts(bad), bad).toThrow(RangeError);
+  }
+  expect(() => pathParts(`${"a/".repeat(512)}c.md`)).toThrow(/1024 characters/);
 });

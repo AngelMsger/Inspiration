@@ -186,6 +186,25 @@ describe("development backend", () => {
     expect(bodies).toEqual(['{"name":"Payroll"}', '{"owner_ids":["mem_1"]}', '{"name":"Pay"}']);
   });
 
+  test("forwards a file as its bytes and type, larger than other bodies may be", async () => {
+    const { cookie } = await signIn();
+    seen = [];
+    bodies = [];
+    const docx = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    const big = "x".repeat(100 * 1024);
+    const path = "/v0/spaces/spc_1/files/%E5%88%B6%E5%BA%A6/a.docx";
+    const modified = "2026-11-04T09:12:00.000Z";
+    const headers = { cookie, "content-type": docx, "x-inspiration-modified": modified };
+    const put = await call(`/api${path}`, { method: "PUT", headers, body: big });
+    expect(put.status).toBe(200);
+    const sent = seen.map((r) => [r.method, r.url, r.headers["content-type"], r.headers["x-inspiration-modified"]]);
+    expect(sent).toEqual([["PUT", path, docx, modified]]);
+    expect(bodies[0]?.length).toBe(big.length);
+    const refused = await call("/api/v0/answers", { method: "POST", headers: { cookie }, body: big });
+    expect([refused.status, refused.body.error?.code]).toEqual([413, "too_large"]);
+    expect(seen).toHaveLength(1);
+  });
+
   test("forwards bodies and the engine's own status", async () => {
     const { cookie } = await signIn();
     const posted = await call("/api/v0/answers", {

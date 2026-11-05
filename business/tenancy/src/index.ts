@@ -20,6 +20,10 @@
  *   kept. Joining twice keeps the membership as it is; someone who left comes back as a
  *   member with the member ID they had.
  * - Removing a member marks them left; the engine then drops every grant they hold.
+ * - A site may offer a sample company (the sample option): visit() joins any account to it as
+ *   a member. The engine keeps its record and documents, from a corpus, so tenancy sends only
+ *   its visitors, never the company. It is not among an account's companies, and its
+ *   members are not listed.
  * - Requests the actor may not make raise TenancyError "forbidden"; unknown members, invites
  *   and codes raise RangeError, which callers answer as not found.
  *

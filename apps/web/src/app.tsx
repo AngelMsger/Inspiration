@@ -100,8 +100,9 @@ function personOf(session: Session, demo: Person[] | undefined): Person {
  * it, as from another tab, it reads the session again (api.ts). When a change fails, the backend
  * may have made it all the same, so the page reads the session before the frame takes clicks
  * again, and shows the failure only if the session stayed where it was. Signed out, it shows how
- * to sign in; signed in to no company yet, how to make one; on an invite link, whom it is from
- * and the company it joins, signed in or not.
+ * to sign in; signed in to no company yet, how to make one, or the sample company to look around
+ * first, which only reads and says so; on an invite link, whom it is from and the company it
+ * joins, signed in or not.
  */
 export function App(props: { generation?: number }) {
   const generation = props.generation ?? 0;
@@ -111,6 +112,8 @@ export function App(props: { generation?: number }) {
   const [readIn, setReadIn] = useState(generation);
   const [failure, setFailure] = useState<ApiFailure>();
   const [picked, setPicked] = useState(() => stored(LANGUAGE));
+  // Making a company from inside one, as from the sample company.
+  const [making, setMaking] = useState(false);
   const route = useRoute();
   const joining = route.name === "join" ? route.code : undefined;
   const tag = chooseTag(picked, session?.account.locale);
@@ -208,8 +211,9 @@ export function App(props: { generation?: number }) {
     [session, fail],
   );
   const createCompany = useCallback(
-    async (name: string, locale: UiLocale) =>
-      void (await switchTo(() => api.createCompany({ name, default_locale: locale }))),
+    async (name: string, locale: UiLocale) => {
+      if (await switchTo(() => api.createCompany({ name, default_locale: locale }))) setMaking(false);
+    },
     [switchTo],
   );
   const signOut = useCallback(() => {
@@ -230,11 +234,17 @@ export function App(props: { generation?: number }) {
         />
       )}
       {joining === undefined && signedOut && <SignedOut onLanguage={speak} />}
-      {joining === undefined && session && !session.current && (
-        <NoCompany session={session} onCreate={createCompany} onSignOut={signOut} />
+      {joining === undefined && session && (!session.current || making) && (
+        <NoCompany
+          session={session}
+          onCreate={createCompany}
+          onOpen={enterCompany}
+          onSignOut={signOut}
+          {...(session.current && { onCancel: () => setMaking(false) })}
+        />
       )}
       {/* Acting as someone else starts over with what they may see. */}
-      {joining === undefined && session?.current && (
+      {joining === undefined && session?.current && !making && (
         <Shell
           key={`${readIn}:${session.current.tenant_id}:${session.current.member_id}`}
           session={session}
@@ -242,6 +252,7 @@ export function App(props: { generation?: number }) {
           entry={entry}
           onActAs={actAs}
           onCompany={enterCompany}
+          onNewCompany={() => setMaking(true)}
           onLanguage={speak}
           onSignOut={signOut}
         />
@@ -258,6 +269,7 @@ function Shell(props: {
   entry: RefObject<Entry | undefined>;
   onActAs: (member: string) => Promise<void>;
   onCompany: (tenant: string) => Promise<void>;
+  onNewCompany: () => void;
   onLanguage: (tag: Tag) => void;
   onSignOut: () => void;
 }) {
@@ -265,7 +277,10 @@ function Shell(props: {
   const [palette, setPalette] = useState(false);
   // A synced source changes the documents; the library is read again, and shown as it was
   // meanwhile. Only this member's library is ever shown, and a failure to read it shows.
+  const { say } = useWords();
   const current = props.session.current as NonNullable<Session["current"]>;
+  // The sample company only reads; the banner says so, and leads to a company of one's own.
+  const sampled = props.session.sample?.tenant_id === current.tenant_id;
   const entered = keptFor(props.entry.current, current);
   const seed = entered?.library;
   const demo = entered?.demo;
@@ -308,9 +323,18 @@ function Shell(props: {
         onSearch={() => setPalette(true)}
         onActAs={props.onActAs}
         onCompany={props.onCompany}
+        onNewCompany={props.onNewCompany}
         onLanguage={props.onLanguage}
         onSignOut={props.onSignOut}
       />
+      {sampled && (
+        <div className="sample-banner">
+          <span>{say("sample.banner")}</span>
+          <button type="button" className="link-button" onClick={props.onNewCompany}>
+            {say("sample.create")}
+          </button>
+        </div>
+      )}
       <div className="body">
         {route.name === "admin" && <AdminArea route={route} session={props.session} />}
         {route.name !== "admin" && library.state === "failed" && <Failure error={library.error} />}
@@ -374,9 +398,11 @@ function Screen(props: {
     case "topic":
       return <TopicScreen key={route.key} topicKey={route.key} library={library} people={people} inbox={props.inbox} />;
     case "documents":
-      return <Documents route={route} library={library} />;
+      return <Documents route={route} library={library} onSourcesChanged={props.onSourcesChanged} />;
     case "document":
-      return <DocumentScreen route={route} library={library} person={person} />;
+      return (
+        <DocumentScreen route={route} library={library} person={person} onSourcesChanged={props.onSourcesChanged} />
+      );
     case "maintain":
       return (
         <MaintainScreen
@@ -403,22 +429,29 @@ function TopBar(props: {
   onSearch: () => void;
   onActAs: (member: string) => Promise<void>;
   onCompany: (tenant: string) => Promise<void>;
+  onNewCompany: () => void;
   onLanguage: (tag: Tag) => void;
   onSignOut: () => void;
 }) {
   const { say, tag } = useWords();
   const menu = useRef<HTMLDetailsElement>(null);
   const close = () => menu.current?.removeAttribute("open");
-  const { account, companies } = props.session;
+  const { account, companies, sample } = props.session;
   const current = props.session.current as NonNullable<Session["current"]>;
-  const company = companies.find((c) => c.tenant_id === current.tenant_id)?.name;
+  const sampled = sample?.tenant_id === current.tenant_id;
+  const company = sampled ? sample?.name : companies.find((c) => c.tenant_id === current.tenant_id)?.name;
   const about = props.demo?.find((p) => p.member === current.member_id)?.about;
   return (
     <header className="top">
       <Link to={{ name: "home" }} className="wordmark">
         Inspiration
       </Link>
-      {company && <span className="company">{company}</span>}
+      {company && (
+        <span className="company">
+          {company}
+          {sampled && <span className="sample-tag">{say("sample.tag")}</span>}
+        </span>
+      )}
       <button type="button" className="search" onClick={props.onSearch}>
         <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
           <circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
@@ -443,10 +476,10 @@ function TopBar(props: {
             <b>{current.display_name}</b>
             {(about || account.email) && <span className="quiet">{about ?? account.email}</span>}
           </div>
-          {companies.length > 1 && (
+          {(companies.length > 1 || sample) && (
             <>
               <div className="menu-heading">{say("account.companies")}</div>
-              {companies.map((c) => (
+              {[...companies, ...(sample ? [{ ...sample, role: "member" as const }] : [])].map((c) => (
                 <button
                   key={c.tenant_id}
                   type="button"
@@ -458,10 +491,20 @@ function TopBar(props: {
                 >
                   {c.name}
                   {c.role === "super_admin" && <span className="quiet">{say("role.super_admin")}</span>}
+                  {c.tenant_id === sample?.tenant_id && <span className="quiet">{say("sample.tag")}</span>}
                 </button>
               ))}
             </>
           )}
+          <button
+            type="button"
+            onClick={() => {
+              close();
+              props.onNewCompany();
+            }}
+          >
+            {say("company.new")}
+          </button>
           {props.demo && (
             <>
               <div className="menu-heading">{say("account.acting_as")}</div>

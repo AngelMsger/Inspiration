@@ -43,16 +43,22 @@ export function SignedOut(props: { onLanguage: (tag: Tag) => void }) {
   );
 }
 
-/** Signed in to no company yet: make one, or open the invite link a colleague sent. */
+/**
+ * Signed in to no company yet: make one, or open the invite link a colleague sent, or look around
+ * the sample company first when the site has one. From the sample, `onCancel` goes back to it.
+ */
 export function NoCompany(props: {
   session: Session;
   onCreate: (name: string, locale: UiLocale) => Promise<void>;
+  onOpen: (tenant: string) => Promise<void>;
+  onCancel?: () => void;
   onSignOut: () => void;
 }) {
   const { say, tag } = useWords();
   const [name, setName] = useState("");
   const [locale, setLocale] = useState(tagLocale(tag));
   const [busy, setBusy] = useState(false);
+  const { sample } = props.session;
   const submit = (e: FormEvent) => {
     e.preventDefault();
     if (!name.trim() || busy) return;
@@ -67,8 +73,10 @@ export function NoCompany(props: {
         </button>
       </GateTop>
       <main className="gate-card">
-        <h1 className="title">{say("company.welcome", { name: props.session.account.name })}</h1>
-        <p>{say("company.lede")}</p>
+        <h1 className="title">
+          {props.onCancel ? say("company.new") : say("company.welcome", { name: props.session.account.name })}
+        </h1>
+        {!props.onCancel && <p>{say("company.lede")}</p>}
         <form className="gate-form" onSubmit={submit}>
           <label>
             <span>{say("company.name")}</span>
@@ -89,8 +97,29 @@ export function NoCompany(props: {
             <button type="submit" className="primary" disabled={busy || !name.trim()}>
               {say("company.create")}
             </button>
+            {props.onCancel && (
+              <button type="button" className="secondary" onClick={props.onCancel}>
+                {say("action.cancel")}
+              </button>
+            )}
           </div>
         </form>
+        {sample && !props.onCancel && (
+          <div className="gate-sample">
+            <p className="quiet">{say("sample.offer", { name: sample.name })}</p>
+            <button
+              type="button"
+              className="secondary"
+              disabled={busy}
+              onClick={() => {
+                setBusy(true);
+                props.onOpen(sample.tenant_id).finally(() => setBusy(false));
+              }}
+            >
+              {say("sample.open")}
+            </button>
+          </div>
+        )}
       </main>
     </div>
   );

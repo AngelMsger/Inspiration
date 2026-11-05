@@ -150,6 +150,9 @@ and decide nothing.
   finance department (李娜, 王磊, 高燕, 刘洋) reads it.
 - 人事薪酬 holds `公司制度/人事/薪酬`, its payroll policy `confidential`. Only 张敏, its owner,
   reads it.
+- A `confidential` document opens only for a reader cleared for it. `people.yaml` clears 周敏
+  and 张敏; everyone else holds `internal`, so the finance department reads 财务内部 without
+  its budget note.
 - What the folders say: `财务制度` is edited by the finance group, `财务制度/预算/内部` is finance
   only, `公司制度` is edited by the administration office and `人事` adds HR editors,
   `人事/薪酬` is HR only, and the Feishu FAQ is shared with the finance department and
