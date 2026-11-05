@@ -26,9 +26,18 @@ interface PackageJson {
 }
 
 const ROOT = new URL("../", import.meta.url);
+interface BusinessComponent {
+  title: string;
+  status: string;
+  owns: string;
+  owner?: string;
+  calls: string[];
+}
+
 const manifest = parse(readFileSync(new URL("components.yaml", ROOT), "utf8")) as {
   components: Record<string, Component>;
   libraries: Record<string, { owns: string }>;
+  business: Record<string, BusinessComponent>;
   apps: Record<string, { owns: string; uses?: string[] }>;
 };
 const components = Object.entries(manifest.components);
@@ -110,6 +119,43 @@ test("every built component is in engine/ and every library in libs/", () => {
   const built = components.filter(([, c]) => c.status === "built").map(([n]) => n);
   expect(packagesIn("engine").sort()).toEqual(built.sort());
   expect(packagesIn("libs").sort()).toEqual([...libraries].sort());
+});
+
+describe("business components", () => {
+  const business = Object.entries(manifest.business);
+
+  test.each(business)("%s is well formed", (name, c) => {
+    expect(contractErrors("ComponentName", name)).toEqual([]);
+    expect(names.has(name) || libraries.has(name) || apps.has(name)).toBe(false);
+    expect(["built", "planned", "in_progress"]).toContain(c.status);
+    expect(c.title && c.owns).toBeTruthy();
+    expect(c.calls.filter((d) => d !== "engine" && !(d in manifest.business))).toEqual([]);
+    expect(c.calls).not.toContain(name);
+  });
+
+  test.each(business.filter(([, c]) => c.status === "built"))("%s matches its package", (name, c) => {
+    const pkg = packageJson(name, "business");
+    expect(pkg?.name).toBe(`@inspiration/${name}`);
+    // The engine only through the contracts and the client its app wires in, never a package.
+    const allowed = new Set([...libraries, ...c.calls.filter((d) => d !== "engine")]);
+    expect(internalDependencies(pkg as PackageJson).filter((d) => !allowed.has(d))).toEqual([]);
+  });
+
+  test("every built business component is in business/", () => {
+    const built = business.filter(([, c]) => c.status === "built").map(([n]) => n);
+    expect(packagesIn("business").sort()).toEqual(built.sort());
+  });
+});
+
+test("the engine and the libraries never import the business contracts", () => {
+  const sources = (dir: string): string[] =>
+    readdirSync(new URL(`${dir}/`, ROOT), { recursive: true, encoding: "utf8" })
+      .filter((f) => f.endsWith(".ts") && !f.includes("node_modules"))
+      .map((f) => `${dir}/${f}`);
+  const importers = ["engine", "libs"]
+    .flatMap(sources)
+    .filter((f) => readFileSync(new URL(f, ROOT), "utf8").includes("@inspiration/contracts/business"));
+  expect(importers).toEqual([]);
 });
 
 test("the engine and the libraries never depend on the business layer", () => {

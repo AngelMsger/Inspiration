@@ -57,8 +57,9 @@ pnpm bench ask examples/kubernetes-docs "How many nodes can a Kubernetes cluster
 it and which test holds it to its answers.
 
 To see the product, run the demo. It reads the demo tenant with the development models, so it
-costs nothing, then serves the web app at http://127.0.0.1:5173 (the account menu switches
-the person you act as and the interface language). As 陈晨, ask how much a night in Shenzhen
+costs nothing, then serves the web app at http://127.0.0.1:5173. Sign in, which there signs
+you in as 陈晨 with no password, and the account menu switches the person you act as and the
+interface language. As 陈晨, ask how much a night in Shenzhen
 may cost: the answer gives the hotel price list's 650 and says the travel policy still says
 600. As 李娜, confirm 650 in the inbox, and the FAQ's and minutes' 600 reads as outdated. As
 周敏, the finance space owner, put in edition 7 of the travel policy: within a second its
@@ -89,12 +90,12 @@ curl -s localhost:8100/healthz
 ## Layout
 
 ```
-libs/contracts      schema/*.yaml is the source of truth; codegen/ writes src/generated.ts and src/events.ts
+libs/contracts      schema/*.yaml is the source of truth, schema/business/ the business layer's own; codegen/ writes the TypeScript
 libs/kernel         settings, logging, plugin registry, migrations runner, blob stores, database pools
 libs/eventbus       transactional outbox, relay to Valkey Streams, consumers, in-memory bus
 libs/testkit        fixtures for tests against the compose stack
 engine/<component>  one package per engine component (see components.yaml)
-business/           business-layer packages (none yet); engine/ and libs/ never depend on them
+business/<name>     one package per business-layer component: tenancy so far; engine/ and libs/ never depend on them
 apps/engine         the engine process: wires the components to the store, the bus and the blob store; HTTP API
 apps/web            the product web app over the engine's HTTP API, a stand-in backend (pnpm demo) and snapshots (pnpm snapshot)
 apps/bench          the measurement harness (pnpm bench): runs the engine over a corpus, reports, checks answers
@@ -107,8 +108,9 @@ docs/zh/            Chinese copies of every doc
 test/               repo-wide checks: the component manifest, languages, docs, file paths
 ```
 
-Business components will live in `business/`, next to `engine/` and `libs/` (see
-[Architecture](docs/architecture.md#one-repository-a-folder-per-layer)).
+Business components live in `business/`, next to `engine/` and `libs/` (see
+[Architecture](docs/architecture.md#one-repository-a-folder-per-layer)), and are listed in the
+`business` section of `components.yaml`.
 
 ## Documentation
 

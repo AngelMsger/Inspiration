@@ -67,7 +67,8 @@ export function Guide(props: {
   const at = place.step ?? -1;
   const current = recording.steps[at];
   const next = recording.steps[at + 1];
-  const date = recording.recorded_at.slice(0, 10);
+  // The demo's day, which a recording made again from saved replies keeps.
+  const date = recording.day ?? recording.recorded_at.slice(0, 10);
   const about = recording.answer_model
     ? say("guide.about_model", { date, count, model: recording.answer_model })
     : say("guide.about", { date, count });

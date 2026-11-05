@@ -45,5 +45,11 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 | [Decide for me](design/decide-for-me.md) | Proposed, 2026-10-27 | Every decision a person makes can be handed to the assistant |
 | [Code repositories as a knowledge source](design/code-repositories.md) | Proposed, 2026-10-27 | A local mirror and code graph of each repository as an input of Deep Research |
 | [Validating the knowledge core](design/validation.md) | Proposed, 2026-10-27 | How extraction and governance are measured on real documents, and the results so far |
-| [The MVP](design/mvp.md) | Proposed, 2026-11-04 | A usable product that closes the business flow for one company: scope, slices and decisions |
+| [The MVP](design/mvp.md) | Adopted, 2026-11-05 | A usable product that closes the business flow for one company: scope, slices and decisions |
 | [UI screens](design/screens/README.md) | Snapshot of the design canvas | Static copies of the canvas's screens, to read next to the docs |
+
+## Outside research
+
+| Doc | Status | What it covers |
+| --- | --- | --- |
+| [Outside evidence](outside-evidence.md) | Reading notes, 2026-11-05 | Research from outside the project, read against our own results: what each work shows, how it bears on our claims, its limits |

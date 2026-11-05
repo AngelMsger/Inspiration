@@ -1,0 +1,25 @@
+{
+  "account": {
+    "name": "周敏",
+    "email": "zhou.min@qinghe.example",
+    "locale": "zh-CN"
+  },
+  "companies": [
+    {
+      "tenant_id": "ten_01QINGHE000000000000000001",
+      "name": "青禾科技",
+      "role": "super_admin"
+    },
+    {
+      "tenant_id": "ten_01JD0000000000000000NORTH1",
+      "name": "Northwind Trading",
+      "role": "member"
+    }
+  ],
+  "current": {
+    "tenant_id": "ten_01QINGHE000000000000000001",
+    "member_id": "mem_01QINGHE0000000000ZHOUMIN",
+    "display_name": "周敏",
+    "role": "super_admin"
+  }
+}

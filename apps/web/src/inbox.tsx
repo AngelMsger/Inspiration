@@ -5,9 +5,9 @@
 import type { Inbox, InboxCard, InboxTodo, Todo } from "@inspiration/contracts";
 import { type ReactNode, useRef, useState } from "react";
 import { api, failureOf, type Loaded } from "./api.ts";
-import type { Person } from "./backend.ts";
 import { citedAt } from "./home.tsx";
 import { Crumbs, Failure, Standing } from "./parts.tsx";
+import type { Person } from "./people.ts";
 import { Link, type Route } from "./route.tsx";
 import { factOf, type Side, sidesOf, valueText, weekOf } from "./todos.ts";
 import { type Say, useWords } from "./words.ts";
