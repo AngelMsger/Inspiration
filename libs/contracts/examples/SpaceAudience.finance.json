@@ -1,0 +1,7 @@
+{
+  "space_id": "spc_01QINGHE00000000000FINANCE",
+  "grants": [
+    { "principal_id": "mem_01QINGHE00000000000000LINA", "role": "owner" },
+    { "principal_id": "tenant", "role": "viewer" }
+  ]
+}

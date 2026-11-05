@@ -17,6 +17,10 @@ $defs:
   SpaceId:
     type: string
     pattern: "^spc_[0-9A-Za-z]{8,64}$"
+  MemberId:
+    description: One person inside one tenant; unique only within the tenant. A PrincipalId of kind member.
+    type: string
+    pattern: "^mem_[0-9A-Za-z]{8,64}$"
   SourceId:
     type: string
     pattern: "^src_[0-9A-Za-z]{8,64}$"

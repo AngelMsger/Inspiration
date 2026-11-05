@@ -3,9 +3,10 @@ $id: api.yaml
 title: Engine HTTP API
 description: >
   Request and response bodies of the engine's HTTP API (version 0), which the business
-  layer's web app reads on behalf of a member. Every request names the tenant and the member
-  it acts for; the engine checks every read against that member's permissions. Bodies that
-  already have a type (GroundedAnswer, SearchResult, AnswerQuery) are not repeated here.
+  layer's web app reads on behalf of a member. Every request carries a principal token that
+  names the tenant and the member it acts for; the engine checks every read against that
+  member's permissions. Bodies that already have a type (GroundedAnswer, SearchResult,
+  AnswerQuery) are not repeated here; provisioning bodies are in tenancy.yaml.
 
 $defs:
   SpaceList:
@@ -19,6 +20,132 @@ $defs:
         type: array
         items:
           $ref: "authz.yaml#/$defs/Space"
+
+  SpaceEntry:
+    description: >
+      A space as one member sees it: the space, its owners, and the member's own role on it,
+      the highest they hold, inherited from a parent space or not. role is absent when the
+      member manages the space without holding a role on it, as the super admin may. grants
+      counts the space's audience, and is set only in the list of spaces the member may
+      administer (GET /v0/spaces?manage=true).
+    allOf:
+      - $ref: "authz.yaml#/$defs/Space"
+      - type: object
+        required: [owner_ids]
+        properties:
+          owner_ids:
+            $ref: "#/$defs/SpaceOwnerIds"
+          role:
+            $ref: "authz.yaml#/$defs/SpaceRole"
+          grants:
+            type: integer
+            minimum: 0
+
+  CreateSpace:
+    description: The body of POST /v0/spaces, which only the super admin may send. The engine mints the space's ID; its kind is team.
+    type: object
+    required: [name, owner_ids]
+    properties:
+      name:
+        type: string
+        minLength: 1
+      description:
+        type: string
+      parent_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      owner_ids:
+        $ref: "#/$defs/SpaceOwnerIds"
+      default_sensitivity:
+        description: internal when not given.
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+
+  SpaceOwnerIds:
+    description: A space's owners, active members of its tenant.
+    type: array
+    items:
+      $ref: "common.yaml#/$defs/MemberId"
+    minItems: 1
+    uniqueItems: true
+
+  PutSpaceOwners:
+    description: The body of PUT /v0/spaces/{space}/owners, which only the super admin may send. It replaces the owners.
+    type: object
+    required: [owner_ids]
+    properties:
+      owner_ids:
+        $ref: "#/$defs/SpaceOwnerIds"
+
+  PatchSpace:
+    description: The body of PATCH /v0/spaces/{space}, from the super admin or an owner of the space.
+    type: object
+    minProperties: 1
+    properties:
+      name:
+        type: string
+        minLength: 1
+      description:
+        type: string
+
+  SpaceWritten:
+    description: The answer to creating a space, naming its owners or renaming it.
+    type: object
+    required: [space]
+    properties:
+      space:
+        $ref: "#/$defs/SpaceEntry"
+      consistency_token:
+        type: string
+
+  SpaceAudience:
+    description: >
+      Who may read a space, and with which role: the answer to GET and PUT
+      /v0/spaces/{space}/audience, for the super admin and the space's owners. The owners
+      appear as owner grants. Sorted by principal ID, then role.
+    type: object
+    required: [space_id, grants]
+    properties:
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      grants:
+        type: array
+        items:
+          $ref: "authz.yaml#/$defs/SpaceGrant"
+      consistency_token:
+        description: Set when the answer is to a write.
+        type: string
+
+  PutSpaceAudience:
+    description: >
+      The body of PUT /v0/spaces/{space}/audience: the whole audience apart from the owners,
+      which only PUT /v0/spaces/{space}/owners changes. An owner grant in it answers 400. An
+      owner of the space may set any audience; the super admin may only remove grants.
+    type: object
+    required: [grants]
+    properties:
+      grants:
+        type: array
+        items:
+          $ref: "authz.yaml#/$defs/SpaceGrant"
+
+  Me:
+    description: >
+      The answer to GET /v0/me: who the principal token names, as the engine's directory copy
+      knows them. admin is true for the super admin, who may create spaces and name their owners.
+    type: object
+    required: [tenant_id, member_id, roles, admin]
+    properties:
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      member_id:
+        $ref: "common.yaml#/$defs/MemberId"
+      roles:
+        type: array
+        items:
+          $ref: "tenancy.yaml#/$defs/MemberRole"
+      admin:
+        type: boolean
+      locale:
+        $ref: "common.yaml#/$defs/Locale"
 
   DocumentTree:
     description: A space's Documents tree as the member may see it, one node per source.
@@ -320,7 +447,11 @@ $defs:
 
   ApiErrorCode:
     type: string
-    enum: [bad_request, unauthenticated, forbidden, not_found, internal]
+    description: >
+      forbidden is a token whose scopes do not cover the route, or an admin write on a space the
+      member may read but not administer; conflict is a directory command older than the
+      engine's copy.
+    enum: [bad_request, unauthenticated, forbidden, not_found, conflict, internal]
 
   ApiError:
     description: The body of every error response.

@@ -244,8 +244,30 @@ $defs:
     type: string
     enum: [personal, team, org, source_mirror]
 
+  SpaceRole:
+    description: >
+      A role on a space, from the least: viewer reads, commenter also comments, editor also
+      edits, steward also verifies and publishes, owner also administers the space and sets its
+      audience. A role on a space holds in every space below it.
+    type: string
+    enum: [viewer, commenter, editor, steward, owner]
+
+  SpaceGrant:
+    description: One entry of a space's audience. principal_id "tenant" is everyone in the company.
+    type: object
+    required: [principal_id, role]
+    properties:
+      principal_id:
+        anyOf:
+          - $ref: "common.yaml#/$defs/MemberId"
+          - const: tenant
+      role:
+        $ref: "#/$defs/SpaceRole"
+
   Space:
-    description: A container that holds permissions. Personal, team, org, or a mirror of one source.
+    description: >
+      A container that holds permissions. Personal, team, org, or a mirror of one source.
+      owner_id is the first of its owners (SpaceEntry lists them all).
     type: object
     required: [id, tenant_id, kind, name, owner_id, default_sensitivity, created_at]
     properties:
@@ -269,6 +291,7 @@ $defs:
         $ref: "common.yaml#/$defs/Instant"
 
   Tenant:
+    description: A tenant as the business layer provisions it (tenancy.yaml). kind, status, default_locale and version are absent only for tenants a corpus stands in for.
     type: object
     required: [id, name, created_at]
     properties:
@@ -276,6 +299,14 @@ $defs:
         $ref: "common.yaml#/$defs/TenantId"
       name:
         type: string
+      kind:
+        $ref: "tenancy.yaml#/$defs/TenantKind"
+      status:
+        $ref: "tenancy.yaml#/$defs/TenantStatus"
+      default_locale:
+        $ref: "common.yaml#/$defs/Locale"
+      version:
+        $ref: "tenancy.yaml#/$defs/DirectoryVersion"
       created_at:
         $ref: "common.yaml#/$defs/Instant"
 

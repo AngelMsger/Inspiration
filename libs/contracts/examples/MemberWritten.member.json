@@ -1,0 +1,12 @@
+{
+  "member": {
+    "id": "mem_01QINGHE00000000000000LINA",
+    "tenant_id": "ten_01QINGHE000000000000000001",
+    "status": "active",
+    "display_name": "李娜",
+    "roles": ["member"],
+    "version": 2,
+    "updated_at": "2026-11-05T03:05:00Z"
+  },
+  "consistency_token": "GhUKEzE3OTM4NDc2MzAwMDAwMDAwMDA="
+}
