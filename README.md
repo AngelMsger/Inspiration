@@ -182,7 +182,7 @@ Read more in [Architecture](docs/architecture.md), [Contracts](docs/contracts.md
 
 ## Roadmap
 
-**Next is an MVP that closes one company's whole loop**, adopted on 2026-11-05: sign in, create a company, invite colleagues, upload documents, ask in any of three languages and get a fast cited answer, keep the owners' inbox short, and let an agent read the same knowledge through MCP. About 16 person-weeks in six slices, with three gates ([the plan](docs/design/mvp.md)).
+**The MVP being built now closes one company's whole loop**, adopted on 2026-11-05: sign in, create a company, invite colleagues, upload documents, ask in any of three languages and get a fast cited answer, keep the owners' inbox short, and let an agent read the same knowledge through MCP. About 16 person-weeks in six slices, with three gates ([the plan](docs/design/mvp.md)).
 
 - [x] **The engine on stand-in models.** Ingest, extraction, governance, freshness, governance levels, topics and the inbox, then search and grounded answers.
 - [x] **Validation on real models.** Eight runs against a plain RAG, a mature RAG and long context ([results](#results-so-far)).
@@ -191,14 +191,14 @@ Read more in [Architecture](docs/architecture.md), [Contracts](docs/contracts.md
 
 | | Slice | What it builds | Status |
 | :---: | --- | --- | --- |
-| 1 | Identity and companies | Sign-in on Logto, companies and members, invite links, spaces with owners and audiences, signed principal tokens from the business layer to the engine | 🚧 In progress |
-| 2 | Documents in | Upload files and folders, with new versions; Word, PowerPoint, Excel and PDF parsing; reading on a real model within a daily budget | Next |
-| 3 | Fast cited answers | The compact answer by default, a faster reranker, stable search, disputed values marked in the answer | Planned |
+| 1 | Identity and companies | Sign-in on Logto, companies and members, invite links, spaces with owners and audiences, signed principal tokens from the business layer to the engine | ✅ Built; tested end to end with a stand-in for Logto, not yet with Logto itself |
+| 2 | Documents in | Upload files and folders, with new versions; Word, PowerPoint, Excel and PDF parsing; reading on a real model within a daily budget | ✅ Built |
+| 3 | Fast cited answers | The compact answer by default, a faster reranker, stable search, disputed values marked in the answer | ✅ Built |
 | 🏁 | **Gate A: first usable** | Sign in, upload your own files, ask in English, Chinese or Japanese, get a cited answer | |
-| 4 | Governance that asks little | "Decide for me" on every inbox card, with reasons and undo; reading on demand | Planned |
-| 5 | Agents | An MCP server with search, ask and read, acting as the member; personal tokens | Planned |
+| 4 | Governance that asks little | "Decide for me" on every inbox card, with reasons and undo; reading on demand | 🚧 "Decide for me" built in the engine and the web app; reading on demand still to come |
+| 5 | Agents | An MCP server with search, ask and read, acting as the member; personal tokens | 🚧 Built in the engine and the web app; the business backend's tokens and MCP address are in review |
 | 🏁 | **Gate B: the flow closed** | A colleague reads only their spaces, a new version changes the answer, an agent sees only what its member may | |
-| 6 | Trial | One deployed server, a usage page and feedback | Planned |
+| 6 | Trial | One deployed server, a usage page and feedback | Next; the trial's model budgets are built |
 | 🏁 | **Gate C: the trial** | A few people outside the team use it for two weeks with their own documents | |
 
 **After the MVP:** a pilot with a design partner; live sync from Lark (Feishu); a private space for every member, with publishing into shared spaces; joint approval. The validation line resumes on a larger dataset close to real use, with the 10-point lead as its long-term goal. Later come Deep Research reports as sources, approval flows turned into procedures, code repositories as a code graph, interactive views, SSO and directory sync, and private deployment.
