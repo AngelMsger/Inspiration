@@ -59,10 +59,12 @@ export function Failure(props: { error: ApiFailure; notFound?: string }) {
   const text =
     props.error.code === "not_recorded"
       ? notRecorded(say, props.error.message)
-      : props.error.status === 404 && props.notFound
-        ? props.notFound
-        : props.error.status === 502 || props.error.status === 0
-          ? say("failure.engine")
-          : say("failure.other", { message: props.error.message });
+      : props.error.code === "demo_script"
+        ? say("failure.demo_script")
+        : props.error.status === 404 && props.notFound
+          ? props.notFound
+          : props.error.status === 502 || props.error.status === 0
+            ? say("failure.engine")
+            : say("failure.other", { message: props.error.message });
   return <p className="failure">{text}</p>;
 }

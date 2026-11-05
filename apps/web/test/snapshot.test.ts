@@ -4,7 +4,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { loadPeople } from "../src/backend.ts";
-import { addressOf, answer, callKey, type Recording, savedPlace, startOf } from "../src/replay.ts";
+import { addressOf, answer, callKey, type Recording, replayed, savedPlace, startOf } from "../src/replay.ts";
 import { answerModel, loadScript, questionsOf } from "../src/snapshot.ts";
 
 const CORPUS = fileURLToPath(new URL("../../../examples/corpus/", import.meta.url));
@@ -117,5 +117,35 @@ describe("a snapshot's page", () => {
 
   test("starts at the beginning, as the first person, when the tab keeps nothing", () => {
     expect([startOf(recording), savedPlace(recording)]).toEqual([start, start]);
+  });
+
+  test("keeps the members and invite links the tab changes, and the people the script acts as", () => {
+    const c = { member: "mem_C", name: "C" };
+    const company: Recording = {
+      ...recording,
+      people: { tenant: "ten_1", people: [{ ...a, role: "super_admin" }, b, c] },
+      steps: [{ as: "mem_B", open: "/inbox", text: {} }],
+    };
+    const tab = replayed(company, "https://demo.example/");
+    const as = (member: string) => ({ state: 0, member });
+    const ask = (member: string, method: string, path: string, body?: string) =>
+      answer(company, as(member), method, path, body, tab);
+    const made = ask("mem_A", "POST", "/invites", "{}");
+    const url = (made.json as { url: string }).url;
+    expect([made.status, url]).toEqual([201, expect.stringMatching(/^https:\/\/demo\.example\/#\/join\//)]);
+    const code = url.split("/").pop() as string;
+    expect(ask("mem_C", "GET", `/join/${code}`).json).toMatchObject({ company: { name: "Hengyuan" } });
+    expect(ask("mem_B", "GET", "/invites").status).toBe(403);
+    expect(ask("mem_A", "DELETE", "/members/mem_B").json).toMatchObject({ error: { code: "demo_script" } });
+    expect(ask("mem_A", "DELETE", "/members/mem_C").status).toBe(204);
+    expect(ask("mem_A", "GET", "/members").json).toMatchObject({
+      members: [{ member_id: "mem_A" }, { member_id: "mem_B" }],
+    });
+    expect(ask("mem_C", "GET", "/session").json).toMatchObject({ companies: [] });
+    expect(ask("mem_C", "GET", "/members").status).toBe(400);
+    expect(ask("mem_C", "POST", `/join/${code}`, "{}").json).toMatchObject({ current: { member_id: "mem_C" } });
+    expect(ask("mem_A", "GET", "/invites").json).toMatchObject({ invites: [{ joined: 1 }] });
+    // Another tab starts from the recording again.
+    expect(answer(company, as("mem_C"), "GET", "/session").json).toMatchObject({ current: { member_id: "mem_C" } });
   });
 });

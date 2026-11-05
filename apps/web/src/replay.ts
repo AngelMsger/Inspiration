@@ -4,11 +4,14 @@
  * can open. The recording holds a state for the start of the demo script and one for each
  * step that acts (deciding a todo, putting in an upstream edit): in each, every read the page
  * can make, as each person. Taking a step's action moves to its state; anything the recording
- * lacks answers 404 with the code not_recorded, and the questions it can answer.
+ * lacks answers 404 with the code not_recorded, and the questions it can answer. Roles, members
+ * who leave and invite links live in the tab (company.ts), and the people the script acts as
+ * cannot be removed, so the guide always has them.
  */
 
-import type { AccountChange } from "@inspiration/contracts/business";
-import { membersOf, type People, type Person, sessionOf } from "./people.ts";
+import type { AccountChange, ProductRole } from "@inspiration/contracts/business";
+import { Company, Refused } from "./company.ts";
+import type { People, Person } from "./people.ts";
 
 /** One step of the demo script (<corpus>/script.yaml). */
 export interface ScriptStep {
@@ -72,6 +75,20 @@ export function callKey(method: string, path: string, body?: string): string {
   return `${method} ${path}${body ? ` ${body}` : ""}`;
 }
 
+/** The company a recording's people make up, as one tab changes it; `site` starts its invite links. */
+export interface Replayed {
+  company: Company;
+  site: string;
+}
+
+export const replayed = (recording: Recording, site: string): Replayed => ({
+  company: new Company(
+    recording.people,
+    recording.steps.map((s) => s.as),
+  ),
+  site,
+});
+
 /** What the recording answers to one call, and where the demo goes next. */
 export function answer(
   recording: Recording,
@@ -79,21 +96,25 @@ export function answer(
   method: string,
   path: string,
   body?: string,
+  tab: Replayed = replayed(recording, "."),
 ): { status: number; json: unknown; place: Place } {
   const { people } = recording;
+  const { company } = tab;
   const person = people.people.find((p) => p.member === place.member) ?? (people.people[0] as Person);
-  // Who is signed in, and their company, as the stand-in backend answers them (people.ts).
+  // Who is signed in, and their company, as the stand-in backend answers them (company.ts).
   const route = `${method} ${path}`;
   // A change comes from the page in the same tab, so it is taken as it is.
   const signedIn = (as: Person, change?: AccountChange) => ({
     status: 200,
-    json: sessionOf(people, as, companyOf(recording), change),
+    json: company.sessionOf(as, companyOf(recording), change),
     place: { ...place, member: as.member },
   });
   if (route === "GET /session" || route === "POST /session") return signedIn(person);
   if (route === "PATCH /account") return signedIn(person, JSON.parse(body || "{}") as AccountChange);
-  if (route === "GET /members") return { status: 200, json: { members: membersOf(people) }, place };
   if (route === "GET /demo/people") return { status: 200, json: { people: people.people }, place };
+  const managed = companyAnswer(tab, person, method, path, body, companyOf(recording));
+  if (managed?.joined) return signedIn(person);
+  if (managed) return { status: managed.status, json: managed.json, place };
   if (route === "POST /demo/act-as") {
     const member = (JSON.parse(body || "{}") as { member?: unknown }).member;
     const next = people.people.find((p) => p.member === member);
@@ -115,6 +136,50 @@ export function answer(
 }
 
 const failure = (code: string, message: string) => ({ error: { code, message } });
+
+/** The company's members and invite links, and joining it, as the business backend answers them. */
+function companyAnswer(
+  tab: Replayed,
+  person: Person,
+  method: string,
+  path: string,
+  body: string | undefined,
+  name: string,
+): { status: number; json?: unknown; joined?: boolean } | undefined {
+  const { company } = tab;
+  const [, kind, id = "", role] = path.match(/^\/(members|invites|join)(?:\/([^/]+)(\/role)?)?$/) ?? [];
+  const named = decodeURIComponent(id);
+  try {
+    if (kind === "join" && method === "GET") return { status: 200, json: company.preview(named, name) };
+    if (kind === "join" && method === "POST") {
+      company.join(person, named);
+      return { status: 200, joined: true };
+    }
+    if (kind && !company.isMember(person)) return { status: 400, json: failure("bad_request", "no current company") };
+    if (kind === "members" && !id && method === "GET") return { status: 200, json: { members: company.members() } };
+    if (kind === "members" && role && method === "PUT") {
+      const asked = (JSON.parse(body || "{}") as { role: ProductRole }).role;
+      return { status: 200, json: company.setRole(person, named, asked) };
+    }
+    if (kind === "members" && id && method === "DELETE") {
+      company.remove(person, named);
+      return { status: 204 };
+    }
+    if (kind === "invites" && !id && method === "GET") return { status: 200, json: company.invites(person) };
+    if (kind === "invites" && !id && method === "POST") {
+      return { status: 201, json: company.invite(person, (code) => `${tab.site}#/join/${code}`) };
+    }
+    if (kind === "invites" && id && method === "DELETE") {
+      company.revoke(person, named);
+      return { status: 204 };
+    }
+  } catch (e) {
+    if (e instanceof Refused) return { status: e.status, json: failure(e.code, e.message) };
+    if (e instanceof RangeError) return { status: 404, json: failure("not_found", e.message) };
+    throw e;
+  }
+  return undefined;
+}
 
 /** The company's name, from the spaces the first person read at the start. */
 function companyOf(recording: Recording): string {
@@ -162,6 +227,8 @@ export interface Replay {
 export function install(recording: Recording): Replay {
   const fetchFromNetwork = window.fetch.bind(window);
   let place = savedPlace(recording);
+  // Invite links open this page at the join screen.
+  const tab = replayed(recording, location.href.split("#")[0] ?? "");
   const moveTo = (next: Place) => {
     const moved = next.state !== place.state || next.member !== place.member || next.step !== place.step;
     place = next;
@@ -171,9 +238,9 @@ export function install(recording: Recording): Replay {
   window.fetch = async (input, init) => {
     if (typeof input !== "string" || !input.startsWith("/api/")) return fetchFromNetwork(input, init);
     const body = typeof init?.body === "string" ? init.body : undefined;
-    const reply = answer(recording, place, init?.method ?? "GET", input.slice("/api".length), body);
+    const reply = answer(recording, place, init?.method ?? "GET", input.slice("/api".length), body, tab);
     moveTo(reply.place);
-    return new Response(JSON.stringify(reply.json), {
+    return new Response(reply.status === 204 ? null : JSON.stringify(reply.json), {
       status: reply.status,
       headers: { "content-type": "application/json; charset=utf-8" },
     });

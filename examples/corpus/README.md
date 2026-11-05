@@ -16,8 +16,9 @@ is in [README.zh.md](README.zh.md); if the two differ, this English version wins
 - `files.yaml` says when each file last changed, as the company drive would report it.
   `Corpus.stamp` gives each file that time on ingest and serve, so governance and freshness see
   the same ages on every checkout.
-- `people.yaml` names eight members. The web app's stand-in backend signs in as the first and
-  offers each one to act as; `script.yaml` is the demo in order (below).
+- `people.yaml` names nine members. The web app's stand-in backend signs in as the first and
+  offers each one to act as; 赵琳 of IT, who wrote none of the documents, is the company's super
+  admin, so the admin area has someone to show it. `script.yaml` is the demo in order (below).
 - `updates/` holds the demo's upstream edit (below); no source reads it.
 
 Run it through the engine with `pnpm bench ingest examples/corpus` (see `apps/bench`). With

@@ -242,3 +242,46 @@ guide.fewer: 收起步骤
 guide.done: 已完成
 guide.restart: 重新开始
 guide.hide: 收起
+
+account.admin: 管理后台
+role.member: 成员
+action.cancel: 取消
+failure.demo_script: 演示的引导步骤要用到这个人，所以不能把他移出企业。
+
+admin.title: 管理后台
+admin.back: "← 回到知识"
+admin.people: 人员
+admin.members: 成员
+admin.invites: 邀请链接
+admin.only: "只有{company}的超级管理员可以打开管理后台。"
+members.count: "企业里有 {count} 人"
+members.name: 名字
+members.email: 邮箱
+members.role: 角色
+members.role_of: "{name}的角色"
+members.you: （你）
+members.remove: 移出
+members.confirm_remove: "把{name}移出{company}？账号会保留，之后可以通过邀请链接回来。"
+members.needs_admin: 企业至少要有一位超级管理员。请先把别人设为超级管理员。
+invites.lede: "任何人登录后打开链接，就会以成员身份加入{company}。链接 7 天内有效。目前还不能发邮件，请把链接复制到团队的聊天里。"
+invites.new: 新建邀请链接
+invites.made: 这个链接只显示这一次，离开页面前请复制。弄丢了就撤销它，再建一个。
+invites.copy: 复制
+invites.copied: 已复制
+invites.none: 没有有效的邀请链接。
+invites.made_by: 创建人
+invites.made_at: 创建时间
+invites.expires: 到期
+invites.joined: 已加入
+invites.revoke: 撤销
+invites.confirm_revoke: 撤销这个链接？之后没人能再用它加入。
+
+join.loading: 正在读取邀请链接…
+join.title: "{name}邀请你加入{company}"
+join.lede: "链接有效期到 {date}。"
+join.as: "将以{name}（{email}）的身份加入"
+join.join: "加入{company}"
+join.signed_out: 登录或创建账号后，会回到这里加入。
+join.gone: 这个邀请链接已经失效
+join.gone_lede: 它可能已过期或被撤销。请向发链接的同事要一个新的。
+join.home: 进入 Inspiration

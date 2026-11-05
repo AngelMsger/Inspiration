@@ -273,7 +273,7 @@ apps:
   engine:
     owns: The engine process; corpus manifests and topic owners, standing in for the business layer's provisioning; its HTTP API, version 0 (pnpm engine serve)
   web:
-    owns: The product web app (React, Vite) over the business backend's browser API and, through it, the engine's HTTP API; signing in, the account menu and a first company; its language packs, and a development stand-in for the business backend; the demo (pnpm demo) and its recorded page (pnpm snapshot). Planned are joining by link, members and invite links, the spaces screens, uploads, Decide for me, Apps with access and the usage page
+    owns: The product web app (React, Vite) over the business backend's browser API and, through it, the engine's HTTP API; signing in, the account menu and a first company; the admin area for a company's members and invite links, and joining by a link; its language packs, and a development stand-in for the business backend; the demo (pnpm demo) and its recorded page (pnpm snapshot). Planned are the spaces screens, uploads, Decide for me, Apps with access and the usage page
   bench:
     owns: The measurement harness and its CLI (pnpm bench); ingest runs and volume reports, the control check, history replay, questions and answers, the evidence audit, the reading check, cost, synthetic corpora
     uses: [engine]

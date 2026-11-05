@@ -7,27 +7,37 @@
  * page cannot name a member itself: the backend builds the headers it forwards, so identity
  * headers from the browser never reach the engine. A call that acts in a company names the one
  * its frame shows (x-inspiration-company); naming another than the session's answers 409
- * conflict, as the business backend does. Under /api/demo/ are what only the demo has: acting
- * as another person of the company, and its upstream edits.
+ * conflict, as the business backend does. Roles, members who leave and invite links are kept
+ * while the server runs (company.ts); someone who left has no company until they join by a
+ * link. Under /api/demo/ are what only the demo has: acting as another person of the company,
+ * and its upstream edits.
  *
- *     GET   /api/session           Session, or 401 when signed out
- *     GET   /api/auth/sign-in      ?return_to=<path>: signs in, then 302 to that path
- *     POST  /api/auth/sign-out     {next}: signed out; the page goes to next
- *     POST  /api/session           {"tenant_id"}: Session in that company (the demo has one)
- *     PATCH /api/account           {"name"?, "locale"?}: Session, kept while the server runs
- *     GET   /api/members           {members}, the company's
- *     *     /api/v0/...            the engine's HTTP API, as the signed-in member
- *     GET   /api/demo/people       {people}: whom to act as, with their team and role
- *     POST  /api/demo/act-as       {"member"}: Session, as that person
- *     *     /api/demo/updates/...  the demo's upstream edits (updates.ts), when pnpm demo runs it
+ *     GET    /api/session              Session, or 401 when signed out
+ *     GET    /api/auth/sign-in         ?return_to=<path>: signs in, then 302 to that path
+ *     POST   /api/auth/sign-out        {next}: signed out; the page goes to next
+ *     POST   /api/session              {"tenant_id"}: Session in that company (the demo has one)
+ *     PATCH  /api/account              {"name"?, "locale"?}: Session, kept while the server runs
+ *     GET    /api/members              MemberList, the company's
+ *     PUT    /api/members/<mem>/role   {"role"}: the member, by a super admin; 409 for the last one
+ *     DELETE /api/members/<mem>        204: the member leaves, by a super admin
+ *     GET    /api/invites              InviteList, the links still open, for a super admin
+ *     POST   /api/invites              201 InviteLink: a new link, shown this once
+ *     DELETE /api/invites/<inv>        204: the link is revoked
+ *     GET    /api/join/<code>          JoinPreview, for anyone holding the link
+ *     POST   /api/join/<code>          Session, in the company the link joins
+ *     *      /api/v0/...               the engine's HTTP API, as the signed-in member
+ *     GET    /api/demo/people          {people}: whom to act as, with their team and role
+ *     POST   /api/demo/act-as          {"member"}: Session, as that person
+ *     *      /api/demo/updates/...     the demo's upstream edits (updates.ts), when pnpm demo runs it
  */
 
 import { readFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { ContractError, parseAs } from "@inspiration/contracts";
-import type { AccountChange, Session, SwitchCompany } from "@inspiration/contracts/business";
+import type { AccountChange, RoleChange, Session, SwitchCompany } from "@inspiration/contracts/business";
 import { parse } from "yaml";
-import { membersOf, type People, type Person, sessionOf } from "./people.ts";
+import { Company, Refused } from "./company.ts";
+import type { People, Person } from "./people.ts";
 import type { Updates } from "./updates.ts";
 
 const COOKIE = "inspiration_member";
@@ -54,6 +64,7 @@ export function returnTo(value: string | null): string {
 export function backend(options: People & { engine: string; updates?: Updates }) {
   const { engine, updates } = options;
   const people: People = { tenant: options.tenant, people: options.people };
+  const company = new Company(people);
   const changes = new Map<string, AccountChange>();
   const signedIn = (req: IncomingMessage): Person | undefined => {
     const member = cookie(req, COOKIE);
@@ -65,15 +76,15 @@ export function backend(options: People & { engine: string; updates?: Updates })
     "x-inspiration-member": person.member,
   });
   // The company's name is the engine's, read once it answers.
-  let company: string | undefined;
+  let name: string | undefined;
   const companyName = async (): Promise<string> => {
-    if (company) return company;
+    if (name) return name;
     const answer = await fetch(`${engine}/v0/spaces`, { headers: headersOf(people.people[0] as Person) });
-    company = answer.ok ? ((await answer.json()) as { tenant?: { name?: string } }).tenant?.name : undefined;
-    return company ?? "";
+    name = answer.ok ? ((await answer.json()) as { tenant?: { name?: string } }).tenant?.name : undefined;
+    return name ?? "";
   };
   const session = async (person: Person): Promise<Session> =>
-    sessionOf(people, person, await companyName(), changes.get(person.member));
+    company.sessionOf(person, await companyName(), changes.get(person.member));
   const signIn = (res: ServerResponse, person: Person) =>
     res.setHeader("set-cookie", `${COOKIE}=${person.member}; Path=/; HttpOnly; SameSite=Lax`);
   // The engine's answer as it is: the status, and the body, which is JSON.
@@ -107,12 +118,36 @@ export function backend(options: People & { engine: string; updates?: Updates })
         send(res, 200, await session(person));
         return true;
       }
-      case "GET /api/members":
-        send(res, 200, { members: membersOf(people) });
-        return true;
       default:
         return false;
     }
+  };
+  // The company's members and invite links, and joining it by a link.
+  const companyRoute = async (url: URL, req: IncomingMessage, res: ServerResponse, person: Person) => {
+    const route = `${req.method} ${url.pathname}`;
+    const [, kind, id, role] = url.pathname.match(/^\/api\/(members|invites|join)(?:\/([^/]+)(\/role)?)?$/) ?? [];
+    const named = decodeURIComponent(id ?? "");
+    if (route === "GET /api/members") send(res, 200, { members: company.members() });
+    else if (route === "GET /api/invites") send(res, 200, company.invites(person));
+    else if (route === "POST /api/invites") {
+      send(
+        res,
+        201,
+        company.invite(person, (code) => `http://${req.headers.host ?? "localhost"}/join/${code}`),
+      );
+    } else if (kind === "members" && id && role && req.method === "PUT") {
+      send(res, 200, company.setRole(person, named, parseAs<RoleChange>("RoleChange", await json(req)).role));
+    } else if (kind === "members" && id && !role && req.method === "DELETE") {
+      company.remove(person, named);
+      send(res, 204);
+    } else if (kind === "invites" && id && req.method === "DELETE") {
+      company.revoke(person, named);
+      send(res, 204);
+    } else if (kind === "join" && id && req.method === "POST") {
+      company.join(person, named);
+      send(res, 200, await session(person));
+    } else return false;
+    return true;
   };
   // What only the demo has: acting as another person, and its upstream edits.
   const demoRoute = async (url: URL, req: IncomingMessage, res: ServerResponse, person: Person) => {
@@ -158,17 +193,25 @@ export function backend(options: People & { engine: string; updates?: Updates })
         res.setHeader("set-cookie", `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
         return send(res, 200, { next: `http://${req.headers.host ?? "localhost"}/` });
       }
+      const code = url.pathname.match(/^\/api\/join\/([^/]+)$/)?.[1];
+      if (req.method === "GET" && code)
+        return send(res, 200, company.preview(decodeURIComponent(code), await companyName()));
       const person = signedIn(req);
       if (!person) return send(res, 401, error("unauthenticated", "sign in first"));
       const named = req.headers["x-inspiration-company"];
       if (named !== undefined && named !== people.tenant) {
         return send(res, 409, error("conflict", "the session works in another company"));
       }
-      if ((await accountRoute(route, req, res, person)) || (await demoRoute(url, req, res, person))) return;
+      if (await accountRoute(route, req, res, person)) return;
+      // Someone who left has an account, but no company to act in until they join again.
+      const outside = !company.isMember(person) && !code && route !== "POST /api/demo/act-as";
+      if (outside) return send(res, 400, error("bad_request", "no current company"));
+      if ((await companyRoute(url, req, res, person)) || (await demoRoute(url, req, res, person))) return;
       if (!url.pathname.startsWith("/api/v0/")) return send(res, 404, error("not_found", "no route"));
       const sent = req.method === "POST" ? new Uint8Array(await body(req)) : undefined;
       await forward(res, `${url.pathname.slice("/api".length)}${url.search}`, person, req.method, sent);
     } catch (e) {
+      if (e instanceof Refused) return send(res, e.status, error(e.code, e.message));
       const refused = e instanceof SyntaxError || e instanceof ContractError;
       if (refused) return send(res, 400, error("bad_request", e.message));
       if (e instanceof RangeError) return send(res, 404, error("not_found", e.message));
@@ -204,7 +247,8 @@ async function body(req: IncomingMessage): Promise<Buffer> {
 
 const error = (code: string, message: string) => ({ error: { code, message } });
 
-function send(res: ServerResponse, status: number, value: unknown): void {
+/** An answer: JSON, or no body for 204. */
+function send(res: ServerResponse, status: number, value?: unknown): void {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
-  res.end(JSON.stringify(value));
+  res.end(value === undefined ? undefined : JSON.stringify(value));
 }
