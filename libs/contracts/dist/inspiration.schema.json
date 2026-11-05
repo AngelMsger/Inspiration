@@ -3002,6 +3002,14 @@
         "tenant_id": {
           "$ref": "#/$defs/TenantId"
         },
+        "member_id": {
+          "description": "The member the call is charged to: the one who asked for the work (a question, an agent acting for them). Absent for upkeep.\n",
+          "$ref": "#/$defs/MemberId"
+        },
+        "space_id": {
+          "description": "The space the call is charged to: the one whose documents it reads or keeps up. Absent for work a member asked for, and for upkeep across spaces.\n",
+          "$ref": "#/$defs/SpaceId"
+        },
         "max_output_tokens": {
           "type": "integer",
           "minimum": 1
@@ -4242,6 +4250,14 @@
         },
         "tenant_id": {
           "$ref": "#/$defs/TenantId"
+        },
+        "member_id": {
+          "description": "The member the call is charged to: the one who asked for the work (a question, an agent acting for them). Absent for upkeep.\n",
+          "$ref": "#/$defs/MemberId"
+        },
+        "space_id": {
+          "description": "The space the call is charged to: the one whose documents it reads or keeps up. Absent for work a member asked for, and for upkeep across spaces.\n",
+          "$ref": "#/$defs/SpaceId"
         }
       }
     },
@@ -5807,6 +5823,14 @@
         },
         "tenant_id": {
           "$ref": "#/$defs/TenantId"
+        },
+        "member_id": {
+          "description": "The member the call is charged to: the one who asked for the work (a question, an agent acting for them). Absent for upkeep.\n",
+          "$ref": "#/$defs/MemberId"
+        },
+        "space_id": {
+          "description": "The space the call is charged to: the one whose documents it reads or keeps up. Absent for work a member asked for, and for upkeep across spaces.\n",
+          "$ref": "#/$defs/SpaceId"
         }
       }
     },
@@ -7136,6 +7160,14 @@
         },
         "tenant_id": {
           "$ref": "#/$defs/TenantId"
+        },
+        "member_id": {
+          "description": "The member the call is charged to: the one who asked for the work (a question, an agent acting for them). Absent for upkeep.\n",
+          "$ref": "#/$defs/MemberId"
+        },
+        "space_id": {
+          "description": "The space the call is charged to: the one whose documents it reads or keeps up. Absent for work a member asked for, and for upkeep across spaces.\n",
+          "$ref": "#/$defs/SpaceId"
         }
       }
     },
@@ -10011,6 +10043,14 @@
         },
         "tenant_id": {
           "$ref": "#/$defs/TenantId"
+        },
+        "member_id": {
+          "description": "The member the call was charged to, as its request named them.",
+          "$ref": "#/$defs/MemberId"
+        },
+        "space_id": {
+          "description": "The space the call was charged to, as its request named it.",
+          "$ref": "#/$defs/SpaceId"
         },
         "operation": {
           "$ref": "#/$defs/GatewayOperation"

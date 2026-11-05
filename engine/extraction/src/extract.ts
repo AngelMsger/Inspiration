@@ -552,6 +552,7 @@ export class Extraction {
         sensitivity: version.sensitivity,
         budget_key: `tenant:${version.tenant_id}/${COMPONENT}`,
         tenant_id: version.tenant_id,
+        space_id: version.space_id,
         temperature: 0,
         metadata: { source_version_id: version.id },
       });

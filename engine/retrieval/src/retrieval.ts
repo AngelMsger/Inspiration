@@ -27,7 +27,7 @@ import type { Records } from "@inspiration/eventbus";
 import { PromptRegistry } from "@inspiration/model-gateway";
 import { ANSWER_SOURCES, type AnswerSources, Answers, LONG_CONTEXT_TOKENS, MATURE_SOURCES } from "./answers.ts";
 import { DOCUMENTS, type IndexedDocument, Indexer } from "./indexing.ts";
-import { metered } from "./metering.ts";
+import { chargedTo, metered } from "./metering.ts";
 import { type Baseline, Search } from "./search.ts";
 
 export { SNIPPET_TOKENS } from "./hits.ts";
@@ -168,7 +168,7 @@ export class Retrieval implements Retriever {
   async search(q: SearchQuery, who: Principal): Promise<SearchResult> {
     const query = parseAs<SearchQuery>("SearchQuery", q);
     this.totals.searches++;
-    const { hits } = await this.#search.find(query, who);
+    const { hits } = await chargedTo(who, () => this.#search.find(query, who));
     let budget = query.token_budget ?? Number.POSITIVE_INFINITY;
     const kept: SearchHit[] = [];
     for (const h of hits) {
@@ -227,10 +227,11 @@ export class Retrieval implements Retriever {
 
   /** The hits an answer to the question reads, in the order the model is given them. */
   async sources(q: AnswerQuery, who: Principal): Promise<SearchHit[]> {
-    return (await this.#answers.sources(parseAs<AnswerQuery>("AnswerQuery", q), who)).hits;
+    const query = parseAs<AnswerQuery>("AnswerQuery", q);
+    return (await chargedTo(who, () => this.#answers.sources(query, who))).hits;
   }
 
   async answer(q: AnswerQuery, who: Principal): Promise<GroundedAnswer> {
-    return this.#answers.answer(q, who);
+    return chargedTo(who, () => this.#answers.answer(q, who));
   }
 }

@@ -299,6 +299,10 @@ export type CommentIntent = "question" | "correction" | "request" | "approval" |
  */
 export type CommentStatus = "open" | "answered" | "resolved" | "orphaned";
 export type FinishReason = "stop" | "length" | "content_filter" | "error";
+/**
+ * One person inside one tenant; unique only within the tenant. A PrincipalId of kind member.
+ */
+export type MemberId = string;
 export type ConflictId = string;
 export type ConflictClass =
   | "contradiction"
@@ -316,10 +320,6 @@ export type ConflictStatus = "open" | "auto_resolved" | "resolved" | "dismissed"
  * @minItems 1
  */
 export type SpaceOwnerIds = [MemberId, ...MemberId[]];
-/**
- * One person inside one tenant; unique only within the tenant. A PrincipalId of kind member.
- */
-export type MemberId = string;
 export type TodoId = string;
 export type DecisionId = string;
 /**
@@ -1698,6 +1698,8 @@ export interface CompletionRequest {
    */
   budget_key: string;
   tenant_id?: TenantId;
+  member_id?: MemberId;
+  space_id?: SpaceId;
   max_output_tokens?: number;
   temperature?: number;
   stop?: string[];
@@ -2246,6 +2248,8 @@ export interface EmbedRequest {
   sensitivity: SensitivityLabel;
   budget_key: string;
   tenant_id?: TenantId;
+  member_id?: MemberId;
+  space_id?: SpaceId;
 }
 export interface EmbedResult {
   request_id: RequestId;
@@ -2627,6 +2631,8 @@ export interface OcrRequest {
   sensitivity: SensitivityLabel;
   budget_key: string;
   tenant_id?: TenantId;
+  member_id?: MemberId;
+  space_id?: SpaceId;
 }
 export interface OcrResult {
   request_id: RequestId;
@@ -2941,6 +2947,8 @@ export interface RerankRequest {
   sensitivity: SensitivityLabel;
   budget_key: string;
   tenant_id?: TenantId;
+  member_id?: MemberId;
+  space_id?: SpaceId;
 }
 export interface RerankResult {
   request_id: RequestId;
@@ -3536,6 +3544,8 @@ export interface UsageRecord {
   request_id: RequestId;
   at: Instant;
   tenant_id?: TenantId;
+  member_id?: MemberId;
+  space_id?: SpaceId;
   operation: GatewayOperation;
   task?: string;
   prompt_version?: string;

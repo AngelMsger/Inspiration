@@ -299,13 +299,18 @@ describe.each(BACKENDS)("topics on $backend", ({ backend, skip }) => {
       await w.topics.recluster(TENANT);
       const naming = w.calls().filter((c) => c.task === "page-compiler.name_topics");
       expect(naming.map((c) => c.sensitivity)).toEqual(["confidential"]);
-      // Embeddings carry each document's own label.
+      // Embeddings carry each document's own label, and are charged to its space; naming, which
+      // spans the tenant's spaces, to none.
       expect(
         w
           .calls()
           .filter((c) => c.operation === "embed")
-          .map((c) => c.sensitivity),
-      ).toEqual(["confidential", "internal"]);
+          .map((c) => [c.sensitivity, c.space_id]),
+      ).toEqual([
+        ["confidential", SPACE],
+        ["internal", SPACE],
+      ]);
+      expect(naming.map((c) => c.space_id)).toEqual([undefined]);
     },
   );
 });

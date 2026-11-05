@@ -61,6 +61,16 @@ $defs:
         type: string
       tenant_id:
         $ref: "common.yaml#/$defs/TenantId"
+      member_id:
+        description: >
+          The member the call is charged to: the one who asked for the work (a question, an
+          agent acting for them). Absent for upkeep.
+        $ref: "common.yaml#/$defs/MemberId"
+      space_id:
+        description: >
+          The space the call is charged to: the one whose documents it reads or keeps up.
+          Absent for work a member asked for, and for upkeep across spaces.
+        $ref: "common.yaml#/$defs/SpaceId"
       max_output_tokens:
         type: integer
         minimum: 1
@@ -161,6 +171,16 @@ $defs:
         type: string
       tenant_id:
         $ref: "common.yaml#/$defs/TenantId"
+      member_id:
+        description: >
+          The member the call is charged to: the one who asked for the work (a question, an
+          agent acting for them). Absent for upkeep.
+        $ref: "common.yaml#/$defs/MemberId"
+      space_id:
+        description: >
+          The space the call is charged to: the one whose documents it reads or keeps up.
+          Absent for work a member asked for, and for upkeep across spaces.
+        $ref: "common.yaml#/$defs/SpaceId"
 
   EmbedResult:
     type: object
@@ -206,6 +226,16 @@ $defs:
         type: string
       tenant_id:
         $ref: "common.yaml#/$defs/TenantId"
+      member_id:
+        description: >
+          The member the call is charged to: the one who asked for the work (a question, an
+          agent acting for them). Absent for upkeep.
+        $ref: "common.yaml#/$defs/MemberId"
+      space_id:
+        description: >
+          The space the call is charged to: the one whose documents it reads or keeps up.
+          Absent for work a member asked for, and for upkeep across spaces.
+        $ref: "common.yaml#/$defs/SpaceId"
 
   RerankResult:
     type: object
@@ -250,6 +280,16 @@ $defs:
         type: string
       tenant_id:
         $ref: "common.yaml#/$defs/TenantId"
+      member_id:
+        description: >
+          The member the call is charged to: the one who asked for the work (a question, an
+          agent acting for them). Absent for upkeep.
+        $ref: "common.yaml#/$defs/MemberId"
+      space_id:
+        description: >
+          The space the call is charged to: the one whose documents it reads or keeps up.
+          Absent for work a member asked for, and for upkeep across spaces.
+        $ref: "common.yaml#/$defs/SpaceId"
 
   OcrResult:
     type: object
@@ -291,6 +331,12 @@ $defs:
         $ref: "common.yaml#/$defs/Instant"
       tenant_id:
         $ref: "common.yaml#/$defs/TenantId"
+      member_id:
+        description: The member the call was charged to, as its request named them.
+        $ref: "common.yaml#/$defs/MemberId"
+      space_id:
+        description: The space the call was charged to, as its request named it.
+        $ref: "common.yaml#/$defs/SpaceId"
       operation:
         $ref: "#/$defs/GatewayOperation"
       task:

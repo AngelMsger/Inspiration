@@ -95,6 +95,8 @@ interface Common {
   budget_key: string;
   sensitivity: SensitivityLabel;
   tenant_id?: string;
+  member_id?: string;
+  space_id?: string;
 }
 
 /** What one attempt on one candidate produced, before the gateway adds the fields only it knows. */
@@ -268,6 +270,8 @@ export class Gateway implements ModelGateway {
       request_id: base.requestId,
       at: new Date().toISOString(),
       tenant_id: base.req.tenant_id,
+      member_id: base.req.member_id,
+      space_id: base.req.space_id,
       operation: base.operation,
       task: base.meta.task,
       prompt_version: base.meta.promptVersion,

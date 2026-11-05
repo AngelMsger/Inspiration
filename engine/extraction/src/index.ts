@@ -5,7 +5,8 @@
  * On blocks.changed it reads the version's added and changed blocks in reading order and
  * cuts them into windows of about WINDOW_CHARS characters. Each window is one model call,
  * extraction.extract_claims, through the model gateway. The call carries the version's
- * sensitivity and the budget key tenant:<id>/extraction, and offers only the catalogue
+ * sensitivity and the budget key tenant:<id>/extraction, is charged to the version's space
+ * (space_id) in the gateway's ledger, and offers only the catalogue
  * entries whose aliases occur in the window. Passages go to the model under local
  * references ("s1"), so it can only cite spans it was given. Each table row goes with its
  * table's header row.

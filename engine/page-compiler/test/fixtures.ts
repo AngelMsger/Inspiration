@@ -68,7 +68,7 @@ export interface World {
   claim: (sentence: string) => Promise<Claim>;
   placement: (sentence: string) => Promise<Placement | undefined>;
   /** Model calls so far, with their task and sensitivity. */
-  calls: () => { operation: string; task?: string; sensitivity: SensitivityLabel }[];
+  calls: () => { operation: string; task?: string; sensitivity: SensitivityLabel; space_id?: string }[];
 }
 
 export const topicsTest = (backend: Backend, cluster: Partial<ClusterOptions> = {}) =>
@@ -228,6 +228,7 @@ export const topicsTest = (backend: Backend, cluster: Partial<ClusterOptions> = 
           operation: r.operation,
           ...(r.task && { task: r.task }),
           sensitivity: r.sensitivity,
+          ...(r.space_id && { space_id: r.space_id }),
         })),
     };
   });
