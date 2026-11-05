@@ -374,9 +374,11 @@ function Screen(props: {
     case "topic":
       return <TopicScreen key={route.key} topicKey={route.key} library={library} people={people} inbox={props.inbox} />;
     case "documents":
-      return <Documents route={route} library={library} />;
+      return <Documents route={route} library={library} onSourcesChanged={props.onSourcesChanged} />;
     case "document":
-      return <DocumentScreen route={route} library={library} person={person} />;
+      return (
+        <DocumentScreen route={route} library={library} person={person} onSourcesChanged={props.onSourcesChanged} />
+      );
     case "maintain":
       return (
         <MaintainScreen

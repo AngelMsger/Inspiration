@@ -5,7 +5,9 @@ import type { DocumentEntry, DocumentTreeNode } from "@inspiration/contracts";
 import type { Library } from "./api.ts";
 import { Crumbs, formatDate } from "./parts.tsx";
 import { Link, type Route } from "./route.tsx";
-import { useWords } from "./words.ts";
+import { UPLOADS, Uploader } from "./upload.tsx";
+import { mayUpload } from "./uploads.ts";
+import { type Say, useWords } from "./words.ts";
 
 type DocumentsRoute = Extract<Route, { name: "documents" }>;
 
@@ -20,6 +22,10 @@ export function nodeAt(
   return node;
 }
 
+/** A node's name; the uploads' source is named in the reader's language. */
+export const nameOf = (node: DocumentTreeNode, say: Say) =>
+  node.kind === "source" && node.source_type === UPLOADS ? say("uploads.name") : node.name;
+
 /** Every document of the library, with where it sits: its space, source and folders. */
 export function documentsOf(library: Library): { entry: DocumentEntry; where: string[] }[] {
   const out: { entry: DocumentEntry; where: string[] }[] = [];
@@ -33,8 +39,8 @@ export function documentsOf(library: Library): { entry: DocumentEntry; where: st
   return out;
 }
 
-export function Documents(props: { route: DocumentsRoute; library: Library }) {
-  const { say, tag } = useWords();
+export function Documents(props: { route: DocumentsRoute; library: Library; onSourcesChanged: () => void }) {
+  const { say } = useWords();
   const { route, library } = props;
   const space = library.spaces.find((s) => s.id === route.space);
   const tree = library.trees.get(route.space);
@@ -47,8 +53,11 @@ export function Documents(props: { route: DocumentsRoute; library: Library }) {
   }
   const node = route.source ? nodeAt(tree.sources, route.source, route.folders) : undefined;
   const rows = route.source ? (node?.children ?? []) : tree.sources;
-  const top: Route = { name: "documents", space: space.id, folders: [] };
+  const top: DocumentsRoute = { name: "documents", space: space.id, folders: [] };
   const source = route.source ? tree.sources.find((s) => s.source_id === route.source) : undefined;
+  // Files go into the uploads' folder on screen, else to their root.
+  const folder = source?.source_type === UPLOADS ? route.folders : [];
+  const list = rows.length === 0 ? <p className="quiet">{say("folder.empty")}</p> : <Rows rows={rows} top={top} />;
 
   return (
     <main className="centre">
@@ -60,7 +69,7 @@ export function Documents(props: { route: DocumentsRoute; library: Library }) {
           </Link>,
           source && (
             <Link key="source" to={{ ...top, source: source.source_id }}>
-              {source.name}
+              {nameOf(source, say)}
             </Link>
           ),
           ...route.folders.map((name, i) => (
@@ -70,61 +79,72 @@ export function Documents(props: { route: DocumentsRoute; library: Library }) {
           )),
         ]}
       </Crumbs>
-      <h1 className="title">{node?.name ?? say("nav.documents")}</h1>
-      {rows.length === 0 ? (
-        <p className="quiet">{say("folder.empty")}</p>
+      <h1 className="title">{node ? nameOf(node, say) : say("nav.documents")}</h1>
+      {mayUpload(space) ? (
+        <Uploader space={space} sources={tree.sources} folder={folder} onSent={props.onSourcesChanged}>
+          {list}
+        </Uploader>
       ) : (
-        <table className="files">
-          <thead>
-            <tr>
-              <th>{say("folder.name")}</th>
-              <th>{say("folder.level")}</th>
-              <th>{say("folder.modified")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) =>
-              row.document ? (
-                <tr key={row.document.external_id}>
-                  <td>
-                    <Link
-                      className="file"
-                      to={{
-                        name: "document",
-                        source: row.source_id,
-                        item: row.document.external_id,
-                        view: "original",
-                      }}
-                    >
-                      {row.name}
-                    </Link>
-                  </td>
-                  <td className="quiet">{say(`level.${row.document.governance_level}`)}</td>
-                  <td className="quiet">{formatDate(tag, row.document.modified_at ?? row.document.fetched_at)}</td>
-                </tr>
-              ) : (
-                <tr key={`${row.kind}-${row.name}`}>
-                  <td>
-                    <Link
-                      className="folder"
-                      to={{
-                        ...top,
-                        source: row.source_id,
-                        folders: row.kind === "folder" ? row.path : [],
-                      }}
-                    >
-                      {row.name}
-                    </Link>
-                    <span className="quiet count">{say("folder.count", { count: row.document_count ?? 0 })}</span>
-                  </td>
-                  <td className="quiet">{row.source_type ? say(`source.${row.source_type}`) : ""}</td>
-                  <td />
-                </tr>
-              ),
-            )}
-          </tbody>
-        </table>
+        list
       )}
     </main>
+  );
+}
+
+/** A folder's rows: its folders, with how many documents each holds, and its documents. */
+function Rows(props: { rows: DocumentTreeNode[]; top: DocumentsRoute }) {
+  const { say, tag } = useWords();
+  const { rows, top } = props;
+  return (
+    <table className="files">
+      <thead>
+        <tr>
+          <th>{say("folder.name")}</th>
+          <th>{say("folder.level")}</th>
+          <th>{say("folder.modified")}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) =>
+          row.document ? (
+            <tr key={row.document.external_id}>
+              <td>
+                <Link
+                  className="file"
+                  to={{
+                    name: "document",
+                    source: row.source_id,
+                    item: row.document.external_id,
+                    view: "original",
+                  }}
+                >
+                  {row.name}
+                </Link>
+              </td>
+              <td className="quiet">{say(`level.${row.document.governance_level}`)}</td>
+              <td className="quiet">{formatDate(tag, row.document.modified_at ?? row.document.fetched_at)}</td>
+            </tr>
+          ) : (
+            <tr key={`${row.kind}-${row.name}`}>
+              <td>
+                <Link
+                  className="folder"
+                  to={{
+                    ...top,
+                    source: row.source_id,
+                    folders: row.kind === "folder" ? row.path : [],
+                  }}
+                >
+                  {nameOf(row, say)}
+                </Link>
+                <span className="quiet count">{say("folder.count", { count: row.document_count ?? 0 })}</span>
+              </td>
+              <td className="quiet">{row.source_type ? say(`source.${row.source_type}`) : ""}</td>
+              <td />
+            </tr>
+          ),
+        )}
+      </tbody>
+    </table>
   );
 }

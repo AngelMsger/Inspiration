@@ -74,6 +74,29 @@ level.search_only: Search only
 source.folder: Folder
 source.feishu.docx: Feishu wiki
 source.feishu.approval: Feishu approval
+source.upload: Upload
+uploads.name: Uploads
+upload.files: Upload files
+upload.folder: Upload a folder
+upload.hint: "Or drop files or a folder here. They go into {folder}."
+upload.sending: "Uploading {done} of {count}…"
+upload.added: "{count} added"
+upload.version: "{count} new versions"
+upload.same: "{count} unchanged"
+upload.failed: "{count} not uploaded"
+upload.retry: Try again
+upload.clear: Clear
+upload.reading: The files are in the space now. Reading them runs in the background.
+upload.reason.too_large: Larger than 50 MB, the most a file may be.
+upload.reason.unsupported: "Not a kind of file Inspiration reads yet. It reads Word, PowerPoint, Excel, PDF, Markdown, text, HTML and CSV."
+upload.reason.forbidden: You can't add files to this space.
+upload.reason.network: The connection dropped. Try again.
+upload.reason.recorded: "This demo is a recording, so it can't take new files."
+upload.reason.other: "{message}"
+upload.new_version: Upload a new version
+upload.sending_one: Uploading…
+upload.same_version: That file is the same as this version.
+upload.other_kind: "A new version must be a {ext} file too."
 
 folder.name: Name
 folder.level: Governance level
