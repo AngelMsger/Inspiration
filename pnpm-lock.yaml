@@ -20,6 +20,9 @@ importers:
       '@inspiration/bench':
         specifier: workspace:*
         version: link:apps/bench
+      '@inspiration/business':
+        specifier: workspace:*
+        version: link:apps/business
       '@inspiration/collaboration':
         specifier: workspace:*
         version: link:engine/collaboration
@@ -129,6 +132,25 @@ importers:
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
+    devDependencies:
+      '@inspiration/testkit':
+        specifier: workspace:*
+        version: link:../../libs/testkit
+
+  apps/business:
+    dependencies:
+      '@inspiration/accounts':
+        specifier: workspace:*
+        version: link:../../business/accounts
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../../libs/contracts
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../../libs/kernel
+      '@inspiration/tenancy':
+        specifier: workspace:*
+        version: link:../../business/tenancy
     devDependencies:
       '@inspiration/testkit':
         specifier: workspace:*

@@ -24,3 +24,4 @@ config/gateway.yaml
 
 # The product website build
 apps/site/dist/
+apps/web/dist/
