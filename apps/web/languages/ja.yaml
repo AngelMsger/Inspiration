@@ -365,6 +365,54 @@ spaces.gone: このスペースはあなたの管理対象ではないか、も�
 spaces.pick_owner: スペース責任者を一人以上選んでください。
 spaces.save: 保存
 spaces.create: 作成
+admin.billing: 使用状況と請求
+admin.usage: 使用状況
+usage.month: 月
+usage.loading: 今月の使用状況を集計しています…
+usage.lede: "{company} のモデル費用、回答の状況、受信トレイが人に求めた対応を、{zone} の日付で集計しています。ここにあるのは回数・時間・費用だけで、質問・回答・ドキュメントの中身は表示されません。"
+usage.cost: モデル費用
+usage.calls: "モデル呼び出し {count} 回（読み込み・回答・トピックページ）"
+usage.answers: 回答
+usage.from_apps: "うちアプリから {count} 件"
+usage.per_answer: "1 回答あたり約 {cost}"
+usage.time: 回答時間
+usage.time_hint: "中央値、検索を含む。9 割が {p90} 以内"
+usage.per_hundred: ドキュメント 100 件あたりの対応事項
+usage.todos_hint: "対応事項 {todos} 件：代わりに決めた {decided} 件、人に残した {left} 件、取り消し {undone} 件"
+usage.documents: ドキュメント
+usage.documents_hint: "{read} 件を最後まで読み込み済み"
+usage.documents_read: 読み込み済み
+usage.cost_by_day: 日ごとのモデル費用
+usage.answers_by_day: 日ごとの回答数
+usage.as_table: 表で見る
+usage.day: 日付
+usage.budgets: 予算
+usage.budgets_hint: 表示する月にかかわらず、現在の状態です。予算を使い切ると、その予算のモデル呼び出しは翌日または翌月まで止まります。
+usage.budget.extraction: ドキュメントの読み込み
+usage.budget.retrieval: 回答
+usage.budget.page_compiler: トピックページの作成
+usage.budget.pooled: 全企業の合計
+usage.period.day: "{what}（今日）"
+usage.period.month: "{what}（今月）"
+usage.period.total: "{what}（累計）"
+usage.budget.spent: "{spent} / {limit}"
+usage.budget.reached: 使い切り
+usage.budget.near: 残りわずか
+usage.by_member: メンバー別
+usage.member: メンバー
+usage.apps: アプリから
+usage.median: 時間の中央値
+usage.former_member: 退出したメンバー
+usage.idle: "今月の使用なし：{names}"
+usage.by_space: スペース別
+usage.space: スペース
+usage.removed_space: 削除されたスペース
+usage.read_of: "{read} / {documents}"
+usage.todos: 対応事項
+usage.decided: 代わりに決定
+usage.left: 人に残した
+usage.undone: 取り消し
+usage.footnote: "各行の合計は総数と一致しないことがあります。企業の費用には、どのメンバーやスペースにも計上されない保守の費用も含まれます。また、複数のスペースを読んだ回答は、それぞれのスペースで数えます。"
 access.title: 閲覧できる人
 access.lede: "ここにいる人は、このスペースの文書とナレッジを読めます。スペース責任者はいつでも読めます。責任者は {company} のスーパー管理者が決めます。"
 access.lede_admin: スーパー管理者は閲覧者を外せます。追加はスペース責任者が行います。

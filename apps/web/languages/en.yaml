@@ -365,6 +365,54 @@ spaces.gone: This space is not one you administer, or it no longer exists.
 spaces.pick_owner: Pick at least one space owner.
 spaces.save: Save
 spaces.create: Create space
+admin.billing: Usage and billing
+admin.usage: Usage
+usage.month: Month
+usage.loading: Counting the month…
+usage.lede: "What {company}'s models cost, how it answered and what its inbox asked of people, by day in {zone}. Only counts, times and cost: never a question, an answer or a document."
+usage.cost: Model cost
+usage.calls: "{count} model calls: reading, answers and topic pages"
+usage.answers: Answers
+usage.from_apps: "{count} from apps"
+usage.per_answer: "about {cost} an answer"
+usage.time: Answer time
+usage.time_hint: "The median, search included; 9 in 10 within {p90}"
+usage.per_hundred: Todos per 100 documents
+usage.todos_hint: "{todos} todos: {decided} decided for people, {left} left to them, {undone} undone"
+usage.documents: Documents
+usage.documents_hint: "{read} read to the end"
+usage.documents_read: Read to the end
+usage.cost_by_day: Model cost by day
+usage.answers_by_day: Answers by day
+usage.as_table: Show as a table
+usage.day: Day
+usage.budgets: Budgets
+usage.budgets_hint: As they stand now, whichever month is shown. A budget that is spent stops the model calls it holds until its next day or month.
+usage.budget.extraction: Reading documents
+usage.budget.retrieval: Answering
+usage.budget.page_compiler: Writing topic pages
+usage.budget.pooled: Every company together
+usage.period.day: "{what}, today"
+usage.period.month: "{what}, this month"
+usage.period.total: "{what}, in all"
+usage.budget.spent: "{spent} of {limit}"
+usage.budget.reached: Spent
+usage.budget.near: Nearly spent
+usage.by_member: By member
+usage.member: Member
+usage.apps: From apps
+usage.median: Median time
+usage.former_member: A former member
+usage.idle: "No usage this month: {names}"
+usage.by_space: By space
+usage.space: Space
+usage.removed_space: A removed space
+usage.read_of: "{read} of {documents}"
+usage.todos: Todos
+usage.decided: Decided
+usage.left: Left
+usage.undone: Undone
+usage.footnote: "Rows need not add up to the totals: the company's cost also counts upkeep charged to no member or space, and an answer that read several spaces counts in each."
 access.title: Who can read
 access.lede: "Everyone listed reads this space's documents and knowledge. Space owners always can; the super admin of {company} names them."
 access.lede_admin: As super admin you can take readers out of a space. Adding them is for its space owners.

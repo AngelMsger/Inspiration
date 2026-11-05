@@ -12,6 +12,7 @@
   --rule-strong: #c9c6bc;
   --link: #2e3f8f;
   --link-hover: #1f2c6b;
+  --chart: #5a68b3;
   --selected: #eef0f8;
   --holds: #2f6b3a;
   --holds-bg: #e3efe2;
@@ -1442,6 +1443,196 @@ a.secondary {
 
 .admin-action > .link-button {
   white-space: nowrap;
+}
+
+/* Usage: figures, then a column a day on one scale, the one under the pointer read out above. */
+.usage-month {
+  font: inherit;
+  background: var(--white);
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+
+.usage-charts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.usage-chart {
+  margin: 0;
+  min-width: 0;
+  background: var(--white);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.usage-chart figcaption {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.usage-readout {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.usage-readout b {
+  color: var(--ink);
+}
+
+.chart-plot {
+  position: relative;
+  padding-top: 18px;
+}
+
+.chart-top {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-columns {
+  height: 120px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  border-top: 1px dashed var(--rule);
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.chart-slot {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.chart-bar {
+  width: 100%;
+  max-width: 24px;
+  min-height: 2px;
+  background: var(--chart);
+  border-radius: 4px 4px 0 0;
+}
+
+.chart-bar-at {
+  background: var(--link);
+}
+
+.chart-days {
+  display: flex;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-days span {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.chart-table summary {
+  font-size: 13px;
+  color: var(--link);
+  cursor: pointer;
+}
+
+.chart-table table {
+  margin-top: 6px;
+}
+
+.usage-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.usage-section h2 {
+  margin: 8px 0 0;
+  font: 600 17px / 1.4 var(--serif);
+}
+
+.usage-section p {
+  margin: 0;
+}
+
+.usage-table {
+  overflow-x: auto;
+}
+
+.usage-table th,
+.usage-table td {
+  white-space: nowrap;
+}
+
+.usage-table .number {
+  text-align: right;
+}
+
+.budgets {
+  display: grid;
+  gap: 10px;
+  max-width: 560px;
+}
+
+.budget-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.budget-flag {
+  color: var(--outdated);
+}
+
+.budget-reached .budget-flag {
+  color: var(--disputed);
+}
+
+.meter {
+  height: 6px;
+  margin-top: 4px;
+  background: var(--rule);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  background: var(--link);
+  border-radius: 3px;
+}
+
+.budget-near .meter-fill {
+  background: var(--outdated);
+}
+
+.budget-reached .meter-fill {
+  background: var(--disputed);
+}
+
+.usage-note {
+  margin: 0;
+  max-width: 65ch;
+  font-size: 12.5px;
 }
 
 .two-step {

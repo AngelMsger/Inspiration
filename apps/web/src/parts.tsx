@@ -84,6 +84,17 @@ export function useChange(onChanged: () => void) {
   return { failure, busy, run };
 }
 
+/** One headline figure with its label, and what it is made of beneath it. */
+export function Metric(props: { label: string; value: number | string; children?: ReactNode }) {
+  return (
+    <div className="metric">
+      <div className="metric-label">{props.label}</div>
+      <div className="metric-value">{props.value}</div>
+      {props.children && <div className="metric-sub">{props.children}</div>}
+    </div>
+  );
+}
+
 /** A button that asks once more before it acts, since the page cannot open a dialog. */
 export function TwoStep(props: { label: string; confirm: string; disabled: boolean; onConfirm: () => void }) {
   const { say } = useWords();

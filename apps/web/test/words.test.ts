@@ -52,6 +52,7 @@ describe("language packs", () => {
       ...valuesOf("AnswerNoteKind").map((v) => `note.${v}`),
       ...valuesOf("TodoKind").map((v) => `todo.${v}`),
       ...valuesOf("DecisionVia").map((v) => `decided.via.${v}`),
+      ...valuesOf("BudgetPeriod").map((v) => `usage.period.${v}`),
     ];
     expect(named.length).toBeGreaterThan(15);
     expect(named.filter((k) => !(k in en))).toEqual([]);
