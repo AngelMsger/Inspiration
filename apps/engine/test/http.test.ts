@@ -13,6 +13,7 @@ import {
   type Citation,
   contractErrors,
   type Decided,
+  type DecidedWeek,
   type DocumentTree,
   type DocumentTreeNode,
   type DocumentView,
@@ -346,11 +347,19 @@ describe("engine HTTP API", () => {
       decided_by: ZHOU_MIN,
       todo: { id: budget?.todo.id, status: "done" },
     });
+    // Named as the inbox names its fact.
+    expect(budget?.fact_label).toBeDefined();
+    expect(decision?.fact_label).toBe(budget?.fact_label);
     // Written in the token's locale.
     expect(decision?.reason).toMatch(/\p{Script=Han}/u);
     const week = await call("/v0/inbox/decided", { member: ZHOU_MIN });
     expect(contractErrors("DecidedWeek", week.body)).toEqual([]);
-    expect(week.body).toMatchObject({ week: "2026-W45", left: 0, undone: 0, decisions: [{ id: decision?.id }] });
+    expect(week.body).toMatchObject({
+      week: "2026-W45",
+      left: 0,
+      undone: 0,
+      decisions: [{ id: decision?.id, fact_label: budget?.fact_label }],
+    });
 
     // What it is not sure of stays with the member, marked, with its suggestion.
     const hotel = (await call("/v0/inbox", { member: LI_NA })).body as unknown as Inbox;
@@ -468,6 +477,17 @@ describe("engine HTTP API", () => {
       expect(status).toBe(200);
       expect((body.spaces as { name: string }[]).map((s) => s.name)).toEqual(DATA.spaces);
       expect((await call("/v0/spaces", { on: dev })).status).toBe(401);
+      // The language the engine writes in, as a token's locale: the reasons of the decision
+      // the assistant made for the finance maintainer, read in English and in Chinese.
+      const reason = async (locale: string) => {
+        const as = { ...headers, "x-inspiration-member": ZHOU_MIN, "x-inspiration-locale": locale };
+        const week = (await call("/v0/inbox/decided", { headers: as, on: dev })).body as unknown as DecidedWeek;
+        return week.decisions[0]?.reason;
+      };
+      expect(await reason("en")).not.toMatch(/\p{Script=Han}/u);
+      expect(await reason("zh-CN")).toMatch(/\p{Script=Han}/u);
+      const bad = { ...headers, "x-inspiration-locale": "not a locale" };
+      expect((await call("/v0/spaces", { headers: bad, on: dev })).status).toBe(400);
     } finally {
       dev.close();
     }
