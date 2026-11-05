@@ -17,7 +17,7 @@ import {
   slotOf,
 } from "@inspiration/contracts";
 import type { Records } from "@inspiration/eventbus";
-import { languageOf } from "@inspiration/kernel";
+import { languageOf, logger } from "@inspiration/kernel";
 import { estimateTokens, type PromptRegistry } from "@inspiration/model-gateway";
 import {
   type Found,
@@ -29,6 +29,7 @@ import {
   standingOf,
 } from "./hits.ts";
 import { DOCUMENTS, documentOf, EDITIONS, type Edition, key } from "./indexing.ts";
+import { ANSWERS, type AnswerRecord, costOf, metering } from "./metering.ts";
 import {
   ANSWER_PROMPT_VERSION,
   ANSWER_SCHEMA,
@@ -36,6 +37,7 @@ import {
   type AnswerInput,
   type AnswerOutput,
   type AnswerSource,
+  COMPONENT,
   complete,
 } from "./protocol.ts";
 import { type Baseline, RERANK_POOL, type Search, STATEMENT_POOL } from "./search.ts";
@@ -45,6 +47,8 @@ import { fill, packFor } from "./text.ts";
 // of each document, with the values that hold; the model's answer from them, each sentence
 // citing them, and notes on disputed and replaced values. Retrieval's doc comment (index.ts)
 // describes the behaviour.
+
+const log = logger(COMPONENT);
 
 /** Passages an answer reads, and statements beside them. */
 export const ANSWER_SOURCES = 8;
@@ -276,9 +280,42 @@ export class Answers {
     return { filter, found };
   }
 
+  /**
+   * The answer, recorded with how long it took, what its model calls cost, the member it was
+   * for and the spaces it read (metering.ts). A record that cannot be written is logged and
+   * the answer still given.
+   */
   async answer(q: AnswerQuery, who: Principal): Promise<GroundedAnswer> {
     const query = parseAs<AnswerQuery>("AnswerQuery", q);
     this.totals.answers++;
+    const at = this.clock().toISOString();
+    const started = performance.now();
+    const { value, calls } = await metering(() => this.#answer(query, who));
+    const cost = costOf(calls);
+    const record: AnswerRecord = {
+      answer_id: value.answer.answer_id,
+      tenant_id: who.tenant_id,
+      member_id: (who.kind === "agent" && who.on_behalf_of) || who.id,
+      ...(who.kind === "agent" && { agent_id: who.id }),
+      at,
+      month: at.slice(0, 7),
+      ms: Math.round(performance.now() - started),
+      space_ids: [...new Set(value.read.flatMap((h) => (h.space_id ? [h.space_id] : [])))].sort(),
+      ...(cost && { cost }),
+      calls,
+      reads: this.readAll || this.baseline === "long_context" ? "everything" : { ...this.answerSources },
+      ...(this.baseline && { baseline: this.baseline }),
+    };
+    try {
+      await this.records.transaction((tx) => tx.put(ANSWERS, [record]));
+    } catch (e) {
+      log.warn("answer not recorded", { answer_id: record.answer_id, error: String(e) });
+    }
+    return value.answer;
+  }
+
+  /** The answer, and the sources it read. */
+  async #answer(query: AnswerQuery, who: Principal): Promise<{ answer: GroundedAnswer; read: SearchHit[] }> {
     const language = languageOf(query.question);
     const pack = packFor(language);
     const { hits, searched } = await this.sources(query, who);
@@ -303,7 +340,7 @@ export class Answers {
     });
     const now = this.clock().toISOString();
     if (!sources.length) {
-      return {
+      const answer: GroundedAnswer = {
         answer_id: newId("request"),
         answer: pack.text("nothing"),
         citations: [],
@@ -312,6 +349,7 @@ export class Answers {
         freshness: { state: "fresh", as_of: now },
         token_estimate: estimateTokens(pack.text("nothing")),
       };
+      return { answer, read: hits };
     }
     // The question is labelled internal, as anything a member writes; the sources as they are.
     const sensitivity = maxLabel("internal", ...hits.map((h) => searched.labels.get(h.unit_id) ?? "internal"));
@@ -381,7 +419,7 @@ export class Answers {
       (w, h) => (!w || SEVERITY.indexOf(h.freshness.state) > SEVERITY.indexOf(w.state) ? h.freshness : w),
       undefined,
     );
-    return {
+    const given: GroundedAnswer = {
       answer_id: newId("request"),
       answer,
       citations,
@@ -392,6 +430,7 @@ export class Answers {
       token_estimate: estimateTokens(answer) + citations.reduce((n, c) => n + estimateTokens(c.quote), 0),
       ...(notes.length && { notes }),
     };
+    return { answer: given, read: hits };
   }
 }
 

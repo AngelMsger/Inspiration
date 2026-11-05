@@ -27,6 +27,7 @@ import type { Records } from "@inspiration/eventbus";
 import { PromptRegistry } from "@inspiration/model-gateway";
 import { ANSWER_SOURCES, type AnswerSources, Answers, LONG_CONTEXT_TOKENS, MATURE_SOURCES } from "./answers.ts";
 import { DOCUMENTS, type IndexedDocument, Indexer } from "./indexing.ts";
+import { metered } from "./metering.ts";
 import { type Baseline, Search } from "./search.ts";
 
 export { SNIPPET_TOKENS } from "./hits.ts";
@@ -93,7 +94,7 @@ export class Retrieval implements Retriever {
   constructor(options: RetrievalOptions) {
     this.store = options.store;
     this.records = options.records;
-    this.models = options.models;
+    this.models = metered(options.models);
     this.authz = options.authz;
     this.vectors = options.vectors;
     this.keywords = options.keywords;
