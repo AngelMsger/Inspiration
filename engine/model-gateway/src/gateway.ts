@@ -21,6 +21,7 @@ import { createHash } from "node:crypto";
 import {
   allows,
   type BlobStore,
+  type BudgetStatus,
   type ChatMessage,
   type Completion,
   type CompletionRequest,
@@ -79,6 +80,8 @@ export interface GatewayOptions {
   providers?: Record<string, ModelProvider>;
   /** Budget periods start at midnight in this zone. */
   timeZone?: string;
+  /** Now, for usage records and budget periods; the system clock unless given. */
+  clock?: () => Date;
 }
 
 const ZERO: TokenUsage = { input_tokens: 0, output_tokens: 0, cached_input_tokens: 0 };
@@ -145,6 +148,7 @@ export class Gateway implements ModelGateway {
   readonly cache: ResponseCache | undefined;
   readonly blobs: BlobStore | undefined;
   readonly timeZone: string;
+  readonly clock: () => Date;
   readonly providers: Readonly<Record<string, ModelProvider>>;
   /** What the calls in flight hold against each budget, in the order they started. */
   readonly #held = new Map<string, { amount: number }[]>();
@@ -168,10 +172,37 @@ export class Gateway implements ModelGateway {
     else if (config.cache.backend === "valkey") throw new ConfigError("cache backend valkey needs a ValkeyCache");
     this.blobs = options.blobs;
     this.timeZone = options.timeZone ?? "Asia/Shanghai";
+    this.clock = options.clock ?? (() => new Date());
     const providers = options.providers ?? {};
     const missing = config.providers.find((p) => !providers[p.name]);
     if (missing) throw new ConfigError(`no instance for provider ${missing.name}; use Gateway.create`);
     this.providers = providers;
+  }
+
+  /**
+   * How every budget with a limit that the keys' calls count against stands now: once per key,
+   * or once for a pooled budget, whose spend is everyone's it pools.
+   */
+  async budgetStatus(budgetKeys: readonly string[]): Promise<BudgetStatus[]> {
+    const out = new Map<string, BudgetStatus>();
+    for (const key of budgetKeys) {
+      for (const budget of budgetsFor(this.config, key)) {
+        if (budget.limit === undefined) continue;
+        const budgetKey = budget.pooled ? budget.match : key;
+        const id = `${budget.match}\x1f${budgetKey}`;
+        if (out.has(id)) continue;
+        const since = periodStart(budget.period, this.clock(), this.timeZone);
+        const spent = await budgetSpent(this.usage, budget, key, since);
+        out.set(id, {
+          budget_key: budgetKey,
+          period: budget.period,
+          limit: budget.limit,
+          spent: Number(spent.toFixed(8)),
+          currency: this.config.currency,
+        });
+      }
+    }
+    return [...out.values()];
   }
 
   /** The provider instance, for tests (FakeProvider.script) and diagnostics. */
@@ -227,7 +258,7 @@ export class Gateway implements ModelGateway {
   async #checkBudget(budgetKey: string, budget: BudgetConfig, held: () => number): Promise<void> {
     if (budget.limit === undefined) return;
     const inFlight = held();
-    const since = periodStart(budget.period, new Date(), this.timeZone);
+    const since = periodStart(budget.period, this.clock(), this.timeZone);
     const spent = (await budgetSpent(this.usage, budget, budgetKey, since)) + inFlight;
     if (spent >= budget.limit) {
       const holding = inFlight ? `, ${inFlight.toFixed(4)} of it held by calls in flight,` : "";
@@ -268,7 +299,7 @@ export class Gateway implements ModelGateway {
     const latency = Math.round(performance.now() - base.started);
     const rec = {
       request_id: base.requestId,
-      at: new Date().toISOString(),
+      at: this.clock().toISOString(),
       tenant_id: base.req.tenant_id,
       member_id: base.req.member_id,
       space_id: base.req.space_id,

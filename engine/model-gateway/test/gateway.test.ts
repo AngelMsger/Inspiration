@@ -201,6 +201,57 @@ describe("budgets and cache", () => {
     // Together they spent the pooled month: b is refused below its own day budget, on any key.
     const pooled = await rejection(gateway.complete(completionRequest("again", { budget_key: "tenant:b/retrieval" })));
     expect([pooled.code, pooled.message]).toEqual(["budget_exceeded", expect.stringContaining("budget tenant:* ")]);
+    // How each budget stands, as a company's usage page shows it: its own day, the pooled month.
+    const keys = ["tenant:b/extraction", "tenant:b/retrieval"];
+    const status = await gateway.budgetStatus(keys);
+    expect(status.map((s) => [s.budget_key, s.period, s.limit])).toEqual([
+      ["tenant:b/extraction", "day", 0.0003],
+      ["tenant:*", "month", 0.0006],
+    ]);
+    expect(status[0]?.spent).toBeCloseTo(
+      usageOf(gateway).spentWhere((k) => k === keys[0], undefined),
+      8,
+    );
+    expect(status[1]?.spent).toBeCloseTo(
+      usageOf(gateway).spentWhere(() => true, undefined),
+      8,
+    );
+  });
+
+  test("sums a tenant's calls by day and by whom they are charged to, in the gateway's clock and zone", async () => {
+    let now = new Date("2026-11-30T15:30:00Z"); // 23:30 on the 30th in Shanghai
+    const gateway = makeGateway({ clock: () => now });
+    const member = {
+      budget_key: "tenant:ten_0000000A/retrieval",
+      tenant_id: "ten_0000000A",
+      member_id: "mem_01QINGHE0000LINA",
+    };
+    const space = {
+      budget_key: "tenant:ten_0000000A/extraction",
+      tenant_id: "ten_0000000A",
+      space_id: "spc_01QINGHE00FINANCE",
+    };
+    const a = await gateway.complete(completionRequest("one", member));
+    const b = await gateway.complete(completionRequest("two", member));
+    const c = await gateway.complete(completionRequest("three", space));
+    await gateway.complete(
+      completionRequest("elsewhere", { budget_key: "tenant:ten_0000000B/retrieval", tenant_id: "ten_0000000B" }),
+    );
+    now = new Date("2026-11-30T16:30:00Z"); // 00:30 on 1 December in Shanghai
+    const d = await gateway.complete(completionRequest("four", member));
+    expect(usageOf(gateway).records[0]?.at).toBe("2026-11-30T15:30:00.000Z");
+    const charges = (from: string, until: string) =>
+      gateway.usage.charges("ten_0000000A", new Date(from), new Date(until), gateway.timeZone);
+    const all = await charges("2026-11-01T00:00:00+08:00", "2026-12-02T00:00:00+08:00");
+    expect(all.map((x) => [x.date, x.member_id, x.space_id, x.calls])).toEqual([
+      ["2026-11-30", member.member_id, undefined, 2],
+      ["2026-11-30", undefined, space.space_id, 1],
+      ["2026-12-01", member.member_id, undefined, 1],
+    ]);
+    expect(all[0]?.cost).toBeCloseTo(a.cost.amount + b.cost.amount, 8);
+    expect(all[1]?.cost).toBeCloseTo(c.cost.amount, 8);
+    expect(all[2]?.cost).toBeCloseTo(d.cost.amount, 8);
+    expect(await charges("2026-11-01T00:00:00+08:00", "2026-12-01T00:00:00+08:00")).toHaveLength(2);
   });
 
   test("calls started together stop at the limit, as calls one after another would", async () => {
@@ -291,6 +342,7 @@ describe("budgets and cache", () => {
         },
         spent: async () => 0,
         spentMatching: async () => 0,
+        charges: async () => [],
       },
     });
     expect((await gateway.complete(completionRequest())).text).toBeTruthy();

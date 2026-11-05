@@ -52,6 +52,11 @@ export interface EngineOptions {
   resolvePrincipal?: PrincipalResolver;
   /** Defaults to the development gateway (config/gateway.dev.yaml): fake providers only. */
   models?: ModelGateway;
+  /**
+   * The gateway whose ledger and budgets the usage page reads (Models.ledger); the development
+   * gateway when models is not given. Without one, the engine keeps no usage to show.
+   */
+  ledger?: Gateway;
   /** Each tenant's predicate catalogue for extraction; the business layer will provide it. */
   vocabulary?: ExtractionOptions["vocabulary"];
   /** What governance and freshness take as now; simulated runs move it a day at a time. */
@@ -83,6 +88,10 @@ export class Engine {
   readonly records: Records;
   readonly blobs: BlobStore;
   readonly models: ModelGateway;
+  /** The gateway's ledger and budgets, for usage; absent when the engine was not given one. */
+  readonly ledger: Gateway | undefined;
+  /** What the engine takes as now. */
+  readonly clock: () => Date;
   readonly sync: SourceSync;
   readonly normalization: Normalization;
   readonly extraction: Extraction;
@@ -128,6 +137,7 @@ export class Engine {
     records: Records;
     blobs: BlobStore;
     models: ModelGateway;
+    ledger?: Gateway;
     transport: Transport;
     relay?: OutboxRelay;
     pool?: Pool;
@@ -142,6 +152,8 @@ export class Engine {
     this.records = parts.records;
     this.blobs = parts.blobs;
     this.models = parts.models;
+    this.ledger = parts.ledger;
+    this.clock = parts.clock ?? (() => new Date());
     this.transport = parts.transport;
     this.#relay = parts.relay;
     this.#pool = parts.pool;
@@ -213,10 +225,14 @@ export class Engine {
     const blobs = new LocalBlobStore(options.blobDir);
     const closers: (() => Promise<unknown>)[] = [];
     let models = options.models;
+    let ledger = options.ledger;
     if (!models) {
-      const gateway = await Gateway.create(loadGatewayConfig(join(workspaceRoot(), "config", "gateway.dev.yaml")));
+      const gateway = await Gateway.create(loadGatewayConfig(join(workspaceRoot(), "config", "gateway.dev.yaml")), {
+        ...(options.clock && { clock: options.clock }),
+      });
       closers.push(() => gateway.close());
       models = gateway;
+      ledger ??= gateway;
     }
     let transport: Transport;
     if (options.valkeyUrl) {
@@ -245,6 +261,7 @@ export class Engine {
         records: new PgRecords(pool),
         blobs,
         models,
+        ...(ledger && { ledger }),
         transport,
         relay: new OutboxRelay(options.databaseUrl, transport),
         pool,
@@ -257,6 +274,7 @@ export class Engine {
         records: new MemoryRecords({ publisher }),
         blobs,
         models,
+        ...(ledger && { ledger }),
         transport,
         ...resolve,
       });

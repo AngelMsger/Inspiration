@@ -104,6 +104,11 @@
       "SpaceOverview",
       "SpaceChange",
       "SyncReport",
+      "Usage",
+      "UsageRow",
+      "MemberUsage",
+      "SpaceUsage",
+      "UsageDay",
       "ApiErrorCode",
       "ApiError"
     ],
@@ -5620,6 +5625,24 @@
         "left"
       ]
     },
+    "MemberUsage": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/UsageRow"
+        },
+        {
+          "type": "object",
+          "required": [
+            "member_id"
+          ],
+          "properties": {
+            "member_id": {
+              "$ref": "#/$defs/MemberId"
+            }
+          }
+        }
+      ]
+    },
     "MemberWritten": {
       "description": "The answer to PUT /v0/tenants/{tenant}/members/{member}.",
       "type": "object",
@@ -8778,6 +8801,24 @@
         "owner"
       ]
     },
+    "SpaceUsage": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/UsageRow"
+        },
+        {
+          "type": "object",
+          "required": [
+            "space_id"
+          ],
+          "properties": {
+            "space_id": {
+              "$ref": "#/$defs/SpaceId"
+            }
+          }
+        }
+      ]
+    },
     "SpaceWritten": {
       "description": "The answer to creating a space, naming its owners or renaming it, with a consistency_token when the engine's graph keeps one (see tenancy.yaml).\n",
       "type": "object",
@@ -10020,6 +10061,88 @@
         }
       }
     },
+    "Usage": {
+      "description": "The answer to GET /v0/usage, for the super admin only: one month of a company's usage, in the days of the time zone its budgets count in. What its model calls cost against the budgets, the answers it gave and how long they took, how much the inbox asked of people and how much the assistant decided for them, in total, by member, by space and by day. Never content: no question, answer, document or topic, only counts, times and cost.\n",
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "month",
+        "time_zone",
+        "budgets",
+        "totals",
+        "by_member",
+        "by_space",
+        "days"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        },
+        "month": {
+          "description": "The month, as \"2026-11\"; the current one unless asked for another.",
+          "type": "string",
+          "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
+        },
+        "time_zone": {
+          "description": "The IANA time zone the month and its days are counted in.",
+          "type": "string"
+        },
+        "budgets": {
+          "description": "Every budget the company's model calls count against, as it stands now whichever month is asked for. A pooled budget's spend is everyone's it pools: the budget key is then its pattern, such as \"*\".\n",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BudgetStatus"
+          }
+        },
+        "totals": {
+          "description": "The whole company. Its cost counts every model call, the upkeep charged to no member or space too, and its documents are every space's.\n",
+          "$ref": "#/$defs/UsageRow"
+        },
+        "by_member": {
+          "description": "Every member with any usage in the month, by member ID; the business layer has their names. An agent's answers count for the member it acts for.\n",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MemberUsage"
+          }
+        },
+        "by_space": {
+          "description": "Every space of the company, by space ID, those with no usage too.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpaceUsage"
+          }
+        },
+        "days": {
+          "description": "Every day of the month, up to today in the current month.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/UsageDay"
+          }
+        }
+      }
+    },
+    "UsageDay": {
+      "type": "object",
+      "required": [
+        "date",
+        "cost",
+        "answers"
+      ],
+      "properties": {
+        "date": {
+          "type": "string",
+          "format": "date"
+        },
+        "cost": {
+          "description": "What every model call of the company cost that day.",
+          "$ref": "#/$defs/Money"
+        },
+        "answers": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
     "UsageRecord": {
       "description": "One metered call, written for every request including failures. Feeds the cost dashboard.",
       "type": "object",
@@ -10088,6 +10211,81 @@
         },
         "error": {
           "type": "string"
+        }
+      }
+    },
+    "UsageRow": {
+      "description": "Usage in one month. On a member's row it is what the member asked for and what was asked of them; on a space's row what the space's documents cost to read and were read for, and what was asked about them.\n",
+      "type": "object",
+      "required": [
+        "cost",
+        "calls",
+        "answers",
+        "agent_answers",
+        "todos",
+        "decided",
+        "left",
+        "undone"
+      ],
+      "properties": {
+        "cost": {
+          "description": "What the model calls charged here cost: a member's questions and their agents', a space's reading and indexing.\n",
+          "$ref": "#/$defs/Money"
+        },
+        "calls": {
+          "description": "The model calls charged here, failures too.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "answers": {
+          "description": "Answers given: on a member's row the answers they asked for, on a space's row the answers that read its documents, so one answer can count in several spaces.\n",
+          "type": "integer",
+          "minimum": 0
+        },
+        "agent_answers": {
+          "description": "Of the answers, those an agent asked for.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "answer_ms_p50": {
+          "description": "The median time from a question to its answer, search included; absent without answers.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "answer_ms_p90": {
+          "description": "The 90th percentile of that time; absent without answers.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "todos": {
+          "description": "Todos raised in the month: on a member's row those assigned to them, on a space's row those about it.\n",
+          "type": "integer",
+          "minimum": 0
+        },
+        "decided": {
+          "description": "Todos the assistant decided in the month (Decide for me), in members' names.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "left": {
+          "description": "Todos the assistant looked at in the month and left to a person, as they stand now.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "undone": {
+          "description": "Of the month's decisions, those a person undid.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "documents": {
+          "description": "Documents now, at their latest versions; on the totals and on a space's row only. Todos per 100 documents is todos / documents * 100.\n",
+          "type": "integer",
+          "minimum": 0
+        },
+        "documents_read": {
+          "description": "Of the documents, those the engine has read to the end; with documents only.",
+          "type": "integer",
+          "minimum": 0
         }
       }
     },

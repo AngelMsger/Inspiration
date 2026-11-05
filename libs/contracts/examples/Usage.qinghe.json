@@ -1,0 +1,73 @@
+{
+  "tenant_id": "ten_01QINGHE000000000000000001",
+  "month": "2026-11",
+  "time_zone": "Asia/Shanghai",
+  "budgets": [
+    {
+      "budget_key": "tenant:ten_01QINGHE000000000000000001/extraction",
+      "period": "day",
+      "limit": 3,
+      "spent": 0.41,
+      "currency": "CNY"
+    },
+    {
+      "budget_key": "tenant:ten_01QINGHE000000000000000001/retrieval",
+      "period": "day",
+      "limit": 2,
+      "spent": 0.12,
+      "currency": "CNY"
+    },
+    { "budget_key": "*", "period": "month", "limit": 100, "spent": 18.6, "currency": "CNY" }
+  ],
+  "totals": {
+    "cost": { "amount": 12.84, "currency": "CNY" },
+    "calls": 3120,
+    "answers": 214,
+    "agent_answers": 31,
+    "answer_ms_p50": 4300,
+    "answer_ms_p90": 7900,
+    "todos": 46,
+    "decided": 29,
+    "left": 9,
+    "undone": 2,
+    "documents": 380,
+    "documents_read": 371
+  },
+  "by_member": [
+    {
+      "member_id": "mem_01QINGHE00000000000000LINA",
+      "cost": { "amount": 0.92, "currency": "CNY" },
+      "calls": 402,
+      "answers": 88,
+      "agent_answers": 31,
+      "answer_ms_p50": 4100,
+      "answer_ms_p90": 7600,
+      "todos": 12,
+      "decided": 9,
+      "left": 2,
+      "undone": 1
+    }
+  ],
+  "by_space": [
+    {
+      "space_id": "spc_01QINGHE0000000000FINANCE",
+      "cost": { "amount": 7.35, "currency": "CNY" },
+      "calls": 1650,
+      "answers": 120,
+      "agent_answers": 18,
+      "answer_ms_p50": 4400,
+      "answer_ms_p90": 8100,
+      "todos": 21,
+      "decided": 14,
+      "left": 4,
+      "undone": 1,
+      "documents": 142,
+      "documents_read": 139
+    }
+  ],
+  "days": [
+    { "date": "2026-11-01", "cost": { "amount": 6.1, "currency": "CNY" }, "answers": 40 },
+    { "date": "2026-11-02", "cost": { "amount": 3.9, "currency": "CNY" }, "answers": 96 },
+    { "date": "2026-11-03", "cost": { "amount": 2.84, "currency": "CNY" }, "answers": 78 }
+  ]
+}

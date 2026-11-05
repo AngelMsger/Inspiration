@@ -172,7 +172,7 @@ components:
     layer: control
     status: built
     runtime: node
-    owns: Provider routing by sensitivity, budgets, prompt registry, response cache, cost metering; the HTTP service other runtimes call. Planned are web_search, an eval harness
+    owns: Provider routing by sensitivity, budgets, prompt registry, response cache, cost metering, each call charged to the member who asked or the space it reads, summed by day for usage, and how the budgets stand; the HTTP service other runtimes call. Planned are web_search, an eval harness, a member's own cap
     plugins: [migrations, model_providers]
     publishes: []
     subscribes: []
@@ -274,7 +274,7 @@ business:
 # it lists that app under `uses`.
 apps:
   engine:
-    owns: The engine process; corpus manifests and topic owners, standing in for the business layer's provisioning, which they send through access control's directory; its HTTP API, version 0 (pnpm engine serve), with the routes for provisioning tenants and members, for administering spaces and for uploading files, whose reading runs in the background
+    owns: The engine process; corpus manifests and topic owners, standing in for the business layer's provisioning, which they send through access control's directory; its HTTP API, version 0 (pnpm engine serve), with the routes for provisioning tenants and members, for administering spaces and for uploading files, whose reading runs in the background, the agent API's MCP endpoint, and the super admin's month of usage (GET /v0/usage), counts, times and cost only
   business:
     owns: The business backend, the browser's only server (pnpm business serve); the browser API for sign-in, companies, members and invite links over accounts and tenancy; the sample company, read only; Apps with access and the MCP address, passing an MCP client's calls on as an agent acting for the member; principal tokens and their JWKS; the engine's provisioning and its /v0 API passed on as the member; the built web app
   web:

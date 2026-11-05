@@ -440,6 +440,9 @@ export type KnowledgeModelKind = "formula" | "decision_table" | "kpi";
 export type SopStatus = "draft" | "in_review" | "verified" | "published" | "retired";
 export type LineageRelation =
   "cites" | "derived_from" | "supersedes" | "depends_on" | "mentions" | "contains";
+export type MemberUsage = UsageRow & {
+  member_id: MemberId;
+};
 /**
  * replace = show content instead of the generated block; hide = hide the block; insert_after = add content after the anchored block; pin = freeze the generated block as it is now.
  *
@@ -515,6 +518,9 @@ export type SpaceEntry = Space & {
   owner_ids: SpaceOwnerIds;
   role?: SpaceRole;
   grants?: number;
+};
+export type SpaceUsage = UsageRow & {
+  space_id: SpaceId;
 };
 /**
  * read = no side effects; propose = creates a proposal or a todo that a person accepts in collaboration.
@@ -2583,6 +2589,60 @@ export interface Me {
   locale?: Locale;
 }
 /**
+ * Usage in one month. On a member's row it is what the member asked for and what was asked of them; on a space's row what the space's documents cost to read and were read for, and what was asked about them.
+ *
+ */
+export interface UsageRow {
+  cost: Money;
+  /**
+   * The model calls charged here, failures too.
+   */
+  calls: number;
+  /**
+   * Answers given: on a member's row the answers they asked for, on a space's row the answers that read its documents, so one answer can count in several spaces.
+   *
+   */
+  answers: number;
+  /**
+   * Of the answers, those an agent asked for.
+   */
+  agent_answers: number;
+  /**
+   * The median time from a question to its answer, search included; absent without answers.
+   */
+  answer_ms_p50?: number;
+  /**
+   * The 90th percentile of that time; absent without answers.
+   */
+  answer_ms_p90?: number;
+  /**
+   * Todos raised in the month: on a member's row those assigned to them, on a space's row those about it.
+   *
+   */
+  todos: number;
+  /**
+   * Todos the assistant decided in the month (Decide for me), in members' names.
+   */
+  decided: number;
+  /**
+   * Todos the assistant looked at in the month and left to a person, as they stand now.
+   */
+  left: number;
+  /**
+   * Of the month's decisions, those a person undid.
+   */
+  undone: number;
+  /**
+   * Documents now, at their latest versions; on the totals and on a space's row only. Todos per 100 documents is todos / documents * 100.
+   *
+   */
+  documents?: number;
+  /**
+   * Of the documents, those the engine has read to the end; with documents only.
+   */
+  documents_read?: number;
+}
+/**
  * The answer to PUT /v0/tenants/{tenant}/members/{member}.
  */
 export interface MemberWritten {
@@ -3536,6 +3596,45 @@ export interface UnitPublished {
    * True when the publish widened who can see the unit.
    */
   widened: boolean;
+}
+/**
+ * The answer to GET /v0/usage, for the super admin only: one month of a company's usage, in the days of the time zone its budgets count in. What its model calls cost against the budgets, the answers it gave and how long they took, how much the inbox asked of people and how much the assistant decided for them, in total, by member, by space and by day. Never content: no question, answer, document or topic, only counts, times and cost.
+ *
+ */
+export interface Usage {
+  tenant_id: TenantId;
+  /**
+   * The month, as "2026-11"; the current one unless asked for another.
+   */
+  month: string;
+  /**
+   * The IANA time zone the month and its days are counted in.
+   */
+  time_zone: string;
+  /**
+   * Every budget the company's model calls count against, as it stands now whichever month is asked for. A pooled budget's spend is everyone's it pools: the budget key is then its pattern, such as "*".
+   *
+   */
+  budgets: BudgetStatus[];
+  totals: UsageRow;
+  /**
+   * Every member with any usage in the month, by member ID; the business layer has their names. An agent's answers count for the member it acts for.
+   *
+   */
+  by_member: MemberUsage[];
+  /**
+   * Every space of the company, by space ID, those with no usage too.
+   */
+  by_space: SpaceUsage[];
+  /**
+   * Every day of the month, up to today in the current month.
+   */
+  days: UsageDay[];
+}
+export interface UsageDay {
+  date: string;
+  cost: Money;
+  answers: number;
 }
 /**
  * One metered call, written for every request including failures. Feeds the cost dashboard.

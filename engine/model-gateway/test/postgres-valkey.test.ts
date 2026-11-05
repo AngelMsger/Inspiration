@@ -35,6 +35,22 @@ describe.skipIf(!hasStack())("gateway on the stack", () => {
       expect(await usage.spent("tenant:other", undefined)).toBe(0);
       expect(await usage.spentMatching("tenant:*", undefined)).toBeCloseTo(first.cost.amount, 8);
       expect(await usage.spentMatching("tenant:other*", undefined)).toBe(0);
+      // By day and by whom the calls are charged to: only rows of the tenant asked for.
+      const day = new Date();
+      const from = new Date(day.getTime() - 86_400_000);
+      const until = new Date(day.getTime() + 86_400_000);
+      expect(await usage.charges("ten_0000000X", from, until, "UTC")).toEqual([]);
+      await gateway.complete(
+        completionRequest("charged", {
+          budget_key: "tenant:ten_0000000X/retrieval",
+          tenant_id: "ten_0000000X",
+          member_id: member,
+        }),
+      );
+      const charged = await usage.charges("ten_0000000X", from, until, "UTC");
+      expect(charged).toEqual([
+        { date: day.toISOString().slice(0, 10), member_id: member, cost: expect.any(Number), calls: 1 },
+      ]);
     } finally {
       await pool.end();
     }
