@@ -14,7 +14,8 @@
  * - It lasts 1 to TOKEN_DAYS days. Its secret starts with SECRET_PREFIX and is shown once;
  *   only its SHA-256 hash is kept.
  * - A member revokes their own tokens, a super admin anyone's in the company; revoking takes
- *   effect on the next call. revokeAll() ends a member's tokens when they leave.
+ *   effect on the next call. A token already revoked or expired is gone, so revoking it again
+ *   raises RangeError. revokeAll() ends a member's tokens when they leave.
  * - A token's last use is kept to the minute.
  *
  * Planned are the OAuth authorization server for MCP clients (PKCE, client registration),

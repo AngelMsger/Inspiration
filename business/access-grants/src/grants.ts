@@ -67,14 +67,15 @@ export class AccessGrants {
 
   /**
    * Revoke a token at once: the member's own, or any of the company's for a super admin. One
-   * the actor may not see raises RangeError, as an unknown one does; revoking twice changes nothing.
+   * the actor may not see raises RangeError, as an unknown one does. So does one that has
+   * already stopped working: the list no longer shows it, so to the caller it is gone.
    */
   async revoke(actor: Holder, id: string): Promise<void> {
     const grant = await this.store.get(actor.tenant_id, id);
-    if (!grant || (grant.member_id !== actor.id && actor.role !== "super_admin")) {
+    if (!grant || !this.#works(grant) || (grant.member_id !== actor.id && actor.role !== "super_admin")) {
       throw new RangeError(`no token ${id}`);
     }
-    if (!grant.revoked_at) await this.store.put({ ...grant, revoked_at: this.#now().toISOString() });
+    await this.store.put({ ...grant, revoked_at: this.#now().toISOString() });
   }
 
   /** Revoke every token of a member, as when they leave the company. */

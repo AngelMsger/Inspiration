@@ -51,6 +51,7 @@ test("makes, lists and revokes a member's tokens, the secret shown once", async 
 
   expect((await zhou.call("DELETE", `/api/tokens/${created.body.token.id}`)).status).toBe(204);
   expect((await zhou.call<AccessTokenList>("GET", "/api/tokens")).body.tokens).toEqual([]);
+  expect((await zhou.call("DELETE", `/api/tokens/${created.body.token.id}`)).status).toBe(404);
 });
 
 test("refuses a space the member cannot read, over 90 days, and the sample company", async () => {

@@ -55,8 +55,8 @@ describe.each(BACKENDS)("access grants on $backend", ({ backend, skip }) => {
     const lis = await grants.create(LI, { name: "Li's", spaces: "all", days: 30 });
     await expect(grants.revoke(LI, zhangs.grant.id)).rejects.toThrow(RangeError);
     await grants.revoke(ZHANG, zhangs.grant.id);
-    await grants.revoke(ZHANG, zhangs.grant.id);
     expect(await grants.check(zhangs.secret)).toBeUndefined();
+    await expect(grants.revoke(ZHANG, zhangs.grant.id)).rejects.toThrow(RangeError);
     await grants.revoke(ZHOU, lis.grant.id);
     expect(await grants.check(lis.secret)).toBeUndefined();
     await expect(grants.revoke(ZHOU, "tok_01UNKNOWN0000")).rejects.toThrow(RangeError);
