@@ -64,6 +64,9 @@ export interface EngineOptions {
   compactSources?: AnswerSources;
 }
 
+/** How often a long-running engine reads on where reading stopped (Engine.resumeReading). */
+export const RESUME_EVERY_MS = 15 * 60_000;
+
 /** A component as the engine runs it: event handlers by type, under the component's consumer group. */
 interface Running {
   readonly group: string;
@@ -267,6 +270,18 @@ export class Engine {
     const rechecked = await this.governance.recheck(tenantId);
     await this.settle();
     return { reviews, rechecked };
+  }
+
+  /**
+   * Read on the documents whose reading stopped at a spent budget or a model out of reach,
+   * then deliver what that read in the background. A long-running engine calls it every
+   * RESUME_EVERY_MS; a company whose budget is still spent costs one refused call. Returns
+   * how many documents were read to the end.
+   */
+  async resumeReading(): Promise<number> {
+    const done = await this.extraction.resume();
+    if (done) this.settleLater();
+    return done;
   }
 
   /** Subscribe an extra handler, for reports and tests that watch the events go by. */

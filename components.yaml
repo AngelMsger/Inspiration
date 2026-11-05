@@ -73,7 +73,7 @@ components:
     layer: compile
     status: built
     runtime: node
-    owns: Claims with verbatim evidence, fact-slot keys, reading by governance level and extract on use; facts a version stops stating, kept and marked, with a todo for their owner. Planned are entity resolution, SOPs from documents and approval mining, knowledge models, the artifact.dirty and comment.created subscriptions
+    owns: Claims with verbatim evidence, fact-slot keys, reading by governance level and extract on use; facts a version stops stating, kept and marked, with a todo for their owner; how far each document's reading has come, paused at a spent budget or a model out of reach and resumed. Planned are entity resolution, SOPs from documents and approval mining, knowledge models, the artifact.dirty and comment.created subscriptions
     plugins: [migrations, model_mocks]
     publishes: [claims.updated, todo.requested]
     subscribes: [blocks.changed, artifact.dirty, comment.created]

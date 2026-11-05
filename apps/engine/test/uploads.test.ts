@@ -1,6 +1,7 @@
 // Uploading files into a space over HTTP, on an engine the tenancy service provisions: an
-// editor puts a file, it is in the Documents tree at once and read in the background, and
-// the route refuses who may not upload and what the engine does not take.
+// editor puts a file, it is in the Documents tree at once and read in the background, with
+// how far reading has come, and the route refuses who may not upload and what the engine
+// does not take.
 
 import { mkdtemp, rm } from "node:fs/promises";
 import { request, type Server } from "node:http";
@@ -9,7 +10,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TokenVerifier } from "@inspiration/access-control";
 import { devIssuer } from "@inspiration/access-control/testing";
-import { contractErrors, type DocumentTree, type DocumentView, type FileWritten } from "@inspiration/contracts";
+import {
+  contractErrors,
+  type DocumentEntry,
+  type DocumentTree,
+  type DocumentTreeNode,
+  type DocumentView,
+  type FileWritten,
+} from "@inspiration/contracts";
+import type { BudgetConfig, Gateway } from "@inspiration/model-gateway";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { Engine, serveApi } from "../src/index.ts";
 import { MAX_FILE_BYTES } from "../src/uploads.ts";
@@ -52,6 +61,15 @@ async function call(path: string, options: Call = {}) {
 }
 
 const filePath = (path: string) => `/v0/spaces/${space}/files/${path.split("/").map(encodeURIComponent).join("/")}`;
+const treeOf = async () => (await call(`/v0/spaces/${space}/documents`, { as: CHEN })).body as unknown as DocumentTree;
+/** The tree's entry for the document of that title. */
+function entryIn(tree: DocumentTree, title: string): DocumentEntry | undefined {
+  const walk = (n: DocumentTreeNode): DocumentEntry[] => [
+    ...(n.document?.title === title ? [n.document] : []),
+    ...(n.children ?? []).flatMap(walk),
+  ];
+  return tree.sources.flatMap(walk)[0];
+}
 const errorOf = (r: { status: number; body: Record<string, unknown> }) => [
   r.status,
   (r.body.error as { code: string } | undefined)?.code,
@@ -110,10 +128,13 @@ describe("uploads", () => {
         mime_type: "text/markdown",
         governance_level: "reference",
         modified_at: "2026-11-04T09:12:00.000Z",
+        reading: { state: "waiting" },
       },
     });
 
-    const tree = (await call(`/v0/spaces/${space}/documents`, { as: CHEN })).body as unknown as DocumentTree;
+    const tree = await treeOf();
+    expect(contractErrors("DocumentTree", tree)).toEqual([]);
+    expect(tree.reading).toEqual({ waiting: 1, reading: 0, read: 0, paused: 0, failed: 0 });
     expect(tree.sources).toMatchObject([
       { kind: "source", name: "Uploads", source_type: "upload", source_id: written.document.source_id },
     ]);
@@ -124,11 +145,51 @@ describe("uploads", () => {
     const view = (await call(`/v0/documents?${item}`, { as: CHEN })).body as unknown as DocumentView;
     expect(view.path).toEqual(["policies", "travel"]);
     expect(view.blocks.map((b) => b.text).join(" ")).toContain("600 a night");
+    // Read: the entry says nothing more.
+    expect(view.document.reading).toBeUndefined();
+    expect((await treeOf()).reading).toEqual({ waiting: 0, reading: 0, read: 1, paused: 0, failed: 0 });
+  });
+
+  test("a file that cannot be read says why", async () => {
+    // Unreadable whether or not a parsing worker runs: without one, it is out of reach.
+    await call(filePath("scans/Scan.pdf"), { bytes: "%PDF-1.4 not a PDF after all" });
+    await engine.settle();
+    const tree = await treeOf();
+    expect(entryIn(tree, "Scan")?.reading).toMatchObject({ state: "failed", note: expect.any(String) });
+    expect(tree.reading?.failed).toBe(1);
+  });
+
+  test("reading a governed file pauses at a spent budget, and reads on once the budget renews", async () => {
+    const area = await engine.sync.uploadArea(TENANT, space);
+    await engine.sync.addSource({ ...area, governance_level: "governed" });
+    const budgets = (engine.models as Gateway).config.budgets;
+    const spent: BudgetConfig = { match: "tenant:*/extraction", period: "day", limit: 0 };
+    budgets.unshift(spent);
+    try {
+      await call(filePath("policies/Meals.md"), { bytes: "# Meals\n\nMeals cost at most 100 a day." });
+      await engine.settle();
+      const paused = await treeOf();
+      expect(entryIn(paused, "Meals")?.reading).toMatchObject({
+        state: "paused",
+        note: expect.stringContaining("budget"),
+      });
+      expect(paused.reading?.paused).toBe(1);
+      expect(await engine.resumeReading()).toBe(0);
+    } finally {
+      budgets.splice(budgets.indexOf(spent), 1);
+      await engine.sync.addSource(area);
+    }
+    expect(await engine.resumeReading()).toBe(1);
+    await engine.settle();
+    const read = await treeOf();
+    expect(entryIn(read, "Meals")?.reading).toBeUndefined();
+    expect(read.reading?.paused).toBe(0);
   });
 
   test("the same bytes change nothing; other bytes make a new version", async () => {
     const again = await call(filePath(TRAVEL), { bytes: "# Travel policy\n\nHotels cost at most 600 a night." });
     expect(again.body).toMatchObject({ changed: false });
+    expect((again.body as unknown as FileWritten).document.reading).toBeUndefined();
     const next = await call(filePath(TRAVEL), { bytes: "# Travel policy\n\nHotels cost at most 650 a night." });
     expect(next.body).toMatchObject({ changed: true });
     const version = (next.body as unknown as FileWritten).document.source_version_id;

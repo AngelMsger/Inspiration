@@ -7,8 +7,12 @@ measurement harness and the demo. What the product is and where it is going is i
 
 ## Set up and check
 
-You need Node 22.18 or later, pnpm 10 (`corepack enable`), Python 3.10 or later, and Docker
-with Compose.
+You need Node 22.18 or later (Node 24 works too), pnpm, Python 3.10 or later, and Docker with
+Compose. `package.json` pins pnpm 10.28.0 in `packageManager`, which corepack (`corepack enable`)
+and any pnpm from 10 on follow, and pins Node 22 and pnpm 10.28.0 for Volta. That pin matters:
+Volta starts pnpm through `bin/pnpm.cjs`, which pnpm 11 and later no longer ship, so a Volta pnpm
+of 11 or later fails with `Cannot find module …/bin/pnpm.cjs` outside this repository, and works
+inside it.
 
 ```bash
 make install       # pnpm dependencies, and the parsing worker's Python libraries in .venv
@@ -116,6 +120,13 @@ curl -s localhost:8100/healthz
 `pnpm site` writes the product website (`apps/site`) to `apps/site/dist`, one static page per
 language; `pnpm site --serve` serves it and rebuilds on every request. The `Site` workflow
 publishes it to GitHub Pages from `main`.
+
+## Redraw the diagrams
+
+The architecture diagrams in `docs/assets/` are drawn by `components.html` and `deployment.html`
+beside them, one file per figure with its words in English, Chinese and Japanese. Open one in a
+browser with `?lang=en`, `zh` or `ja`, and screenshot the `#fig` element at twice its size into
+`<figure>.<lang>.png`. When a component is built, take the `planned` flag off it there and redraw.
 
 ## Where things live
 

@@ -37,7 +37,7 @@
 <img src="docs/assets/problem.en.png" alt="An answer card: 650 yuan a night from 1 October, per the notice of 28 September, confirmed by Li Na, who maintains travel rules. Below it, the five documents: three that still say 600 are marked outdated, none deleted." width="88%">
 </div>
 
-**Inspiration settles which value holds before anyone asks.** It answers 650, cites the notice, marks the three older documents outdated without deleting them, and asks the person who maintains travel rules only when the sources truly disagree. This is where models need the help: independent research finds that retrieval fails when the input holds rival values for the asked fact, not when it is long ([Liu, 2026](https://arxiv.org/abs/2611.04169v1)).
+**Inspiration settles which value holds before anyone asks.** It answers 650, cites the notice, marks the three older documents outdated without deleting them, and asks the person who maintains travel rules only when the sources truly disagree. This is where models need the help: what trips them is input that holds rival values for the asked fact, more than input that is long ([research supports this](https://arxiv.org/abs/2611.04169v1)).
 
 | | Search and RAG today | Inspiration |
 | --- | --- | --- |
@@ -107,7 +107,7 @@ Agents reach the same governed knowledge through MCP and REST, acting as the mem
 </tr>
 </table>
 
-When a rule changes, the answer changes with it. A new notice arrives in Feishu: two passages are read, one fact changes, every answer and page that cites it now says 650, and the topic's owner confirms the suggested change with one press.
+When a rule changes, the answer changes with it. A new notice is posted in Confluence: two passages are read, one fact changes, every answer and page that cites it now says 650, and the topic's owner confirms the suggested change with one press.
 
 <div align="center">
 <img src="docs/assets/how.en.png" alt="An inbox card for Li Na, topic owner for travel: the tier-1 hotel cap is now 650, with the suggestion confirmed. Beside it, the answer now says managers and below can claim up to 650 yuan a night, citing the notice; article 7 of the policy, which still says 600, is marked outdated." width="72%">
@@ -143,27 +143,13 @@ The method, every run and its cost are in [Validating the knowledge core](docs/d
 
 **Two layers in one repository.** The **engine** is a system of record for knowledge with no screens: given a tenant and a principal, it answers what is known, where it comes from, who may see it and whether it is still true. The **business layer** is the product around it: accounts, companies, invitations, notifications and the web app. Calls go down, events come up, and the engine never depends on the business layer; a test fails any change that tries.
 
-```mermaid
-flowchart TB
-  people["<b>People</b> · web app in English, Chinese, Japanese"]
-  agents["<b>Agents</b> · MCP clients, company agents"]
-  biz["<b>Business layer</b> · accounts on Logto · companies and members · spaces · notifications"]
-  subgraph engine["Engine"]
-    direction LR
-    ingest["<b>Ingest</b><br/>connectors<br/>source-sync<br/>normalization<br/>parsing ◌"] --> compile["<b>Compile</b><br/>extraction<br/>governance<br/>freshness<br/>page-compiler"] --> store[("<b>Store</b><br/>knowledge-store<br/>PostgreSQL")] --> serve["<b>Serve</b><br/>retrieval<br/>agent-api ◌<br/>views ◌"]
-  end
-  control["<b>Control, for every stage</b><br/>access-control on SpiceDB · model-gateway<br/>agent-runtime · inbox · event bus"]
-  src["<b>Sources</b> · Feishu and Lark · uploads · code · research"]
-  people --> biz
-  biz -- "commands with a signed principal ↓ · events ↑" --> engine
-  agents -- "member's token" --> engine
-  src --> engine
-  engine --- control
-```
+<div align="center">
+<img src="docs/assets/components.en.png" alt="Component diagram, in rows from sources to use: research and outside sources; source-sync, connectors and parsing; normalization and extraction; freshness and governance; page-compiler and collaboration; retrieval, agent-api and views; the web app with the business backend, people and outside agents. Events such as blocks.changed, claims.updated, artifact.dirty and page.rendered connect them. A platform column holds contracts, the event bus, the knowledge store, access control, the model gateway, the agent runtime, the credential broker and the sandbox. Planned: research, agent-api, views, credential-broker and sandbox." width="100%">
+</div>
 
-<sub>◌ planned. The full map, with an outside equivalent for every component and what we reuse, is Figure 10 of the [overview](docs/overview.md#9-architecture-at-a-glance).</sub>
+<sub>Every component by stage, with the events (solid) and calls (dashed) between them; the platform services on the right serve all of them. Dashed boxes are planned. Figure 10 of the [overview](docs/overview.md#9-architecture-at-a-glance) gives each component an outside equivalent and says what we reuse.</sub>
 
-- **Small components with one job each.** 13 of the engine's 19 components are built and tested, and the business layer's first two. [`components.yaml`](components.yaml) gives each one's ownership, the events it publishes and consumes, and the calls it may make; a test holds every package to it.
+- **Small components with one job each.** 14 of the engine's 19 components are built and tested, and the business layer's first two. [`components.yaml`](components.yaml) gives each one's ownership, the events it publishes and consumes, and the calls it may make; a test holds every package to it.
 - **Contracts first.** JSON Schema in [`libs/contracts/schema/`](libs/contracts/schema/) is the source of truth for every type and event that crosses a component; TypeScript types and validators are generated from it.
 - **Events commit with the data.** Components publish inside the store transaction through an outbox relayed to Valkey Streams. Delivery is at least once and every handler is idempotent.
 - **Plugins for everything replaceable.** Connectors, parsers, extractors, model providers, search indexes, event transports and migrations are plugins, looked up in a registry, so a part can be swapped without touching its callers.
@@ -172,13 +158,19 @@ flowchart TB
 
 | Concern | Choice |
 | --- | --- |
-| Language | TypeScript on Node 22, strict, run by type stripping; one Python worker for document parsing (planned) |
+| Language | TypeScript on Node 22, strict, run by type stripping; one Python worker for document parsing |
 | Storage and search | PostgreSQL 16 with pgvector and pg_search (ParadeDB): BM25 plus vectors, reranked |
 | Events | Transactional outbox, Valkey Streams |
 | Permissions | SpiceDB, modelled on Zanzibar |
 | Identity | Logto, in the business layer |
 | Models | Any OpenAI-compatible provider and Anthropic, behind the model gateway; DeepSeek in the tests above |
 | Web | React and Vite |
+
+<details>
+<summary><b>How it deploys:</b> the services, the open-source parts and how they connect</summary>
+<br>
+<img src="docs/assets/deployment.en.png" alt="Deployment diagram. Upstream: sources, deep research, model APIs and local inference. Write side: ingest, compile, parsing and the model gateway. Storage and events: Valkey Streams; PostgreSQL 16 with the knowledge tables, pgvector, pg_search, a schema per component, the outbox, accounts and companies, and the spicedb and logto databases; SpiceDB. Read side: the agent API, search and the inbox, the web app with the business backend, and access control. Callers: outside agents, views, people and Logto. Planned, for credentials and isolated jobs: gVisor, the sandbox, the credential broker and OpenBao. Today it runs as one compose stack, with the engine in one process." width="100%">
+</details>
 
 Read more in [Architecture](docs/architecture.md), [Contracts](docs/contracts.md) and the [overview](docs/overview.md)'s Part II.
 
@@ -203,11 +195,11 @@ Read more in [Architecture](docs/architecture.md), [Contracts](docs/contracts.md
 | 6 | Trial | One deployed server, a usage page and feedback | Planned |
 | 🏁 | **Gate C: the trial** | A few people outside the team use it for two weeks with their own documents | |
 
-**After the MVP:** a pilot with a design partner; live Feishu sync; a private space for every member, with publishing into shared spaces; joint approval. The validation line resumes on a larger dataset close to real use, with the 10-point lead as its long-term goal. Later come Deep Research reports as sources, approval flows turned into procedures, code repositories as a code graph, interactive views, SSO and directory sync, and private deployment.
+**After the MVP:** a pilot with a design partner; live sync from Lark (Feishu); a private space for every member, with publishing into shared spaces; joint approval. The validation line resumes on a larger dataset close to real use, with the 10-point lead as its long-term goal. Later come Deep Research reports as sources, approval flows turned into procedures, code repositories as a code graph, interactive views, SSO and directory sync, and private deployment.
 
 ## Get started
 
-Inspiration is not ready to install yet. To build and test it from source, you need Node 22.18+, pnpm 10 and Docker, then run `make install && make up && make check`; the [development guide](docs/development.md) covers the demo, the benchmarks and the model gateway.
+Inspiration is not ready to install yet. To build and test it from source, you need Node 22.18 or later, pnpm, Python 3.10 or later and Docker (the repository pins pnpm 10.28.0 for corepack and Volta), then run `make install && make up && make check`; the [development guide](docs/development.md) covers the demo, the benchmarks and the model gateway.
 
 ## Repository layout
 
@@ -231,7 +223,7 @@ infra/              docker compose for the prototype stack, and a local embeddin
 config/             example configuration of the model gateway
 docs/               overview, engine reference and design docs, indexed in docs/README.md
 docs/zh/            Chinese copies of every doc
-docs/assets/        images the READMEs show, in English, Chinese and Japanese
+docs/assets/        the READMEs' images and the architecture diagrams, with their sources, in English, Chinese and Japanese
 test/               repo-wide checks: the component manifest, languages, docs, file paths
 README*.md          this page in English, Chinese (README.zh.md) and Japanese (README.ja.md)
 ```

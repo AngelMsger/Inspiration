@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inspiration deployment</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #F3F5F3; --surface: #FFFFFF; --sunk: #E9EDEA; --band: #EDF1EE;
+  --ink: #15201C; --muted: #56635E; --faint: #87938E; --line: #D3DAD6;
+  --event: #0B7A68; --sync: #5150C9; --ext: #8C7A5B;
+  --oss: #E3EAF2; --oss-line: #AFC0D2; --oss-ink: #2F5878;
+  --agent: #A3456B; --agent-soft: #F7E6ED;
+  --planned: #9AA6A1;
+  --font-sans: "IBM Plex Sans", "Noto Sans SC", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "Noto Sans SC", ui-monospace, monospace;
+}
+html[lang="ja"] { --font-sans: "IBM Plex Sans", "Noto Sans JP", system-ui, sans-serif; --font-mono: "IBM Plex Mono", "Noto Sans JP", ui-monospace, monospace; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-sans); font-size: 14px; }
+#fig { width: 1206px; padding: 16px; background: var(--bg); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.key { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; }
+svg#dia { display: block; width: 1174px; height: auto; }
+.col-band { fill: var(--band); }
+.col-label { fill: var(--faint); font-size: 12px; font-weight: 500; letter-spacing: .08em; }
+.node .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.25; }
+.node.ext .box { fill: none; stroke: var(--ext); stroke-dasharray: 5 4; }
+.node.oss .box { fill: var(--oss); stroke: var(--oss-line); }
+.node.planned .box { stroke: var(--planned); stroke-dasharray: 6 4; stroke-width: 1.4; }
+.node.oss.planned .box { fill: #EEF2F6; }
+.node .tag { font-family: var(--font-mono); font-size: 11.5px; font-weight: 500; fill: var(--event); }
+.node.ext .tag { fill: var(--ext); font-family: var(--font-sans); }
+.node.oss .tag { fill: var(--oss-ink); font-family: var(--font-sans); }
+.node.planned .tag { fill: var(--faint); }
+.node .name { fill: var(--ink); font-size: 14.5px; font-weight: 600; }
+.node .desc { fill: var(--muted); font-size: 12px; }
+.chip rect { fill: var(--sunk); }
+.chip text { fill: var(--muted); font-size: 10.5px; }
+.chip.agent rect { fill: var(--agent-soft); stroke: var(--agent); stroke-width: 1; }
+.chip.agent text { fill: var(--agent); font-weight: 500; }
+.pgrow rect { fill: var(--surface); stroke: var(--oss-line); stroke-width: 1; }
+.pgrow text { fill: var(--ink); font-size: 12px; }
+.edge .ln { fill: none; stroke-width: 1.6; }
+.edge.event .ln { stroke: var(--event); }
+.edge.sync .ln { stroke: var(--sync); stroke-dasharray: 6 4; }
+.edge.ext .ln { stroke: var(--ext); stroke-dasharray: 3 4; }
+.edge .lbl { font-family: var(--font-mono); font-size: 11px; }
+.edge.event .lbl { fill: var(--event); }
+.edge.sync .lbl { fill: var(--sync); }
+.edge.ext .lbl { fill: var(--ext); }
+.edge .lbl-bg { fill: var(--surface); }
+.deploy rect { fill: var(--sunk); }
+.deploy .k { fill: var(--muted); font-size: 12px; font-weight: 600; }
+.deploy .v { fill: var(--ink); font-size: 12px; }
+.band-note { fill: var(--faint); font-size: 11.5px; }
+</style>
+</head>
+<body>
+<div id="fig"><div class="card"><div class="legend" id="legend"></div><svg id="dia" viewBox="0 0 1174 830" role="img"></svg></div></div>
+<script>
+(() => {
+  const lang = new URLSearchParams(location.search).get("lang") || "en";
+  document.documentElement.lang = lang;
+  // One entry per language: [en, zh, ja].
+  const I = { en: 0, zh: 1, ja: 2 }[lang];
+  const t = v => Array.isArray(v) ? v[I] : v;
+
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 170, H = 80;
+  const X = [24, 258, 492, 746, 980];
+  const R = [70, 210, 350, 510, 650];
+  const OSS = ["open source", "开源", "OSS"];
+  const OUT = ["outside", "外部", "外部"];
+  const MODEL = ["model", "模型", "モデル"], AUTHZ = ["authz", "鉴权", "認可"];
+
+  const N = {
+    SRC: { x: X[0], y: R[0], kind: "ext", name: ["Sources", "数据源", "データソース"], lines: [["Lark · Confluence · Concur", "GitHub · Notion · files"], ["飞书 · 钉钉 · Confluence", "简道云 · Notion · 文件"], ["Lark · Confluence · kintone", "GitHub · Notion · ファイル"]] },
+    RES: { x: X[0], y: R[1], kind: "svc", comps: ["research"], name: ["Deep research", "深度调研", "リサーチ"], lines: [["findings · evidence"], ["结论 · 假设 · 证据"], ["結論 · 仮説 · 証拠"]], chips: [MODEL, "Agent"], planned: true },
+    CLOUD: { x: X[0], y: R[2], kind: "ext", name: ["Model APIs", "模型 API", "モデル API"], lines: [["DeepSeek · GPT · Claude", "routed by sensitivity"], ["DeepSeek · GPT · Claude", "按密级路由"], ["DeepSeek · GPT · Claude", "機密度でルーティング"]] },
+    GPU: { x: X[0], y: R[3], kind: "oss", name: ["Local inference", "本地推理", "ローカル推論"], lines: [["Qwen3 embed · rerank", "PaddleOCR-VL · MinerU"], ["Qwen3 向量 · 重排", "PaddleOCR-VL · MinerU"], ["Qwen3 埋め込み · 再順位", "PaddleOCR-VL · MinerU"]], planned: true },
+    ING: { x: X[1], y: R[0], kind: "svc", comps: ["connectors", "source-sync"], name: ["Ingest", "接入 worker", "取り込み"], lines: [["connectors · cursors", "reconcile · rate limits"], ["连接器 · 游标 · 对账", "限流 · 去抖"], ["コネクタ · カーソル · 照合", "レート制限 · デバウンス"]] },
+    CMP: { x: X[1], y: R[1], kind: "svc", comps: ["normalization", "extraction", "freshness", "governance", "page-compiler"], name: ["Compile", "编译 worker", "コンパイル"], lines: [["normalize · extract · govern"], ["规范化 · 抽取 · 治理 · 渲染"], ["正規化 · 抽出 · 統制 · 描画"]], chips: [MODEL, "Agent"] },
+    PARSE: { x: X[1], y: R[2], kind: "svc", comps: ["parsing"], name: ["Parsing", "解析服务", "解析"], lines: [["Python worker · stateless", "python-docx · pdfminer"], ["Python worker · 无状态", "python-docx · pdfminer"], ["Python worker", "python-docx · pdfminer"]] },
+    MGW: { x: X[1], y: R[3], kind: "svc", comps: ["model-gateway", "agent-runtime"], name: ["Model gateway", "模型网关", "モデルGW"], lines: [["budgets · metering", "+ the agent runtime"], ["密级路由 · 预算 · 计量", "Agent 运行时（同进程）"], ["ルーティング · 予算 · 計量", "+ エージェント実行基盤"]] },
+    REDIS: { x: X[2], y: R[0], w: 190, kind: "oss", name: "Valkey Streams", lines: [["delivery · consumer groups", "outbox first, then a relay"], ["事件投递 · 消费组", "事件先写 outbox 再转发"], ["イベント配信 · コンシューマ", "outbox から中継"]] },
+    PG: { x: X[2], y: 200, w: 190, h: 250, kind: "oss", name: "PostgreSQL 16", rows: true },
+    SPICE: { x: X[2], y: R[3], w: 190, kind: "oss", name: "SpiceDB", lines: [["relation tuples · inheritance", "kept in the spicedb database"], ["关系元组 · 继承与共享", "数据存于 spicedb 库"], ["関係タプル · 継承と共有", "spicedb DB に保存"]] },
+    GW: { x: X[3], y: R[0], kind: "svc", comps: ["agent-api"], name: ["Agent API", "Agent 接口", "エージェント API"], lines: [["MCP · REST · OAuth 2.1"], ["MCP · REST · OAuth 2.1"], ["MCP · REST · OAuth 2.1"]], chips: [AUTHZ], planned: true },
+    RET: { x: X[3], y: R[1], kind: "svc", comps: ["retrieval", "collaboration"], name: ["Serve", "检索与协作", "検索と協働"], lines: [["search · answers · inbox"], ["混合检索 · 回答 · 待办"], ["検索 · 回答 · 受信箱"]], chips: [MODEL, AUTHZ, "Agent"] },
+    WEB: { x: X[3], y: R[2], kind: "svc", apps: true, name: ["Web, business", "Web 与业务后端", "Web と業務層"], lines: [["sign-in · companies", "acts as the member"], ["登录 · 企业与成员 · 邀请", "以成员身份调用引擎"], ["サインイン · 企業 · 招待", "メンバーとしてエンジンへ"]] },
+    AUTH: { x: X[3], y: R[3], kind: "svc", comps: ["access-control"], name: ["Access control", "鉴权", "アクセス制御"], lines: [["principal tokens · directory", "spaces · per-item checks"], ["主体令牌 · 目录副本", "空间 · 逐项检查"], ["トークン · ディレクトリ", "スペース · 項目ごとの確認"]] },
+    VIEW: { x: X[4], y: R[1], kind: "svc", comps: ["views"], name: ["Views", "交互视图", "ビュー"], lines: [["own domain · approval"], ["独立域名托管 · 视图审批"], ["専用ドメイン · 承認"]], chips: [MODEL, "Agent"], planned: true },
+    AGENT: { x: X[4], y: R[0], kind: "ext", name: ["Outside agents", "调用方 Agent", "外部エージェント"], lines: [["Dify · your own agents", "acting for a member"], ["Dify · 扣子 · 自研", "代表某个成员调用"], ["Dify · 自社開発", "メンバーの代理で呼ぶ"]] },
+    USER: { x: X[4], y: R[2], kind: "ext", name: ["People", "用户（浏览器）", "ユーザー"], lines: [["members · space owners", "super admins"], ["成员 · 空间负责人", "超级管理员"], ["メンバー · スペース担当者", "特権管理者"]] },
+    LOGTO: { x: X[4], y: R[3], kind: "oss", name: "Logto", lines: [["email and password", "OIDC · SAML later"], ["登录 · 邮箱与密码", "之后接 OIDC · SAML"], ["メールとパスワード", "OIDC · SAML は今後"]] },
+    SANDBOX: { x: X[1], y: R[4], kind: "svc", comps: ["sandbox"], name: ["Sandbox", "沙箱执行器", "サンドボックス"], lines: [["one container per job", "egress allow-list · no state"], ["每个作业一个容器", "出网白名单 · 不留状态"], ["ジョブごとにコンテナ", "送信先の許可リスト"]], planned: true },
+    SBXRT: { x: X[0], y: R[4], kind: "oss", name: "gVisor", lines: [["Docker + runsc", "user-space kernel"], ["Docker + runsc", "用户态内核隔离"], ["Docker + runsc", "ユーザー空間カーネル"]], planned: true },
+    BROKER: { x: X[2], y: R[4], w: 214, kind: "svc", comps: ["credential-broker"], name: ["Credential broker", "凭据代理", "認証情報ブローカー"], lines: [["company and member connections", "short leases · revoke"], ["租户与成员连接 · 主动刷新", "只发短期租约 · 吊销"], ["企業とメンバーの接続 · 更新", "短期リース · 失効"]], planned: true },
+    BAO: { x: X[3], y: R[4], kind: "oss", name: "OpenBao", lines: [["Transit: a key per company", "ciphertext in PostgreSQL"], ["Transit：按租户信封加密", "密文存在 PostgreSQL"], ["Transit：企業ごとの鍵", "暗号文は PostgreSQL"]], planned: true },
+  };
+
+  const PG_ROWS = [
+    ["knowledge-store tables", "知识表 · knowledge-store", "知識 · knowledge-store"],
+    ["pgvector · vectors", "pgvector · 向量", "pgvector · ベクトル"],
+    ["pg_search · jieba / Lindera", "pg_search · jieba / Lindera", "pg_search · jieba / Lindera"],
+    ["a schema per component", "每个组件一个 schema", "部品ごとの schema"],
+    ["outbox · event bus", "outbox 事件发件箱", "outbox · イベントバス"],
+    ["accounts · companies", "账户 · 企业（业务层）", "アカウント · 企業（業務層）"],
+    ["spicedb · logto databases", "spicedb 库 · logto 库", "spicedb DB · logto DB"],
+  ];
+
+  const E = [
+    { k: "ext", label: ["open APIs", "开放 API", "公開 API"], pts: [[194, 110], [258, 110]], l: [226, 102, "middle"] },
+    { k: "event", label: "", pts: [[194, 240], [226, 240], [226, 134], [258, 134]] },
+    { k: "event", label: ["consumers", "消费组", "購読"], pts: [[492, 102], [428, 102]], l: [460, 94, "middle"] },
+    { k: "event", label: "", pts: [[492, 128], [470, 128], [470, 240], [428, 240]] },
+    { k: "sync", label: "SQL", pts: [[428, 270], [492, 270]], l: [460, 262, "middle"] },
+    { k: "sync", label: "Parser API", pts: [[343, 290], [343, 350]], l: [351, 324, "start"] },
+    { k: "sync", label: ["OCR, planned", "OCR（计划中）", "OCR（予定）"], pts: [[343, 430], [343, 510]], l: [351, 474, "start"] },
+    { k: "sync", label: ["local", "本地模型", "ローカル"], pts: [[258, 550], [194, 550]], l: [226, 542, "middle"] },
+    { k: "sync", label: "complete", pts: [[258, 524], [226, 524], [226, 390], [194, 390]], l: [234, 470, "start"] },
+    { k: "event", label: "outbox relay", pts: [[587, 200], [587, 150]], l: [595, 180, "start"] },
+    { k: "sync", label: ["spicedb db", "spicedb 库", "spicedb DB"], pts: [[587, 510], [587, 450]], l: [579, 484, "end"] },
+    { k: "event", label: ["changes", "变更流", "変更"], pts: [[682, 102], [746, 102]], l: [714, 94, "middle"] },
+    { k: "event", label: "", pts: [[682, 128], [704, 128], [704, 240], [746, 240]] },
+    { k: "sync", label: ["search", "混合检索", "検索"], pts: [[746, 270], [682, 270]], l: [714, 262, "middle"] },
+    { k: "sync", label: "SQL", pts: [[746, 390], [682, 390]], l: [714, 382, "middle"] },
+    { k: "sync", label: "Retriever API", pts: [[831, 150], [831, 210]], l: [839, 184, "start"] },
+    { k: "sync", label: ["engine API /v0", "引擎 API /v0", "エンジン API /v0"], pts: [[831, 350], [831, 290]], l: [839, 324, "start"] },
+    { k: "sync", label: ["provisioning", "开通成员与空间", "プロビジョニング"], pts: [[831, 430], [831, 510]], l: [839, 474, "start"] },
+    { k: "sync", label: "gRPC", pts: [[746, 550], [682, 550]], l: [714, 542, "middle"] },
+    { k: "ext", label: "MCP/REST", pts: [[980, 110], [916, 110]], l: [948, 102, "middle"] },
+    { k: "ext", label: ["iframe", "沙箱 iframe", "iframe"], pts: [[1065, 350], [1065, 290]], l: [1073, 324, "start"] },
+    { k: "ext", label: "HTTPS", pts: [[980, 380], [916, 380]], l: [948, 372, "middle"] },
+    { k: "sync", label: "OIDC", pts: [[916, 414], [948, 414], [948, 550], [980, 550]], l: [956, 492, "start"] },
+    { k: "sync", label: "agent_tool", pts: [[343, 590], [343, 650]], l: [351, 624, "start"] },
+    { k: "sync", label: "runsc", pts: [[258, 690], [194, 690]], l: [226, 682, "middle"] },
+    { k: "sync", label: ["lease", "租约", "リース"], pts: [[428, 690], [492, 690]], l: [460, 682, "middle"] },
+    { k: "sync", label: ["keys", "加密", "暗号化"], pts: [[706, 690], [746, 690]], l: [726, 682, "middle"] },
+  ];
+
+  const svg = document.getElementById("dia");
+  svg.setAttribute("aria-label", t(["Inspiration deployment: services, open-source parts and how they connect", "Inspiration 部署：服务、开源组件与连接", "Inspiration のデプロイ：サービス、オープンソース部品と接続"]));
+  const el = (tag, attrs = {}, parent) => {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  const txt = (parent, x, y, s, cls, anchor) => {
+    const e = el("text", { x, y, class: cls }, parent);
+    if (anchor) e.setAttribute("text-anchor", anchor);
+    e.textContent = s;
+    return e;
+  };
+  const roundPath = (pts, r = 8) => {
+    let d = `M${pts[0][0]} ${pts[0][1]}`;
+    for (let i = 1; i < pts.length; i++) {
+      const [x, y] = pts[i];
+      if (i < pts.length - 1) {
+        const [px, py] = pts[i - 1], [nx, ny] = pts[i + 1];
+        const l1 = Math.hypot(x - px, y - py), l2 = Math.hypot(nx - x, ny - y);
+        const rr = Math.min(r, l1 / 2, l2 / 2);
+        const ax = x - (x - px) / l1 * rr, ay = y - (y - py) / l1 * rr;
+        const bx = x + (nx - x) / l2 * rr, by = y + (ny - y) / l2 * rr;
+        d += ` L${ax} ${ay} Q${x} ${y} ${bx} ${by}`;
+      } else d += ` L${x} ${y}`;
+    }
+    return d;
+  };
+
+  // legend
+  const legend = document.getElementById("legend");
+  const key = (svgInner, w, h, label) => {
+    const s = document.createElement("span");
+    s.className = "key";
+    s.innerHTML = `<svg width="${w}" height="${h}" aria-hidden="true">${svgInner}</svg>`;
+    s.append(label);
+    legend.append(s);
+  };
+  key(`<rect x="1" y="1" width="30" height="16" rx="4" fill="var(--surface)" stroke="var(--line)"/>`, 32, 18, t(["Inspiration service (TypeScript)", "Inspiration 服务（TypeScript）", "Inspiration のサービス（TypeScript）"]));
+  key(`<rect x="1" y="1" width="30" height="16" rx="4" fill="var(--oss)" stroke="var(--oss-line)"/>`, 32, 18, t(["Open-source part", "开源组件", "オープンソース部品"]));
+  key(`<rect x="1" y="1" width="30" height="16" rx="4" fill="none" stroke="var(--ext)" stroke-dasharray="5 4"/>`, 32, 18, t(["Outside system", "外部系统", "外部システム"]));
+  key(`<rect x="1" y="1" width="30" height="16" rx="4" fill="var(--surface)" stroke="var(--planned)" stroke-width="1.4" stroke-dasharray="6 4"/>`, 32, 18, t(["Planned", "计划中", "予定"]));
+  key(`<line x1="0" y1="5" x2="30" y2="5" stroke="var(--event)" stroke-width="2"/>`, 30, 10, t(["Events", "事件流", "イベント"]));
+  key(`<line x1="0" y1="5" x2="30" y2="5" stroke="var(--sync)" stroke-width="2" stroke-dasharray="6 4"/>`, 30, 10, t(["Calls, reads, writes", "调用与读写", "呼び出しと読み書き"]));
+  key(`<line x1="0" y1="5" x2="30" y2="5" stroke="var(--ext)" stroke-width="2" stroke-dasharray="3 4"/>`, 30, 10, t(["From outside", "外部接入", "外部から"]));
+
+  const defs = el("defs", {}, svg);
+  for (const k of ["event", "sync", "ext"]) {
+    const m = el("marker", { id: "arr-" + k, viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "7", markerHeight: "7", orient: "auto-start-reverse" }, defs);
+    el("path", { d: "M0 0L10 5L0 10z", style: `fill: var(--${k})` }, m);
+  }
+  const fits = [], tags = [];
+  const fit = (node, max, what) => fits.push([node, max, what]);
+
+  const bg = el("g", {}, svg);
+  const heads = [["Upstream", "上游", "上流"], ["Write side", "写入侧", "書き込み側"], ["Storage and events", "存储与事件", "ストレージとイベント"], ["Read side", "读取侧", "読み取り側"], ["Callers", "使用方", "利用者"]];
+  X.forEach((x, i) => {
+    const w = i === 2 ? 190 : W;
+    el("rect", { x: x - 6, y: 44, width: w + 12, height: 402, rx: 10, class: "col-band" }, bg);
+    txt(bg, x + w / 2, 34, t(heads[i]), "col-label", "middle");
+  });
+  el("rect", { x: 18, y: 494, width: 1138, height: 112, rx: 10, class: "col-band" }, bg);
+  txt(bg, 820, 486, t(["Platform services, called synchronously", "平台服务（各服务同步调用）", "プラットフォーム（同期呼び出し）"]), "band-note", "end");
+  el("rect", { x: 18, y: 634, width: 1138, height: 112, rx: 10, class: "col-band" }, bg);
+  txt(bg, 1150, 626, t(["Credentials and isolated jobs, for ingest, the agent runtime and views", "凭据与隔离执行（接入、Agent 运行时、交互视图调用）", "認証情報と隔離実行（取り込み、エージェント実行基盤、ビューが使う）"]), "band-note", "end");
+  const dp = el("g", { class: "deploy" }, svg);
+  el("rect", { x: 18, y: 766, width: 1138, height: 42, rx: 8 }, dp);
+  txt(dp, 34, 792, t(["Today", "今天", "現在"]), "k");
+  fit(txt(dp, 84, 792, t([
+    "One compose stack (ParadeDB, Valkey, SpiceDB, Logto); the engine runs as one process, the business backend beside it. The groups show how it splits.",
+    "一个 compose 栈（ParadeDB、Valkey、SpiceDB、Logto）；引擎是一个进程，业务后端在它旁边。上面的分组是负载增长后的拆分方式。",
+    "compose スタック 1 つ（ParadeDB・Valkey・SpiceDB・Logto）。エンジンは 1 プロセスで、業務層がその隣。上の分け方は負荷が増えたときの分割です。",
+  ]), "v"), 1060, "deploy");
+
+  const edgeLayer = el("g", {}, svg);
+  E.forEach(e => {
+    const g = el("g", { class: `edge ${e.k}` }, edgeLayer);
+    el("path", { d: roundPath(e.pts), class: "ln", "marker-end": `url(#arr-${e.k})` }, g);
+    if (e.label && e.l) e.lblNode = txt(g, e.l[0], e.l[1], t(e.label), "lbl", e.l[2]);
+    e.g = g;
+  });
+
+  const nodeLayer = el("g", {}, svg);
+  for (const [k, n] of Object.entries(N)) {
+    const w = n.w || W, h = n.h || H;
+    const g = el("g", { class: `node ${n.kind}${n.planned ? " planned" : ""}` }, nodeLayer);
+    el("rect", { x: n.x, y: n.y, width: w, height: h, rx: 10, class: "box" }, g);
+    const nameNode = txt(g, n.x + 12, n.y + 24, t(n.name), "name");
+    const tag = lang === "en" || n.apps ? "" : n.comps ? (n.comps.length === 1 ? n.comps[0] : t([`${n.comps.length} components`, `${n.comps.length} 个组件`, `${n.comps.length} 部品`])) : t(n.kind === "ext" ? OUT : OSS);
+    if (tag) {
+      const tagNode = txt(g, n.x + w - 12, n.y + 24, tag, "tag", "end");
+      tags.push([nameNode, tagNode, w]);
+    }
+    fit(nameNode, w - 24, k + " name");
+    if (n.rows) {
+      PG_ROWS.forEach((r, j) => {
+        const ry = n.y + 38 + j * 29;
+        const rg = el("g", { class: "pgrow" }, g);
+        el("rect", { x: n.x + 10, y: ry, width: w - 20, height: 23, rx: 5 }, rg);
+        fit(txt(rg, n.x + 18, ry + 16, t(r), ""), w - 36, k);
+      });
+    } else {
+      const lines = t(n.lines) || [];
+      if (lines[0]) fit(txt(g, n.x + 12, n.y + 46, lines[0], "desc"), w - 22, k);
+      if (n.chips && n.chips.length) {
+        let cx = n.x + 12;
+        n.chips.forEach(c => {
+          const label = t(c);
+          const cg = el("g", { class: "chip" + (c === "Agent" ? " agent" : "") }, g);
+          const ct = txt(cg, 0, n.y + 67.5, label, "", "middle");
+          const cw = ct.getComputedTextLength() + 14;
+          el("rect", { x: cx, y: n.y + 56, width: cw, height: 16, rx: 8 }, cg);
+          ct.setAttribute("x", cx + cw / 2);
+          cg.appendChild(ct);
+          cx += cw + 6;
+        });
+      } else if (lines[1]) fit(txt(g, n.x + 12, n.y + 66, lines[1], "desc"), w - 22, k);
+    }
+  }
+
+  document.fonts.ready.then(() => {
+    for (const [nameNode, tagNode, w] of tags) if (nameNode.getComputedTextLength() > w - 32 - tagNode.getComputedTextLength()) tagNode.remove();
+    E.forEach(e => {
+      if (!e.lblNode) return;
+      const b = e.lblNode.getBBox();
+      const r = el("rect", { x: b.x - 3, y: b.y - 1, width: b.width + 6, height: b.height + 2, rx: 3, class: "lbl-bg" });
+      e.g.insertBefore(r, e.lblNode);
+    });
+    window.OVERFLOW = fits.map(([node, max, what]) => [node, typeof max === "function" ? max() : max, what]).filter(([node, max]) => node.getComputedTextLength() > max).map(([node, max, what]) => `${what}: "${node.textContent}" ${Math.round(node.getComputedTextLength())} > ${Math.round(max)}`);
+    document.body.dataset.ready = "1";
+  });
+})();
+</script>
+</body>
+</html>

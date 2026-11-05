@@ -5,9 +5,9 @@ import {
   type Claim,
   type ClaimEvidence,
   type ClaimsUpdated,
-  contentHash,
   type EventEnvelope,
   type EventHandler,
+  type GatewayErrorCode,
   GatewayException,
   type GovernanceLevel,
   type KnowledgeStore,
@@ -16,9 +16,7 @@ import {
   newEvent,
   type ProducerInfo,
   payloadOf,
-  type SourceBlock,
   type SourceVersion,
-  type Span,
   slotOf,
   stableId,
   type TodoKind,
@@ -28,16 +26,9 @@ import {
 import { defineTable, type Records } from "@inspiration/eventbus";
 import { logger } from "@inspiration/kernel";
 import { PromptRegistry } from "@inspiration/model-gateway";
-import {
-  type ExtractedClaim,
-  OUTPUT_SCHEMA,
-  PROMPT_VERSION,
-  TASK,
-  type WindowBlock,
-  type WindowInput,
-  type WindowOutput,
-} from "./protocol.ts";
+import { OUTPUT_SCHEMA, PROMPT_VERSION, TASK, type WindowInput, type WindowOutput } from "./protocol.ts";
 import { fitToCatalogue, mentioned, type Vocabulary } from "./vocabulary.ts";
+import { type Built, buildClaim, dayStart, type Window, windowsOf } from "./windows.ts";
 
 const log = logger("extraction");
 
@@ -85,7 +76,12 @@ export interface ExtractionResult {
   unfit?: number;
   /** A later version of the document was extracted already, so this one changed nothing. */
   outdated?: true;
+  /** Reading stopped at a budget or an outage, and nothing was written; resume() reads on. */
+  paused?: true;
 }
+
+/** The gateway errors at which reading stops until resume(): a spent budget, a model out of reach. */
+const PAUSING: ReadonlySet<GatewayErrorCode> = new Set(["budget_exceeded", "provider_error", "timeout"]);
 
 /** The latest version of a document extraction has worked on. */
 export interface DocumentMark {
@@ -98,32 +94,31 @@ export interface DocumentMark {
   unstated?: string[];
   /** The kind of the todo open about them, if one is. */
   asked?: TodoKind;
+  /** Reading the version has started and not finished. */
+  reading?: true;
+  /** Reading stopped: what is left to read, since when, and why. */
+  paused?: { change: BlocksChanged; at: string; code: GatewayErrorCode; reason: string };
 }
 
 export const DOCUMENTS = defineTable<DocumentMark>("extraction.documents", {
   key: (d) => `${d.source_id}\x1f${d.external_id}`,
-  columns: { tenant_id: (d) => d.tenant_id },
+  columns: {
+    tenant_id: (d) => d.tenant_id,
+    state: (d) => (d.paused ? "paused" : d.reading ? "reading" : null),
+  },
 });
 
-interface Built {
-  claim: Claim;
-  evidence: ClaimEvidence[];
-  /** The blocks of the spans it cites. */
-  blocks: Set<string>;
-}
-
-interface Window {
-  blocks: WindowBlock[];
-  /** Local span reference to span. */
-  spans: Map<string, Span>;
-  text: string;
-}
-
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
-
-/** The start of a YYYY-MM-DD day, in UTC: the engine knows no tenant time zone yet. */
-function dayStart(day: unknown): string | undefined {
-  return typeof day === "string" && DAY.test(day) && !Number.isNaN(Date.parse(day)) ? `${day}T00:00:00Z` : undefined;
+/** Two changes of a document read as one, as of the later version. */
+function joined(earlier: BlocksChanged, later: BlocksChanged): BlocksChanged {
+  const both = (a: readonly string[], b: readonly string[]) => [...new Set([...a, ...b])];
+  return {
+    ...later,
+    added_block_ids: both(earlier.added_block_ids, later.added_block_ids),
+    changed_block_ids: both(earlier.changed_block_ids, later.changed_block_ids),
+    removed_block_ids: both(earlier.removed_block_ids, later.removed_block_ids),
+    added_span_ids: both(earlier.added_span_ids, later.added_span_ids),
+    removed_span_ids: both(earlier.removed_span_ids, later.removed_span_ids),
+  };
 }
 
 /** Dice similarity of character bigrams. */
@@ -229,6 +224,29 @@ export class Extraction {
     }
   }
 
+  /**
+   * Read on where reading stopped at a budget or an outage, the earliest stop first. Once a
+   * document stops again, the rest of its company wait for the next call, since they share
+   * its budget. Returns how many documents were read to the end.
+   */
+  async resume(): Promise<number> {
+    const marks = await this.records.find(DOCUMENTS, { state: "paused" });
+    marks.sort((a, b) => (a.paused?.at ?? "").localeCompare(b.paused?.at ?? ""));
+    const stopped = new Set<string>();
+    let done = 0;
+    for (const { tenant_id, paused } of marks) {
+      if (!paused || stopped.has(tenant_id)) continue;
+      if ((await this.extract(paused.change)).paused) stopped.add(tenant_id);
+      else done++;
+    }
+    return done;
+  }
+
+  /** The marks of a company's documents: how far reading each one's latest version has come. */
+  documents(tenantId: string): Promise<DocumentMark[]> {
+    return this.records.find(DOCUMENTS, { tenant_id: tenantId }, { orderBy: "key" });
+  }
+
   readonly onBlocksChanged: EventHandler = async (event: EventEnvelope) => {
     await this.extract(payloadOf(event, "blocks.changed"), event);
   };
@@ -258,50 +276,21 @@ export class Extraction {
       log.debug("skipped an older version", { source_version: version.id });
       return { ...result, outdated: true };
     }
-    const extracted: Built[] = [];
-    // The spans the model read again: a claim they support that it did not state again is gone.
-    const read = new Set<string>();
-    const level = levelOf(version);
-    const targets = new Set([...change.added_block_ids, ...change.changed_block_ids]);
-    if (!change.deleted && level !== "search_only" && targets.size) {
-      const vocabulary = (await this.#vocabulary(version.tenant_id))?.predicates ?? [];
-      // Unless a page or an answer uses it, a reference document is read only where it names a
-      // catalogue fact, and only the claims that fill a slot are kept.
-      const slotsOnly = level === "reference" && !options.use;
-      const names = slotsOnly ? vocabulary.flatMap((e) => e.aliases) : [];
-      const touches = slotsOnly ? (text: string) => mentioned(text, names).length > 0 : undefined;
-      for (const window of await this.#windows(version, targets, touches)) {
-        result.windows++;
-        const output = await this.#complete(version, window, vocabulary);
-        if (!output) {
-          result.failed_windows++;
-          continue;
-        }
-        for (const span of window.spans.values()) read.add(span.id);
-        for (const said of output.claims) {
-          const claim = fitToCatalogue(said, vocabulary);
-          if (claim.predicate === undefined && said.predicate !== undefined) result.unfit = (result.unfit ?? 0) + 1;
-          if (slotsOnly && !claim.predicate) {
-            result.unused = (result.unused ?? 0) + 1;
-            continue;
-          }
-          const built = this.#build(version, window, claim);
-          if (built) extracted.push(built);
-          else result.rejected++;
-        }
-      }
+    // What an earlier stop left unread is read with this version, which may be a later one.
+    const todo = mark.paused && !options.use ? joined(mark.paused.change, change) : change;
+    let content: { extracted: Built[]; read: Set<string> };
+    try {
+      content = await this.#read(version, todo, options.use === true, result);
+    } catch (e) {
+      if (options.use || !(e instanceof GatewayException && PAUSING.has(e.code))) throw e;
+      await this.#pause(mark, todo, e);
+      return { ...result, paused: true };
     }
-
-    this.totals.windows += result.windows;
-    this.totals.failed_windows += result.failed_windows;
-    this.totals.rejected += result.rejected;
-    this.totals.unused += result.unused ?? 0;
-    this.totals.unfit += result.unfit ?? 0;
-    this.totals.windows_by_level[level] += result.windows;
+    const { extracted, read } = content;
     const byId = new Map((await this.#occurrences(version, extracted)).map((e) => [e.claim.id, e]));
     const stored = new Set((await this.store.getClaims([...byId.keys()])).map((c) => c.id));
     const fresh = [...byId.values()].filter((e) => !stored.has(e.claim.id));
-    const lost = await this.#lost(version, change.removed_span_ids, [...byId.values()], read);
+    const lost = await this.#lost(version, todo.removed_span_ids, [...byId.values()], read);
     const restated = await this.#restated(fresh, new Set(byId.keys()));
     const closing = [...new Map([...lost, ...restated].map((c) => [c.claim.id, c])).values()];
     const before = await this.#unstated(mark, byId, closing);
@@ -310,11 +299,9 @@ export class Extraction {
     // value, and everything a deleted document said, stays current, marked, until a person
     // retires it or the document states it again. Prose the version rewrote or dropped closes;
     // its pages follow the document.
-    const marker = { since: now, source_version_id: version.id, ...(change.deleted && { deleted: true }) };
+    const marker = { since: now, source_version_id: version.id, ...(todo.deleted && { deleted: true }) };
     const unreplaced = closing.filter((c) => !c.by).map((c) => c.claim);
-    const holding = unreplaced.filter(
-      (c) => change.deleted || (slotOf(c) !== undefined && valueKeyOf(c) !== undefined),
-    );
+    const holding = unreplaced.filter((c) => todo.deleted || (slotOf(c) !== undefined && valueKeyOf(c) !== undefined));
     const retracting = unreplaced.filter((c) => !holding.includes(c));
     const marking = holding.filter((c) => c.unstated?.source_version_id !== version.id);
     const superseding = [...closing, ...before.replaced].flatMap((c) => (c.by ? [{ claim: c.claim, by: c.by }] : []));
@@ -325,9 +312,11 @@ export class Extraction {
     result.restored = before.restored.map((c) => c.id);
     const held = [...before.kept, ...holding.map((c) => ({ ...c, unstated: c.unstated ?? marker }))];
     const asked = this.#ask(version, mark, held);
-    const { unstated: _, asked: __, ...unmarked } = mark;
+    const { unstated: _, asked: __, reading, paused, ...unmarked } = mark;
     const next: DocumentMark = {
       ...unmarked,
+      // Cited blocks read on use leave the rest of the version where it was.
+      ...(options.use && { ...(reading && { reading }), ...(paused && { paused }) }),
       ...(held.length && { unstated: held.map((c) => c.id).sort() }),
       ...(asked.kind && { asked: asked.kind }),
     };
@@ -382,6 +371,69 @@ export class Extraction {
       rejected: result.rejected,
     });
     return result;
+  }
+
+  /**
+   * The claims in the change's added and changed blocks, as much of them as the version's
+   * level asks for, and the spans the model read again: a claim they support that it did
+   * not state again is gone.
+   */
+  async #read(
+    version: SourceVersion,
+    change: BlocksChanged,
+    use: boolean,
+    result: ExtractionResult,
+  ): Promise<{ extracted: Built[]; read: Set<string> }> {
+    const extracted: Built[] = [];
+    const read = new Set<string>();
+    const level = levelOf(version);
+    const targets = new Set([...change.added_block_ids, ...change.changed_block_ids]);
+    if (change.deleted || level === "search_only" || !targets.size) return { extracted, read };
+    const vocabulary = (await this.#vocabulary(version.tenant_id))?.predicates ?? [];
+    // Unless a page or an answer uses it, a reference document is read only where it names a
+    // catalogue fact, and only the claims that fill a slot are kept.
+    const slotsOnly = level === "reference" && !use;
+    const names = slotsOnly ? vocabulary.flatMap((e) => e.aliases) : [];
+    const touches = slotsOnly ? (text: string) => mentioned(text, names).length > 0 : undefined;
+    const now = this.clock().toISOString();
+    try {
+      for (const window of await windowsOf(this.store, version, targets, this.windowChars, touches)) {
+        result.windows++;
+        const output = await this.#complete(version, window, vocabulary);
+        if (!output) {
+          result.failed_windows++;
+          continue;
+        }
+        for (const span of window.spans.values()) read.add(span.id);
+        for (const said of output.claims) {
+          const claim = fitToCatalogue(said, vocabulary);
+          if (claim.predicate === undefined && said.predicate !== undefined) result.unfit = (result.unfit ?? 0) + 1;
+          if (slotsOnly && !claim.predicate) {
+            result.unused = (result.unused ?? 0) + 1;
+            continue;
+          }
+          const built = buildClaim(version, window, claim, this.producer, now);
+          if (built) extracted.push(built);
+          else result.rejected++;
+        }
+      }
+    } finally {
+      this.totals.windows += result.windows;
+      this.totals.failed_windows += result.failed_windows;
+      this.totals.rejected += result.rejected;
+      this.totals.unused += result.unused ?? 0;
+      this.totals.unfit += result.unfit ?? 0;
+      this.totals.windows_by_level[level] += result.windows;
+    }
+    return { extracted, read };
+  }
+
+  /** Keeps what is left to read with the mark, from the first stop on, until resume() reads it. */
+  async #pause(mark: DocumentMark, change: BlocksChanged, e: GatewayException): Promise<void> {
+    const at = mark.paused?.at ?? this.clock().toISOString();
+    const paused = { change, at, code: e.code, reason: e.error.message };
+    await this.records.transaction((tx) => tx.put(DOCUMENTS, [{ ...mark, paused }]));
+    log.info("reading paused", { source_version: mark.source_version_id, reason: paused.reason });
   }
 
   /**
@@ -471,66 +523,6 @@ export class Extraction {
       await this.records.transaction((tx) => tx.put(DOCUMENTS, [next]));
   }
 
-  /**
-   * Target blocks in reading order, cut into windows of about windowChars characters. Given
-   * touches, only the blocks whose text, headings or table header it accepts.
-   */
-  async #windows(
-    version: SourceVersion,
-    targets: ReadonlySet<string>,
-    touches?: (text: string) => boolean,
-  ): Promise<Window[]> {
-    const blocks = (await this.store.blocksOf(version.id)).sort((a, b) => a.ordinal - b.ordinal);
-    // A table row is read with its table's header row, which is never sent on its own; a
-    // changed header changes how every row of its table reads.
-    const headerRows = new Map<string, SourceBlock>();
-    for (const b of blocks) {
-      if (b.kind !== "table_row" || !b.parent_id || headerRows.has(b.parent_id)) continue;
-      const table = blocks.find((t) => t.id === b.parent_id);
-      if (Number(table?.attrs?.header_rows ?? 0) > 0) headerRows.set(b.parent_id, b);
-    }
-    const headerIds = new Set([...headerRows.values()].map((b) => b.id));
-    const rereadTables = new Set([...headerRows].filter(([, h]) => targets.has(h.id)).map(([table]) => table));
-    const named = (b: SourceBlock) => {
-      const header = b.kind === "table_row" && b.parent_id ? headerRows.get(b.parent_id) : undefined;
-      return [b.text, ...(b.heading_path ?? []), header?.text ?? ""].some((t) => touches?.(t));
-    };
-    const wanted = blocks.filter(
-      (b) =>
-        (targets.has(b.id) || (b.parent_id !== undefined && rereadTables.has(b.parent_id))) &&
-        b.span_ids.length &&
-        (!touches || named(b)),
-    );
-    const needed = [...new Set([...wanted, ...headerRows.values()].flatMap((b) => b.span_ids))];
-    const spans = new Map((await this.store.getSpans(needed)).map((s) => [s.id, s]));
-    const textOf = (b: SourceBlock) => b.span_ids.map((id) => spans.get(id)?.text ?? "");
-
-    const windows: Window[] = [];
-    let current: Window = { blocks: [], spans: new Map(), text: "" };
-    for (const b of wanted) {
-      if (headerIds.has(b.id)) continue;
-      const length = textOf(b).join("").length;
-      if (current.blocks.length && current.text.length + length > this.windowChars) {
-        windows.push(current);
-        current = { blocks: [], spans: new Map(), text: "" };
-      }
-      const block: WindowBlock = { kind: b.kind, heading_path: b.heading_path ?? [], spans: [] };
-      const header = b.kind === "table_row" && b.parent_id ? headerRows.get(b.parent_id) : undefined;
-      if (b.kind === "table_row") block.header = header ? textOf(header).map((t) => t.trim()) : [];
-      for (const id of b.span_ids) {
-        const span = spans.get(id);
-        if (!span) continue;
-        const ref = `s${current.spans.size + 1}`;
-        current.spans.set(ref, span);
-        block.spans.push({ ref, text: span.text });
-      }
-      current.blocks.push(block);
-      current.text += `${[...block.heading_path, ...(block.header ?? []), ...block.spans.map((s) => s.text)].join("\n")}\n`;
-    }
-    if (current.blocks.length) windows.push(current);
-    return windows;
-  }
-
   async #complete(
     version: SourceVersion,
     window: Window,
@@ -574,75 +566,6 @@ export class Extraction {
     }
   }
 
-  /** The claim and its evidence, or undefined when no quote is verbatim from a given span. */
-  #build(version: SourceVersion, window: Window, extracted: ExtractedClaim): Built | undefined {
-    const cited = extracted.evidence.flatMap((e) => {
-      const span = window.spans.get(e.span);
-      const start = span?.text.indexOf(e.quote) ?? -1;
-      return span && start >= 0 ? [{ span, quote: e.quote, start }] : [];
-    });
-    if (!cited.length) return undefined;
-    const spanIds = [...new Set(cited.map((c) => c.span.id))].sort();
-    const statement = extracted.statement.trim();
-    // What the claim says, not only its words: under a renamed heading the same sentence
-    // can have another subject.
-    const says = JSON.stringify([
-      statement,
-      extracted.claim_type,
-      extracted.knowledge_class ?? "general",
-      extracted.subject ?? null,
-      extracted.predicate ?? null,
-      extracted.value ?? null,
-      extracted.qualifiers ?? [],
-    ]);
-    const id = stableId("claim", version.tenant_id, PROMPT_VERSION, says, ...spanIds);
-    const confidence = extracted.confidence ?? 0.7;
-    const authority = version.authority ?? 0.5;
-    const now = this.clock().toISOString();
-    const claim: Claim = {
-      id,
-      tenant_id: version.tenant_id,
-      space_id: version.space_id,
-      statement,
-      claim_type: extracted.claim_type,
-      knowledge_class: extracted.knowledge_class ?? "general",
-      valid_time: {},
-      recorded_at: now,
-      confidence,
-      authority,
-      weight: Number((authority * confidence).toFixed(4)),
-      status: "active",
-      origin: "extracted",
-      sensitivity: version.sensitivity,
-      producer: this.producer,
-      inputs_hash: contentHash(JSON.stringify([PROMPT_VERSION, statement, cited.map((c) => [c.span.id, c.quote])])),
-      created_at: now,
-      updated_at: now,
-    };
-    const start = dayStart(extracted.valid_from) ?? dayStart(version.metadata?.extra?.effective_from);
-    if (start) claim.valid_time = { start };
-    if (version.language) claim.language = version.language;
-    if (extracted.subject) claim.subject_text = extracted.subject;
-    if (extracted.predicate) claim.predicate = extracted.predicate;
-    if (extracted.value) claim.value = extracted.value;
-    if (extracted.qualifiers?.length) claim.qualifiers = extracted.qualifiers;
-    const slot = slotOf(claim);
-    if (slot) claim.slot_key = slot;
-    const evidence = cited.map(
-      (c): ClaimEvidence => ({
-        claim_id: id,
-        span_id: c.span.id,
-        source_version_id: c.span.source_version_id,
-        role: "supports",
-        quote: c.quote,
-        quote_start: c.start,
-        quote_end: c.start + c.quote.length,
-      }),
-    );
-    const blocks = new Set(cited.flatMap((c) => (c.span.block_id ? [c.span.block_id] : [])));
-    return { claim, evidence, blocks };
-  }
-
   /**
    * The document's mark, or undefined when a later version of the document was extracted
    * already. Otherwise the version becomes the document's latest, before its claims are
@@ -660,8 +583,14 @@ export class Extraction {
     const latest = await this.records.get(DOCUMENTS, DOCUMENTS.key(mark));
     if (latest?.source_version_id === version.id) return latest;
     if (latest && version.fetched_at < latest.fetched_at) return undefined;
-    const { unstated, asked } = latest ?? {};
-    const moved: DocumentMark = { ...mark, ...(unstated && { unstated }), ...(asked && { asked }) };
+    const { unstated, asked, paused } = latest ?? {};
+    const moved: DocumentMark = {
+      ...mark,
+      reading: true,
+      ...(unstated && { unstated }),
+      ...(asked && { asked }),
+      ...(paused && { paused }),
+    };
     await this.records.transaction((tx) => tx.put(DOCUMENTS, [moved]));
     return moved;
   }
