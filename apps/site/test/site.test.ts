@@ -74,6 +74,23 @@ describe("site", () => {
     expect(sources.match(/class="smp smp-/g)).toHaveLength(4);
   });
 
+  test("the results show three measured figures, Inspiration's bar first, and link to their method", () => {
+    const pages = build({ root: "en", explicitIndex: false, fragment: false });
+    for (const [path, html] of pages) {
+      const section = /<section class="results"[\s\S]*?<\/section>/.exec(html)?.[0] ?? "";
+      expect(section.match(/class="result"/g), path).toHaveLength(3);
+      expect(section.match(/class="res-track"/g), path).toHaveLength(6);
+      expect(section.match(/class="res-bar ours"/g), path).toHaveLength(3);
+      expect(section, path).toContain('href="https://arxiv.org/abs/2611.04169v1"');
+    }
+    const en = pages.get("index.html") ?? "";
+    for (const shown of ["178 of 204", "164 of 204", "27 of 27", "16 of 27", "CNY 0.0012", "CNY 0.0083"])
+      expect(en).toContain(shown);
+    // Each language links to the method in its own copy where there is one, and the file exists.
+    for (const { tag, pack } of loadPacks())
+      expect(existsSync(new URL(`../../../${pack.results.methodPath}`, import.meta.url)), tag).toBe(true);
+  });
+
   test("the search box lists every document of the story and is rendered answered", () => {
     for (const { tag, pack } of loadPacks()) {
       const html = build({ root: "en", explicitIndex: false, fragment: false }).get(

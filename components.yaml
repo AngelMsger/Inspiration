@@ -278,4 +278,4 @@ apps:
     owns: The measurement harness and its CLI (pnpm bench); ingest runs and volume reports, the control check, history replay, questions and answers, the evidence audit, the reading check, cost, synthetic corpora
     uses: [engine]
   site:
-    owns: The product website (pnpm site); static pages in English, Chinese and Japanese from language packs, a figure of the kinds of source it reads, scripted demos of the product (its search box and its window), and no download or sign-up while in development; .github/workflows/site.yml publishes it to GitHub Pages
+    owns: The product website (pnpm site); static pages in English, Chinese and Japanese from language packs, a figure of the kinds of source it reads, scripted demos of the product (its search box and its window), measured results from the validation runs, and no download or sign-up while in development; .github/workflows/site.yml publishes it to GitHub Pages

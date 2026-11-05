@@ -23,6 +23,7 @@ nav:
   sources: Sources
   features: Features
   agents: For agents
+  results: Results
   language: Language
   github: Inspiration on GitHub
 
@@ -233,6 +234,42 @@ features:
     fact: 650 yuan a night
     holds: from 2026-10-01
     source: One fact, cited in its Chinese original
+
+results:
+  kicker: Results
+  title: Measured, not promised.
+  lead: >-
+    On a test built around facts that changed or conflict, Inspiration answered **more often right
+    than a mature RAG**, and its compact answer **cost a seventh as much**.
+  items:
+    - value: "+6.9"
+      unit: points
+      label: more often right than a mature RAG, on facts that changed or conflict
+      bars: [Inspiration, Mature RAG]
+      foot: "Facts that did not change: 70 of 72 right each."
+    - value: 27 of 27
+      unit: ""
+      label: changes announced in another document, answered with the new value
+      bars: [Inspiration, "Same documents, not governed"]
+      foot: Both read every document of the topic; only governance differs.
+    - value: 1/7
+      unit: ""
+      label: of a mature RAG's model cost per answer, with as many answers right
+      bars: ["Inspiration, compact answer", Mature RAG]
+      foot: "Right of 276: 242 against 234. Input per answer: 1,961 tokens against 8,954."
+  right: "{value} of {of}"
+  money: "CNY {value}"
+  why: >-
+    **Why it works:** a model goes wrong when its input holds rival values for the fact it is
+    asked, not when the input is long. Inspiration settles which value holds before the model reads.
+  source: Liu, 2026, preprint
+  note: >-
+    Lab results from runs on 3 and 4 November 2026: 276 questions on two topics of one test
+    corpus, answered by DeepSeek V4.1 Flash. The mature RAG uses hybrid search, a reranker,
+    question translation and 12 to 16 passages. Governance's rules were tuned on this corpus; a
+    larger test on real data comes later.
+  method: How we measured
+  methodPath: docs/design/validation.md
 
 agents:
   kicker: For agents
