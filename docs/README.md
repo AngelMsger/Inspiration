@@ -20,6 +20,7 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 | --- | --- |
 | What the product is, for whom, and why | [Overview](overview.md), Part I |
 | What is being built now, and what was left out | [The MVP](design/mvp.md) |
+| What has been decided, and what is still open | [Decisions and open questions](decisions.md) |
 | What has been proven, and at what cost | [Validating the knowledge core](design/validation.md), "Where we stand" |
 | How the system is put together | The overview's [Architecture at a glance](overview.md#9-architecture-at-a-glance), then [Architecture](architecture.md) |
 | How to build, test and run it | [Development](development.md) |
@@ -29,7 +30,8 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 
 | Doc | Status | What it covers |
 | --- | --- | --- |
-| [Overview](overview.md) | Version 2, 2026-10-27; brought up to date 2026-11-05 | Product requirements and the architecture at a glance: scenarios, diagrams, feasibility, what is built and planned, open questions |
+| [Overview](overview.md) | Version 2, 2026-10-27; brought up to date 2026-11-05 | Product requirements and the architecture at a glance: scenarios, diagrams, feasibility, what is built and planned |
+| [Decisions and open questions](decisions.md) | Kept current, 2026-11-05 | The product owner's decisions in force, by date, and the questions still open |
 | [The MVP](design/mvp.md) | Adopted, 2026-11-05 | A usable product that closes the business flow for one company: scope, slices and decisions |
 | [Validating the knowledge core](design/validation.md) | Proposed, 2026-10-27 | How extraction and governance are measured on real documents, and the results so far |
 

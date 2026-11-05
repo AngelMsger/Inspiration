@@ -1,6 +1,6 @@
 # Inspiration: product requirements and technical architecture
 
-Version 2, as of 2026-10-27; the state of each part was brought up to date on 2026-11-05. This document replaces the first product and technical overview and folds in every discussion on it. Part I is the product requirements: who Inspiration is for, the scenarios it must handle and what it must do. Part II is the technical architecture at a glance and how we know the hard parts can work; [Architecture](architecture.md) has each part in detail. Part III is the plan: where we are, what comes next, the risks and the decisions. Every requirement and component says whether it is built, designed, proposed or still open. The design documents, listed in the [docs index](README.md), hold the details. A Chinese copy is in [zh/overview.md](zh/overview.md); if the two differ, this English version wins.
+Version 2, as of 2026-10-27; the state of each part was brought up to date on 2026-11-05. This document replaces the first product and technical overview and folds in every discussion on it. Part I is the product requirements: who Inspiration is for, the scenarios it must handle and what it must do. Part II is the technical architecture at a glance and how we know the hard parts can work; [Architecture](architecture.md) has each part in detail. Part III is the plan: where we are, what comes next and the risks; the decisions in force and the open questions are in [Decisions](decisions.md). Every requirement and component says whether it is built, designed, proposed or still open. The design documents, listed in the [docs index](README.md), hold the details. A Chinese copy is in [zh/overview.md](zh/overview.md); if the two differ, this English version wins.
 
 | If you want to know | Read |
 | --- | --- |
@@ -10,7 +10,7 @@ Version 2, as of 2026-10-27; the state of each part was brought up to date on 20
 | How it works | 9 Architecture at a glance, then [Architecture](architecture.md) |
 | Whether the hard parts can work | 10 Feasibility |
 | What is being built now | 11 Where we are, and [the MVP](design/mvp.md) |
-| What happens next, and what needs a decision | 12 to 15 |
+| What happens next, and what needs a decision | 12 Next steps, 13 Risks, and [Decisions and open questions](decisions.md) |
 
 ## 1. Summary
 
@@ -45,7 +45,7 @@ Four bets set Inspiration apart, each answering a failure of today's tools:
 
 **Who it is for.** Teams and companies whose knowledge lives across several tools (Feishu or Lark, Confluence, approval systems, file shares, PDFs). It starts with one person's library and grows into teams and companies. The strongest early uses are governing procedures and policies across tools, and a governed knowledge endpoint for a company's own agents. It is sold as SaaS first, with private deployment as a second profile of the same code. English, Chinese and Japanese are supported from the first release, as one knowledge base: knowledge is language-neutral, and language is only how it is expressed.
 
-**Where it stands.** The engine runs end to end: ingest, parsing, extraction, governance, freshness, governance levels, topics, the inbox, search and grounded answers, all merged on `main`, with its language rules in resource files. From 2026-10-27 to 2026-11-04 real models validated the knowledge core first: Inspiration answers more questions right than a mature RAG, from a smaller input, though short of the 10-point aim, and the product owner accepted that lead ([validation](design/validation.md)). Since 2026-11-05 the [MVP](design/mvp.md) is being built, one company's whole loop. Sign-in, companies, members, spaces and their audiences are merged, and so are, on the engine side, uploads and the parsing worker for Word, PowerPoint, Excel and PDF. Pages, the agent API, "Decide for me" and the rest of the business layer are designed but not built.
+**Where it stands.** The engine runs end to end: ingest, parsing, extraction, governance, freshness, governance levels, topics, the inbox, search and grounded answers, all merged on `main`, with its language rules in resource files. From 2026-10-27 to 2026-11-04 real models validated the knowledge core first: Inspiration answers more questions right than a mature RAG, from a smaller input, though short of the 10-point aim, and the product owner accepted that lead ([validation](design/validation.md)). Since 2026-11-05 the [MVP](design/mvp.md) is being built, one company's whole loop. Sign-in and companies, uploads and parsing, fast cited answers, "Decide for me" and agents over MCP are merged, and the trial comes next. Pages, publishing and the rest of the business layer are designed but not built.
 
 **What is new in this version.** It is written as a PRD plus an architecture, with scenarios that say why each design exists and a feasibility section that says what is proven and what is not. It also takes in the decisions and proposals from the discussions since the first version:
 
@@ -277,7 +277,7 @@ The all-staff travel guide uses HR's grades and Finance's hotel caps. Finance al
 - **What happens.** The guide is written for its whole audience from what that audience can read. HR and Finance make their grades and caps readable to all staff, so the guide uses them. The memo is not readable by all staff, and leaving it out would leave only one side of an argument, so the omission check fires. The guide's owner gets one todo: ask Finance to release the relevant statement, rewrite the section without taking a position, or publish with a note. A reader who cannot open the memo sees "Some material on this point is in a space you cannot open. Ask the Finance space owner." A Finance reader sees the full section.
 - **Why.** Cutting text per reader distorts meaning, and hiding a whole page because one input is restricted is unusable and invites abuse: anyone could hide a page by linking a trivial restricted note to it. So people set audiences, inputs never do; units are written for their audience; and an omission that changes the meaning goes to a person (see [Permissions](architecture.md#permissions)).
 - **When it applies.** A company with a single shared space never meets this. It starts to matter when a department such as Finance or HR narrows who can read its space.
-- **State.** Proposed ([Permissions in compiled knowledge](design/compiled-knowledge-permissions.md)), waiting for the product owner to confirm the trade-off in section 15; about 3 person-weeks.
+- **State.** Proposed ([Permissions in compiled knowledge](design/compiled-knowledge-permissions.md)), waiting for the product owner to confirm the trade-off in the [open questions](decisions.md#open-questions); about 3 person-weeks.
 
 ### 5.7 A company agent uses the knowledge
 
@@ -623,7 +623,7 @@ The prototype runs on mocked models on purpose: it proves the pipeline, the volu
 | Review load | Median 1, max 4 cards per owner per week over a simulated year | Real conflict rates and owner behaviour | Conflict precision at G1; weekly active owners at G2 | Levels, the weekly budget, precedence rules and change reviews |
 | Incremental freshness at scale | 10,000 documents: 72 s to sync, 535 s to settle; 1 of 175 edits asked a person | Real change patterns, webhooks and rate limits in a live Feishu tenant | The pilot tenant | The nightly full listing catches whatever push and polls miss |
 | Permissions without leaks or blank pages | SpiceDB checks, scope filters and consistency tokens built; the compiled-knowledge design has eight acceptance tests | Precision of the omission check, which needs a model for "the other side" | An evaluation set of balanced arguments and abuse cases; the red team | Three of the four triggers need no model; "publish with a note" is always available |
-| Answers and agent efficiency | Answers built and measured on real models: of 150 questions on the company drive, a mature RAG 137, Inspiration 134 with 5,538 input tokens per answer against 9,936, compact answers 128 with 2,075 ([validation](design/validation.md)); the agent API is not built | Retrieval quality and tokens per task | Recall@10 and tokens per task against a chunk-only baseline (G1, G2) | Hybrid search with rerank; tools return handles before text |
+| Answers and agent efficiency | Answers built and measured on real models: of 150 questions on the company drive, a mature RAG 137, Inspiration 134 with 5,538 input tokens per answer against 9,936, compact answers 128 with 2,075 ([validation](design/validation.md)); the MCP server is built, with search, ask and read | Retrieval quality and tokens per task | Recall@10 and tokens per task against a chunk-only baseline (G1, G2) | Hybrid search with rerank; tools return handles before text |
 | Knowledge across languages | Language packs and language-neutral keys built | Missed and wrong merges across languages | A three-language evaluation corpus | Unmerged statements stay duplicates, never false conflicts |
 | Parsing Office, PDF and scans | Built-in text parsers, and the parsing worker for the text layer of Word, PowerPoint, Excel and PDF | Throughput and layout quality, especially on domestic accelerators | Benchmark Docling and PaddleOCR-VL on the customer's hardware early in a pilot | A router with confidence escalation; placeholders that say "open in source" |
 | Feishu and Lark in production | Connectors built against recorded fixtures; single-flight refresh designed | Rate limits and token refresh on a real tenant | The pilot tenant | Reserved rate share for interactive calls; re-authorization todos |
@@ -634,11 +634,9 @@ The prototype runs on mocked models on purpose: it proves the pipeline, the volu
 
 ## 11. Where we are
 
-**Built and merged on `main`:** contracts, kernel, event bus, test kit, knowledge store, access control, model gateway, agent runtime, connectors, source sync, normalization, extraction, governance, freshness, tenant-scoped member IDs, and the engine process with its CLI, demo corpus and synthesizer (PRs #2 to #7); governance levels, fact-slot keys and extract on use, topics and placements, and the inbox (PRs #8 to #10); language rules in resource files for en, zh and ja with a repo test against Chinese and Japanese in code (PRs #12 and #13); the move into a folder per layer (PR #15); the design documents (PRs #11 and #14) and this overview as product requirements and technical architecture (PR #17); a value from statements not yet in effect lends no authority (PR #16); a control corpus whose cases each have one right answer, with the engine's known gaps recorded (PR #18); who owns vendor integrations, the tool gate and the sandbox in `components.yaml` (PR #19); a snapshot of the UI screens (PR #20); and the design for code repositories (PRs #21 to #23).
+**What is built** is listed component by component in [`components.yaml`](../components.yaml), where each built component's `owns` line ends with what is still planned, and in the component table of [Architecture](architecture.md#layers-and-components). In short: the engine runs end to end on `main`, from ingest and parsing through extraction, governance, freshness, topics and the inbox to search, grounded answers and an MCP server for agents, with its language rules in resource files for English, Chinese and Japanese. Real models validated the knowledge core from 2026-10-27 to 2026-11-04 ([validation](design/validation.md)).
 
-**Built and merged since** (PRs #27 to #86): the replay of a real policy through its edit history; facts a new version stops stating are kept, marked; values counted by independent source, with copies and translations once, and the original holding over a translation that says otherwise; real pages of the Kubernetes documentation in English, Chinese and Japanese; and retrieval, with search and answers that give the value that holds, checked with 12 questions in three languages (PRs #27 to #33); answers from the latest edition of a document (#38); cheap real runs with dry-run pricing, a response cache and a day budget (#39, #45); whole passages, a real embedding and reranker, query translation, the two baselines, a governed long context and compact answers (#59 to #66, #74); native Anthropic and OpenAI-compatible providers for the fast-model arm (#75); and the decisive test's corpus, fact catalogue and free preflight (#78, #79, #83, #84). What the real-model runs found is in [Validating the knowledge core](design/validation.md).
-
-**Built and merged since** (PRs #87 to #170): the decisive test and the governance fix, which closed the validation on 2026-11-04 ([validation](design/validation.md)); the [MVP](design/mvp.md) plan, adopted on 2026-11-05; for its first slice, principal tokens verified against the business layer's keys, visibility by space in place of source permissions, the engine's copy of the directory and the routes that administer spaces, and in the business layer accounts on Logto, companies, members and invite links, with the web app's sign-in and admin area; for its second, uploads into a space, the parsing worker for Word, PowerPoint, Excel and PDF, a fact vocabulary per company, reading that pauses at a spent budget, and clearance checked on reads; and the README and the product website in three languages.
+**What is being built now** is the [MVP](design/mvp.md), one company's whole loop, adopted on 2026-11-05. Its first five slices are merged on the engine, business and web sides (identity and companies, documents in, fast cited answers, "Decide for me", agents over MCP), all but reading on demand; the trial comes next. The [README's roadmap](../README.md#roadmap) shows each slice's state.
 
 **Measured** on a synthetic tenant of 10,000 documents with the mocked model and fake embeddings (Postgres and Valkey). These numbers describe volumes and the pipeline, not model quality:
 
@@ -659,7 +657,7 @@ The prototype runs on mocked models on purpose: it proves the pipeline, the volu
 
 Topics come out about ten times larger than the design target of about 100 statements, because the synthetic tenant restates 30 subjects across many documents and fake embeddings cannot tell those sections apart. The budget never had to hold a todo back, because grouping by owner, topic and week already keeps every owner under it.
 
-**Designed, not built:** the member's own space (My space) and the proof rule, publishing, compiled-knowledge permissions, the credential broker and sandbox, mirror pages, pages and views, the agent API, "Decide for me", research, scans and complex layouts, source deletions and change reviews, cross-language merge and pages in another language, code repositories as a source (proposed), and the rest of the business layer and the UI.
+**Designed, not built:** the member's own space (My space) and the proof rule, publishing, compiled-knowledge permissions, the credential broker and sandbox, mirror pages, pages and views, research, scans and complex layouts, source deletions and change reviews, cross-language merge and pages in another language, code repositories as a source (proposed), and the rest of the business layer (directory, connections, publishing, approvals, notifications, billing) and of the UI.
 
 ## 12. Next steps and effort
 
@@ -702,52 +700,6 @@ After that, pilot and product-v1 work for Artifact-level editing (templates, Wor
 | Cross-language matching | The same fact in two languages is missed or wrongly merged | Language-neutral keys, aliases per language, translations linked to originals, a model check before any merge, a three-language evaluation corpus |
 | Suites bundle similar features | Lost single-suite deals | Lead with cross-tool governance and the governed agent endpoint |
 | Model throughput on domestic accelerators | Slow first index | Benchmark on the customer's hardware early in a pilot |
-
-## 14. Decisions in force
-
-| Decided | Decision |
-| --- | --- |
-| 2026-10-22 | Product name Inspiration; Artifact-level page presentation is committed scope; capabilities first, accepted through MCP, REST and the CLI |
-| 2026-10-23 | TypeScript everywhere except a Python parsing worker; descriptive component names; every change through a PR reviewed by the product owner's local Codex |
-| 2026-10-23 | A mocked end-to-end prototype of every stage first; real model access only after it runs; engine and UI iterate together on measured volumes |
-| 2026-10-24 | Three IDs: tenant, user (account) and member |
-| 2026-10-24 | Two knowledge domains: My space private, shared spaces governed top down; source permissions only warn; publishing moves knowledge; credentials decide freshness only |
-| 2026-10-24 | Statements at scale: two outlines, governance levels, grouped review; uploads start as Reference; a weekly budget of 10; reference never blocks a governed statement |
-| 2026-10-24 | Engine and business layer split; Logto as identity provider; SaaS first with private deployment as a second profile; My space locked on leaving and erased after 30 days; approvers see only a request's items |
-| 2026-10-24 | Connectors on vendor APIs, vendor CLIs only in the sandbox, a credential broker |
-| 2026-10-24 | Three views and two trees for reading |
-| 2026-10-24 | Pipeline boundaries: normalization before extraction and indexing, retrieval owns every index, freshness emits signals only, collaboration owns every todo |
-| 2026-10-24 | English, Chinese and Japanese from the first release; no Chinese in code or comments; docs in English with a Chinese copy |
-| 2026-10-26 | Three product roles: super admin, owner (always named with its scope) and member; finer roles stay internal and product roles are bundles of them |
-| 2026-10-26 | Usage follows mainstream AI products: seats fill a company pool, members have default caps, the super admin sees usage but never content; details come with billing |
-| 2026-10-26 | Words: Company in English, 企业 in Chinese, 企業 in Japanese, never "workspace"; governance levels 严格, 宽松 and 仅检索 in Chinese |
-| 2026-10-26 | Source changes: knowledge never disappears silently; a deleted source is kept and marked until its owner decides; a large change is reviewed once, as a whole |
-| 2026-10-26 | Knowledge is language-neutral and language is only how it is expressed |
-| 2026-10-26 | Anyone who holds a credential to a source may import from it; no blocking by email domain or Feishu organization; verified domains only for joining |
-| 2026-10-26 | Agents running on their own only read or propose; a member's explicit request is the approval for an edit within that member's rights (`knowledge.write`) |
-| 2026-10-26 | Engine and business layer in one monorepo, a folder per layer (`libs/`, `engine/`, `business/`, `apps/`), with one-way dependencies checked by the manifest test |
-| 2026-10-26 | One integration per vendor serves both sync and agent tools; tools act as the member; only code we did not write runs in the sandbox |
-| 2026-10-27 | Concrete before abstract: an imported source opens as a document in its own shape, and knowledge is revealed from it step by step, concrete to abstract; someone new starts in their documents, not in knowledge cards |
-| 2026-10-27 | The Sources tree is called the Documents tree (文档树, ドキュメントツリー), the word people use for their material, although it also holds chats and sheets; a source is still a source wherever a page cites it |
-| 2026-10-27 | Connections that bring knowledge in are Source connections (来源连接, ソース接続), and "connection" alone always means one; the apps and agents that use knowledge are Apps with access (proposed: 使用知识的应用, アクセスを許可したアプリ), never connected apps. There is no Verified domains page: the email domain for joining sits in Members, and the company's Feishu organization beside Source connections |
-| 2026-10-27 | Validate the knowledge core (extraction and governance) on real models first; the business layer and permissions can wait. Every run leaves a trace in the repo and its replies are kept, so nothing is paid for twice |
-| 2026-10-28 | Inspiration must lead a mature RAG by at least 10 points on stale and conflicting information, within one topic's material, on fast and cheap models as well as strong ones; organizing knowledge must never lose the right value |
-| 2026-11-01 | Cost, accuracy and latency are judged together. The cheapest provider runs the tests; a cheap GPT model or Claude Haiku only backs a conclusion. If governance cannot set the product apart, the fallback is a knowledge and identity gateway for agents |
-| 2026-11-04 | The validation's result is accepted: Inspiration answers stably more right than a mature RAG, short of 10 points, which stay a long-term goal for a larger dataset close to real use; tuning runs stop, and an MVP that closes the business flow comes next |
-| 2026-11-05 | The MVP is adopted with its five decisions as recommended: three to five people try it in Chinese for two weeks, on one server in Hong Kong or Singapore; live Feishu after Gate B; CNY 100 a month for models; a standing "Decide for me" offered to owners |
-| 2026-11-05 | A pull request is merged once CI passes; the product owner's Codex review runs afterwards, and its findings become a follow-up pull request or an issue. Outside research is supporting input only: public pages say that research supports a claim and link it, without naming its authors |
-
-## 15. Open questions
-
-1. **Confirm the boundary between the super admin and owners, and the Chinese name 维护人** (section 4).
-2. **Confirm the trade-off in compiled-knowledge permissions:** at `internal` and `confidential`, readers learn that relevant restricted material exists and whom to ask, never its content; `secret` material leaves no trace (see [Permissions](architecture.md#permissions)).
-3. **Review the proposed Japanese terms** in the glossary.
-4. **Which SaaS region opens first,** and how gates G2 and G3 change for SaaS first.
-5. **Which model providers serve each region,** and at which sensitivity labels.
-6. **Which connectors come second and third outside China** (for example Confluence, Notion, Google Drive, SharePoint), and which first design partner and industry the pilot targets.
-7. **Answered: the order of the remaining stages.** The validation on real models came first (2026-10-27 to 2026-11-04), and the [MVP](design/mvp.md) sets the order now (2026-11-05).
-8. **Two details of the agent tools:** whether `search` ranks blocks and statements together by default, and whose budget pays for the model call inside `ask`.
-9. **Answered: a standing "Decide for me" counts as the member's approval** under AG-4 (section 6.7), as a request made in advance, scoped to kinds of decision and pausable; the MVP offers it to owners on their first inbox visit (its decision 5, 2026-11-05). Whether every vote in a joint approval may be delegated waits for joint approval ([Decide for me](design/decide-for-me.md)).
 
 ## Appendix A. Glossary in three languages
 

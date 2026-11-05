@@ -71,7 +71,7 @@ Decisions left to the person stay where they were, in the same order, marked "Le
 
 ## What the engine needs
 
-The rule below changed with the MVP's adoption (the overview's open question 9). The rest is what slice 4 builds.
+The rule below changed with the MVP's adoption ([open question 9](../decisions.md#open-questions)). The rest is what slice 4 builds.
 
 - **The rule.** `AGENTS.md` says built-in agents only read or propose, and that nothing an agent does changes knowledge without a person approving it. Overview requirement AG-4 says agents running on their own only read or propose, and that a member's explicit request is the approval for an edit within that member's rights. Delegation keeps the agent side as it is: the assistant still only proposes. What changes is the approval. Pressing Decide for me is an explicit request, so it already fits AG-4. A standing delegation is a request made in advance, scoped and revocable, so AG-4 has one addition, agreed on 2026-11-05: "a standing delegation the member set up, and can pause, also counts as the member's approval, within that member's rights".
 - **Who owns it.** Collaboration, which owns todos, the inbox and resolving them. A delegation is a member's setting over their own todos.
