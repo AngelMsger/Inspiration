@@ -1,0 +1,24 @@
+{
+  "name": "@inspiration/tenancy",
+  "version": "0.1.0",
+  "description": "Tenancy: companies and their members, the rule that assigns member IDs, the product roles and invite links",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "inspiration": {
+    "plugins": {
+      "migrations": {
+        "tenancy": "./src/migrations.ts#MIGRATIONS"
+      }
+    }
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/kernel": "workspace:*"
+  },
+  "devDependencies": {
+    "@inspiration/testkit": "workspace:*"
+  }
+}

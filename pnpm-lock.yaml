@@ -62,6 +62,9 @@ importers:
       '@inspiration/source-sync':
         specifier: workspace:*
         version: link:engine/source-sync
+      '@inspiration/tenancy':
+        specifier: workspace:*
+        version: link:business/tenancy
       '@inspiration/testkit':
         specifier: workspace:*
         version: link:libs/testkit
@@ -216,6 +219,19 @@ importers:
       vite:
         specifier: 8.3.4
         version: 8.3.4(@types/node@22.20.5)(yaml@2.9.1)
+
+  business/tenancy:
+    dependencies:
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../../libs/contracts
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../../libs/kernel
+    devDependencies:
+      '@inspiration/testkit':
+        specifier: workspace:*
+        version: link:../../libs/testkit
 
   engine/access-control:
     dependencies:

@@ -6,6 +6,22 @@ top.search: 検索、質問、コマンド
 top.account: "アカウント、{name}"
 account.acting_as: デモ：表示するユーザー
 account.language: 表示言語
+account.companies: 会社
+account.sign_out: ログアウト
+role.super_admin: スーパー管理者
+
+signin.title: すべての会社に、ひとつのアカウントで
+signin.lede: メールアドレスとパスワードでログインします。新しいアカウントはまだどの会社にも属していません。会社を作るか、同僚から届いた招待リンクを開いてください。
+signin.sign_in: ログイン
+signin.sign_up: アカウントを作成
+signin.failed: ログインできませんでした。もう一度お試しください。
+
+company.welcome: "ようこそ、{name}さん"
+company.lede: まだどの会社にも属していません。会社を作って同僚を招待するか、同僚から届いた招待リンクを開いてください。
+company.name: 会社名
+company.language: 既定の言語
+company.super_admin: あなたがスーパー管理者になり、スペースを作って責任者を決め、メンバーを招待します。
+company.create: 会社を作成
 
 nav.label: ナレッジ
 nav.home: ホーム

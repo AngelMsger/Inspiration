@@ -18,6 +18,13 @@
 | `retrieval.yaml` | 检索和回答的请求与结果、引用、关于有争议和已被取代的值的说明、反馈 |
 | `events.yaml` | 事件信封和每种事件类型的载荷（`x-events`） |
 | `agents.yaml` | 工具规格、Agent 规格、运行上下文、步骤和结果 |
+| `business/accounts.yaml` | 业务后端面向浏览器的 API 中关于已登录账户的部分：会话、语言和退出登录 |
+| `business/companies.yaml` | 业务后端面向浏览器的 API 中关于企业的部分：成员及其产品角色、邀请链接 |
+
+`schema/business/` 里的文件是业务层自己的类型。它们并入同一个打包文件，所以 `parseAs` 能像校验其他类型一样校验它们，
+它们也可以引用引擎的类型（`../common.yaml#/$defs/TenantId`）；但它们的 TypeScript 类型生成到 `src/business.ts`，
+各包以 `@inspiration/contracts/business` 引入。引擎的契约文件从不引用它们，`engine/` 和 `libs/` 里也没有任何代码引入这个入口
+（`test/manifest.test.ts`）。
 
 组件之间的接口（`KnowledgeStore`、`AuthZ`、`ModelGateway`、`Retriever`、`AgentRuntime`、`SlotVerdicts`、`StalenessReader`、插件接口）是在生成的类型
 之上手写的 TypeScript，位于 `libs/contracts/src/interfaces.ts`。
@@ -26,12 +33,12 @@
 
 ```bash
 $EDITOR libs/contracts/schema/page.yaml
-pnpm contracts           # 打包，然后生成 src/generated.ts 和 src/events.ts
+pnpm contracts           # 打包，然后生成 src/generated.ts、src/business.ts 和 src/events.ts
 pnpm contracts:check     # CI 运行的检查：任何生成文件过期都会失败
 pnpm vitest run libs/contracts   # 示例按 schema 校验
 ```
 
-永远不要手工编辑 `dist/inspiration.schema.json`、`src/generated.ts` 或 `src/events.ts`。
+永远不要手工编辑 `dist/inspiration.schema.json`、`src/generated.ts`、`src/business.ts` 或 `src/events.ts`。
 
 规则：
 

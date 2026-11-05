@@ -3,9 +3,19 @@
 // folds the left column away.
 
 import type { Inbox } from "@inspiration/contracts";
+import type { CompanyMember, Session, UiLocale } from "@inspiration/contracts/business";
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type ApiFailure, api, failureOf, type Library, type Loaded, loadLibrary, useLoad } from "./api.ts";
-import type { Person, Session } from "./backend.ts";
+import {
+  type ApiFailure,
+  api,
+  apiIn,
+  failureOf,
+  type Library,
+  type Loaded,
+  loadLibrary,
+  showCompany,
+  useLoad,
+} from "./api.ts";
 import { DocumentScreen } from "./document.tsx";
 import { Documents } from "./documents.tsx";
 import { Ask, countOf, Home } from "./home.tsx";
@@ -13,9 +23,11 @@ import { countTodos, DecisionScreen, InboxScreen } from "./inbox.tsx";
 import { TopicScreen, TopicsScreen } from "./knowledge.tsx";
 import { Palette } from "./palette.tsx";
 import { Failure } from "./parts.tsx";
+import { type Person, tagLocale } from "./people.ts";
 import { Link, type Route, useRoute } from "./route.tsx";
+import { NoCompany, SignedOut } from "./signin.tsx";
 import { MaintainColumn, MaintainScreen } from "./space.tsx";
-import { type Switched, switcher } from "./switching.ts";
+import { keptFor, type ReadFor, type Switched, switcher } from "./switching.ts";
 import { chooseTag, TAGS, type Tag, useWords, Words, wordsOf } from "./words.ts";
 
 const LANGUAGE = "inspiration.language";
@@ -28,82 +40,174 @@ function stored(key: string): string | null {
   }
 }
 
-/** A person's library, read before their shell is shown. */
-interface Entry {
-  member: string;
+/** A member's library, read before their shell is shown, and the people of their company. */
+interface Entry extends ReadFor {
   library: Library;
+  people: Person[];
+  /** In the demo, the people the page may act as, with their team and role. */
+  demo?: Person[];
 }
 
-/** Whom the app acts as, with their library when it could be read; the shell reads it again otherwise. */
+/**
+ * Who is signed in, with their company's library and people when they could be read; the shell
+ * reads the library again otherwise. It reads in the session's company, not the one on screen.
+ */
 async function enter(session: Session): Promise<{ session: Session; entry?: Entry }> {
-  const library = await loadLibrary().catch(() => undefined);
-  return { session, ...(library && { entry: { member: session.person.member, library } }) };
+  const current = session.current;
+  if (!current) return { session };
+  const calls = apiIn(current.tenant_id);
+  const [library, members, demo] = await Promise.all([
+    loadLibrary(calls).catch(() => undefined),
+    calls.members().catch(() => undefined),
+    calls.demoPeople().catch(() => undefined),
+  ]);
+  if (!library) return { session };
+  const people = peopleOf(members?.members ?? [], demo?.people);
+  const entry = { tenant: current.tenant_id, member: current.member_id, library, people };
+  return { session, entry: { ...entry, ...(demo && { demo: demo.people }) } };
+}
+
+/** The company's people by name, with the demo's word on each one's team and role. */
+function peopleOf(members: CompanyMember[], demo: Person[] | undefined): Person[] {
+  return members.map((m) => {
+    const about = demo?.find((p) => p.member === m.member_id)?.about;
+    return { member: m.member_id, name: m.display_name, ...(about && { about }) };
+  });
+}
+
+/** The person the page acts as, from the session, in the words screens use. */
+function personOf(session: Session, demo: Person[] | undefined): Person {
+  const current = session.current as NonNullable<Session["current"]>;
+  const about = demo?.find((p) => p.member === current.member_id)?.about;
+  return {
+    member: current.member_id,
+    name: current.display_name,
+    locale: session.account.locale,
+    ...(about && { about }),
+  };
 }
 
 /**
  * The app. `generation` counts the times the data under it changed without its doing, as when
- * a snapshot's guide moves to another step: it reads whom it acts as again, and the screens
+ * a snapshot's guide moves to another step: it reads who is signed in again, and the screens
  * start over. Whoever it acts as next, it reads their library before it shows their shell, so
  * the old frame stays on screen meanwhile and no one's frame shows another person's spaces.
- * When people are picked in quick succession, the last one picked is shown (`switcher`).
+ * When people or companies are picked in quick succession, the last one picked is shown
+ * (`switcher`), and until it is, the frame on screen takes no clicks. Its calls name the company
+ * it shows, so none reads or acts in the next one meanwhile; when the session moves on without
+ * it, as from another tab, it reads the session again (api.ts). When a change fails, the backend
+ * may have made it all the same, so the page reads the session before the frame takes clicks
+ * again, and shows the failure only if the session stayed where it was. Signed out, it shows how
+ * to sign in; signed in to no company yet, how to make one.
  */
 export function App(props: { generation?: number }) {
   const generation = props.generation ?? 0;
   const [session, setSession] = useState<Session>();
+  const [signedOut, setSignedOut] = useState(false);
   // The generation the session was read in; the shell starts over when it changes.
   const [readIn, setReadIn] = useState(generation);
   const [failure, setFailure] = useState<ApiFailure>();
   const [picked, setPicked] = useState(() => stored(LANGUAGE));
-  const tag = chooseTag(picked, session?.person.locale);
+  const tag = chooseTag(picked, session?.account.locale);
   const words = useMemo(() => ({ say: wordsOf(tag), tag }), [tag]);
   // The library the next shell starts with, for the member it was read as.
   const entry = useRef<Entry>(undefined);
 
   // Every change of whom the app acts as, the generation's reads among them; only the latest shows.
-  const [change] = useState(switcher);
+  const [busy, setBusy] = useState(false);
+  const switching = useRef(false);
+  const [change] = useState(() =>
+    switcher((on) => {
+      switching.current = on;
+      setBusy(on);
+    }),
+  );
   // The generation of the latest read, so a person picked meanwhile starts the screens over too.
   const latest = useRef(generation);
+  // Reads who is signed in again, and shows the company the session works in.
+  const reread = useRef(() => {});
+  // Whom the frame on screen acts as: a member of a company, or no one yet.
+  const onScreen = useRef<Session["current"]>(undefined);
   const show = useCallback((next: Switched<{ session: Session; entry?: Entry }>) => {
     if (!next) return;
     entry.current = next.value.entry;
+    onScreen.current = next.value.session.current;
+    showCompany(next.value.session.current?.tenant_id, () => switching.current || reread.current());
     setFailure(undefined);
+    setSignedOut(false);
     setSession(next.value.session);
     setReadIn(latest.current);
   }, []);
-  const fail = useCallback((e: unknown) => setFailure(failureOf(e)), []);
+  const fail = useCallback((e: unknown) => {
+    const failed = failureOf(e);
+    // The session moved to another company while the next one was read: show where it is now.
+    if (failed.status === 409 && failed.code === "conflict") return reread.current();
+    if (failed.status !== 401) return setFailure(failed);
+    setSession(undefined);
+    setSignedOut(true);
+  }, []);
+  reread.current = () => void change(api.session, enter).then(show, fail);
 
   useEffect(() => {
     latest.current = generation;
-    change(api.session, enter).then(show, fail);
-  }, [generation, change, show, fail]);
+    reread.current();
+  }, [generation]);
   useEffect(() => {
-    document.documentElement.lang = tag === "zh" ? "zh-CN" : tag;
+    document.documentElement.lang = tagLocale(tag);
   }, [tag]);
 
-  const actAs = useCallback(
-    (member: string) => change(() => api.actAs(member), enter).then(show, fail),
+  // A change of person or company; when its request fails, the session says where it stands.
+  const switchTo = useCallback(
+    (ask: () => Promise<Session>) => {
+      const before = onScreen.current;
+      return change(ask, enter, api.session).then((next) => {
+        show(next);
+        const now = next?.value.session.current;
+        const stayed = now?.tenant_id === before?.tenant_id && now?.member_id === before?.member_id;
+        if (next?.lost && stayed) setFailure(failureOf(next.lost.error));
+      }, fail);
+    },
     [change, show, fail],
   );
-  const speak = useCallback((t: Tag) => {
-    setPicked(t);
-    try {
-      localStorage.setItem(LANGUAGE, t);
-    } catch {
-      // Kept for this visit only.
-    }
-  }, []);
+  const actAs = useCallback((member: string) => switchTo(() => api.actAs(member)), [switchTo]);
+  const enterCompany = useCallback((tenant: string) => switchTo(() => api.enterCompany(tenant)), [switchTo]);
+  const speak = useCallback(
+    (t: Tag) => {
+      setPicked(t);
+      try {
+        localStorage.setItem(LANGUAGE, t);
+      } catch {
+        // Kept for this visit only.
+      }
+      // Signed in, the account keeps it too, for the engine's words and other devices.
+      if (session) api.account({ locale: tagLocale(t) }).catch(fail);
+    },
+    [session, fail],
+  );
+  const createCompany = useCallback(
+    (name: string, locale: UiLocale) => switchTo(() => api.createCompany({ name, default_locale: locale })),
+    [switchTo],
+  );
+  const signOut = useCallback(() => {
+    api.signOut().then(({ next }) => window.location.assign(next), fail);
+  }, [fail]);
 
   return (
     <Words.Provider value={words}>
       {failure && <Failure error={failure} />}
+      {signedOut && <SignedOut onLanguage={speak} />}
+      {session && !session.current && <NoCompany session={session} onCreate={createCompany} onSignOut={signOut} />}
       {/* Acting as someone else starts over with what they may see. */}
-      {session && (
+      {session?.current && (
         <Shell
-          key={`${readIn}:${session.person.member}`}
+          key={`${readIn}:${session.current.tenant_id}:${session.current.member_id}`}
           session={session}
+          busy={busy}
           entry={entry}
           onActAs={actAs}
+          onCompany={enterCompany}
           onLanguage={speak}
+          onSignOut={signOut}
         />
       )}
     </Words.Provider>
@@ -112,23 +216,32 @@ export function App(props: { generation?: number }) {
 
 function Shell(props: {
   session: Session;
-  /** The library already read for this person, if any; the shell keeps its latest there. */
+  /** Whom it acts as is changing: the frame takes no clicks until the next one replaces it. */
+  busy: boolean;
+  /** The library already read for this member, if any; the shell keeps its latest there. */
   entry: RefObject<Entry | undefined>;
   onActAs: (member: string) => Promise<void>;
+  onCompany: (tenant: string) => Promise<void>;
   onLanguage: (tag: Tag) => void;
+  onSignOut: () => void;
 }) {
   const route = useRoute();
   const [palette, setPalette] = useState(false);
   // A synced source changes the documents; the library is read again, and shown as it was
-  // meanwhile. Only this person's library is ever shown, and a failure to read it shows.
-  const member = props.session.person.member;
-  const seed = props.entry.current?.member === member ? props.entry.current.library : undefined;
+  // meanwhile. Only this member's library is ever shown, and a failure to read it shows.
+  const current = props.session.current as NonNullable<Session["current"]>;
+  const entered = keptFor(props.entry.current, current);
+  const seed = entered?.library;
+  const demo = entered?.demo;
+  const person = personOf(props.session, demo);
+  const people = entered?.people.length ? entered.people : [person];
   const [synced, setSynced] = useState(0);
   const loaded = useLoad(`library:${synced}`, () => (synced === 0 && seed ? Promise.resolve(seed) : loadLibrary()));
   const shown = useRef(seed);
   if (loaded.state === "done") {
     shown.current = loaded.value;
-    props.entry.current = { member, library: loaded.value };
+    const read = { tenant: current.tenant_id, member: current.member_id, library: loaded.value, people };
+    props.entry.current = { ...read, ...(demo && { demo }) };
   }
   const library: Loaded<Library> =
     loaded.state !== "failed" && shown.current ? { state: "done", value: shown.current } : loaded;
@@ -151,14 +264,16 @@ function Shell(props: {
   }, []);
 
   return (
-    <div className="app">
+    <div className="app" inert={props.busy}>
       <TopBar
-        company={library.state === "done" ? library.value.tenant.name : ""}
         session={props.session}
+        demo={demo}
         todos={todos.current}
         onSearch={() => setPalette(true)}
         onActAs={props.onActAs}
+        onCompany={props.onCompany}
         onLanguage={props.onLanguage}
+        onSignOut={props.onSignOut}
       />
       <div className="body">
         {library.state === "failed" && <Failure error={library.error} />}
@@ -168,14 +283,14 @@ function Shell(props: {
               <MaintainColumn route={route} library={library.value} />
             ) : (
               route.name !== "document" && (
-                <LeftColumn route={route} library={library.value} person={props.session.person} todos={todos.current} />
+                <LeftColumn route={route} library={library.value} person={person} todos={todos.current} />
               )
             )}
             <Screen
               route={route}
               library={library.value}
-              person={props.session.person}
-              people={props.session.people}
+              person={person}
+              people={people}
               inbox={inbox}
               version={changes + synced}
               onChanged={changed}
@@ -187,7 +302,7 @@ function Shell(props: {
       {palette && library.state === "done" && (
         <Palette
           library={library.value}
-          people={props.session.people}
+          people={demo ?? []}
           onActAs={(m) => void props.onActAs(m)}
           onLanguage={props.onLanguage}
           onClose={() => setPalette(false)}
@@ -239,24 +354,30 @@ function Screen(props: {
 }
 
 function TopBar(props: {
-  company: string;
   session: Session;
+  /** In the demo, the people the page may act as. */
+  demo: Person[] | undefined;
   /** Open todos, shown in the bar while the left column is hidden (phones). */
   todos: number;
   onSearch: () => void;
   onActAs: (member: string) => Promise<void>;
+  onCompany: (tenant: string) => Promise<void>;
   onLanguage: (tag: Tag) => void;
+  onSignOut: () => void;
 }) {
   const { say, tag } = useWords();
   const menu = useRef<HTMLDetailsElement>(null);
   const close = () => menu.current?.removeAttribute("open");
-  const person = props.session.person;
+  const { account, companies } = props.session;
+  const current = props.session.current as NonNullable<Session["current"]>;
+  const company = companies.find((c) => c.tenant_id === current.tenant_id)?.name;
+  const about = props.demo?.find((p) => p.member === current.member_id)?.about;
   return (
     <header className="top">
       <Link to={{ name: "home" }} className="wordmark">
         Inspiration
       </Link>
-      {props.company && <span className="company">{props.company}</span>}
+      {company && <span className="company">{company}</span>}
       <button type="button" className="search" onClick={props.onSearch}>
         <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
           <circle cx="6" cy="6" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
@@ -273,27 +394,52 @@ function TopBar(props: {
         </Link>
       )}
       <details className="account" ref={menu}>
-        <summary aria-label={say("top.account", { name: person.name })}>{person.name.slice(0, 1)}</summary>
+        <summary aria-label={say("top.account", { name: current.display_name })}>
+          {current.display_name.slice(0, 1)}
+        </summary>
         <div className="menu">
           <div className="menu-person">
-            <b>{person.name}</b>
-            {person.about && <span className="quiet">{person.about}</span>}
+            <b>{current.display_name}</b>
+            {(about || account.email) && <span className="quiet">{about ?? account.email}</span>}
           </div>
-          <div className="menu-heading">{say("account.acting_as")}</div>
-          {props.session.people.map((p) => (
-            <button
-              key={p.member}
-              type="button"
-              aria-current={p.member === person.member}
-              onClick={() => {
-                close();
-                void props.onActAs(p.member);
-              }}
-            >
-              {p.name}
-              {p.about && <span className="quiet">{p.about}</span>}
-            </button>
-          ))}
+          {companies.length > 1 && (
+            <>
+              <div className="menu-heading">{say("account.companies")}</div>
+              {companies.map((c) => (
+                <button
+                  key={c.tenant_id}
+                  type="button"
+                  aria-current={c.tenant_id === current.tenant_id}
+                  onClick={() => {
+                    close();
+                    if (c.tenant_id !== current.tenant_id) void props.onCompany(c.tenant_id);
+                  }}
+                >
+                  {c.name}
+                  {c.role === "super_admin" && <span className="quiet">{say("role.super_admin")}</span>}
+                </button>
+              ))}
+            </>
+          )}
+          {props.demo && (
+            <>
+              <div className="menu-heading">{say("account.acting_as")}</div>
+              {props.demo.map((p) => (
+                <button
+                  key={p.member}
+                  type="button"
+                  aria-current={p.member === current.member_id}
+                  onClick={() => {
+                    close();
+                    void props.onActAs(p.member);
+                  }}
+                >
+                  {p.name}
+                  {p.about && <span className="quiet">{p.about}</span>}
+                </button>
+              ))}
+            </>
+          )}
           <div className="menu-heading">{say("account.language")}</div>
           {TAGS.map((t) => (
             <button
@@ -308,6 +454,16 @@ function TopBar(props: {
               {wordsOf(t)("language.name")}
             </button>
           ))}
+          <button
+            type="button"
+            className="menu-sign-out"
+            onClick={() => {
+              close();
+              props.onSignOut();
+            }}
+          >
+            {say("account.sign_out")}
+          </button>
         </div>
       </details>
     </header>

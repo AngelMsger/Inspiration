@@ -45,10 +45,11 @@ apps/<name>       组装根：现在是引擎进程、它的测量工具和 Web 
   组装这些组件并为 Web 应用提供服务的后端，以及只与这个后端通信的 Web 应用。
 - **应用负责组装，包不负责。** 一个应用可以组装两层的组件，例如单进程的开发服务器；任何包都不依赖应用。唯一的例外是测量工具（`apps/bench`），它运行它所测量的引擎进程。
 - **一份清单，一个检查。** [`components.yaml`](../../components.yaml) 的每一节对应一个目录：`components` 对应
-  `engine/`，`libraries` 对应 `libs/`，`apps` 对应 `apps/`，第一个业务组件出现后再加一节 `business` 对应 `business/`。
+  `engine/`，`libraries` 对应 `libs/`，`business` 对应 `business/`，`apps` 对应 `apps/`。
   引擎组件的 `layer` 字段仍表示它所在的阶段（ingest、compile、store、serve、control）。`test/manifest.test.ts`
   会拒绝不在所属一节目录里的包，以及 `engine/` 或 `libs/` 中任何依赖 `business/` 的东西。
-- **一棵 Schema 树。** 只属于业务层的类型放在契约中单独的目录里，引擎的包从不引用它们。
+- **一棵 Schema 树。** 只属于业务层的类型放在契约中单独的目录里（`libs/contracts/schema/business/`），生成到单独的入口
+  （`@inspiration/contracts/business`），`engine/` 和 `libs/` 里的任何代码都不引入它。
 - **一套工具链，分开部署。** 一个锁文件，一套 Biome、`tsc` 和 Vitest 配置，一个 `make check`，所以契约变更和两侧的
   改动在同一个拉取请求里合入。引擎的 API 照样有版本，因为外部 Agent 也在使用。引擎和业务后端仍作为独立的进程部署：
   monorepo 关乎源代码，而不是运行时。等到不同的团队分别负责两层时，`CODEOWNERS` 按目录划分，CI 也可以只运行受改动

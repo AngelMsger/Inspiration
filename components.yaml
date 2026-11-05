@@ -245,6 +245,25 @@ libraries:
   testkit:
     owns: Test fixtures for the compose stack (a migrated database per test, Valkey prefixes, SpiceDB settings) and test data files; test code only
 
+# Business-layer components (business/<name>, published as @inspiration/<name>): people,
+# companies, policy and the web app's backend, above the engine (docs/design/business-layer.md).
+# A business package depends on the libraries and on the business components in its `calls`;
+# `engine` there means the engine's HTTP API, through the client the app wires in. Nothing in
+# engine/ or libs/ depends on a business package, and engine packages never import the
+# business contracts (@inspiration/contracts/business).
+business:
+  accounts:
+    title: Accounts
+    status: in_progress
+    owner: claude/project-thread-aoq6hn
+    owns: Users (the account, usr_ IDs that never reach the engine), their login identities through the identity provider over OIDC (Logto, email and password), sessions, and the account's language. Planned are identity linking, sign-in policy per company, and deleting an account
+    calls: []
+  tenancy:
+    title: Tenancy
+    status: built
+    owns: Companies (tenants) and their members, the one rule that assigns member IDs, the product roles super admin and member, and invite links; provisions tenants and members in the engine as a service. Planned are joining by verified email domain, transfers from the personal library, and offboarding with handovers
+    calls: [engine]
+
 # Composition roots: deployable processes that wire components to the store, the bus and
 # the blob store (apps/<name>, published as @inspiration/<name>). An app may depend on any
 # component or library. No package depends on an app, except a harness that measures one:
@@ -253,7 +272,7 @@ apps:
   engine:
     owns: The engine process; corpus manifests and topic owners, standing in for the business layer's provisioning; its HTTP API, version 0 (pnpm engine serve)
   web:
-    owns: The product web app (React, Vite) over the engine's HTTP API, its language packs, and a development stand-in for its backend; the demo (pnpm demo)
+    owns: The product web app (React, Vite) over the business backend's browser API and, through it, the engine's HTTP API; signing in, the account menu and a first company; its language packs, and a development stand-in for the business backend; the demo (pnpm demo) and its recorded page (pnpm snapshot). Planned are joining by link, members and invite links, the spaces screens, uploads, Decide for me, Apps with access and the usage page
   bench:
     owns: The measurement harness and its CLI (pnpm bench); ingest runs and volume reports, the control check, history replay, questions and answers, the evidence audit, the reading check, cost, synthetic corpora
     uses: [engine]

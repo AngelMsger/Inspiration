@@ -5,9 +5,9 @@
 import type { Citation, Inbox, SearchHit, TaxonomyNode, TopicView } from "@inspiration/contracts";
 import type { ReactNode } from "react";
 import { api, type Library, type Loaded, useLoad } from "./api.ts";
-import type { Person } from "./backend.ts";
 import { citedAt } from "./home.tsx";
 import { Crumbs, Failure, Standing } from "./parts.tsx";
+import type { Person } from "./people.ts";
 import { Link } from "./route.tsx";
 import { factOf, factTitle } from "./todos.ts";
 import { pageOf } from "./topics.ts";
