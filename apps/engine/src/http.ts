@@ -14,7 +14,7 @@
  *     GET  /v0/documents?source=<id>&item=<external>  DocumentView, the latest version
  *     GET  /v0/documents?version=<id>                 DocumentView, the version a citation names
  *     POST /v0/search    SearchQuery                  SearchResult
- *     POST /v0/answers   AnswerQuery                  GroundedAnswer
+ *     POST /v0/answers   AnswerQuery                  GroundedAnswer, compact unless depth is standard
  *     GET  /v0/inbox                                  Inbox, the member's open todos
  *     POST /v0/todos/:todo/resolve  ResolveTodo       Todo, closed
  *     GET  /v0/spaces/:space/overview                 SpaceOverview, for the space's maintainers
@@ -167,7 +167,10 @@ function routesOf(engine: Engine): Route[] {
     {
       method: "POST",
       path: /^\/v0\/answers$/,
-      run: async (who, _m, req) => engine.retrieval.answer(parseAs<AnswerQuery>("AnswerQuery", await req.json()), who),
+      run: async (who, _m, req) => {
+        const query = parseAs<AnswerQuery>("AnswerQuery", await req.json());
+        return (query.depth === "standard" ? engine.retrieval : engine.compact).answer(query, who);
+      },
     },
     { method: "GET", path: /^\/v0\/inbox$/, run: (who) => inboxOf(engine, who) },
     {

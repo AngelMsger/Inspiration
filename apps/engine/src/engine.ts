@@ -95,6 +95,7 @@ export class Engine {
   readonly directory: Directory;
   /** Each tenant's predicate catalogue, as extraction reads it; the inbox names facts by it. */
   readonly vocabulary: NonNullable<ExtractionOptions["vocabulary"]>;
+  /** Search, and the standard answer: as many passages as statements. */
   readonly retrieval: Retrieval;
   /**
    * The rivals answers are measured against, over the same documents and model: a mature
@@ -106,7 +107,8 @@ export class Engine {
   readonly governedLongContext: Retrieval;
   /**
    * The knowledge base answering from fewer sources: mostly statements, the conclusions
-   * governance kept, and a few passages, a short input that a smaller model answers fast.
+   * governance kept, and a few passages, a short input that a smaller model answers fast. The
+   * answer a member gets unless they ask for the standard one (AnswerQuery.depth).
    */
   readonly compact: Retrieval;
   readonly consumer: Consumer;
