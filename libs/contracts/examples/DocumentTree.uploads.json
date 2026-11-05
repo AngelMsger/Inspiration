@@ -13,19 +13,14 @@
           "kind": "folder",
           "name": "制度",
           "source_id": "src_01QINGHE000000000000UPLOADS",
-          "path": [
-            "制度"
-          ],
+          "path": ["制度"],
           "document_count": 4,
           "children": [
             {
               "kind": "document",
               "name": "员工手册",
               "source_id": "src_01QINGHE000000000000UPLOADS",
-              "path": [
-                "制度",
-                "员工手册"
-              ],
+              "path": ["制度", "员工手册"],
               "document": {
                 "source_id": "src_01QINGHE000000000000UPLOADS",
                 "external_id": "制度/员工手册.pdf",
@@ -45,10 +40,7 @@
               "kind": "document",
               "name": "差旅管理办法",
               "source_id": "src_01QINGHE000000000000UPLOADS",
-              "path": [
-                "制度",
-                "差旅管理办法"
-              ],
+              "path": ["制度", "差旅管理办法"],
               "document": {
                 "source_id": "src_01QINGHE000000000000UPLOADS",
                 "external_id": "制度/差旅管理办法.docx",
@@ -64,10 +56,7 @@
               "kind": "document",
               "name": "采购流程",
               "source_id": "src_01QINGHE000000000000UPLOADS",
-              "path": [
-                "制度",
-                "采购流程"
-              ],
+              "path": ["制度", "采购流程"],
               "document": {
                 "source_id": "src_01QINGHE000000000000UPLOADS",
                 "external_id": "制度/采购流程.pptx",
@@ -87,10 +76,7 @@
               "kind": "document",
               "name": "预算表",
               "source_id": "src_01QINGHE000000000000UPLOADS",
-              "path": [
-                "制度",
-                "预算表"
-              ],
+              "path": ["制度", "预算表"],
               "document": {
                 "source_id": "src_01QINGHE000000000000UPLOADS",
                 "external_id": "制度/预算表.xlsx",
