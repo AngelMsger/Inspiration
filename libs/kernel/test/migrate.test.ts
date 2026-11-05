@@ -26,6 +26,7 @@ test("migration sets are discovered in run order", async () => {
     "page-compiler",
     "retrieval",
     "collaboration",
+    "accounts",
     "tenancy",
   ]);
 });

@@ -95,7 +95,7 @@ libs/kernel         settings, logging, plugin registry, migrations runner, blob 
 libs/eventbus       transactional outbox, relay to Valkey Streams, consumers, in-memory bus
 libs/testkit        fixtures for tests against the compose stack
 engine/<component>  one package per engine component (see components.yaml)
-business/<name>     one package per business-layer component: tenancy so far; engine/ and libs/ never depend on them
+business/<name>     one package per business-layer component: accounts and tenancy so far; engine/ and libs/ never depend on them
 apps/engine         the engine process: wires the components to the store, the bus and the blob store; HTTP API
 apps/web            the product web app over the engine's HTTP API, a stand-in backend (pnpm demo) and snapshots (pnpm snapshot)
 apps/bench          the measurement harness (pnpm bench): runs the engine over a corpus, reports, checks answers
