@@ -1,6 +1,13 @@
 # Decide for me: letting the assistant decide
 
-Status: adopted, 2026-11-05: the [MVP](mvp.md) builds it for the inbox in slice 4, with the standing offer of its decision 5. First proposed 2026-10-27. It follows the product owner's direction that every place where a person decides can be handed to the assistant, and that this is a design philosophy rather than one button. How it looks follows the [UI philosophy](ui-philosophy.md): quiet, on piles rather than on every item. Companion documents: [UI principles](ui-principles.md) and [Statements at scale](statements-at-scale.md). A Chinese copy is in [docs/zh/design/decide-for-me.md](../zh/design/decide-for-me.md).
+Status: adopted, 2026-11-05; built for the inbox in the MVP's slice 4.
+
+## Conclusions
+
+- **Every decision the product asks of a person can be handed to the assistant, and it stays that person's decision.** The assistant decides with the person's rights and in their name, gives its reasons and the passages it read, and every decision can be undone.
+- **Three ways to delegate:** these (one action settles a pile, a card or a queue, and leaves the rest), this one (the suggestion is already selected, and Enter accepts it), and always for one kind (a standing delegation, offered after five accepted suggestions in a row and never switched on without asking).
+- **Some decisions are only prepared, never made for you:** who can read or use knowledge, what cannot be undone, and money. The assistant also leaves a decision to the person when it is unsure, when people disagree, or when the space owner keeps that kind for people.
+- **No model task yet.** The component that raises a question attaches its suggestion, and the assistant decides by rules and writes its reasons from language packs ([What the engine needs](#what-the-engine-needs)). Still open are the confidence bar per kind and whether every vote in a joint approval may be delegated.
 
 ## The principle
 
@@ -88,3 +95,7 @@ The rule below changed with the MVP's adoption ([open question 9](../decisions.m
 
 - The confidence bar per kind of decision, and how it is measured with real models.
 - Whether every vote in a joint approval may be delegated, so that a conflict can be decided without any person voting. Proposed: yes, unless the space owner marks conflicts as people only.
+
+## About this page
+
+First proposed on 2026-10-27. Adopted on 2026-11-05, when the [MVP](mvp.md) took it into slice 4 with the standing offer of its decision 5. It follows the product owner's direction that every place where a person decides can be handed to the assistant, and that this is a design philosophy rather than one button. How it looks follows the [UI philosophy](ui-philosophy.md): quiet, on piles rather than on every item. Companion documents: [UI principles](ui-principles.md) and [Statements at scale](statements-at-scale.md). A Chinese copy is in [docs/zh/design/decide-for-me.md](../zh/design/decide-for-me.md); if the two differ, this English version wins.

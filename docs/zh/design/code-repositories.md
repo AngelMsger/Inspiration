@@ -1,6 +1,6 @@
 # 代码仓库作为知识来源
 
-状态：提议中，2026-10-27，等待产品负责人决定。这是第三版。它按照产品负责人 2026-10-27 给出的方向：直接连接仓库，在本地维护一份克隆，用开源方案为它构建代码图谱，并把它作为 Deep Research 的一个输入来源，让代码融入现有的知识维护体系。这里的内容都尚未构建。本文是 [docs/design/code-repositories.md](../../design/code-repositories.md) 的中文副本，两者不一致时以英文版为准。
+状态：提议中，2026-10-27；尚未构建。
 
 ## 摘要
 
@@ -297,3 +297,7 @@ flowchart LR
 | Code changed since | Code changed since | 代码已更新 | コードが更新されました |
 | Drift | Documents and product disagree | 文档与产品不一致 | 文書と製品の不一致 |
 | Coverage list | Not covered yet | 尚未覆盖 | 未カバー |
+
+## 关于本文
+
+这是第三版，2026-10-27 提出，等待产品负责人决定。它按照产品负责人 2026-10-27 给出的方向：直接连接仓库，在本地维护一份克隆，用开源方案为它构建代码图谱，并把它作为 Deep Research 的一个输入来源，让代码融入现有的知识维护体系。本文是英文版 [docs/design/code-repositories.md](../../design/code-repositories.md) 的中文副本，两者不一致时以英文版为准。

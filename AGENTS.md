@@ -213,8 +213,10 @@ be current. `test/docs.test.ts` checks the mechanical part; the rest is on every
   mark it instead: its status line says `Status: superseded by <link>`, and so does its row in
   the docs index. Code a change leaves unused is deleted in that change.
 - **Status lines stay true.** A design doc opens with `Status: adopted`, `proposed` or
-  `superseded`. When the product owner decides, or a pull request it cites as open is merged,
-  the next change to that doc updates the line, in both languages.
+  `superseded`, in one sentence that also says what is built, and then its conclusions; its
+  history goes in "About this page" at the end. When the product owner decides, or a pull
+  request it cites as open is merged, the next change to that doc updates the line, in both
+  languages.
 - **Link, don't copy.** Material from outside is copied only into `examples/`, with its
   source and date, so runs repeat without the network. Elsewhere, link to the source.
 - **Merged branches are deleted.**

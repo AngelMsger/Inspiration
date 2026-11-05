@@ -1,6 +1,14 @@
 # Statements at scale: structure and review load
 
-Status: adopted design, 2026-10-24. The measurements come from the mocked prototype of pull requests #8, #9 and #10, merged on 2026-10-26. Companion document: [UI principles](ui-principles.md). A Chinese copy is in [docs/zh/design/statements-at-scale.md](../zh/design/statements-at-scale.md).
+Status: adopted, 2026-10-24; built in the engine, except what [Still open](#still-open) lists.
+
+## Conclusions
+
+- **An owner's work grows with topics and source changes, not with the number of statements.** A synthetic company of 10,000 documents yields about 137,800 statements if every source is governed; three parts keep that manageable.
+- **Every statement has a home in two outlines:** where it came from (source, section, passage) and where it is used (space, topic, page). Statements about the same fact share one fact slot, which holds every variant and every version.
+- **Not every source is governed.** Policies, price lists and procedures are governed. Papers, minutes and vendor documents are reference, extracted only when used. Chats and drafts are only searched. Uploads start as reference.
+- **People review groups, not statements:** one card per owner, topic and week, at most 20 todos on a card and 10 cards a week. A source that changes its own value asks nothing, and notes stay outside the budget.
+- **On the mocked prototype,** over a simulated year with 15 owners, an owner had a median of 2 todos a week (at most 26, in the first week), and the weekly budget never had to move a card ([Measured on the prototype](#measured-on-the-prototype)). Topic splits, ranking by use and risk, and the load on real owners still need real embeddings and a real company.
 
 ## The problem
 
@@ -129,3 +137,7 @@ All adopted on 2026-10-24:
 - **Ranking by use and risk.** The design ranks todos by how much a statement is used (cited by pages, procedures or cards, or used in recent answers), by risk class (pricing, policy) and by extraction confidence. The prototype ranks by priority and age today.
 - **Load with real owners.** The synthetic owners are assigned at random, so per-owner load needs a real company to confirm.
 - **Fact slots across languages.** The same fact stated in a Chinese policy and a Japanese memo should share one slot. Today a slot key keeps its qualifiers in the words of the source, so the normalization has to become language-independent. See Internationalisation in the [UI principles](ui-principles.md).
+
+## About this page
+
+Adopted on 2026-10-24. The measurements come from the mocked prototype of pull requests #8, #9 and #10, merged on 2026-10-26. Companion document: [UI principles](ui-principles.md). A Chinese copy is in [docs/zh/design/statements-at-scale.md](../zh/design/statements-at-scale.md); if the two differ, this English version wins.

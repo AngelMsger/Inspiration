@@ -1,6 +1,15 @@
 # Inspiration UI: interaction principles and visual design
 
-Status: adopted design, 2026-10-24. The screens are drawn on the product owner's design canvas; there is no production UI code yet. It follows from the [design philosophy](ui-philosophy.md); where the two differ, the philosophy wins until this document is redone. Companion documents: [Statements at scale](statements-at-scale.md), which explains how statements are organised and reviewed, and [Decide for me](decide-for-me.md). A Chinese copy is in [docs/zh/design/ui-principles.md](../zh/design/ui-principles.md).
+Status: adopted, 2026-10-24; the MVP web app in `apps/web` is built on its visual system.
+
+## Conclusions
+
+- **The UI shows three roles:** member, owner named with its scope (space, topic, page or procedure owner) and super admin. Someone working alone sees no company at all. Finer permissions stay inside the product.
+- **Concrete before abstract, reading before governance.** People meet their own documents first, in their original form, and knowledge appears on top of them step by step. A page reads as a normal document with citations. Only Outdated and Disputed show inline, and the knowledge model stays in the Trace view for owners.
+- **Every decision has a named person, who can let the assistant decide,** and every value can answer "Why this value?".
+- **The look is ink and paper:** a warm paper ground, serif type for reading, one indigo accent and status marks written in words, with a command palette, a compact mode for owners and a pair of typefaces per language.
+- **English, Chinese and Japanese are equal from the first release.** The interface follows the person, content keeps its own language, and one glossary gives every term in all three ([Glossary](#glossary)).
+- **Where this page and the [UI philosophy](ui-philosophy.md) differ, the philosophy wins** until this page is redone. Still open: the Japanese terms and the translation rules ([Still open](#still-open)).
 
 ## Who the UI serves
 
@@ -202,3 +211,7 @@ Direction from the product owner on 2026-10-27:
 - Review the Japanese terms in the glossary.
 - Confirm the translation rules: cited passages are translated only on request and labelled as machine translation. A knowledge page shows in its space's content language unless the reader chooses their own; then it is written from the same statements and labelled machine translated.
 - Still to draw: the other key screens in Japanese, after the Japanese terms are reviewed. V2-ja shows a knowledge page in Japanese.
+
+## About this page
+
+Adopted on 2026-10-24. The screens are drawn on the product owner's design canvas ([screens](screens/README.md)), and this page follows from the [design philosophy](ui-philosophy.md). Companion documents: [Statements at scale](statements-at-scale.md), which explains how statements are organised and reviewed, and [Decide for me](decide-for-me.md). A Chinese copy is in [docs/zh/design/ui-principles.md](../zh/design/ui-principles.md); if the two differ, this English version wins.

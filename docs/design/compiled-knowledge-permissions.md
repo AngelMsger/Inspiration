@@ -1,6 +1,14 @@
 # Permissions in compiled knowledge
 
-Status: proposed, 2026-10-26, in answer to the product owner's comment on the overview. The overview already follows it; the trade-offs in the last section wait for the product owner's confirmation. Designed, not built. A Chinese copy is in [docs/zh/design/compiled-knowledge-permissions.md](../zh/design/compiled-knowledge-permissions.md).
+Status: proposed, 2026-10-26; not built, and its trade-offs wait for the product owner.
+
+## Conclusions
+
+- **A page, a procedure or a topic summary is written for its whole audience, never cut per reader.** The compiler uses only what everyone in the audience can read. Anything else is used only once the owner of its space releases it to that audience, one statement at a time.
+- **A restricted input can never hide knowledge.** People set audiences, and using, linking or citing an input never narrows them. A fact with one readable proof stays visible, whatever other sources are added to it.
+- **Nothing a reader sees is silently distorted.** When leaving an input out would change what a unit says (another value, a newer version, an exception, the other side of an argument), a person decides: ask for a release, rewrite without taking a position, or publish with a note that says whom to ask. An answer says when it may be incomplete.
+- **`secret` material stays in its own space** and leaves no trace outside it.
+- **About 3 person-weeks of engine work** ([Engine work](#engine-work)). The product owner has yet to confirm the trade-offs: readers learn that restricted material exists but never what it says, broad pages may say less until owners release statements, and owners get more work, within a budget ([Trade-offs to confirm](#trade-offs-to-confirm)).
 
 ## The problem
 
@@ -123,3 +131,7 @@ All additive; see [docs/contracts.md](../contracts.md) for the process.
 | Note for omitted material | Some material here is in a space you cannot open | 此处有部分内容在你无法打开的空间里 | ここには閲覧できないスペースの資料が含まれます |
 | Possibly incomplete answer | May be incomplete | 可能不完整 | 不完全な可能性があります |
 | Inputs not used | Not used for this audience | 未用于这一受众 | この対象には未使用 |
+
+## About this page
+
+Proposed on 2026-10-26, in answer to the product owner's comment on the overview. [Architecture](../architecture.md#permissions) already follows it; its trade-offs are [open question 2](../decisions.md#open-questions). A Chinese copy is in [docs/zh/design/compiled-knowledge-permissions.md](../zh/design/compiled-knowledge-permissions.md); if the two differ, this English version wins.

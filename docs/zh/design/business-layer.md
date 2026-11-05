@@ -1,6 +1,6 @@
 # 业务层：功能设计
 
-状态：已采纳的设计，2026-10-24；2026-10-26 更新了两项决定（持有凭据即可导入、成员请求时智能体可以修改）和一项提议（超级管理员与维护人的边界）；2026-10-27 更新了连接的名称（第 15 项决定）。它需要的引擎契约改动列在[业务层与引擎契约](business-engine-contract.md)中。本文是 [docs/design/business-layer.md](../../design/business-layer.md) 的中文副本，两者不一致时以英文版为准。
+状态：已采纳，2026-10-24；账户、企业和成员，以及给应用的访问令牌已为 MVP 构建。
 
 ## 摘要
 
@@ -467,3 +467,7 @@ Web 应用已在计划内（8 人周）。计费在第 3 阶段，约再加 3 �
 - [Logto 仓库镜像](https://gitee.com/mirrors/logto)
 - [Keycloak 26 组织功能（CNCF 博客）](https://www.cncf.io/blog/2024/11/13/scalable-authentication-across-organizations-with-keycloak-26/)
 - [业务层与引擎契约](business-engine-contract.md)
+
+## 关于本文
+
+2026-10-24 采纳。2026-10-26 更新了两项决定（持有凭据即可导入、成员请求时智能体可以修改）和一项提议（超级管理员与维护人的边界）；2026-10-27 更新了连接的名称（第 15 项决定）。它需要的引擎契约改动列在[业务层与引擎契约](business-engine-contract.md)中。本文是英文版 [docs/design/business-layer.md](../../design/business-layer.md) 的中文副本，两者不一致时以英文版为准。

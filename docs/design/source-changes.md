@@ -1,6 +1,6 @@
 # Source changes: deletions and large changes
 
-Status: adopted design, 2026-10-26, from the product owner's comments on the overview. Not built yet, except where a section says so. Thresholds and time limits are defaults that can change after the prototype measures them. A Chinese copy is in [docs/zh/design/source-changes.md](../zh/design/source-changes.md).
+Status: adopted, 2026-10-26; not built, except where a section says so.
 
 ## Summary
 
@@ -143,3 +143,7 @@ All additive; see [docs/contracts.md](../contracts.md) for the process.
 | Kept by default | Kept by default | 默认保留 | 既定で保持 |
 | Change set | Change review | 批量变更审阅 | 一括変更レビュー |
 | Support | 9 of 10 documents | 10 份文档中有 9 份 | 10 件中 9 件の文書 |
+
+## About this page
+
+Adopted on 2026-10-26, from the product owner's comments on the overview. Thresholds and time limits are defaults that can change after the prototype measures them. A Chinese copy is in [docs/zh/design/source-changes.md](../zh/design/source-changes.md); if the two differ, this English version wins.
