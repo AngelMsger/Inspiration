@@ -41,10 +41,22 @@ describe("site", () => {
     expect(pages.get("index.html")).toContain('href="ja/"');
   });
 
-  test("the inlined scripts, for the hero figure, the search box and the demo, are valid JavaScript", () => {
+  test("the header offers every language in a menu, marks the current one, and links to the source", () => {
+    const pages = build({ root: "en", explicitIndex: false, fragment: false });
+    for (const [path, html] of pages) {
+      const header = /<header class="top">[\s\S]*?<\/header>/.exec(html)?.[0] ?? "";
+      const menu = /<details class="lang-menu">[\s\S]*?<\/details>/.exec(header)?.[0] ?? "";
+      expect(menu.match(/<li>/g), path).toHaveLength(LANGUAGES.length);
+      expect(menu.match(/aria-current="page"/g), path).toHaveLength(1);
+      expect(header, path).toContain('class="gh" href="https://github.com/');
+    }
+    expect(pages.get("zh/index.html")).toMatch(/<a href="\.\.\/zh\/" aria-current="page" lang="zh-CN">/);
+  });
+
+  test("the inlined scripts, for the language menu, the hero figure, the search box and the demo, are valid JavaScript", () => {
     const html = build({ root: "en", explicitIndex: false, fragment: false }).get("index.html") ?? "";
     const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1] ?? "");
-    expect(scripts).toHaveLength(3);
+    expect(scripts).toHaveLength(4);
     for (const script of scripts) {
       expect(script.length).toBeGreaterThan(0);
       expect(() => new Function(script)).not.toThrow();

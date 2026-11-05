@@ -235,16 +235,19 @@ a.cite:hover {
   font-size: 15px;
 }
 .top-nav a,
-.langs a {
+.langs a,
+.foot-gh {
   color: var(--muted);
   text-decoration: none;
 }
 .top-nav a:hover,
-.langs a:hover {
+.langs a:hover,
+.foot-gh:hover {
   color: var(--ink);
 }
 .langs {
   display: flex;
+  flex-wrap: wrap;
   gap: 2px;
   font-size: 14px;
 }
@@ -252,10 +255,92 @@ a.cite:hover {
   padding: 4px 8px;
   border-radius: 4px;
 }
-.langs a[aria-current] {
+
+/* The header's tools: the source on GitHub, and the language menu. Both read as quiet
+   buttons that light up like the current tab when pointed at or open. */
+.top-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+}
+.gh,
+.lang-menu > summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 7px;
+  color: var(--muted);
+  text-decoration: none;
+  cursor: pointer;
+}
+.lang-menu > summary {
+  list-style: none;
+  user-select: none;
+}
+.lang-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.gh:hover,
+.lang-menu > summary:hover,
+.lang-menu[open] > summary {
   color: var(--ink);
   background: var(--page);
   box-shadow: 0 0 0 1px var(--rule);
+}
+.lang-menu {
+  position: relative;
+}
+.lang-chevron {
+  margin-left: -2px;
+  transition: transform 0.18s var(--arrive);
+}
+.lang-menu[open] .lang-chevron {
+  transform: rotate(180deg);
+}
+.lang-menu ul {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 6;
+  box-sizing: border-box;
+  min-width: 176px;
+  max-height: min(60vh, 420px);
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--page);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sat);
+}
+.lang-menu li a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--ink);
+  text-decoration: none;
+}
+.lang-menu li a:hover,
+.lang-menu li a:focus-visible {
+  background: var(--paper);
+}
+.lang-menu li a[aria-current] {
+  font-weight: 600;
+}
+.lang-check {
+  color: var(--indigo);
+}
+.foot-gh {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
 }
 
 /* Hero */
@@ -2076,6 +2161,10 @@ main > section {
   .wrap {
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  /* The header keeps GitHub's mark alone; its name stays in the link's label. */
+  .gh > span {
+    display: none;
   }
   .cards,
   .kinds,
