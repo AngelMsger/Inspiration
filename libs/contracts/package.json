@@ -6,6 +6,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./business": "./src/business.ts",
     "./schema.json": "./dist/inspiration.schema.json"
   },
   "dependencies": {

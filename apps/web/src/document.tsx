@@ -5,10 +5,10 @@
 import type { DocumentView, SourceBlock } from "@inspiration/contracts";
 import { type KeyboardEvent, type ReactNode, useEffect, useMemo } from "react";
 import { api, type Library, useLoad } from "./api.ts";
-import type { Person } from "./backend.ts";
 import { citedAt, remember } from "./home.tsx";
 import { highlight, type Mark, marksOf, type Passage, passages, type Quote, weakest } from "./marks.ts";
 import { Crumbs, Failure, formatDate, Standing } from "./parts.tsx";
+import type { Person } from "./people.ts";
 import { type DocumentRoute, Link, navigate } from "./route.tsx";
 import { useWords } from "./words.ts";
 

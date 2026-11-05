@@ -69,6 +69,7 @@ describe("plugin registry", () => {
       "page-compiler",
       "retrieval",
       "sync",
+      "tenancy",
     ]);
     expect(registry("event_transports").names()).toEqual(["memory", "valkey"]);
     expect(registry("model_providers").names()).toEqual(["anthropic", "fake", "openai_compatible"]);

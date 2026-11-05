@@ -2,8 +2,8 @@
 
 import { type KeyboardEvent, useEffect, useRef, useState } from "react";
 import type { Library } from "./api.ts";
-import type { Person } from "./backend.ts";
 import { documentsOf } from "./documents.tsx";
+import type { Person } from "./people.ts";
 import { navigate } from "./route.tsx";
 import { TAGS, type Tag, useWords, wordsOf } from "./words.ts";
 
