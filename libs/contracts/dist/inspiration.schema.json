@@ -423,9 +423,70 @@
       "DocumentEntry",
       "DocumentTreeNodeKind",
       "DocumentTreeNode"
+    ],
+    "business/accounts": [
+      "UiLocale",
+      "Account",
+      "Session",
+      "AccountChange",
+      "SwitchCompany",
+      "SignOut"
+    ],
+    "business/companies": [
+      "InviteId",
+      "ProductRole",
+      "CompanyEntry",
+      "CurrentMember",
+      "NewCompany",
+      "CompanyMember",
+      "MemberList",
+      "RoleChange",
+      "Invite",
+      "InviteList",
+      "InviteLink",
+      "JoinPreview"
     ]
   },
   "$defs": {
+    "Account": {
+      "description": "The signed-in person, as the account settings show them.",
+      "type": "object",
+      "required": [
+        "name",
+        "email",
+        "locale"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "description": "The verified address the person signs in with.",
+          "type": "string",
+          "format": "email"
+        },
+        "locale": {
+          "$ref": "#/$defs/UiLocale"
+        }
+      }
+    },
+    "AccountChange": {
+      "description": "PATCH /api/account.",
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "locale": {
+          "$ref": "#/$defs/UiLocale"
+        }
+      }
+    },
     "AclChanged": {
       "description": "Source sync always stores the snapshot in the knowledge store (KnowledgeStore.put_acl_snapshot) in the same transaction as this event, and inlines it here when it is small. When snapshot is absent, access control reads it from the knowledge store by source_id, external_id and acl_hash.\n",
       "type": "object",
@@ -2626,6 +2687,53 @@
         "orphaned"
       ]
     },
+    "CompanyEntry": {
+      "description": "A company in the account's company switcher.",
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "name",
+        "role"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/ProductRole"
+        }
+      }
+    },
+    "CompanyMember": {
+      "description": "A member as the company's members page lists them.",
+      "type": "object",
+      "required": [
+        "member_id",
+        "display_name",
+        "email",
+        "role"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "member_id": {
+          "$ref": "#/$defs/PrincipalId"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "role": {
+          "$ref": "#/$defs/ProductRole"
+        }
+      }
+    },
     "Completion": {
       "type": "object",
       "required": [
@@ -2917,6 +3025,31 @@
         "currency": {
           "type": "string",
           "pattern": "^[A-Z]{3}$"
+        }
+      }
+    },
+    "CurrentMember": {
+      "description": "The account as a member of the company it works in now.",
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "member_id",
+        "display_name",
+        "role"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        },
+        "member_id": {
+          "$ref": "#/$defs/PrincipalId"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/ProductRole"
         }
       }
     },
@@ -4482,10 +4615,132 @@
         }
       }
     },
+    "Invite": {
+      "description": "An invite link of the current company. Anyone who opens it signed in joins as a member, until it expires or a super admin revokes it. Only a hash of its code is kept, so the link itself is shown once, in InviteLink.\n",
+      "type": "object",
+      "required": [
+        "id",
+        "created_by",
+        "created_at",
+        "expires_at",
+        "joined"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/InviteId"
+        },
+        "created_by": {
+          "type": "object",
+          "required": [
+            "member_id",
+            "display_name"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "member_id": {
+              "$ref": "#/$defs/PrincipalId"
+            },
+            "display_name": {
+              "type": "string"
+            }
+          }
+        },
+        "created_at": {
+          "$ref": "#/$defs/Instant"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/Instant"
+        },
+        "joined": {
+          "description": "How many people joined through the link.",
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "InviteId": {
+      "type": "string",
+      "pattern": "^inv_[0-9A-Za-z]{8,64}$"
+    },
+    "InviteLink": {
+      "description": "The answer to POST /api/invites, the one time the link is shown.",
+      "type": "object",
+      "required": [
+        "invite",
+        "url"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "invite": {
+          "$ref": "#/$defs/Invite"
+        },
+        "url": {
+          "description": "<site>/join/<code>",
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "InviteList": {
+      "description": "GET /api/invites, the current company's links that are still open, newest first.",
+      "type": "object",
+      "required": [
+        "invites"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "invites": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Invite"
+          }
+        }
+      }
+    },
     "IsoWeek": {
       "description": "An ISO 8601 week, \"2026-W44\".",
       "type": "string",
       "pattern": "^[0-9]{4}-W(0[1-9]|[1-4][0-9]|5[0-3])$"
+    },
+    "JoinPreview": {
+      "description": "GET /api/join/{code}, open to anyone holding the link, before they sign in: what they would join. Unknown, expired and revoked codes answer 404 alike. It names no ID, so the page can show all of it.\n",
+      "type": "object",
+      "required": [
+        "company",
+        "invited_by",
+        "expires_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "company": {
+          "type": "object",
+          "required": [
+            "name"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "type": "string"
+            }
+          }
+        },
+        "invited_by": {
+          "type": "object",
+          "required": [
+            "display_name"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "display_name": {
+              "type": "string"
+            }
+          }
+        },
+        "expires_at": {
+          "$ref": "#/$defs/Instant"
+        }
+      }
     },
     "KnowledgeClass": {
       "description": "Selects the default TTL used by staleness scoring. Known values: policy, product, pricing, org, process, technical, market, general. Tenants may add their own.\n",
@@ -4794,6 +5049,22 @@
         }
       }
     },
+    "MemberList": {
+      "description": "GET /api/members, the active members of the current company, by name.",
+      "type": "object",
+      "required": [
+        "members"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "members": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CompanyMember"
+          }
+        }
+      }
+    },
     "MentionResolution": {
       "type": "string",
       "enum": [
@@ -4846,6 +5117,25 @@
         "currency": {
           "type": "string",
           "pattern": "^[A-Z]{3}$"
+        }
+      }
+    },
+    "NewCompany": {
+      "description": "POST /api/companies. The account that creates the company is its first super admin.",
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "default_locale": {
+          "description": "The language of messages sent to many members; the creator's own if absent.",
+          "$ref": "#/$defs/UiLocale"
         }
       }
     },
@@ -5569,6 +5859,14 @@
         }
       }
     },
+    "ProductRole": {
+      "description": "A member's role in a company. The super admin runs the company: its members, invite links and spaces. Owners are named on each space, never as a company role.\n",
+      "type": "string",
+      "enum": [
+        "super_admin",
+        "member"
+      ]
+    },
     "ProposalId": {
       "type": "string",
       "pattern": "^prp_[0-9A-Za-z]{8,64}$"
@@ -6252,6 +6550,19 @@
         "published"
       ]
     },
+    "RoleChange": {
+      "description": "PUT /api/members/{member}/role, by a super admin. A change that would leave the company with no super admin answers 409.\n",
+      "type": "object",
+      "required": [
+        "role"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "$ref": "#/$defs/ProductRole"
+        }
+      }
+    },
     "RunId": {
       "description": "One pipeline run (a compile, a governance sweep, a research run).",
       "type": "string",
@@ -6506,6 +6817,45 @@
         "claim",
         "connective"
       ]
+    },
+    "Session": {
+      "description": "Who is signed in, the companies they belong to, and the one they are working in. GET /api/session answers it, or 401 when nobody is signed in; every call that changes the account or the current company answers it too.\n",
+      "type": "object",
+      "required": [
+        "account",
+        "companies"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "account": {
+          "$ref": "#/$defs/Account"
+        },
+        "companies": {
+          "description": "The companies the account is an active member of, by name.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CompanyEntry"
+          }
+        },
+        "current": {
+          "description": "The company the person works in now; absent until they create or join one.",
+          "$ref": "#/$defs/CurrentMember"
+        }
+      }
+    },
+    "SignOut": {
+      "description": "The answer to POST /api/auth/sign-out. The session is over; the page goes to next, the identity provider's own sign-out, so a shared computer is signed out there too.\n",
+      "type": "object",
+      "required": [
+        "next"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "next": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
     },
     "SlotStanding": {
       "description": "Where one value of a fact slot stands with governance today. holds: the value governance proposes. outdated: a supersession puts the held value in its place (an older edition, a translation behind its original), or a person chose the held value over it. disputed: an open contradiction with the held value, for a person to decide. differs: another difference, such as a scope, a plan or a value only reference documents state.\n",
@@ -7607,6 +7957,19 @@
         }
       }
     },
+    "SwitchCompany": {
+      "description": "POST /api/session, to work in another company the account belongs to.",
+      "type": "object",
+      "required": [
+        "tenant_id"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        }
+      }
+    },
     "SyncReport": {
       "description": "What syncing a source did: how many items it listed and what became of them. The response to syncing a source now, once the engine has read everything the sync changed.\n",
       "type": "object",
@@ -8335,6 +8698,15 @@
           }
         }
       }
+    },
+    "UiLocale": {
+      "description": "The account's language, for the web app and for anything the engine writes for it.",
+      "type": "string",
+      "enum": [
+        "en",
+        "zh-CN",
+        "ja"
+      ]
     },
     "Unchanged": {
       "description": "Connector.fetch result when the known version is still current.",

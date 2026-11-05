@@ -245,6 +245,26 @@ libraries:
   testkit:
     owns: Test fixtures for the compose stack (a migrated database per test, Valkey prefixes, SpiceDB settings) and test data files; test code only
 
+# Business-layer components (business/<name>, published as @inspiration/<name>): people,
+# companies, policy and the web app's backend, above the engine (docs/design/business-layer.md).
+# A business package depends on the libraries and on the business components in its `calls`;
+# `engine` there means the engine's HTTP API, through the client the app wires in. Nothing in
+# engine/ or libs/ depends on a business package, and engine packages never import the
+# business contracts (@inspiration/contracts/business).
+business:
+  accounts:
+    title: Accounts
+    status: in_progress
+    owner: claude/project-thread-aoq6hn
+    owns: Users (the account, usr_ IDs that never reach the engine), their login identities through the identity provider over OIDC (Logto, email and password), sessions, and the account's language. Planned are identity linking, sign-in policy per company, and deleting an account
+    calls: []
+  tenancy:
+    title: Tenancy
+    status: in_progress
+    owner: claude/project-thread-aoq6hn
+    owns: Companies (tenants) and their members, the one rule that assigns member IDs, the product roles super admin and member, and invite links; provisions tenants and members in the engine as a service. Planned are joining by verified email domain, transfers from the personal library, and offboarding with handovers
+    calls: [engine]
+
 # Composition roots: deployable processes that wire components to the store, the bus and
 # the blob store (apps/<name>, published as @inspiration/<name>). An app may depend on any
 # component or library. No package depends on an app, except a harness that measures one:

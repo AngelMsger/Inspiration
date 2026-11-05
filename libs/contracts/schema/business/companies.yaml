@@ -1,0 +1,179 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: business/companies.yaml
+title: Companies in the browser API
+description: >
+  The business backend's browser API (apps/business, under /api/) for companies: creating
+  one, its members and their product roles, and invite links. A company is a tenant; the UI
+  never says tenant and never shows an ID. Spaces, their owners and their audiences are the
+  engine's, reached through /api/v0/. Business-layer types: engine packages never import them.
+
+$defs:
+  InviteId:
+    type: string
+    pattern: "^inv_[0-9A-Za-z]{8,64}$"
+
+  ProductRole:
+    description: >
+      A member's role in a company. The super admin runs the company: its members, invite
+      links and spaces. Owners are named on each space, never as a company role.
+    type: string
+    enum: [super_admin, member]
+
+  CompanyEntry:
+    description: A company in the account's company switcher.
+    type: object
+    required: [tenant_id, name, role]
+    additionalProperties: false
+    properties:
+      tenant_id:
+        $ref: "../common.yaml#/$defs/TenantId"
+      name:
+        type: string
+      role:
+        $ref: "#/$defs/ProductRole"
+
+  CurrentMember:
+    description: The account as a member of the company it works in now.
+    type: object
+    required: [tenant_id, member_id, display_name, role]
+    additionalProperties: false
+    properties:
+      tenant_id:
+        $ref: "../common.yaml#/$defs/TenantId"
+      member_id:
+        $ref: "../common.yaml#/$defs/PrincipalId"
+      display_name:
+        type: string
+      role:
+        $ref: "#/$defs/ProductRole"
+
+  NewCompany:
+    description: POST /api/companies. The account that creates the company is its first super admin.
+    type: object
+    required: [name]
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+        minLength: 1
+        maxLength: 100
+      default_locale:
+        description: The language of messages sent to many members; the creator's own if absent.
+        $ref: "accounts.yaml#/$defs/UiLocale"
+
+  CompanyMember:
+    description: A member as the company's members page lists them.
+    type: object
+    required: [member_id, display_name, email, role]
+    additionalProperties: false
+    properties:
+      member_id:
+        $ref: "../common.yaml#/$defs/PrincipalId"
+      display_name:
+        type: string
+      email:
+        type: string
+        format: email
+      role:
+        $ref: "#/$defs/ProductRole"
+
+  MemberList:
+    description: GET /api/members, the active members of the current company, by name.
+    type: object
+    required: [members]
+    additionalProperties: false
+    properties:
+      members:
+        type: array
+        items:
+          $ref: "#/$defs/CompanyMember"
+
+  RoleChange:
+    description: >
+      PUT /api/members/{member}/role, by a super admin. A change that would leave the company
+      with no super admin answers 409.
+    type: object
+    required: [role]
+    additionalProperties: false
+    properties:
+      role:
+        $ref: "#/$defs/ProductRole"
+
+  Invite:
+    description: >
+      An invite link of the current company. Anyone who opens it signed in joins as a member,
+      until it expires or a super admin revokes it. Only a hash of its code is kept, so the
+      link itself is shown once, in InviteLink.
+    type: object
+    required: [id, created_by, created_at, expires_at, joined]
+    additionalProperties: false
+    properties:
+      id:
+        $ref: "#/$defs/InviteId"
+      created_by:
+        type: object
+        required: [member_id, display_name]
+        additionalProperties: false
+        properties:
+          member_id:
+            $ref: "../common.yaml#/$defs/PrincipalId"
+          display_name:
+            type: string
+      created_at:
+        $ref: "../common.yaml#/$defs/Instant"
+      expires_at:
+        $ref: "../common.yaml#/$defs/Instant"
+      joined:
+        description: How many people joined through the link.
+        type: integer
+        minimum: 0
+
+  InviteList:
+    description: GET /api/invites, the current company's links that are still open, newest first.
+    type: object
+    required: [invites]
+    additionalProperties: false
+    properties:
+      invites:
+        type: array
+        items:
+          $ref: "#/$defs/Invite"
+
+  InviteLink:
+    description: The answer to POST /api/invites, the one time the link is shown.
+    type: object
+    required: [invite, url]
+    additionalProperties: false
+    properties:
+      invite:
+        $ref: "#/$defs/Invite"
+      url:
+        description: <site>/join/<code>
+        type: string
+        format: uri
+
+  JoinPreview:
+    description: >
+      GET /api/join/{code}, open to anyone holding the link, before they sign in: what they
+      would join. Unknown, expired and revoked codes answer 404 alike. It names no ID, so the
+      page can show all of it.
+    type: object
+    required: [company, invited_by, expires_at]
+    additionalProperties: false
+    properties:
+      company:
+        type: object
+        required: [name]
+        additionalProperties: false
+        properties:
+          name:
+            type: string
+      invited_by:
+        type: object
+        required: [display_name]
+        additionalProperties: false
+        properties:
+          display_name:
+            type: string
+      expires_at:
+        $ref: "../common.yaml#/$defs/Instant"
