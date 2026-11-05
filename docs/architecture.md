@@ -37,7 +37,11 @@ tenants and members into the engine's copy of its directory (access control's `D
 and spaces are administered through the same API: the super admin creates a space and names
 its owners, its owners rename it and set who reads it, and the super admin may take readers
 out but not add them. `GET /v0/me` tells the web app whether the member is the super admin,
-and `GET /v0/spaces?manage=true` lists the spaces they administer. A member is let in only
+and `GET /v0/spaces?manage=true` lists the spaces they administer. `GET /v0/usage` gives the
+super admin a month of the company's usage: model cost against its budgets, answers and how
+long they took, todos and what the assistant decided, by member, space and day, from the model
+gateway's ledger, where each call is charged to the member who asked or the space it reads;
+counts, times and cost only, never content. A member is let in only
 while the directory has them and their tenant active. Every read is checked against the
 member's permissions, and anything the member may not read answers as if it did not exist. A request carries a
 principal token, a JWT the business layer signs with Ed25519 (`signJwt` in the kernel, which

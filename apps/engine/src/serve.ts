@@ -117,7 +117,7 @@ async function main(argv: string[]): Promise<number> {
     // The corpus's catalogue is its tenant's alone; provisioned companies have none yet.
     ...(corpus && { resolvePrincipal: corpus.resolvePrincipal, vocabulary: corpus.vocabularyOf }),
     ...(today && { clock: () => today }),
-    ...(models && { models: models.models }),
+    ...(models && { models: models.models, ledger: models.ledger }),
   });
   if (corpus) {
     const started = performance.now();

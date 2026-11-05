@@ -6,6 +6,7 @@
  * checked against the member's permissions there or here, before anything is returned.
  *
  *     GET  /v0/me                                     Me, the member's roles and whether they administer the tenant
+ *     GET  /v0/usage?month=2026-11                    Usage, the company's month, for the super admin (usage.ts)
  *     GET  /v0/spaces                                 SpaceList, the spaces the member may read
  *     GET  /v0/spaces?manage=true                     SpaceList, the spaces the member may administer
  *     GET  /v0/spaces/:space/documents                DocumentTree
@@ -54,7 +55,8 @@
  * left out once read; the tree counts its documents by state. Only a todo's assignee may
  * resolve it (a todo of anyone else's answers 404), with a resolution it offers (else 400).
  * Only a member who may administer a space and read it reads its overview or syncs its sources
- * (spaces.ts). Both answer once the engine has read everything they caused, so the next read
+ * (spaces.ts). Only the super admin reads usage (else 403): counts, times and cost, never
+ * content, in the gateway's time zone, and the current month unless another is asked for. Both answer once the engine has read everything they caused, so the next read
  * sees the change. The directory's writes answer with a consistency_token. The engine reads at
  * least as fresh as its own latest write, so a read after the answer sees the change whether
  * or not it sends the token back in x-inspiration-consistency; the header is accepted now for
@@ -114,6 +116,7 @@ import { audienceOf, createSpace, patchSpace, putAudience, putOwners, spaceList 
 import { maintains, overviewOf, syncNow } from "./spaces.ts";
 import { factLabels, inboxOf, resolveTodo } from "./todos.ts";
 import { putFile } from "./uploads.ts";
+import { usage } from "./usage.ts";
 
 const log = logger("engine.http");
 
@@ -157,6 +160,11 @@ function routesOf(engine: Engine): Route[] {
     { method: "GET", path: /^\/v0\/mcp$/, agents: true, run: noStream },
     { method: "DELETE", path: /^\/v0\/mcp$/, agents: true, run: noStream },
     { method: "GET", path: /^\/v0\/me$/, run: (who) => me(engine, who) },
+    {
+      method: "GET",
+      path: /^\/v0\/usage$/,
+      run: (who, _m, req) => usage(engine, who, req.query.get("month") ?? undefined),
+    },
     {
       method: "GET",
       path: /^\/v0\/spaces$/,

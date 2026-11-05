@@ -71,7 +71,7 @@ export function createApp(gateway: Gateway): Hono {
       gateway.usage,
       budget,
       budgetKey,
-      periodStart(period, new Date(), gateway.timeZone),
+      periodStart(period, gateway.clock(), gateway.timeZone),
     );
     const status: BudgetStatus = { budget_key: budgetKey, period, spent, currency: gateway.config.currency };
     if (budget?.limit !== undefined) status.limit = budget.limit;

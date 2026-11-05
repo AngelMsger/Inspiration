@@ -4,8 +4,23 @@ import type { BudgetPeriod, UsageRecord } from "@inspiration/contracts";
 import type { Pool } from "@inspiration/kernel";
 import { type BudgetConfig, globMatch } from "./config.ts";
 
+/** What a tenant's calls cost on one day, charged to one member, one space or neither. */
+export interface Charge {
+  /** The day in the time zone asked for, as "2026-11-05". */
+  date: string;
+  member_id?: string;
+  space_id?: string;
+  cost: number;
+  calls: number;
+}
+
 export interface UsageSink {
   record(rec: UsageRecord): Promise<void>;
+  /**
+   * The tenant's calls from from to until (not included), failures too, summed by their day in
+   * the time zone and by whom they are charged to.
+   */
+  charges(tenantId: string, from: Date, until: Date, timeZone: string): Promise<Charge[]>;
   /** Total cost charged to the key since the given instant (or ever). */
   spent(budgetKey: string, since: Date | undefined): Promise<number>;
   /** Total cost charged to every key the glob matches since the given instant (or ever). */
@@ -39,6 +54,11 @@ function zoneOffset(at: number, timeZone: string): number {
   return wall - Math.floor(at / 1000) * 1000;
 }
 
+/** The instant's day in the time zone, as "2026-11-05". */
+export function dayIn(at: Date, timeZone: string): string {
+  return new Date(at.getTime() + zoneOffset(at.getTime(), timeZone)).toISOString().slice(0, 10);
+}
+
 /** Start of the budget period containing now, in the given time zone; undefined for "total". */
 export function periodStart(period: BudgetPeriod, now: Date, timeZone: string): Date | undefined {
   if (period === "total") return undefined;
@@ -60,6 +80,21 @@ export class MemoryUsage implements UsageSink {
 
   async spent(budgetKey: string, since: Date | undefined): Promise<number> {
     return this.spentWhere((key) => key === budgetKey, since);
+  }
+
+  async charges(tenantId: string, from: Date, until: Date, timeZone: string): Promise<Charge[]> {
+    const out = new Map<string, Charge>();
+    for (const r of this.records) {
+      const at = new Date(r.at);
+      if (r.tenant_id !== tenantId || at < from || at >= until) continue;
+      const charge = { date: dayIn(at, timeZone), member_id: r.member_id, space_id: r.space_id };
+      const key = JSON.stringify(charge);
+      const sum = out.get(key) ?? { ...JSON.parse(key), cost: 0, calls: 0 };
+      sum.cost += r.cost.amount;
+      sum.calls++;
+      out.set(key, sum);
+    }
+    return [...out.values()];
   }
 
   async spentMatching(match: string, since: Date | undefined): Promise<number> {
@@ -119,6 +154,27 @@ export class PostgresUsage implements UsageSink {
       [budgetKey, since ?? null],
     );
     return Number(rows[0]?.spent ?? 0);
+  }
+
+  async charges(tenantId: string, from: Date, until: Date, timeZone: string): Promise<Charge[]> {
+    const { rows } = await this.pool.query<{
+      date: string;
+      member_id: string | null;
+      space_id: string | null;
+      cost: string;
+      calls: string;
+    }>(
+      `SELECT to_char(at AT TIME ZONE $4, 'YYYY-MM-DD') AS date, member_id, space_id, sum(cost) AS cost, count(*) AS calls
+       FROM gateway.usage WHERE tenant_id = $1 AND at >= $2 AND at < $3 GROUP BY 1, 2, 3`,
+      [tenantId, from, until, timeZone],
+    );
+    return rows.map((r) => ({
+      date: r.date,
+      ...(r.member_id && { member_id: r.member_id }),
+      ...(r.space_id && { space_id: r.space_id }),
+      cost: Number(r.cost),
+      calls: Number(r.calls),
+    }));
   }
 
   async spentMatching(match: string, since: Date | undefined): Promise<number> {

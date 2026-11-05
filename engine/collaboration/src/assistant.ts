@@ -250,6 +250,11 @@ export class Assistant {
     };
   }
 
+  /** Every decision the assistant made in the tenant, the undone ones too: what usage counts. */
+  async decisions(tenantId: string): Promise<DecisionRecord[]> {
+    return this.inbox.records.find(DECISIONS, { tenant_id: tenantId });
+  }
+
   /** What the assistant would choose on each of these todos and why it left them, in the reader's language. */
   async marks(
     who: Principal,

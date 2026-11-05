@@ -63,6 +63,7 @@
  * unset until they answer the offer; while it is on, each new todo of theirs of its kinds
  * (review_due, stale, conflict, note) is decided as it arrives (todo.created). Undoing 2 of
  * their last 10 decisions of one kind pauses it (paused_reason undone) until they turn it on.
+ * Assistant.decisions lists a tenant's decisions, the undone ones too, for the usage page.
  *
  * A todo stays in its week until it is resolved; nothing moves it on when the week passes.
  * Updates of one tenant run one at a time in a process, and the inbox mark commits with the

@@ -32,6 +32,8 @@ export interface ModelFiles {
 
 export interface Models {
   models: ModelGateway;
+  /** The main gateway: the one ledger every call is metered in, and the budgets that hold. */
+  ledger: Gateway;
   close(): Promise<void>;
 }
 
@@ -57,7 +59,7 @@ export async function openModels(files: ModelFiles): Promise<Models> {
   try {
     const usage = files.usageUrl ? await usageIn(files.usageUrl, closers) : new MemoryUsage();
     const main = await gatewayOf(files.gateway, config, usage, files.valkeyUrl, closers);
-    if (!corpus || !files.corpus) return { models: main, close };
+    if (!corpus || !files.corpus) return { models: main, ledger: main, close };
     // The corpus's tenant takes its own models, within the budgets every tenant has.
     const own = await gatewayOf(
       files.corpus.gateway,
@@ -66,7 +68,7 @@ export async function openModels(files: ModelFiles): Promise<Models> {
       files.valkeyUrl,
       closers,
     );
-    return { models: byTenant(files.corpus.tenantId, own, main), close };
+    return { models: byTenant(files.corpus.tenantId, own, main), ledger: main, close };
   } catch (error) {
     await close();
     throw error;
