@@ -47,6 +47,7 @@
       },
       "with": "choose:650 CNY/night",
       "label": "Keep 650 CNY/night",
+      "fact_label": "住宿限额（每晚）",
       "reason": "关于调整一线城市住宿标准的通知自 2026 年 10 月 1 日起把限额改为每晚 650 元；说 600 元的四份文档都早于这次调整。",
       "span_ids": ["spn_2fc90845281f6b55926d4e4232236208"],
       "via": "assistant_batch",

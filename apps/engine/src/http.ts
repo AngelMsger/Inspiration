@@ -67,7 +67,8 @@
  * the request answers 401 whatever the token says. For development only (the demo and its
  * snapshot), Identity.devHeaders lets a request name its tenant and member in the
  * x-inspiration-tenant and x-inspiration-member headers instead, trusted as given with a
- * member's scopes; the API listens on localhost only. Errors are ApiError bodies: 400 for a
+ * member's scopes, and the language the engine writes for them in x-inspiration-locale, as a
+ * token's locale; the API listens on localhost only. Errors are ApiError bodies: 400 for a
  * body or header that is not valid, 401 without a valid token, 403 for a token whose scopes do
  * not cover the route or an admin write the member may not make, 404 for anything unknown or
  * not readable (the two look the same, so a reader never learns what exists), 409 for a
@@ -98,7 +99,7 @@ import {
 } from "@inspiration/contracts";
 import { logger } from "@inspiration/kernel";
 import { documentTree, entryOf, foldersOf, type ListedDocument } from "@inspiration/source-sync";
-import { decideTodos, putDelegation, undoDecision } from "./decisions.ts";
+import { decidedWeek, decideTodos, putDelegation, undoDecision } from "./decisions.ts";
 import type { Engine } from "./engine.ts";
 import { badRequest, HttpError, notFound } from "./http-errors.ts";
 import { members, putMember, putTenant } from "./provisioning.ts";
@@ -207,7 +208,7 @@ function routesOf(engine: Engine): Route[] {
       scope: "knowledge.propose",
       run: (who, m) => undoDecision(engine, who, param(m)),
     },
-    { method: "GET", path: /^\/v0\/inbox\/decided$/, run: (who) => engine.assistant.week(who) },
+    { method: "GET", path: /^\/v0\/inbox\/decided$/, run: (who) => decidedWeek(engine, who) },
     { method: "GET", path: /^\/v0\/delegation$/, run: (who) => engine.assistant.delegation(who.tenant_id, who.id) },
     {
       method: "PUT",
@@ -368,7 +369,14 @@ function fromDevHeaders(req: IncomingMessage, identity: Identity): Principal {
         : "send a principal token as a Bearer token",
     );
   }
-  return parseAs<Principal>("Principal", { id: member, kind: "member", tenant_id: tenant, scopes: [...DEV_SCOPES] });
+  const locale = req.headers["x-inspiration-locale"];
+  return parseAs<Principal>("Principal", {
+    id: member,
+    kind: "member",
+    tenant_id: tenant,
+    scopes: [...DEV_SCOPES],
+    ...(typeof locale === "string" && { locale }),
+  });
 }
 
 /** The body, refused as soon as its declared or counted size passes limit. */

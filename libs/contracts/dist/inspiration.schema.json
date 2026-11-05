@@ -9457,6 +9457,10 @@
           "description": "The chosen resolution's label, as the todo offered it.",
           "type": "string"
         },
+        "fact_label": {
+          "description": "What the fact its todo is about is called in the tenant's predicate catalogue, as the inbox names it (InboxTodo.fact_label).\n",
+          "type": "string"
+        },
         "reason": {
           "description": "One or two sentences on why, in the member's language.",
           "type": "string",

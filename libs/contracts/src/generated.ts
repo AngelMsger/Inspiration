@@ -1821,6 +1821,11 @@ export interface TodoDecision {
    */
   label: string;
   /**
+   * What the fact its todo is about is called in the tenant's predicate catalogue, as the inbox names it (InboxTodo.fact_label).
+   *
+   */
+  fact_label?: string;
+  /**
    * One or two sentences on why, in the member's language.
    */
   reason: string;
