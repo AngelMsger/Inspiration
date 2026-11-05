@@ -3,7 +3,8 @@
  * backend (apps/business) with the same browser API over one demo company (people.yaml).
  * There is no identity provider here: signing in, or signing up, signs in as the company's
  * first person, and a cookie remembers who is signed in. Every call under /api/v0/ goes on to
- * the engine's HTTP API as that member, in the engine's development identity headers. The
+ * the engine's HTTP API as that member, in the engine's development identity headers, with
+ * the account's language for what the engine writes (x-inspiration-locale). The
  * page cannot name a member itself: the backend builds the headers it forwards, so identity
  * headers from the browser never reach the engine. A call that acts in a company names the one
  * its frame shows (x-inspiration-company); naming another than the session's answers 409
@@ -84,10 +85,13 @@ export function backend(options: People & { engine: string; updates?: Updates })
     const member = cookie(req, COOKIE);
     return people.people.find((p) => p.member === member);
   };
+  // The engine writes reasons in the account's language, which the business backend puts in the
+  // principal token; the stand-in names it beside the member.
   const headersOf = (person: Person) => ({
     "content-type": "application/json",
     "x-inspiration-tenant": people.tenant,
     "x-inspiration-member": person.member,
+    "x-inspiration-locale": changes.get(person.member)?.locale ?? person.locale ?? "en",
   });
   // The company's name is the engine's, read once it answers.
   let name: string | undefined;

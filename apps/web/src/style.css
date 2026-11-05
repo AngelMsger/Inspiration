@@ -2112,13 +2112,15 @@ body:has(.guide) {
 }
 
 .decided-fold {
+  margin: 0;
   border: 1px solid var(--holds);
   border-radius: 4px;
   background: var(--holds-bg);
   padding: 10px 18px;
 }
 
-.decided-fold summary {
+.decided-fold summary,
+p.decided-fold {
   color: var(--holds);
   font-weight: 600;
   cursor: pointer;

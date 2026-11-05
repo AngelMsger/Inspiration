@@ -120,6 +120,10 @@ describe("development backend", () => {
       body: JSON.stringify({ locale: "ja" }),
     });
     expect((changed.body as Session).account.locale).toBe("ja");
+    // The engine writes for the account in its language, as the business backend's token says.
+    seen = [];
+    await call("/api/v0/inbox", { headers: { cookie, "x-inspiration-locale": "en" } });
+    expect(seen[0]?.headers["x-inspiration-locale"]).toBe("ja");
     // What the contract refuses: another language, nothing to change, a field it does not have.
     for (const refused of ['{"locale":"fr"}', "{}", '{"name":"Lin","email":"lin@example.com"}']) {
       const wrong = await call("/api/account", { method: "PATCH", headers: { cookie }, body: refused });
