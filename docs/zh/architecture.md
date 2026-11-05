@@ -24,6 +24,8 @@ Inspiration 是围绕一个知识存储的一组组件。每个组件只负责�
 
 Web 应用通过引擎的 HTTP API（第 0 版，`apps/engine/src/http.ts`）读取引擎：成员能读的空间、一个空间的文档树、一篇文档及其标注视图里的标记、搜索和回答，一个空间的知识大纲和每个主题里各个事实的现行值，成员的待办和每个待办可供选择的结果，以及给空间负责人（或租户管理员）看的空间概览：空间里待处理的工作、读者看到有争议的事实、按治理级别统计的文档和最近的变化。目前写入知识的操作有处理待办，以及空间负责人立即同步一个来源；两者都在引擎读完它们引起的一切之后才返回。业务层的租户服务把租户和成员写入引擎保存的目录副本（访问控制的 `Directory`），空间也通过同一个 API 管理：超级管理员创建空间并指定空间负责人，空间负责人改名并设置谁能阅读，超级管理员可以移除读者但不能添加。`GET /v0/me` 告诉 Web 应用该成员是否是超级管理员，`GET /v0/spaces?manage=true` 列出该成员能管理的空间。只有当目录中的成员和租户都处于启用状态时，成员的请求才会被接受。每次读取都按成员的权限检查，成员不能读的内容一律当作不存在来回答。请求携带主体令牌：业务层用 Ed25519 签名的 JWT（内核中的 `signJwt`，两层共用这一实现），由访问控制按业务层公布的公钥验证（`TokenVerifier`）；令牌的作用域限定请求能做什么。开发时，`--dev-identity` 还允许请求用 `x-inspiration-tenant` 和 `x-inspiration-member` 两个请求头说明租户和成员；这是开发用的替身，只监听本机。Web 应用自己的后端也是替身（`apps/web/src/backend.ts`）：使用者选择以谁的身份操作，只有后端设置这两个请求头。`pnpm demo` 在演示租户上同时运行两者；`pnpm snapshot` 通过两者把演示脚本录下来，生成一个从录像作答的静态页面（`apps/web/src/replay.ts`）。
 
+业务后端（`apps/business`）是浏览器真正的服务端，与网站同源。它通过 Logto 让用户登录（OIDC，在 `business/accounts` 里），保存他们的企业、成员和邀请链接（`business/tenancy`），以租户服务的身份把每次变更写入引擎，并把页面的 `/api/v0/` 调用转给引擎的 `/v0/`，附上它为该成员签发的主体令牌；它在 `/.well-known/jwks.json` 公布自己的公钥。它也提供构建好的 Web 应用。它的路由列在 `apps/business/src/index.ts` 里。
+
 ## 一个仓库，每层一个目录
 
 两层都在本仓库里构建，同属一个 pnpm workspace，每层有自己的目录：
@@ -32,7 +34,7 @@ Web 应用通过引擎的 HTTP API（第 0 版，`apps/engine/src/http.ts`）读
 libs/<name>       两层共用的共享库：contracts、kernel、eventbus、testkit
 engine/<name>     引擎组件，每个组件一个包
 business/<name>   业务层组件，每个组件一个包
-apps/<name>       组装根：现在是引擎进程、它的测量工具和 Web 应用；以后加上业务后端
+apps/<name>       组装根：引擎进程、它的测量工具、业务后端和 Web 应用
 ```
 
 包名仍是 `@inspiration/<name>`。

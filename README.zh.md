@@ -8,7 +8,7 @@ Inspiration 把企业分散的文档、审批流程和对话变成一个活的�
 
 ## 状态
 
-引擎的基础和知识流水线已构建并有测试；业务层尚未开始。Web 应用在引擎的 HTTP API 上展示设计画布里阅读部分的界面，用一个替身代替登录，供演示使用。[`components.yaml`](components.yaml) 列出每个组件及其状态（已构建、进行中或已计划），每个包的 `src/index.ts` 说明它做什么。[总览](docs/zh/overview.md)说明哪些已构建、接下来做什么、哪些仍未决定。
+引擎的基础和知识流水线已构建并有测试；业务层已有登录、企业、成员和邀请链接，由它自己的后端提供。Web 应用在引擎的 HTTP API 上展示设计画布里阅读部分的界面，用一个替身代替登录，供演示使用。[`components.yaml`](components.yaml) 列出每个组件及其状态（已构建、进行中或已计划），每个包的 `src/index.ts` 说明它做什么。[总览](docs/zh/overview.md)说明哪些已构建、接下来做什么、哪些仍未决定。
 
 除解析 worker 外全部是 Node 22 上的 TypeScript；解析 worker 用 Python，因为最好的文档解析器是 Python 的。
 
@@ -55,6 +55,15 @@ pnpm snapshot dist/snapshot                        # 把演示脚本录成一个
 谁打开都能看到：在页面里以某人的身份操作只是模拟，不是权限控制。所以只录合成的演示语料，或者整份内容都允许
 所有拿到链接的人阅读的语料。
 
+要用邮箱和密码真正登录，就在引擎前面运行 Logto 和业务后端。Logto 在 compose 文件里，属于单独的 profile。第一次需要在它的控制台（http://localhost:3002）里创建一个“Traditional web”应用，重定向 URI 填 `http://localhost:4200/api/auth/callback`，退出登录后的重定向 URI 填 `http://localhost:4200/`，然后把它的 ID 和密钥写进 `.env`，分别是 `INSPIRATION_LOGTO_APP_ID` 和 `INSPIRATION_LOGTO_APP_SECRET`，再加上 `INSPIRATION_LOGTO_ISSUER=http://localhost:3001/oidc`。其他设置见 `apps/business/src/serve.ts`。
+
+```bash
+docker compose -f infra/compose.yaml --profile auth up -d --wait   # 即 make up，再加上 3001 端口的 Logto
+pnpm --dir apps/web exec vite build                                 # 构建 Web 应用，输出到 apps/web/dist
+pnpm engine serve examples/corpus --issuer http://localhost:4200 --audience http://127.0.0.1:4100
+pnpm business serve --web apps/web/dist                             # 网站在 http://localhost:4200
+```
+
 不启动模型服务也可以试用模型网关，用假的模型提供方运行它：
 
 ```bash
@@ -72,6 +81,7 @@ libs/testkit        针对 compose 运行环境的测试夹具
 engine/<component>  每个引擎组件一个包（见 components.yaml）
 business/<name>     每个业务层组件一个包：目前有 accounts 和 tenancy；engine/ 和 libs/ 从不依赖它们
 apps/engine         引擎进程：把组件接到存储、事件总线和 blob 存储上；HTTP API
+apps/business       业务后端（pnpm business serve）：登录、企业和邀请链接；以成员身份调用引擎
 apps/web            产品 Web 应用，基于引擎的 HTTP API，带一个替身后端（pnpm demo）和录像（pnpm snapshot）
 apps/bench          测量工具（pnpm bench）：在语料上运行引擎、生成报告、核对答案
 apps/site           产品官网（pnpm site）：三种语言的静态页面和一段演示动画，发布到 GitHub Pages

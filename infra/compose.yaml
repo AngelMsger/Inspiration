@@ -74,6 +74,25 @@ services:
       timeout: 3s
       retries: 30
 
+  # Sign-in for the business backend, only with `--profile auth` (not in make up or CI). Its
+  # first start creates its own database, logto, on the same Postgres. Set it up once in its
+  # console (http://localhost:3002), as the README's quick start says.
+  logto:
+    image: svhd/logto:1.45.0
+    profiles: [auth]
+    entrypoint: ["sh", "-c", "npm run cli db seed -- --swe && npm start"]
+    environment:
+      DB_URL: postgres://inspiration:${INSPIRATION_PG_PASSWORD:-inspiration}@postgres:5432/logto
+      ENDPOINT: http://localhost:${INSPIRATION_LOGTO_PORT:-3001}
+      ADMIN_ENDPOINT: http://localhost:${INSPIRATION_LOGTO_ADMIN_PORT:-3002}
+      TRUST_PROXY_HEADER: "1"
+    ports:
+      - "${INSPIRATION_LOGTO_PORT:-3001}:3001"
+      - "${INSPIRATION_LOGTO_ADMIN_PORT:-3002}:3002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   pgdata:
   valkeydata:

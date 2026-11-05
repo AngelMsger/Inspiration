@@ -14,7 +14,7 @@ component inside its boundaries (see [Architecture](docs/architecture.md)).
 ## Status
 
 The engine's foundations and its knowledge pipeline are built and tested; the business layer
-is not started. The web app shows the reading screens of the design canvas over the engine's
+has sign-in, companies, members and invite links, behind its own backend. The web app shows the reading screens of the design canvas over the engine's
 HTTP API, with a stand-in for sign-in, for demos. [`components.yaml`](components.yaml) lists every component
 with its status (built, in progress or planned), and each package's `src/index.ts` says what
 it does. The [overview](docs/overview.md) says what is built, what comes next and what is
@@ -81,6 +81,21 @@ demo tenant could read, for whoever opens it: acting as someone there is a simul
 access control. So record only the synthetic demo corpus, or a corpus whose whole contents
 everyone who gets the link may read.
 
+To sign in for real, with email and password, run Logto and the business backend in front of
+the engine. Logto runs in the compose file under its own profile. Once, in its console at
+http://localhost:3002, create a "Traditional web" application with the redirect URI
+`http://localhost:4200/api/auth/callback` and the post sign-out redirect URI
+`http://localhost:4200/`, and put its ID and secret in `.env` as `INSPIRATION_LOGTO_APP_ID` and
+`INSPIRATION_LOGTO_APP_SECRET`, with `INSPIRATION_LOGTO_ISSUER=http://localhost:3001/oidc`.
+`apps/business/src/serve.ts` lists the other settings.
+
+```bash
+docker compose -f infra/compose.yaml --profile auth up -d --wait   # make up, and Logto on 3001
+pnpm --dir apps/web exec vite build                                 # the web app, into apps/web/dist
+pnpm engine serve examples/corpus --issuer http://localhost:4200 --audience http://127.0.0.1:4100
+pnpm business serve --web apps/web/dist                             # the site at http://localhost:4200
+```
+
 To try the model gateway without a model server, run it with the fake providers:
 
 ```bash
@@ -98,6 +113,7 @@ libs/testkit        fixtures for tests against the compose stack
 engine/<component>  one package per engine component (see components.yaml)
 business/<name>     one package per business-layer component: accounts and tenancy so far; engine/ and libs/ never depend on them
 apps/engine         the engine process: wires the components to the store, the bus and the blob store; HTTP API
+apps/business       the business backend (pnpm business serve): sign-in, companies and invite links; calls the engine as the member
 apps/web            the product web app over the engine's HTTP API, a stand-in backend (pnpm demo) and snapshots (pnpm snapshot)
 apps/bench          the measurement harness (pnpm bench): runs the engine over a corpus, reports, checks answers
 apps/site           the product website (pnpm site): static pages in three languages with a scripted demo, published to GitHub Pages
