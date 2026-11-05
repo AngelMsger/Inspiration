@@ -1,0 +1,106 @@
+{
+  "space_id": "spc_01QINGHE000000000000POLICY",
+  "sources": [
+    {
+      "kind": "source",
+      "name": "Uploads",
+      "source_id": "src_01QINGHE000000000000UPLOADS",
+      "source_type": "upload",
+      "path": [],
+      "document_count": 4,
+      "children": [
+        {
+          "kind": "folder",
+          "name": "制度",
+          "source_id": "src_01QINGHE000000000000UPLOADS",
+          "path": ["制度"],
+          "document_count": 4,
+          "children": [
+            {
+              "kind": "document",
+              "name": "员工手册",
+              "source_id": "src_01QINGHE000000000000UPLOADS",
+              "path": ["制度", "员工手册"],
+              "document": {
+                "source_id": "src_01QINGHE000000000000UPLOADS",
+                "external_id": "制度/员工手册.pdf",
+                "title": "员工手册",
+                "source_version_id": "sv_01M6G2RZ5BW44M458V3TVZKSGV",
+                "governance_level": "reference",
+                "approval_state": "unknown",
+                "mime_type": "application/pdf",
+                "fetched_at": "2026-11-05T05:30:04Z",
+                "reading": {
+                  "state": "failed",
+                  "note": "the PDF has no text layer: a scanned PDF is read once OCR is built"
+                }
+              }
+            },
+            {
+              "kind": "document",
+              "name": "差旅管理办法",
+              "source_id": "src_01QINGHE000000000000UPLOADS",
+              "path": ["制度", "差旅管理办法"],
+              "document": {
+                "source_id": "src_01QINGHE000000000000UPLOADS",
+                "external_id": "制度/差旅管理办法.docx",
+                "title": "差旅管理办法",
+                "source_version_id": "sv_01M6G2RZ5BW44M458V3TVZKSGT",
+                "governance_level": "reference",
+                "approval_state": "unknown",
+                "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "fetched_at": "2026-11-05T05:30:00Z"
+              }
+            },
+            {
+              "kind": "document",
+              "name": "采购流程",
+              "source_id": "src_01QINGHE000000000000UPLOADS",
+              "path": ["制度", "采购流程"],
+              "document": {
+                "source_id": "src_01QINGHE000000000000UPLOADS",
+                "external_id": "制度/采购流程.pptx",
+                "title": "采购流程",
+                "source_version_id": "sv_01M6G2RZ5BW44M458V3TVZKSGW",
+                "governance_level": "reference",
+                "approval_state": "unknown",
+                "mime_type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                "fetched_at": "2026-11-05T05:30:06Z",
+                "reading": {
+                  "state": "paused",
+                  "note": "today's reading budget for this company is spent; reading carries on tomorrow"
+                }
+              }
+            },
+            {
+              "kind": "document",
+              "name": "预算表",
+              "source_id": "src_01QINGHE000000000000UPLOADS",
+              "path": ["制度", "预算表"],
+              "document": {
+                "source_id": "src_01QINGHE000000000000UPLOADS",
+                "external_id": "制度/预算表.xlsx",
+                "title": "预算表",
+                "source_version_id": "sv_01M6G2RZ5BW44M458V3TVZKSGX",
+                "governance_level": "reference",
+                "approval_state": "unknown",
+                "mime_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "fetched_at": "2026-11-05T05:30:08Z",
+                "reading": {
+                  "state": "reading"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "reading": {
+    "waiting": 0,
+    "reading": 1,
+    "read": 1,
+    "paused": 1,
+    "failed": 1
+  }
+}

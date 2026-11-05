@@ -840,6 +840,51 @@ $defs:
         $ref: "common.yaml#/$defs/Instant"
       fetched_at:
         $ref: "common.yaml#/$defs/Instant"
+      reading:
+        description: How far the engine has read the latest version; absent means read.
+        $ref: "#/$defs/DocumentReading"
+
+  ReadingState:
+    description: >
+      How far the engine has read a document's latest version. waiting: not parsed yet.
+      reading: parsed and searchable, its statements being read. read: done, and a reference
+      document is read further where a page or an answer uses it. paused: the company's
+      reading budget for the day is spent, and reading carries on once the next day's budget
+      starts; the version is searchable meanwhile. failed: the file could not be read, and
+      the note says why.
+    type: string
+    enum: [waiting, reading, read, paused, failed]
+
+  DocumentReading:
+    type: object
+    required: [state]
+    properties:
+      state:
+        $ref: "#/$defs/ReadingState"
+      note:
+        description: For a paused or failed document, why, in plain English.
+        type: string
+
+  ReadingCounts:
+    description: Documents by reading state.
+    type: object
+    required: [waiting, reading, read, paused, failed]
+    properties:
+      waiting:
+        type: integer
+        minimum: 0
+      reading:
+        type: integer
+        minimum: 0
+      read:
+        type: integer
+        minimum: 0
+      paused:
+        type: integer
+        minimum: 0
+      failed:
+        type: integer
+        minimum: 0
 
   DocumentTreeNodeKind:
     type: string
