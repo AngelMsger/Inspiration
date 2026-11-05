@@ -5,8 +5,8 @@ import type { Citation, GroundedAnswer, SearchHit } from "@inspiration/contracts
 import { useState } from "react";
 import { readAnswer } from "./answers.ts";
 import { api, type Library, useLoad } from "./api.ts";
-import type { Person } from "./backend.ts";
 import { Failure, Standing } from "./parts.tsx";
+import type { Person } from "./people.ts";
 import { Link, navigate, type Route } from "./route.tsx";
 import { noteText } from "./todos.ts";
 import { useWords } from "./words.ts";

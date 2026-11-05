@@ -6,9 +6,9 @@
 import type { SpaceChange, SpaceOverview, SyncReport, TaxonomyNode } from "@inspiration/contracts";
 import { type ReactNode, useRef, useState } from "react";
 import { api, failureOf, type Library, type Loaded, useLoad } from "./api.ts";
-import type { Person } from "./backend.ts";
 import { folderRows } from "./folders.ts";
 import { Crumbs, Failure, formatDate } from "./parts.tsx";
+import type { Person } from "./people.ts";
 import { Link, type Route } from "./route.tsx";
 import type { Update } from "./updates.ts";
 import { useWords } from "./words.ts";
