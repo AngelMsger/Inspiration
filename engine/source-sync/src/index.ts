@@ -25,6 +25,15 @@
  * versions, and documentTree() folds the ones a reader may open into one node per source,
  * with its folders (the source's own path, else the external ID's) and documents. A folder
  * with nothing left in it is never built, so a reader never learns it exists.
+ *
+ * Uploads (uploads.ts): each space has one upload area, a source of type "upload" whose ID
+ * follows from the space's (uploadAreaId), created with the space's first file
+ * (uploadArea). upload(area, file) keeps the bytes as a blob, records the file in
+ * sync.uploads and stores it as the item at its path, at once: the document is in the tree
+ * when upload returns, and reading follows from document.fetched as for any source. The same
+ * bytes at the same path change nothing; other bytes make a new version. Uploads start as
+ * reference and carry no ACL, so the space's audience decides who reads them. Planned is
+ * removing an upload.
  */
 
 export { MIGRATIONS } from "./migrations.ts";
@@ -42,3 +51,4 @@ export {
   type SyncReport,
 } from "./sync.ts";
 export { documentTree, entryOf, foldersOf } from "./tree.ts";
+export { MAX_PATH, pathParts, UPLOAD_TYPE, UPLOADS, type Upload, type UploadRecord, uploadAreaId } from "./uploads.ts";
