@@ -102,7 +102,7 @@ export type ClaimStatus =
   "proposed" | "active" | "verified" | "disputed" | "superseded" | "retracted";
 export type EntityId = string;
 /**
- * forbidden is a token whose scopes do not cover the route, or an admin write on a space the member may read but not administer; conflict is a directory command older than the engine's copy; too_large is an upload over the size a file may have (status 413).
+ * forbidden is a token whose scopes do not cover the route, or an admin write on a space the member may read but not administer; conflict is a directory command older than the engine's copy; too_large is an upload over the size a file may have (status 413), and unsupported_type a file of a type the engine does not read (status 415).
  *
  */
 export type ApiErrorCode =
@@ -112,6 +112,7 @@ export type ApiErrorCode =
   | "not_found"
   | "conflict"
   | "too_large"
+  | "unsupported_type"
   | "internal";
 export type ApprovalAction =
   | "start"

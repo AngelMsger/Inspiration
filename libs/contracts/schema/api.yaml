@@ -469,8 +469,9 @@ $defs:
     description: >
       forbidden is a token whose scopes do not cover the route, or an admin write on a space the
       member may read but not administer; conflict is a directory command older than the
-      engine's copy; too_large is an upload over the size a file may have (status 413).
-    enum: [bad_request, unauthenticated, forbidden, not_found, conflict, too_large, internal]
+      engine's copy; too_large is an upload over the size a file may have (status 413), and
+      unsupported_type a file of a type the engine does not read (status 415).
+    enum: [bad_request, unauthenticated, forbidden, not_found, conflict, too_large, unsupported_type, internal]
 
   ApiError:
     description: The body of every error response.
