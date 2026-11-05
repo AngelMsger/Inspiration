@@ -196,7 +196,7 @@ Read more in [Architecture](docs/architecture.md), [Contracts](docs/contracts.md
 | 3 | Fast cited answers | The compact answer by default, a faster reranker, stable search, disputed values marked in the answer | ✅ Built |
 | 🏁 | **Gate A: first usable** | Sign in, upload your own files, ask in English, Chinese or Japanese, get a cited answer | |
 | 4 | Governance that asks little | "Decide for me" on every inbox card, with reasons and undo; reading on demand | 🚧 "Decide for me" built in the engine and the web app; reading on demand still to come |
-| 5 | Agents | An MCP server with search, ask and read, acting as the member; personal tokens | 🚧 Built in the engine and the web app; the business backend's tokens and MCP address are in review |
+| 5 | Agents | An MCP server with search, ask and read, acting as the member; personal tokens | ✅ Built; tested end to end with the official MCP client library, through the business backend to the engine |
 | 🏁 | **Gate B: the flow closed** | A colleague reads only their spaces, a new version changes the answer, an agent sees only what its member may | |
 | 6 | Trial | One deployed server, a usage page and feedback | Next; the trial's model budgets are built |
 | 🏁 | **Gate C: the trial** | A few people outside the team use it for two weeks with their own documents | |
