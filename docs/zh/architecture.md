@@ -159,6 +159,7 @@ collaboration 把 `todo.requested` 和 `review.due` 变成待办，并以一个�
 | `bus` | eventbus | 发件箱和收件箱 |
 | `gateway` | model-gateway | 用量记录（预算是对它们的求和） |
 | `agents` | agent-runtime | Agent 运行轨迹 |
+| `authz` | access-control | 业务层目录的副本（租户、成员及其版本）；空间及其负责人和受众；创建空间的幂等键。它们授予的关系图保存在 SpiceDB 中 |
 | `sync` | source-sync | 已注册的来源；每个条目的连接器版本哈希以及它们变成的来源版本 |
 | `normalization` | normalization | 每份文档最近一次保存为块的版本（差异比较的基准）、它的解析器和指纹；用于查重的 SimHash 分段索引 |
 | `extraction` | extraction | 每份文档最近抽取的版本 |

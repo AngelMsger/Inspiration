@@ -225,13 +225,13 @@ importers:
       '@inspiration/contracts':
         specifier: workspace:*
         version: link:../../libs/contracts
+      '@inspiration/eventbus':
+        specifier: workspace:*
+        version: link:../../libs/eventbus
       '@inspiration/kernel':
         specifier: workspace:*
         version: link:../../libs/kernel
     devDependencies:
-      '@inspiration/eventbus':
-        specifier: workspace:*
-        version: link:../../libs/eventbus
       '@inspiration/knowledge-store':
         specifier: workspace:*
         version: link:../knowledge-store

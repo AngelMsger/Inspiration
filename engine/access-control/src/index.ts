@@ -12,6 +12,16 @@
  *
  * Apply the schema with `pnpm --filter @inspiration/access-control exec inspiration-authz-schema`.
  *
+ * The directory (directory.ts) is the engine's copy of the business layer's tenants and
+ * members, and the record of every space with its owners and audience, in access control's
+ * own schema (authz). It grants in the graph what its records say, to active members only.
+ *
+ *     const directory = new Directory(records, graph);               // PgRecords or MemoryRecords
+ *     await directory.putTenant(tenantId, { name, kind: "team", default_locale: "zh-CN", version: 1 }, serviceId);
+ *     await directory.putMember(tenantId, memberId, { status: "active", display_name, roles: ["member"], version: 1 });
+ *     const { space } = await directory.createSpace(tenantId, { name: "Finance", owner_ids: [memberId] });
+ *     await directory.putAudience(space.id, [{ principal_id: "tenant", role: "viewer" }]);
+ *
  * Principal tokens (tokens.ts) say who a request acts for: a JWT the business layer signs with
  * Ed25519, verified against its published keys. `@inspiration/access-control/testing` has a
  * development issuer for tests and local runs.
@@ -20,6 +30,7 @@
  *     const who = await tokens.verify(bearer);                       // or a TokenError
  */
 
+export { ConflictError, Directory } from "./directory.ts";
 export {
   formatRelationship,
   type Graph,

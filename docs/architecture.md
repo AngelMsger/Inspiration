@@ -219,6 +219,7 @@ One Postgres instance (ParadeDB image: Postgres 16 with pgvector and pg_search) 
 | `bus` | eventbus | outbox and inbox |
 | `gateway` | model-gateway | usage records (budgets are sums over them) |
 | `agents` | agent-runtime | agent run traces |
+| `authz` | access-control | the copy of the business layer's directory (tenants, members, with their versions); spaces with their owners and audiences; idempotency keys of space creation. SpiceDB holds the graph these grant |
 | `sync` | source-sync | registered sources; per item, the connector's version hashes and the source version they became |
 | `normalization` | normalization | per document, the version last stored as blocks (the diff base), its parser and fingerprint; the SimHash band index for duplicates |
 | `extraction` | extraction | per document, the latest version extracted |
