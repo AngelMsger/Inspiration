@@ -1,5 +1,5 @@
-// The HTTP API over the demo corpus, in memory: every route, its contract, and that a member
-// sees only what they may read.
+// The HTTP API over the demo corpus, in memory: every route, its contract, that a member sees
+// only what they may read, and that a request acts only for the principal its token names.
 
 import { cp, mkdtemp, rm } from "node:fs/promises";
 import { request, type Server } from "node:http";
@@ -7,6 +7,8 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { TokenVerifier } from "@inspiration/access-control";
+import { devIssuer } from "@inspiration/access-control/testing";
 import {
   type Citation,
   contractErrors,
@@ -48,6 +50,7 @@ const ZHANG_MIN = "mem_01HENGYUAN00000000ZHANGMIN";
 // Maintains the finance space and edits the internal budget folder, which only she may open.
 const ZHOU_MIN = "mem_01HENGYUAN000000000ZHOUMIN";
 
+const issuer = devIssuer();
 let engine: Engine;
 let server: Server;
 let corpus: Corpus;
@@ -67,12 +70,15 @@ beforeAll(async () => {
     clock: () => new Date("2026-11-04T09:00:00Z"),
   });
   await seed(engine, corpus);
-  server = await serveApi(
-    engine,
-    { tenant: (id) => (id === corpus.tenantId ? corpus.tenant : undefined), spaces: () => corpus.spaces },
-    0,
-  );
+  server = await serveApi(engine, directory(), 0, {
+    tokens: new TokenVerifier({ issuer: issuer.issuer, audience: issuer.audience, keys: issuer.keys }),
+  });
 }, 120_000);
+
+const directory = () => ({
+  tenant: (id: string) => (id === corpus.tenantId ? corpus.tenant : undefined),
+  spaces: () => corpus.spaces,
+});
 
 afterAll(async () => {
   server?.close();
@@ -81,11 +87,17 @@ afterAll(async () => {
   await rm(work, { recursive: true, force: true });
 });
 
-async function call(path: string, options: { member?: string; body?: unknown; anonymous?: boolean } = {}) {
-  const { port } = server.address() as AddressInfo;
+/** A request as a member, with a token the development issuer signs; or with the headers given. */
+async function call(
+  path: string,
+  options: { member?: string; body?: unknown; anonymous?: boolean; headers?: Record<string, string>; on?: Server } = {},
+) {
+  const { port } = (options.on ?? server).address() as AddressInfo;
+  const token = () =>
+    issuer.mint({ sub: options.member ?? corpus.reader.id, tid: corpus.tenantId, kind: "member", locale: "zh-CN" });
   const headers: Record<string, string> = options.anonymous
     ? {}
-    : { "x-inspiration-tenant": corpus.tenantId, "x-inspiration-member": options.member ?? corpus.reader.id };
+    : (options.headers ?? { authorization: `Bearer ${token()}` });
   const res = await fetch(`http://127.0.0.1:${port}${path}`, {
     method: options.body === undefined ? "GET" : "POST",
     headers,
@@ -272,6 +284,47 @@ describe("engine HTTP API", () => {
     expect(contractErrors("ApiError", anonymous.body)).toEqual([]);
     expect((await call("/v0/answers", { body: { question: "" } })).status).toBe(400);
     expect((await call("/v0/nothing")).status).toBe(404);
+  });
+
+  test("acts only for a principal token that verifies, for a tenant the engine knows", async () => {
+    const forger = devIssuer({ issuer: issuer.issuer, audience: issuer.audience });
+    const forged = forger.mint({ sub: corpus.reader.id, tid: corpus.tenantId, kind: "member" });
+    const stranger = issuer.mint({ sub: corpus.reader.id, tid: "ten_01ELSEWHERE00000000000000001", kind: "member" });
+    for (const authorization of [`Bearer ${forged}`, `Bearer ${stranger}`, "Bearer", `Basic ${forged}`]) {
+      const refused = await call("/v0/spaces", { headers: { authorization } });
+      expect(refused.status).toBe(401);
+      expect(contractErrors("ApiError", refused.body)).toEqual([]);
+    }
+    const headers = { "x-inspiration-tenant": corpus.tenantId, "x-inspiration-member": corpus.reader.id };
+    expect((await call("/v0/spaces", { headers })).status).toBe(401);
+  });
+
+  test("lets a token do only what its scopes grant", async () => {
+    const service = issuer.mint({ sub: "svc_01TENANCY0000000000000000", tid: corpus.tenantId, kind: "service" });
+    const asService = await call("/v0/spaces", { headers: { authorization: `Bearer ${service}` } });
+    expect(asService).toMatchObject({ status: 403, body: { error: { code: "forbidden" } } });
+    const readOnly = issuer.mint({
+      sub: corpus.reader.id,
+      tid: corpus.tenantId,
+      kind: "member",
+      scope: "knowledge.read",
+    });
+    const headers = { authorization: `Bearer ${readOnly}` };
+    expect((await call("/v0/spaces", { headers })).status).toBe(200);
+    expect((await call("/v0/todos/tdo_01HENGYUAN0000000000000NONE/resolve", { headers, body: {} })).status).toBe(403);
+  });
+
+  test("takes the development headers only when asked to", async () => {
+    const dev = await serveApi(engine, directory(), 0, { devHeaders: true });
+    try {
+      const headers = { "x-inspiration-tenant": corpus.tenantId, "x-inspiration-member": corpus.reader.id };
+      const { status, body } = await call("/v0/spaces", { headers, on: dev });
+      expect(status).toBe(200);
+      expect((body.spaces as { name: string }[]).map((s) => s.name)).toEqual(DATA.spaces);
+      expect((await call("/v0/spaces", { on: dev })).status).toBe(401);
+    } finally {
+      dev.close();
+    }
   });
 
   test("answers a request target that is not a URL with 400, and keeps serving", async () => {

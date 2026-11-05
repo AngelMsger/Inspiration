@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * inspiration-engine serve <corpus> [--port 4100] [--today <YYYY-MM-DD>] [--gateway <file> [--valkey <url>]]
+ * inspiration-engine serve <corpus> (--issuer <url> --audience <url> [--jwks <url|file>] | --dev-identity)
+ *     [--port 4100] [--today <YYYY-MM-DD>] [--gateway <file> [--valkey <url>]]
  *
  * Runs the engine in memory over a corpus and serves its HTTP API (http.ts) on localhost, for
  * the web app to read. The corpus stands in for the business layer: it provisions the tenant,
@@ -10,17 +11,25 @@
  * recorded with real answers (config/gateway.demo.yaml); a config that keeps its replies in
  * Valkey takes the server from --valkey. --today sets the day governance and freshness take as
  * now; without it, the real day.
+ *
+ * Requests carry principal tokens the business layer signs for --issuer and --audience, checked
+ * against its keys at --jwks: a URL (by default <issuer>/.well-known/jwks.json, since the engine may
+ * reach the business layer on another host than the public issuer URL) or a JWKS file. For
+ * development, --dev-identity also takes the x-inspiration-tenant and x-inspiration-member
+ * headers instead (the demo and its snapshot run so).
  */
 
+import { readFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
+import { type Jwks, jwksFromUrl, staticKeys, TokenVerifier } from "@inspiration/access-control";
 import { logger } from "@inspiration/kernel";
 import { Gateway, loadGatewayConfig, ValkeyCache } from "@inspiration/model-gateway";
 import { Corpus } from "./corpus.ts";
 import { Engine } from "./engine.ts";
-import { serveApi } from "./http.ts";
+import { type Identity, serveApi } from "./http.ts";
 import { assignOwners } from "./owners.ts";
 
 const log = logger("engine.serve");
@@ -56,6 +65,22 @@ async function gatewayOf(
   return { gateway, close: () => gateway.close().then(() => cache.close()) };
 }
 
+/** Tokens when an issuer and audience are given, the development headers when asked; undefined when neither. */
+function identityOf(values: {
+  issuer?: string;
+  audience?: string;
+  jwks?: string;
+  "dev-identity"?: boolean;
+}): Identity | undefined {
+  const devHeaders = values["dev-identity"] === true;
+  if (!values.issuer || !values.audience) return devHeaders ? { devHeaders } : undefined;
+  const jwks = values.jwks ?? `${values.issuer.replace(/\/$/, "")}/.well-known/jwks.json`;
+  const keys = /^https?:\/\//.test(jwks)
+    ? jwksFromUrl(jwks)
+    : staticKeys(JSON.parse(readFileSync(jwks, "utf8")) as Jwks);
+  return { tokens: new TokenVerifier({ issuer: values.issuer, audience: values.audience, keys }), devHeaders };
+}
+
 async function main(argv: string[]): Promise<number> {
   const { values, positionals } = parseArgs({
     args: argv,
@@ -65,12 +90,18 @@ async function main(argv: string[]): Promise<number> {
       today: { type: "string" },
       gateway: { type: "string" },
       valkey: { type: "string" },
+      issuer: { type: "string" },
+      audience: { type: "string" },
+      jwks: { type: "string" },
+      "dev-identity": { type: "boolean", default: false },
     },
   });
   const [command, dir] = positionals;
-  if (command !== "serve" || !dir) {
+  const identity = identityOf(values);
+  if (command !== "serve" || !dir || !identity) {
     console.error(
-      "usage: inspiration-engine serve <corpus> [--port 4100] [--today YYYY-MM-DD] [--gateway <file> [--valkey <url>]]",
+      "usage: inspiration-engine serve <corpus> (--issuer <url> --audience <url> [--jwks <url|file>] | --dev-identity)" +
+        " [--port 4100] [--today YYYY-MM-DD] [--gateway <file> [--valkey <url>]]",
     );
     return 2;
   }
@@ -94,6 +125,7 @@ async function main(argv: string[]): Promise<number> {
       spaces: (id) => (id === corpus.tenantId ? corpus.spaces : []),
     },
     Number(values.port),
+    identity,
   );
   const stop = () => {
     server.close();

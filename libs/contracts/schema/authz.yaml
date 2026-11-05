@@ -36,6 +36,95 @@ $defs:
         type: array
         items:
           $ref: "common.yaml#/$defs/SpaceId"
+      scopes:
+        description: >
+          What the principal token lets its holder do, on top of the holder's permissions. A
+          principal without scopes came from the engine itself (a worker or a test) and is not
+          limited by them.
+        type: array
+        items:
+          $ref: "#/$defs/Scope"
+      locale:
+        description: The account's UI language, for anything the engine writes for this principal.
+        $ref: "common.yaml#/$defs/Locale"
+      auth_context:
+        $ref: "#/$defs/AuthContext"
+
+  Scope:
+    description: >
+      A grant a principal token carries. knowledge.read reads; knowledge.propose resolves todos,
+      syncs a source and proposes changes; knowledge.write and comments.write are for agents
+      acting on a member's request; provision.directory provisions tenants and members, for the
+      business layer's tenancy service.
+    type: string
+    enum: [knowledge.read, knowledge.propose, knowledge.write, comments.write, provision.directory]
+
+  AuthContext:
+    description: How the session behind a token signed in. It feeds policy only (for example MFA for admin commands), never identity.
+    type: object
+    required: [method, mfa, at]
+    properties:
+      method:
+        description: The sign-in method, such as password, email_code or sso.
+        type: string
+      mfa:
+        type: boolean
+      at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  PrincipalClaims:
+    description: >
+      The payload of a principal token: a JWT the business layer signs with EdDSA (Ed25519) and
+      the engine verifies against the business layer's published keys (JWKS). The web backend
+      mints one per tenant context, valid at most 5 minutes; OAuth access tokens for agents use
+      the same claims. sub is never a user (account) ID. iat and exp are seconds since the epoch.
+    type: object
+    required: [iss, aud, sub, tid, kind, scope, iat, exp, jti]
+    properties:
+      iss:
+        description: The business layer's URL.
+        type: string
+      aud:
+        description: The engine's URL, or a list that includes it.
+        oneOf:
+          - type: string
+          - type: array
+            items:
+              type: string
+            minItems: 1
+      sub:
+        $ref: "common.yaml#/$defs/PrincipalId"
+      tid:
+        $ref: "common.yaml#/$defs/TenantId"
+      kind:
+        $ref: "#/$defs/PrincipalKind"
+      scope:
+        description: Scope values separated by single spaces.
+        type: string
+      locale:
+        $ref: "common.yaml#/$defs/Locale"
+      auth:
+        $ref: "#/$defs/AuthContext"
+      obo:
+        description: For agents, the member they act for.
+        $ref: "common.yaml#/$defs/PrincipalId"
+      spaces:
+        description: For agents, the spaces they may touch.
+        type: array
+        items:
+          $ref: "common.yaml#/$defs/SpaceId"
+      max_sens:
+        description: Narrows the holder's clearance; it never widens it.
+        $ref: "common.yaml#/$defs/SensitivityLabel"
+      grant:
+        description: For agents, the grant ID, for revocation.
+        type: string
+      iat:
+        type: integer
+      exp:
+        type: integer
+      jti:
+        type: string
 
   Permission:
     type: string

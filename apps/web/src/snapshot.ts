@@ -221,7 +221,7 @@ async function main(): Promise<void> {
   const models = values.gateway ? ["--gateway", resolve(values.gateway)] : [];
   if (values.valkey) models.push("--valkey", values.valkey);
   const answerer = values.gateway ? answerModel(await readFile(values.gateway, "utf8")) : undefined;
-  const serve = [SERVE, "serve", copy, "--port", String(ENGINE_PORT), "--today", today, ...models];
+  const serve = [SERVE, "serve", copy, "--dev-identity", "--port", String(ENGINE_PORT), "--today", today, ...models];
   const engine = spawn(process.execPath, serve, {
     stdio: "inherit",
     env: { INSPIRATION_LOG_LEVEL: "warn", ...process.env },

@@ -43,9 +43,9 @@ pnpm bench ask examples/kubernetes-docs "Kubernetes 集群最多可以有多少�
 要看产品本身，运行演示。它用开发用的模型读完演示租户，不花钱，然后在 http://127.0.0.1:5173 提供 Web 应用。点击登录，在这里不用密码就以陈晨的身份登录；账户菜单里可以切换身份和界面语言。以陈晨的身份问去深圳出差每晚能报多少：回答给出酒店价目表的 650 元，并提示差旅制度还写着 600。以李娜的身份在待办里确认 650，常见问题和会议纪要里的 600 就标为已过时。以财务部空间负责人周敏的身份放入差旅制度第 7 版：一秒之内，它的一线城市这一行就是 650：
 
 ```bash
-pnpm demo                                    # 引擎在 4100 端口，Web 应用在 5173 端口
-pnpm engine serve examples/corpus            # 只启动引擎的 HTTP API
-pnpm snapshot dist/snapshot                  # 把演示脚本录成一个静态页面
+pnpm demo                                          # 引擎在 4100 端口，Web 应用在 5173 端口
+pnpm engine serve examples/corpus --dev-identity   # 只启动引擎的 HTTP API，信任身份请求头
+pnpm snapshot dist/snapshot                        # 把演示脚本录成一个静态页面
 ```
 
 演示脚本（`examples/corpus/script.yaml`）列出这些步骤，以及每一步由谁来做。`pnpm snapshot` 对着引擎走一遍脚本，

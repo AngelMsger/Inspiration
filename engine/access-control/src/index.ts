@@ -7,6 +7,13 @@
  *     const filter = await service.scopeFilter(principal, "read");   // pushed into search indexes
  *
  * Apply the schema with `pnpm --filter @inspiration/access-control exec inspiration-authz-schema`.
+ *
+ * Principal tokens (tokens.ts) say who a request acts for: a JWT the business layer signs with
+ * Ed25519, verified against its published keys. `@inspiration/access-control/testing` has a
+ * development issuer for tests and local runs.
+ *
+ *     const tokens = new TokenVerifier({ issuer, audience, keys: jwksFromUrl(jwksUrl) });
+ *     const who = await tokens.verify(bearer);                       // or a TokenError
  */
 
 export {
@@ -39,3 +46,12 @@ export {
   supportingVersions,
 } from "./service.ts";
 export { BULK_CHUNK, closeClient, connect, type SpiceDBClient, SpiceDBGraph, writeSchema } from "./spicedb.ts";
+export {
+  type Jwks,
+  jwksFromUrl,
+  type KeySource,
+  type PublicJwk,
+  staticKeys,
+  TokenError,
+  TokenVerifier,
+} from "./tokens.ts";

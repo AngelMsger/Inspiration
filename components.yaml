@@ -161,7 +161,7 @@ components:
     layer: control
     status: built
     runtime: node
-    owns: SpiceDB schema and graph, and an in-memory graph for tests; source ACL mirroring, the derived-knowledge rule over lineage, search pre-filters, agent scopes; people and groups arrive from the business layer's directory. Planned are the two-domain space and proof rules that replace source ACLs and the lineage rule (adopted 2026-10-24), the oversharing scan, the audit log
+    owns: SpiceDB schema and graph, and an in-memory graph for tests; principal tokens verified against the business layer's published keys, with a development issuer for tests; source ACL mirroring, the derived-knowledge rule over lineage, search pre-filters, agent scopes; people and groups arrive from the business layer's directory. Planned are the two-domain space and proof rules that replace source ACLs and the lineage rule (adopted 2026-10-24), the oversharing scan, the audit log
     plugins: []
     publishes: []
     subscribes: [acl.changed]
@@ -239,7 +239,7 @@ libraries:
   contracts:
     owns: Generated types and validators, the event catalogue, IDs, sensitivity labels, component interfaces
   kernel:
-    owns: Settings, logging, plugin registry, SQL migrations runner, blob store, database pools, language packs
+    owns: Settings, logging, plugin registry, SQL migrations runner, blob store, database pools, language packs, signed tokens (EdDSA JWTs both layers use)
   eventbus:
     owns: Postgres outbox, relay to Valkey Streams, consumer groups with retries and dead letters, in-memory bus for tests
   testkit:

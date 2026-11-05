@@ -47,7 +47,15 @@ async function main(): Promise<void> {
   process.env.INSPIRATION_PEOPLE ??= join(copy, "people.yaml");
   const engine = spawn(
     process.execPath,
-    [SERVE, "serve", copy, "--port", String(ENGINE_PORT), ...(values.today ? ["--today", values.today] : [])],
+    [
+      SERVE,
+      "serve",
+      copy,
+      "--dev-identity",
+      "--port",
+      String(ENGINE_PORT),
+      ...(values.today ? ["--today", values.today] : []),
+    ],
     { stdio: "inherit", env: { INSPIRATION_LOG_LEVEL: "warn", ...process.env } },
   );
   let running = true;

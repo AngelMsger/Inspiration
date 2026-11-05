@@ -23,15 +23,20 @@
  * who may administer a space reads its overview or syncs its sources (spaces.ts). Both writes
  * answer once the engine has read everything they caused, so the next read sees the change.
  *
- * Identity: until the business layer signs principal tokens, a request names its tenant and
- * member in the x-inspiration-tenant and x-inspiration-member headers. That is a development
- * stand-in, trusted as given, so the API listens on localhost only. Errors are ApiError bodies:
- * 400 for a body or header that is not valid, 401 without a member, 404 for anything unknown
- * or not readable (the two look the same, so a reader never learns what exists).
+ * Identity: a request carries a principal token, "Authorization: Bearer <JWT>", which the
+ * business layer signs and access control verifies (TokenVerifier). The token's scopes bound
+ * what the route may do: knowledge.read for every read, knowledge.propose for the two writes.
+ * For development only (the demo and its snapshot), Identity.devHeaders lets a request name its
+ * tenant and member in the x-inspiration-tenant and x-inspiration-member headers instead,
+ * trusted as given with a member's scopes; the API listens on localhost only. Errors are
+ * ApiError bodies: 400 for a body or header that is not valid, 401 without a valid token, 403
+ * for a token whose scopes do not cover the route, 404 for anything unknown or not readable
+ * (the two look the same, so a reader never learns what exists).
  */
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
+import { TokenError, type TokenVerifier } from "@inspiration/access-control";
 import {
   type AnswerQuery,
   type ApiError,
@@ -42,6 +47,7 @@ import {
   type Principal,
   parseAs,
   type ResolveTodo,
+  type Scope,
   type SearchQuery,
   type Space,
   type SpaceList,
@@ -57,6 +63,15 @@ import { maintains, overviewOf, syncNow } from "./spaces.ts";
 import { factLabels, inboxOf, resolveTodo } from "./todos.ts";
 
 const log = logger("engine.http");
+
+/** How requests say whom they act for: principal tokens, or the development headers, or both. */
+export interface Identity {
+  readonly tokens?: TokenVerifier;
+  readonly devHeaders?: boolean;
+}
+
+/** The scopes the development headers stand for: a member's. */
+const DEV_SCOPES: readonly Scope[] = ["knowledge.propose", "knowledge.read"];
 
 /** What the business layer provisions and the engine does not keep: tenants and spaces by name. */
 export interface Directory {
@@ -79,10 +94,13 @@ const notFound = (what: string) => new HttpError(404, "not_found", `no ${what}`)
 const MAX_BODY = 64 * 1024;
 
 /** The request listener: route, read on behalf of the member, answer with JSON. */
-export function apiHandler(engine: Engine, directory: Directory) {
+export function apiHandler(engine: Engine, directory: Directory, identity: Identity) {
+  if (!identity.tokens && !identity.devHeaders) throw new RangeError("the API needs principal tokens or dev headers");
   const routes: {
     method: string;
     path: RegExp;
+    /** The scope the route needs; knowledge.read when not given. */
+    scope?: Scope;
     run: (who: Principal, m: RegExpMatchArray, req: Request) => Promise<unknown>;
   }[] = [
     { method: "GET", path: /^\/v0\/spaces$/, run: (who) => spaces(engine, directory, who) },
@@ -120,6 +138,7 @@ export function apiHandler(engine: Engine, directory: Directory) {
     {
       method: "POST",
       path: /^\/v0\/todos\/([^/]+)\/resolve$/,
+      scope: "knowledge.propose",
       run: async (who, m, req) => {
         const id = decodeURIComponent(m[1] ?? "");
         const { todo, refused } = await resolveTodo(
@@ -145,6 +164,7 @@ export function apiHandler(engine: Engine, directory: Directory) {
     {
       method: "POST",
       path: /^\/v0\/sources\/([^/]+)\/sync$/,
+      scope: "knowledge.propose",
       run: async (who, m) => {
         const report = await syncNow(engine, who, decodeURIComponent(m[1] ?? ""));
         if (!report) throw notFound("source");
@@ -163,7 +183,9 @@ export function apiHandler(engine: Engine, directory: Directory) {
       if (url.pathname === "/v0/health") return send(res, 200, { ok: true });
       const route = routes.find((r) => r.method === incoming.method && r.path.test(url.pathname));
       if (!route) throw notFound(`route ${incoming.method} ${url.pathname}`);
-      const who = principalOf(incoming, directory);
+      const who = await principalOf(incoming, directory, identity);
+      const scope = route.scope ?? "knowledge.read";
+      if (!who.scopes?.includes(scope)) throw new HttpError(403, "forbidden", `the token does not grant ${scope}`);
       const m = url.pathname.match(route.path) as RegExpMatchArray;
       send(res, 200, await route.run(who, m, { query: url.searchParams, json: () => readJson(incoming) }));
     } catch (error) {
@@ -183,8 +205,13 @@ export function apiHandler(engine: Engine, directory: Directory) {
 }
 
 /** Serve the API on localhost. Port 0 picks a free one; the server's address() says which. */
-export async function serveApi(engine: Engine, directory: Directory, port: number): Promise<Server> {
-  const server = createServer(apiHandler(engine, directory));
+export async function serveApi(
+  engine: Engine,
+  directory: Directory,
+  port: number,
+  identity: Identity,
+): Promise<Server> {
+  const server = createServer(apiHandler(engine, directory, identity));
   await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
   log.info("listening", { port: (server.address() as AddressInfo).port });
   return server;
@@ -195,19 +222,40 @@ interface Request {
   json(): Promise<unknown>;
 }
 
-function principalOf(req: IncomingMessage, directory: Directory): Principal {
+async function principalOf(req: IncomingMessage, directory: Directory, identity: Identity): Promise<Principal> {
+  const who = (await fromToken(req, identity)) ?? fromDevHeaders(req, identity);
+  if (!directory.tenant(who.tenant_id)) throw new HttpError(401, "unauthenticated", `unknown tenant ${who.tenant_id}`);
+  return who;
+}
+
+async function fromToken(req: IncomingMessage, identity: Identity): Promise<Principal | undefined> {
+  const header = req.headers.authorization;
+  if (header === undefined) return undefined;
+  const bearer = /^Bearer ([A-Za-z0-9_.-]+)$/.exec(header)?.[1];
+  if (!identity.tokens || !bearer)
+    throw new HttpError(401, "unauthenticated", "send a principal token as a Bearer token");
+  try {
+    return await identity.tokens.verify(bearer);
+  } catch (error) {
+    if (!(error instanceof TokenError)) throw error;
+    log.info("token refused", { reason: error.message });
+    throw new HttpError(401, "unauthenticated", "the principal token is not valid");
+  }
+}
+
+function fromDevHeaders(req: IncomingMessage, identity: Identity): Principal {
   const tenant = req.headers["x-inspiration-tenant"];
   const member = req.headers["x-inspiration-member"];
-  if (typeof tenant !== "string" || typeof member !== "string") {
+  if (!identity.devHeaders || typeof tenant !== "string" || typeof member !== "string") {
     throw new HttpError(
       401,
       "unauthenticated",
-      "name the tenant and member in x-inspiration-tenant and x-inspiration-member",
+      identity.devHeaders
+        ? "send a principal token, or name the tenant and member in x-inspiration-tenant and x-inspiration-member"
+        : "send a principal token as a Bearer token",
     );
   }
-  const who = parseAs<Principal>("Principal", { id: member, kind: "member", tenant_id: tenant });
-  if (!directory.tenant(tenant)) throw new HttpError(401, "unauthenticated", `unknown tenant ${tenant}`);
-  return who;
+  return parseAs<Principal>("Principal", { id: member, kind: "member", tenant_id: tenant, scopes: [...DEV_SCOPES] });
 }
 
 async function readJson(req: IncomingMessage): Promise<unknown> {
