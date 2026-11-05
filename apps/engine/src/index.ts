@@ -3,7 +3,9 @@
  * and one event bus, and subscribes each component's handlers under its own consumer group:
  * source sync, normalization, extraction, governance, freshness, page-compiler's topics and
  * collaboration's inbox. tick() is its daily work: freshness publishes the reviews that fell due, and governance decides again the
- * slots in which a dated change took effect. With a database URL it runs on Postgres with
+ * slots in which a dated change took effect. resumeReading() reads on the documents whose
+ * reading stopped at a spent budget or a model out of reach; serve.ts calls it every
+ * RESUME_EVERY_MS. With a database URL it runs on Postgres with
  * the transactional outbox, relayed to Valkey Streams when a Valkey URL is given; without
  * one, everything stays in memory.
  *

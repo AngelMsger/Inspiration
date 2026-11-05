@@ -38,7 +38,10 @@
  * Resolving a todo, syncing a source and uploading a file are the knowledge writes. An upload
  * (uploads.ts) needs editor or above on the space (else 403); its body is the file's bytes,
  * at most 50 MiB (else 413), of a type the engine reads by the name's extension (else 415).
- * It answers once the document is stored and reads it in the background. Only a todo's assignee may
+ * It answers once the document is stored and reads it in the background. The Documents tree,
+ * a document's latest version and the upload's answer say how far reading has come (reading.ts):
+ * an entry's reading is waiting, reading, paused or failed, with a note for the last two, and
+ * left out once read; the tree counts its documents by state. Only a todo's assignee may
  * resolve it (a todo of anyone else's answers 404), with a resolution it offers (else 400).
  * Only a member who may administer a space and read it reads its overview or syncs its sources
  * (spaces.ts). Both answer once the engine has read everything they caused, so the next read
@@ -89,6 +92,7 @@ import { documentTree, entryOf, foldersOf, type ListedDocument } from "@inspirat
 import type { Engine } from "./engine.ts";
 import { badRequest, HttpError, notFound } from "./http-errors.ts";
 import { members, putMember, putTenant } from "./provisioning.ts";
+import { countsOf, readingOf } from "./reading.ts";
 import { audienceOf, createSpace, patchSpace, putAudience, putOwners, spaceList } from "./space-admin.ts";
 import { maintains, overviewOf, syncNow } from "./spaces.ts";
 import { factLabels, inboxOf, resolveTodo } from "./todos.ts";
@@ -382,13 +386,17 @@ async function tree(engine: Engine, who: Principal, spaceId: string): Promise<Do
     "read",
     documents.map((d) => ({ type: "document", id: `${d.entry.source_id}:${d.entry.external_id}` })),
   );
-  return {
-    space_id: spaceId,
-    sources: documentTree(
-      sources,
-      documents.filter((_, i) => decisions[i]?.allow),
-    ),
-  };
+  const readable = documents.filter((_, i) => decisions[i]?.allow);
+  const readings = await readingOf(
+    engine,
+    who.tenant_id,
+    readable.map((d) => d.version),
+  );
+  const entries = readable.map((d, i) => {
+    const reading = readings[i];
+    return reading ? { ...d, entry: { ...d.entry, reading } } : d;
+  });
+  return { space_id: spaceId, sources: documentTree(sources, entries), reading: countsOf(readings) };
 }
 
 /** The live topics of a space the member may read. */
@@ -466,8 +474,11 @@ async function document(engine: Engine, who: Principal, query: URLSearchParams):
     version: { blob: _blob, ...version },
     entry,
   } = listed;
+  // Reading is told for the latest version only; a citation may name an older one.
+  const latest = query.get("version") ? await engine.sync.document(source_id, external_id) : listed;
+  const [reading] = latest?.version.id === version.id ? await readingOf(engine, who.tenant_id, [listed.version]) : [];
   return {
-    document: entry,
+    document: { ...entry, ...(reading && { reading }) },
     source_name: source.name,
     space_id: source.space_id,
     path: foldersOf(version),

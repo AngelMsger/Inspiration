@@ -57,7 +57,17 @@
  *
  * Extraction keeps the latest version of each document it has worked on (the
  * extraction.documents table). A version older than that, delivered again late, changes
- * nothing, so a redelivery cannot reopen what a later version closed.
+ * nothing, so a redelivery cannot reopen what a later version closed. The mark also says how
+ * far reading the version has come (documents(tenant)): reading until it is read to the end,
+ * then read. When a model call meets a spent budget or a model out of reach
+ * (budget_exceeded, provider_error, timeout), reading stops and writes nothing: the event is
+ * done with, and the mark is paused, keeping the change left to read, when it stopped first,
+ * and why. resume() reads the paused documents on, the earliest stop first, and leaves a
+ * company's others for the next call once one of them stops again, since they share its
+ * budget. A later version that comes while a document is paused is read with what the pause
+ * left, so a passage only the earlier version added is not skipped. The gateway's reply
+ * cache makes the windows read before the stop cost nothing the second time. Cited blocks
+ * read on use (extractOnUse) leave a pause as it was; there a spent budget is an error.
  *
  * Until real models are configured, the fake provider answers through the mock in
  * mock.ts, a model_mocks plugin.
