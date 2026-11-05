@@ -1,6 +1,6 @@
 # Code repositories as a knowledge source
 
-Status: proposed, 2026-10-27, for the product owner's decision. This is the third version. It follows the product owner's direction of 2026-10-27: connect the repository, keep a local clone, build a code graph for it with open-source tools, and make it an input of Deep Research, so that code joins the existing knowledge upkeep. Nothing here is built. A Chinese copy is in [docs/zh/design/code-repositories.md](../zh/design/code-repositories.md); if the two differ, this English version wins.
+Status: proposed, 2026-10-27; not built.
 
 ## Summary
 
@@ -297,3 +297,7 @@ All additive; see [contracts.md](../contracts.md).
 | Code changed since | Code changed since | 代码已更新 | コードが更新されました |
 | Drift | Documents and product disagree | 文档与产品不一致 | 文書と製品の不一致 |
 | Coverage list | Not covered yet | 尚未覆盖 | 未カバー |
+
+## About this page
+
+This is the third version, proposed on 2026-10-27 for the product owner's decision. It follows the product owner's direction of 2026-10-27: connect the repository, keep a local clone, build a code graph for it with open-source tools, and make it an input of Deep Research, so that code joins the existing knowledge upkeep. A Chinese copy is in [docs/zh/design/code-repositories.md](../zh/design/code-repositories.md); if the two differ, this English version wins.

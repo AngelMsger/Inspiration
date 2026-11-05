@@ -1,6 +1,14 @@
 # Business layer and engine contract
 
-Status: adopted design, 2026-10-24. This document lists the contract the engine offers the business layer and the schema changes that contract needs. It implements the protocol in [Business layer: functional design](business-layer.md). The JSON Schema in `libs/contracts/schema` stays the source of truth: when a change here lands, the schema is what reviewers check. Already on main: the member IDs (pull request #7). Chinese copy: [docs/zh/design/business-engine-contract.md](../zh/design/business-engine-contract.md).
+Status: adopted, 2026-10-24; the member IDs, the principal token and the provisioning of tenants and members are built.
+
+## Conclusions
+
+- **Calls go down, events come up.** The business layer calls the engine's commands and queries, the engine publishes events, and the engine never calls the business layer. The business layer is the authority on people, companies and policy; the engine makes every permission decision itself.
+- **The engine knows a person only as a member** (`mem_`), unique within its tenant. Accounts, sign-in and sessions stay in the business layer. The web app, the CLI and MCP all reach the engine with one principal token, signed by the business layer and verified with its published keys.
+- **Two knowledge domains.** A member's personal space is readable by that member alone, with no admin read. Every other space is read through the roles its owners grant, filtered by sensitivity. Visibility comes from the space and from proofs, never from source permissions, which only warn. Publishing moves knowledge from the personal space into a company space; it never copies it.
+- **The engine never writes sentences for people.** Todos and events carry message keys and parameters, and the business layer renders them in English, Chinese or Japanese.
+- **About 4.5 person-weeks of engine work,** 3.5 of them in phase 1 ([Engine work](#engine-work)).
 
 ## Rules
 
@@ -120,3 +128,7 @@ About 4.5 person-weeks net.
 ## Test seams
 
 Engine test kit: a development token issuer (same claims) and a `seed` command (tenant, members, groups, spaces). Business side: an engine fake from the REST schema plus the in-memory event feed. Both sides validate recorded fixtures against the JSON Schema in CI. Domain isolation gets its own fixture: two members publish overlapping sources; nothing merges before publishing, and both land in one merged slot after.
+
+## About this page
+
+This page lists the contract the engine offers the business layer and the schema changes that contract needs; it implements the protocol in [Business layer: functional design](business-layer.md). Adopted on 2026-10-24. The JSON Schema in `libs/contracts/schema` stays the source of truth: when a change here lands, the schema is what reviewers check. The member IDs reached `main` in pull request #7. A Chinese copy is in [docs/zh/design/business-engine-contract.md](../zh/design/business-engine-contract.md); if the two differ, this English version wins.

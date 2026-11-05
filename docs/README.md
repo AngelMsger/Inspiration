@@ -2,8 +2,9 @@
 
 Start with the [overview](overview.md); the table below says where to go for a given question.
 Every doc here has a Chinese copy at the same path under [zh/](zh/README.md). Each design doc
-opens with a status line, this index repeats it, and `test/docs.test.ts` checks that the two
-agree.
+opens with a one-sentence status line that also says what is built, then its conclusions; its
+history is in "About this page" at the end. This index repeats the status, and
+`test/docs.test.ts` checks that the two agree.
 
 | Status | Meaning |
 | --- | --- |

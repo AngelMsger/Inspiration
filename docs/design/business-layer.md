@@ -1,6 +1,6 @@
 # Business layer: functional design
 
-Status: adopted design, 2026-10-24; updated 2026-10-26 with two decisions (importing with any credential one holds, and agent edits on a member's request) and one proposal (the boundary between the super admin and owners); updated 2026-10-27 with the names for source connections (decision 15). The engine contract changes it needs are listed in [Business layer and engine contract](business-engine-contract.md). Chinese copy: [docs/zh/design/business-layer.md](../zh/design/business-layer.md).
+Status: adopted, 2026-10-24; accounts, companies and members, and access tokens for apps are built for the MVP.
 
 ## Summary
 
@@ -467,3 +467,7 @@ The product supports English, Chinese and Japanese; Languages and regions lists 
 - [Logto repository mirror](https://gitee.com/mirrors/logto)
 - [Keycloak 26 organizations (CNCF blog)](https://www.cncf.io/blog/2024/11/13/scalable-authentication-across-organizations-with-keycloak-26/)
 - [Business layer and engine contract](business-engine-contract.md)
+
+## About this page
+
+Adopted on 2026-10-24. Updated on 2026-10-26 with two decisions (importing with any credential one holds, and agent edits on a member's request) and one proposal (the boundary between the super admin and owners), and on 2026-10-27 with the names for source connections (decision 15). The engine contract changes it needs are listed in [Business layer and engine contract](business-engine-contract.md). A Chinese copy is in [docs/zh/design/business-layer.md](../zh/design/business-layer.md); if the two differ, this English version wins.

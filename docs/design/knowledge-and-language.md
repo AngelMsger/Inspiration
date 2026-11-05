@@ -1,6 +1,13 @@
 # Knowledge and language
 
-Status: adopted principle, 2026-10-26, from the product owner's comment on the overview: knowledge is knowledge, and language is only one form in which it is expressed; this runs through the whole system design. Designed, not built, except where a section says so. A Chinese copy is in [docs/zh/design/knowledge-and-language.md](../zh/design/knowledge-and-language.md).
+Status: adopted, 2026-10-26; built in part, as [Where language lives](#where-language-lives) says.
+
+## Conclusions
+
+- **Knowledge has one identity in every language.** The same knowledge written in two languages is one statement, fact slot, entity or topic with two expressions, never two. Nothing is duplicated because it was written twice.
+- **Meaning is compared, never wording.** Two languages cannot disagree by wording. A translation that falls behind its original is a stale copy, which gets a review, not a conflict; two independent documents in different languages that state different values are a real conflict.
+- **Evidence keeps its language, and people read in theirs.** Quotes stay verbatim in their source's language. Pages and answers are written in the reader's language from the same statements and say when a machine wrote them, and nothing a person wrote is translated silently.
+- **Built today:** the language of each source version and claim, language-neutral predicate keys, typed values, and translations a source states, which count with their original and get a review when it changes. Merging across languages, entity resolution across scripts and pages per language are designed, at about 3.5 person-weeks ([Engine work](#engine-work)).
 
 ## The principle
 
@@ -86,3 +93,7 @@ The internationalization work in the overview already covers language detection,
 | Translation out of date | Translation out of date | 译本已过时 | 翻訳が古い |
 | Machine-written rendering | Machine translated | 机器翻译 | 機械翻訳 |
 | Other languages of a statement | Also in English | 另有英文版 | 英語版あり |
+
+## About this page
+
+Adopted on 2026-10-26 as a principle, from the product owner's comment on the overview: knowledge is knowledge, and language is only one form in which it is expressed; this runs through the whole system design. A Chinese copy is in [docs/zh/design/knowledge-and-language.md](../zh/design/knowledge-and-language.md); if the two differ, this English version wins.

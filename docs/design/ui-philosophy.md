@@ -1,6 +1,15 @@
 # Inspiration UI: design philosophy
 
-Status: proposed, 2026-10-27, after the product owner asked for one clear philosophy that every screen follows, instead of fixes one comment at a time. It goes from the general to the specific: the stance, the beliefs, one grammar with four places you can tell apart, where settings live, how big each list really is, how the assistant shows up, and what this changes on the design canvas. The [UI principles](ui-principles.md) and the drawn screens follow from this document; where they differ, this document wins until they are redone. A Chinese copy is in [docs/zh/design/ui-philosophy.md](../zh/design/ui-philosophy.md).
+Status: proposed, 2026-10-27; the second version of the design canvas applies it.
+
+## Conclusions
+
+- **Minimal on the surface, complete underneath.** Each screen shows what one person needs for the job in front of them, at the size that job really has, and everything else is one step away, in a panel, a link or ⌘K. Every screen passes three tests: whose one job it serves, how it looks with the real number of items, and what the assistant can say at the top so that the person need not read it.
+- **One grammar, four places you can tell apart.** Every screen has the same top bar, left column, centre and right panel, but reading, managing a space, Admin and Account each look different at a glance, and every screen says where you are, where you came from and how to go elsewhere. What is used most sits closest.
+- **Settings follow who answers for them:** you, a space owner, or the super admin, who decides who and how but never what knowledge says.
+- **Every list is drawn at its real size:** up to 10 items are all shown, up to 100 are grouped or folded, and above that a search or a summary comes first.
+- **The assistant is quiet:** an overview before every pile, its suggestion already selected, Decide for me on piles rather than on every item, a reason when it leaves a decision to a person, and Why and Undo on everything it did. It has no avatar, no colour and no chat sidebar.
+- **The second version of the design canvas applies these rules** ([screens](screens/README.md)). Still open: 维护人 or 负责人 in Chinese, the numbers on each overview's cards, and some Japanese terms ([Still open](#still-open)).
 
 ## 1. The stance: a quiet surface over complete depth
 
@@ -212,3 +221,7 @@ Checked against the engine on 2026-10-27 (`main` after pull request #24, and the
 - Which numbers each overview's cards show. The canvas draws a first choice per screen.
 - The Japanese terms for Suggested, Decided for you and Left for you.
 - Whether Japanese key phrases stay bold or use emphasis dots (section 4).
+
+## About this page
+
+Proposed on 2026-10-27, after the product owner asked for one clear philosophy that every screen follows, instead of fixes one comment at a time. It goes from the general to the specific: the stance, the beliefs, one grammar with four places you can tell apart, where settings live, how big each list really is, how the assistant shows up, and what this changes on the design canvas. The [UI principles](ui-principles.md) and the drawn screens follow from this page; where they differ, this page wins until they are redone. A Chinese copy is in [docs/zh/design/ui-philosophy.md](../zh/design/ui-philosophy.md); if the two differ, this English version wins.

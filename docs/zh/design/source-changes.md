@@ -1,6 +1,6 @@
 # 来源变化：删除与大规模变化
 
-状态：已采纳的设计，2026-10-26，来自产品负责人在总览上的评论。除非某一节另有说明，都还没有实现。阈值和时限是默认值，原型实测后可以调整。本文是英文版 [docs/design/source-changes.md](../../design/source-changes.md) 的中文副本，两者不一致时以英文版为准。
+状态：已采纳，2026-10-26；除各节注明的部分外，尚未构建。
 
 ## 摘要
 
@@ -143,3 +143,7 @@
 | Kept by default | Kept by default | 默认保留 | 既定で保持 |
 | Change set | Change review | 批量变更审阅 | 一括変更レビュー |
 | Support | 9 of 10 documents | 10 份文档中有 9 份 | 10 件中 9 件の文書 |
+
+## 关于本文
+
+2026-10-26 采纳，来自产品负责人在总览上的评论。阈值和时限是默认值，原型实测后可以调整。本文是英文版 [docs/design/source-changes.md](../../design/source-changes.md) 的中文副本，两者不一致时以英文版为准。
