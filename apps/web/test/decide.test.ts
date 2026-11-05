@@ -105,11 +105,15 @@ describe("Decide for me in the inbox", () => {
     expect(chosenText(say, { ...decision, todo: { ...decision.todo, resolutions: [] } })).toBe("Keep 650 CNY/night");
   });
 
-  test("names a decision's fact as the inbox showed it, else by its topic and scope, else by its title", () => {
+  test("names a decision's fact as the inbox showed it, else as the catalogue or its topic calls it, else by its title", () => {
     const topic = { key: decision.todo.taxonomy_key, title: "Hotel cap" } as TaxonomyNode;
-    expect(decisionFact(say, decision, "Hotel cap per night", [topic])).toBe("Hotel cap per night");
     const scope = decision.todo.slot_key?.split("|")[1];
-    expect(decisionFact(say, decision, undefined, [topic])).toBe(`Hotel cap (${scope})`);
-    expect(decisionFact(say, decision, undefined, [])).toBe(decision.todo.title);
+    const { fact_label: _, ...unlabelled } = decision;
+    expect(decisionFact(say, decision, "Hotel cap per night", [topic])).toBe("Hotel cap per night");
+    expect(decisionFact(say, { ...decision, fact_label: "Hotel cap per night" }, undefined, [topic])).toBe(
+      `Hotel cap per night (${scope})`,
+    );
+    expect(decisionFact(say, unlabelled, undefined, [topic])).toBe(`Hotel cap (${scope})`);
+    expect(decisionFact(say, unlabelled, undefined, [])).toBe(decision.todo.title);
   });
 });

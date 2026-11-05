@@ -49,8 +49,8 @@ export function chosenText(say: Say, decision: TodoDecision): string {
 }
 
 /**
- * The fact a decision is about, as the inbox named it when it showed the todo, else by its topic
- * with the slot's scope, else the todo's title.
+ * The fact a decision is about, as the inbox named it when it showed the todo, else as the
+ * tenant's catalogue or its topic calls it, with the slot's scope, else the todo's title.
  */
 export function decisionFact(
   say: Say,
@@ -59,6 +59,6 @@ export function decisionFact(
   topics: readonly TaxonomyNode[],
 ): string {
   if (shown) return shown;
-  const topic = topics.find((t) => t.key === decision.todo.taxonomy_key);
-  return topic ? factTitle(say, topic.title, decision.todo.slot_key) : decision.todo.title;
+  const name = decision.fact_label ?? topics.find((t) => t.key === decision.todo.taxonomy_key)?.title;
+  return name ? factTitle(say, name, decision.todo.slot_key) : decision.todo.title;
 }
