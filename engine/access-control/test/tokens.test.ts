@@ -6,6 +6,9 @@ import { devIssuer } from "../src/testing.ts";
 
 const TENANT = "ten_01QINGHE000000000000000001";
 const MEMBER = "mem_01QINGHE0000000000ZHOUMIN";
+const AGENT = "agt_01QINGHE000000000000HELPER";
+const GRANT = "tok_01QINGHE000000000000HELPER";
+const FINANCE = "spc_01FINANCE00000000000000000";
 const NOW = Date.parse("2026-11-05T03:00:00Z");
 
 const issuer = devIssuer();
@@ -33,6 +36,23 @@ describe("a principal token", () => {
       locale: "zh-CN",
       auth_context: { method: "password", mfa: false, at: "2026-11-05T02:58:00Z" },
     });
+  });
+
+  test("names an agent acting for a member, within the spaces it names, to read", async () => {
+    const claims = { sub: AGENT, tid: TENANT, kind: "agent" as const, scope: "knowledge.read", obo: MEMBER };
+    const token = issuer.mint({ ...claims, grant: GRANT, spaces: [FINANCE], locale: "ja" }, { now: NOW });
+    expect(await verifier.verify(token, NOW)).toEqual({
+      id: AGENT,
+      kind: "agent",
+      tenant_id: TENANT,
+      on_behalf_of: MEMBER,
+      space_scope: [FINANCE],
+      scopes: ["knowledge.read"],
+      locale: "ja",
+    });
+    // Without spaces, every space the member may read.
+    const everywhere = await verifier.verify(issuer.mint({ ...claims, grant: GRANT }, { now: NOW }), NOW);
+    expect(everywhere).not.toHaveProperty("space_scope");
   });
 
   test("names the tenancy service with the provisioning scope", async () => {
@@ -107,10 +127,19 @@ describe("a token is refused when", () => {
   test("its subject does not match its kind, or the kind is not accepted", async () => {
     expect(await refusal(member({ sub: "svc_01TENANCY0000000000000000" }))).toMatch(/member token names svc_01TENANCY/);
     expect(await refusal(member({ sub: "usr_01QINGHE0000000000ZHOUMIN" }))).toMatch(/claims|names/);
-    expect(await refusal(member({ kind: "agent", sub: "agt_01QINGHE000000000000HELPER", obo: MEMBER }))).toMatch(
-      /agent token is not accepted/,
-    );
     expect(await refusal(member({ kind: "group", sub: "grp_01QINGHE0000000000FINANCE" }))).toMatch(/not accepted/);
+  });
+
+  test("an agent's token does not name its member and grant, or grants more than reading", async () => {
+    const agent = (claims: Record<string, unknown>) =>
+      issuer.mint({ sub: AGENT, tid: TENANT, kind: "agent", scope: "knowledge.read", ...claims }, { now: NOW });
+    expect(await refusal(agent({ grant: GRANT }))).toMatch(/obo/);
+    expect(await refusal(agent({ obo: "svc_01TENANCY0000000000000000", grant: GRANT }))).toMatch(/obo/);
+    expect(await refusal(agent({ obo: MEMBER }))).toMatch(/grant/);
+    expect(await refusal(agent({ obo: MEMBER, grant: GRANT, scope: "knowledge.read knowledge.propose" }))).toMatch(
+      /may not grant knowledge.propose/,
+    );
+    expect(await refusal(agent({ sub: MEMBER, obo: MEMBER, grant: GRANT }))).toMatch(/agent token names mem_/);
   });
 
   test("it carries a claim for agents, which no other token may carry", async () => {

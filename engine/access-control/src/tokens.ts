@@ -8,8 +8,9 @@
  *
  * A token is valid at most 15 minutes (web tokens 5, OAuth access tokens 10 to 15), with 30
  * seconds of leeway for clocks. max_sens becomes the principal's max_sensitivity, which narrows
- * what the holder may read. Agent tokens, and the agent claims on any token, are refused until
- * the agent API accepts them.
+ * what the holder may read. An agent token (sub agt_) acts for the member in its obo, within the
+ * spaces it names (space_scope), and grants knowledge.read only; it names the business layer's
+ * grant, which the business layer revokes. The agent claims on any other token are refused.
  */
 
 import type { KeyObject } from "node:crypto";
@@ -107,9 +108,11 @@ const SCOPES: ReadonlySet<string> = new Set<Scope>([
   "comments.write",
   "provision.directory",
 ]);
-const PREFIX_OF_KIND: Readonly<Record<string, string>> = { member: "mem_", service: "svc_" };
-/** Claims for agents. Agent tokens are refused for now, and on any other token they are refused too, never ignored. */
+const PREFIX_OF_KIND: Readonly<Record<string, string>> = { member: "mem_", service: "svc_", agent: "agt_" };
+/** Claims for agents only: on any other token they are refused, never ignored. */
 const AGENT_CLAIMS = ["obo", "spaces", "grant"] as const;
+/** What an agent's token may grant: in the MVP an agent only reads. */
+const AGENT_SCOPES: ReadonlySet<string> = new Set<Scope>(["knowledge.read"]);
 
 export class TokenVerifier {
   readonly issuer: string;
@@ -146,8 +149,6 @@ export class TokenVerifier {
     const prefix = PREFIX_OF_KIND[claims.kind];
     if (!prefix) throw new TokenError(`a ${claims.kind} token is not accepted`);
     if (!claims.sub.startsWith(prefix)) throw new TokenError(`a ${claims.kind} token names ${claims.sub}`);
-    const agentClaims = AGENT_CLAIMS.filter((c) => claims[c] !== undefined);
-    if (agentClaims.length) throw new TokenError(`a ${claims.kind} token carries ${agentClaims.join(", ")}`);
     const scopes = claims.scope.split(" ");
     const unknown = scopes.filter((s) => !SCOPES.has(s));
     if (unknown.length) throw new TokenError(`unknown scope ${unknown.join(", ")}`);
@@ -155,11 +156,29 @@ export class TokenVerifier {
       id: claims.sub,
       kind: claims.kind,
       tenant_id: claims.tid,
+      ...TokenVerifier.#agent(claims, scopes),
       scopes: [...new Set(scopes)].sort() as Scope[],
       ...(claims.max_sens && { max_sensitivity: claims.max_sens }),
       ...(claims.locale && { locale: claims.locale }),
       ...(claims.auth && { auth_context: claims.auth }),
     };
+  }
+
+  /**
+   * An agent acts for the member its token names (obo), within the spaces it names, if any, and
+   * only reads; its grant is the business layer's, which revokes it there.
+   */
+  static #agent(claims: PrincipalClaims, scopes: readonly string[]): Partial<Principal> {
+    if (claims.kind !== "agent") {
+      const agentClaims = AGENT_CLAIMS.filter((c) => claims[c] !== undefined);
+      if (agentClaims.length) throw new TokenError(`a ${claims.kind} token carries ${agentClaims.join(", ")}`);
+      return {};
+    }
+    if (!claims.obo?.startsWith("mem_")) throw new TokenError("an agent token names the member it acts for in obo");
+    if (!claims.grant) throw new TokenError("an agent token names its grant");
+    const beyond = scopes.filter((s) => !AGENT_SCOPES.has(s));
+    if (beyond.length) throw new TokenError(`an agent token may not grant ${beyond.join(", ")}`);
+    return { on_behalf_of: claims.obo, ...(claims.spaces && { space_scope: [...claims.spaces] }) };
   }
 
   async #key(kid: string): Promise<KeyObject | undefined> {

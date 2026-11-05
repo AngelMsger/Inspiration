@@ -298,7 +298,9 @@ together: a claim is visible when its space is readable and one complete proof o
 - **Agents act for a member.** An agent principal must carry `on_behalf_of`, a member of
   its tenant. Its rights are the member's rights cut down to its scopes (read-only by
   default) and spaces. Built-in agent tools only read or propose; nothing an agent does
-  changes knowledge without a person approving it.
+  changes knowledge without a person approving it. An outside agent reaches the engine only
+  through the MCP endpoint (`POST /v0/mcp`, the agent API), with a token the business layer
+  signs for it from the personal token it holds, and only while its member is active.
 
 ## Deployment shapes
 

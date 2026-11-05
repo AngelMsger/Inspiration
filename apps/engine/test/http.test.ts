@@ -20,10 +20,12 @@ import {
   type GroundedAnswer,
   type Inbox,
   type InboxTodo,
+  type SearchResult,
   type SpaceOverview,
   type TopicList,
   type TopicView,
 } from "@inspiration/contracts";
+import { ANSWERS } from "@inspiration/retrieval";
 import { testData } from "@inspiration/testkit";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { Corpus, Engine, seed, serveApi } from "../src/index.ts";
@@ -538,5 +540,118 @@ describe("engine HTTP API", () => {
       .body as unknown as SpaceOverview;
     const updated = overview.changes.filter((c) => c.kind === "updated").map((c) => c.document.title);
     expect(updated.sort()).toEqual([...DATA.update.documents].sort());
+  });
+});
+
+// An agent as the business layer passes it on: the principal token it mints for a personal
+// token, which acts for a member, reads only and may name the spaces it is cut to.
+const AGENT = "agt_01HENGYUAN0000000000HELPER";
+const GRANT = "tok_01HENGYUAN0000000000HELPER";
+
+/** The agent's token, acting for the reader unless claims say otherwise. */
+const agentToken = (claims: Record<string, unknown> = {}) =>
+  issuer.mint({
+    sub: AGENT,
+    tid: corpus.tenantId,
+    kind: "agent",
+    scope: "knowledge.read",
+    obo: corpus.reader.id,
+    grant: GRANT,
+    ...claims,
+  });
+
+/** One MCP message from the agent; no body for a 202. */
+async function mcp(message: unknown, claims: Record<string, unknown> = {}, method = "POST") {
+  const { port } = server.address() as AddressInfo;
+  const res = await fetch(`http://127.0.0.1:${port}/v0/mcp`, {
+    method,
+    headers: { authorization: `Bearer ${agentToken(claims)}`, accept: "application/json, text/event-stream" },
+    ...(method === "POST" && { body: JSON.stringify(message) }),
+  });
+  const text = await res.text();
+  return { status: res.status, body: text ? (JSON.parse(text) as Record<string, unknown>) : undefined };
+}
+
+interface ToolResult {
+  content: { type: string; text: string }[];
+  structuredContent?: unknown;
+  isError?: boolean;
+}
+
+let calls = 0;
+async function tool<T>(name: string, args: Record<string, unknown>, claims?: Record<string, unknown>) {
+  const message = { jsonrpc: "2.0", id: ++calls, method: "tools/call", params: { name, arguments: args } };
+  const { status, body } = await mcp(message, claims);
+  expect(status).toBe(200);
+  const result = body?.result as ToolResult;
+  return { ...result, value: result.structuredContent as T };
+}
+
+// After the sync above, so these assert only what holds before and after it.
+describe("the MCP endpoint", () => {
+  test("lets an agent ask, search and read as the member it acts for", async () => {
+    const init = await mcp({ jsonrpc: "2.0", id: 0, method: "initialize", params: { protocolVersion: "2025-06-18" } });
+    expect(init.status).toBe(200);
+    expect(init.body?.result).toMatchObject({ protocolVersion: "2025-06-18", serverInfo: { name: "inspiration" } });
+    expect(await mcp({ jsonrpc: "2.0", method: "notifications/initialized" })).toEqual({
+      status: 202,
+      body: undefined,
+    });
+    const list = (await mcp({ jsonrpc: "2.0", id: 1, method: "tools/list" })).body?.result as {
+      tools: { name: string }[];
+    };
+    expect(list.tools.map((t) => t.name)).toEqual(["search", "ask", "read"]);
+
+    const asked = await tool<GroundedAnswer>("ask", { question: DATA.question });
+    expect(contractErrors("GroundedAnswer", asked.value)).toEqual([]);
+    expect(JSON.parse(asked.content[0]?.text ?? "")).toEqual(asked.value);
+    const cited = asked.value.citations[0] as Citation;
+    const read = await tool<DocumentView>("read", { version_id: cited.source_version_id });
+    expect(contractErrors("DocumentView", read.value)).toEqual([]);
+    expect(read.value.document.title).toBe(cited.source_title);
+
+    const found = await tool<SearchResult>("search", { text: DATA.search });
+    expect(contractErrors("SearchResult", found.value)).toEqual([]);
+    expect(new Set(found.value.hits.map((h) => h.space_id))).toEqual(new Set([POLICY, FINANCE]));
+
+    // The answer counts for the member, with the agent that asked beside it.
+    const records = await engine.records.find(ANSWERS, { tenant_id: corpus.tenantId });
+    expect(records.filter((r) => r.agent_id === AGENT).map((r) => r.member_id)).toEqual([corpus.reader.id]);
+  });
+
+  test("cuts an agent to the spaces its token names, as a member who cannot read them", async () => {
+    const everywhere = await tool<SearchResult>("search", { text: DATA.budget.title }, { obo: ZHOU_MIN });
+    const budget = everywhere.value.hits.find((h) => h.space_id === BUDGET_SPACE);
+    expect(budget).toBeDefined();
+    const cut = { obo: ZHOU_MIN, spaces: [FINANCE, POLICY] };
+    const within = await tool<SearchResult>("search", { text: DATA.budget.title }, cut);
+    expect(within.value.hits.filter((h) => h.space_id === BUDGET_SPACE)).toEqual([]);
+    const version = budget?.citations[0]?.source_version_id as string;
+    expect((await tool("read", { version_id: version }, { obo: ZHOU_MIN })).isError).toBeUndefined();
+    const hidden = await tool("read", { version_id: version }, cut);
+    expect(hidden).toMatchObject({ isError: true, content: [{ type: "text", text: "no document" }] });
+    // The reader acts for no one who reads the budget space, so their agent does not either.
+    expect(await tool("read", { version_id: version })).toMatchObject({ isError: true });
+  });
+
+  test("answers a bad message or argument as MCP does", async () => {
+    const batch = await mcp([{ jsonrpc: "2.0", id: 1, method: "ping" }]);
+    expect(batch.body).toMatchObject({ error: { code: -32600 } });
+    expect((await mcp({ jsonrpc: "2.0", id: 2, method: "resources/list" })).body).toMatchObject({
+      error: { code: -32601 },
+    });
+    const unknown = { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "write", arguments: {} } };
+    expect((await mcp(unknown)).body).toMatchObject({ error: { code: -32602 } });
+    expect(await tool("ask", { question: "" })).toMatchObject({ isError: true });
+    expect((await mcp(undefined, {}, "GET")).status).toBe(405);
+  });
+
+  test("takes an agent only there, only to read, and only for an active member", async () => {
+    const elsewhere = await call("/v0/spaces", { headers: { authorization: `Bearer ${agentToken()}` } });
+    expect(elsewhere).toMatchObject({ status: 403, body: { error: { code: "forbidden" } } });
+    const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
+    expect((await mcp(ping, { scope: "knowledge.read knowledge.propose" })).status).toBe(401);
+    expect((await mcp(ping, { obo: "mem_01HENGYUAN0000000000NOBODY" })).status).toBe(401);
+    expect((await mcp(ping)).body).toEqual({ jsonrpc: "2.0", id: 1, result: {} });
   });
 });
