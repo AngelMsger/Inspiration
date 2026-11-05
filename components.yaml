@@ -117,7 +117,7 @@ components:
     layer: control
     status: built
     runtime: node
-    owns: The inbox, with todos merged by dedupe key, routed to topic owners, on weekly cards within a budget; notes; first-review campaigns. Planned are comments and anchoring (comment.created), agent replies, overrides (claims.updated), the publish state machine (unit.published), quality gates, verification expiry, reacting to page.rendered, the source-restricted todo when a source later shares a published document more narrowly (acl.changed, whose ACL snapshots are advisory)
+    owns: The inbox, with todos merged by dedupe key, routed to topic owners, on weekly cards within a budget; notes; first-review campaigns. Planned are Decide for me (the assistant's decisions on a member's todos, with reasons and undo, and the member's standing delegation; docs/design/decide-for-me.md), comments and anchoring (comment.created), agent replies, overrides (claims.updated), the publish state machine (unit.published), quality gates, verification expiry, reacting to page.rendered, the source-restricted todo when a source later shares a published document more narrowly (acl.changed, whose ACL snapshots are advisory)
     plugins: [migrations]
     publishes: [comment.created, unit.published, todo.created, todo.resolved, claims.updated]
     subscribes: [page.rendered, comment.created, todo.requested, todo.created, review.due, acl.changed]

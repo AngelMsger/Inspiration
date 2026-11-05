@@ -1,0 +1,6 @@
+{
+  "state": "paused",
+  "kinds": ["review_due", "stale", "conflict", "note"],
+  "paused_reason": "undone",
+  "changed_at": "2026-11-06T10:15:00Z"
+}

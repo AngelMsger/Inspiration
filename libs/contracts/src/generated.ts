@@ -315,6 +315,43 @@ export type SpaceOwnerIds = [MemberId, ...MemberId[]];
  * One person inside one tenant; unique only within the tenant. A PrincipalId of kind member.
  */
 export type MemberId = string;
+export type TodoId = string;
+export type DecisionId = string;
+/**
+ * note: a value only reference documents state disagrees with the governed one. It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget. unstated: a new version of a document stopped stating claims, which are kept, marked, until the owner keeps or retires them; source_deleted: the same for a deleted document (docs/design/source-changes.md).
+ *
+ */
+export type TodoKind =
+  | "conflict"
+  | "stale"
+  | "override_conflict"
+  | "review_due"
+  | "assumption_drift"
+  | "comment_followup"
+  | "publish_review"
+  | "coverage_gap"
+  | "extraction_review"
+  | "feedback"
+  | "note"
+  | "unstated"
+  | "source_deleted";
+export type Priority = "low" | "normal" | "high" | "urgent";
+export type TodoStatus = "open" | "in_progress" | "done" | "dismissed";
+export type TopicKey = string;
+/**
+ * An ISO 8601 week, "2026-W44".
+ */
+export type IsoWeek = string;
+/**
+ * How the member asked the assistant to decide. assistant_once: on one todo. assistant_batch: on a card, or on several todos at once. delegation: their standing Decide for me, as the todo arrived.
+ *
+ */
+export type DecisionVia = "assistant_once" | "assistant_batch" | "delegation";
+/**
+ * unset: the member has not answered the offer yet, so the inbox makes it. on: the assistant decides as todos arrive. paused: it does not, until the member turns it on.
+ *
+ */
+export type DelegationState = "unset" | "on" | "paused";
 /**
  * Only an active member holds rights. Suspending a member or recording that they left drops every grant at once.
  */
@@ -389,36 +426,10 @@ export type GatewayOperation = "complete" | "embed" | "rerank" | "ocr";
  */
 export type InboxCardKind = "review" | "notes" | "campaign" | "steward";
 /**
- * An ISO 8601 week, "2026-W44".
- */
-export type IsoWeek = string;
-export type TopicKey = string;
-/**
  * proposed: made by clustering and not yet confirmed; readers never see it, owners do. confirmed: an owner confirmed it, so re-clustering keeps it and never moves its confirmed placements. retired: it has no statements left; its key is not reused.
  *
  */
 export type TopicStatus = "proposed" | "confirmed" | "retired";
-export type TodoId = string;
-/**
- * note: a value only reference documents state disagrees with the governed one. It asks for no decision: the owner acknowledges it, and it is not counted against the weekly budget. unstated: a new version of a document stopped stating claims, which are kept, marked, until the owner keeps or retires them; source_deleted: the same for a deleted document (docs/design/source-changes.md).
- *
- */
-export type TodoKind =
-  | "conflict"
-  | "stale"
-  | "override_conflict"
-  | "review_due"
-  | "assumption_drift"
-  | "comment_followup"
-  | "publish_review"
-  | "coverage_gap"
-  | "extraction_review"
-  | "feedback"
-  | "note"
-  | "unstated"
-  | "source_deleted";
-export type Priority = "low" | "normal" | "high" | "urgent";
-export type TodoStatus = "open" | "in_progress" | "done" | "dismissed";
 export type KnowledgeModelId = string;
 export type KnowledgeModelKind = "formula" | "decision_table" | "kpi";
 export type SopStatus = "draft" | "in_review" | "verified" | "published" | "retired";
@@ -1768,6 +1779,136 @@ export interface DataTable {
   resolved_at: Instant;
   snapshot_hash?: ContentHash;
 }
+/**
+ * Let the assistant decide the member's todos on one inbox card (batch_key), or one or a few of them (todo_ids), one of the two. It decides what it may, with the member's rights, and leaves the rest with why. One todo named is decided via assistant_once, a card or several todos via assistant_batch. The answer comes once each todo is decided or left; todos already closed are neither.
+ *
+ */
+export interface DecideTodos {
+  batch_key?: string;
+  /**
+   * At most 20, the most a card holds; more is refused.
+   *
+   * @minItems 1
+   */
+  todo_ids?: [TodoId, ...TodoId[]];
+}
+/**
+ * What the assistant decided of the todos asked, and what it left to the member, in the inbox's order.
+ */
+export interface Decided {
+  decisions: TodoDecision[];
+  left: LeftTodo[];
+}
+/**
+ * A todo the assistant resolved in a member's name, with that member's rights and no more. It counts as the member's own decision, made by the assistant. Undoing it reopens the todo and restores what the resolution changed, by a new decision; nothing is deleted.
+ *
+ */
+export interface TodoDecision {
+  id: DecisionId;
+  todo: Todo;
+  /**
+   * The key of the chosen resolution.
+   */
+  with: string;
+  /**
+   * The chosen resolution's label, as the todo offered it.
+   */
+  label: string;
+  /**
+   * One or two sentences on why, in the member's language.
+   */
+  reason: string;
+  /**
+   * The passages the decision rests on.
+   */
+  span_ids?: SpanId[];
+  via: DecisionVia;
+  decided_by: PrincipalId;
+  decided_at: Instant;
+  undone_at?: Instant;
+}
+export interface Todo {
+  id: TodoId;
+  tenant_id: TenantId;
+  space_id: SpaceId;
+  kind: TodoKind;
+  title: string;
+  detail?: Markdown;
+  priority: Priority;
+  status: TodoStatus;
+  assignee_id?: PrincipalId;
+  unit_ids: UnitId[];
+  resolutions?: TodoResolution[];
+  /**
+   * The inbox card the todo is on. Collaboration groups an owner's todos about one topic in one week on a card, at most 20 to a card.
+   *
+   */
+  batch_key?: string;
+  taxonomy_key?: TopicKey;
+  /**
+   * The fact slot a conflict or a note is about.
+   */
+  slot_key?: string;
+  week?: IsoWeek;
+  created_by: ComponentName;
+  created_at: Instant;
+  due_at?: Instant;
+  resolved_by?: PrincipalId;
+  /**
+   * Key of the chosen resolution.
+   */
+  resolved_with?: string;
+  resolved_at?: Instant;
+}
+/**
+ * A one-click resolution offered on a todo.
+ */
+export interface TodoResolution {
+  key: string;
+  label: string;
+  description?: string;
+  /**
+   * Machine-readable effect, interpreted by the todo's producer.
+   */
+  effect?: {
+    [k: string]: unknown | undefined;
+  };
+}
+/**
+ * A todo the assistant left to the member, why, and what it would choose when it has a choice.
+ */
+export interface LeftTodo {
+  todo_id: TodoId;
+  /**
+   * One line, in the member's language.
+   */
+  reason: string;
+  suggestion?: TodoSuggestion;
+}
+/**
+ * The resolution the assistant would choose on a todo, with why, so the inbox shows it selected and one press accepts it.
+ *
+ */
+export interface TodoSuggestion {
+  /**
+   * The key of the resolution.
+   */
+  with: string;
+  /**
+   * One or two sentences, in the member's language.
+   */
+  reason: string;
+}
+/**
+ * The inbox's Decided for you view: what the assistant decided for the member this week, newest first, the undone ones too, and how many todos it left and how many decisions the member undid. It asks for nothing.
+ *
+ */
+export interface DecidedWeek {
+  week: IsoWeek;
+  decisions: TodoDecision[];
+  left: number;
+  undone: number;
+}
 export interface Decision {
   allow: boolean;
   reason?: string;
@@ -1790,6 +1931,22 @@ export interface DecisionRule {
     [k: string]: string | undefined;
   };
   claim_ids?: ClaimId[];
+}
+/**
+ * A member's standing Decide for me. While it is on, the assistant decides the member's new todos of these kinds as they arrive (via delegation) and leaves the rest marked with why, so the inbox shows only what was left. Declining the offer pauses it, by the person. It pauses itself, undone, when the member undoes 2 of the assistant's last 10 decisions of one kind.
+ *
+ */
+export interface Delegation {
+  state: DelegationState;
+  /**
+   * The kinds of todo it decides, the routine reviews and conflicts.
+   */
+  kinds: TodoKind[];
+  /**
+   * Who paused it, when paused.
+   */
+  paused_reason?: "person" | "undone";
+  changed_at?: Instant;
 }
 /**
  * artifact_id was built from input_id at input_hash.
@@ -2297,53 +2454,8 @@ export interface InboxTodo {
    * The resolutions the todo offers, in its order; for a conflict, the proposed value first.
    */
   choices: TodoChoice[];
-}
-export interface Todo {
-  id: TodoId;
-  tenant_id: TenantId;
-  space_id: SpaceId;
-  kind: TodoKind;
-  title: string;
-  detail?: Markdown;
-  priority: Priority;
-  status: TodoStatus;
-  assignee_id?: PrincipalId;
-  unit_ids: UnitId[];
-  resolutions?: TodoResolution[];
-  /**
-   * The inbox card the todo is on. Collaboration groups an owner's todos about one topic in one week on a card, at most 20 to a card.
-   *
-   */
-  batch_key?: string;
-  taxonomy_key?: TopicKey;
-  /**
-   * The fact slot a conflict or a note is about.
-   */
-  slot_key?: string;
-  week?: IsoWeek;
-  created_by: ComponentName;
-  created_at: Instant;
-  due_at?: Instant;
-  resolved_by?: PrincipalId;
-  /**
-   * Key of the chosen resolution.
-   */
-  resolved_with?: string;
-  resolved_at?: Instant;
-}
-/**
- * A one-click resolution offered on a todo.
- */
-export interface TodoResolution {
-  key: string;
-  label: string;
-  description?: string;
-  /**
-   * Machine-readable effect, interpreted by the todo's producer.
-   */
-  effect?: {
-    [k: string]: unknown | undefined;
-  };
+  suggestion?: TodoSuggestion;
+  left?: TodoLeft;
 }
 /**
  * One resolution a todo offers. For a conflict it chooses a value: the value, and the statement of it to show (one of the todo's statements, when the member may read it).
@@ -2354,6 +2466,16 @@ export interface TodoChoice {
   label: string;
   value?: string;
   unit_id?: UnitId;
+}
+/**
+ * Why the assistant left a todo to the member when asked to decide it: it is not sure, another person decided the case otherwise or left an open comment on it, or the kind is one it never decides.
+ *
+ */
+export interface TodoLeft {
+  /**
+   * One line, in the member's language.
+   */
+  reason: string;
 }
 /**
  * Pushed into the search index as a pre-filter. A row matches when its space is in space_ids, its acl_tokens overlap principal_tokens, and its sensitivity is at most max_sensitivity. Results are still re-checked before they leave the server.
@@ -2709,6 +2831,12 @@ export interface QualityGateResult {
   passed: boolean;
   details?: string;
   unit_ids?: UnitId[];
+}
+/**
+ * The member turns their standing Decide for me on, or pauses it. The answer is the Delegation.
+ */
+export interface PutDelegation {
+  state: "on" | "paused";
 }
 /**
  * The body of PUT /v0/tenants/{tenant}/members/{member}. Display names only; the engine keeps no email.
