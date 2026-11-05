@@ -478,9 +478,100 @@
       "InviteList",
       "InviteLink",
       "JoinPreview"
+    ],
+    "business/tokens": [
+      "AccessTokenId",
+      "TokenSpaces",
+      "AccessToken",
+      "AccessTokenList",
+      "NewAccessToken",
+      "CreatedAccessToken"
     ]
   },
   "$defs": {
+    "AccessToken": {
+      "description": "A personal access token, as Apps with access lists it. Its secret is shown once, in CreatedAccessToken, and only its hash is kept.\n",
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "spaces",
+        "scopes",
+        "created_at",
+        "expires_at"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/AccessTokenId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "spaces": {
+          "$ref": "#/$defs/TokenSpaces"
+        },
+        "scopes": {
+          "description": "What the token may do; in the MVP, only knowledge.read.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Scope"
+          }
+        },
+        "created_at": {
+          "$ref": "#/$defs/Instant"
+        },
+        "expires_at": {
+          "$ref": "#/$defs/Instant"
+        },
+        "last_used_at": {
+          "description": "When an MCP client last called with it, to the minute; absent until then.",
+          "$ref": "#/$defs/Instant"
+        },
+        "member": {
+          "description": "Whose token it is, only in the super admin's list of every member's tokens.",
+          "type": "object",
+          "required": [
+            "member_id",
+            "display_name"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "member_id": {
+              "$ref": "#/$defs/PrincipalId"
+            },
+            "display_name": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "AccessTokenId": {
+      "type": "string",
+      "pattern": "^tok_[0-9A-Za-z]{8,64}$"
+    },
+    "AccessTokenList": {
+      "description": "GET /api/tokens: the member's tokens in the current company that are neither revoked nor expired, newest first, and the MCP address to give a client. A super admin adds ?all=true for every member's tokens, each with its member.\n",
+      "type": "object",
+      "required": [
+        "tokens",
+        "mcp_url"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tokens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AccessToken"
+          }
+        },
+        "mcp_url": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
     "Account": {
       "description": "The signed-in person, as the account settings show them.",
       "type": "object",
@@ -3113,6 +3204,23 @@
         }
       }
     },
+    "CreatedAccessToken": {
+      "description": "The answer to POST /api/tokens (201): the token and its secret, the one time the secret is shown. DELETE /api/tokens/{token} revokes a token at once (204); a member revokes their own, a super admin anyone's.\n",
+      "type": "object",
+      "required": [
+        "token",
+        "secret"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "token": {
+          "$ref": "#/$defs/AccessToken"
+        },
+        "secret": {
+          "type": "string"
+        }
+      }
+    },
     "CurrentMember": {
       "description": "The account as a member of the company it works in now.",
       "type": "object",
@@ -5376,6 +5484,31 @@
         "currency": {
           "type": "string",
           "pattern": "^[A-Z]{3}$"
+        }
+      }
+    },
+    "NewAccessToken": {
+      "description": "POST /api/tokens. A token lasts at most 90 days. Naming a space the member cannot read answers 400; in the sample company, where nobody changes anything, 403.\n",
+      "type": "object",
+      "required": [
+        "name",
+        "spaces",
+        "days"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "spaces": {
+          "$ref": "#/$defs/TokenSpaces"
+        },
+        "days": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 90
         }
       }
     },
@@ -9234,6 +9367,22 @@
         "in_progress",
         "done",
         "dismissed"
+      ]
+    },
+    "TokenSpaces": {
+      "description": "Where a token may work, \"all\" for every space its member can read, or the spaces named.",
+      "oneOf": [
+        {
+          "const": "all"
+        },
+        {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/SpaceId"
+          }
+        }
       ]
     },
     "TokenUsage": {
