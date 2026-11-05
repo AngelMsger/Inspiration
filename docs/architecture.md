@@ -50,6 +50,13 @@ as, and only the backend sets those headers. `pnpm demo` runs both over the demo
 `pnpm snapshot` records the demo script through both into a static page that answers from the
 recording (`apps/web/src/replay.ts`).
 
+The business backend (`apps/business`) is the browser's real server, on the site's own origin.
+It signs people in through Logto (OIDC, in `business/accounts`), keeps their companies, members
+and invite links (`business/tenancy`), provisions each change in the engine as the tenancy
+service, and passes the page's `/api/v0/` calls on to the engine's `/v0/` with a principal
+token it signs for the member, publishing its keys at `/.well-known/jwks.json`. It also serves
+the built web app. Its routes are listed in `apps/business/src/index.ts`.
+
 ## One repository, a folder per layer
 
 Both layers are built in this repository, as one pnpm workspace, and each has its own folder:
@@ -58,8 +65,8 @@ Both layers are built in this repository, as one pnpm workspace, and each has it
 libs/<name>       shared libraries both layers use: contracts, kernel, eventbus, testkit
 engine/<name>     engine components, one package each
 business/<name>   business-layer components, one package each
-apps/<name>       composition roots: the engine process, its measurement harness and the
-                  web app today; the business backend later
+apps/<name>       composition roots: the engine process, its measurement harness, the
+                  business backend and the web app
 ```
 
 Package names stay `@inspiration/<name>`.
