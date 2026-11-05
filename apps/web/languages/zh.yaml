@@ -92,7 +92,7 @@ upload.same: "{count} 个没有变化"
 upload.failed: "{count} 个没有上传"
 upload.retry: 重试
 upload.clear: 清除
-upload.reading: 文件已经在空间里了，阅读会在后台进行。
+upload.reading: 文件已经在空间里了。读取在后台进行，列表里可以看到进度。
 upload.reason.too_large: 超过 50 MB，这是单个文件的上限。
 upload.reason.unsupported: 暂时还读不了这种文件。可以读的是 Word、PowerPoint、Excel、PDF、Markdown、纯文本、HTML 和 CSV。
 upload.reason.forbidden: 你不能往这个空间添加文件。
@@ -103,6 +103,20 @@ upload.new_version: 上传新版本
 upload.sending_one: 正在上传…
 upload.same_version: 这个文件和当前版本相同。
 upload.other_kind: "新版本也必须是 {ext} 文件。"
+
+reading.waiting: 等待读取
+reading.reading: 正在读取
+reading.paused: 读取已暂停
+reading.failed: 无法读取
+reading.count.waiting: "{count} 篇等待读取"
+reading.count.reading: "{count} 篇正在读取"
+reading.count.paused: "{count} 篇已暂停"
+reading.count.failed: "{count} 篇无法读取"
+reading.paused_hint: 暂停的读取会自动继续。
+reading.doc.waiting: Inspiration 还没有读取这篇文档，读完后正文会显示在这里。
+reading.doc.reading: Inspiration 正在读取这篇文档。现在已经可以检索，读完后会出现它的陈述。
+reading.doc.paused: 这篇文档的读取已暂停，会自动继续。在此期间也可以检索。
+reading.doc.failed: Inspiration 无法读取这个文件。
 
 folder.name: 名称
 folder.level: 治理级别

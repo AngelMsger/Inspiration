@@ -4,6 +4,7 @@
 import type { DocumentEntry, DocumentTreeNode } from "@inspiration/contracts";
 import type { Library } from "./api.ts";
 import { Crumbs, formatDate } from "./parts.tsx";
+import { ReadingSummary, ReadingTag } from "./reading.tsx";
 import { Link, type Route } from "./route.tsx";
 import { UPLOADS, Uploader } from "./upload.tsx";
 import { mayUpload } from "./uploads.ts";
@@ -80,6 +81,7 @@ export function Documents(props: { route: DocumentsRoute; library: Library; onSo
         ]}
       </Crumbs>
       <h1 className="title">{node ? nameOf(node, say) : say("nav.documents")}</h1>
+      <ReadingSummary nodes={node ? [node] : tree.sources} />
       {mayUpload(space) ? (
         <Uploader space={space} sources={tree.sources} folder={folder} onSent={props.onSourcesChanged}>
           {list}
@@ -120,6 +122,7 @@ function Rows(props: { rows: DocumentTreeNode[]; top: DocumentsRoute }) {
                 >
                   {row.name}
                 </Link>
+                <ReadingTag entry={row.document} />
               </td>
               <td className="quiet">{say(`level.${row.document.governance_level}`)}</td>
               <td className="quiet">{formatDate(tag, row.document.modified_at ?? row.document.fetched_at)}</td>
