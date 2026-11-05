@@ -103,9 +103,20 @@
  * which normalization does not pair unless nearly the same.
  */
 
+export {
+  ANSWER_SOURCES,
+  type AnswerSources,
+  COMPACT_SOURCES,
+  ContextTooLong,
+  LONG_CONTEXT_TOKENS,
+  MATURE_SOURCES,
+  THIN,
+} from "./answers.ts";
 export * from "./chunks.ts";
+export { DOCUMENTS, EDITIONS, type Edition, EMBED_BATCH, type IndexedDocument } from "./indexing.ts";
 export * from "./migrations.ts";
 export * from "./mock.ts";
 export * from "./protocol.ts";
 export * from "./retrieval.ts";
+export { type Baseline, POOL, RERANK_POOL, RRF_K, STATEMENT_POOL } from "./search.ts";
 export { overlap, terms } from "./text.ts";
