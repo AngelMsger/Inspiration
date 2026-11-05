@@ -18,6 +18,15 @@ the database is `snake_case`; TypeScript APIs are `camelCase`. A Chinese copy is
 | `retrieval.yaml` | search and answer requests and results, citations, notes on disputed and replaced values, feedback |
 | `events.yaml` | the event envelope and the payload of each event type (`x-events`) |
 | `agents.yaml` | tool specs, agent specs, run context, steps and results |
+| `business/accounts.yaml` | the business backend's browser API for the signed-in account: its session, language and signing out |
+| `business/companies.yaml` | the business backend's browser API for companies: members and their product roles, invite links |
+
+The files in `schema/business/` are the business layer's own types. They join the one bundle,
+so `parseAs` validates them like any other, and they may use the engine's types
+(`../common.yaml#/$defs/TenantId`), but their TypeScript types are generated into
+`src/business.ts`, which packages import as `@inspiration/contracts/business`. The engine's
+files never refer to them, and nothing in `engine/` or `libs/` imports that entry
+(`test/manifest.test.ts`).
 
 Interfaces between components (`KnowledgeStore`, `AuthZ`, `ModelGateway`, `Retriever`,
 `AgentRuntime`, `SlotVerdicts`, `StalenessReader`, the plugin interfaces) are hand-written TypeScript in
@@ -27,12 +36,12 @@ Interfaces between components (`KnowledgeStore`, `AuthZ`, `ModelGateway`, `Retri
 
 ```bash
 $EDITOR libs/contracts/schema/page.yaml
-pnpm contracts           # bundle, then generate src/generated.ts and src/events.ts
+pnpm contracts           # bundle, then generate src/generated.ts, src/business.ts and src/events.ts
 pnpm contracts:check     # what CI runs: fails if anything generated is stale
 pnpm vitest run libs/contracts   # examples validate against the schema
 ```
 
-Never edit `dist/inspiration.schema.json`, `src/generated.ts` or `src/events.ts` by hand.
+Never edit `dist/inspiration.schema.json`, `src/generated.ts`, `src/business.ts` or `src/events.ts` by hand.
 
 Rules:
 

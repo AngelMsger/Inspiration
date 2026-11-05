@@ -1,0 +1,16 @@
+{
+  "members": [
+    {
+      "member_id": "mem_01QINGHE0000000000ZHOUMIN",
+      "display_name": "周敏",
+      "email": "zhou.min@qinghe.example",
+      "role": "super_admin"
+    },
+    {
+      "member_id": "mem_01QINGHE000000000ZHANGMIN",
+      "display_name": "张敏",
+      "email": "zhang.min@qinghe.example",
+      "role": "member"
+    }
+  ]
+}
