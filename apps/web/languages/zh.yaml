@@ -22,6 +22,12 @@ company.name: 企业名称
 company.language: 默认语言
 company.super_admin: 你会成为它的超级管理员：创建空间、指定空间负责人、邀请成员。
 company.create: 创建企业
+company.new: 创建企业
+sample.offer: "也可以先看看示例企业「{name}」和它的文档。"
+sample.open: 打开示例企业
+sample.tag: 示例
+sample.banner: 这是示例企业。你可以阅读全企业可读的内容，在这里做的任何操作都不会改动它。
+sample.create: 创建自己的企业
 
 nav.label: 知识
 nav.home: 首页

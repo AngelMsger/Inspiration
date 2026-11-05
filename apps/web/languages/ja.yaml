@@ -22,6 +22,12 @@ company.name: 会社名
 company.language: 既定の言語
 company.super_admin: あなたがスーパー管理者になり、スペースを作って責任者を決め、メンバーを招待します。
 company.create: 会社を作成
+company.new: 会社を作成
+sample.offer: "まずはサンプルの会社「{name}」とその文書を見てみることもできます。"
+sample.open: サンプルの会社を開く
+sample.tag: サンプル
+sample.banner: これはサンプルの会社です。全社が読める内容を読めますが、ここで何をしても変わりません。
+sample.create: 自分の会社を作成
 
 nav.label: ナレッジ
 nav.home: ホーム

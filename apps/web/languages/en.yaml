@@ -22,6 +22,12 @@ company.name: Company name
 company.language: Default language
 company.super_admin: "You become its super admin: you create its spaces, name their owners and invite people."
 company.create: Create the company
+company.new: Create a company
+sample.offer: "Or look around first, in a sample company with its own documents: {name}."
+sample.open: Open the sample company
+sample.tag: Sample
+sample.banner: "This is a sample company. You can read what its whole company may read, and nothing you do here changes it."
+sample.create: Create your own company
 
 nav.label: Knowledge
 nav.home: Home
