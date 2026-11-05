@@ -1,14 +1,18 @@
 name: Site
 
 # Publishes the product website (apps/site) to GitHub Pages whenever it changes on main, or
-# when run by hand. The pages link relatively, so they work under the project path
-# (https://<owner>.github.io/<repository>/). Deploying needs a public repository and
-# Settings > Pages > Source set to "GitHub Actions"; while the repository is private only the
-# build runs.
+# when run by hand; a pull request that changes it only builds it. The pages link relatively,
+# so they work under the project path (https://<owner>.github.io/<repository>/). Deploying
+# needs a public repository and Settings > Pages > Source set to "GitHub Actions"; while the
+# repository is private only the build runs.
 
 on:
   push:
     branches: [main]
+    paths:
+      - apps/site/**
+      - .github/workflows/site.yml
+  pull_request:
     paths:
       - apps/site/**
       - .github/workflows/site.yml
@@ -18,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -38,7 +42,7 @@ jobs:
           path: _site
 
   deploy:
-    if: ${{ !github.event.repository.private }}
+    if: ${{ github.ref == 'refs/heads/main' && !github.event.repository.private }}
     needs: build
     runs-on: ubuntu-latest
     permissions:
