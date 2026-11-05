@@ -144,7 +144,10 @@ The method, every run and its cost are in [Validating the knowledge core](docs/d
 **Two layers in one repository.** The **engine** is a system of record for knowledge with no screens: given a tenant and a principal, it answers what is known, where it comes from, who may see it and whether it is still true. The **business layer** is the product around it: accounts, companies, invitations, notifications and the web app. Calls go down, events come up, and the engine never depends on the business layer; a test fails any change that tries.
 
 <div align="center">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/assets/components.en.dark.png">
 <img src="docs/assets/components.en.png" alt="Component diagram, in rows from sources to use: research and outside sources; source-sync, connectors and parsing; normalization and extraction; freshness and governance; page-compiler and collaboration; retrieval, agent-api and views; the web app with the business backend, people and outside agents. Events such as blocks.changed, claims.updated, artifact.dirty and page.rendered connect them. A platform column holds contracts, the event bus, the knowledge store, access control, the model gateway, the agent runtime, the credential broker and the sandbox. Planned: research, agent-api, views, credential-broker and sandbox." width="100%">
+</picture>
 </div>
 
 <sub>Every component by stage, with the events (solid) and calls (dashed) between them; the platform services on the right serve all of them. Dashed boxes are planned. Figure 10 of the [overview](docs/overview.md#9-architecture-at-a-glance) gives each component an outside equivalent and says what we reuse.</sub>
@@ -169,7 +172,10 @@ The method, every run and its cost are in [Validating the knowledge core](docs/d
 <details>
 <summary><b>How it deploys:</b> the services, the open-source parts and how they connect</summary>
 <br>
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/assets/deployment.en.dark.png">
 <img src="docs/assets/deployment.en.png" alt="Deployment diagram. Upstream: sources, deep research, model APIs and local inference. Write side: ingest, compile, parsing and the model gateway. Storage and events: Valkey Streams; PostgreSQL 16 with the knowledge tables, pgvector, pg_search, a schema per component, the outbox, accounts and companies, and the spicedb and logto databases; SpiceDB. Read side: the agent API, search and the inbox, the web app with the business backend, and access control. Callers: outside agents, views, people and Logto. Planned, for credentials and isolated jobs: gVisor, the sandbox, the credential broker and OpenBao. Today it runs as one compose stack, with the engine in one process." width="100%">
+</picture>
 </details>
 
 Read more in [Architecture](docs/architecture.md), [Contracts](docs/contracts.md) and the [overview](docs/overview.md)'s Part II.
