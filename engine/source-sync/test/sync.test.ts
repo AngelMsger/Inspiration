@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { FolderConnector } from "@inspiration/connectors";
 import {
   type Connector,
+  contentHash,
   type DocumentTreeNode,
   type EventEnvelope,
   type KnowledgeStore,
@@ -16,7 +17,7 @@ import { MemoryRecords, PgRecords, type Records } from "@inspiration/eventbus";
 import { LocalBlobStore, openPool } from "@inspiration/kernel";
 import { MemoryStore, PostgresStore } from "@inspiration/knowledge-store";
 import { createTestDatabase, hasStack } from "@inspiration/testkit";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { documentTree, pathParts, SourceSync, uploadAreaId } from "../src/index.ts";
 
 const TENANT = "ten_01JC0000000000000000TENANT";
@@ -332,6 +333,40 @@ describe.each<{ backend: Backend; skip: boolean }>([
       const version = await world.store.getSourceVersion(next.document.source_version_id);
       expect(version?.previous_version_id).toBe(first.document.source_version_id);
       expect((await world.sync.sync(area.id)).outcomes).toMatchObject({ unchanged: 1, created: 0, updated: 0 });
+    },
+  );
+
+  it.skipIf(skip)(
+    "an upload that failed after its record was written stores the file when retried",
+    async ({ world }) => {
+      const area = await world.sync.uploadArea(TENANT, "spc_01JC00000000000000000SPACE");
+      const file = (text: string) => ({
+        path: "Travel policy.md",
+        bytes: new TextEncoder().encode(text),
+        mime_type: "text/markdown",
+        uploaded_by: "mem_01JC00000000000000000ALICE",
+      });
+      const first = await world.sync.upload(area.id, file("# Travel\n\nEconomy class."));
+      vi.spyOn(world.store, "transaction").mockRejectedValueOnce(new Error("store went away"));
+      await expect(world.sync.upload(area.id, file("# Travel\n\nBusiness class."))).rejects.toThrow(/went away/);
+
+      const retried = await world.sync.upload(area.id, file("# Travel\n\nBusiness class."));
+      expect(retried.changed).toBe(true);
+      expect(retried.document.source_version_id).not.toBe(first.document.source_version_id);
+      const version = await world.store.getSourceVersion(retried.document.source_version_id);
+      expect(version).toMatchObject({
+        previous_version_id: first.document.source_version_id,
+        version: { content_hash: contentHash(new TextEncoder().encode("# Travel\n\nBusiness class.")) },
+      });
+      const fetched = (await world.events()).filter((e) => e.type === "document.fetched");
+      expect(fetched.map((e) => payloadOf(e, "document.fetched").source_version_id)).toEqual([
+        first.document.source_version_id,
+        retried.document.source_version_id,
+      ]);
+      expect(await world.sync.upload(area.id, file("# Travel\n\nBusiness class."))).toEqual({
+        document: retried.document,
+        changed: false,
+      });
     },
   );
 });

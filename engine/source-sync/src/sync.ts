@@ -5,6 +5,7 @@ import {
   type ChangeVia,
   type Connector,
   type ConnectorFactory,
+  contentHash,
   contractErrors,
   type DocumentEntry,
   type EventEnvelope,
@@ -213,7 +214,9 @@ export class SourceSync {
 
   /**
    * Put a file into an upload area and store it as the item at its path: a new document, or
-   * a new version of the one there. The same bytes at the same path change nothing.
+   * a new version of the one there. The same bytes at the same path change nothing. Uploads to
+   * an area take turns within this process; two processes writing one area could each confirm
+   * the other's file, so the engine runs one writing process for now.
    */
   upload(sourceId: string, file: Upload): Promise<{ document: DocumentEntry; changed: boolean }> {
     return this.#serialized(sourceId, async () => {
@@ -224,8 +227,10 @@ export class SourceSync {
       const ref = { source_id: sourceId, external_id: file.path };
       const state = await this.records.get(ITEMS, itemKey(sourceId, file.path));
       let changed = false;
-      // Without a new record the item is stored already, unless storing it failed last time.
-      if (record || !state || state.deleted) {
+      // The item holds these bytes once they are stored. An upload that failed after its record
+      // was written leaves the item on older bytes, and the retry stores them.
+      const stored = state && !state.deleted && state.version.content_hash === contentHash(file.bytes);
+      if (!stored) {
         const { outcome, error } = await this.#fetchItem(source, await this.#connector(source), ref, state, "manual");
         if (error) throw new Error(error);
         changed = outcome !== "unchanged";
