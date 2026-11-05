@@ -60,8 +60,9 @@ The business backend (`apps/business`) is the browser's real server, on the site
 It signs people in through Logto (OIDC, in `business/accounts`), keeps their companies, members
 and invite links (`business/tenancy`), provisions each change in the engine as the tenancy
 service, and passes the page's `/api/v0/` calls on to the engine's `/v0/` with a principal
-token it signs for the member, publishing its keys at `/.well-known/jwks.json`. It also serves
-the built web app. Its routes are listed in `apps/business/src/index.ts`.
+token it signs for the member, publishing its keys at `/.well-known/jwks.json`. An MCP client
+calls its `/mcp` with a member's personal access token (`business/access-grants`), and it passes
+the call on to the engine as an agent acting for that member. It also serves the built web app. Its routes are listed in `apps/business/src/index.ts`.
 
 ## One repository, a folder per layer
 

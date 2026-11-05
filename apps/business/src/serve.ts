@@ -3,7 +3,7 @@
  * inspiration-business serve [--port 4200] [--web <dir>] [--sample <corpus>]
  *
  * Runs the business backend (index.ts) on localhost, behind the site's TLS proxy. It migrates
- * the accounts and tenancy schemas, sends every company and member to the engine again (so
+ * the accounts, tenancy and access grants schemas, sends every company and member to the engine again (so
  * the engine's copy catches up with any call that failed), and serves the browser API, the
  * JWKS the engine checks its tokens with, and, with --web, the built web app. With --sample,
  * the tenant of that corpus is the sample company anyone may open; the engine must be started
@@ -31,6 +31,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { join } from "node:path";
 import { parseArgs, parseEnv } from "node:util";
+import { AccessGrants, MIGRATIONS as GRANTS, PostgresGrants } from "@inspiration/access-grants";
 import { MIGRATIONS as ACCOUNTS, Accounts, OidcProvider, PostgresAccounts } from "@inspiration/accounts";
 import {
   applyMigrations,
@@ -105,7 +106,7 @@ async function main(argv: string[]): Promise<number> {
   if (!settings.key) log.warn("no INSPIRATION_SIGNING_KEY: signing with a key made for this run", { kid: key.kid });
 
   const { databaseUrl } = getSettings();
-  await applyMigrations(databaseUrl, [ACCOUNTS, TENANCY]);
+  await applyMigrations(databaseUrl, [ACCOUNTS, TENANCY, GRANTS]);
   const pool = await openPool(databaseUrl);
   const tokens = new Tokens({ issuer: settings.publicUrl, audience: settings.audience, key });
   const engine = new EngineClient(settings.engineUrl, tokens);
@@ -120,6 +121,7 @@ async function main(argv: string[]): Promise<number> {
     backendHandler({
       accounts,
       tenancy,
+      grants: new AccessGrants(new PostgresGrants(pool)),
       engine,
       tokens,
       publicUrl: settings.publicUrl,

@@ -21,7 +21,7 @@ export interface Forwarded {
 }
 
 /** Headers of the browser's request that reach the engine; everything else stays behind. */
-const PASSED_ON = ["content-type", "idempotency-key", "accept", "x-inspiration-modified"];
+const PASSED_ON = ["content-type", "idempotency-key", "accept", "x-inspiration-modified", "mcp-protocol-version"];
 /** How many companies' consistency tokens are remembered. */
 const REMEMBERED = 10_000;
 

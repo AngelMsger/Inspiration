@@ -3,6 +3,7 @@
 // its key as a JWKS (/.well-known/jwks.json) for the engine to verify them with.
 
 import { randomUUID } from "node:crypto";
+import type { GrantRecord } from "@inspiration/access-grants";
 import type { PrincipalClaims, Scope } from "@inspiration/contracts";
 import { type SigningKey, signJwt } from "@inspiration/kernel";
 import type { Company, Member } from "@inspiration/tenancy";
@@ -52,12 +53,31 @@ export class Tokens {
     });
   }
 
+  /**
+   * A token for an MCP client calling with a personal access token: an agent acting for the
+   * token's member, with the token's scopes and, when it names any, its spaces. The engine
+   * gives it the member's rights narrowed to those.
+   */
+  agent(grant: Pick<GrantRecord, "id" | "tenant_id" | "member_id" | "spaces" | "scopes">): string {
+    return this.#sign({
+      sub: `agt_${grant.id.slice("tok_".length)}`,
+      tid: grant.tenant_id,
+      kind: "agent",
+      scope: grant.scopes.join(" "),
+      obo: grant.member_id,
+      ...(grant.spaces !== "all" && { spaces: grant.spaces }),
+      grant: grant.id,
+    });
+  }
+
   /** A token for the tenancy service, to provision a company and its members. */
   service(company: Pick<Company, "id">): string {
     return this.#sign({ sub: TENANCY_SERVICE, tid: company.id, kind: "service", scope: "provision.directory" });
   }
 
-  #sign(claims: Pick<PrincipalClaims, "sub" | "tid" | "kind" | "scope" | "locale" | "auth">): string {
+  #sign(
+    claims: Pick<PrincipalClaims, "sub" | "tid" | "kind" | "scope" | "locale" | "auth" | "obo" | "spaces" | "grant">,
+  ): string {
     const iat = Math.floor(this.#now().getTime() / 1000);
     const payload: PrincipalClaims = {
       iss: this.issuer,

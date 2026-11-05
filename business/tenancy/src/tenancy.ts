@@ -107,6 +107,13 @@ export class Tenancy {
     return company && member && this.#offered(company) ? { company, member } : undefined;
   }
 
+  /** A member by ID, with their company, while they are active in it and this site offers it. */
+  async activeMember(tenantId: string, memberId: string): Promise<Membership | undefined> {
+    const member = await this.store.member(tenantId, memberId);
+    const company = member?.status === "active" ? await this.store.company(tenantId) : undefined;
+    return company && member && this.#offered(company) ? { company, member } : undefined;
+  }
+
   /**
    * Open the sample company: the account joins it as a member the first time, and its member
    * is sent to the engine every time, so it is there again after the engine restarted.

@@ -142,6 +142,9 @@ importers:
 
   apps/business:
     dependencies:
+      '@inspiration/access-grants':
+        specifier: workspace:*
+        version: link:../../business/access-grants
       '@inspiration/accounts':
         specifier: workspace:*
         version: link:../../business/accounts
@@ -246,6 +249,19 @@ importers:
       vite:
         specifier: 8.3.4
         version: 8.3.4(@types/node@22.20.5)(yaml@2.9.1)
+
+  business/access-grants:
+    dependencies:
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../../libs/contracts
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../../libs/kernel
+    devDependencies:
+      '@inspiration/testkit':
+        specifier: workspace:*
+        version: link:../../libs/testkit
 
   business/accounts:
     dependencies:

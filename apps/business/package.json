@@ -11,6 +11,7 @@
     "inspiration-business": "./src/serve.ts"
   },
   "dependencies": {
+    "@inspiration/access-grants": "workspace:*",
     "@inspiration/accounts": "workspace:*",
     "@inspiration/contracts": "workspace:*",
     "@inspiration/kernel": "workspace:*",
