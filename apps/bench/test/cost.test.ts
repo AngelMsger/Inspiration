@@ -41,11 +41,14 @@ test("a dry run on the DeepSeek config prices each task and answering path, long
       expect(cost?.[path].calls, path).toBeGreaterThan(0);
       expect(cost?.[path].cost, path).toBeGreaterThan(0);
     }
-    // The shared search runs first, so the engine, its compact answer and the mature RAG each find
-    // its translation, embeddings and rerank scores in the cache alike: each pays only for its 4 answers.
-    for (const path of ["engine", "compact", "mature"] as const) {
+    // The shared search runs first, so the engine and its compact answer find its translation,
+    // embeddings and rerank scores in the cache: each pays only for its 4 answers. The mature RAG
+    // finds the translation and embeddings too, and reranks twice as many passages: it also pays
+    // a rerank for each question.
+    for (const path of ["engine", "compact"] as const) {
       expect((cost?.[path].calls ?? 0) - (cost?.[path].cached_calls ?? 0), path).toBe(4);
     }
+    expect((cost?.mature.calls ?? 0) - (cost?.mature.cached_calls ?? 0)).toBe(8);
     expect(cost?.search.cached_calls).toBe(0);
     expect(asked.totals.latency.engine).toMatchObject({ answers: 4, cached: 0 });
     // Every question gives long context the same sources first: after the first, a prefix cache serves them.

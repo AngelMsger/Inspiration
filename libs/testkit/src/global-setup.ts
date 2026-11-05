@@ -4,6 +4,7 @@
  *
  * INSPIRATION_STACK=off       run unit tests only, without probing the stack
  * INSPIRATION_REQUIRE_STACK=1 fail instead of skipping when the stack is not reachable (CI)
+ * INSPIRATION_QUICK=1         leave out the corpus runs that take minutes (`quick` in the testkit)
  */
 
 import { applyMigrations } from "@inspiration/kernel";

@@ -1,0 +1,18 @@
+# What the assistant writes in Chinese; see en.yaml.
+reasons:
+  changed: 一项已生效、注明日期的变更取代了另一个值。
+  authority: 最权威的来源写的是这个值。
+  disagreement: 治理建议这个值，但同样权威的来源写的是别的值。
+  note: 只有参考文档写着另一个值，受治理的值仍然有效。
+  unchanged: 文档在复核周期内没有变化，这次复核只是到了期限。
+  copy: 这份副本重复的文档有了变更，治理以变更后文档的值为准。
+left:
+  unsure: 同样权威的来源说法不一，需要你来选择。
+  person_decided: 之前有人在这个问题上做了不同的选择，所以留给你决定。
+  never: 助手不替你决定这类待办。
+  no_advice: 这一项暂时没有可给的建议。
+  with_conflict: 它要等同一张卡片上的冲突先有决定。
+  undone: 你撤销了助手的决定。
+labels:
+  acknowledged: 已知悉
+  reviewed: 已复核

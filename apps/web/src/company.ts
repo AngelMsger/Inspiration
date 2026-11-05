@@ -1,18 +1,23 @@
 // A demo company as its people and its super admins change it: roles, members who leave, invite
-// links and joining by one. The stand-in backend (backend.ts) and a snapshot's replay (replay.ts)
-// each keep one for as long as they run, so the members and invite screens work the same over
-// either; the business backend (apps/business) keeps the real thing, with the same rules: a
-// company always keeps a super admin, a link joins anyone who opens it signed in for 7 days
-// unless it is revoked or its maker stops being a super admin, and joining twice keeps the
-// membership.
+// links and joining by one, and members' access tokens. The stand-in backend (backend.ts) and a
+// snapshot's replay (replay.ts) each keep one for as long as they run, so the members, invite and
+// token screens work the same over either; the business backend (apps/business) keeps the real
+// thing, with the same rules: a company always keeps a super admin, a link joins anyone who opens
+// it signed in for 7 days unless it is revoked or its maker stops being a super admin, joining
+// twice keeps the membership, and a token lasts at most 90 days and goes with its member. Here
+// no MCP client can use a token: nothing answers at its address.
 
 import type {
+  AccessToken,
+  AccessTokenList,
   AccountChange,
   CompanyMember,
+  CreatedAccessToken,
   Invite,
   InviteLink,
   InviteList,
   JoinPreview,
+  NewAccessToken,
   ProductRole,
   Session,
 } from "@inspiration/contracts/business";
@@ -30,7 +35,8 @@ export class Refused extends Error {
   }
 }
 
-const WEEK = 7 * 24 * 60 * 60 * 1000;
+const DAY = 24 * 60 * 60 * 1000;
+const WEEK = 7 * DAY;
 
 /** Letters and digits, as the contracts' IDs take them. */
 const randomId = () => crypto.randomUUID().replaceAll("-", "");
@@ -41,6 +47,7 @@ export class Company {
   readonly #roles = new Map<string, ProductRole>();
   readonly #left = new Set<string>();
   readonly #links: { invite: Invite; code: string; revoked: boolean }[] = [];
+  readonly #tokens: { token: AccessToken; member: string; revoked: boolean }[] = [];
 
   /** `kept` are members who may not be removed, as the people a snapshot's script acts as. */
   constructor(people: People, kept: Iterable<string> = []) {
@@ -137,6 +144,46 @@ export class Company {
     this.#left.delete(person.member);
     this.#roles.set(person.member, "member");
     link.invite.joined += 1;
+  }
+
+  /** The tokens still in force, newest first: `by`'s own, or with `all` every member's, for a super admin. */
+  tokens(by: Person, mcpUrl: string, all = false, now = new Date()): AccessTokenList {
+    if (all) this.#admin(by);
+    const shown = this.#tokens.filter((t) => this.#inForce(t, now) && (all || t.member === by.member));
+    const tokens = shown.reverse().map((t) => {
+      const person = this.#member(t.member);
+      return all ? { ...t.token, member: { member_id: person.member, display_name: person.name } } : t.token;
+    });
+    return { tokens, mcp_url: mcpUrl };
+  }
+
+  /** A new token for `by`, its secret shown this once; the schema has held `days` to 1 to 90. */
+  createToken(by: Person, asked: NewAccessToken, now = new Date()): CreatedAccessToken {
+    const token: AccessToken = {
+      id: `tok_${randomId()}`,
+      name: asked.name,
+      spaces: asked.spaces,
+      scopes: ["knowledge.read"],
+      created_at: now.toISOString(),
+      expires_at: new Date(now.getTime() + asked.days * DAY).toISOString(),
+    };
+    this.#tokens.push({ token, member: by.member, revoked: false });
+    return { token, secret: `insp_pat_${randomId()}` };
+  }
+
+  /** Revokes a token of `by`'s own, or anyone's for a super admin; another member's is not found. */
+  revokeToken(by: Person, id: string, now = new Date()): void {
+    const admin = this.isMember(by) && this.roleOf(by) === "super_admin";
+    const kept = this.#tokens.find(
+      (t) => t.token.id === id && this.#inForce(t, now) && (admin || t.member === by.member),
+    );
+    if (!kept) throw new RangeError(`no access token ${id}`);
+    kept.revoked = true;
+  }
+
+  #inForce(t: { token: AccessToken; member: string; revoked: boolean }, now: Date): boolean {
+    const member = this.people.people.some((p) => p.member === t.member && this.isMember(p));
+    return member && !t.revoked && new Date(t.token.expires_at) > now;
   }
 
   #entry(p: Person): CompanyMember {

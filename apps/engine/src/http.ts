@@ -14,12 +14,18 @@
  *     GET  /v0/documents?source=<id>&item=<external>  DocumentView, the latest version
  *     GET  /v0/documents?version=<id>                 DocumentView, the version a citation names
  *     POST /v0/search    SearchQuery                  SearchResult
- *     POST /v0/answers   AnswerQuery                  GroundedAnswer
+ *     POST /v0/answers   AnswerQuery                  GroundedAnswer, compact unless depth is standard
  *     GET  /v0/inbox                                  Inbox, the member's open todos
  *     POST /v0/todos/:todo/resolve  ResolveTodo       Todo, closed
+ *     POST /v0/inbox/decide         DecideTodos       Decided, what the assistant decided and left
+ *     POST /v0/decisions/:decision/undo               InboxTodo, open again
+ *     GET  /v0/inbox/decided                          DecidedWeek, this week's decisions
+ *     GET  /v0/delegation                             Delegation, the member's standing Decide for me
+ *     PUT  /v0/delegation           PutDelegation     Delegation
  *     GET  /v0/spaces/:space/overview                 SpaceOverview, for the space's maintainers
  *     POST /v0/sources/:source/sync                   SyncReport, the source synced now
  *     PUT  /v0/spaces/:space/files/:path  the file's bytes  FileWritten, the file in the space's uploads
+ *     POST /v0/mcp       one JSON-RPC message          its answer, or 202 for a notification (agent-api)
  *
  * Space administration (space-admin.ts), on access control's directory:
  *
@@ -35,7 +41,11 @@
  *     PUT /v0/tenants/:tenant/members/:member  PutMember  MemberWritten
  *     GET /v0/tenants/:tenant/members                     DirectoryMemberList
  *
- * Resolving a todo, syncing a source and uploading a file are the knowledge writes. An upload
+ * Resolving a todo, letting the assistant decide or undoing its decision, the delegation,
+ * syncing a source and uploading a file are the knowledge writes. The assistant decides only
+ * the member's own todos (another's named answers 404), at most 20 named at once (else 400),
+ * and writes its reasons in the token's locale; an undo of a decision already undone or no
+ * longer the one that closed its todo answers 409 (decisions.ts). An upload
  * (uploads.ts) needs editor or above on the space (else 403); its body is the file's bytes,
  * at most 50 MiB (else 413), of a type the engine reads by the name's extension (else 415).
  * It answers once the document is stored and reads it in the background. The Documents tree,
@@ -55,20 +65,26 @@
  * what the route may do: knowledge.read for every read, knowledge.propose for a member's writes,
  * provision.directory for provisioning, which only a service of the tenant may do. A member's
  * tenant must be active and the member an active member of it, as the directory has them, or
- * the request answers 401 whatever the token says. For development only (the demo and its
+ * the request answers 401 whatever the token says. An agent's token (kind agent) acts for the
+ * member it names, as long as that member is active, within the token's spaces and only to
+ * read, and reaches only the MCP endpoint (anything else answers 403): the agent API's server
+ * with search, ask and read, which read as the routes above do. The endpoint keeps no session
+ * and opens no stream, so GET and DELETE on it answer 405. For development only (the demo and its
  * snapshot), Identity.devHeaders lets a request name its tenant and member in the
  * x-inspiration-tenant and x-inspiration-member headers instead, trusted as given with a
- * member's scopes; the API listens on localhost only. Errors are ApiError bodies: 400 for a
+ * member's scopes, and the language the engine writes for them in x-inspiration-locale, as a
+ * token's locale; the API listens on localhost only. Errors are ApiError bodies: 400 for a
  * body or header that is not valid, 401 without a valid token, 403 for a token whose scopes do
  * not cover the route or an admin write the member may not make, 404 for anything unknown or
  * not readable (the two look the same, so a reader never learns what exists), 409 for a
- * directory command that an earlier one supersedes, 413 and 415 for an upload too large or of
- * a type the engine does not read.
+ * directory command that an earlier one supersedes, 405 for a stream asked of the MCP endpoint,
+ * 413 and 415 for an upload too large or of a type the engine does not read.
  */
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { ConflictError, TokenError, type TokenVerifier } from "@inspiration/access-control";
+import { McpServer } from "@inspiration/agent-api";
 import {
   type AnswerQuery,
   type ApiError,
@@ -89,6 +105,7 @@ import {
 } from "@inspiration/contracts";
 import { logger } from "@inspiration/kernel";
 import { documentTree, entryOf, foldersOf, type ListedDocument } from "@inspiration/source-sync";
+import { decidedWeek, decideTodos, putDelegation, undoDecision } from "./decisions.ts";
 import type { Engine } from "./engine.ts";
 import { badRequest, HttpError, notFound } from "./http-errors.ts";
 import { members, putMember, putTenant } from "./provisioning.ts";
@@ -116,6 +133,9 @@ interface Route {
   path: RegExp;
   /** The scope the route needs; knowledge.read when not given. */
   scope?: Scope;
+  /** Whether an agent may take it: only the MCP endpoint. */
+  agents?: boolean;
+  /** Its answer, or undefined for 202 and no body. */
   run: (who: Principal, m: RegExpMatchArray, req: Request) => Promise<unknown>;
 }
 
@@ -123,7 +143,19 @@ const param = (m: RegExpMatchArray, i = 1) => decodeURIComponent(m[i] ?? "");
 
 /** The routes, in the order they are matched. */
 function routesOf(engine: Engine): Route[] {
+  const mcp = mcpOf(engine);
+  const noStream = async (): Promise<never> => {
+    throw new HttpError(405, "bad_request", "the MCP endpoint takes one message per POST and opens no stream");
+  };
   return [
+    {
+      method: "POST",
+      path: /^\/v0\/mcp$/,
+      agents: true,
+      run: async (who, _m, req) => mcp.handle(await req.json(), who),
+    },
+    { method: "GET", path: /^\/v0\/mcp$/, agents: true, run: noStream },
+    { method: "DELETE", path: /^\/v0\/mcp$/, agents: true, run: noStream },
     { method: "GET", path: /^\/v0\/me$/, run: (who) => me(engine, who) },
     {
       method: "GET",
@@ -167,7 +199,10 @@ function routesOf(engine: Engine): Route[] {
     {
       method: "POST",
       path: /^\/v0\/answers$/,
-      run: async (who, _m, req) => engine.retrieval.answer(parseAs<AnswerQuery>("AnswerQuery", await req.json()), who),
+      run: async (who, _m, req) => {
+        const query = parseAs<AnswerQuery>("AnswerQuery", await req.json());
+        return (query.depth === "standard" ? engine.retrieval : engine.compact).answer(query, who);
+      },
     },
     { method: "GET", path: /^\/v0\/inbox$/, run: (who) => inboxOf(engine, who) },
     {
@@ -181,6 +216,26 @@ function routesOf(engine: Engine): Route[] {
         if (!todo) throw notFound("todo");
         return todo;
       },
+    },
+    {
+      method: "POST",
+      path: /^\/v0\/inbox\/decide$/,
+      scope: "knowledge.propose",
+      run: async (who, _m, req) => decideTodos(engine, who, await req.json()),
+    },
+    {
+      method: "POST",
+      path: /^\/v0\/decisions\/([^/]+)\/undo$/,
+      scope: "knowledge.propose",
+      run: (who, m) => undoDecision(engine, who, param(m)),
+    },
+    { method: "GET", path: /^\/v0\/inbox\/decided$/, run: (who) => decidedWeek(engine, who) },
+    { method: "GET", path: /^\/v0\/delegation$/, run: (who) => engine.assistant.delegation(who.tenant_id, who.id) },
+    {
+      method: "PUT",
+      path: /^\/v0\/delegation$/,
+      scope: "knowledge.propose",
+      run: async (who, _m, req) => putDelegation(engine, who, await req.json()),
     },
     {
       method: "GET",
@@ -245,7 +300,10 @@ export function apiHandler(engine: Engine, identity: Identity) {
       const who = await principalOf(incoming, identity);
       const scope = route.scope ?? "knowledge.read";
       if (!who.scopes?.includes(scope)) throw new HttpError(403, "forbidden", `the token does not grant ${scope}`);
-      if (who.kind === "member") await admit(engine, who);
+      if (who.kind === "agent" && !route.agents) {
+        throw new HttpError(403, "forbidden", "an agent reaches the engine through /v0/mcp only");
+      }
+      if (who.kind === "member" || who.kind === "agent") await admit(engine, who);
       const m = url.pathname.match(route.path) as RegExpMatchArray;
       const header = (name: string) => {
         const value = incoming.headers[name];
@@ -257,7 +315,9 @@ export function apiHandler(engine: Engine, identity: Identity) {
         json: async () => JSON.parse((await readBody(incoming, MAX_BODY, badRequest)).toString("utf8")),
         bytes: (limit) => readBody(incoming, limit, (message) => new HttpError(413, "too_large", message)),
       };
-      send(res, 200, await route.run(who, m, req));
+      const body = await route.run(who, m, req);
+      if (body === undefined) return void res.writeHead(202, { "cache-control": "no-store" }).end();
+      send(res, 200, body);
     } catch (error) {
       const e = httpErrorOf(error);
       if (!e) log.error("request failed", { method: incoming.method, path, error });
@@ -297,14 +357,31 @@ async function principalOf(req: IncomingMessage, identity: Identity): Promise<Pr
   return (await fromToken(req, identity)) ?? fromDevHeaders(req, identity);
 }
 
-/** A member acts only while their tenant is active and they are an active member of it. */
+/**
+ * A member acts only while their tenant is active and they are an active member of it, and an
+ * agent only while the member it acts for is.
+ */
 async function admit(engine: Engine, who: Principal): Promise<void> {
   const tenant = await engine.directory.tenant(who.tenant_id);
   if (!tenant || (tenant.status ?? "active") !== "active") {
     throw new HttpError(401, "unauthenticated", `tenant ${who.tenant_id} is not active`);
   }
-  const member = await engine.directory.member(who.tenant_id, who.id);
-  if (member?.status !== "active") throw new HttpError(401, "unauthenticated", `${who.id} is not an active member`);
+  const memberId = (who.kind === "agent" && who.on_behalf_of) || who.id;
+  const member = await engine.directory.member(who.tenant_id, memberId);
+  if (member?.status !== "active") throw new HttpError(401, "unauthenticated", `${memberId} is not an active member`);
+}
+
+/** The agent API's MCP server, reading as the HTTP API does. */
+function mcpOf(engine: Engine): McpServer {
+  return new McpServer({
+    version: "0",
+    library: {
+      search: (query, who) => engine.retrieval.search(query, who),
+      answer: (query, who) => (query.depth === "standard" ? engine.retrieval : engine.compact).answer(query, who),
+      document: (version, who) => document(engine, who, new URLSearchParams({ version })),
+    },
+    refusal: (error) => httpErrorOf(error)?.message,
+  });
 }
 
 async function fromToken(req: IncomingMessage, identity: Identity): Promise<Principal | undefined> {
@@ -335,7 +412,14 @@ function fromDevHeaders(req: IncomingMessage, identity: Identity): Principal {
         : "send a principal token as a Bearer token",
     );
   }
-  return parseAs<Principal>("Principal", { id: member, kind: "member", tenant_id: tenant, scopes: [...DEV_SCOPES] });
+  const locale = req.headers["x-inspiration-locale"];
+  return parseAs<Principal>("Principal", {
+    id: member,
+    kind: "member",
+    tenant_id: tenant,
+    scopes: [...DEV_SCOPES],
+    ...(typeof locale === "string" && { locale }),
+  });
 }
 
 /** The body, refused as soon as its declared or counted size passes limit. */

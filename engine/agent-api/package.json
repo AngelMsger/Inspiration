@@ -1,0 +1,17 @@
+{
+  "name": "@inspiration/agent-api",
+  "version": "0.1.0",
+  "description": "Agent API: the MCP server agents reach the knowledge base through, acting as the member they act for",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/kernel": "workspace:*"
+  },
+  "devDependencies": {
+    "@inspiration/testkit": "workspace:*"
+  }
+}

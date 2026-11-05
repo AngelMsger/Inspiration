@@ -173,6 +173,37 @@ export function passagesWithoutReplaced(searched: Searched): SearchHit[] {
   return [...hits, ...brought];
 }
 
+/**
+ * The open disagreements the hits take part in, by hit. A statement on one side of a slot
+ * whose values are in dispute names the statements among the hits that state its other
+ * values; a passage names the statements of such a disagreement that quote its lines. Only
+ * what the asker may see is in dispute (visible verdicts), so a hidden side marks nothing.
+ */
+export function disputesOf(hits: readonly SearchHit[], searched: Searched): Map<string, string[]> {
+  const sides = hits.filter((h) => h.kind === "claim" && h.review_status === "disputed" && h.slot_key);
+  const value = (h: SearchHit) => valueKeyOf(searched.statements.get(h.unit_id)?.claim ?? {});
+  const out = new Map<string, string[]>();
+  for (const h of sides) {
+    const others = sides.filter((o) => o.slot_key === h.slot_key && value(o) !== value(h));
+    if (others.length)
+      out.set(
+        h.unit_id,
+        others.map((o) => o.unit_id),
+      );
+  }
+  const quoting = new Map<string, string[]>();
+  for (const h of sides) {
+    if (!out.has(h.unit_id)) continue;
+    for (const c of h.citations) quoting.set(c.span_id, [...(quoting.get(c.span_id) ?? []), h.unit_id]);
+  }
+  for (const h of hits) {
+    if (h.kind !== "chunk") continue;
+    const stated = [...new Set(h.citations.flatMap((c) => quoting.get(c.span_id) ?? []))];
+    if (stated.length) out.set(h.unit_id, stated);
+  }
+  return out;
+}
+
 /** Each span of the passages found, with the best fused score of a passage that holds it. */
 export function spanScores(found: readonly Found[]): Map<string, number> {
   const scores = new Map<string, number>();

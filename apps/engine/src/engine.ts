@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { AuthzService, Directory, type Graph, MemoryGraph } from "@inspiration/access-control";
-import { Inbox } from "@inspiration/collaboration";
+import { Assistant, Inbox } from "@inspiration/collaboration";
 import type {
   BlobStore,
   EventEnvelope,
@@ -90,11 +90,14 @@ export class Engine {
   readonly freshness: Freshness;
   readonly topics: Topics;
   readonly inbox: Inbox;
+  /** Decide for me: the assistant's decisions on members' todos, and their standing delegations. */
+  readonly assistant: Assistant;
   readonly authz: AuthzService;
   /** The copy of the business layer's tenants and members, and the spaces, granted in the same graph as authz reads. */
   readonly directory: Directory;
   /** Each tenant's predicate catalogue, as extraction reads it; the inbox names facts by it. */
   readonly vocabulary: NonNullable<ExtractionOptions["vocabulary"]>;
+  /** Search, and the standard answer: as many passages as statements. */
   readonly retrieval: Retrieval;
   /**
    * The rivals answers are measured against, over the same documents and model: a mature
@@ -106,7 +109,8 @@ export class Engine {
   readonly governedLongContext: Retrieval;
   /**
    * The knowledge base answering from fewer sources: mostly statements, the conclusions
-   * governance kept, and a few passages, a short input that a smaller model answers fast.
+   * governance kept, and a few passages, a short input that a smaller model answers fast. The
+   * answer a member gets unless they ask for the standard one (AnswerQuery.depth).
    */
   readonly compact: Retrieval;
   readonly consumer: Consumer;
@@ -167,6 +171,7 @@ export class Engine {
     this.freshness = new Freshness({ store: this.store, records: this.records, ...clock });
     this.topics = new Topics({ store: this.store, records: this.records, models: this.models, ...clock });
     this.inbox = new Inbox({ store: this.store, records: this.records, ...clock });
+    this.assistant = new Assistant({ inbox: this.inbox });
     const graph = parts.graph ?? new MemoryGraph();
     this.authz = new AuthzService(graph, this.store);
     this.directory = new Directory(this.records, graph);
@@ -196,7 +201,7 @@ export class Engine {
       { group: "governance", handlers: () => this.governance.handlers() },
       { group: "freshness", handlers: () => this.freshness.handlers() },
       { group: "page-compiler", handlers: () => this.topics.handlers() },
-      { group: "collaboration", handlers: () => this.inbox.handlers() },
+      { group: "collaboration", handlers: () => ({ ...this.inbox.handlers(), ...this.assistant.handlers() }) },
       { group: "retrieval", handlers: () => this.retrieval.handlers() },
     ];
     for (const c of components) {

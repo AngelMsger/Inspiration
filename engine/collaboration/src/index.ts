@@ -1,6 +1,6 @@
 /**
  * Collaboration. Built so far: the inbox, where requests for a person's attention become
- * todos on cards.
+ * todos on cards, and Decide for me, where the assistant decides them for a member who lets it.
  *
  * On todo.requested and review.due the inbox keeps one open todo per dedupe_key: a later
  * request with the key replaces its title, detail, priority and units and leaves it where it
@@ -42,6 +42,28 @@
  * agent deciding for one. Closing a closed todo changes nothing and publishes nothing; a
  * withdrawn todo is dismissed without the event.
  *
+ * Decide for me (assistant.ts, docs/design/decide-for-me.md). The assistant decides a member's
+ * todos in their name, with their rights only: it closes nothing but the member's own todos,
+ * as resolve does, and records a TodoDecision with how it was asked (assistant_once for one
+ * todo, assistant_batch for a card or several, delegation as a todo arrives). No model takes
+ * part; a request's advice (TodoRequested.suggestion) and the todo's kind decide:
+ * - Notes are acknowledged. A review due by age (review_due) is confirmed ("reviewed"), since
+ *   a change to its document would have restarted its clock. A copy review (stale) is confirmed
+ *   too, unless it rides on an open conflict of the same source update, which it waits for.
+ * - A conflict takes the requester's advice when the requester is sure and offers that
+ *   resolution. It is left to the member, with the advice as its suggestion, when the requester
+ *   is not sure, or when a person chose otherwise on an earlier todo of the same question: the
+ *   assistant never outvotes a person.
+ * - Every other kind is never decided for the member.
+ * Left todos stay where they are, marked with why (Item.left). Reasons are written when they
+ * are read, from the language packs, in the reader's locale, so they follow the member's
+ * language. Undo reopens the todo on its card, marked as undone, and publishes todo.reopened so
+ * its requester restores what the resolution changed; a decision undone already, or no longer
+ * the one that closed its todo, is refused. A member's standing delegation (Delegation) is
+ * unset until they answer the offer; while it is on, each new todo of theirs of its kinds
+ * (review_due, stale, conflict, note) is decided as it arrives (todo.created). Undoing 2 of
+ * their last 10 decisions of one kind pauses it (paused_reason undone) until they turn it on.
+ *
  * A todo stays in its week until it is resolved; nothing moves it on when the week passes.
  * Updates of one tenant run one at a time in a process, and the inbox mark commits with the
  * rows, so a redelivered event changes nothing. Run one collaboration consumer per tenant.
@@ -49,9 +71,12 @@
  * Not yet built: comments and anchoring, agent replies, overrides, joint approval (the
  * business layer's), the publish state machine, quality gates, verification expiry, stewards
  * and admins as assignees (the business layer provisions them), and an event that tells the
- * inbox when topics or owners change.
+ * inbox when topics or owners change. For Decide for me: the passages a decision rests on
+ * (TodoDecision.span_ids), kinds a space owner keeps for people, open comments as a reason to
+ * leave a todo, the super admin's switch, and a model task for what the rules leave.
  */
 
+export * from "./assistant.ts";
 export * from "./inbox.ts";
 export * from "./migrations.ts";
 export * from "./weeks.ts";

@@ -48,7 +48,10 @@
  * so it misses the answer when the two are in different languages or say it differently. It
  * comes with its document's governance level and the day the document last changed, so that
  * where passages disagree and no statement settles it, the model answers with the governed
- * source, then the most recent, and says that sources differ. A statement found
+ * source, then the most recent, and says that sources differ. Both sides of a disagreement no
+ * person has settled are marked in what the model reads: each statement names the statements
+ * of the other values, and each passage the statements its lines state, so the answer gives
+ * the value that holds, says that sources differ and gives the other values. A statement found
  * whose value does not hold brings the statement of the one that does, which the model is
  * pointed to, in whatever language it is written, when it passes the question's filters,
  * with its own freshness. So does a passage's sentence that states
@@ -61,6 +64,13 @@
  * say them in its reader's words; another says when a statement rests on one weakly read
  * source. sources(query, principal) gives the
  * hits an answer reads, in the order the model gets them.
+ *
+ * Every answer is recorded in retrieval.answers (metering.ts), for usage: when it was asked,
+ * how long it took from the question to the answer, search included, each model call it made
+ * with its provider, model, tokens and cost, and their cost together, the member it was for
+ * (an agent's member, with the agent), the spaces of the sources it read and how many sources
+ * it read; never the question or the answer. A record that cannot be written is logged, and
+ * the answer is still given.
  *
  * An answer reads the latest edition of a document the asker can read. An edition replaces
  * another when it changed later, by the dates its source gives, at no lower governance level
@@ -82,8 +92,8 @@
  *
  * Baselines, to measure the knowledge base against over the same documents and model
  * (RetrievalOptions.baseline): "mature" answers from passages alone, without statements or
- * governance, as a carefully built RAG does: the same search (hybrid, translated, reranked),
- * MATURE_SOURCES passages, each with its document's level and date; "long_context" gives
+ * governance, as a carefully built RAG does: the same search (hybrid, translated, reranked,
+ * over MATURE_POOL passages where the knowledge base reranks RERANK_POOL), MATURE_SOURCES passages, each with its document's level and date; "long_context" gives
  * the model every passage the asker may read in the spaces asked for, document by document,
  * and refuses with ContextTooLong when they come to more than contextTokens. The query's
  * filters are on statements, so neither baseline applies them.
@@ -103,9 +113,21 @@
  * which normalization does not pair unless nearly the same.
  */
 
+export {
+  ANSWER_SOURCES,
+  type AnswerSources,
+  COMPACT_SOURCES,
+  ContextTooLong,
+  LONG_CONTEXT_TOKENS,
+  MATURE_SOURCES,
+  THIN,
+} from "./answers.ts";
 export * from "./chunks.ts";
+export { DOCUMENTS, EDITIONS, type Edition, EMBED_BATCH, type IndexedDocument } from "./indexing.ts";
+export { ANSWERS, type AnswerCall, type AnswerRecord } from "./metering.ts";
 export * from "./migrations.ts";
 export * from "./mock.ts";
 export * from "./protocol.ts";
 export * from "./retrieval.ts";
+export { type Baseline, POOL, RERANK_POOL, RRF_K, STATEMENT_POOL } from "./search.ts";
 export { overlap, terms } from "./text.ts";

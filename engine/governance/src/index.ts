@@ -49,7 +49,10 @@
  *   withdrawn, and collaboration dismisses the open todo.
  * - A conflict todo offers each value as a resolution ("Keep 650 CNY/night", "Choose 600
  *   CNY/night"), with the slot, the value and the question as its effect: a hash of the
- *   proposed value and the open cases. On todo.resolved governance keeps the choice
+ *   proposed value and the open cases. It suggests the proposed value (suggestion, with its
+ *   basis: a dated change or authority), sure of it unless a value as authoritative contradicts
+ *   it with no dated change between them, so the assistant may decide the todo for a member
+ *   who lets it and leaves it to the member otherwise. On todo.resolved governance keeps the choice
  *   (SlotState.chosen): the chosen value holds, the open cases are resolved, the values chosen
  *   against stand outdated, and verdicts name who chose (chosen_by). The choice holds while
  *   governance would ask the same question: another document repeating a value the person
@@ -57,7 +60,8 @@
  *   drops it and asks again. A choice on a question governance no longer asks asks the
  *   current one; a todo dismissed or closed without a choice is not asked again until the
  *   question changes. The person may be an agent deciding for one; joint approval is the
- *   business layer's.
+ *   business layer's. When a member undoes what the assistant chose for them (todo.reopened),
+ *   the choice is dropped and the slot asks its question again, which the reopened todo takes.
  *
  * Updates of one tenant run one at a time in a process, and the inbox mark commits with the
  * rows, so a redelivered event changes nothing. Run one governance consumer per tenant.

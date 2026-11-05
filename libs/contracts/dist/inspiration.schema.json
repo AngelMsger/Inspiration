@@ -44,6 +44,10 @@
       "payload": "TodoResolved",
       "version": 1
     },
+    "todo.reopened": {
+      "payload": "TodoReopened",
+      "version": 1
+    },
     "page.rendered": {
       "payload": "PageRendered",
       "version": 1
@@ -91,6 +95,11 @@
       "InboxCard",
       "InboxTodo",
       "TodoChoice",
+      "DecideTodos",
+      "Decided",
+      "LeftTodo",
+      "DecidedWeek",
+      "PutDelegation",
       "ResolveTodo",
       "SpaceOverview",
       "SpaceChange",
@@ -144,6 +153,13 @@
       "TodoResolution",
       "Todo",
       "IsoWeek",
+      "TodoSuggestion",
+      "TodoAdvice",
+      "TodoLeft",
+      "DecisionVia",
+      "TodoDecision",
+      "DelegationState",
+      "Delegation",
       "PublishState",
       "QualityGate",
       "QualityGateResult",
@@ -169,6 +185,7 @@
       "ProposalId",
       "TodoId",
       "ConflictId",
+      "DecisionId",
       "PublishRequestId",
       "ViewId",
       "ViewTemplateId",
@@ -209,6 +226,7 @@
       "TodoRequested",
       "TodoResolved",
       "TodoCreated",
+      "TodoReopened",
       "PageRendered",
       "CommentCreated",
       "UnitPublished"
@@ -386,6 +404,7 @@
       "SearchHit",
       "SearchResult",
       "AnswerQuery",
+      "AnswerDepth",
       "GroundedAnswer",
       "AnswerNoteKind",
       "AnswerNote",
@@ -993,6 +1012,14 @@
         }
       }
     },
+    "AnswerDepth": {
+      "description": "How much an answer reads. compact, the default: the statements governance kept with their quotes and a few passages, a short input that a small model answers fast. standard: as many passages as statements, for a question the compact sources leave open.\n",
+      "type": "string",
+      "enum": [
+        "compact",
+        "standard"
+      ]
+    },
     "AnswerNote": {
       "type": "object",
       "required": [
@@ -1069,6 +1096,9 @@
         "max_answer_tokens": {
           "type": "integer",
           "minimum": 50
+        },
+        "depth": {
+          "$ref": "#/$defs/AnswerDepth"
         }
       }
     },
@@ -1098,7 +1128,7 @@
     },
     "ApiErrorCode": {
       "type": "string",
-      "description": "forbidden is a token whose scopes do not cover the route, or an admin write on a space the member may read but not administer; conflict is a directory command older than the engine's copy; too_large is an upload over the size a file may have (status 413), and unsupported_type a file of a type the engine does not read (status 415).\n",
+      "description": "forbidden is a token whose scopes do not cover the route, or an admin write on a space the member may read but not administer; conflict is a directory command older than the engine's copy, or an undo of a decision already undone or replaced; too_large is an upload over the size a file may have (status 413), and unsupported_type a file of a type the engine does not read (status 415).\n",
       "enum": [
         "bad_request",
         "unauthenticated",
@@ -3336,6 +3366,79 @@
         }
       }
     },
+    "DecideTodos": {
+      "description": "Let the assistant decide the member's todos on one inbox card (batch_key), or one or a few of them (todo_ids), one of the two. It decides what it may, with the member's rights, and leaves the rest with why. One todo named is decided via assistant_once, a card or several todos via assistant_batch. The answer comes once each todo is decided or left; todos already closed are neither.\n",
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "batch_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "todo_ids": {
+          "description": "At most 20, the most a card holds; more is refused.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/TodoId"
+          }
+        }
+      }
+    },
+    "Decided": {
+      "description": "What the assistant decided of the todos asked, and what it left to the member, in the inbox's order.",
+      "type": "object",
+      "required": [
+        "decisions",
+        "left"
+      ],
+      "properties": {
+        "decisions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TodoDecision"
+          }
+        },
+        "left": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LeftTodo"
+          }
+        }
+      }
+    },
+    "DecidedWeek": {
+      "description": "The inbox's Decided for you view: what the assistant decided for the member this week, newest first, the undone ones too, and how many todos it left and how many decisions the member undid. It asks for nothing.\n",
+      "type": "object",
+      "required": [
+        "week",
+        "decisions",
+        "left",
+        "undone"
+      ],
+      "properties": {
+        "week": {
+          "$ref": "#/$defs/IsoWeek"
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TodoDecision"
+          }
+        },
+        "left": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "undone": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
     "Decision": {
       "type": "object",
       "required": [
@@ -3353,6 +3456,10 @@
           "type": "string"
         }
       }
+    },
+    "DecisionId": {
+      "type": "string",
+      "pattern": "^dcn_[0-9A-Za-z]{8,64}$"
     },
     "DecisionRule": {
       "type": "object",
@@ -3382,6 +3489,56 @@
           }
         }
       }
+    },
+    "DecisionVia": {
+      "description": "How the member asked the assistant to decide. assistant_once: on one todo. assistant_batch: on a card, or on several todos at once. delegation: their standing Decide for me, as the todo arrived.\n",
+      "type": "string",
+      "enum": [
+        "assistant_once",
+        "assistant_batch",
+        "delegation"
+      ]
+    },
+    "Delegation": {
+      "description": "A member's standing Decide for me. While it is on, the assistant decides the member's new todos of these kinds as they arrive (via delegation) and leaves the rest marked with why, so the inbox shows only what was left. Declining the offer pauses it, by the person. It pauses itself, undone, when the member undoes 2 of the assistant's last 10 decisions of one kind.\n",
+      "type": "object",
+      "required": [
+        "state",
+        "kinds"
+      ],
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/DelegationState"
+        },
+        "kinds": {
+          "description": "The kinds of todo it decides, the routine reviews and conflicts.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TodoKind"
+          }
+        },
+        "paused_reason": {
+          "description": "Who paused it, when paused.",
+          "type": "string",
+          "enum": [
+            "person",
+            "undone"
+          ]
+        },
+        "changed_at": {
+          "description": "When the state last changed; absent while unset.",
+          "$ref": "#/$defs/Instant"
+        }
+      }
+    },
+    "DelegationState": {
+      "description": "unset: the member has not answered the offer yet, so the inbox makes it. on: the assistant decides as todos arrive. paused: it does not, until the member turns it on.\n",
+      "type": "string",
+      "enum": [
+        "unset",
+        "on",
+        "paused"
+      ]
     },
     "DependencyEdge": {
       "description": "artifact_id was built from input_id at input_hash.",
@@ -4802,6 +4959,14 @@
           "items": {
             "$ref": "#/$defs/TodoChoice"
           }
+        },
+        "suggestion": {
+          "description": "The resolution the assistant would choose, when it has one, shown selected.",
+          "$ref": "#/$defs/TodoSuggestion"
+        },
+        "left": {
+          "description": "Set once the assistant, asked to decide the todo or by the member's standing Decide for me, left it to the member, so it stays marked after a reload.\n",
+          "$ref": "#/$defs/TodoLeft"
         }
       }
     },
@@ -4846,6 +5011,7 @@
           "type": "number"
         },
         "rank": {
+          "description": "1 for the best hit. Hits with the same score, within float noise, share the rank of the first of them.\n",
           "type": "integer",
           "minimum": 1
         }
@@ -5125,6 +5291,27 @@
         "decision_table",
         "kpi"
       ]
+    },
+    "LeftTodo": {
+      "description": "A todo the assistant left to the member, why, and what it would choose when it has a choice.",
+      "type": "object",
+      "required": [
+        "todo_id",
+        "reason"
+      ],
+      "properties": {
+        "todo_id": {
+          "$ref": "#/$defs/TodoId"
+        },
+        "reason": {
+          "description": "One line, in the member's language.",
+          "type": "string",
+          "minLength": 1
+        },
+        "suggestion": {
+          "$ref": "#/$defs/TodoSuggestion"
+        }
+      }
     },
     "LineageEdge": {
       "type": "object",
@@ -6472,6 +6659,22 @@
         "published",
         "retired"
       ]
+    },
+    "PutDelegation": {
+      "description": "The member turns their standing Decide for me on, or pauses it. The answer is the Delegation.",
+      "type": "object",
+      "required": [
+        "state"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "on",
+            "paused"
+          ]
+        }
+      }
     },
     "PutMember": {
       "description": "The body of PUT /v0/tenants/{tenant}/members/{member}. Display names only; the engine keeps no email.",
@@ -9146,6 +9349,33 @@
         }
       }
     },
+    "TodoAdvice": {
+      "description": "What a component asking for a todo would choose on it, and on what that rests. The assistant decides a todo with advice it is sure of and leaves the rest to the member with the suggestion; collaboration writes the reason in the member's language from the basis. changed: a dated change in effect. authority: the most authoritative source. disagreement: documents as authoritative as each other disagree, and neither replaced the other, so the requester is not sure.\n",
+      "type": "object",
+      "required": [
+        "with",
+        "sure",
+        "basis"
+      ],
+      "properties": {
+        "with": {
+          "description": "The key of one of the resolutions the request offers.",
+          "type": "string",
+          "minLength": 1
+        },
+        "sure": {
+          "type": "boolean"
+        },
+        "basis": {
+          "type": "string",
+          "enum": [
+            "changed",
+            "authority",
+            "disagreement"
+          ]
+        }
+      }
+    },
     "TodoChoice": {
       "description": "One resolution a todo offers. For a conflict it chooses a value: the value, and the statement of it to show (one of the todo's statements, when the member may read it).\n",
       "type": "object",
@@ -9197,6 +9427,68 @@
         }
       }
     },
+    "TodoDecision": {
+      "description": "A todo the assistant resolved in a member's name, with that member's rights and no more. It counts as the member's own decision, made by the assistant. Undoing it reopens the todo and restores what the resolution changed, by a new decision; nothing is deleted.\n",
+      "type": "object",
+      "required": [
+        "id",
+        "todo",
+        "with",
+        "label",
+        "reason",
+        "via",
+        "decided_by",
+        "decided_at"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/DecisionId"
+        },
+        "todo": {
+          "description": "The todo as the decision closed it.",
+          "$ref": "#/$defs/Todo"
+        },
+        "with": {
+          "description": "The key of the chosen resolution.",
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "description": "The chosen resolution's label, as the todo offered it.",
+          "type": "string"
+        },
+        "fact_label": {
+          "description": "What the fact its todo is about is called in the tenant's predicate catalogue, as the inbox names it (InboxTodo.fact_label).\n",
+          "type": "string"
+        },
+        "reason": {
+          "description": "One or two sentences on why, in the member's language.",
+          "type": "string",
+          "minLength": 1
+        },
+        "span_ids": {
+          "description": "The passages the decision rests on.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpanId"
+          }
+        },
+        "via": {
+          "$ref": "#/$defs/DecisionVia"
+        },
+        "decided_by": {
+          "description": "The member in whose name the assistant decided.",
+          "$ref": "#/$defs/PrincipalId"
+        },
+        "decided_at": {
+          "$ref": "#/$defs/Instant"
+        },
+        "undone_at": {
+          "description": "When the member undid it; absent while it stands.",
+          "$ref": "#/$defs/Instant"
+        }
+      }
+    },
     "TodoId": {
       "type": "string",
       "pattern": "^todo_[0-9A-Za-z]{8,64}$"
@@ -9219,6 +9511,67 @@
         "unstated",
         "source_deleted"
       ]
+    },
+    "TodoLeft": {
+      "description": "Why the assistant left a todo to the member when asked to decide it: it is not sure, another person decided the case otherwise or left an open comment on it, or the kind is one it never decides.\n",
+      "type": "object",
+      "required": [
+        "reason"
+      ],
+      "properties": {
+        "reason": {
+          "description": "One line, in the member's language.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "TodoReopened": {
+      "description": "A member undid what the assistant decided for them, and the todo is open again. The component that asked for it restores what the undone resolution's effect changed, as a new decision; the others ignore it.\n",
+      "type": "object",
+      "required": [
+        "todo_id",
+        "kind",
+        "space_id",
+        "dedupe_key",
+        "created_by",
+        "decision_id",
+        "undid",
+        "reopened_by"
+      ],
+      "properties": {
+        "todo_id": {
+          "$ref": "#/$defs/TodoId"
+        },
+        "kind": {
+          "$ref": "#/$defs/TodoKind"
+        },
+        "space_id": {
+          "$ref": "#/$defs/SpaceId"
+        },
+        "dedupe_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "slot_key": {
+          "type": "string"
+        },
+        "created_by": {
+          "$ref": "#/$defs/ComponentName"
+        },
+        "decision_id": {
+          "$ref": "#/$defs/DecisionId"
+        },
+        "undid": {
+          "description": "The key of the resolution undone.",
+          "type": "string",
+          "minLength": 1
+        },
+        "reopened_by": {
+          "description": "The member who undid it.",
+          "$ref": "#/$defs/PrincipalId"
+        }
+      }
     },
     "TodoRequested": {
       "description": "A component asks for a human todo. Collaboration owns todos: it merges requests with the same dedupe_key into one open todo, publishing todo.created when it opens a new one, and a later request with the key replaces that todo's title, detail, priority and units. Requests carry small facts; the detail is a summary, not content.\n",
@@ -9286,6 +9639,10 @@
         "refresh": {
           "description": "The same question, showing the statements that say each value now (one it showed was superseded): collaboration replaces the open todo with this key, and creates none when there is no open one. It asks nothing new.\n",
           "type": "boolean"
+        },
+        "suggestion": {
+          "description": "The resolution the requester would choose and whether it is sure, so the assistant can decide the todo for a member who lets it (Decide for me).\n",
+          "$ref": "#/$defs/TodoAdvice"
         }
       }
     },
@@ -9368,6 +9725,26 @@
         "done",
         "dismissed"
       ]
+    },
+    "TodoSuggestion": {
+      "description": "The resolution the assistant would choose on a todo, with why, so the inbox shows it selected and one press accepts it.\n",
+      "type": "object",
+      "required": [
+        "with",
+        "reason"
+      ],
+      "properties": {
+        "with": {
+          "description": "The key of the resolution.",
+          "type": "string",
+          "minLength": 1
+        },
+        "reason": {
+          "description": "One or two sentences, in the member's language.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
     },
     "TokenSpaces": {
       "description": "Where a token may work, \"all\" for every space its member can read, or the spaces named.",

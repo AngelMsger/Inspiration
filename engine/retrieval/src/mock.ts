@@ -10,7 +10,9 @@
  * a passage) that share most of the question's words, statements before passages and never
  * an outdated value, and answers with up to three of them as written, each citing its
  * source. An outdated value found gives its place to the one that holds, which may be
- * written in another language. Nothing shared, nothing answered: the question is a gap. A
+ * written in another language. A statement picked that is one side of a disagreement brings
+ * the statements of the other values after it, so the answer gives them all. Nothing shared,
+ * nothing answered: the question is a gap. A
  * model writes the
  * answer in the question's language, combines sources and reads what a sentence leaves to
  * the next ("the following thresholds:"); the stand-in only shows which sources an answer
@@ -82,6 +84,13 @@ export const mockAnswerQuestion: MockResponder = (messages) => {
   const said = new Set<string>();
   const picked = scored.filter((x) => !said.has(x.line) && said.add(x.line)).slice(0, 3);
   if (!picked.length) return JSON.stringify(none);
+  for (const x of [...picked]) {
+    for (const ref of x.s.disputed_with ?? []) {
+      const other = byRef.get(ref);
+      const line = other?.text.trim();
+      if (other && line && !said.has(line) && said.add(line)) picked.push({ s: other, line, score: x.score });
+    }
+  }
   const output: AnswerOutput = {
     sentences: picked.map((x) => ({ text: x.line, sources: [x.s.ref] })),
     gaps: [],

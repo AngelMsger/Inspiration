@@ -17,6 +17,8 @@ import {
   showCompany,
   useLoad,
 } from "./api.ts";
+import { AppsScreen } from "./apps.tsx";
+import { DecidedScreen } from "./decide.tsx";
 import { DocumentScreen } from "./document.tsx";
 import { Documents } from "./documents.tsx";
 import { Ask, countOf, Home } from "./home.tsx";
@@ -357,6 +359,7 @@ function Shell(props: {
               people={people}
               inbox={inbox}
               version={changes + synced}
+              sampled={sampled}
               onChanged={changed}
               onSourcesChanged={sourcesChanged}
             />
@@ -383,6 +386,8 @@ function Screen(props: {
   people: Person[];
   inbox: Loaded<Inbox>;
   version: number;
+  /** The sample company is on screen, where nothing is changed. */
+  sampled: boolean;
   onChanged: () => void;
   onSourcesChanged: () => void;
 }) {
@@ -393,7 +398,9 @@ function Screen(props: {
     case "ask":
       return <Ask key={route.q} q={route.q} />;
     case "inbox":
-      return <InboxScreen person={person} inbox={props.inbox} onChanged={props.onChanged} />;
+      return <InboxScreen person={person} inbox={props.inbox} sampled={props.sampled} onChanged={props.onChanged} />;
+    case "decided":
+      return <DecidedScreen library={library} onChanged={props.onChanged} />;
     case "todo":
       return <DecisionScreen key={route.id} id={route.id} inbox={props.inbox} onChanged={props.onChanged} />;
     case "topics":
@@ -417,6 +424,8 @@ function Screen(props: {
         />
       );
     // The shell shows the admin area itself, and the app the join screen.
+    case "apps":
+      return <AppsScreen library={library} sampled={props.sampled} />;
     case "admin":
     case "join":
       return null;
@@ -527,6 +536,15 @@ function TopBar(props: {
               ))}
             </>
           )}
+          <button
+            type="button"
+            onClick={() => {
+              close();
+              navigate({ name: "apps" });
+            }}
+          >
+            {say("account.apps")}
+          </button>
           {current.role === "super_admin" && (
             <button
               type="button"
@@ -583,7 +601,7 @@ function LeftColumn(props: { route: Route; library: Library; person: Person; tod
       <Link
         to={{ name: "inbox" }}
         className={props.todos > 0 ? "nav-item nav-todos" : "nav-item"}
-        current={route.name === "inbox" || route.name === "todo"}
+        current={route.name === "inbox" || route.name === "todo" || route.name === "decided"}
       >
         <span>{say("nav.inbox")}</span>
         {props.todos > 0 && (

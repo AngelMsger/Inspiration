@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Corpus, Engine } from "@inspiration/engine";
 import { languageOf } from "@inspiration/kernel";
-import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
+import { hasStack, quick, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
 import {
   type Control,
@@ -100,8 +100,8 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
     // Search alone, as --search-only runs it, with no answers.
     const searched = await searchReport(engine, corpus, questions);
     expect(searched.totals).toMatchObject({ questions: 11, found: 11, found_whole: 11, found_by_mature: 11 });
-    expect(searched.totals.within).toEqual({ 8: 10, 16: 11, 30: 11, 60: 11, 100: 11 });
-    expect(searched.totals.within_documents).toEqual({ 1: 10, 3: 11, 5: 11, 10: 11, 20: 11 });
+    expect(searched.totals.within).toEqual({ 8: 11, 16: 11, 30: 11, 60: 11, 100: 11 });
+    expect(searched.totals.within_documents).toEqual({ 1: 11, 3: 11, 5: 11, 10: 11, 20: 11 });
     // The evidence audit reads inputs, not answers, so search alone finds what the question check does.
     expect(searched.totals.retention).toEqual(asked.totals.retention);
     expect(searched.questions.map((q) => q.retention)).toEqual(asked.questions.map((q) => q.retention));
@@ -145,7 +145,7 @@ describe("the Kubernetes pages in three languages", () => {
     await check();
   });
 
-  describe.skipIf(!hasStack())("on the stack", () => {
+  describe.skipIf(!hasStack() || quick())("on the stack", () => {
     // Two ingests and 24 searches over Postgres take longer than the default limit.
     stackTest(
       "Postgres with the outbox relayed to Valkey Streams",

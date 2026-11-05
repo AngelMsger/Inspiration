@@ -1,8 +1,8 @@
-// Small pieces every screen uses: breadcrumbs, a standing chip, dates, failures, and a change
-// that asks once more before it acts.
+// Small pieces every screen uses: breadcrumbs, a standing chip, dates, failures, a change that
+// asks once more before it acts, and a value to copy.
 
 import type { SlotStanding } from "@inspiration/contracts";
-import { Fragment, type ReactNode, useState } from "react";
+import { Fragment, type ReactNode, useRef, useState } from "react";
 import { type ApiFailure, failureOf } from "./api.ts";
 import { type Say, type Tag, useWords } from "./words.ts";
 
@@ -113,5 +113,36 @@ export function TwoStep(props: { label: string; confirm: string; disabled: boole
         {say("action.cancel")}
       </button>
     </span>
+  );
+}
+
+/**
+ * A value to copy, such as a link or a secret. Where the page may not write the clipboard, the
+ * value is selected for the person to copy; `lines` shows a long one, such as a command, whole.
+ */
+export function CopyField(props: { value: string; label: string; lines?: number }) {
+  const { say } = useWords();
+  const field = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    navigator.clipboard.writeText(props.value).then(
+      () => setCopied(true),
+      () => field.current?.select(),
+    );
+  };
+  const shared = {
+    ref: field,
+    readOnly: true,
+    "aria-label": props.label,
+    value: props.value,
+    onFocus: (e: { target: { select: () => void } }) => e.target.select(),
+  };
+  return (
+    <div className="made-link-row">
+      {props.lines ? <textarea rows={props.lines} {...shared} /> : <input {...shared} />}
+      <button type="button" className="secondary" onClick={copy}>
+        {copied ? say("copy.done") : say("copy.button")}
+      </button>
+    </div>
   );
 }

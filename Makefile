@@ -3,7 +3,7 @@
 
 COMPOSE := docker compose -f infra/compose.yaml
 
-.PHONY: install up down clean migrate authz-schema contracts contracts-check lint format typecheck test test-unit check gateway
+.PHONY: install up down clean migrate authz-schema contracts contracts-check lint format typecheck test test-unit check check-full gateway
 
 install:          ## install dependencies, and the parsing worker's Python libraries in .venv
 	pnpm install --frozen-lockfile
@@ -46,8 +46,11 @@ test:             ## all tests; integration tests skip when the stack is down
 test-unit:        ## tests that need no stack
 	pnpm test:unit
 
-check: lint typecheck contracts-check  ## what CI runs: everything, with the stack required
-	INSPIRATION_REQUIRE_STACK=1 pnpm test
+check: lint typecheck contracts-check  ## everything with the stack required, but the corpus runs that take minutes
+	INSPIRATION_REQUIRE_STACK=1 INSPIRATION_QUICK=1 pnpm test
+
+check-full: lint typecheck contracts-check  ## what CI runs: everything, the long corpus runs too
+	INSPIRATION_REQUIRE_STACK=1 INSPIRATION_QUICK=0 pnpm test
 
 gateway:          ## serve the model gateway with the fake providers on port 8100
 	pnpm exec inspiration-gateway --config config/gateway.dev.yaml

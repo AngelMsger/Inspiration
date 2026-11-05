@@ -278,8 +278,16 @@ export class Governance implements SlotVerdicts {
     await this.resolved(event);
   };
 
+  readonly onTodoReopened: EventHandler = async (event: EventEnvelope) => {
+    await this.reopened(event);
+  };
+
   handlers(): Record<string, EventHandler> {
-    return { "claims.updated": this.onClaimsUpdated, "todo.resolved": this.onTodoResolved };
+    return {
+      "claims.updated": this.onClaimsUpdated,
+      "todo.resolved": this.onTodoResolved,
+      "todo.reopened": this.onTodoReopened,
+    };
   }
 
   /**
@@ -290,6 +298,15 @@ export class Governance implements SlotVerdicts {
    */
   async resolved(event: EventEnvelope): Promise<GovernanceResult> {
     return this.#serial(event.tenant_id, () => this.#resolved(event));
+  }
+
+  /**
+   * Undo a choice the assistant made on one of governance's conflict todos: the choice is
+   * dropped and the slot asks its question again, which the reopened todo takes. Delivering it
+   * again changes nothing.
+   */
+  async reopened(event: EventEnvelope): Promise<GovernanceResult> {
+    return this.#serial(event.tenant_id, () => this.#reopened(event));
   }
 
   /** The value groups of a slot and the decision over them. */
@@ -450,6 +467,28 @@ export class Governance implements SlotVerdicts {
         };
       } else if (chose) next = { ...rest, requested: "" };
       await tx.put(SLOTS, [next]);
+      const { request, notes, withdrawn } = await this.#decide(tx, event.tenant_id, slot, event);
+      result.slots.push(slot);
+      if (request) result.requests.push(request);
+      result.notes.push(...notes);
+      result.withdrawn.push(...withdrawn);
+    });
+    this.#count(result);
+    return result;
+  }
+
+  async #reopened(event: EventEnvelope): Promise<GovernanceResult> {
+    const result: GovernanceResult = { slots: [], requests: [], notes: [], withdrawn: [] };
+    const r = payloadOf(event, "todo.reopened");
+    const slot = r.slot_key;
+    if (r.created_by !== COMPONENT || r.kind !== "conflict" || !slot) return result;
+    await this.records.transaction(async (tx) => {
+      if (!(await tx.firstDelivery(COMPONENT, event.id))) return;
+      const state = await tx.get(SLOTS, slotKey(event.tenant_id, slot));
+      if (!state?.chosen) return;
+      // Asked again from nothing asked, so the request is a new question, not a refresh.
+      const { chosen: _chosen, ...rest } = state;
+      await tx.put(SLOTS, [{ ...rest, requested: "" }]);
       const { request, notes, withdrawn } = await this.#decide(tx, event.tenant_id, slot, event);
       result.slots.push(slot);
       if (request) result.requests.push(request);

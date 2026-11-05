@@ -103,32 +103,34 @@ the stand-in quotes more of each passage, older values included.
 
 | Questions | Engine right, stale | Engine, compact | Mature RAG | Reading everything | Reading everything after governance |
 | --- | --- | --- | --- | --- | --- |
-| All 150 | 50, 6 | 52, 5 | 44, 7 | 49, 8 | 52, 5 |
-| Unchanged, 69 | 32, 0 | 31, 0 | 32, 0 | 34, 0 | 33, 0 |
-| Changed, 66 | 16, 6 | 18, 5 | 10, 6 | 13, 6 | 17, 5 |
-| Not answered by the drive, 15 | 2, 0 | 3, 0 | 2, 1 | 2, 2 | 2, 0 |
-| In English, 50 | 29, 4 | 29, 4 | 25, 6 | 31, 7 | 30, 3 |
-| In Chinese, 50 | 12, 1 | 12, 1 | 11, 0 | 10, 0 | 12, 1 |
-| In Japanese, 50 | 9, 1 | 11, 0 | 8, 1 | 8, 1 | 10, 1 |
+| All 150 | 51, 5 | 51, 4 | 44, 7 | 49, 8 | 56, 5 |
+| Unchanged, 69 | 33, 0 | 31, 0 | 31, 0 | 34, 0 | 34, 0 |
+| Changed, 66 | 16, 5 | 16, 4 | 11, 6 | 13, 6 | 20, 5 |
+| Not answered by the drive, 15 | 2, 0 | 4, 0 | 2, 1 | 2, 2 | 2, 0 |
+| In English, 50 | 30, 3 | 29, 3 | 25, 6 | 31, 7 | 32, 3 |
+| In Chinese, 50 | 13, 1 | 12, 1 | 11, 0 | 10, 0 | 13, 1 |
+| In Japanese, 50 | 8, 1 | 10, 0 | 8, 1 | 8, 1 | 11, 1 |
 
 - The mature RAG reads 16 passages where the engine reads 8 beside its statements, and is
   told each passage's level and date, which the stand-in answer does not weigh. The engine's
   compact answer reads 8 statements, the conclusions governance kept, and only 2 passages,
   about half the input, to measure whether a smaller, faster model answers as well from it. Reading
   everything after governance leaves out the replaced editions and the sentences that state
-  only replaced values, and marks those values beside the ones that hold.
+  only replaced values, and marks those values beside the ones that hold. A statement on one
+  side of a disagreement nobody has settled names the statements of the other values, and the
+  stand-in answers with all of them.
 - The evidence audit, which reads what each long context gives its model and no answer,
   finds the right value in what governance keeps for all 135 questions with one, from a
   document the key cites, and no document beyond what the reader may read. So reading
-  everything after governance loses no value or document the audit sees, and answers 52
+  everything after governance loses no value or document the audit sees, and answers 56
   against the raw drive's 49. The audit also reads, word by word, what a sentence says
   about the value ([#68](https://github.com/AngelMsger/Inspiration/issues/68)): for every
   one of those questions a source states it denied and narrowed as the key's quotes do, and
   names the key's condition beside it for the two values that have one. Being lexical, it
   misses a denial or a narrowing its language packs do not list.
-- In English, where the stand-ins can read the documents, the engine answers 10 of 22
-  questions on changed facts right and 4 stale, the mature RAG 8 and 5, the model reading
-  everything 11 and 5, and reading it after governance 10 and 3; on unchanged facts 19, 17,
+- In English, where the stand-ins can read the documents, the engine answers 11 of 22
+  questions on changed facts right and 3 stale, the mature RAG 8 and 5, the model reading
+  everything 11 and 5, and reading it after governance 12 and 3; on unchanged facts 19, 17,
   20 and 20 of 23.
 - The engine answers from the latest edition of a document. Normalization pairs the
   documents that are editions of one text: the policy and its backup, the three copies on
@@ -145,7 +147,7 @@ the stand-in quotes more of each passage, older values included.
   needed to measure this.
 - The stand-in answer writes whatever shares a quarter of the question's words, so it says
   "not stated" for 2 of the 15 questions nothing in force answers.
-- The engine's 6 stale answers: the phone cap twice and the home internet cap, because the
+- The engine's 5 stale answers: the phone cap and the home internet cap, because the
   stand-in does not read the policy's current caps ("Policy is set at $100" under "Phone
   Service") and the 2023 copy is the latest edition of Expenses, since a renamed document is
   not paired with its old editions; the Sapporo opening in Chinese, where the current

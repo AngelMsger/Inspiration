@@ -114,7 +114,14 @@ export const countOf = (library: Library, space: string) =>
 
 export function Ask(props: { q: string }) {
   const { say } = useWords();
-  const answer = useLoad(`answer:${props.q}`, () => api.answer(props.q));
+  const compact = useLoad(`answer:${props.q}`, () => api.answer(props.q));
+  // The standard answer, read from more passages, only when the person asks for it.
+  const [fuller, setFuller] = useState(false);
+  const standard = useLoad(`answer:${props.q}:${fuller}`, () =>
+    fuller ? api.answer(props.q, "standard") : Promise.resolve(undefined),
+  );
+  const answer =
+    standard.state === "done" && standard.value ? { state: "done" as const, value: standard.value } : compact;
   const found = useLoad(`search:${props.q}`, () => api.search(props.q));
   return (
     <main className="centre">
@@ -123,6 +130,16 @@ export function Ask(props: { q: string }) {
         {answer.state === "loading" && <p className="quiet">{say("ask.reading")}</p>}
         {answer.state === "failed" && <Failure error={answer.error} />}
         {answer.state === "done" && <Answer answer={answer.value} q={props.q} />}
+        {compact.state === "done" && !fuller && (
+          <div>
+            <button type="button" className="link-button" onClick={() => setFuller(true)}>
+              {say("ask.fuller")}
+            </button>
+          </div>
+        )}
+        {fuller && standard.state === "loading" && <p className="quiet">{say("ask.fuller_reading")}</p>}
+        {standard.state === "failed" && <Failure error={standard.error} />}
+        {standard.state === "done" && standard.value && <p className="quiet">{say("ask.fuller_shown")}</p>}
       </section>
       {found.state === "done" && found.value.hits.length > 0 && (
         <>

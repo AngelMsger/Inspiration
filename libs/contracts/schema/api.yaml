@@ -321,6 +321,14 @@ $defs:
         type: array
         items:
           $ref: "#/$defs/TodoChoice"
+      suggestion:
+        description: The resolution the assistant would choose, when it has one, shown selected.
+        $ref: "collab.yaml#/$defs/TodoSuggestion"
+      left:
+        description: >
+          Set once the assistant, asked to decide the todo or by the member's standing Decide
+          for me, left it to the member, so it stays marked after a reload.
+        $ref: "collab.yaml#/$defs/TodoLeft"
 
   TodoChoice:
     description: >
@@ -337,6 +345,87 @@ $defs:
         type: string
       unit_id:
         $ref: "common.yaml#/$defs/UnitId"
+
+  DecideTodos:
+    description: >
+      Let the assistant decide the member's todos on one inbox card (batch_key), or one or a
+      few of them (todo_ids), one of the two. It decides what it may, with the member's rights, and leaves the
+      rest with why. One todo named is decided via assistant_once, a card or several todos via
+      assistant_batch. The answer comes once each todo is decided or left; todos already
+      closed are neither.
+    type: object
+    minProperties: 1
+    maxProperties: 1
+    additionalProperties: false
+    properties:
+      batch_key:
+        type: string
+        minLength: 1
+      todo_ids:
+        description: At most 20, the most a card holds; more is refused.
+        type: array
+        minItems: 1
+        uniqueItems: true
+        items:
+          $ref: "common.yaml#/$defs/TodoId"
+
+  Decided:
+    description: What the assistant decided of the todos asked, and what it left to the member, in the inbox's order.
+    type: object
+    required: [decisions, left]
+    properties:
+      decisions:
+        type: array
+        items:
+          $ref: "collab.yaml#/$defs/TodoDecision"
+      left:
+        type: array
+        items:
+          $ref: "#/$defs/LeftTodo"
+
+  LeftTodo:
+    description: A todo the assistant left to the member, why, and what it would choose when it has a choice.
+    type: object
+    required: [todo_id, reason]
+    properties:
+      todo_id:
+        $ref: "common.yaml#/$defs/TodoId"
+      reason:
+        description: One line, in the member's language.
+        type: string
+        minLength: 1
+      suggestion:
+        $ref: "collab.yaml#/$defs/TodoSuggestion"
+
+  DecidedWeek:
+    description: >
+      The inbox's Decided for you view: what the assistant decided for the member this week,
+      newest first, the undone ones too, and how many todos it left and how many decisions the
+      member undid. It asks for nothing.
+    type: object
+    required: [week, decisions, left, undone]
+    properties:
+      week:
+        $ref: "collab.yaml#/$defs/IsoWeek"
+      decisions:
+        type: array
+        items:
+          $ref: "collab.yaml#/$defs/TodoDecision"
+      left:
+        type: integer
+        minimum: 0
+      undone:
+        type: integer
+        minimum: 0
+
+  PutDelegation:
+    description: The member turns their standing Decide for me on, or pauses it. The answer is the Delegation.
+    type: object
+    required: [state]
+    properties:
+      state:
+        type: string
+        enum: ["on", paused]
 
   ResolveTodo:
     description: >
@@ -474,8 +563,9 @@ $defs:
     description: >
       forbidden is a token whose scopes do not cover the route, or an admin write on a space the
       member may read but not administer; conflict is a directory command older than the
-      engine's copy; too_large is an upload over the size a file may have (status 413), and
-      unsupported_type a file of a type the engine does not read (status 415).
+      engine's copy, or an undo of a decision already undone or replaced; too_large is an upload
+      over the size a file may have (status 413), and unsupported_type a file of a type the
+      engine does not read (status 415).
     enum: [bad_request, unauthenticated, forbidden, not_found, conflict, too_large, unsupported_type, internal]
 
   ApiError:

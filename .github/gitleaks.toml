@@ -1,0 +1,33 @@
+# Gitleaks configuration for CI's `secrets` job (.github/workflows/ci.yml). Gitleaks' default
+# rules, plus the provider keys this project uses, matched by their exact shapes so a key pasted
+# into prose or a log is caught too, not only one assigned to a variable.
+
+title = "Inspiration secret scan"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "inspiration-deepseek-api-key"
+description = "DeepSeek API key"
+regex = '''\bsk-[a-f0-9]{32}\b'''
+keywords = ["sk-"]
+
+[[rules]]
+id = "inspiration-openai-api-key"
+description = "OpenAI project, service account or admin key"
+regex = '''\bsk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{20,}'''
+keywords = ["sk-proj-", "sk-svcacct-", "sk-admin-"]
+
+[[rules]]
+id = "inspiration-anthropic-api-key"
+description = "Anthropic API key"
+regex = '''\bsk-ant-[A-Za-z0-9_-]{20,}'''
+keywords = ["sk-ant-"]
+
+# SpiceDB consistency tokens (ZedTokens) in the contract examples: a 19-digit timestamp in
+# protobuf and base64, not a credential. The regex is matched against each finding's secret
+# alone, so a key elsewhere on the same line is still reported (CI's self-test checks this).
+[allowlist]
+description = "SpiceDB consistency tokens"
+regexes = ['''^GhUKEz[A-Za-z0-9+/]{25}=$''']

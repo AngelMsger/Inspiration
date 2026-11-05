@@ -1,6 +1,6 @@
 # Decide for me: letting the assistant decide
 
-Status: proposed design, 2026-10-27. It follows the product owner's direction that every place where a person decides can be handed to the assistant, and that this is a design philosophy rather than one button. How it looks follows the [UI philosophy](ui-philosophy.md): quiet, on piles rather than on every item. Companion documents: [UI principles](ui-principles.md) and [Statements at scale](statements-at-scale.md). A Chinese copy is in [docs/zh/design/decide-for-me.md](../zh/design/decide-for-me.md).
+Status: adopted, 2026-11-05: the [MVP](mvp.md) builds it for the inbox in slice 4, with the standing offer of its decision 5. First proposed 2026-10-27. It follows the product owner's direction that every place where a person decides can be handed to the assistant, and that this is a design philosophy rather than one button. How it looks follows the [UI philosophy](ui-philosophy.md): quiet, on piles rather than on every item. Companion documents: [UI principles](ui-principles.md) and [Statements at scale](statements-at-scale.md). A Chinese copy is in [docs/zh/design/decide-for-me.md](../zh/design/decide-for-me.md).
 
 ## The principle
 
@@ -71,15 +71,20 @@ Decisions left to the person stay where they were, in the same order, marked "Le
 
 ## What the engine needs
 
-This changes a rule in the engine, so it needs agreement before it is built.
+The rule below changed with the MVP's adoption (the overview's open question 9). The rest is what slice 4 builds.
 
-- **The rule.** `AGENTS.md` says built-in agents only read or propose, and that nothing an agent does changes knowledge without a person approving it. Overview requirement AG-4 says agents running on their own only read or propose, and that a member's explicit request is the approval for an edit within that member's rights. Delegation keeps the agent side as it is: the assistant still only proposes. What changes is the approval. Pressing Decide for me is an explicit request, so it already fits AG-4. A standing delegation is a request made in advance, scoped and revocable, so AG-4 needs one addition: "a standing delegation the member set up, and can pause, also counts as the member's approval, within that member's rights".
-- **Contracts, all additive.** A `Delegation` type (member, kind of decision, scope, condition, created, paused). On each decision record, how it was made (`person`, `assistant_once`, `assistant_batch`, `delegation`), the delegation, the reasons, the passages read, and the model task and prompt version. On a todo, why it was left for the person.
-- **Model task.** One task for deciding a todo, named by the component that owns delegation, with a deterministic stand-in until real models are configured.
+- **The rule.** `AGENTS.md` says built-in agents only read or propose, and that nothing an agent does changes knowledge without a person approving it. Overview requirement AG-4 says agents running on their own only read or propose, and that a member's explicit request is the approval for an edit within that member's rights. Delegation keeps the agent side as it is: the assistant still only proposes. What changes is the approval. Pressing Decide for me is an explicit request, so it already fits AG-4. A standing delegation is a request made in advance, scoped and revocable, so AG-4 has one addition, agreed on 2026-11-05: "a standing delegation the member set up, and can pause, also counts as the member's approval, within that member's rights".
+- **Who owns it.** Collaboration, which owns todos, the inbox and resolving them. A delegation is a member's setting over their own todos.
+- **Contracts, all additive** (`collab.yaml`, `api.yaml`). `TodoDecision` holds the todo as it was closed, the resolution and its label, the reasons, the passages read, how it was asked (`assistant_once`, `assistant_batch` or `delegation`), in whose name, when, and when it was undone. On an inbox todo, `TodoSuggestion` is what the assistant would choose and `TodoLeft` is why it left the todo. `Delegation` is one per member in the MVP: its state (`unset`, `on`, `paused`), the kinds it decides (`review_due`, `stale`, `conflict`, `note`), and who paused it. A person's own resolution is recorded on the todo, as before.
+- **No model task in slice 4.** The component that asks the question already weighs the evidence the assistant decides by. Governance proposes a value by authority and date. Freshness knows whether a document changed since its last review. Each attaches its suggestion, and whether it is sure, when it asks. The assistant decides from that and from the rules in [When it leaves a decision to the person](#when-it-leaves-a-decision-to-the-person), and writes its reasons from language packs, in the member's language. Deciding a card is then a lookup, answered at once. A model task (`collaboration.decide_todo`, with its stand-in) comes only if those rules leave too much to people.
+- **The API.** All of these act as the member. The writes need `knowledge.propose`.
+  - `POST /v0/inbox/decide` takes `DecideTodos` (one card or a few todos) and answers `Decided`, which holds the decisions and what was left.
+  - `POST /v0/decisions/:decision/undo` answers the reopened `InboxTodo`. It answers 409 when the decision is already undone or a later decision replaced it.
+  - `GET /v0/inbox/decided` answers `DecidedWeek`.
+  - `GET /v0/delegation` answers the member's `Delegation`, and `PUT /v0/delegation` with `PutDelegation` turns it on or pauses it.
 - **Evaluation.** Before the assistant offers to always decide a kind of decision, measure how often its decisions match people's on that kind. In the mocked prototype, the numbers measure the flow, not the quality.
 
 ## Still open
 
 - The confidence bar per kind of decision, and how it is measured with real models.
 - Whether every vote in a joint approval may be delegated, so that a conflict can be decided without any person voting. Proposed: yes, unless the space owner marks conflicts as people only.
-- Which component owns delegation in the engine: governance, or a component of its own.

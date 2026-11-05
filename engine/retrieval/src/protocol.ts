@@ -3,7 +3,13 @@
  * read the same inputs, so both sides of each prompt share these types.
  */
 
+import { type ChatMessage, GatewayException, type ModelGateway, type SensitivityLabel } from "@inspiration/contracts";
+import { logger } from "@inspiration/kernel";
+import type { PromptRegistry } from "@inspiration/model-gateway";
+
 export const COMPONENT = "retrieval";
+
+const log = logger(COMPONENT);
 
 export const CONTEXT_TASK = "retrieval.write_context";
 export const CONTEXT_PROMPT_VERSION = "write_context@1";
@@ -39,7 +45,7 @@ export const CONTEXT_SCHEMA: Record<string, unknown> = {
 };
 
 export const ANSWER_TASK = "retrieval.answer_question";
-export const ANSWER_PROMPT_VERSION = "answer_question@3";
+export const ANSWER_PROMPT_VERSION = "answer_question@4";
 
 export interface AnswerSource {
   /** "1", "2", ...: what a sentence cites. */
@@ -52,6 +58,13 @@ export interface AnswerSource {
   standing?: "holds" | "outdated" | "disputed" | "differs";
   /** For a value that does not hold: the source with the value that holds instead. */
   held_ref?: string;
+  /**
+   * For a statement on one side of a disagreement no person has settled: the statements that
+   * state the other values.
+   */
+  disputed_with?: string[];
+  /** For a passage: the statements of such a disagreement that its lines state. */
+  disputed?: string[];
   /** For a passage: its document's governance level, by which sources that disagree are weighed. */
   level?: "governed" | "reference" | "search_only";
   /** For a passage: the day its document last changed, by the date its source gives. */
@@ -138,5 +151,50 @@ export function inputOf<T>(text: string): T | undefined {
     return JSON.parse(found) as T;
   } catch {
     return undefined;
+  }
+}
+
+/**
+ * The reply to one of retrieval's prompts, or undefined when the model gives none that is
+ * valid: an answer the model cannot give validly is no answer. Budgets and outages are raised.
+ */
+export async function complete<T>(
+  models: ModelGateway,
+  prompts: PromptRegistry,
+  call: {
+    task: string;
+    version: string;
+    input: unknown;
+    schema: Record<string, unknown>;
+    sensitivity: SensitivityLabel;
+    tenantId: string;
+    maxOutputTokens?: number;
+    metadata?: Record<string, string>;
+  },
+): Promise<T | undefined> {
+  try {
+    const completion = await models.complete({
+      task: call.task,
+      prompt_version: call.version,
+      messages: prompts.render(call.task, call.version, { input: JSON.stringify(call.input) }) as [
+        ChatMessage,
+        ...ChatMessage[],
+      ],
+      response_schema: call.schema,
+      tier: "flash",
+      sensitivity: call.sensitivity,
+      budget_key: `tenant:${call.tenantId}/${COMPONENT}`,
+      tenant_id: call.tenantId,
+      temperature: 0,
+      ...(call.maxOutputTokens && { max_output_tokens: call.maxOutputTokens }),
+      ...(call.metadata && { metadata: call.metadata }),
+    });
+    return completion.json as T;
+  } catch (e) {
+    if (e instanceof GatewayException && e.code === "invalid_output") {
+      log.warn("no valid output", { task: call.task, error: e.message });
+      return undefined;
+    }
+    throw e;
   }
 }

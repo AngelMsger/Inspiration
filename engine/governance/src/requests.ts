@@ -82,6 +82,12 @@ export function todoOf(
 ): TodoRequested {
   const { proposed } = decision;
   const contenders = open.map((c) => groups.get(c.value) as ValueGroup);
+  // Governance is sure of the value it proposes unless a value as authoritative contradicts
+  // it with no dated change between them: a newer document does not show the other is wrong.
+  const even = open.some(
+    (c, i) =>
+      c.classification === "contradiction" && (contenders[i] as ValueGroup).best.authority >= proposed.best.authority,
+  );
   const why = decision.change
     ? `changed on ${decision.change.stated_from} in ${decision.change.document}${decision.change.reference ? ", a reference document" : ""}`
     : "the most authoritative source";
@@ -111,6 +117,11 @@ export function todoOf(
       const effect: ChoiceEffect = { slot_key: proposed.slot, value: g.value, question, claim_id: g.best.claim_id };
       return { key: `choose:${g.value}`, label: `${i ? "Choose" : "Keep"} ${g.value}`, effect: { ...effect } };
     }),
+    suggestion: {
+      with: `choose:${proposed.value}`,
+      sure: !even,
+      basis: even ? "disagreement" : decision.basis === "changed" ? "changed" : "authority",
+    },
   };
 }
 

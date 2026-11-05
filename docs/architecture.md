@@ -50,7 +50,8 @@ principal token, a JWT the business layer signs with Ed25519 (`signJwt` in the k
 both layers use) and access control verifies against the business layer's published keys
 (`TokenVerifier`); its scopes bound what the request may do. For development, `--dev-identity`
 also lets a request name its tenant and member in the `x-inspiration-tenant` and
-`x-inspiration-member` headers, a stand-in that listens on localhost only. The
+`x-inspiration-member` headers, and their language in `x-inspiration-locale`, a stand-in that
+listens on localhost only. The
 web app's own backend is a stand-in too (`apps/web/src/backend.ts`): a person picks whom to act
 as, and only the backend sets those headers. `pnpm demo` runs both over the demo tenant, and
 `pnpm snapshot` records the demo script through both into a static page that answers from the
@@ -298,7 +299,9 @@ together: a claim is visible when its space is readable and one complete proof o
 - **Agents act for a member.** An agent principal must carry `on_behalf_of`, a member of
   its tenant. Its rights are the member's rights cut down to its scopes (read-only by
   default) and spaces. Built-in agent tools only read or propose; nothing an agent does
-  changes knowledge without a person approving it.
+  changes knowledge without a person approving it. An outside agent reaches the engine only
+  through the MCP endpoint (`POST /v0/mcp`, the agent API), with a token the business layer
+  signs for it from the personal token it holds, and only while its member is active.
 
 ## Deployment shapes
 

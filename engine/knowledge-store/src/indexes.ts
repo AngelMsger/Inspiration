@@ -19,11 +19,37 @@ import { searchText, vectorLiteral, writeEmbeddings } from "./postgres.ts";
 /** The size the partial HNSW index in 0001_kb.sql covers. */
 export const HNSW_DIMS = 1024;
 
+/**
+ * Scores closer than this, relative to the larger one and to 1, are one score. pgvector's
+ * float4 sums leave noise in the last digits, and differently on each CPU.
+ */
+const SAME_SCORE = 1e-6;
+
+const same = (a: number, b: number) => Math.abs(a - b) <= SAME_SCORE * Math.max(1, Math.abs(a), Math.abs(b));
+
+/**
+ * Rows a database query reads past k. A database returns tied rows in no fixed order, so a
+ * query cut at k would keep whichever of a tie at the k-th row it met first; reading further
+ * lets hits keep the whole tie.
+ */
+const TIES = 10;
+
+/**
+ * The k best, best first, and every hit tied with the k-th. Hits with one score share the
+ * rank of the first of them, so a fusion of ranks gives ties the same weight, whichever order
+ * they come in, and a question finds the same chunks each time.
+ */
 function hits(scored: readonly [string, number][], k: number): IndexHit[] {
-  return [...scored]
-    .sort(([a, x], [b, y]) => y - x || (a < b ? -1 : a > b ? 1 : 0))
-    .slice(0, k)
-    .map(([chunk_id, score], i) => ({ chunk_id, score, rank: i + 1 }));
+  const sorted = [...scored].sort(([a, x], [b, y]) => y - x || (a < b ? -1 : a > b ? 1 : 0));
+  const best: IndexHit[] = [];
+  let rank = 1;
+  for (const [i, [chunk_id, score]] of sorted.entries()) {
+    const before = sorted[i - 1];
+    if (before && !same(before[1], score)) rank = i + 1;
+    if (rank > k) break;
+    best.push({ chunk_id, score, rank });
+  }
+  return best;
 }
 
 const empty = (filter: IndexFilter) => !filter.space_ids.length || !filter.principal_tokens.length;
@@ -64,7 +90,7 @@ export class PgVectorIndex implements VectorIndex {
       filter.space_ids,
       filter.principal_tokens,
       rank(filter.max_sensitivity),
-      k,
+      k + TIES,
     ];
     const where = ["e.dims = $2", "c.space_id = ANY($3)", "c.acl_tokens && $4", "c.sensitivity_rank <= $5"];
     if (this.model) {
@@ -103,7 +129,7 @@ export class PgSearchIndex implements KeywordIndex {
       `SELECT id, pdb.score(id) AS score FROM kb.chunks
        WHERE search_text ||| $1 AND space_id = ANY($2) AND sensitivity_rank <= $3 AND acl_tokens && $4
        ORDER BY pdb.score(id) DESC LIMIT $5`,
-      [text, filter.space_ids, rank(filter.max_sensitivity), filter.principal_tokens, k],
+      [text, filter.space_ids, rank(filter.max_sensitivity), filter.principal_tokens, k + TIES],
     );
     return hits(
       rows.map((r) => [r.id, Number(r.score)]),

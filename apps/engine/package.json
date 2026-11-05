@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@inspiration/access-control": "workspace:*",
+    "@inspiration/agent-api": "workspace:*",
     "@inspiration/collaboration": "workspace:*",
     "@inspiration/connectors": "workspace:*",
     "@inspiration/contracts": "workspace:*",

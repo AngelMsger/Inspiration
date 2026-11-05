@@ -9,14 +9,22 @@
 // already switching (`showCompany`). The calls that switch read the next company with `apiIn`.
 
 import type {
+  AnswerDepth,
+  AnswerQuery,
   ApiError,
   CreateSpace,
+  Decided,
+  DecidedWeek,
+  DecideTodos,
+  Delegation,
   DocumentTree,
   DocumentView,
   FileWritten,
   GroundedAnswer,
   Inbox,
+  InboxTodo,
   PatchSpace,
+  PutDelegation,
   PutSpaceAudience,
   PutSpaceOwners,
   ResolveTodo,
@@ -33,12 +41,15 @@ import type {
   TopicView,
 } from "@inspiration/contracts";
 import type {
+  AccessTokenList,
   AccountChange,
   CompanyMember,
+  CreatedAccessToken,
   InviteLink,
   InviteList,
   JoinPreview,
   MemberList,
+  NewAccessToken,
   NewCompany,
   ProductRole,
   RoleChange,
@@ -139,6 +150,10 @@ function apiOf(company: () => string | undefined, frame: boolean) {
     invites: () => call<InviteList>("/invites"),
     invite: () => call<InviteLink>("/invites", {}),
     revoke: (invite: string) => call<void>(`/invites/${encodeURIComponent(invite)}`, undefined, "DELETE"),
+    /** The member's access tokens, or with `all` every member's, for a super admin. */
+    tokens: (all = false) => call<AccessTokenList>(all ? "/tokens?all=true" : "/tokens"),
+    createToken: (token: NewAccessToken) => call<CreatedAccessToken>("/tokens", token),
+    revokeToken: (token: string) => call<void>(`/tokens/${encodeURIComponent(token)}`, undefined, "DELETE"),
     joinPreview: (code: string) => call<JoinPreview>(`/join/${encodeURIComponent(code)}`),
     join: (code: string) => call<Session>(`/join/${encodeURIComponent(code)}`, {}),
     /** Whom the demo lets the page act as; the business backend has no such route. */
@@ -153,11 +168,20 @@ function apiOf(company: () => string | undefined, frame: boolean) {
         )}`,
       ),
     search: (text: string) => call<SearchResult>("/v0/search", { text }),
-    answer: (question: string) => call<GroundedAnswer>("/v0/answers", { question }),
+    /** The compact answer unless `depth` asks for the standard one, which reads more passages. */
+    answer: (question: string, depth?: AnswerDepth) =>
+      call<GroundedAnswer>("/v0/answers", { question, ...(depth && { depth }) } satisfies AnswerQuery),
     topics: (space: string) => call<TopicList>(`/v0/spaces/${encodeURIComponent(space)}/topics`),
     topic: (key: string) => call<TopicView>(`/v0/topics/${encodeURIComponent(key)}`),
     inbox: () => call<Inbox>("/v0/inbox"),
     resolve: (todo: string, how: ResolveTodo) => call<Todo>(`/v0/todos/${encodeURIComponent(todo)}/resolve`, how),
+    /** Decide for me: the assistant decides what it may of one card, or of a few todos, and leaves the rest. */
+    decide: (asked: DecideTodos) => call<Decided>("/v0/inbox/decide", asked),
+    undo: (decision: string) => call<InboxTodo>(`/v0/decisions/${encodeURIComponent(decision)}/undo`, {}),
+    decidedWeek: () => call<DecidedWeek>("/v0/inbox/decided"),
+    delegation: () => call<Delegation>("/v0/delegation"),
+    setDelegation: (state: PutDelegation["state"]) =>
+      call<Delegation>("/v0/delegation", { state } satisfies PutDelegation, "PUT"),
     overview: (space: string) => call<SpaceOverview>(`/v0/spaces/${encodeURIComponent(space)}/overview`),
     /** The spaces the person may administer: every space for the super admin. */
     managedSpaces: () => call<SpaceList>("/v0/spaces?manage=true"),

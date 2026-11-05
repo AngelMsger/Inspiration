@@ -3,7 +3,8 @@
  * backend (apps/business) with the same browser API over one demo company (people.yaml).
  * There is no identity provider here: signing in, or signing up, signs in as the company's
  * first person, and a cookie remembers who is signed in. Every call under /api/v0/ goes on to
- * the engine's HTTP API as that member, in the engine's development identity headers. The
+ * the engine's HTTP API as that member, in the engine's development identity headers, with
+ * the account's language for what the engine writes (x-inspiration-locale). The
  * page cannot name a member itself: the backend builds the headers it forwards, so identity
  * headers from the browser never reach the engine. A call that acts in a company names the one
  * its frame shows (x-inspiration-company); naming another than the session's answers 409
@@ -23,6 +24,9 @@
  *     GET    /api/invites              InviteList, the links still open, for a super admin
  *     POST   /api/invites              201 InviteLink: a new link, shown this once
  *     DELETE /api/invites/<inv>        204: the link is revoked
+ *     GET    /api/tokens               AccessTokenList, the member's; ?all=true every member's, for a super admin
+ *     POST   /api/tokens               201 CreatedAccessToken: a new token, its secret shown this once
+ *     DELETE /api/tokens/<tok>         204: the token is revoked, by its member or a super admin
  *     GET    /api/join/<code>          JoinPreview, for anyone holding the link
  *     POST   /api/join/<code>          Session, in the company the link joins
  *     *      /api/v0/...               the engine's HTTP API, as the signed-in member, with any
@@ -36,7 +40,13 @@
 import { readFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { ContractError, parseAs } from "@inspiration/contracts";
-import type { AccountChange, RoleChange, Session, SwitchCompany } from "@inspiration/contracts/business";
+import type {
+  AccountChange,
+  NewAccessToken,
+  RoleChange,
+  Session,
+  SwitchCompany,
+} from "@inspiration/contracts/business";
 import { parse } from "yaml";
 import { Company, Refused } from "./company.ts";
 import type { People, Person } from "./people.ts";
@@ -75,10 +85,13 @@ export function backend(options: People & { engine: string; updates?: Updates })
     const member = cookie(req, COOKIE);
     return people.people.find((p) => p.member === member);
   };
+  // The engine writes reasons in the account's language, which the business backend puts in the
+  // principal token; the stand-in names it beside the member.
   const headersOf = (person: Person) => ({
     "content-type": "application/json",
     "x-inspiration-tenant": people.tenant,
     "x-inspiration-member": person.member,
+    "x-inspiration-locale": changes.get(person.member)?.locale ?? person.locale ?? "en",
   });
   // The company's name is the engine's, read once it answers.
   let name: string | undefined;
@@ -143,18 +156,27 @@ export function backend(options: People & { engine: string; updates?: Updates })
         return false;
     }
   };
-  // The company's members and invite links, and joining it by a link.
+  // The company's members, invite links and access tokens, and joining it by a link.
   const companyRoute = async (url: URL, req: IncomingMessage, res: ServerResponse, person: Person) => {
     const route = `${req.method} ${url.pathname}`;
-    const [, kind, id, role] = url.pathname.match(/^\/api\/(members|invites|join)(?:\/([^/]+)(\/role)?)?$/) ?? [];
+    const [, kind, id, role] =
+      url.pathname.match(/^\/api\/(members|invites|tokens|join)(?:\/([^/]+)(\/role)?)?$/) ?? [];
     const named = decodeURIComponent(id ?? "");
+    const site = `http://${req.headers.host ?? "localhost"}`;
     if (route === "GET /api/members") send(res, 200, { members: company.members() });
-    else if (route === "GET /api/invites") send(res, 200, company.invites(person));
+    else if (route === "GET /api/tokens") {
+      send(res, 200, company.tokens(person, `${site}/mcp`, url.searchParams.get("all") === "true"));
+    } else if (route === "POST /api/tokens") {
+      send(res, 201, company.createToken(person, parseAs<NewAccessToken>("NewAccessToken", await json(req))));
+    } else if (kind === "tokens" && id && req.method === "DELETE") {
+      company.revokeToken(person, named);
+      send(res, 204);
+    } else if (route === "GET /api/invites") send(res, 200, company.invites(person));
     else if (route === "POST /api/invites") {
       send(
         res,
         201,
-        company.invite(person, (code) => `http://${req.headers.host ?? "localhost"}/join/${code}`),
+        company.invite(person, (code) => `${site}/join/${code}`),
       );
     } else if (kind === "members" && id && role && req.method === "PUT") {
       send(res, 200, company.setRole(person, named, parseAs<RoleChange>("RoleChange", await json(req)).role));

@@ -1,7 +1,7 @@
 // A person's choice on a conflict todo: it settles the slot while governance would ask the same
 // question, and governance asks again once it would not.
 
-import type { TodoRequested } from "@inspiration/contracts";
+import { newEvent, type TodoRequested } from "@inspiration/contracts";
 import { describe, expect } from "vitest";
 import { BACKENDS, governanceTest, HOTEL, LI, TENANT, type World } from "./fixtures.ts";
 
@@ -32,6 +32,29 @@ const standings = async (world: World) => {
 
 describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
   const test = governanceTest(backend);
+
+  describe.skipIf(skip)("what governance would choose", () => {
+    test("the value it proposes, sure of it unless a source as authoritative disagrees", async ({ world }) => {
+      // The policy outranks the handbook.
+      expect((await contradiction(world)).suggestion).toEqual({
+        with: "choose:600 CNY/night",
+        sure: true,
+        basis: "authority",
+      });
+    });
+
+    test("not sure when two governed documents in use disagree, though one is newer", async ({ world }) => {
+      await world.state({ title: "Travel policy", authority: 0.9, modified_at: "2026-08-04T08:00:00Z" }, [
+        { text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 },
+      ]);
+      await world.state({ title: "Expense guide", authority: 0.9, modified_at: "2026-09-15T08:00:00Z" }, [
+        { text: "Hotels in tier-1 cities: 650 yuan a night.", value: 650 },
+      ]);
+      expect((await world.requests()).map((r) => r.suggestion)).toEqual([
+        { with: "choose:650 CNY/night", sure: false, basis: "disagreement" },
+      ]);
+    });
+  });
 
   describe.skipIf(skip)("a person's choice", () => {
     test("holds the value chosen over the one governance proposed, and asks nothing more", async ({ world }) => {
@@ -91,6 +114,31 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         ["500 CNY/night", "outdated"],
         ["650 CNY/night", "outdated"],
       ]);
+    });
+
+    test("is dropped when the member undoes the assistant's choice, and the slot asks again", async ({ world }) => {
+      const request = await contradiction(world);
+      const { event } = await world.resolve(request, { value: "650 CNY/night" });
+      const reopened = newEvent(
+        "todo.reopened",
+        {
+          todo_id: event.data.todo_id as string,
+          kind: "conflict",
+          space_id: request.space_id,
+          dedupe_key: request.dedupe_key,
+          slot_key: HOTEL,
+          created_by: "governance",
+          decision_id: "dcn_01JC0000000000000000000001",
+          undid: "choose:650 CNY/night",
+          reopened_by: LI,
+        },
+        { tenantId: TENANT, producer: "collaboration" },
+      );
+      const { requests } = await world.governance.reopened(reopened);
+      // The same question as before the choice, asked anew for the reopened todo to take.
+      expect(requests).toEqual([{ ...request }]);
+      expect(await standings(world)).toMatchObject({ held: "600 CNY/night", disputed: true, chosen_by: undefined });
+      expect(await world.governance.reopened(reopened)).toEqual({ slots: [], requests: [], notes: [], withdrawn: [] });
     });
 
     test("lapses when governance would ask another question, and governance asks it", async ({ world }) => {

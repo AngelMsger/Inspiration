@@ -54,6 +54,9 @@ ask.none: 閲覧できるドキュメントには、この質問の答えがあ�
 ask.sources: 出典
 ask.results: "結果 · {count}"
 ask.gaps: 扱われていない点
+ask.fuller: より多くの資料から詳しく答える
+ask.fuller_reading: "さらに資料を読んでいます…"
+ask.fuller_shown: この回答は最初の回答より多くの資料を読んでいます。
 note.outdated: 置き換えられた値
 note.conflict: 判断待ち
 note.thin_evidence: 出典が一つだけ
@@ -190,6 +193,34 @@ decision.after: "確定後"
 decision.after_text: "読み手とエージェントには {value} が表示されます。ほかの値は原文で「古い」と表示され、回答に「決定待ち」と出なくなります。"
 decision.not_found: "この項目はもう対応待ちではありません。"
 decision.back: "受信トレイへ戻る"
+inbox.suggested_because: "提案：{value}。{reason}"
+inbox.suggested_reason: "提案：{reason}"
+decide.button: 代わりに決める
+decide.deciding: "決めています…"
+decide.hint: アシスタントがあなたの権限で決められるものを決め、残りは理由を添えてここに残します。どの決定も取り消せます。
+decide.summary: "決定 {decided} 件 · あなたに残した {left} 件"
+decide.line: "{fact}：{choice}"
+decide.left: あなたに残しました
+decide.undo: 取り消す
+decide.undoing: "取り消しています…"
+always.offer: 定例の確認と矛盾は、いつも代わりに決める
+always.offer_hint: 新しい確認・メモ・矛盾が届くたびに、アシスタントがあなたの権限で決め、確信が持てないものはあなたに残します。ここでいつでも一時停止できます。
+always.turn_on: いつも代わりに決める
+always.not_now: 今はしない
+always.on: 定例の確認と矛盾は、届くたびにアシスタントが代わりに決めます。
+always.paused: 「いつも代わりに決める」は一時停止中です。
+always.paused_undone: 「いつも代わりに決める」は自動で一時停止しました。同じ種類の直近 10 件の決定のうち 2 件を取り消したためです。
+always.pause: 一時停止
+always.resume: 再開する
+decided.link: 今週代わりに決めたことを見る
+decided.title: 代わりに決めたこと
+decided.lede: "第 {week} 週にアシスタントが代わりに決めたことです。対応は不要です。違う判断をするものは取り消してください。"
+decided.counts: "決定 {decided} 件 · あなたに残した {left} 件 · 取り消し {undone} 件"
+decided.none: 今週代わりに決めたことはまだありません。
+decided.undone: 取り消し済み
+decided.via.assistant_once: この件で依頼
+decided.via.assistant_batch: カードで依頼
+decided.via.delegation: いつも代わりに決める
 
 unit.day: "{n} 日"
 unit.cny_per_night: "1 泊 {n} 元"
@@ -289,6 +320,7 @@ guide.restart: 最初から
 guide.hide: 隠す
 
 account.admin: 管理画面
+account.apps: アクセスを許可したアプリ
 role.member: メンバー
 action.cancel: キャンセル
 failure.demo_script: デモのガイドでこの人を使うため、会社から外せません。
@@ -298,6 +330,7 @@ admin.back: "← ナレッジに戻る"
 admin.people: ユーザー
 admin.members: メンバー
 admin.invites: 招待リンク
+admin.tokens: アクセストークン
 admin.only: "管理画面を開けるのは {company} のスーパー管理者だけです。"
 members.count: "会社のメンバー {count} 人"
 members.name: 名前
@@ -311,8 +344,6 @@ members.needs_admin: 会社には少なくとも 1 人のスーパー管理者�
 invites.lede: "ログインした状態でリンクを開いた人は、メンバーとして {company} に参加します。リンクの有効期間は 7 日です。まだメールは送れないため、リンクをチームのチャットに貼ってください。"
 invites.new: 招待リンクを作成
 invites.made: このリンクが表示されるのは今だけです。ページを離れる前にコピーしてください。なくした場合は取り消して作り直します。
-invites.copy: コピー
-invites.copied: コピーしました
 invites.none: 有効な招待リンクはありません。
 invites.made_by: 作成者
 invites.made_at: 作成日時
@@ -356,3 +387,34 @@ join.signed_out: ログインするかアカウントを作成すると、ここ
 join.gone: この招待リンクは使えません
 join.gone_lede: 有効期限が切れたか、取り消された可能性があります。送ってくれた同僚に新しいリンクを頼んでください。
 join.home: Inspiration を開く
+
+tokens.lede: "{company} の全メンバーのアクセストークンです。どれでも取り消せます。トークンの秘密の値は、作成後は誰にも見えません。"
+apps.title: アクセスを許可したアプリ
+apps.lede: あなたの代わりに Inspiration を使うアシスタントやツールです。たとえば MCP でつないだ Claude や Cursor。アプリが見られるのはあなたが見られる範囲までで、許可したスペースだけです。
+apps.new: アクセストークンを作成
+apps.name: 名前
+apps.name_hint: 用途（例：ノートパソコンの Claude）
+apps.where: 読み取れる範囲
+apps.all: 自分が読めるすべてのスペース
+apps.some: 次のスペースだけ
+apps.days: 有効期間
+apps.days_n: "{count} 日"
+apps.reads_only: 読み取りだけができます。ここからいつでも取り消せます。スーパー管理者も取り消せます。
+apps.create: 作成
+apps.made: "「{name}」のトークンを今コピーしてください。二度と表示されません。"
+apps.claude_code: Claude Code に追加するには、次を実行します：
+apps.other: "ほかの MCP クライアントでは、アドレス {url} に、ヘッダー Authorization: Bearer とこのトークンを付けて使います。"
+apps.done: 完了
+apps.none: アクセストークンはまだありません。
+apps.sample: サンプル会社は読み取り専用なので、アクセストークンはありません。自分の会社を作ると作成できます。
+apps.col.member: メンバー
+apps.col.name: 名前
+apps.col.where: 範囲
+apps.col.expires: 有効期限
+apps.col.used: 最終利用
+apps.never: まだ使われていません
+apps.space_gone: 今は読めないスペース
+apps.revoke: 取り消す
+apps.confirm_revoke: 取り消しますか？使っているアプリはすぐに止まります。
+copy.button: コピー
+copy.done: コピーしました

@@ -148,6 +148,35 @@ describe.each(BACKENDS)("$backend indexes", ({ backend, skip }) => {
       expect(await vector.search(unit(1, 0, 0, 0), 3, everyone(kb))).toEqual([]); // other dimensions: no match
     });
 
+    test("equal scores share a rank, however little noise sets them apart", async ({
+      indexes: { vector },
+      chunks,
+      kb,
+    }) => {
+      // cap and trad score about 1e-9, a difference of float noise.
+      const hits = await vector.search(unit(1e-9, 0, 1), 4, everyone(kb));
+      expect(hits.slice(0, 2).map((h) => [h.chunk_id, h.rank])).toEqual([
+        [chunks.revenue.id, 1],
+        [chunks.approval.id, 2],
+      ]);
+      expect(new Set(hits.slice(2).map((h) => h.chunk_id))).toEqual(new Set([chunks.cap.id, chunks.trad.id]));
+      expect(hits.slice(2).map((h) => h.rank)).toEqual([3, 3]);
+    });
+
+    test("a tie at the k-th hit is kept whole, so the same chunks come back each time", async ({
+      indexes: { vector },
+      chunks,
+      kb,
+    }) => {
+      const hits = await vector.search(unit(1e-9, 0, 1), 3, everyone(kb));
+      expect(hits.map((h) => h.rank)).toEqual([1, 2, 3, 3]);
+      expect(new Set(hits.slice(2).map((h) => h.chunk_id))).toEqual(new Set([chunks.cap.id, chunks.trad.id]));
+      expect((await vector.search(unit(1e-9, 0, 1), 2, everyone(kb))).map((h) => h.chunk_id)).toEqual([
+        chunks.revenue.id,
+        chunks.approval.id,
+      ]);
+    });
+
     test("vector upsert and delete", async ({ indexes: { vector }, chunks, kb }) => {
       await vector.upsert({ [chunks.revenue.id]: unit(1, 0.1, 0) }, { model: "fake-embedding" });
       const hits = await vector.search(unit(1, 0.1, 0), 2, everyone(kb));

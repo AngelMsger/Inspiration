@@ -105,6 +105,7 @@ chain.
 | `todo.requested` | extraction, governance, views | collaboration |
 | `todo.created` | collaboration | collaboration |
 | `todo.resolved` | collaboration | governance |
+| `todo.reopened` | collaboration | governance |
 | `page.rendered` | page-compiler | collaboration, retrieval, views |
 | `comment.created` | collaboration | extraction, collaboration |
 | `unit.published` | collaboration | retrieval, agent-api |
