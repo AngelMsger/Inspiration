@@ -69,7 +69,7 @@ libs/kernel         设置、日志、插件注册表、迁移运行器、blob �
 libs/eventbus       事务性 outbox、转发到 Valkey Streams、消费者、内存事件总线
 libs/testkit        针对 compose 运行环境的测试夹具
 engine/<component>  每个引擎组件一个包（见 components.yaml）
-business/<name>     每个业务层组件一个包：目前有 tenancy；engine/ 和 libs/ 从不依赖它们
+business/<name>     每个业务层组件一个包：目前有 accounts 和 tenancy；engine/ 和 libs/ 从不依赖它们
 apps/engine         引擎进程：把组件接到存储、事件总线和 blob 存储上；HTTP API
 apps/web            产品 Web 应用，基于引擎的 HTTP API，带一个替身后端（pnpm demo）和录像（pnpm snapshot）
 apps/bench          测量工具（pnpm bench）：在语料上运行引擎、生成报告、核对答案
