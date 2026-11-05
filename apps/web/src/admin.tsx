@@ -1,37 +1,67 @@
-// The admin area, where a super admin runs the company's people: who its members are, their role,
-// and the invite links that bring new ones in. It has a dark left column under "Admin" and the
-// company's name, so it never passes for reading. Anyone else who opens it is told who can; the
-// business backend refuses their calls too.
+// The admin area, where a super admin runs the company: who its members are, their role, the
+// invite links that bring new ones in, and its spaces with their space owners (admin-spaces.tsx).
+// It has a dark left column under "Admin" and the company's name, so it never passes for
+// reading. Anyone else who opens it is told who can; the business backend and the engine refuse
+// their calls too.
 
+import type { SpaceList } from "@inspiration/contracts";
 import type { CompanyMember, Invite, InviteLink, ProductRole, Session } from "@inspiration/contracts/business";
 import { type ReactNode, useRef, useState } from "react";
-import { type ApiFailure, api, failureOf, type Loaded, useLoad } from "./api.ts";
-import { Crumbs, Failure, formatDate } from "./parts.tsx";
+import { AdminSpace, AdminSpaces } from "./admin-spaces.tsx";
+import { type ApiFailure, api, type Loaded, useLoad } from "./api.ts";
+import { Crumbs, Failure, formatDate, TwoStep, useChange } from "./parts.tsx";
 import { Link, type Route } from "./route.tsx";
 import { useWords } from "./words.ts";
 
 type AdminRoute = Extract<Route, { name: "admin" }>;
+type Section = Exclude<AdminRoute["page"], "space">;
 
 /** The admin column and the page the address names. */
 export function AdminArea(props: { route: AdminRoute; session: Session }) {
   const { say } = useWords();
+  const { route } = props;
   const current = props.session.current as NonNullable<Session["current"]>;
   const company = props.session.companies.find((c) => c.tenant_id === current.tenant_id)?.name ?? "";
   const admin = current.role === "super_admin";
-  // A change reads both lists again; until then they stay as they were.
+  // A change reads the lists again; until then they stay as they were.
   const [version, setVersion] = useState(0);
   const changed = () => setVersion((v) => v + 1);
   const members = useLoad(`members:${version}`, api.members);
   const invites = useLoad(`invites:${version}:${admin}`, () =>
     admin ? api.invites() : Promise.resolve({ invites: [] }),
   );
-  const item = (page: AdminRoute["page"], label: string, n: number | undefined) => (
-    <Link to={{ name: "admin", page }} className="nav-item" current={props.route.page === page}>
+  // Only a super admin reads the spaces; anyone else is told who can before they are needed.
+  const spaces = useLoad(`spaces:${version}:${admin}`, () =>
+    admin ? api.managedSpaces() : new Promise<SpaceList>(() => {}),
+  );
+  const section: Section = route.page === "space" ? "spaces" : route.page;
+  const item = (page: Section, label: string, n: number | undefined) => (
+    <Link to={{ name: "admin", page }} className="nav-item" current={section === page}>
       <span>{label}</span>
       {n !== undefined && <span className="count">{n}</span>}
     </Link>
   );
-  const crumbs = <Crumbs>{[say("admin.title"), say("admin.people"), say(`admin.${props.route.page}`)]}</Crumbs>;
+  const spaceName =
+    route.page === "space" && spaces.state === "done"
+      ? spaces.value.spaces.find((s) => s.id === route.space)?.name
+      : "";
+  const crumbs = (
+    <Crumbs>
+      {section === "spaces"
+        ? [
+            say("admin.title"),
+            route.page === "space" ? (
+              <Link key="spaces" to={{ name: "admin", page: "spaces" }}>
+                {say("admin.spaces")}
+              </Link>
+            ) : (
+              say("admin.spaces")
+            ),
+            route.page === "space" && spaceName,
+          ]
+        : [say("admin.title"), say("admin.people"), say(`admin.${section}`)]}
+    </Crumbs>
+  );
   return (
     <>
       <nav className="left left-admin" aria-label={say("admin.title")}>
@@ -54,15 +84,29 @@ export function AdminArea(props: { route: AdminRoute; session: Session }) {
             say("admin.invites"),
             lengthOf(invites, (v) => v.invites),
           )}
+        {admin && (
+          <>
+            <div className="nav-heading">{say("admin.knowledge")}</div>
+            {item(
+              "spaces",
+              say("admin.spaces"),
+              lengthOf(spaces, (v) => v.spaces),
+            )}
+          </>
+        )}
       </nav>
       <main className="centre admin-page">
         {crumbs}
         {!admin ? (
           <p className="quiet">{say("admin.only", { company })}</p>
-        ) : props.route.page === "members" ? (
-          <Members members={members} me={current.member_id} company={company} onChanged={changed} />
-        ) : (
+        ) : route.page === "space" ? (
+          <AdminSpace id={route.space} spaces={spaces} members={members} company={company} onChanged={changed} />
+        ) : route.page === "spaces" ? (
+          <AdminSpaces spaces={spaces} members={members} company={company} onChanged={changed} />
+        ) : route.page === "invites" ? (
           <Invites invites={invites} company={company} onChanged={changed} />
+        ) : (
+          <Members members={members} me={current.member_id} company={company} onChanged={changed} />
         )}
       </main>
     </>
@@ -72,20 +116,6 @@ export function AdminArea(props: { route: AdminRoute; session: Session }) {
 /** How many a list has, once it is read. */
 const lengthOf = <T,>(loaded: Loaded<T>, list: (value: T) => unknown[]) =>
   loaded.state === "done" ? list(loaded.value).length : undefined;
-
-/** A change the page asked for, and what went wrong with it. */
-function useChange(onChanged: () => void) {
-  const [failure, setFailure] = useState<ApiFailure>();
-  const [busy, setBusy] = useState(false);
-  const run = (change: () => Promise<unknown>) => {
-    setBusy(true);
-    setFailure(undefined);
-    return change()
-      .then(onChanged, (e: unknown) => setFailure(failureOf(e)))
-      .finally(() => setBusy(false));
-  };
-  return { failure, busy, run };
-}
 
 function Members(props: {
   members: Loaded<{ members: CompanyMember[] }>;
@@ -241,38 +271,6 @@ function MadeLink(props: { link: InviteLink }) {
         </button>
       </div>
     </div>
-  );
-}
-
-/** A button that asks once more before it acts, since the page cannot open a dialog. */
-function TwoStep(props: { label: string; confirm: string; disabled: boolean; onConfirm: () => void }) {
-  const { say } = useWords();
-  const [asking, setAsking] = useState(false);
-  if (!asking) {
-    return (
-      <button type="button" className="link-button" disabled={props.disabled} onClick={() => setAsking(true)}>
-        {props.label}
-      </button>
-    );
-  }
-  return (
-    <span className="two-step">
-      <span>{props.confirm}</span>
-      <button
-        type="button"
-        className="link-button danger"
-        disabled={props.disabled}
-        onClick={() => {
-          setAsking(false);
-          props.onConfirm();
-        }}
-      >
-        {props.label}
-      </button>
-      <button type="button" className="link-button" onClick={() => setAsking(false)}>
-        {say("action.cancel")}
-      </button>
-    </span>
   );
 }
 

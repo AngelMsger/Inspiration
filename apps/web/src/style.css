@@ -1484,6 +1484,83 @@ a.secondary {
   padding: 6px 10px;
 }
 
+/* A space's form and its readers, in the admin area and in the space */
+
+.space-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 560px;
+  padding: 16px 18px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+}
+
+.space-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.space-form input:not([type="checkbox"]),
+.audience-add select {
+  font: inherit;
+  font-weight: 400;
+  background: var(--white);
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+
+.space-form fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.space-form legend {
+  font-weight: 600;
+  padding: 0 0 6px;
+}
+
+.owner-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+.space-form .owner-pick {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  font-weight: 400;
+}
+
+.audience {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-width: 560px;
+  border-top: 1px solid var(--rule);
+}
+
+.audience li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.audience-add {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* On a phone the admin column becomes a row above the page, since its pages have no other way in. */
 @media (max-width: 760px) {
   .body:has(.left-admin) {

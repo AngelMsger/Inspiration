@@ -19,14 +19,19 @@ const PEOPLE = fileURLToPath(new URL("../../../examples/corpus/people.yaml", imp
 let engine: Server;
 let web: Server;
 let seen: IncomingMessage[] = [];
+/** The bodies the engine was sent, as seen lists the requests. */
+let bodies: string[] = [];
 
 const urlOf = (s: Server) => `http://127.0.0.1:${(s.address() as AddressInfo).port}`;
 const listen = (s: Server) => new Promise<void>((resolve) => s.listen(0, "127.0.0.1", resolve));
 
 beforeAll(async () => {
   // A stand-in engine that says what it was asked and by whom.
-  engine = createServer((req, res) => {
+  engine = createServer(async (req, res) => {
     seen.push(req);
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) chunks.push(chunk as Buffer);
+    bodies.push(Buffer.concat(chunks).toString("utf8"));
     res.writeHead(req.url === "/v0/missing" ? 404 : 200, { "content-type": "application/json" });
     const tenant = req.url === "/v0/spaces" ? { tenant: { id: "ten_X", name: "Hengyuan" } } : {};
     res.end(JSON.stringify({ path: req.url, member: req.headers["x-inspiration-member"], ...tenant }));
@@ -163,6 +168,22 @@ describe("development backend", () => {
     expect(here.status).toBe(200);
     // The company the page names is for the backend; the engine hears the tenant from it alone.
     expect(seen[0]?.headers["x-inspiration-company"]).toBeUndefined();
+  });
+
+  test("forwards every write's body, and the key that makes a new space once", async () => {
+    const { cookie } = await signIn();
+    seen = [];
+    bodies = [];
+    const headers = { cookie, "content-type": "application/json", "idempotency-key": "space-1" };
+    await call("/api/v0/spaces", { method: "POST", headers, body: '{"name":"Payroll"}' });
+    await call("/api/v0/spaces/spc_1/owners", { method: "PUT", headers: { cookie }, body: '{"owner_ids":["mem_1"]}' });
+    await call("/api/v0/spaces/spc_1", { method: "PATCH", headers: { cookie }, body: '{"name":"Pay"}' });
+    expect(seen.map((r) => `${r.method} ${r.url} ${r.headers["idempotency-key"] ?? "-"}`)).toEqual([
+      "POST /v0/spaces space-1",
+      "PUT /v0/spaces/spc_1/owners -",
+      "PATCH /v0/spaces/spc_1 -",
+    ]);
+    expect(bodies).toEqual(['{"name":"Payroll"}', '{"owner_ids":["mem_1"]}', '{"name":"Pay"}']);
   });
 
   test("forwards bodies and the engine's own status", async () => {

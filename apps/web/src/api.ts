@@ -1,6 +1,6 @@
-// The page talks only to its backend: /api/session, /api/account and /api/members for who is
-// signed in and their company, /api/v0/ for the engine's HTTP API as that member, and, in the
-// demo only, /api/demo/. Bodies are the contract types, the business ones for the first.
+// The page talks only to its backend: /api/session, /api/account, /api/members and /api/invites
+// for who is signed in and their company, /api/v0/ for the engine's HTTP API as that member,
+// and, in the demo only, /api/demo/. Bodies are the contract types, the business ones for the first.
 //
 // The session works in one company at a time, and switching moves it for every tab, so a call
 // that acts in a company names the company of the frame that makes it (x-inspiration-company).
@@ -10,15 +10,21 @@
 
 import type {
   ApiError,
+  CreateSpace,
   DocumentTree,
   DocumentView,
   GroundedAnswer,
   Inbox,
+  PatchSpace,
+  PutSpaceAudience,
+  PutSpaceOwners,
   ResolveTodo,
   SearchResult,
-  Space,
+  SpaceAudience,
+  SpaceEntry,
   SpaceList,
   SpaceOverview,
+  SpaceWritten,
   SyncReport,
   Tenant,
   Todo,
@@ -72,9 +78,16 @@ export function showCompany(tenant: string | undefined, onMoved: () => void): vo
 }
 
 /** One call. `company` is the one the caller works in; `frame` when the frame on screen makes it. */
-async function send<T>(path: string, body: unknown, method: string, company: string | undefined, frame: boolean) {
+async function send<T>(
+  path: string,
+  body: unknown,
+  method: string,
+  company: string | undefined,
+  frame: boolean,
+  extra: Record<string, string> = {},
+) {
   const named = IN_COMPANY.test(path) ? company : undefined;
-  const headers: Record<string, string> = named ? { "x-inspiration-company": named } : {};
+  const headers: Record<string, string> = { ...extra, ...(named && { "x-inspiration-company": named }) };
   const res = await fetch(
     `/api${path}`,
     body === undefined
@@ -106,8 +119,9 @@ async function stillIn(tenant: string): Promise<boolean> {
 
 /** The calls, made in the company `company` names when they are made. */
 function apiOf(company: () => string | undefined, frame: boolean) {
-  const call = <T>(path: string, body?: unknown, method = body === undefined ? "GET" : "POST") =>
-    send<T>(path, body, method, company(), frame);
+  const call = <T>(path: string, body?: unknown, method = body === undefined ? "GET" : "POST", extra = {}) =>
+    send<T>(path, body, method, company(), frame, extra);
+  const space = (id: string) => `/v0/spaces/${encodeURIComponent(id)}`;
   return {
     session: () => call<Session>("/session"),
     enterCompany: (tenant: string) => call<Session>("/session", { tenant_id: tenant } satisfies SwitchCompany),
@@ -141,6 +155,17 @@ function apiOf(company: () => string | undefined, frame: boolean) {
     inbox: () => call<Inbox>("/v0/inbox"),
     resolve: (todo: string, how: ResolveTodo) => call<Todo>(`/v0/todos/${encodeURIComponent(todo)}/resolve`, how),
     overview: (space: string) => call<SpaceOverview>(`/v0/spaces/${encodeURIComponent(space)}/overview`),
+    /** The spaces the person may administer: every space for the super admin. */
+    managedSpaces: () => call<SpaceList>("/v0/spaces?manage=true"),
+    /** `key` makes sending the same new space twice create it once. */
+    createSpace: (body: CreateSpace, key: string) =>
+      call<SpaceWritten>("/v0/spaces", body, "POST", { "idempotency-key": key }),
+    setOwners: (id: string, owners: PutSpaceOwners["owner_ids"]) =>
+      call<SpaceWritten>(`${space(id)}/owners`, { owner_ids: owners } satisfies PutSpaceOwners, "PUT"),
+    patchSpace: (id: string, change: PatchSpace) => call<SpaceWritten>(space(id), change, "PATCH"),
+    audience: (id: string) => call<SpaceAudience>(`${space(id)}/audience`),
+    setAudience: (id: string, audience: PutSpaceAudience) =>
+      call<SpaceAudience>(`${space(id)}/audience`, audience, "PUT"),
     updates: () => call<{ updates: Update[] }>("/demo/updates"),
     putUpdate: (name: string) => call<SyncReport>(`/demo/updates/${encodeURIComponent(name)}`, {}),
   };
@@ -192,7 +217,7 @@ export function useLoad<T>(key: string, load: () => Promise<T>): Loaded<T> {
  */
 export interface Library {
   tenant: Tenant;
-  spaces: Space[];
+  spaces: SpaceEntry[];
   trees: Map<string, DocumentTree>;
   topics: Map<string, TopicList>;
 }

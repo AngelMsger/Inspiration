@@ -275,6 +275,32 @@ invites.expires: 到期
 invites.joined: 已加入
 invites.revoke: 撤销
 invites.confirm_revoke: 撤销这个链接？之后没人能再用它加入。
+admin.knowledge: 知识
+admin.spaces: 空间
+spaces.count: "{count} 个空间"
+spaces.lede: "在这里创建企业的空间，并指定每个空间的负责人。谁能阅读一个空间，由它的负责人在空间里决定。"
+spaces.new: 新建空间
+spaces.none: 还没有空间。创建第一个，并指定它的负责人。
+spaces.name: 名称
+spaces.description: 说明
+spaces.owners: 空间负责人
+spaces.grants: 阅读授权
+spaces.gone: 这个空间不归你管理，或者已经不存在。
+spaces.pick_owner: 至少选一位空间负责人。
+spaces.save: 保存
+spaces.create: 创建空间
+access.title: 谁能阅读
+access.lede: "下面列出的人都能阅读这个空间的文档和知识。空间负责人始终可以阅读，由{company}的超级管理员指定。"
+access.lede_admin: 作为超级管理员，你可以把读者移出空间；添加读者由空间负责人决定。
+access.everyone: "{company}的所有人"
+access.owner: 空间负责人
+access.remove: 移出
+access.owners_only: 除了空间负责人，没有人能阅读这个空间。
+access.add: 添加读者
+access.pick: 选择…
+access.forbidden: 只有这个空间的负责人可以添加读者。
+maintain.access_heading: 权限
+maintain.access: 谁能阅读
 
 join.loading: 正在读取邀请链接…
 join.title: "{name}邀请你加入{company}"

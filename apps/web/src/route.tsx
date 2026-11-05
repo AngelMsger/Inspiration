@@ -27,8 +27,9 @@ export type Route =
   | { name: "topics"; space: string }
   | { name: "topic"; key: string }
   | { name: "documents"; space: string; source?: string; folders: string[] }
-  | { name: "maintain"; space: string; page: "overview" | "topics" | "documents" }
-  | { name: "admin"; page: "members" | "invites" }
+  | { name: "maintain"; space: string; page: "overview" | "topics" | "documents" | "access" }
+  | { name: "admin"; page: "members" | "invites" | "spaces" }
+  | { name: "admin"; page: "space"; space: string }
   | { name: "join"; code: string }
   | DocumentRoute;
 
@@ -44,17 +45,20 @@ export function parse(url: URL): Route {
       folders: q.getAll("folder"),
     };
   }
-  const maintain = url.pathname.match(/^\/spaces\/([^/]+)\/maintain(?:\/(topics|documents))?$/);
+  const maintain = url.pathname.match(/^\/spaces\/([^/]+)\/maintain(?:\/(topics|documents|access))?$/);
   if (maintain?.[1]) {
-    const page = maintain[2] === "topics" || maintain[2] === "documents" ? maintain[2] : "overview";
+    const page =
+      maintain[2] === "topics" || maintain[2] === "documents" || maintain[2] === "access" ? maintain[2] : "overview";
     return { name: "maintain", space: decodeURIComponent(maintain[1]), page };
   }
   const knowledge = url.pathname.match(/^\/spaces\/([^/]+)\/knowledge$/);
   if (knowledge?.[1]) return { name: "topics", space: decodeURIComponent(knowledge[1]) };
   const topic = url.pathname.match(/^\/topics\/([^/]+)$/);
   if (topic?.[1]) return { name: "topic", key: decodeURIComponent(topic[1]) };
-  const admin = url.pathname.match(/^\/admin(?:\/(members|invites))?$/);
-  if (admin) return { name: "admin", page: admin[1] === "invites" ? "invites" : "members" };
+  const admin = url.pathname.match(/^\/admin(?:\/(members|invites|spaces))?$/);
+  if (admin) return { name: "admin", page: admin[1] === "invites" || admin[1] === "spaces" ? admin[1] : "members" };
+  const adminSpace = url.pathname.match(/^\/admin\/spaces\/([^/]+)$/);
+  if (adminSpace?.[1]) return { name: "admin", page: "space", space: decodeURIComponent(adminSpace[1]) };
   const join = url.pathname.match(/^\/join\/([^/]+)$/);
   if (join?.[1]) return { name: "join", code: decodeURIComponent(join[1]) };
   if (url.pathname === "/ask") return { name: "ask", q: get("q") ?? "" };
@@ -99,7 +103,7 @@ export function href(route: Route): string {
     case "maintain":
       return `/spaces/${encodeURIComponent(route.space)}/maintain${route.page === "overview" ? "" : `/${route.page}`}`;
     case "admin":
-      return `/admin/${route.page}`;
+      return route.page === "space" ? `/admin/spaces/${encodeURIComponent(route.space)}` : `/admin/${route.page}`;
     case "join":
       return `/join/${encodeURIComponent(route.code)}`;
     case "documents":

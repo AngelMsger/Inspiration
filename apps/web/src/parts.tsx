@@ -1,8 +1,9 @@
-// Small pieces every screen uses: breadcrumbs, a standing chip, dates, failures.
+// Small pieces every screen uses: breadcrumbs, a standing chip, dates, failures, and a change
+// that asks once more before it acts.
 
 import type { SlotStanding } from "@inspiration/contracts";
-import { Fragment, type ReactNode } from "react";
-import type { ApiFailure } from "./api.ts";
+import { Fragment, type ReactNode, useState } from "react";
+import { type ApiFailure, failureOf } from "./api.ts";
 import { type Say, type Tag, useWords } from "./words.ts";
 
 /** Breadcrumbs from the area to the thing shown; the last one is where you are. */
@@ -67,4 +68,50 @@ export function Failure(props: { error: ApiFailure; notFound?: string }) {
             ? say("failure.engine")
             : say("failure.other", { message: props.error.message });
   return <p className="failure">{text}</p>;
+}
+
+/** A change the page asked for, and what went wrong with it. */
+export function useChange(onChanged: () => void) {
+  const [failure, setFailure] = useState<ApiFailure>();
+  const [busy, setBusy] = useState(false);
+  const run = (change: () => Promise<unknown>) => {
+    setBusy(true);
+    setFailure(undefined);
+    return change()
+      .then(onChanged, (e: unknown) => setFailure(failureOf(e)))
+      .finally(() => setBusy(false));
+  };
+  return { failure, busy, run };
+}
+
+/** A button that asks once more before it acts, since the page cannot open a dialog. */
+export function TwoStep(props: { label: string; confirm: string; disabled: boolean; onConfirm: () => void }) {
+  const { say } = useWords();
+  const [asking, setAsking] = useState(false);
+  if (!asking) {
+    return (
+      <button type="button" className="link-button" disabled={props.disabled} onClick={() => setAsking(true)}>
+        {props.label}
+      </button>
+    );
+  }
+  return (
+    <span className="two-step">
+      <span>{props.confirm}</span>
+      <button
+        type="button"
+        className="link-button danger"
+        disabled={props.disabled}
+        onClick={() => {
+          setAsking(false);
+          props.onConfirm();
+        }}
+      >
+        {props.label}
+      </button>
+      <button type="button" className="link-button" onClick={() => setAsking(false)}>
+        {say("action.cancel")}
+      </button>
+    </span>
+  );
 }
