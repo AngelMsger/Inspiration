@@ -1,5 +1,6 @@
-// The page talks only to its backend: /api/session for who it acts as, /api/v0/ for the
-// engine's HTTP API as that person. Bodies are the contract types.
+// The page talks only to its backend: /api/session, /api/account and /api/members for who is
+// signed in and their company, /api/v0/ for the engine's HTTP API as that member, and, in the
+// demo only, /api/demo/. Bodies are the contract types.
 
 import type {
   ApiError,
@@ -19,7 +20,7 @@ import type {
   TopicView,
 } from "@inspiration/contracts";
 import { useEffect, useState } from "react";
-import type { Session } from "./backend.ts";
+import type { AccountChange, Member, Person, Session } from "./people.ts";
 import type { Update } from "./updates.ts";
 
 export class ApiFailure extends Error {
@@ -37,12 +38,10 @@ export class ApiFailure extends Error {
 export const failureOf = (error: unknown): ApiFailure =>
   error instanceof ApiFailure ? error : new ApiFailure(0, "internal", String(error));
 
-async function call<T>(path: string, body?: unknown): Promise<T> {
+async function call<T>(path: string, body?: unknown, method = "POST"): Promise<T> {
   const res = await fetch(
     `/api${path}`,
-    body === undefined
-      ? {}
-      : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
+    body === undefined ? {} : { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
   );
   const json = (await res.json().catch(() => undefined)) as unknown;
   if (!res.ok) {
@@ -54,7 +53,14 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
 
 export const api = {
   session: () => call<Session>("/session"),
-  actAs: (member: string) => call<Session>("/session", { member }),
+  enterCompany: (tenant: string) => call<Session>("/session", { tenant_id: tenant }),
+  account: (change: AccountChange) => call<Session>("/account", change, "PATCH"),
+  signOut: () => call<{ next: string }>("/auth/sign-out", {}),
+  createCompany: (company: { name: string; default_locale: string }) => call<Session>("/companies", company),
+  members: () => call<{ members: Member[] }>("/members"),
+  /** Whom the demo lets the page act as; the business backend has no such route. */
+  demoPeople: () => call<{ people: Person[] }>("/demo/people"),
+  actAs: (member: string) => call<Session>("/demo/act-as", { member }),
   spaces: () => call<SpaceList>("/v0/spaces"),
   tree: (space: string) => call<DocumentTree>(`/v0/spaces/${encodeURIComponent(space)}/documents`),
   document: (by: { source?: string; item?: string; version?: string }) =>
@@ -73,6 +79,10 @@ export const api = {
   updates: () => call<{ updates: Update[] }>("/demo/updates"),
   putUpdate: (name: string) => call<SyncReport>(`/demo/updates/${encodeURIComponent(name)}`, {}),
 };
+
+/** Where signing in, or up, starts: the identity provider's page, then back to `back`. */
+export const signInAt = (screen: "sign_in" | "sign_up", back: string) =>
+  `/api/auth/sign-in?${new URLSearchParams({ return_to: back, screen })}`;
 
 export type Loaded<T> = { state: "loading" } | { state: "done"; value: T } | { state: "failed"; error: ApiFailure };
 

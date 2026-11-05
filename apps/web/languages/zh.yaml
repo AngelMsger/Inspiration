@@ -6,6 +6,21 @@ top.search: 搜索、提问或执行命令
 top.account: "账户，{name}"
 account.acting_as: 演示：以谁的身份
 account.language: 界面语言
+account.companies: 企业
+account.sign_out: 退出登录
+role.super_admin: 超级管理员
+
+signin.title: 一个账号，进入你所有的企业
+signin.lede: 用邮箱和密码登录。新账号还不属于任何企业：你可以创建一个，或者打开同事发给你的邀请链接。
+signin.sign_in: 登录
+signin.sign_up: 创建账号
+
+company.welcome: "欢迎，{name}"
+company.lede: 你还不属于任何企业。创建一个，再邀请同事加入；或者打开同事发给你的邀请链接。
+company.name: 企业名称
+company.language: 默认语言
+company.super_admin: 你会成为它的超级管理员：创建空间、指定空间负责人、邀请成员。
+company.create: 创建企业
 
 nav.label: 知识
 nav.home: 首页

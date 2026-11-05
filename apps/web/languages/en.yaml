@@ -6,6 +6,21 @@ top.search: Search, ask or run a command
 top.account: "Account, {name}"
 account.acting_as: "Demo: act as"
 account.language: Interface language
+account.companies: Companies
+account.sign_out: Sign out
+role.super_admin: Super admin
+
+signin.title: One account for all your companies
+signin.lede: "Sign in with your email and password. A new account belongs to no company yet: you create one, or open the invite link a colleague sent you."
+signin.sign_in: Sign in
+signin.sign_up: Create an account
+
+company.welcome: "Welcome, {name}"
+company.lede: You do not belong to a company yet. Create one and invite your colleagues, or open the invite link a colleague sent you.
+company.name: Company name
+company.language: Default language
+company.super_admin: "You become its super admin: you create its spaces, name their owners and invite people."
+company.create: Create the company
 
 nav.label: Knowledge
 nav.home: Home

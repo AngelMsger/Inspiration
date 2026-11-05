@@ -7,7 +7,7 @@
  * lacks answers 404 with the code not_recorded, and the questions it can answer.
  */
 
-import type { People, Person, Session } from "./backend.ts";
+import { accountChange, membersOf, type People, type Person, sessionOf } from "./people.ts";
 
 /** One step of the demo script (<corpus>/script.yaml). */
 export interface ScriptStep {
@@ -40,6 +40,8 @@ export interface Reply {
 
 export interface Recording {
   recorded_at: string;
+  /** The day the engine's clock stood at while it recorded, YYYY-MM-DD: the demo's day. */
+  day?: string;
   people: People;
   steps: ScriptStep[];
   /** The questions the script asks, which are the ones the recording can answer. */
@@ -77,21 +79,27 @@ export function answer(
   path: string,
   body?: string,
 ): { status: number; json: unknown; place: Place } {
-  const person =
-    recording.people.people.find((p) => p.member === place.member) ?? (recording.people.people[0] as Person);
-  if (path === "/session") {
-    if (method === "POST") {
-      const member = (JSON.parse(body || "{}") as { member?: unknown }).member;
-      const next = recording.people.people.find((p) => p.member === member);
-      if (!next) return { status: 400, json: failure("bad_request", "no such person in this tenant"), place };
-      return {
-        status: 200,
-        json: { ...recording.people, person: next } satisfies Session,
-        place: { ...place, member: next.member },
-      };
-    }
-    return { status: 200, json: { ...recording.people, person } satisfies Session, place };
+  const { people } = recording;
+  const person = people.people.find((p) => p.member === place.member) ?? (people.people[0] as Person);
+  // Who is signed in, and their company, as the stand-in backend answers them (people.ts).
+  const route = `${method} ${path}`;
+  const signedIn = (as: Person, change?: unknown) => ({
+    status: 200,
+    json: sessionOf(people, as, companyOf(recording), change ? accountChange(change) : undefined),
+    place: { ...place, member: as.member },
+  });
+  if (route === "GET /session" || route === "POST /session") return signedIn(person);
+  if (route === "PATCH /account") return signedIn(person, JSON.parse(body || "{}"));
+  if (route === "GET /members") return { status: 200, json: { members: membersOf(people) }, place };
+  if (route === "GET /demo/people") return { status: 200, json: { people: people.people }, place };
+  if (route === "POST /demo/act-as") {
+    const member = (JSON.parse(body || "{}") as { member?: unknown }).member;
+    const next = people.people.find((p) => p.member === member);
+    if (!next) return { status: 400, json: failure("bad_request", "no such person in this company"), place };
+    return signedIn(next);
   }
+  // A recording has no account to leave: signing out opens it again.
+  if (route === "POST /auth/sign-out") return { status: 200, json: { next: "./" }, place };
   const reply = recording.states[place.state]?.[person.member]?.[callKey(method, path, body)];
   if (!reply) {
     const asked = path === "/v0/answers";
@@ -105,6 +113,13 @@ export function answer(
 }
 
 const failure = (code: string, message: string) => ({ error: { code, message } });
+
+/** The company's name, from the spaces the first person read at the start. */
+function companyOf(recording: Recording): string {
+  const first = (recording.people.people[0] as Person).member;
+  const reply = recording.states[0]?.[first]?.[callKey("GET", "/v0/spaces")];
+  return ((reply && recording.bodies[reply.body]) as { tenant?: { name?: string } } | undefined)?.tenant?.name ?? "";
+}
 
 const PLACE = "inspiration.snapshot.place";
 

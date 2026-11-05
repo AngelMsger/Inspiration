@@ -66,10 +66,13 @@ describe("a snapshot's page", () => {
     people: { tenant: "ten_1", people: [a, b] },
     steps: [],
     questions: ["q1", "q2"],
-    bodies: { one: { inbox: 1 }, two: { inbox: 2 }, done: { ok: true } },
+    bodies: { one: { inbox: 1 }, two: { inbox: 2 }, done: { ok: true }, spaces: { tenant: { name: "Hengyuan" } } },
     states: [
       {
-        mem_A: { [callKey("GET", "/v0/inbox")]: { status: 200, body: "one" } },
+        mem_A: {
+          [callKey("GET", "/v0/inbox")]: { status: 200, body: "one" },
+          [callKey("GET", "/v0/spaces")]: { status: 200, body: "spaces" },
+        },
         mem_B: { [callKey("POST", "/v0/todos/t/resolve", '{"with":"x"}')]: { status: 200, body: "done", next: 1 } },
       },
       { mem_A: { [callKey("GET", "/v0/inbox")]: { status: 200, body: "two" } } },
@@ -77,11 +80,24 @@ describe("a snapshot's page", () => {
   };
   const start = { state: 0, member: "mem_A" };
 
-  test("acts as the place's person, and as another when asked", () => {
-    expect(answer(recording, start, "GET", "/session").json).toMatchObject({ person: a });
-    const moved = answer(recording, start, "POST", "/session", '{"member":"mem_B"}');
-    expect([moved.json, moved.place]).toMatchObject([{ person: b }, { state: 0, member: "mem_B" }]);
-    expect(answer(recording, start, "POST", "/session", '{"member":"mem_C"}').status).toBe(400);
+  test("is signed in as the place's person, and acts as another when asked", () => {
+    expect(answer(recording, start, "GET", "/session").json).toMatchObject({
+      account: { name: "A" },
+      companies: [{ tenant_id: "ten_1", name: "Hengyuan" }],
+      current: { member_id: "mem_A", display_name: "A", role: "member" },
+    });
+    const moved = answer(recording, start, "POST", "/demo/act-as", '{"member":"mem_B"}');
+    expect([moved.json, moved.place]).toMatchObject([
+      { current: { member_id: "mem_B" } },
+      { state: 0, member: "mem_B" },
+    ]);
+    expect(answer(recording, start, "POST", "/demo/act-as", '{"member":"mem_C"}').status).toBe(400);
+    expect(answer(recording, start, "GET", "/members").json).toMatchObject({
+      members: [{ member_id: "mem_A" }, { member_id: "mem_B" }],
+    });
+    expect(answer(recording, start, "PATCH", "/account", '{"locale":"ja"}').json).toMatchObject({
+      account: { locale: "ja" },
+    });
   });
 
   test("answers what was recorded, and moves on with a step's action", () => {

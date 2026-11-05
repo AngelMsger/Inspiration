@@ -251,6 +251,7 @@ async function main(): Promise<void> {
     }
     const recording: Recording = {
       recorded_at: new Date().toISOString(),
+      day: today,
       people,
       steps,
       questions,
