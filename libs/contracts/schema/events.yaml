@@ -40,6 +40,9 @@ x-events:
   todo.resolved:
     payload: TodoResolved
     version: 1
+  todo.reopened:
+    payload: TodoReopened
+    version: 1
   page.rendered:
     payload: PageRendered
     version: 1
@@ -450,6 +453,37 @@ $defs:
         $ref: "collab.yaml#/$defs/Priority"
       batch_key:
         type: string
+
+  TodoReopened:
+    description: >
+      A member undid what the assistant decided for them, and the todo is open again. The
+      component that asked for it restores what the undone resolution's effect changed, as a
+      new decision; the others ignore it.
+    type: object
+    required: [todo_id, kind, space_id, dedupe_key, created_by, decision_id, undid, reopened_by]
+    properties:
+      todo_id:
+        $ref: "common.yaml#/$defs/TodoId"
+      kind:
+        $ref: "collab.yaml#/$defs/TodoKind"
+      space_id:
+        $ref: "common.yaml#/$defs/SpaceId"
+      dedupe_key:
+        type: string
+        minLength: 1
+      slot_key:
+        type: string
+      created_by:
+        $ref: "common.yaml#/$defs/ComponentName"
+      decision_id:
+        $ref: "common.yaml#/$defs/DecisionId"
+      undid:
+        description: The key of the resolution undone.
+        type: string
+        minLength: 1
+      reopened_by:
+        description: The member who undid it.
+        $ref: "common.yaml#/$defs/PrincipalId"
 
   PageRendered:
     type: object

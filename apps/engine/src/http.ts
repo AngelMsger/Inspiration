@@ -17,6 +17,11 @@
  *     POST /v0/answers   AnswerQuery                  GroundedAnswer, compact unless depth is standard
  *     GET  /v0/inbox                                  Inbox, the member's open todos
  *     POST /v0/todos/:todo/resolve  ResolveTodo       Todo, closed
+ *     POST /v0/inbox/decide         DecideTodos       Decided, what the assistant decided and left
+ *     POST /v0/decisions/:decision/undo               InboxTodo, open again
+ *     GET  /v0/inbox/decided                          DecidedWeek, this week's decisions
+ *     GET  /v0/delegation                             Delegation, the member's standing Decide for me
+ *     PUT  /v0/delegation           PutDelegation     Delegation
  *     GET  /v0/spaces/:space/overview                 SpaceOverview, for the space's maintainers
  *     POST /v0/sources/:source/sync                   SyncReport, the source synced now
  *     PUT  /v0/spaces/:space/files/:path  the file's bytes  FileWritten, the file in the space's uploads
@@ -35,7 +40,11 @@
  *     PUT /v0/tenants/:tenant/members/:member  PutMember  MemberWritten
  *     GET /v0/tenants/:tenant/members                     DirectoryMemberList
  *
- * Resolving a todo, syncing a source and uploading a file are the knowledge writes. An upload
+ * Resolving a todo, letting the assistant decide or undoing its decision, the delegation,
+ * syncing a source and uploading a file are the knowledge writes. The assistant decides only
+ * the member's own todos (another's named answers 404), at most 20 named at once (else 400),
+ * and writes its reasons in the token's locale; an undo of a decision already undone or no
+ * longer the one that closed its todo answers 409 (decisions.ts). An upload
  * (uploads.ts) needs editor or above on the space (else 403); its body is the file's bytes,
  * at most 50 MiB (else 413), of a type the engine reads by the name's extension (else 415).
  * It answers once the document is stored and reads it in the background. The Documents tree,
@@ -89,6 +98,7 @@ import {
 } from "@inspiration/contracts";
 import { logger } from "@inspiration/kernel";
 import { documentTree, entryOf, foldersOf, type ListedDocument } from "@inspiration/source-sync";
+import { decideTodos, putDelegation, undoDecision } from "./decisions.ts";
 import type { Engine } from "./engine.ts";
 import { badRequest, HttpError, notFound } from "./http-errors.ts";
 import { members, putMember, putTenant } from "./provisioning.ts";
@@ -184,6 +194,26 @@ function routesOf(engine: Engine): Route[] {
         if (!todo) throw notFound("todo");
         return todo;
       },
+    },
+    {
+      method: "POST",
+      path: /^\/v0\/inbox\/decide$/,
+      scope: "knowledge.propose",
+      run: async (who, _m, req) => decideTodos(engine, who, await req.json()),
+    },
+    {
+      method: "POST",
+      path: /^\/v0\/decisions\/([^/]+)\/undo$/,
+      scope: "knowledge.propose",
+      run: (who, m) => undoDecision(engine, who, param(m)),
+    },
+    { method: "GET", path: /^\/v0\/inbox\/decided$/, run: (who) => engine.assistant.week(who) },
+    { method: "GET", path: /^\/v0\/delegation$/, run: (who) => engine.assistant.delegation(who.tenant_id, who.id) },
+    {
+      method: "PUT",
+      path: /^\/v0\/delegation$/,
+      scope: "knowledge.propose",
+      run: async (who, _m, req) => putDelegation(engine, who, await req.json()),
     },
     {
       method: "GET",

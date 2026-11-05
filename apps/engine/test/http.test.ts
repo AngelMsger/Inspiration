@@ -12,6 +12,7 @@ import { devIssuer } from "@inspiration/access-control/testing";
 import {
   type Citation,
   contractErrors,
+  type Decided,
   type DocumentTree,
   type DocumentTreeNode,
   type DocumentView,
@@ -95,6 +96,7 @@ async function call(
     headers?: Record<string, string>;
     on?: Server;
     claims?: Record<string, unknown>;
+    method?: string;
   } = {},
 ) {
   const { port } = (options.on ?? server).address() as AddressInfo;
@@ -110,7 +112,7 @@ async function call(
     ? {}
     : (options.headers ?? { authorization: `Bearer ${token()}` });
   const res = await fetch(`http://127.0.0.1:${port}${path}`, {
-    method: options.body === undefined ? "GET" : "POST",
+    method: options.method ?? (options.body === undefined ? "GET" : "POST"),
     headers,
     ...(options.body !== undefined && { body: JSON.stringify(options.body) }),
   });
@@ -322,6 +324,63 @@ describe("engine HTTP API", () => {
     expect(overview.levels.map((l) => l.level)).toEqual(["governed", "reference", "search_only"]);
     expect(overview.levels.reduce((n, l) => n + l.documents, 0)).toBe(count);
     expect(overview.changes.map((c) => c.kind)).not.toContain("updated");
+  });
+
+  // After the overview: the budget deadline is decided, and its decision undone.
+  test("lets the assistant decide a member's todos, undo a decision once, and keep a standing delegation", async () => {
+    const card = (await call("/v0/inbox", { member: ZHOU_MIN })).body as unknown as Inbox;
+    const [budget] = card.cards.flatMap((c) => c.todos);
+    expect(budget?.suggestion).toBeDefined();
+    const decide = (body: unknown, member = ZHOU_MIN) => call("/v0/inbox/decide", { member, body });
+    expect((await decide({ todo_ids: Array.from({ length: 21 }, (_, i) => `todo_${i}`) })).status).toBe(400);
+    expect((await decide({ todo_ids: [budget?.todo.id] }, LI_NA)).status).toBe(404);
+
+    const { status, body } = await decide({ batch_key: card.cards[0]?.batch_key });
+    expect(status).toBe(200);
+    expect(contractErrors("Decided", body)).toEqual([]);
+    const [decision] = (body as unknown as Decided).decisions;
+    expect(decision).toMatchObject({
+      with: budget?.suggestion?.with,
+      reason: budget?.suggestion?.reason,
+      via: "assistant_batch",
+      decided_by: ZHOU_MIN,
+      todo: { id: budget?.todo.id, status: "done" },
+    });
+    // Written in the token's locale.
+    expect(decision?.reason).toMatch(/\p{Script=Han}/u);
+    const week = await call("/v0/inbox/decided", { member: ZHOU_MIN });
+    expect(contractErrors("DecidedWeek", week.body)).toEqual([]);
+    expect(week.body).toMatchObject({ week: "2026-W45", left: 0, undone: 0, decisions: [{ id: decision?.id }] });
+
+    // What it is not sure of stays with the member, marked, with its suggestion.
+    const hotel = (await call("/v0/inbox", { member: LI_NA })).body as unknown as Inbox;
+    const [cap] = hotel.cards.flatMap((c) => c.todos);
+    const left = (await decide({ todo_ids: [cap?.todo.id] }, LI_NA)).body as unknown as Decided;
+    expect(left).toMatchObject({ decisions: [], left: [{ todo_id: cap?.todo.id, suggestion: cap?.suggestion }] });
+    const marked = (await call("/v0/inbox", { member: LI_NA })).body as unknown as Inbox;
+    expect(marked.cards.flatMap((c) => c.todos)[0]?.left).toEqual({ reason: left.left[0]?.reason });
+
+    const undo = (member = ZHOU_MIN) => call(`/v0/decisions/${decision?.id}/undo`, { member, body: {} });
+    expect((await undo(LI_NA)).status).toBe(404);
+    const undone = await undo();
+    expect(undone.status).toBe(200);
+    expect(contractErrors("InboxTodo", undone.body)).toEqual([]);
+    expect(undone.body).toMatchObject({
+      todo: { id: budget?.todo.id, status: "open" },
+      suggestion: budget?.suggestion,
+    });
+    expect(await undo()).toMatchObject({ status: 409, body: { error: { code: "conflict" } } });
+
+    const delegation = (body?: unknown) =>
+      call("/v0/delegation", { member: ZHOU_MIN, ...(body !== undefined && { body, method: "PUT" }) });
+    expect((await delegation()).body).toMatchObject({ state: "unset" });
+    const on = await delegation({ state: "on" });
+    expect(contractErrors("Delegation", on.body)).toEqual([]);
+    expect(on.body).toMatchObject({ state: "on" });
+    expect((await delegation({ state: "always" })).status).toBe(400);
+    // Paused again, so what the last test syncs stays the member's to decide.
+    expect((await delegation({ state: "paused" })).body).toMatchObject({ state: "paused", paused_reason: "person" });
+    expect((await delegation()).body).toMatchObject({ state: "paused" });
   });
 
   // Last: the choice changes what the tenant knows.

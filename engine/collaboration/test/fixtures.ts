@@ -16,7 +16,7 @@ import { MemoryStore, PostgresStore } from "@inspiration/knowledge-store";
 import { Sample } from "@inspiration/knowledge-store/testing";
 import { createTestDatabase, hasStack } from "@inspiration/testkit";
 import { test } from "vitest";
-import { Inbox, type InboxSettings } from "../src/index.ts";
+import { Assistant, Inbox, type InboxSettings } from "../src/index.ts";
 
 export const TENANT = "ten_01JC0000000000000000TENANT";
 export const SPACE = "spc_01JC00000000000000000SPACE";
@@ -36,6 +36,7 @@ export interface World {
   store: KnowledgeStore;
   records: Records;
   inbox: Inbox;
+  assistant: Assistant;
   /** Store topics, the parents first. */
   topics: (...nodes: Partial<TaxonomyNode>[]) => Promise<TaxonomyNode[]>;
   /** A governed document with one claim per statement, its claims placed in the topic when one is given. */
@@ -53,6 +54,10 @@ export interface World {
   created: () => Promise<TodoCreated[]>;
   /** Every todo.resolved the inbox published, in order. */
   resolved: () => Promise<TodoResolved[]>;
+  /** Every event of a type published, in order. */
+  published: (type: string) => Promise<EventEnvelope[]>;
+  /** Deliver to the assistant every todo.created published so far, as the bus would. */
+  arrive: () => Promise<void>;
 }
 
 export const inboxTest = (backend: Backend, settings: Partial<InboxSettings> = {}) =>
@@ -83,6 +88,7 @@ export const inboxTest = (backend: Backend, settings: Partial<InboxSettings> = {
     // Friday of 2026-W43.
     let now = new Date("2026-10-23T09:00:00Z");
     const inbox = new Inbox({ store, records, clock: () => now, settings });
+    const assistant = new Assistant({ inbox });
     const sample = new Sample({ tenantId: TENANT, spaceId: SPACE });
     let documents = 0;
 
@@ -155,10 +161,17 @@ export const inboxTest = (backend: Backend, settings: Partial<InboxSettings> = {
       (await outbox()).filter((e) => e.type === "todo.created").map((e) => e.data as unknown as TodoCreated);
     const resolved = async () =>
       (await outbox()).filter((e) => e.type === "todo.resolved").map((e) => e.data as unknown as TodoResolved);
+    const published = async (type: string) => (await outbox()).filter((e) => e.type === type);
+    const arrive = async () => {
+      for (const event of await published("todo.created")) await assistant.onTodoCreated(event);
+    };
     return {
       store,
       records,
       inbox,
+      assistant,
+      published,
+      arrive,
       topics,
       document,
       request: (r, correlation) => deliver(requestEvent(r, correlation)),

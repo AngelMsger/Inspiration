@@ -44,6 +44,10 @@
       "payload": "TodoResolved",
       "version": 1
     },
+    "todo.reopened": {
+      "payload": "TodoReopened",
+      "version": 1
+    },
     "page.rendered": {
       "payload": "PageRendered",
       "version": 1
@@ -222,6 +226,7 @@
       "TodoRequested",
       "TodoResolved",
       "TodoCreated",
+      "TodoReopened",
       "PageRendered",
       "CommentCreated",
       "UnitPublished"
@@ -1123,7 +1128,7 @@
     },
     "ApiErrorCode": {
       "type": "string",
-      "description": "forbidden is a token whose scopes do not cover the route, or an admin write on a space the member may read but not administer; conflict is a directory command older than the engine's copy; too_large is an upload over the size a file may have (status 413), and unsupported_type a file of a type the engine does not read (status 415).\n",
+      "description": "forbidden is a token whose scopes do not cover the route, or an admin write on a space the member may read but not administer; conflict is a directory command older than the engine's copy, or an undo of a decision already undone or replaced; too_large is an upload over the size a file may have (status 413), and unsupported_type a file of a type the engine does not read (status 415).\n",
       "enum": [
         "bad_request",
         "unauthenticated",
@@ -9514,6 +9519,53 @@
           "description": "One line, in the member's language.",
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "TodoReopened": {
+      "description": "A member undid what the assistant decided for them, and the todo is open again. The component that asked for it restores what the undone resolution's effect changed, as a new decision; the others ignore it.\n",
+      "type": "object",
+      "required": [
+        "todo_id",
+        "kind",
+        "space_id",
+        "dedupe_key",
+        "created_by",
+        "decision_id",
+        "undid",
+        "reopened_by"
+      ],
+      "properties": {
+        "todo_id": {
+          "$ref": "#/$defs/TodoId"
+        },
+        "kind": {
+          "$ref": "#/$defs/TodoKind"
+        },
+        "space_id": {
+          "$ref": "#/$defs/SpaceId"
+        },
+        "dedupe_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "slot_key": {
+          "type": "string"
+        },
+        "created_by": {
+          "$ref": "#/$defs/ComponentName"
+        },
+        "decision_id": {
+          "$ref": "#/$defs/DecisionId"
+        },
+        "undid": {
+          "description": "The key of the resolution undone.",
+          "type": "string",
+          "minLength": 1
+        },
+        "reopened_by": {
+          "description": "The member who undid it.",
+          "$ref": "#/$defs/PrincipalId"
         }
       }
     },

@@ -1,0 +1,20 @@
+# What the assistant writes in English when it decides a member's todos (src/assistant.ts):
+# why it decided, why it left a todo to the member, and the names of the resolutions it
+# chooses on todos that offer none. Every pack has the same fields.
+reasons:
+  changed: A dated change that is in effect replaced the other value.
+  authority: The most authoritative source states it.
+  disagreement: Governance proposes it, but a source as authoritative says otherwise.
+  note: Only a reference document states the other value, and the governed value still holds.
+  unchanged: The document has not changed in its review interval; the review was due by age alone.
+  copy: This copy repeats a document that changed, and governance holds the changed document's values over it.
+left:
+  unsure: Sources as authoritative as each other disagree, so this one is yours to choose.
+  person_decided: A person chose otherwise on this question before, so it stays yours.
+  never: The assistant does not decide this kind of todo.
+  no_advice: There is nothing to suggest for this one yet.
+  with_conflict: It waits for the conflict on its card to be decided.
+  undone: You undid what the assistant decided.
+labels:
+  acknowledged: Acknowledged
+  reviewed: Reviewed

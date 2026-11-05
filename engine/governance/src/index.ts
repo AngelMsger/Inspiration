@@ -60,7 +60,8 @@
  *   drops it and asks again. A choice on a question governance no longer asks asks the
  *   current one; a todo dismissed or closed without a choice is not asked again until the
  *   question changes. The person may be an agent deciding for one; joint approval is the
- *   business layer's.
+ *   business layer's. When a member undoes what the assistant chose for them (todo.reopened),
+ *   the choice is dropped and the slot asks its question again, which the reopened todo takes.
  *
  * Updates of one tenant run one at a time in a process, and the inbox mark commits with the
  * rows, so a redelivered event changes nothing. Run one governance consumer per tenant.

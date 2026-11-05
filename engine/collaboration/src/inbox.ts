@@ -10,12 +10,14 @@ import {
   type ReviewDueKind,
   type TaxonomyNode,
   type Todo,
+  type TodoAdvice,
   type TodoKind,
   type TodoResolution,
   type TodoStatus,
 } from "@inspiration/contracts";
 import { defineTable, type Records, type RecordTx } from "@inspiration/eventbus";
 import { logger } from "@inspiration/kernel";
+import type { LeftWhy } from "./assistant.ts";
 import { addWeeks, isoWeek } from "./weeks.ts";
 
 const log = logger("collaboration");
@@ -50,6 +52,10 @@ export interface Item {
    * (TodoRequested.refresh): they ask nothing new, so review load leaves them out.
    */
   refreshed?: string[];
+  /** What the requester would choose (TodoRequested.suggestion), as its latest request said. */
+  advice?: TodoAdvice;
+  /** Why and when the assistant left the todo to its assignee (assistant.ts). */
+  left?: { why: LeftWhy; at: string };
 }
 
 export const ITEMS = defineTable<Item>("collaboration.items", {
@@ -81,7 +87,7 @@ export interface Card {
   todos: Todo[];
 }
 
-const OPEN: TodoStatus[] = ["open", "in_progress"];
+export const OPEN: readonly TodoStatus[] = ["open", "in_progress"];
 const UNFILED = "unfiled";
 
 const REVIEW_KIND: Record<ReviewDueKind, TodoKind> = {
@@ -105,6 +111,7 @@ interface Request {
   dedupe_key: string;
   slot_key?: string;
   resolutions?: TodoResolution[];
+  suggestion?: TodoAdvice;
   due_at?: string;
   campaign?: boolean;
   /** Shows the open todo's question with current statements; opens no todo. */
@@ -142,6 +149,16 @@ function partsOf(batchKey: string): [string, number] {
 /** A copy review a source update left: it goes on the card of a conflict the same update opened. */
 const rides = (i: Item): i is Item & { correlation_id: string } =>
   i.todo.kind === "stale" && i.correlation_id !== undefined && !i.campaign;
+
+const later = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+const decision = (t: Todo) => (t.kind === "conflict" ? 0 : 1);
+
+/** A card's order: most urgent first, then oldest, a conflict before the reviews that ride on it. */
+export const todoOrder = (a: Todo, b: Todo): number =>
+  PRIORITY.indexOf(b.priority) - PRIORITY.indexOf(a.priority) ||
+  later(a.created_at, b.created_at) ||
+  decision(a) - decision(b) ||
+  later(a.id, b.id);
 
 export function cardKind(batchKey: string): CardKind {
   const kind = batchKey.split(":")[0];
@@ -212,6 +229,7 @@ export class Inbox {
       dedupe_key: r.dedupe_key,
       ...(r.slot_key !== undefined && { slot_key: r.slot_key }),
       ...(r.resolutions?.length && { resolutions: r.resolutions }),
+      ...(r.suggestion && { suggestion: r.suggestion }),
       ...(r.refresh && { refresh: true }),
     });
   };
@@ -341,15 +359,7 @@ export class Inbox {
       }
       card.todos.push(todo);
     }
-    // Most urgent first, then oldest, a conflict before the reviews that ride on it.
-    const later = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
-    const decision = (t: Todo) => (t.kind === "conflict" ? 0 : 1);
-    const order = (a: Todo, b: Todo) =>
-      PRIORITY.indexOf(b.priority) - PRIORITY.indexOf(a.priority) ||
-      later(a.created_at, b.created_at) ||
-      decision(a) - decision(b) ||
-      later(a.id, b.id);
-    for (const card of cards.values()) card.todos.sort(order);
+    for (const card of cards.values()) card.todos.sort(todoOrder);
     return [...cards.values()].sort((a, b) =>
       a.week !== b.week ? ((a.week ?? "") < (b.week ?? "") ? -1 : 1) : a.batch_key < b.batch_key ? -1 : 1,
     );
@@ -380,7 +390,7 @@ export class Inbox {
           // A later request replaces what the todo says; where it sits stays.
           const { detail: _detail, slot_key: _slot, resolutions: _resolutions, ...todo } = open.todo;
           // A refresh adds the units it swapped in to what earlier ones did; a new ask clears them.
-          const { refreshed, ...rest } = open;
+          const { refreshed, advice: _advice, ...rest } = open;
           const shown = new Set(todo.unit_ids);
           const swapped = request.refresh
             ? [...new Set([...(refreshed ?? []), ...request.unit_ids.filter((id) => !shown.has(id))])]
@@ -397,6 +407,7 @@ export class Inbox {
               ...(request.resolutions && { resolutions: request.resolutions }),
             },
             ...(swapped.length > 0 && { refreshed: swapped }),
+            ...(request.suggestion && { advice: request.suggestion }),
           };
           await tx.put(ITEMS, [replaced]);
           this.totals.merged++;
@@ -424,6 +435,7 @@ export class Inbox {
           due_week: isoWeek(due),
           ...(event.correlation_id && { correlation_id: event.correlation_id }),
           ...(request.campaign && { campaign: true }),
+          ...(request.suggestion && { advice: request.suggestion }),
         };
         await this.#schedule(tx, item, route);
         // Copy reviews its source update left before the conflict came ride on it too.
@@ -562,48 +574,68 @@ export class Inbox {
     }
   }
 
+  /**
+   * Run fn in one transaction after the tenant's other inbox updates in this process, as every
+   * change to the tenant's todos runs. fn must not start another update: they would wait on
+   * each other.
+   */
+  async update<T>(tenantId: string, fn: (tx: RecordTx) => Promise<T>): Promise<T> {
+    return this.#serial(tenantId, () => this.records.transaction(fn));
+  }
+
+  /**
+   * Close todos in a transaction update gave: done (with the key of the resolution chosen, if
+   * any) or dismissed. A closed todo stays as it is; an unknown one, one of another kind than
+   * `kind` or a key the todo does not offer raises RangeError. todo.resolved tells the
+   * requester and commits with the close.
+   */
+  async closeIn(
+    tx: RecordTx,
+    tenantId: string,
+    todoIds: readonly string[],
+    how: { by: string; with?: string; status?: "done" | "dismissed" },
+    kind?: TodoKind,
+  ): Promise<Todo[]> {
+    const items = await tx.getMany(ITEMS, todoIds);
+    const found = new Map(items.filter((i) => i.todo.tenant_id === tenantId).map((i) => [i.todo.id, i]));
+    const now = this.clock();
+    const at = now.toISOString();
+    const out: Todo[] = [];
+    const closed: Item[] = [];
+    for (const id of todoIds) {
+      const item = found.get(id);
+      if (!item) throw new RangeError(`unknown todo ${id}`);
+      if (kind && item.todo.kind !== kind) throw new RangeError(`todo ${id} is a ${item.todo.kind}, not a ${kind}`);
+      if (!OPEN.includes(item.todo.status)) {
+        out.push(item.todo);
+        continue;
+      }
+      const offered = item.todo.resolutions;
+      if (how.with !== undefined && offered?.length && !offered.some((r) => r.key === how.with)) {
+        throw new RangeError(`todo ${id} offers no resolution ${how.with}`);
+      }
+      item.todo = {
+        ...item.todo,
+        status: how.status ?? "done",
+        resolved_by: how.by,
+        resolved_at: at,
+        ...(how.with !== undefined && { resolved_with: how.with }),
+      };
+      out.push(item.todo);
+      closed.push(item);
+    }
+    await tx.put(ITEMS, [...found.values()]);
+    if (closed.length) await tx.publish(...closed.map((i) => resolvedEvent(i, now)));
+    return out;
+  }
+
   async #close(
     tenantId: string,
     todoIds: readonly string[],
     how: { by: string; with?: string; status?: "done" | "dismissed" },
     kind?: TodoKind,
   ): Promise<Todo[]> {
-    return this.#serial(tenantId, () =>
-      this.records.transaction(async (tx) => {
-        const items = await tx.getMany(ITEMS, todoIds);
-        const found = new Map(items.filter((i) => i.todo.tenant_id === tenantId).map((i) => [i.todo.id, i]));
-        const now = this.clock();
-        const at = now.toISOString();
-        const out: Todo[] = [];
-        const closed: Item[] = [];
-        for (const id of todoIds) {
-          const item = found.get(id);
-          if (!item) throw new RangeError(`unknown todo ${id}`);
-          if (kind && item.todo.kind !== kind) throw new RangeError(`todo ${id} is a ${item.todo.kind}, not a ${kind}`);
-          if (!OPEN.includes(item.todo.status)) {
-            out.push(item.todo);
-            continue;
-          }
-          const offered = item.todo.resolutions;
-          if (how.with !== undefined && offered?.length && !offered.some((r) => r.key === how.with)) {
-            throw new RangeError(`todo ${id} offers no resolution ${how.with}`);
-          }
-          item.todo = {
-            ...item.todo,
-            status: how.status ?? "done",
-            resolved_by: how.by,
-            resolved_at: at,
-            ...(how.with !== undefined && { resolved_with: how.with }),
-          };
-          out.push(item.todo);
-          closed.push(item);
-        }
-        await tx.put(ITEMS, [...found.values()]);
-        // The requester applies what was chosen; the event commits with the close.
-        if (closed.length) await tx.publish(...closed.map((i) => resolvedEvent(i, now)));
-        return out;
-      }),
-    );
+    return this.update(tenantId, (tx) => this.closeIn(tx, tenantId, todoIds, how, kind));
   }
 
   async #topics(tenantId: string): Promise<Map<string, TaxonomyNode>> {

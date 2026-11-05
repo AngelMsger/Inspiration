@@ -1,7 +1,7 @@
 // A person's choice on a conflict todo: it settles the slot while governance would ask the same
 // question, and governance asks again once it would not.
 
-import type { TodoRequested } from "@inspiration/contracts";
+import { newEvent, type TodoRequested } from "@inspiration/contracts";
 import { describe, expect } from "vitest";
 import { BACKENDS, governanceTest, HOTEL, LI, TENANT, type World } from "./fixtures.ts";
 
@@ -114,6 +114,31 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
         ["500 CNY/night", "outdated"],
         ["650 CNY/night", "outdated"],
       ]);
+    });
+
+    test("is dropped when the member undoes the assistant's choice, and the slot asks again", async ({ world }) => {
+      const request = await contradiction(world);
+      const { event } = await world.resolve(request, { value: "650 CNY/night" });
+      const reopened = newEvent(
+        "todo.reopened",
+        {
+          todo_id: event.data.todo_id as string,
+          kind: "conflict",
+          space_id: request.space_id,
+          dedupe_key: request.dedupe_key,
+          slot_key: HOTEL,
+          created_by: "governance",
+          decision_id: "dcn_01JC0000000000000000000001",
+          undid: "choose:650 CNY/night",
+          reopened_by: LI,
+        },
+        { tenantId: TENANT, producer: "collaboration" },
+      );
+      const { requests } = await world.governance.reopened(reopened);
+      // The same question as before the choice, asked anew for the reopened todo to take.
+      expect(requests).toEqual([{ ...request }]);
+      expect(await standings(world)).toMatchObject({ held: "600 CNY/night", disputed: true, chosen_by: undefined });
+      expect(await world.governance.reopened(reopened)).toEqual({ slots: [], requests: [], notes: [], withdrawn: [] });
     });
 
     test("lapses when governance would ask another question, and governance asks it", async ({ world }) => {
