@@ -23,6 +23,11 @@
  *                                                  links ending in index.html, for an Artifact
  *   node apps/site/src/build.ts --serve [--port n] serve, rebuilding on every request
  *
+ * Every link is relative, so the pages work under any path. `.github/workflows/site.yml` builds
+ * them on main and publishes them to GitHub Pages once the repository is public. The web fonts
+ * load without blocking, so the page renders at once in system fonts where they are slow or
+ * unreachable.
+ *
  * A pack with a missing or extra key, or a key of another type than in `en.yaml`, fails the
  * build with a RangeError naming it.
  */

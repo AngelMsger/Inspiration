@@ -584,7 +584,8 @@ ${c.packs.map(({ tag, pack }) => `<link rel="alternate" hreflang="${pack.meta.ht
 <link rel="icon" href="${ICON}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="${esc(fonts)}">
+<link rel="stylesheet" href="${esc(fonts)}" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="${esc(fonts)}"></noscript>
 <style>${c.css}</style>`;
   const body = `<div class="site" lang="${m.htmlLang}" style="${esc(`--serif:${m.serif};--sans:${m.sans}`)}">
 ${header(c)}

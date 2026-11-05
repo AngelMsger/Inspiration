@@ -73,7 +73,7 @@ business/<name>     每个业务层组件一个包：目前有 tenancy；engine/
 apps/engine         引擎进程：把组件接到存储、事件总线和 blob 存储上；HTTP API
 apps/web            产品 Web 应用，基于引擎的 HTTP API，带一个替身后端（pnpm demo）和录像（pnpm snapshot）
 apps/bench          测量工具（pnpm bench）：在语料上运行引擎、生成报告、核对答案
-apps/site           产品官网（pnpm site）：三种语言的静态页面和一段演示动画
+apps/site           产品官网（pnpm site）：三种语言的静态页面和一段演示动画，发布到 GitHub Pages
 examples/<corpus>   语料，以及核对运行结果所用的答案（见 examples/README.zh.md）
 infra/              原型运行环境的 docker compose，以及运行时用的本地向量模型服务
 config/             模型网关的示例配置
