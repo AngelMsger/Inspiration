@@ -21,7 +21,9 @@ nav:
   sources: ソース
   features: 特長
   agents: エージェント向け
+  results: 検証結果
   language: 言語
+  github: GitHub で Inspiration を見る
 
 hero:
   title:
@@ -220,6 +222,34 @@ features:
     fact: 1泊 650 元
     holds: 2026-10-01 から
     source: ひとつの事実を、中国語の原文で引用
+
+results:
+  kicker: 検証結果
+  title: 約束ではなく、実測。
+  lead: 内容の変更や食い違いを集めたテストで、Inspiration は**成熟した RAG より多く正解し**、簡潔な回答は**コストが 7 分の 1** でした。
+  items:
+    - value: "+6.9"
+      unit: ポイント
+      label: 変更や食い違いのある事実で、成熟した RAG を上回った正解率
+      bars: [Inspiration, 成熟した RAG]
+      foot: 変わっていない事実：どちらも 72 問中 70 問正解。
+    - value: 27 / 27
+      unit: ""
+      label: 別の文書で告知された変更に、すべて新しい値で回答
+      bars: [Inspiration, ガバナンスなし]
+      foot: どちらもトピックの全文書を読みます。違いはガバナンスだけです。
+    - value: 1/7
+      unit: ""
+      label: 1 回答あたりのモデルコストは成熟した RAG の 7 分の 1、正解数は同等
+      bars: [Inspiration 簡潔な回答, 成熟した RAG]
+      foot: 276 問中の正解 242 対 234。1 回答の入力 1,961 トークン対 8,954。
+  right: "{of} 問中 {value} 問"
+  money: "{value} 元"
+  why: "**なぜ効くのか：**モデルが間違えるのは入力が長いからではなく、聞かれた事実に競合する値が入力にあるからです。Inspiration はモデルが読む前に、どの値が有効かを決めておきます。"
+  source: Liu, 2026, プレプリント
+  note: ラボでの結果（2026 年 11 月 3 日と 4 日の実行）：ひとつのテストコーパスの 2 トピック、276 問を DeepSeek V4.1 Flash が回答。成熟した RAG はハイブリッド検索、リランカー、質問の翻訳、12〜16 段落を使います。ガバナンスのルールはこのコーパスで調整したもので、実データでのより大きな検証はこれからです。
+  method: 測定方法
+  methodPath: docs/design/validation.md
 
 agents:
   kicker: エージェント向け

@@ -7,7 +7,9 @@
  *     const who = await tokens.verify(bearer); // a Principal, or a TokenError
  *
  * A token is valid at most 15 minutes (web tokens 5, OAuth access tokens 10 to 15), with 30
- * seconds of leeway for clocks. Agent tokens are refused until the agent API accepts them.
+ * seconds of leeway for clocks. max_sens becomes the principal's max_sensitivity, which narrows
+ * what the holder may read. Agent tokens, and the agent claims on any token, are refused until
+ * the agent API accepts them.
  */
 
 import type { KeyObject } from "node:crypto";
@@ -32,7 +34,10 @@ export interface Jwks {
   readonly keys: readonly PublicJwk[];
 }
 
-/** Where the verifier finds the signing keys. refresh is true when a token names a key the last answer lacked. */
+/**
+ * Where the verifier finds the signing keys. refresh is true when a token names a key the last
+ * answer lacked. A source that cannot answer throws, and the token is refused.
+ */
 export type KeySource = (refresh: boolean) => Promise<Jwks>;
 
 /** Keys known up front, as in tests and development. */
@@ -41,27 +46,55 @@ export function staticKeys(jwks: Jwks): KeySource {
 }
 
 /**
- * Keys from a JWKS URL, kept until a token names a key they lack. The URL is fetched again then,
- * at most once every minRefreshMs, so a stream of forged key IDs cannot make the engine hammer it.
+ * Keys from a JWKS URL. An answer is trusted for maxAgeMs (5 minutes), so a key the issuer
+ * stops publishing is refused at most that long after; past it the URL is fetched again, and
+ * while it cannot be fetched every token is refused. A token naming a key the answer lacks
+ * fetches it again early, at most once every minRefreshMs (30 seconds), so a stream of forged
+ * key IDs cannot make the engine hammer it. Requests that need a fetch at the same time share it.
  */
 export function jwksFromUrl(
   url: string,
-  options: { minRefreshMs?: number; fetch?: typeof fetch; now?: () => number } = {},
+  options: { maxAgeMs?: number; minRefreshMs?: number; fetch?: typeof fetch; now?: () => number } = {},
 ): KeySource {
   const get = options.fetch ?? fetch;
   const now = options.now ?? Date.now;
-  const minRefreshMs = options.minRefreshMs ?? 30_000;
+  const maxAgeMs = options.maxAgeMs ?? 5 * 60_000;
+  const minRefreshMs = Math.min(options.minRefreshMs ?? 30_000, maxAgeMs);
   let cached: Jwks | undefined;
   let fetchedAt = Number.NEGATIVE_INFINITY;
+  let attemptedAt = Number.NEGATIVE_INFINITY;
+  let pending: Promise<Jwks> | undefined;
+  let failure: unknown;
+  const load = async (): Promise<Jwks> => {
+    attemptedAt = now();
+    try {
+      const res = await get(url, { headers: { accept: "application/json" } });
+      if (!res.ok) throw new TokenError(`the signing keys at ${url} answered ${res.status}`);
+      const body = (await res.json()) as Jwks;
+      if (!Array.isArray(body?.keys)) throw new TokenError(`the signing keys at ${url} are not a JWKS`);
+      [cached, fetchedAt, failure] = [body, now(), undefined];
+      return body;
+    } catch (error) {
+      failure = error;
+      throw error;
+    }
+  };
   return async (refresh) => {
-    if (cached && (!refresh || now() - fetchedAt < minRefreshMs)) return cached;
-    const res = await get(url, { headers: { accept: "application/json" } });
-    if (!res.ok) throw new TokenError(`the signing keys at ${url} answered ${res.status}`);
-    const body = (await res.json()) as Jwks;
-    if (!Array.isArray(body?.keys)) throw new TokenError(`the signing keys at ${url} are not a JWKS`);
-    cached = body;
-    fetchedAt = now();
-    return cached;
+    const fresh = cached !== undefined && now() - fetchedAt < maxAgeMs;
+    const recent = now() - attemptedAt < minRefreshMs;
+    if (fresh && (!refresh || recent)) return cached as Jwks;
+    // The URL failed a moment ago: refuse without asking it again.
+    if (!fresh && recent && failure !== undefined && !pending) throw failure;
+    pending ??= load().finally(() => {
+      pending = undefined;
+    });
+    try {
+      return await pending;
+    } catch (error) {
+      // An early fetch for an unknown key that fails leaves the trusted answer as it was.
+      if (fresh) return cached as Jwks;
+      throw error;
+    }
   };
 }
 
@@ -75,6 +108,8 @@ const SCOPES: ReadonlySet<string> = new Set<Scope>([
   "provision.directory",
 ]);
 const PREFIX_OF_KIND: Readonly<Record<string, string>> = { member: "mem_", service: "svc_" };
+/** Claims for agents. Agent tokens are refused for now, and on any other token they are refused too, never ignored. */
+const AGENT_CLAIMS = ["obo", "spaces", "grant"] as const;
 
 export class TokenVerifier {
   readonly issuer: string;
@@ -111,6 +146,8 @@ export class TokenVerifier {
     const prefix = PREFIX_OF_KIND[claims.kind];
     if (!prefix) throw new TokenError(`a ${claims.kind} token is not accepted`);
     if (!claims.sub.startsWith(prefix)) throw new TokenError(`a ${claims.kind} token names ${claims.sub}`);
+    const agentClaims = AGENT_CLAIMS.filter((c) => claims[c] !== undefined);
+    if (agentClaims.length) throw new TokenError(`a ${claims.kind} token carries ${agentClaims.join(", ")}`);
     const scopes = claims.scope.split(" ");
     const unknown = scopes.filter((s) => !SCOPES.has(s));
     if (unknown.length) throw new TokenError(`unknown scope ${unknown.join(", ")}`);
@@ -119,6 +156,7 @@ export class TokenVerifier {
       kind: claims.kind,
       tenant_id: claims.tid,
       scopes: [...new Set(scopes)].sort() as Scope[],
+      ...(claims.max_sens && { max_sensitivity: claims.max_sens }),
       ...(claims.locale && { locale: claims.locale }),
       ...(claims.auth && { auth_context: claims.auth }),
     };

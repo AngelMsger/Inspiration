@@ -5997,6 +5997,10 @@
             "$ref": "#/$defs/Scope"
           }
         },
+        "max_sensitivity": {
+          "description": "The highest label the principal token lets its holder read (its max_sens). It narrows the holder's clearance and never widens it. Absent means the clearance alone decides.\n",
+          "$ref": "#/$defs/SensitivityLabel"
+        },
         "locale": {
           "description": "The account's UI language, for anything the engine writes for this principal.",
           "$ref": "#/$defs/Locale"
