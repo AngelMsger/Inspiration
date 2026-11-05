@@ -180,7 +180,7 @@ Each scenario says what happens, why the product works that way, and how far it 
 A sales manager asks: "May I book a 700-yuan hotel in Shenzhen next week?" The answer comes in the asker's language: "No. The cap for tier-1 cities is 650 yuan a night from 2026-11-01 [1], raised from 600 [2]." Citation 1 opens edition 7 of the policy beside the answer at the exact passage; citation 2 opens edition 6. The HR copy, the FAQ, the minutes and the 2023 edition are not cited, because their statements are superseded or are copies.
 
 - **Why.** The hotel cap is one fact slot holding every value over time, so the answer takes the value in force on the travel date, with its evidence. Retrieval over chunks would return all seven documents and leave the reader to sort them out.
-- **What the reader sees.** A plain answer and a page with small citation numbers. Only Outdated and Disputed appear in the text; Review due appears in the citation popover. If relevant material sits in a space the asker cannot read, the answer says it may be incomplete and whom to ask (section 15).
+- **What the reader sees.** A plain answer and a page with small citation numbers. Only Outdated and Disputed appear in the text; Review due appears in the citation popover. If relevant material sits in a space the asker cannot read, the answer says it may be incomplete and whom to ask (see [Permissions](architecture.md#permissions)).
 - **State.** Statements, slots and the proposal of 650 are built and run on the demo corpus. Search and answers that give the value that holds are built, on stand-ins for the models; taking the value in force on a given date and the reading UI are designed.
 
 ### 5.2 A policy changes
@@ -275,7 +275,7 @@ flowchart LR
 The all-staff travel guide uses HR's grades and Finance's hotel caps. Finance also holds a memo, readable only by Finance, that argues for cutting the cap, while a public document argues against.
 
 - **What happens.** The guide is written for its whole audience from what that audience can read. HR and Finance make their grades and caps readable to all staff, so the guide uses them. The memo is not readable by all staff, and leaving it out would leave only one side of an argument, so the omission check fires. The guide's owner gets one todo: ask Finance to release the relevant statement, rewrite the section without taking a position, or publish with a note. A reader who cannot open the memo sees "Some material on this point is in a space you cannot open. Ask the Finance space owner." A Finance reader sees the full section.
-- **Why.** Cutting text per reader distorts meaning, and hiding a whole page because one input is restricted is unusable and invites abuse: anyone could hide a page by linking a trivial restricted note to it. So people set audiences, inputs never do; units are written for their audience; and an omission that changes the meaning goes to a person (section 15).
+- **Why.** Cutting text per reader distorts meaning, and hiding a whole page because one input is restricted is unusable and invites abuse: anyone could hide a page by linking a trivial restricted note to it. So people set audiences, inputs never do; units are written for their audience; and an omission that changes the meaning goes to a person (see [Permissions](architecture.md#permissions)).
 - **When it applies.** A company with a single shared space never meets this. It starts to matter when a department such as Finance or HR narrows who can read its space.
 - **State.** Proposed ([Permissions in compiled knowledge](design/compiled-knowledge-permissions.md)), waiting for the product owner to confirm the trade-off in section 15; about 3 person-weeks.
 
@@ -371,7 +371,7 @@ States: **Built** (on `main`, with tests), **Designed** (decided, not built), **
 
 | ID | Requirement | State |
 | --- | --- | --- |
-| RD-1 | Three views with shared IDs: Original (as written), Annotated (with marks) and Knowledge (topic pages). A newly imported source opens in the Original view, and knowledge is revealed from there, concrete to abstract (section 19) | Designed |
+| RD-1 | Three views with shared IDs: Original (as written), Annotated (with marks) and Knowledge (topic pages). A newly imported source opens in the Original view, and knowledge is revealed from there, concrete to abstract (see [Pages, views and search](architecture.md#pages-views-and-search)) | Designed |
 | RD-2 | Two trees: the Documents tree and the Knowledge tree; a folder or space the reader cannot open is never shown, not even as a count | Designed |
 | RD-3 | Pages as `PageSpec` with 14 block types, every sentence citing statements, every rebuild a version with a diff | Contract built, compiler planned |
 | RD-4 | A citation opens the source beside the page at the exact passage and version, and says so when the passage changed since | Designed |
