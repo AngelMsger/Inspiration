@@ -54,6 +54,7 @@ pnpm snapshot dist/snapshot                        # 把演示脚本录制成静
 ```bash
 docker compose -f infra/compose.yaml --profile auth up -d --wait   # 即 make up，再加上 3001 端口的 Logto
 pnpm --dir apps/web exec vite build                                 # 构建 Web 应用，输出到 apps/web/dist
+pnpm parsing                                                        # 读取上传的 Word、PowerPoint、Excel 和 PDF
 pnpm engine serve examples/corpus --issuer http://localhost:4200 --audience http://127.0.0.1:4100
 pnpm business serve --web apps/web/dist --sample examples/corpus    # 网站在 http://localhost:4200
 ```

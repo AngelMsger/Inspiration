@@ -89,6 +89,7 @@ http://localhost:3002, create a "Traditional web" application with the redirect 
 ```bash
 docker compose -f infra/compose.yaml --profile auth up -d --wait   # make up, and Logto on 3001
 pnpm --dir apps/web exec vite build                                 # the web app, into apps/web/dist
+pnpm parsing                                                        # reads uploaded Word, PowerPoint, Excel and PDF
 pnpm engine serve examples/corpus --issuer http://localhost:4200 --audience http://127.0.0.1:4100
 pnpm business serve --web apps/web/dist --sample examples/corpus    # the site at http://localhost:4200
 ```
