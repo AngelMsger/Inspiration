@@ -12,8 +12,9 @@
  * (kind constructed), with what it changes and the file it is based on, if any.
  *
  * provision() writes what the business layer would, through access control's directory: the
- * tenant, the directory's members, the spaces' maintainers and readers and the corpus's reader
- * as its active members (named as an optional people.yaml names them), every space owned by
+ * tenant; as its active members the directory's members, the spaces' maintainers and readers,
+ * the corpus's reader and everyone an optional people.yaml lists (named as it names them, and
+ * given the super admin's roles where it says role: super_admin); every space owned by
  * its maintainer (owner in corpus.yaml, else the reader) and read by its readers (the whole
  * tenant when not given), and each source in its space. Who reads a document is its space's
  * audience; the ACLs its folder or Feishu reports are kept as they are and decide nothing.
@@ -134,12 +135,20 @@ export class Corpus {
   readonly files: readonly CorpusFile[];
   /** Member ID to display name, from people.yaml. */
   readonly names: ReadonlyMap<string, string>;
+  /** The members people.yaml makes the company's super admin. */
+  readonly superAdmins: ReadonlySet<string>;
   readonly #directoryOf = new Map<string, Record<string, string>>();
 
   constructor(
     dir: string,
     manifest: CorpusManifest,
-    options: { vocabulary?: Vocabulary; files?: CorpusFile[]; names?: Map<string, string>; createdAt?: Date } = {},
+    options: {
+      vocabulary?: Vocabulary;
+      files?: CorpusFile[];
+      names?: Map<string, string>;
+      superAdmins?: Set<string>;
+      createdAt?: Date;
+    } = {},
   ) {
     const createdAt = options.createdAt ?? new Date(0);
     this.dir = resolve(dir);
@@ -147,6 +156,7 @@ export class Corpus {
     this.vocabulary = options.vocabulary;
     this.files = options.files ?? [];
     this.names = options.names ?? new Map();
+    this.superAdmins = options.superAdmins ?? new Set();
     const spaces = new Set(manifest.spaces.map((s) => s.id));
     this.sources = manifest.sources.map((s) => {
       if (!spaces.has(s.space)) throw new CorpusError(`source ${s.id}: unknown space ${s.space}`);
@@ -208,7 +218,7 @@ export class Corpus {
     return new Corpus(dir, manifest, {
       ...((await exists(vocabulary)) && { vocabulary: await loadVocabulary(vocabulary) }),
       ...((await exists(files)) && { files: await loadFiles(files) }),
-      ...((await exists(people)) && { names: await loadNames(people) }),
+      ...((await exists(people)) && (await loadPeople(people))),
     });
   }
 
@@ -266,12 +276,13 @@ export class Corpus {
       this.reader.id,
       ...this.manifest.spaces.flatMap((s) => [s.owner ?? [], s.readers ?? []].flat()),
       ...Object.values(this.manifest.directory ?? {}).flatMap((section) => Object.values(section)),
+      ...this.names.keys(),
     ]);
     for (const id of [...members].filter((m) => m.startsWith("mem_")).sort()) {
       const member: Omit<PutMember, "version"> = {
         status: "active",
         display_name: this.names.get(id) ?? id,
-        roles: ["member"],
+        roles: this.superAdmins.has(id) ? [...SUPER_ADMIN_ROLES] : ["member"],
       };
       const version = seedVersion(await directory.member(tenantId, id), member);
       await directory.putMember(tenantId, id, { ...member, version });
@@ -345,8 +356,16 @@ function seedVersion(current: { version?: number } | undefined, fields: object):
   return same ? version : version + 1;
 }
 
-/** Member ID to display name, from a people.yaml beside the corpus. */
-async function loadNames(file: string): Promise<Map<string, string>> {
-  const { people = [] } = parse(await readFile(file, "utf8")) as { people?: { member: string; name: string }[] };
-  return new Map(people.map((p) => [p.member, p.name]));
+/** The roles the business layer gives its product role super_admin. */
+const SUPER_ADMIN_ROLES = ["owner", "admin", "security_admin", "auditor"] as const;
+
+/** Member ID to display name, and the super admins, from a people.yaml beside the corpus. */
+async function loadPeople(file: string): Promise<{ names: Map<string, string>; superAdmins: Set<string> }> {
+  const { people = [] } = parse(await readFile(file, "utf8")) as {
+    people?: { member: string; name: string; role?: string }[];
+  };
+  return {
+    names: new Map(people.map((p) => [p.member, p.name])),
+    superAdmins: new Set(people.filter((p) => p.role === "super_admin").map((p) => p.member)),
+  };
 }

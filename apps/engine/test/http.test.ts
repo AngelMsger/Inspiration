@@ -51,6 +51,7 @@ const LI_NA = "mem_01HENGYUAN000000000000LINA";
 const ZHANG_MIN = "mem_01HENGYUAN00000000ZHANGMIN";
 // Maintains the finance space and the finance-only budget space.
 const ZHOU_MIN = "mem_01HENGYUAN000000000ZHOUMIN";
+const ZHAO_LIN = "mem_01HENGYUAN000000000ZHAOLIN"; // the super admin in people.yaml, in no audience
 
 const issuer = devIssuer();
 let engine: Engine;
@@ -122,6 +123,15 @@ describe("engine HTTP API", () => {
     expect((zhou.spaces as { id: string; owner_ids: string[] }[]).find((s) => s.id === FINANCE)?.owner_ids).toEqual([
       ZHOU_MIN,
     ]);
+  });
+
+  test("provisions everyone people.yaml lists, its super admin with the super admin's roles", async () => {
+    const admin = await call("/v0/me", { member: ZHAO_LIN });
+    expect(admin.status).toBe(200);
+    expect(admin.body).toMatchObject({ admin: true, roles: ["admin", "auditor", "owner", "security_admin"] });
+    expect((await call("/v0/me")).body).toMatchObject({ admin: false, roles: ["member"] });
+    const managed = (await call("/v0/spaces?manage=true", { member: ZHAO_LIN })).body.spaces as { id: string }[];
+    expect(managed.map((s) => s.id)).toEqual([POLICY, FINANCE, BUDGET_SPACE, "spc_01HENGYUAN000000HRPAYROLL"].sort());
   });
 
   test("builds the Documents tree of a space the member may read", async () => {
