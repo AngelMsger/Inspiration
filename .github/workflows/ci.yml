@@ -34,6 +34,11 @@ jobs:
           node-version: "22"
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: The parsing worker's Python libraries
+        run: python -m venv .venv && .venv/bin/pip install -r engine/parsing/worker/requirements.txt
       - name: Start Postgres, Valkey and SpiceDB
         run: docker compose -f infra/compose.yaml up -d --wait
       - name: Tests, with the stack required

@@ -7,17 +7,19 @@ measurement harness and the demo. What the product is and where it is going is i
 
 ## Set up and check
 
-You need Node 22.18 or later, pnpm 10 (`corepack enable`), and Docker with Compose.
+You need Node 22.18 or later, pnpm 10 (`corepack enable`), Python 3.10 or later, and Docker
+with Compose.
 
 ```bash
-make install       # pnpm dependencies
+make install       # pnpm dependencies, and the parsing worker's Python libraries in .venv
 make up            # ParadeDB (Postgres 16 + pgvector + pg_search), Valkey, SpiceDB
 make migrate       # SQL migrations of every installed component
 make authz-schema  # the SpiceDB schema
 make check         # Biome, tsc, contract freshness, all tests with the stack required
 ```
 
-Without make, the same steps are `pnpm install`, `docker compose -f infra/compose.yaml up -d --wait`,
+Without make, the same steps are `pnpm install`, `python3 -m venv .venv && .venv/bin/pip install -r
+engine/parsing/worker/requirements.txt`, `docker compose -f infra/compose.yaml up -d --wait`,
 `pnpm exec inspiration-migrate`, `pnpm exec inspiration-authz-schema` and
 `INSPIRATION_REQUIRE_STACK=1 pnpm test`.
 
@@ -26,7 +28,9 @@ is set, as it is in CI. Each one gets its own database copied from a migrated te
 its own Valkey key prefix. `make test-unit` runs only the tests that need nothing.
 
 Everything is TypeScript on Node 22 except the parsing worker, which is Python because the
-best document parsers are. [`components.yaml`](../components.yaml) lists every component with its
+best document parsers are. The engine sends it Word, PowerPoint, Excel and PDF files at
+`INSPIRATION_PARSING_URL`; `pnpm parsing` starts it there, on port 8790. Without it, those
+files fail to read and say the worker is not reachable; the other formats need nothing. [`components.yaml`](../components.yaml) lists every component with its
 status (built, in progress or planned), and each package's `src/index.ts` says what it does.
 
 ## Run the engine over a corpus
