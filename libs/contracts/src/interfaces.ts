@@ -343,12 +343,14 @@ export interface VectorIndex {
   readonly name: string;
   upsert(items: Readonly<Record<string, readonly number[]>>, options: { model: string }): Promise<void>;
   delete(chunkIds: readonly string[]): Promise<void>;
+  /** The k best hits the filter lets through, and every hit tied with the k-th. */
   search(vector: readonly number[], k: number, filter: IndexFilter): Promise<IndexHit[]>;
 }
 
 /** BM25 search over chunks. Prototype: ParadeDB pg_search with jieba; product: Elasticsearch or OpenSearch. */
 export interface KeywordIndex {
   readonly name: string;
+  /** The k best hits the filter lets through, and every hit tied with the k-th. */
   search(text: string, k: number, filter: IndexFilter): Promise<IndexHit[]>;
 }
 
