@@ -76,7 +76,7 @@ services:
 
   # Sign-in for the business backend, only with `--profile auth` (not in make up or CI). Its
   # first start creates its own database, logto, on the same Postgres. Set it up once in its
-  # console (http://localhost:3002), as the README's quick start says.
+  # console (http://localhost:3002), as docs/development.md says.
   logto:
     image: svhd/logto:1.45.0
     profiles: [auth]
