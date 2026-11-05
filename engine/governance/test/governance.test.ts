@@ -177,6 +177,7 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
             label: `${verb} ${value}`,
             effect: { slot_key: HOTEL, value, question: expect.stringMatching(/^sha256:/), claim_id: claim },
           })),
+          suggestion: { with: "choose:650 CNY/night", sure: true, basis: "changed" },
         },
       ]);
     });

@@ -150,6 +150,7 @@
       "Todo",
       "IsoWeek",
       "TodoSuggestion",
+      "TodoAdvice",
       "TodoLeft",
       "DecisionVia",
       "TodoDecision",
@@ -9343,6 +9344,33 @@
         }
       }
     },
+    "TodoAdvice": {
+      "description": "What a component asking for a todo would choose on it, and on what that rests. The assistant decides a todo with advice it is sure of and leaves the rest to the member with the suggestion; collaboration writes the reason in the member's language from the basis. changed: a dated change in effect. authority: the most authoritative source. disagreement: documents as authoritative as each other disagree, and neither replaced the other, so the requester is not sure.\n",
+      "type": "object",
+      "required": [
+        "with",
+        "sure",
+        "basis"
+      ],
+      "properties": {
+        "with": {
+          "description": "The key of one of the resolutions the request offers.",
+          "type": "string",
+          "minLength": 1
+        },
+        "sure": {
+          "type": "boolean"
+        },
+        "basis": {
+          "type": "string",
+          "enum": [
+            "changed",
+            "authority",
+            "disagreement"
+          ]
+        }
+      }
+    },
     "TodoChoice": {
       "description": "One resolution a todo offers. For a conflict it chooses a value: the value, and the statement of it to show (one of the todo's statements, when the member may read it).\n",
       "type": "object",
@@ -9555,6 +9583,10 @@
         "refresh": {
           "description": "The same question, showing the statements that say each value now (one it showed was superseded): collaboration replaces the open todo with this key, and creates none when there is no open one. It asks nothing new.\n",
           "type": "boolean"
+        },
+        "suggestion": {
+          "description": "The resolution the requester would choose and whether it is sure, so the assistant can decide the todo for a member who lets it (Decide for me).\n",
+          "$ref": "#/$defs/TodoAdvice"
         }
       }
     },

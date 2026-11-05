@@ -3357,6 +3357,18 @@ export interface TenantWritten {
   tenant: Tenant;
   consistency_token?: string;
 }
+/**
+ * What a component asking for a todo would choose on it, and on what that rests. The assistant decides a todo with advice it is sure of and leaves the rest to the member with the suggestion; collaboration writes the reason in the member's language from the basis. changed: a dated change in effect. authority: the most authoritative source. disagreement: documents as authoritative as each other disagree, and neither replaced the other, so the requester is not sure.
+ *
+ */
+export interface TodoAdvice {
+  /**
+   * The key of one of the resolutions the request offers.
+   */
+  with: string;
+  sure: boolean;
+  basis: "changed" | "authority" | "disagreement";
+}
 export interface TodoCreated {
   todo_id: TodoId;
   kind: TodoKind;
@@ -3409,6 +3421,7 @@ export interface TodoRequested {
    *
    */
   refresh?: boolean;
+  suggestion?: TodoAdvice;
 }
 /**
  * A person, or an agent acting for one, closed a todo. The component that asked for it applies the chosen resolution's effect; the others ignore it. A todo the requester withdrew is dismissed without this event.

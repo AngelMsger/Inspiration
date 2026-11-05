@@ -33,6 +33,29 @@ const standings = async (world: World) => {
 describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
   const test = governanceTest(backend);
 
+  describe.skipIf(skip)("what governance would choose", () => {
+    test("the value it proposes, sure of it unless a source as authoritative disagrees", async ({ world }) => {
+      // The policy outranks the handbook.
+      expect((await contradiction(world)).suggestion).toEqual({
+        with: "choose:600 CNY/night",
+        sure: true,
+        basis: "authority",
+      });
+    });
+
+    test("not sure when two governed documents in use disagree, though one is newer", async ({ world }) => {
+      await world.state({ title: "Travel policy", authority: 0.9, modified_at: "2026-08-04T08:00:00Z" }, [
+        { text: "The hotel cap in tier-1 cities is 600 yuan a night.", value: 600 },
+      ]);
+      await world.state({ title: "Expense guide", authority: 0.9, modified_at: "2026-09-15T08:00:00Z" }, [
+        { text: "Hotels in tier-1 cities: 650 yuan a night.", value: 650 },
+      ]);
+      expect((await world.requests()).map((r) => r.suggestion)).toEqual([
+        { with: "choose:650 CNY/night", sure: false, basis: "disagreement" },
+      ]);
+    });
+  });
+
   describe.skipIf(skip)("a person's choice", () => {
     test("holds the value chosen over the one governance proposed, and asks nothing more", async ({ world }) => {
       const request = await contradiction(world);
