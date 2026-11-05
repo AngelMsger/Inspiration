@@ -10,7 +10,9 @@
  * the hotel cap story of the demo corpus in the product's own look: its search box, asked where
  * five documents disagree, and its window, as a new notice changes the answer. They repeat while
  * in view. All three are illustrations, not the product, and hold still on their result with
- * reduced motion or without script. While the product
+ * reduced motion or without script. A results section shows three measured figures from the
+ * validation runs (docs/design/validation.md), each with the run it comes from, and links to
+ * the method. While the product
  * is in active development the site offers no download and no sign-up, and says so once, in
  * its closing lines.
  *

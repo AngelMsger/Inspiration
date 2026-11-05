@@ -18,7 +18,15 @@ export interface Pack {
     title: string;
     description: string;
   };
-  nav: { how: string; sources: string; features: string; agents: string; language: string; github: string };
+  nav: {
+    how: string;
+    sources: string;
+    features: string;
+    results: string;
+    agents: string;
+    language: string;
+    github: string;
+  };
   hero: {
     title: TitleRun[];
     lead: string;
@@ -91,6 +99,23 @@ export interface Pack {
     fresh: { steps: string[]; places: string[] };
     govern: { heading: string; rows: { label: string; value: string }[]; action: string };
     language: { fact: string; holds: string; source: string };
+  };
+  /** Measured results: one item per entry of RESULTS, in that order. */
+  results: {
+    kicker: string;
+    title: string;
+    lead: string;
+    /** A figure, with its unit set smaller after it where it has one. */
+    items: { value: string; unit: string; label: string; bars: string[]; foot: string }[];
+    /** How a count of right answers reads, with {value} and {of}; and an amount in yuan, with {value}. */
+    right: string;
+    money: string;
+    why: string;
+    source: string;
+    note: string;
+    method: string;
+    /** The method's document in the repository, in this language where it has a copy. */
+    methodPath: string;
   };
   agents: {
     kicker: string;
@@ -219,6 +244,7 @@ function header(c: PageContext): string {
       <a href="#how">${esc(p.nav.how)}</a>
       <a href="#sources">${esc(p.nav.sources)}</a>
       <a href="#features">${esc(p.nav.features)}</a>
+      <a href="#results">${esc(p.nav.results)}</a>
       <a href="#agents">${esc(p.nav.agents)}</a>
     </nav>
     <div class="top-tools">
@@ -512,6 +538,50 @@ function features(c: PageContext): string {
 </section>`;
 }
 
+/**
+ * The bars beside each result, from docs/design/validation.md; the first of each pair is
+ * Inspiration's. Right answers on the 204 changed or conflicting questions of the decisive test
+ * after the governance fix (2026-11-04); right answers on its 27 changes announced in another
+ * document, against the same documents read without governance; and the model cost of an
+ * answer in yuan, measured on 2026-11-03.
+ */
+const RESULTS: { format: "right" | "money"; bars: [number, number]; of: number }[] = [
+  { format: "right", bars: [178, 164], of: 204 },
+  { format: "right", bars: [27, 16], of: 27 },
+  { format: "money", bars: [0.0012, 0.0083], of: 0.0083 },
+];
+
+/** Where the mechanism behind the results is shown; cited as the preprint it is. */
+const PAPER = "https://arxiv.org/abs/2611.04169v1";
+
+function results(c: PageContext): string {
+  const r = c.pack.results;
+  const amount = (format: "right" | "money", value: number, of: number) =>
+    format === "right"
+      ? r.right.replace("{value}", String(value)).replace("{of}", String(of))
+      : r.money.replace("{value}", String(value));
+  const tiles = RESULTS.map((res, i) => {
+    const it = at(r.items, i, "results.items");
+    const bars = res.bars
+      .map(
+        (v, j) =>
+          `<div class="res-bar${j === 0 ? " ours" : ""}"><p class="res-bar-h"><span>${esc(at(it.bars, j, "results.items.bars"))}</span><span class="res-num">${esc(amount(res.format, v, res.of))}</span></p><span class="res-track" aria-hidden="true"><i style="width:${((v / res.of) * 100).toFixed(1)}%"></i></span></div>`,
+      )
+      .join("");
+    return `<li class="result"><p class="res-value">${esc(it.value)}${it.unit ? ` <span class="res-unit">${esc(it.unit)}</span>` : ""}</p><p class="res-label">${esc(it.label)}</p><div class="res-bars">${bars}</div><p class="res-foot">${esc(it.foot)}</p></li>`;
+  }).join("");
+  return `<section class="results" id="results">
+  <div class="wrap">
+    ${head(r.kicker, r.title, r.lead)}
+    <ul class="result-row">${tiles}</ul>
+    <div class="res-more">
+      <p class="res-why">${rich(r.why)} <a class="res-link" href="${PAPER}">${esc(r.source)}</a></p>
+      <p class="res-note">${esc(r.note)} <a class="res-link" href="${REPOSITORY}/blob/main/${esc(r.methodPath)}">${esc(r.method)}</a></p>
+    </div>
+  </div>
+</section>`;
+}
+
 function agents(c: PageContext): string {
   const a = c.pack.agents;
   const u = c.pack.demo.ui;
@@ -614,6 +684,7 @@ ${problem(c)}
 ${how(c)}
 ${sources(c)}
 ${features(c)}
+${results(c)}
 ${agents(c)}
 ${enterprise(c)}
 </main>
