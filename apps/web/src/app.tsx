@@ -5,7 +5,17 @@
 import type { Inbox } from "@inspiration/contracts";
 import type { CompanyMember, Session, UiLocale } from "@inspiration/contracts/business";
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { type ApiFailure, api, failureOf, type Library, type Loaded, loadLibrary, useLoad } from "./api.ts";
+import {
+  type ApiFailure,
+  api,
+  apiIn,
+  failureOf,
+  type Library,
+  type Loaded,
+  loadLibrary,
+  showCompany,
+  useLoad,
+} from "./api.ts";
 import { DocumentScreen } from "./document.tsx";
 import { Documents } from "./documents.tsx";
 import { Ask, countOf, Home } from "./home.tsx";
@@ -40,15 +50,16 @@ interface Entry extends ReadFor {
 
 /**
  * Who is signed in, with their company's library and people when they could be read; the shell
- * reads the library again otherwise.
+ * reads the library again otherwise. It reads in the session's company, not the one on screen.
  */
 async function enter(session: Session): Promise<{ session: Session; entry?: Entry }> {
   const current = session.current;
   if (!current) return { session };
+  const calls = apiIn(current.tenant_id);
   const [library, members, demo] = await Promise.all([
-    loadLibrary().catch(() => undefined),
-    api.members().catch(() => undefined),
-    api.demoPeople().catch(() => undefined),
+    loadLibrary(calls).catch(() => undefined),
+    calls.members().catch(() => undefined),
+    calls.demoPeople().catch(() => undefined),
   ]);
   if (!library) return { session };
   const people = peopleOf(members?.members ?? [], demo?.people);
@@ -82,8 +93,10 @@ function personOf(session: Session, demo: Person[] | undefined): Person {
  * start over. Whoever it acts as next, it reads their library before it shows their shell, so
  * the old frame stays on screen meanwhile and no one's frame shows another person's spaces.
  * When people or companies are picked in quick succession, the last one picked is shown
- * (`switcher`), and until it is, the frame on screen takes no clicks. Signed out, it shows how to
- * sign in; signed in to no company yet, how to make one.
+ * (`switcher`), and until it is, the frame on screen takes no clicks. Its calls name the company
+ * it shows, so none reads or acts in the next one meanwhile; when the session moves on without
+ * it, as from another tab, it reads the session again (api.ts). Signed out, it shows how to sign
+ * in; signed in to no company yet, how to make one.
  */
 export function App(props: { generation?: number }) {
   const generation = props.generation ?? 0;
@@ -100,12 +113,21 @@ export function App(props: { generation?: number }) {
 
   // Every change of whom the app acts as, the generation's reads among them; only the latest shows.
   const [busy, setBusy] = useState(false);
-  const [change] = useState(() => switcher(setBusy));
+  const switching = useRef(false);
+  const [change] = useState(() =>
+    switcher((on) => {
+      switching.current = on;
+      setBusy(on);
+    }),
+  );
   // The generation of the latest read, so a person picked meanwhile starts the screens over too.
   const latest = useRef(generation);
+  // Reads who is signed in again, and shows the company the session works in.
+  const reread = useRef(() => {});
   const show = useCallback((next: Switched<{ session: Session; entry?: Entry }>) => {
     if (!next) return;
     entry.current = next.value.entry;
+    showCompany(next.value.session.current?.tenant_id, () => switching.current || reread.current());
     setFailure(undefined);
     setSignedOut(false);
     setSession(next.value.session);
@@ -113,15 +135,18 @@ export function App(props: { generation?: number }) {
   }, []);
   const fail = useCallback((e: unknown) => {
     const failed = failureOf(e);
+    // The session moved to another company while the next one was read: show where it is now.
+    if (failed.status === 409 && failed.code === "conflict") return reread.current();
     if (failed.status !== 401) return setFailure(failed);
     setSession(undefined);
     setSignedOut(true);
   }, []);
+  reread.current = () => void change(api.session, enter).then(show, fail);
 
   useEffect(() => {
     latest.current = generation;
-    change(api.session, enter).then(show, fail);
-  }, [generation, change, show, fail]);
+    reread.current();
+  }, [generation]);
   useEffect(() => {
     document.documentElement.lang = tagLocale(tag);
   }, [tag]);

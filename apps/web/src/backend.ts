@@ -5,8 +5,10 @@
  * first person, and a cookie remembers who is signed in. Every call under /api/v0/ goes on to
  * the engine's HTTP API as that member, in the engine's development identity headers. The
  * page cannot name a member itself: the backend builds the headers it forwards, so identity
- * headers from the browser never reach the engine. Under /api/demo/ are what only the demo
- * has: acting as another person of the company, and its upstream edits.
+ * headers from the browser never reach the engine. A call that acts in a company names the one
+ * its frame shows (x-inspiration-company); naming another than the session's answers 409
+ * conflict, as the business backend does. Under /api/demo/ are what only the demo has: acting
+ * as another person of the company, and its upstream edits.
  *
  *     GET   /api/session           Session, or 401 when signed out
  *     GET   /api/auth/sign-in      ?return_to=<path>: signs in, then 302 to that path
@@ -158,6 +160,10 @@ export function backend(options: People & { engine: string; updates?: Updates })
       }
       const person = signedIn(req);
       if (!person) return send(res, 401, error("unauthenticated", "sign in first"));
+      const named = req.headers["x-inspiration-company"];
+      if (named !== undefined && named !== people.tenant) {
+        return send(res, 409, error("conflict", "the session works in another company"));
+      }
       if ((await accountRoute(route, req, res, person)) || (await demoRoute(url, req, res, person))) return;
       if (!url.pathname.startsWith("/api/v0/")) return send(res, 404, error("not_found", "no route"));
       const sent = req.method === "POST" ? new Uint8Array(await body(req)) : undefined;

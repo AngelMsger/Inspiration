@@ -153,6 +153,18 @@ describe("development backend", () => {
     expect(seen[0]?.headers["x-inspiration-tenant"]).toBe(tenant);
   });
 
+  test("refuses a call that names another company than the session's", async () => {
+    const { cookie } = await signIn();
+    seen = [];
+    const elsewhere = await call("/api/v0/inbox", { headers: { cookie, "x-inspiration-company": "ten_01QINGHE" } });
+    expect([elsewhere.status, (elsewhere.body as { error: { code: string } }).error.code]).toEqual([409, "conflict"]);
+    expect(seen).toEqual([]);
+    const here = await call("/api/v0/inbox", { headers: { cookie, "x-inspiration-company": tenant } });
+    expect(here.status).toBe(200);
+    // The company the page names is for the backend; the engine hears the tenant from it alone.
+    expect(seen[0]?.headers["x-inspiration-company"]).toBeUndefined();
+  });
+
   test("forwards bodies and the engine's own status", async () => {
     const { cookie } = await signIn();
     const posted = await call("/api/v0/answers", {
