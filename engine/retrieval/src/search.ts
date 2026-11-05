@@ -59,9 +59,14 @@ const log = logger(COMPONENT);
 /** Rows each index returns before fusion. */
 export const POOL = 50;
 /** Fused chunks whose statements and snippets the reranker sees. */
-export const RERANK_POOL = 30;
+export const RERANK_POOL = 15;
+/**
+ * Fused chunks the mature baseline reranks: more than the MATURE_SOURCES it reads, as a
+ * carefully built RAG reranks, and as many as in every run it was measured in.
+ */
+export const MATURE_POOL = 30;
 /** Statements of those chunks the reranker sees, those sharing most of the query first. */
-export const STATEMENT_POOL = 30;
+export const STATEMENT_POOL = 15;
 /** Reciprocal rank fusion's constant. */
 export const RRF_K = 60;
 /** Statements that are no longer believed or never were. */
@@ -257,7 +262,8 @@ export class Search {
         fused.set(h.chunk_id, (fused.get(h.chunk_id) ?? 0) + 1 / (RRF_K + (h.rank ?? i + 1)));
       });
     }
-    return [...fused].sort(([a, x], [b, y]) => y - x || (a < b ? -1 : 1)).slice(0, RERANK_POOL);
+    const pool = this.baseline === "mature" ? MATURE_POOL : RERANK_POOL;
+    return [...fused].sort(([a, x], [b, y]) => y - x || (a < b ? -1 : 1)).slice(0, pool);
   }
 
   /** The vector and keyword indexes' rows for each text. */
