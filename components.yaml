@@ -269,7 +269,7 @@ business:
 # it lists that app under `uses`.
 apps:
   engine:
-    owns: The engine process; corpus manifests and topic owners, standing in for the business layer's provisioning; its HTTP API, version 0 (pnpm engine serve)
+    owns: The engine process; corpus manifests and topic owners, standing in for the business layer's provisioning, which they send through access control's directory; its HTTP API, version 0 (pnpm engine serve), with the routes for provisioning tenants and members and for administering spaces
   business:
     owns: The business backend, the browser's only server (pnpm business serve); the browser API for sign-in, companies, members and invite links over accounts and tenancy; principal tokens and their JWKS; the engine's provisioning and its /v0 API passed on as the member; the built web app
   web:

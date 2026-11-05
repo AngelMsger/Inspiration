@@ -51,6 +51,7 @@ const LI_NA = "mem_01HENGYUAN000000000000LINA";
 const ZHANG_MIN = "mem_01HENGYUAN00000000ZHANGMIN";
 // Maintains the finance space and the finance-only budget space.
 const ZHOU_MIN = "mem_01HENGYUAN000000000ZHOUMIN";
+const ZHAO_LIN = "mem_01HENGYUAN000000000ZHAOLIN"; // the super admin in people.yaml, in no audience
 
 const issuer = devIssuer();
 let engine: Engine;
@@ -72,15 +73,10 @@ beforeAll(async () => {
     clock: () => new Date("2026-11-04T09:00:00Z"),
   });
   await seed(engine, corpus);
-  server = await serveApi(engine, directory(), 0, {
+  server = await serveApi(engine, 0, {
     tokens: new TokenVerifier({ issuer: issuer.issuer, audience: issuer.audience, keys: issuer.keys }),
   });
 }, 120_000);
-
-const directory = () => ({
-  tenant: (id: string) => (id === corpus.tenantId ? corpus.tenant : undefined),
-  spaces: () => corpus.spaces,
-});
 
 afterAll(async () => {
   server?.close();
@@ -92,11 +88,24 @@ afterAll(async () => {
 /** A request as a member, with a token the development issuer signs; or with the headers given. */
 async function call(
   path: string,
-  options: { member?: string; body?: unknown; anonymous?: boolean; headers?: Record<string, string>; on?: Server } = {},
+  options: {
+    member?: string;
+    body?: unknown;
+    anonymous?: boolean;
+    headers?: Record<string, string>;
+    on?: Server;
+    claims?: Record<string, unknown>;
+  } = {},
 ) {
   const { port } = (options.on ?? server).address() as AddressInfo;
   const token = () =>
-    issuer.mint({ sub: options.member ?? corpus.reader.id, tid: corpus.tenantId, kind: "member", locale: "zh-CN" });
+    issuer.mint({
+      sub: options.member ?? corpus.reader.id,
+      tid: corpus.tenantId,
+      kind: "member",
+      locale: "zh-CN",
+      ...options.claims,
+    });
   const headers: Record<string, string> = options.anonymous
     ? {}
     : (options.headers ?? { authorization: `Bearer ${token()}` });
@@ -118,7 +127,24 @@ describe("engine HTTP API", () => {
     expect(contractErrors("SpaceList", body)).toEqual([]);
     const names = (b: Record<string, unknown>) => (b.spaces as { name: string }[]).map((s) => s.name);
     expect(names(body)).toEqual(DATA.spaces);
-    expect(names((await call("/v0/spaces", { member: ZHOU_MIN })).body)).toEqual([...DATA.spaces, DATA.budget.space]);
+    const roles = (b: Record<string, unknown>) =>
+      Object.fromEntries((b.spaces as { id: string; role?: string }[]).map((s) => [s.id, s.role]));
+    expect(roles(body)).toEqual({ [POLICY]: "viewer", [FINANCE]: "viewer" });
+    const zhou = (await call("/v0/spaces", { member: ZHOU_MIN })).body;
+    expect(names(zhou)).toEqual([...DATA.spaces, DATA.budget.space]);
+    expect(roles(zhou)).toEqual({ [POLICY]: "viewer", [FINANCE]: "owner", [BUDGET_SPACE]: "owner" });
+    expect((zhou.spaces as { id: string; owner_ids: string[] }[]).find((s) => s.id === FINANCE)?.owner_ids).toEqual([
+      ZHOU_MIN,
+    ]);
+  });
+
+  test("provisions everyone people.yaml lists, its super admin with the super admin's roles", async () => {
+    const admin = await call("/v0/me", { member: ZHAO_LIN });
+    expect(admin.status).toBe(200);
+    expect(admin.body).toMatchObject({ admin: true, roles: ["admin", "auditor", "owner", "security_admin"] });
+    expect((await call("/v0/me")).body).toMatchObject({ admin: false, roles: ["member"] });
+    const managed = (await call("/v0/spaces?manage=true", { member: ZHAO_LIN })).body.spaces as { id: string }[];
+    expect(managed.map((s) => s.id)).toEqual([POLICY, FINANCE, BUDGET_SPACE, "spc_01HENGYUAN000000HRPAYROLL"].sort());
   });
 
   test("builds the Documents tree of a space the member may read", async () => {
@@ -188,6 +214,18 @@ describe("engine HTTP API", () => {
       (await call(`/v0/documents?source=${FIN_BUDGET}&item=${encodeURIComponent(BUDGET)}`, { member: ZHOU_MIN }))
         .status,
     ).toBe(200);
+  });
+
+  test("hides from a token's max_sens what is labelled above it", async () => {
+    const travel = `/v0/documents?source=${FIN_POLICIES}&item=${encodeURIComponent(TRAVEL)}`;
+    expect((await call(travel)).body).toMatchObject({ version: { sensitivity: "internal" } });
+    expect((await call(travel, { claims: { max_sens: "internal" } })).status).toBe(200);
+    const narrowed = await call(travel, { claims: { max_sens: "public" } });
+    expect([narrowed.status, narrowed.body]).toEqual([404, { error: { code: "not_found", message: "no document" } }]);
+    const tree = (await call(`/v0/spaces/${FINANCE}/documents`, { claims: { max_sens: "public" } }))
+      .body as unknown as DocumentTree;
+    const policies = tree.sources.find((s) => s.source_id === FIN_POLICIES) as DocumentTreeNode;
+    expect(titles(policies)).not.toContain(DATA.travel.title);
   });
 
   test("lists a space's topics, and shows one with every value of the facts it holds", async () => {
@@ -324,7 +362,7 @@ describe("engine HTTP API", () => {
   });
 
   test("takes the development headers only when asked to", async () => {
-    const dev = await serveApi(engine, directory(), 0, { devHeaders: true });
+    const dev = await serveApi(engine, 0, { devHeaders: true });
     try {
       const headers = { "x-inspiration-tenant": corpus.tenantId, "x-inspiration-member": corpus.reader.id };
       const { status, body } = await call("/v0/spaces", { headers, on: dev });

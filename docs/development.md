@@ -59,6 +59,7 @@ tier-1 row says 650:
 ```bash
 pnpm demo                                          # the engine on port 4100, the web app on 5173
 pnpm engine serve examples/corpus --dev-identity   # the engine's HTTP API alone, trusting identity headers
+pnpm engine serve --issuer <business URL> --audience http://127.0.0.1:4100   # empty, for the business layer to provision
 pnpm snapshot dist/snapshot                        # record the demo script as a static page
 ```
 

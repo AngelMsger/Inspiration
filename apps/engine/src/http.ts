@@ -1,11 +1,13 @@
 /**
  * The engine's HTTP API, version 0: the queries the business layer's web app makes on behalf
- * of a member. Bodies are the contract types of libs/contracts/schema/api.yaml and
- * retrieval.yaml, validated on the way in. Routes only translate: each reads through the
- * components' own methods, and every read is checked against the member's permissions there
- * or here, before anything is returned.
+ * of a member, and the commands its tenancy service sends. Bodies are the contract types of
+ * libs/contracts/schema/api.yaml, tenancy.yaml and retrieval.yaml, validated on the way in.
+ * Routes only translate: each reads through the components' own methods, and every read is
+ * checked against the member's permissions there or here, before anything is returned.
  *
- *     GET  /v0/spaces                                 SpaceList
+ *     GET  /v0/me                                     Me, the member's roles and whether they administer the tenant
+ *     GET  /v0/spaces                                 SpaceList, the spaces the member may read
+ *     GET  /v0/spaces?manage=true                     SpaceList, the spaces the member may administer
  *     GET  /v0/spaces/:space/documents                DocumentTree
  *     GET  /v0/spaces/:space/topics                   TopicList, the space's knowledge outline
  *     GET  /v0/topics/:topic                          TopicView
@@ -18,48 +20,71 @@
  *     GET  /v0/spaces/:space/overview                 SpaceOverview, for the space's maintainers
  *     POST /v0/sources/:source/sync                   SyncReport, the source synced now
  *
- * Resolving a todo and syncing a source are the writes. Only a todo's assignee may resolve it
- * (a todo of anyone else's answers 404), with a resolution it offers (else 400). Only a member
- * who may administer a space and read it reads its overview or syncs its sources (spaces.ts).
- * Both writes answer once the engine has read everything they caused, so the next read sees
- * the change.
+ * Space administration (space-admin.ts), on access control's directory:
+ *
+ *     POST  /v0/spaces                  CreateSpace       SpaceWritten, once per Idempotency-Key
+ *     PUT   /v0/spaces/:space/owners    PutSpaceOwners    SpaceWritten
+ *     PATCH /v0/spaces/:space           PatchSpace        SpaceWritten
+ *     GET   /v0/spaces/:space/audience                    SpaceAudience
+ *     PUT   /v0/spaces/:space/audience  PutSpaceAudience  SpaceAudience
+ *
+ * Provisioning (provisioning.ts), for the business layer's tenancy service:
+ *
+ *     PUT /v0/tenants/:tenant                  PutTenant  TenantWritten
+ *     PUT /v0/tenants/:tenant/members/:member  PutMember  MemberWritten
+ *     GET /v0/tenants/:tenant/members                     DirectoryMemberList
+ *
+ * Resolving a todo and syncing a source are the knowledge writes. Only a todo's assignee may
+ * resolve it (a todo of anyone else's answers 404), with a resolution it offers (else 400).
+ * Only a member who may administer a space and read it reads its overview or syncs its sources
+ * (spaces.ts). Both answer once the engine has read everything they caused, so the next read
+ * sees the change. The directory's writes answer with a consistency_token. The engine reads at
+ * least as fresh as its own latest write, so a read after the answer sees the change whether
+ * or not it sends the token back in x-inspiration-consistency; the header is accepted now for
+ * when several engine processes pass it on to SpiceDB.
  *
  * Identity: a request carries a principal token, "Authorization: Bearer <JWT>", which the
  * business layer signs and access control verifies (TokenVerifier). The token's scopes bound
- * what the route may do: knowledge.read for every read, knowledge.propose for the two writes.
- * For development only (the demo and its snapshot), Identity.devHeaders lets a request name its
- * tenant and member in the x-inspiration-tenant and x-inspiration-member headers instead,
- * trusted as given with a member's scopes; the API listens on localhost only. Errors are
- * ApiError bodies: 400 for a body or header that is not valid, 401 without a valid token, 403
- * for a token whose scopes do not cover the route, 404 for anything unknown or not readable
- * (the two look the same, so a reader never learns what exists).
+ * what the route may do: knowledge.read for every read, knowledge.propose for a member's writes,
+ * provision.directory for provisioning, which only a service of the tenant may do. A member's
+ * tenant must be active and the member an active member of it, as the directory has them, or
+ * the request answers 401 whatever the token says. For development only (the demo and its
+ * snapshot), Identity.devHeaders lets a request name its tenant and member in the
+ * x-inspiration-tenant and x-inspiration-member headers instead, trusted as given with a
+ * member's scopes; the API listens on localhost only. Errors are ApiError bodies: 400 for a
+ * body or header that is not valid, 401 without a valid token, 403 for a token whose scopes do
+ * not cover the route or an admin write the member may not make, 404 for anything unknown or
+ * not readable (the two look the same, so a reader never learns what exists), 409 for a
+ * directory command that an earlier one supersedes.
  */
 
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
-import { TokenError, type TokenVerifier } from "@inspiration/access-control";
+import { ConflictError, TokenError, type TokenVerifier } from "@inspiration/access-control";
 import {
   type AnswerQuery,
   type ApiError,
-  type ApiErrorCode,
+  allows,
   ContractError,
   type DocumentTree,
   type DocumentView,
+  type Me,
   type Principal,
   parseAs,
   type ResolveTodo,
   type Scope,
   type SearchQuery,
-  type Space,
-  type SpaceList,
+  type SpaceEntry,
   slotOf,
-  type Tenant,
   type TopicList,
   type TopicView,
 } from "@inspiration/contracts";
 import { logger } from "@inspiration/kernel";
 import { documentTree, entryOf, foldersOf, type ListedDocument } from "@inspiration/source-sync";
 import type { Engine } from "./engine.ts";
+import { badRequest, HttpError, notFound } from "./http-errors.ts";
+import { members, putMember, putTenant } from "./provisioning.ts";
+import { audienceOf, createSpace, patchSpace, putAudience, putOwners, spaceList } from "./space-admin.ts";
 import { maintains, overviewOf, syncNow } from "./spaces.ts";
 import { factLabels, inboxOf, resolveTodo } from "./todos.ts";
 
@@ -74,57 +99,56 @@ export interface Identity {
 /** The scopes the development headers stand for: a member's. */
 const DEV_SCOPES: readonly Scope[] = ["knowledge.propose", "knowledge.read"];
 
-/** What the business layer provisions and the engine does not keep: tenants and spaces by name. */
-export interface Directory {
-  tenant(tenantId: string): Tenant | undefined;
-  spaces(tenantId: string): Space[];
-}
-
-class HttpError extends Error {
-  override name = "HttpError";
-  readonly status: number;
-  readonly code: ApiErrorCode;
-  constructor(status: number, code: ApiErrorCode, message: string) {
-    super(message);
-    this.status = status;
-    this.code = code;
-  }
-}
-
-const notFound = (what: string) => new HttpError(404, "not_found", `no ${what}`);
 const MAX_BODY = 64 * 1024;
 
-/** The request listener: route, read on behalf of the member, answer with JSON. */
-export function apiHandler(engine: Engine, directory: Directory, identity: Identity) {
-  if (!identity.tokens && !identity.devHeaders) throw new RangeError("the API needs principal tokens or dev headers");
-  const routes: {
-    method: string;
-    path: RegExp;
-    /** The scope the route needs; knowledge.read when not given. */
-    scope?: Scope;
-    run: (who: Principal, m: RegExpMatchArray, req: Request) => Promise<unknown>;
-  }[] = [
-    { method: "GET", path: /^\/v0\/spaces$/, run: (who) => spaces(engine, directory, who) },
+interface Route {
+  method: string;
+  path: RegExp;
+  /** The scope the route needs; knowledge.read when not given. */
+  scope?: Scope;
+  run: (who: Principal, m: RegExpMatchArray, req: Request) => Promise<unknown>;
+}
+
+const param = (m: RegExpMatchArray, i = 1) => decodeURIComponent(m[i] ?? "");
+
+/** The routes, in the order they are matched. */
+function routesOf(engine: Engine): Route[] {
+  return [
+    { method: "GET", path: /^\/v0\/me$/, run: (who) => me(engine, who) },
     {
       method: "GET",
-      path: /^\/v0\/spaces\/([^/]+)\/documents$/,
-      run: (who, m) => tree(engine, directory, who, decodeURIComponent(m[1] ?? "")),
+      path: /^\/v0\/spaces$/,
+      run: (who, _m, req) => spaceList(engine, who, req.query.get("manage") === "true"),
     },
     {
-      method: "GET",
-      path: /^\/v0\/spaces\/([^/]+)\/topics$/,
-      run: (who, m) => outline(engine, directory, who, decodeURIComponent(m[1] ?? "")),
+      method: "POST",
+      path: /^\/v0\/spaces$/,
+      scope: "knowledge.propose",
+      run: async (who, _m, req) => createSpace(engine, who, await req.json(), req.header("idempotency-key")),
     },
     {
-      method: "GET",
-      path: /^\/v0\/topics\/([^/]+)$/,
-      run: (who, m) => topic(engine, directory, who, decodeURIComponent(m[1] ?? "")),
+      method: "PATCH",
+      path: /^\/v0\/spaces\/([^/]+)$/,
+      scope: "knowledge.propose",
+      run: async (who, m, req) => patchSpace(engine, who, param(m), await req.json()),
     },
     {
-      method: "GET",
-      path: /^\/v0\/documents$/,
-      run: (who, _m, req) => document(engine, directory, who, req.query),
+      method: "PUT",
+      path: /^\/v0\/spaces\/([^/]+)\/owners$/,
+      scope: "knowledge.propose",
+      run: async (who, m, req) => putOwners(engine, who, param(m), await req.json()),
     },
+    { method: "GET", path: /^\/v0\/spaces\/([^/]+)\/audience$/, run: (who, m) => audienceOf(engine, who, param(m)) },
+    {
+      method: "PUT",
+      path: /^\/v0\/spaces\/([^/]+)\/audience$/,
+      scope: "knowledge.propose",
+      run: async (who, m, req) => putAudience(engine, who, param(m), await req.json()),
+    },
+    { method: "GET", path: /^\/v0\/spaces\/([^/]+)\/documents$/, run: (who, m) => tree(engine, who, param(m)) },
+    { method: "GET", path: /^\/v0\/spaces\/([^/]+)\/topics$/, run: (who, m) => outline(engine, who, param(m)) },
+    { method: "GET", path: /^\/v0\/topics\/([^/]+)$/, run: (who, m) => topic(engine, who, param(m)) },
+    { method: "GET", path: /^\/v0\/documents$/, run: (who, _m, req) => document(engine, who, req.query) },
     {
       method: "POST",
       path: /^\/v0\/search$/,
@@ -141,14 +165,9 @@ export function apiHandler(engine: Engine, directory: Directory, identity: Ident
       path: /^\/v0\/todos\/([^/]+)\/resolve$/,
       scope: "knowledge.propose",
       run: async (who, m, req) => {
-        const id = decodeURIComponent(m[1] ?? "");
-        const { todo, refused } = await resolveTodo(
-          engine,
-          who,
-          id,
-          parseAs<ResolveTodo>("ResolveTodo", await req.json()),
-        );
-        if (refused) throw new HttpError(400, "bad_request", refused);
+        const resolve = parseAs<ResolveTodo>("ResolveTodo", await req.json());
+        const { todo, refused } = await resolveTodo(engine, who, param(m), resolve);
+        if (refused) throw badRequest(refused);
         if (!todo) throw notFound("todo");
         return todo;
       },
@@ -157,7 +176,7 @@ export function apiHandler(engine: Engine, directory: Directory, identity: Ident
       method: "GET",
       path: /^\/v0\/spaces\/([^/]+)\/overview$/,
       run: async (who, m) => {
-        const space = await readableSpace(engine, directory, who, decodeURIComponent(m[1] ?? ""));
+        const space = await readableSpace(engine, who, param(m));
         if (!(await maintains(engine, who, space.id))) throw notFound("space");
         return overviewOf(engine, who, space);
       },
@@ -167,37 +186,58 @@ export function apiHandler(engine: Engine, directory: Directory, identity: Ident
       path: /^\/v0\/sources\/([^/]+)\/sync$/,
       scope: "knowledge.propose",
       run: async (who, m) => {
-        const report = await syncNow(engine, who, decodeURIComponent(m[1] ?? ""));
+        const report = await syncNow(engine, who, param(m));
         if (!report) throw notFound("source");
         return report;
       },
     },
+    {
+      method: "PUT",
+      path: /^\/v0\/tenants\/([^/]+)$/,
+      scope: "provision.directory",
+      run: async (who, m, req) => putTenant(engine, who, param(m), await req.json()),
+    },
+    {
+      method: "PUT",
+      path: /^\/v0\/tenants\/([^/]+)\/members\/([^/]+)$/,
+      scope: "provision.directory",
+      run: async (who, m, req) => putMember(engine, who, param(m), param(m, 2), await req.json()),
+    },
+    {
+      method: "GET",
+      path: /^\/v0\/tenants\/([^/]+)\/members$/,
+      scope: "provision.directory",
+      run: (who, m) => members(engine, who, param(m)),
+    },
   ];
+}
 
+/** The request listener: route, act on behalf of the principal, answer with JSON. */
+export function apiHandler(engine: Engine, identity: Identity) {
+  if (!identity.tokens && !identity.devHeaders) throw new RangeError("the API needs principal tokens or dev headers");
+  const routes = routesOf(engine);
   return async (incoming: IncomingMessage, res: ServerResponse): Promise<void> => {
     let path = incoming.url ?? "/";
     try {
       // Parsed inside the try: a listener that throws would take the process down with it.
       const url = URL.parse(path, "http://localhost");
-      if (!url) throw new HttpError(400, "bad_request", `the request target ${path} is not a valid URL`);
+      if (!url) throw badRequest(`the request target ${path} is not a valid URL`);
       path = url.pathname;
       if (url.pathname === "/v0/health") return send(res, 200, { ok: true });
       const route = routes.find((r) => r.method === incoming.method && r.path.test(url.pathname));
       if (!route) throw notFound(`route ${incoming.method} ${url.pathname}`);
-      const who = await principalOf(incoming, directory, identity);
+      const who = await principalOf(incoming, identity);
       const scope = route.scope ?? "knowledge.read";
       if (!who.scopes?.includes(scope)) throw new HttpError(403, "forbidden", `the token does not grant ${scope}`);
+      if (who.kind === "member") await admit(engine, who);
       const m = url.pathname.match(route.path) as RegExpMatchArray;
-      send(res, 200, await route.run(who, m, { query: url.searchParams, json: () => readJson(incoming) }));
+      const header = (name: string) => {
+        const value = incoming.headers[name];
+        return typeof value === "string" ? value : undefined;
+      };
+      send(res, 200, await route.run(who, m, { query: url.searchParams, header, json: () => readJson(incoming) }));
     } catch (error) {
-      const e =
-        error instanceof HttpError
-          ? error
-          : error instanceof ContractError || error instanceof SyntaxError
-            ? new HttpError(400, "bad_request", error.message)
-            : error instanceof RangeError
-              ? new HttpError(404, "not_found", error.message)
-              : undefined;
+      const e = httpErrorOf(error);
       if (!e) log.error("request failed", { method: incoming.method, path, error });
       const body: ApiError = { error: { code: e?.code ?? "internal", message: e?.message ?? "internal error" } };
       send(res, e?.status ?? 500, body);
@@ -205,14 +245,18 @@ export function apiHandler(engine: Engine, directory: Directory, identity: Ident
   };
 }
 
+/** What an error answers, undefined for one nothing expected: a 500. */
+function httpErrorOf(error: unknown): HttpError | undefined {
+  if (error instanceof HttpError) return error;
+  if (error instanceof ContractError || error instanceof SyntaxError) return badRequest(error.message);
+  if (error instanceof ConflictError) return new HttpError(409, "conflict", error.message);
+  if (error instanceof RangeError) return new HttpError(404, "not_found", error.message);
+  return undefined;
+}
+
 /** Serve the API on localhost. Port 0 picks a free one; the server's address() says which. */
-export async function serveApi(
-  engine: Engine,
-  directory: Directory,
-  port: number,
-  identity: Identity,
-): Promise<Server> {
-  const server = createServer(apiHandler(engine, directory, identity));
+export async function serveApi(engine: Engine, port: number, identity: Identity): Promise<Server> {
+  const server = createServer(apiHandler(engine, identity));
   await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
   log.info("listening", { port: (server.address() as AddressInfo).port });
   return server;
@@ -220,21 +264,32 @@ export async function serveApi(
 
 interface Request {
   query: URLSearchParams;
+  /** A header sent once, by its lower-case name. */
+  header(name: string): string | undefined;
   json(): Promise<unknown>;
 }
 
-async function principalOf(req: IncomingMessage, directory: Directory, identity: Identity): Promise<Principal> {
-  const who = (await fromToken(req, identity)) ?? fromDevHeaders(req, identity);
-  if (!directory.tenant(who.tenant_id)) throw new HttpError(401, "unauthenticated", `unknown tenant ${who.tenant_id}`);
-  return who;
+async function principalOf(req: IncomingMessage, identity: Identity): Promise<Principal> {
+  return (await fromToken(req, identity)) ?? fromDevHeaders(req, identity);
+}
+
+/** A member acts only while their tenant is active and they are an active member of it. */
+async function admit(engine: Engine, who: Principal): Promise<void> {
+  const tenant = await engine.directory.tenant(who.tenant_id);
+  if (!tenant || (tenant.status ?? "active") !== "active") {
+    throw new HttpError(401, "unauthenticated", `tenant ${who.tenant_id} is not active`);
+  }
+  const member = await engine.directory.member(who.tenant_id, who.id);
+  if (member?.status !== "active") throw new HttpError(401, "unauthenticated", `${who.id} is not an active member`);
 }
 
 async function fromToken(req: IncomingMessage, identity: Identity): Promise<Principal | undefined> {
   const header = req.headers.authorization;
   if (header === undefined) return undefined;
   const bearer = /^Bearer ([A-Za-z0-9_.-]+)$/.exec(header)?.[1];
-  if (!identity.tokens || !bearer)
+  if (!identity.tokens || !bearer) {
     throw new HttpError(401, "unauthenticated", "send a principal token as a Bearer token");
+  }
   try {
     return await identity.tokens.verify(bearer);
   } catch (error) {
@@ -264,7 +319,7 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
   let size = 0;
   for await (const chunk of req) {
     size += (chunk as Buffer).length;
-    if (size > MAX_BODY) throw new HttpError(400, "bad_request", `body over ${MAX_BODY} bytes`);
+    if (size > MAX_BODY) throw badRequest(`body over ${MAX_BODY} bytes`);
     chunks.push(chunk as Buffer);
   }
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
@@ -275,24 +330,29 @@ function send(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body));
 }
 
-/** The spaces of the member's tenant that access control lets them read. */
-async function spaces(engine: Engine, directory: Directory, who: Principal): Promise<SpaceList> {
-  const readable = new Set((await engine.authz.scopeFilter(who, "read")).space_ids);
-  return {
-    tenant: directory.tenant(who.tenant_id) as Tenant,
-    spaces: directory.spaces(who.tenant_id).filter((s) => readable.has(s.id)),
-  };
-}
-
-async function readableSpace(engine: Engine, directory: Directory, who: Principal, spaceId: string): Promise<Space> {
-  const space = directory.spaces(who.tenant_id).find((s) => s.id === spaceId);
-  if (!space || !(await engine.authz.scopeFilter(who, "read")).space_ids.includes(spaceId)) throw notFound("space");
+async function readableSpace(engine: Engine, who: Principal, spaceId: string): Promise<SpaceEntry> {
+  const space = await engine.directory.space(spaceId);
+  const readable = (await engine.authz.scopeFilter(who, "read")).space_ids.includes(spaceId);
+  if (!space || space.tenant_id !== who.tenant_id || !readable) throw notFound("space");
   return space;
 }
 
+/** The member's roles as the directory has them, whether they administer the tenant, and their locale. */
+async function me(engine: Engine, who: Principal): Promise<Me> {
+  const member = await engine.directory.member(who.tenant_id, who.id);
+  const admin = await engine.authz.check(who, "admin", { type: "tenant", id: who.tenant_id });
+  return {
+    tenant_id: who.tenant_id,
+    member_id: who.id,
+    roles: member?.roles ?? [],
+    admin: admin.allow,
+    ...(who.locale && { locale: who.locale }),
+  };
+}
+
 /** The Documents tree of a space, with only the documents the member may open. */
-async function tree(engine: Engine, directory: Directory, who: Principal, spaceId: string): Promise<DocumentTree> {
-  await readableSpace(engine, directory, who, spaceId);
+async function tree(engine: Engine, who: Principal, spaceId: string): Promise<DocumentTree> {
+  await readableSpace(engine, who, spaceId);
   const { sources, documents } = await engine.sync.documents(who.tenant_id, spaceId);
   const decisions = await engine.authz.checkMany(
     who,
@@ -309,8 +369,8 @@ async function tree(engine: Engine, directory: Directory, who: Principal, spaceI
 }
 
 /** The live topics of a space the member may read. */
-async function outline(engine: Engine, directory: Directory, who: Principal, spaceId: string): Promise<TopicList> {
-  await readableSpace(engine, directory, who, spaceId);
+async function outline(engine: Engine, who: Principal, spaceId: string): Promise<TopicList> {
+  await readableSpace(engine, who, spaceId);
   const topics = (await engine.store.topics(who.tenant_id, spaceId)).filter((n) => n.status !== "retired");
   return { space_id: spaceId, topics };
 }
@@ -319,11 +379,11 @@ async function outline(engine: Engine, directory: Directory, who: Principal, spa
  * A topic's statements and its subtopics', as the member may read them, with every value the
  * facts they fill have elsewhere, so a fact shows what holds and what stands against it.
  */
-async function topic(engine: Engine, directory: Directory, who: Principal, key: string): Promise<TopicView> {
+async function topic(engine: Engine, who: Principal, key: string): Promise<TopicView> {
   const all = (await engine.store.topics(who.tenant_id)).filter((n) => n.status !== "retired");
   const node = all.find((n) => n.key === key);
   if (!node) throw notFound("topic");
-  await readableSpace(engine, directory, who, node.space_id);
+  await readableSpace(engine, who, node.space_id);
   const keys = [key];
   for (let i = 0; i < keys.length; i++) keys.push(...all.filter((n) => n.parent_key === keys[i]).map((n) => n.key));
   const placed = (await Promise.all(keys.map((k) => engine.store.placementsIn(who.tenant_id, k)))).flat();
@@ -361,18 +421,12 @@ async function lookUp(engine: Engine, query: URLSearchParams): Promise<ListedDoc
   }
   const sourceId = query.get("source");
   const externalId = query.get("item");
-  if (!sourceId || !externalId)
-    throw new HttpError(400, "bad_request", "name the document by source and item, or version");
+  if (!sourceId || !externalId) throw badRequest("name the document by source and item, or version");
   return engine.sync.document(sourceId, externalId);
 }
 
 /** One version of a document, its blocks and the marks on them. */
-async function document(
-  engine: Engine,
-  directory: Directory,
-  who: Principal,
-  query: URLSearchParams,
-): Promise<DocumentView> {
+async function document(engine: Engine, who: Principal, query: URLSearchParams): Promise<DocumentView> {
   const listed = await lookUp(engine, query);
   const source = listed && (await engine.sync.getSource(listed.version.source_id));
   if (!listed || !source || source.tenant_id !== who.tenant_id) throw notFound("document");
@@ -381,7 +435,9 @@ async function document(
     { type: "document", id: `${source_id}:${external_id}` },
   ]);
   if (!decision?.allow) throw notFound("document");
-  await readableSpace(engine, directory, who, source.space_id);
+  // The check reads the latest version's label; a citation may name an older one.
+  if (who.max_sensitivity && !allows(who.max_sensitivity, listed.version.sensitivity)) throw notFound("document");
+  await readableSpace(engine, who, source.space_id);
   // Where the engine keeps the stored copy is its own business, not the reader's.
   const {
     version: { blob: _blob, ...version },

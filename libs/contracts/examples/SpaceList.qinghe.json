@@ -12,7 +12,9 @@
       "name": "公司制度",
       "owner_id": "mem_01QINGHE0000000000ZHOUMIN",
       "default_sensitivity": "internal",
-      "created_at": "2026-09-01T00:00:00Z"
+      "created_at": "2026-09-01T00:00:00Z",
+      "owner_ids": ["mem_01QINGHE0000000000ZHOUMIN"],
+      "role": "viewer"
     },
     {
       "id": "spc_01QINGHE00000000000000TEAM",
@@ -21,7 +23,9 @@
       "name": "团队知识",
       "owner_id": "mem_01QINGHE0000000000ZHOUMIN",
       "default_sensitivity": "internal",
-      "created_at": "2026-09-01T00:00:00Z"
+      "created_at": "2026-09-01T00:00:00Z",
+      "owner_ids": ["mem_01QINGHE0000000000ZHOUMIN"],
+      "role": "owner"
     }
   ]
 }

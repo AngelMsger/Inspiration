@@ -24,6 +24,6 @@
 
 export { Corpus, CorpusError, type CorpusManifest } from "./corpus.ts";
 export { Engine, type EngineOptions } from "./engine.ts";
-export { apiHandler, type Directory, serveApi } from "./http.ts";
+export { apiHandler, serveApi } from "./http.ts";
 export { assignOwners, type TopicOwners } from "./owners.ts";
 export { seed } from "./serve.ts";

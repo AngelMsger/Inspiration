@@ -1,6 +1,7 @@
 # The demo corpus (examples/corpus) in its own words, as the HTTP API test reads it.
 
-spaces: [财务部, 公司制度]
+# The spaces the reader reads, in the order of their IDs.
+spaces: [公司制度, 财务部]
 
 # The travel policy (edition 6), the folder it sits in, and what its marks say: its 600 for
 # tier-1 cities stands against the Shenzhen hotel price list's 650 until 李娜 decides.
