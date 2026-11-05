@@ -353,3 +353,27 @@ export const retrievalTest = (backend: Backend) =>
       claim,
     };
   });
+
+/** A travel policy of two sections, the hotel cap in the first. */
+export const POLICY = [
+  { id: "h1", text: "Lodging", heading: true },
+  { id: "p1", text: "Hotels in tier-1 cities cost at most 650 yuan a night. Book through the travel desk." },
+  { id: "h2", text: "Meals", heading: true },
+  { id: "p2", text: "Meals are paid at 100 yuan a day. Keep every receipt." },
+];
+
+/** The hotel cap's verdict: one value holds, the other is outdated. */
+export const verdict = (
+  held: { value: string; claim: string },
+  outdated: { value: string; claim: string },
+): SlotVerdict => ({
+  tenant_id: TENANT,
+  slot_key: HOTEL,
+  held_value: held.value,
+  disputed: false,
+  values: [
+    { value: held.value, standing: "holds", claim_ids: [held.claim] },
+    { value: outdated.value, standing: "outdated", claim_ids: [outdated.claim] },
+  ],
+  decided_on: "2026-10-01",
+});

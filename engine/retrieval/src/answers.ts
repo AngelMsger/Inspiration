@@ -20,6 +20,7 @@ import type { Records } from "@inspiration/eventbus";
 import { languageOf, logger } from "@inspiration/kernel";
 import { estimateTokens, type PromptRegistry } from "@inspiration/model-gateway";
 import {
+  disputesOf,
   type Found,
   notesOf,
   passageHit,
@@ -323,8 +324,10 @@ export class Answers {
     const versions = await this.search.versions(
       hits.flatMap((h) => (h.kind === "chunk" ? h.citations.slice(0, 1).map((c) => c.source_version_id) : [])),
     );
+    const disputes = disputesOf(hits, searched);
     const sources: AnswerSource[] = hits.map((h, i) => {
       const held = h.held_unit_id && refOf.get(h.held_unit_id);
+      const disputed = disputes.get(h.unit_id)?.map((id) => refOf.get(id) as string);
       const version = h.kind === "chunk" ? versions.get(h.citations[0]?.source_version_id ?? "") : undefined;
       const changed = version?.version.modified_at?.slice(0, 10);
       return {
@@ -334,6 +337,7 @@ export class Answers {
         text: h.kind === "claim" ? h.snippet : h.citations.map((c) => c.quote).join("\n"),
         ...(h.standing && { standing: h.standing }),
         ...(held && { held_ref: held }),
+        ...(disputed && (h.kind === "claim" ? { disputed_with: disputed } : { disputed })),
         ...(version && { level: version.governance_level ?? "governed" }),
         ...(changed && { changed }),
       };

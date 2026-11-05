@@ -48,7 +48,10 @@
  * so it misses the answer when the two are in different languages or say it differently. It
  * comes with its document's governance level and the day the document last changed, so that
  * where passages disagree and no statement settles it, the model answers with the governed
- * source, then the most recent, and says that sources differ. A statement found
+ * source, then the most recent, and says that sources differ. Both sides of a disagreement no
+ * person has settled are marked in what the model reads: each statement names the statements
+ * of the other values, and each passage the statements its lines state, so the answer gives
+ * the value that holds, says that sources differ and gives the other values. A statement found
  * whose value does not hold brings the statement of the one that does, which the model is
  * pointed to, in whatever language it is written, when it passes the question's filters,
  * with its own freshness. So does a passage's sentence that states
