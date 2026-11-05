@@ -2,6 +2,10 @@
 # (pgvector), Chinese BM25 (ParadeDB pg_search with jieba), the event outbox, audit and
 # SpiceDB's own database all live in one instance.
 #
+# The passwords and keys below are public development defaults, so every port listens on
+# 127.0.0.1 only and nothing outside the machine can use them. A machine that other people can
+# log in to sets its own INSPIRATION_PG_PASSWORD and INSPIRATION_SPICEDB_KEY; Valkey has none.
+#
 #   make up     start everything and wait until healthy
 #   make down   stop (data is kept in named volumes; `make clean` drops it)
 
@@ -15,7 +19,7 @@ services:
       POSTGRES_PASSWORD: ${INSPIRATION_PG_PASSWORD:-inspiration}
       POSTGRES_DB: inspiration
     ports:
-      - "${INSPIRATION_PG_PORT:-5432}:5432"
+      - "127.0.0.1:${INSPIRATION_PG_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d:ro
@@ -33,7 +37,7 @@ services:
     image: valkey/valkey:8.1-alpine
     command: ["valkey-server", "--appendonly", "yes", "--save", ""]
     ports:
-      - "${INSPIRATION_VALKEY_PORT:-6379}:6379"
+      - "127.0.0.1:${INSPIRATION_VALKEY_PORT:-6379}:6379"
     volumes:
       - valkeydata:/data
     healthcheck:
@@ -63,8 +67,8 @@ services:
       - --datastore-conn-uri=postgres://inspiration:${INSPIRATION_PG_PASSWORD:-inspiration}@postgres:5432/spicedb?sslmode=disable
       - --http-enabled
     ports:
-      - "${INSPIRATION_SPICEDB_PORT:-50051}:50051"
-      - "${INSPIRATION_SPICEDB_HTTP_PORT:-8443}:8443"
+      - "127.0.0.1:${INSPIRATION_SPICEDB_PORT:-50051}:50051"
+      - "127.0.0.1:${INSPIRATION_SPICEDB_HTTP_PORT:-8443}:8443"
     depends_on:
       spicedb-migrate:
         condition: service_completed_successfully
@@ -87,8 +91,8 @@ services:
       ADMIN_ENDPOINT: http://localhost:${INSPIRATION_LOGTO_ADMIN_PORT:-3002}
       TRUST_PROXY_HEADER: "1"
     ports:
-      - "${INSPIRATION_LOGTO_PORT:-3001}:3001"
-      - "${INSPIRATION_LOGTO_ADMIN_PORT:-3002}:3002"
+      - "127.0.0.1:${INSPIRATION_LOGTO_PORT:-3001}:3001"
+      - "127.0.0.1:${INSPIRATION_LOGTO_ADMIN_PORT:-3002}:3002"
     depends_on:
       postgres:
         condition: service_healthy

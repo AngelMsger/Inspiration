@@ -21,7 +21,7 @@ make check-full    # 同上，再加上耗时很长的语料运行，与 CI 相�
 
 `make check` 不跑三项要几分钟的语料运行：整个共享盘测试集，以及在运行环境上的 Kubernetes 页面和 GitLab 制度历史（后两项仍在内存中运行，检查的是同样的数字）。在产品负责人的笔记本上，完整的测试用了 162 秒，其中共享盘测试集占 149 秒。`make check-full` 运行全部测试，与 CI 相同；改动引擎读取、治理或回答的方式时，在提拉取请求前运行它，因为这些数字由那几项运行把关。
 
-密钥和密码不进仓库。配置里只写存放密钥的环境变量名（`api_key_env`），`.env` 被 git 忽略。CI 的 `secrets` 任务用 Gitleaks 扫描所有分支的每一个提交，规则是它的默认规则加上 DeepSeek、OpenAI 和 Anthropic 密钥的格式（`.github/gitleaks.toml`）；发现任何一处就失败，输出时隐去密钥内容。
+密钥和密码不进仓库。配置里只写存放密钥的环境变量名（`api_key_env`），`.env` 被 git 忽略。CI 的 `secrets` 任务用 Gitleaks 扫描所有分支的每一个提交，规则是它的默认规则加上 DeepSeek、OpenAI 和 Anthropic 密钥的格式（`.github/gitleaks.toml`）；发现任何一处就失败，输出时隐去密钥内容。`infra/compose.yaml` 里的密码是公开的开发默认值，所以运行环境的端口只监听 127.0.0.1；其他人也能登录的机器要自己设置 `INSPIRATION_PG_PASSWORD` 和 `INSPIRATION_SPICEDB_KEY`。
 
 除解析 worker 外全部是 Node 22 上的 TypeScript；解析 worker 用 Python，因为最好的文档解析器是 Python 的。引擎把 Word、PowerPoint、Excel 和 PDF 文件发给 `INSPIRATION_PARSING_URL` 上的 worker；`pnpm parsing` 在默认的 8790 端口启动它。没有它时，这些文件读取失败并说明 worker 连不上；其他格式不需要它。[`components.yaml`](../../components.yaml) 列出每个组件及其状态（已构建、进行中或已计划），每个包的 `src/index.ts` 说明它做什么。
 

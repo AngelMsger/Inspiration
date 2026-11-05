@@ -43,6 +43,9 @@ Keys and passwords stay out of the repository. A config names the environment va
 holds a key (`api_key_env`), and `.env` is ignored. CI's `secrets` job runs Gitleaks over every
 commit of every branch, with its default rules and the shapes of the DeepSeek, OpenAI and
 Anthropic keys (`.github/gitleaks.toml`), and fails on any finding, which it prints redacted.
+The passwords in `infra/compose.yaml` are public development defaults, so the stack's ports
+listen on 127.0.0.1 only; a machine that other people can log in to sets its own
+`INSPIRATION_PG_PASSWORD` and `INSPIRATION_SPICEDB_KEY`.
 
 Everything is TypeScript on Node 22 except the parsing worker, which is Python because the
 best document parsers are. The engine sends it Word, PowerPoint, Excel and PDF files at
