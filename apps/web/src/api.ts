@@ -1,6 +1,6 @@
 // The page talks only to its backend: /api/session, /api/account and /api/members for who is
 // signed in and their company, /api/v0/ for the engine's HTTP API as that member, and, in the
-// demo only, /api/demo/. Bodies are the contract types.
+// demo only, /api/demo/. Bodies are the contract types, the business ones for the first.
 
 import type {
   ApiError,
@@ -19,8 +19,16 @@ import type {
   TopicList,
   TopicView,
 } from "@inspiration/contracts";
+import type {
+  AccountChange,
+  MemberList,
+  NewCompany,
+  Session,
+  SignOut,
+  SwitchCompany,
+} from "@inspiration/contracts/business";
 import { useEffect, useState } from "react";
-import type { AccountChange, Member, Person, Session } from "./people.ts";
+import type { Person } from "./people.ts";
 import type { Update } from "./updates.ts";
 
 export class ApiFailure extends Error {
@@ -53,11 +61,11 @@ async function call<T>(path: string, body?: unknown, method = "POST"): Promise<T
 
 export const api = {
   session: () => call<Session>("/session"),
-  enterCompany: (tenant: string) => call<Session>("/session", { tenant_id: tenant }),
+  enterCompany: (tenant: string) => call<Session>("/session", { tenant_id: tenant } satisfies SwitchCompany),
   account: (change: AccountChange) => call<Session>("/account", change, "PATCH"),
-  signOut: () => call<{ next: string }>("/auth/sign-out", {}),
-  createCompany: (company: { name: string; default_locale: string }) => call<Session>("/companies", company),
-  members: () => call<{ members: Member[] }>("/members"),
+  signOut: () => call<SignOut>("/auth/sign-out", {}),
+  createCompany: (company: NewCompany) => call<Session>("/companies", company),
+  members: () => call<MemberList>("/members"),
   /** Whom the demo lets the page act as; the business backend has no such route. */
   demoPeople: () => call<{ people: Person[] }>("/demo/people"),
   actAs: (member: string) => call<Session>("/demo/act-as", { member }),

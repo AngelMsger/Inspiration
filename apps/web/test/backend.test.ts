@@ -7,9 +7,11 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { BUNDLE, contractErrors } from "@inspiration/contracts";
+import type { Session } from "@inspiration/contracts/business";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { backend, loadPeople, returnTo } from "../src/backend.ts";
-import type { Person, Session } from "../src/people.ts";
+import { LOCALES, type Person } from "../src/people.ts";
 import { Updates } from "../src/updates.ts";
 
 const PEOPLE = fileURLToPath(new URL("../../../examples/corpus/people.yaml", import.meta.url));
@@ -81,11 +83,16 @@ describe("development backend", () => {
     const signed = await signIn("/ask?q=hotel");
     expect([signed.status, signed.location]).toEqual([302, "/ask?q=hotel"]);
     const { body } = await call("/api/session", { headers: { cookie: signed.cookie } });
+    expect(contractErrors("Session", body)).toEqual([]);
     expect(body).toEqual({
       account: { name: first.name, email: first.email ?? "", locale: first.locale ?? "en" },
       companies: [{ tenant_id: tenant, name: "Hengyuan", role: "member" }],
       current: { tenant_id: tenant, member_id: first.member, display_name: first.name, role: "member" },
     } satisfies Session);
+  });
+
+  test("offers the languages the contracts allow an account", () => {
+    expect(LOCALES).toEqual(BUNDLE.$defs.UiLocale?.enum);
   });
 
   test("sends a sign-in back only to a path on this site", () => {
@@ -100,6 +107,7 @@ describe("development backend", () => {
   test("lists the company's members, changes the account, and signs out", async () => {
     const { cookie } = await signIn();
     const members = await call("/api/members", { headers: { cookie } });
+    expect(contractErrors("MemberList", members.body)).toEqual([]);
     expect((members.body as { members: unknown[] }).members).toHaveLength(people.length);
     const changed = await call("/api/account", {
       method: "PATCH",
@@ -107,12 +115,20 @@ describe("development backend", () => {
       body: JSON.stringify({ locale: "ja" }),
     });
     expect((changed.body as Session).account.locale).toBe("ja");
-    const wrong = await call("/api/account", { method: "PATCH", headers: { cookie }, body: '{"locale":"fr"}' });
-    expect(wrong.status).toBe(400);
+    // What the contract refuses: another language, nothing to change, a field it does not have.
+    for (const refused of ['{"locale":"fr"}', "{}", '{"name":"Lin","email":"lin@example.com"}']) {
+      const wrong = await call("/api/account", { method: "PATCH", headers: { cookie }, body: refused });
+      expect([refused, wrong.status]).toEqual([refused, 400]);
+    }
     expect(
-      (await call("/api/session", { method: "POST", headers: { cookie }, body: '{"tenant_id":"ten_OTHER"}' })).status,
+      (await call("/api/session", { method: "POST", headers: { cookie }, body: '{"tenant_id":"ten_01QINGHE"}' }))
+        .status,
     ).toBe(404);
+    expect(
+      (await call("/api/session", { method: "POST", headers: { cookie }, body: '{"tenant_id":"Qinghe"}' })).status,
+    ).toBe(400);
     const out = await call("/api/auth/sign-out", { method: "POST", headers: { cookie } });
+    expect(contractErrors("SignOut", out.body)).toEqual([]);
     expect(out.cookie).toContain("Max-Age=0");
     expect((out.body as { next: string }).next).toMatch(/^http:\/\//);
   });

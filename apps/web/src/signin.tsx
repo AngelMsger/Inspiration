@@ -1,21 +1,31 @@
 // The screens before the frame: signing in, which the identity provider's page does once the
 // page sends the person there, and making a first company for an account that has none.
 
+import type { Session, UiLocale } from "@inspiration/contracts/business";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { signInAt } from "./api.ts";
-import { LOCALES, type Session, tagLocale } from "./people.ts";
+import { LOCALES, tagLocale } from "./people.ts";
 import { TAGS, type Tag, tagOf, useWords, wordsOf } from "./words.ts";
 
 /** Signed out: one account for every company, signed in or made on the identity provider's page. */
 export function SignedOut(props: { onLanguage: (tag: Tag) => void }) {
   const { say } = useWords();
+  // The business backend sends a sign-in that did not work, or was cancelled, back with sign_in=failed.
+  const query = new URLSearchParams(location.search);
+  const failed = query.get("sign_in") === "failed";
+  query.delete("sign_in");
   // Back to the page asked for, once signed in.
-  const back = `${location.pathname}${location.search}`;
+  const back = `${location.pathname}${query.size ? `?${query}` : ""}`;
   return (
     <div className="gate">
       <GateTop onLanguage={props.onLanguage} />
       <main className="gate-card">
         <h1 className="title">{say("signin.title")}</h1>
+        {failed && (
+          <p className="gate-alert" role="alert">
+            {say("signin.failed")}
+          </p>
+        )}
         <p>{say("signin.lede")}</p>
         <div className="gate-actions">
           <a className="primary" href={signInAt("sign_in", back)}>
@@ -33,7 +43,7 @@ export function SignedOut(props: { onLanguage: (tag: Tag) => void }) {
 /** Signed in to no company yet: make one, or open the invite link a colleague sent. */
 export function NoCompany(props: {
   session: Session;
-  onCreate: (name: string, locale: string) => Promise<void>;
+  onCreate: (name: string, locale: UiLocale) => Promise<void>;
   onSignOut: () => void;
 }) {
   const { say, tag } = useWords();
@@ -63,7 +73,7 @@ export function NoCompany(props: {
           </label>
           <label>
             <span>{say("company.language")}</span>
-            <select value={locale} onChange={(e) => setLocale(e.target.value)}>
+            <select value={locale} onChange={(e) => setLocale(e.target.value as UiLocale)}>
               {LOCALES.map((l) => (
                 <option key={l} value={l}>
                   {wordsOf(tagOf(l) ?? "en")("language.name")}

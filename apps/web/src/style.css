@@ -238,6 +238,13 @@ kbd {
   animation: rise var(--enter) var(--ease-out);
 }
 
+.gate-alert {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--disputed);
+  color: var(--disputed);
+}
+
 .gate-actions {
   display: flex;
   flex-wrap: wrap;
@@ -274,6 +281,13 @@ kbd {
   flex: 1;
   display: flex;
   align-items: stretch;
+}
+
+/* While the page changes whom it acts as, the frame on screen takes no clicks (inert); it fades
+   only when the change is slow, so a quick one does not flash. */
+.app[inert] .body {
+  opacity: 0.6;
+  transition: opacity 0.2s ease 0.3s;
 }
 
 .left {

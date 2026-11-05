@@ -22,16 +22,10 @@
 
 import { readFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { ContractError, parseAs } from "@inspiration/contracts";
+import type { AccountChange, Session, SwitchCompany } from "@inspiration/contracts/business";
 import { parse } from "yaml";
-import {
-  type AccountChange,
-  accountChange,
-  membersOf,
-  type People,
-  type Person,
-  type Session,
-  sessionOf,
-} from "./people.ts";
+import { membersOf, type People, type Person, sessionOf } from "./people.ts";
 import type { Updates } from "./updates.ts";
 
 const COOKIE = "inspiration_member";
@@ -100,20 +94,13 @@ export function backend(options: People & { engine: string; updates?: Updates })
         send(res, 200, await session(person));
         return true;
       case "POST /api/session": {
-        const { tenant_id } = (await json(req)) as { tenant_id?: unknown };
+        const { tenant_id } = parseAs<SwitchCompany>("SwitchCompany", await json(req));
         if (tenant_id !== people.tenant) send(res, 404, error("not_found", "not a company of this account"));
         else send(res, 200, await session(person));
         return true;
       }
       case "PATCH /api/account": {
-        let change: AccountChange;
-        try {
-          change = accountChange(await json(req));
-        } catch (e) {
-          if (!(e instanceof RangeError)) throw e;
-          send(res, 400, error("bad_request", e.message));
-          return true;
-        }
+        const change = parseAs<AccountChange>("AccountChange", await json(req));
         changes.set(person.member, { ...changes.get(person.member), ...change });
         send(res, 200, await session(person));
         return true;
@@ -176,14 +163,15 @@ export function backend(options: People & { engine: string; updates?: Updates })
       const sent = req.method === "POST" ? new Uint8Array(await body(req)) : undefined;
       await forward(res, `${url.pathname.slice("/api".length)}${url.search}`, person, req.method, sent);
     } catch (e) {
-      if (e instanceof SyntaxError) return send(res, 400, error("bad_request", e.message));
+      const refused = e instanceof SyntaxError || e instanceof ContractError;
+      if (refused) return send(res, 400, error("bad_request", e.message));
       if (e instanceof RangeError) return send(res, 404, error("not_found", e.message));
       send(res, 502, error("internal", `the engine at ${engine} did not answer`));
     }
   };
 }
 
-/** A JSON body; a body that is not JSON raises SyntaxError, which answers 400. */
+/** A JSON body; a body that is not JSON raises SyntaxError, which answers 400, as a ContractError does. */
 async function json(req: IncomingMessage): Promise<unknown> {
   const text = (await body(req)).toString("utf8");
   return text ? JSON.parse(text) : {};

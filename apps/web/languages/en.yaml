@@ -14,6 +14,7 @@ signin.title: One account for all your companies
 signin.lede: "Sign in with your email and password. A new account belongs to no company yet: you create one, or open the invite link a colleague sent you."
 signin.sign_in: Sign in
 signin.sign_up: Create an account
+signin.failed: Signing in didn't work. Please try again.
 
 company.welcome: "Welcome, {name}"
 company.lede: You do not belong to a company yet. Create one and invite your colleagues, or open the invite link a colleague sent you.

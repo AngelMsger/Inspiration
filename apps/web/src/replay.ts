@@ -7,7 +7,8 @@
  * lacks answers 404 with the code not_recorded, and the questions it can answer.
  */
 
-import { accountChange, membersOf, type People, type Person, sessionOf } from "./people.ts";
+import type { AccountChange } from "@inspiration/contracts/business";
+import { membersOf, type People, type Person, sessionOf } from "./people.ts";
 
 /** One step of the demo script (<corpus>/script.yaml). */
 export interface ScriptStep {
@@ -83,13 +84,14 @@ export function answer(
   const person = people.people.find((p) => p.member === place.member) ?? (people.people[0] as Person);
   // Who is signed in, and their company, as the stand-in backend answers them (people.ts).
   const route = `${method} ${path}`;
-  const signedIn = (as: Person, change?: unknown) => ({
+  // A change comes from the page in the same tab, so it is taken as it is.
+  const signedIn = (as: Person, change?: AccountChange) => ({
     status: 200,
-    json: sessionOf(people, as, companyOf(recording), change ? accountChange(change) : undefined),
+    json: sessionOf(people, as, companyOf(recording), change),
     place: { ...place, member: as.member },
   });
   if (route === "GET /session" || route === "POST /session") return signedIn(person);
-  if (route === "PATCH /account") return signedIn(person, JSON.parse(body || "{}"));
+  if (route === "PATCH /account") return signedIn(person, JSON.parse(body || "{}") as AccountChange);
   if (route === "GET /members") return { status: 200, json: { members: membersOf(people) }, place };
   if (route === "GET /demo/people") return { status: 200, json: { people: people.people }, place };
   if (route === "POST /demo/act-as") {

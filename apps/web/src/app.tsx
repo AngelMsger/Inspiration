@@ -3,6 +3,7 @@
 // folds the left column away.
 
 import type { Inbox } from "@inspiration/contracts";
+import type { CompanyMember, Session, UiLocale } from "@inspiration/contracts/business";
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { type ApiFailure, api, failureOf, type Library, type Loaded, loadLibrary, useLoad } from "./api.ts";
 import { DocumentScreen } from "./document.tsx";
@@ -12,11 +13,11 @@ import { countTodos, DecisionScreen, InboxScreen } from "./inbox.tsx";
 import { TopicScreen, TopicsScreen } from "./knowledge.tsx";
 import { Palette } from "./palette.tsx";
 import { Failure } from "./parts.tsx";
-import { type Member, type Person, type Session, tagLocale } from "./people.ts";
+import { type Person, tagLocale } from "./people.ts";
 import { Link, type Route, useRoute } from "./route.tsx";
 import { NoCompany, SignedOut } from "./signin.tsx";
 import { MaintainColumn, MaintainScreen } from "./space.tsx";
-import { type Switched, switcher } from "./switching.ts";
+import { keptFor, type ReadFor, type Switched, switcher } from "./switching.ts";
 import { chooseTag, TAGS, type Tag, useWords, Words, wordsOf } from "./words.ts";
 
 const LANGUAGE = "inspiration.language";
@@ -30,8 +31,7 @@ function stored(key: string): string | null {
 }
 
 /** A member's library, read before their shell is shown, and the people of their company. */
-interface Entry {
-  member: string;
+interface Entry extends ReadFor {
   library: Library;
   people: Person[];
   /** In the demo, the people the page may act as, with their team and role. */
@@ -52,11 +52,12 @@ async function enter(session: Session): Promise<{ session: Session; entry?: Entr
   ]);
   if (!library) return { session };
   const people = peopleOf(members?.members ?? [], demo?.people);
-  return { session, entry: { member: current.member_id, library, people, ...(demo && { demo: demo.people }) } };
+  const entry = { tenant: current.tenant_id, member: current.member_id, library, people };
+  return { session, entry: { ...entry, ...(demo && { demo: demo.people }) } };
 }
 
 /** The company's people by name, with the demo's word on each one's team and role. */
-function peopleOf(members: Member[], demo: Person[] | undefined): Person[] {
+function peopleOf(members: CompanyMember[], demo: Person[] | undefined): Person[] {
   return members.map((m) => {
     const about = demo?.find((p) => p.member === m.member_id)?.about;
     return { member: m.member_id, name: m.display_name, ...(about && { about }) };
@@ -81,7 +82,8 @@ function personOf(session: Session, demo: Person[] | undefined): Person {
  * start over. Whoever it acts as next, it reads their library before it shows their shell, so
  * the old frame stays on screen meanwhile and no one's frame shows another person's spaces.
  * When people or companies are picked in quick succession, the last one picked is shown
- * (`switcher`). Signed out, it shows how to sign in; signed in to no company yet, how to make one.
+ * (`switcher`), and until it is, the frame on screen takes no clicks. Signed out, it shows how to
+ * sign in; signed in to no company yet, how to make one.
  */
 export function App(props: { generation?: number }) {
   const generation = props.generation ?? 0;
@@ -97,7 +99,8 @@ export function App(props: { generation?: number }) {
   const entry = useRef<Entry>(undefined);
 
   // Every change of whom the app acts as, the generation's reads among them; only the latest shows.
-  const [change] = useState(switcher);
+  const [busy, setBusy] = useState(false);
+  const [change] = useState(() => switcher(setBusy));
   // The generation of the latest read, so a person picked meanwhile starts the screens over too.
   const latest = useRef(generation);
   const show = useCallback((next: Switched<{ session: Session; entry?: Entry }>) => {
@@ -145,7 +148,7 @@ export function App(props: { generation?: number }) {
     [session, fail],
   );
   const createCompany = useCallback(
-    (name: string, locale: string) =>
+    (name: string, locale: UiLocale) =>
       change(() => api.createCompany({ name, default_locale: locale }), enter).then(show, fail),
     [change, show, fail],
   );
@@ -163,6 +166,7 @@ export function App(props: { generation?: number }) {
         <Shell
           key={`${readIn}:${session.current.tenant_id}:${session.current.member_id}`}
           session={session}
+          busy={busy}
           entry={entry}
           onActAs={actAs}
           onCompany={enterCompany}
@@ -176,6 +180,8 @@ export function App(props: { generation?: number }) {
 
 function Shell(props: {
   session: Session;
+  /** Whom it acts as is changing: the frame takes no clicks until the next one replaces it. */
+  busy: boolean;
   /** The library already read for this member, if any; the shell keeps its latest there. */
   entry: RefObject<Entry | undefined>;
   onActAs: (member: string) => Promise<void>;
@@ -187,8 +193,8 @@ function Shell(props: {
   const [palette, setPalette] = useState(false);
   // A synced source changes the documents; the library is read again, and shown as it was
   // meanwhile. Only this member's library is ever shown, and a failure to read it shows.
-  const member = props.session.current?.member_id ?? "";
-  const entered = props.entry.current?.member === member ? props.entry.current : undefined;
+  const current = props.session.current as NonNullable<Session["current"]>;
+  const entered = keptFor(props.entry.current, current);
   const seed = entered?.library;
   const demo = entered?.demo;
   const person = personOf(props.session, demo);
@@ -198,7 +204,8 @@ function Shell(props: {
   const shown = useRef(seed);
   if (loaded.state === "done") {
     shown.current = loaded.value;
-    props.entry.current = { member, library: loaded.value, people, ...(demo && { demo }) };
+    const read = { tenant: current.tenant_id, member: current.member_id, library: loaded.value, people };
+    props.entry.current = { ...read, ...(demo && { demo }) };
   }
   const library: Loaded<Library> =
     loaded.state !== "failed" && shown.current ? { state: "done", value: shown.current } : loaded;
@@ -221,7 +228,7 @@ function Shell(props: {
   }, []);
 
   return (
-    <div className="app">
+    <div className="app" inert={props.busy}>
       <TopBar
         session={props.session}
         demo={demo}
