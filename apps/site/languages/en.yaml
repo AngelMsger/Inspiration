@@ -46,10 +46,10 @@ hero:
       reaches everyone who reads it.
     feeds:
       - kind: Wiki
-        place: Feishu
+        place: Confluence
         event: Edited
       - kind: Approvals
-        place: Feishu
+        place: Concur
         event: New records
       - kind: Code
         place: GitHub
@@ -122,7 +122,7 @@ demo:
     outdated, and the topic owner confirms the suggested change with one press.
   steps:
     - title: A source changes
-      text: Finance posts a notice in Feishu. Only the two passages that changed are read.
+      text: Finance posts a notice in Confluence. Only the two passages that changed are read.
     - title: Answers follow
       text: Answers, pages and agents now say 650 and cite the notice. The old line is marked outdated.
     - title: The owner confirms
@@ -139,7 +139,7 @@ demo:
     policy: 差旅费管理办法 · 第七条
     notice: 关于调整一线城市住宿标准的通知
     outdated: Outdated
-    changeLabel: New in Feishu
+    changeLabel: New in Confluence
     changeMeta: 2 passages read · 1 fact changed
     inbox: Inbox
     owner: Li Na · topic owner, Travel
@@ -157,7 +157,7 @@ sources:
   lead: It is also in how approvals really go, in what the code actually does, in last quarter's research.
   items:
     - title: Wikis and documents
-      text: Feishu and Lark docs, wikis and uploads, with Confluence and DingTalk next.
+      text: Docs, wikis and uploaded files. Lark today, Confluence next.
       fresh: An edit re-reads only what changed.
     - title: Approval flows
       text: Months of approval records become a procedure, written as things really happen.
