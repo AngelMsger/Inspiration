@@ -61,7 +61,7 @@ async function call(path: string, options: Call = {}) {
   return { status: res.status, body: (await res.json()) as Record<string, unknown> };
 }
 
-const tenant = { name: "青禾科技", kind: "team", default_locale: "zh-CN", version: 1 };
+const tenant = { name: "Qinghe Tech", kind: "team", default_locale: "zh-CN", version: 1 };
 const member = (name: string, version = 1, roles: PutMember["roles"] = ["member"]): PutMember => ({
   status: "active",
   display_name: name,
@@ -79,7 +79,7 @@ describe("provisioning", () => {
     const { status, body } = await call(`/v0/tenants/${TENANT}`, { method: "PUT", as: SERVICE, body: tenant });
     expect(status).toBe(200);
     expect(contractErrors("TenantWritten", body)).toEqual([]);
-    expect(body.tenant).toMatchObject({ id: TENANT, name: "青禾科技", status: "active", version: 1 });
+    expect(body.tenant).toMatchObject({ id: TENANT, name: "Qinghe Tech", status: "active", version: 1 });
     expect(body.consistency_token).toBeDefined();
     const elsewhere = await call(`/v0/tenants/${OTHER}`, { method: "PUT", as: SERVICE, body: tenant });
     expect(elsewhere.status).toBe(403);
@@ -88,23 +88,23 @@ describe("provisioning", () => {
   });
 
   test("keeps its members, by version, for the drift check", async () => {
-    expect((await putMember(ADMIN, member("高管理", 1, ["owner", "admin", "security_admin", "auditor"]))).status).toBe(
-      200,
-    );
-    const zhou = await putMember(ZHOU, member("周敏"));
+    expect(
+      (await putMember(ADMIN, member("Gao Admin", 1, ["owner", "admin", "security_admin", "auditor"]))).status,
+    ).toBe(200);
+    const zhou = await putMember(ZHOU, member("Zhou Min"));
     expect(zhou.status).toBe(200);
     expect(contractErrors("MemberWritten", zhou.body)).toEqual([]);
-    expect((await putMember(LINA, member("李娜"))).status).toBe(200);
-    const stale = await putMember(ZHOU, member("周敏 (old)"));
+    expect((await putMember(LINA, member("Li Na"))).status).toBe(200);
+    const stale = await putMember(ZHOU, member("Zhou Min (old)"));
     expect([stale.status, errorCode(stale.body)]).toEqual([409, "conflict"]);
-    expect((await putMember(ZHOU, member("周敏"))).status).toBe(200); // a replay
+    expect((await putMember(ZHOU, member("Zhou Min"))).status).toBe(200); // a replay
     expect((await putMember("svc_01NOTAMEMBER00000000000000", member("x"))).status).toBe(400);
-    expect((await putMember(LINA, { ...member("李娜"), roles: [] } as unknown as PutMember)).status).toBe(400);
+    expect((await putMember(LINA, { ...member("Li Na"), roles: [] } as unknown as PutMember)).status).toBe(400);
     const unknown = await call(`/v0/tenants/${OTHER}/members/${ZHOU}`, {
       method: "PUT",
       as: SERVICE,
       tenant: OTHER,
-      body: member("周敏"),
+      body: member("Zhou Min"),
     });
     expect(unknown.status).toBe(404);
 
@@ -131,7 +131,7 @@ describe("provisioning", () => {
 
 describe("space administration", () => {
   test("lets only the super admin create a space, once per idempotency key", async () => {
-    const create = { name: "财务部", owner_ids: [ZHOU] };
+    const create = { name: "Finance", owner_ids: [ZHOU] };
     const refused = await call("/v0/spaces", { body: create });
     expect([refused.status, errorCode(refused.body)]).toEqual([403, "forbidden"]);
     const headers = { "idempotency-key": "create-finance" };
@@ -139,12 +139,12 @@ describe("space administration", () => {
     expect(created.status).toBe(200);
     expect(contractErrors("SpaceWritten", created.body)).toEqual([]);
     const entry = created.body.space as { id: string; owner_ids: string[]; role?: string };
-    expect(entry).toMatchObject({ name: "财务部", kind: "team", owner_id: ZHOU, owner_ids: [ZHOU] });
+    expect(entry).toMatchObject({ name: "Finance", kind: "team", owner_id: ZHOU, owner_ids: [ZHOU] });
     expect(entry.role).toBeUndefined(); // the super admin manages it without a role on it
     space = entry.id;
     const again = await call("/v0/spaces", { as: ADMIN, body: create, headers });
     expect((again.body.space as { id: string }).id).toBe(space);
-    const reused = await call("/v0/spaces", { as: ADMIN, body: { ...create, name: "销售部" }, headers });
+    const reused = await call("/v0/spaces", { as: ADMIN, body: { ...create, name: "Sales" }, headers });
     expect(reused.status).toBe(409);
     const badOwner = await call("/v0/spaces", { as: ADMIN, body: { name: "X", owner_ids: [LINA, LINA] } });
     expect(badOwner.status).toBe(400);
@@ -172,7 +172,7 @@ describe("space administration", () => {
     const lina = await call("/v0/spaces", { as: LINA });
     expect(lina.body.spaces).toMatchObject([{ id: space, role: "viewer" }]);
     expect((await call(`/v0/spaces/${space}/audience`, { as: LINA })).status).toBe(403);
-    const rename = await call(`/v0/spaces/${space}`, { method: "PATCH", as: LINA, body: { name: "财务" } });
+    const rename = await call(`/v0/spaces/${space}`, { method: "PATCH", as: LINA, body: { name: "Fin" } });
     expect([rename.status, errorCode(rename.body)]).toEqual([403, "forbidden"]);
     const ownerGrant = await call(`/v0/spaces/${space}/audience`, {
       method: "PUT",
@@ -199,20 +199,20 @@ describe("space administration", () => {
   });
 
   test("lets the owner rename it and only the super admin name its owners", async () => {
-    const renamed = await call(`/v0/spaces/${space}`, { method: "PATCH", body: { name: "财务与税务" } });
+    const renamed = await call(`/v0/spaces/${space}`, { method: "PATCH", body: { name: "Finance and Tax" } });
     expect(renamed.status).toBe(200);
-    expect(renamed.body.space).toMatchObject({ name: "财务与税务", role: "owner" });
+    expect(renamed.body.space).toMatchObject({ name: "Finance and Tax", role: "owner" });
     const owners = { owner_ids: [LINA] };
     expect((await call(`/v0/spaces/${space}/owners`, { method: "PUT", body: owners })).status).toBe(403);
     const named = await call(`/v0/spaces/${space}/owners`, { method: "PUT", as: ADMIN, body: owners });
     expect(named.status).toBe(200);
     expect(named.body.space).toMatchObject({ owner_id: LINA, owner_ids: [LINA] });
-    expect((await call(`/v0/spaces/${space}/audience`)).status).toBe(404); // 周敏 no longer reads it
+    expect((await call(`/v0/spaces/${space}/audience`)).status).toBe(404); // Zhou Min no longer reads it
     expect((await call(`/v0/spaces/${space}/audience`, { as: LINA })).status).toBe(200);
   });
 
   test("shuts out a member once suspended, and everyone once the tenant is", async () => {
-    expect((await putMember(LINA, { ...member("李娜", 2), status: "suspended" })).status).toBe(200);
+    expect((await putMember(LINA, { ...member("Li Na", 2), status: "suspended" })).status).toBe(200);
     expect((await call("/v0/spaces", { as: LINA })).status).toBe(401);
     await call(`/v0/tenants/${TENANT}`, {
       method: "PUT",

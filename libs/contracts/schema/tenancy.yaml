@@ -4,11 +4,13 @@ title: Provisioning
 description: >
   What the business layer's tenancy service tells the engine about a tenant and its members, as
   a service with the provision.directory scope. The engine keeps a copy of the directory and
-  is not its system of record. Every command is idempotent (an Idempotency-Key header), and
-  every directory object carries a version: a command with a higher version than the engine's
-  copy wins, the same version with the same content is a replay, and anything else answers
-  409 conflict. Every command answers with a consistency_token; a later read that sends it
-  back in the x-inspiration-consistency header sees the change.
+  is not its system of record. Every command is idempotent by version: every directory object
+  carries one, a command with a higher version than the engine's copy wins, the same version
+  with the same content is a replay, and anything else answers 409 conflict. A command
+  answers with a consistency_token when the engine's graph keeps one (SpiceDB does; the
+  in-memory graph of tests only after its first write). The engine reads at least as fresh as
+  its own latest write, so a read after a command already sees it; the token is for sending
+  back in the x-inspiration-consistency header when several engine processes share SpiceDB.
 
 $defs:
   TenantKind:

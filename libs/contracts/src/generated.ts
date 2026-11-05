@@ -3031,7 +3031,7 @@ export interface Space {
   created_at: Instant;
 }
 /**
- * Who may read a space, and with which role: the answer to GET and PUT /v0/spaces/{space}/audience, for the super admin and the space's owners. The owners appear as owner grants. Sorted by principal ID, then role.
+ * Who may read a space, and with which role: the answer to GET and PUT /v0/spaces/{space}/audience, for the super admin and the space's owners. The owners appear as owner grants. Higher roles first (the owners), then by principal ID.
  *
  */
 export interface SpaceAudience {
@@ -3108,7 +3108,8 @@ export interface SpaceOverview {
   changes: SpaceChange[];
 }
 /**
- * The answer to creating a space, naming its owners or renaming it.
+ * The answer to creating a space, naming its owners or renaming it, with a consistency_token when the engine's graph keeps one (see tenancy.yaml).
+ *
  */
 export interface SpaceWritten {
   space: SpaceEntry;
