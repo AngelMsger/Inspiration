@@ -14,6 +14,9 @@
  * is in active development the site offers no download and no sign-up, and says so once, in
  * its closing lines.
  *
+ * The header links to the source code on GitHub and offers the languages in a menu, so it holds
+ * however many languages there are packs for; the footer lists them all as links.
+ *
  * Usage (`pnpm site` runs this file):
  *
  *   node apps/site/src/build.ts                    write the pages to apps/site/dist
@@ -97,7 +100,7 @@ export function build(options: BuildOptions): Map<string, string> {
     throw new RangeError(`site: no language pack for root ${options.root}`);
   const css = readFileSync(join(SITE, "src/site.css"), "utf8");
   const client = (name: string) => stripTypeScriptTypes(readFileSync(join(SITE, `src/client/${name}.ts`), "utf8"));
-  const scripts = { hero: client("hero"), ask: client("ask"), demo: client("demo") };
+  const scripts = { hero: client("hero"), ask: client("ask"), demo: client("demo"), menu: client("menu") };
   const pages = new Map<string, string>();
   for (const { tag, pack } of packs) {
     const depth = tag === options.root ? 0 : 1;

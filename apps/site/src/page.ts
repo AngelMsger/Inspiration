@@ -18,7 +18,7 @@ export interface Pack {
     title: string;
     description: string;
   };
-  nav: { how: string; sources: string; features: string; agents: string; language: string };
+  nav: { how: string; sources: string; features: string; agents: string; language: string; github: string };
   hero: {
     title: TitleRun[];
     lead: string;
@@ -132,7 +132,7 @@ export interface PageContext {
   href: (tag: string) => string;
   css: string;
   /** Browser scripts, inlined after the part they drive. */
-  scripts: { hero: string; ask: string; demo: string };
+  scripts: { hero: string; ask: string; demo: string; menu: string };
   /** Leave out the document shell, for hosts that add their own (the Artifact preview). */
   fragment: boolean;
 }
@@ -171,9 +171,19 @@ const ICONS = {
   shield:
     '<path d="M10 2.8 4.2 5v4.5c0 3.6 2.5 6.2 5.8 7.6 3.3-1.4 5.8-4 5.8-7.6V5z"/><path d="m7.5 10 1.8 1.8 3.3-3.5"/>',
   cloud: '<path d="M6.2 15.5h8a3.3 3.3 0 0 0 .4-6.6 4.7 4.7 0 0 0-9 .9 2.9 2.9 0 0 0 .6 5.7z"/>',
+  globe:
+    '<circle cx="10" cy="10" r="7.2"/><path d="M2.8 10h14.4M10 2.8c1.9 2 2.9 4.4 2.9 7.2s-1 5.2-2.9 7.2c-1.9-2-2.9-4.4-2.9-7.2s1-5.2 2.9-7.2z"/>',
+  chevron: '<path d="m6 8 4 4 4-4"/>',
+  check: '<path d="m5 10.4 3.3 3.3L15.2 7"/>',
 };
 const icon = (name: keyof typeof ICONS, size: number, cls: string): string =>
   `<svg class="${cls}" width="${size}" height="${size}" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name]}</svg>`;
+
+/** Where the source code lives; linked from the header and the footer. */
+const REPOSITORY = "https://github.com/AngelMsger/Inspiration";
+/** GitHub's mark (Octicons, MIT licence), filled rather than stroked like the other icons. */
+const GITHUB_MARK =
+  '<svg class="gh-mark" width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>';
 
 /** Where each footnote number in the headline points: the section that shows the claim. */
 const NOTE_TARGETS = ["#problem", "#how"];
@@ -194,11 +204,12 @@ const SOURCE_KINDS = ["document", "approval", "code", "research"] as const;
 
 function header(c: PageContext): string {
   const p = c.pack;
+  // A menu rather than a row of names, so the header holds however many languages there are.
   const langs = c.packs
     .map(({ tag, pack }) =>
       tag === c.tag
-        ? `<a aria-current="true" lang="${pack.meta.htmlLang}">${esc(pack.meta.name)}</a>`
-        : `<a href="${c.href(tag)}" hreflang="${pack.meta.htmlLang}" lang="${pack.meta.htmlLang}">${esc(pack.meta.name)}</a>`,
+        ? `<li><a href="${c.href(tag)}" aria-current="page" lang="${pack.meta.htmlLang}">${esc(pack.meta.name)}${icon("check", 16, "lang-check")}</a></li>`
+        : `<li><a href="${c.href(tag)}" hreflang="${pack.meta.htmlLang}" lang="${pack.meta.htmlLang}">${esc(pack.meta.name)}</a></li>`,
     )
     .join("");
   return `<header class="top">
@@ -210,7 +221,14 @@ function header(c: PageContext): string {
       <a href="#features">${esc(p.nav.features)}</a>
       <a href="#agents">${esc(p.nav.agents)}</a>
     </nav>
-    <nav class="langs" aria-label="${esc(p.nav.language)}">${langs}</nav>
+    <div class="top-tools">
+      <a class="gh" href="${REPOSITORY}" aria-label="${esc(p.nav.github)}" title="${esc(p.nav.github)}">${GITHUB_MARK}<span>GitHub</span></a>
+      <details class="lang-menu">
+        <summary aria-label="${esc(`${p.nav.language}: ${p.meta.name}`)}">${icon("globe", 17, "lang-globe")}<span>${esc(p.meta.name)}</span>${icon("chevron", 14, "lang-chevron")}</summary>
+        <ul>${langs}</ul>
+      </details>
+      <script>${c.scripts.menu}</script>
+    </div>
   </div>
 </header>`;
 }
@@ -561,6 +579,7 @@ function footer(c: PageContext): string {
   <div class="wrap foot-row">
     <span class="wordmark">Inspiration</span>
     <p>${esc(c.pack.footer.line)}</p>
+    <a class="foot-gh" href="${REPOSITORY}">${GITHUB_MARK}GitHub</a>
     <nav class="langs" aria-label="${esc(c.pack.nav.language)}">${langs}</nav>
   </div>
 </footer>`;
