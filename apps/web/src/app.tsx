@@ -84,6 +84,7 @@ function personOf(session: Session, demo: Person[] | undefined): Person {
     member: current.member_id,
     name: current.display_name,
     locale: session.account.locale,
+    role: current.role,
     ...(about && { about }),
   };
 }

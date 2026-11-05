@@ -38,6 +38,8 @@ home.ask: Ask a question, or type what you are looking for
 home.recent: Recently viewed
 home.recent_none: Documents you open show up here.
 home.spaces: Your spaces
+home.no_spaces_admin: There are no spaces yet. Create the first one, and name its space owners.
+home.no_spaces: "You can't read any space yet. Each space's owners decide who reads it."
 home.documents: "{count} documents"
 
 ask.answer: Answer

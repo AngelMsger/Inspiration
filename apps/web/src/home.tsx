@@ -88,6 +88,15 @@ export function Home(props: { person: Person; library: Library }) {
         </ul>
       )}
       <h2 className="section">{say("home.spaces")}</h2>
+      {/* A new company has none: its super admin makes the first, and nobody else reads any yet. */}
+      {props.library.spaces.length === 0 &&
+        (props.person.role === "super_admin" ? (
+          <p className="quiet">
+            {say("home.no_spaces_admin")} <Link to={{ name: "admin", page: "spaces" }}>{say("spaces.new")}</Link>
+          </p>
+        ) : (
+          <p className="quiet">{say("home.no_spaces")}</p>
+        ))}
       <ul className="rows">
         {props.library.spaces.map((s) => (
           <li key={s.id}>
