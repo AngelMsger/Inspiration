@@ -24,3 +24,10 @@ id = "inspiration-anthropic-api-key"
 description = "Anthropic API key"
 regex = '''\bsk-ant-[A-Za-z0-9_-]{20,}'''
 keywords = ["sk-ant-"]
+
+# SpiceDB consistency tokens (ZedTokens) in the contract examples: a timestamp in protobuf and
+# base64, not a credential.
+[allowlist]
+description = "SpiceDB consistency tokens"
+regexTarget = "line"
+regexes = ['''"consistency_token": "''']
