@@ -151,10 +151,6 @@ importers:
       '@inspiration/tenancy':
         specifier: workspace:*
         version: link:../../business/tenancy
-    devDependencies:
-      '@inspiration/testkit':
-        specifier: workspace:*
-        version: link:../../libs/testkit
 
   apps/engine:
     dependencies:

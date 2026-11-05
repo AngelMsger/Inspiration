@@ -15,8 +15,5 @@
     "@inspiration/contracts": "workspace:*",
     "@inspiration/kernel": "workspace:*",
     "@inspiration/tenancy": "workspace:*"
-  },
-  "devDependencies": {
-    "@inspiration/testkit": "workspace:*"
   }
 }
