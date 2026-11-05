@@ -1,0 +1,113 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: business/tokens.yaml
+title: Access tokens in the browser API
+description: >
+  The business backend's browser API (apps/business, under /api/) for Apps with access: the
+  personal access tokens a member makes for an MCP client or a script. An MCP client sends
+  the token's secret to the site's MCP address, and the backend passes each call on to the
+  engine as the member, narrowed to the token's spaces and to reading. A token never does
+  more than its member may: when the member leaves or loses a space, so does the token.
+  Every call names the company the page shows (x-inspiration-company), as other company
+  calls do. Business-layer types: engine packages never import them.
+
+$defs:
+  AccessTokenId:
+    type: string
+    pattern: "^tok_[0-9A-Za-z]{8,64}$"
+
+  TokenSpaces:
+    description: Where a token may work, "all" for every space its member can read, or the spaces named.
+    oneOf:
+      - const: all
+      - type: array
+        minItems: 1
+        uniqueItems: true
+        items:
+          $ref: "../common.yaml#/$defs/SpaceId"
+
+  AccessToken:
+    description: >
+      A personal access token, as Apps with access lists it. Its secret is shown once, in
+      CreatedAccessToken, and only its hash is kept.
+    type: object
+    required: [id, name, spaces, scopes, created_at, expires_at]
+    additionalProperties: false
+    properties:
+      id:
+        $ref: "#/$defs/AccessTokenId"
+      name:
+        type: string
+      spaces:
+        $ref: "#/$defs/TokenSpaces"
+      scopes:
+        description: What the token may do; in the MVP, only knowledge.read.
+        type: array
+        items:
+          $ref: "../authz.yaml#/$defs/Scope"
+      created_at:
+        $ref: "../common.yaml#/$defs/Instant"
+      expires_at:
+        $ref: "../common.yaml#/$defs/Instant"
+      last_used_at:
+        description: When an MCP client last called with it, to the minute; absent until then.
+        $ref: "../common.yaml#/$defs/Instant"
+      member:
+        description: Whose token it is, only in the super admin's list of every member's tokens.
+        type: object
+        required: [member_id, display_name]
+        additionalProperties: false
+        properties:
+          member_id:
+            $ref: "../common.yaml#/$defs/PrincipalId"
+          display_name:
+            type: string
+
+  AccessTokenList:
+    description: >
+      GET /api/tokens: the member's tokens in the current company that are neither revoked nor
+      expired, newest first, and the MCP address to give a client. A super admin adds
+      ?all=true for every member's tokens, each with its member.
+    type: object
+    required: [tokens, mcp_url]
+    additionalProperties: false
+    properties:
+      tokens:
+        type: array
+        items:
+          $ref: "#/$defs/AccessToken"
+      mcp_url:
+        type: string
+        format: uri
+
+  NewAccessToken:
+    description: >
+      POST /api/tokens. A token lasts at most 90 days. Naming a space the member cannot read
+      answers 400; in the sample company, where nobody changes anything, 403.
+    type: object
+    required: [name, spaces, days]
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+        minLength: 1
+        maxLength: 100
+      spaces:
+        $ref: "#/$defs/TokenSpaces"
+      days:
+        type: integer
+        minimum: 1
+        maximum: 90
+
+  CreatedAccessToken:
+    description: >
+      The answer to POST /api/tokens (201): the token and its secret, the one time the secret
+      is shown. DELETE /api/tokens/{token} revokes a token at once (204); a member revokes
+      their own, a super admin anyone's.
+    type: object
+    required: [token, secret]
+    additionalProperties: false
+    properties:
+      token:
+        $ref: "#/$defs/AccessToken"
+      secret:
+        type: string

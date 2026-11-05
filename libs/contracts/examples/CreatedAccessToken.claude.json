@@ -1,0 +1,11 @@
+{
+  "token": {
+    "id": "tok_01JD8K2M4N6P8Q0R2S4T6V8W0X",
+    "name": "Claude Desktop",
+    "spaces": "all",
+    "scopes": ["knowledge.read"],
+    "created_at": "2026-11-05T06:00:00Z",
+    "expires_at": "2027-01-04T06:00:00Z"
+  },
+  "secret": "insp_pat_EXAMPLE_NOT_A_REAL_SECRET"
+}
