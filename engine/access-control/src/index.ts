@@ -1,9 +1,13 @@
 /**
  * Access control: permissions for members and agents, on SpiceDB. Members, services, groups
- * and departments are keyed by tenant, since their IDs are unique only within it.
+ * and departments are keyed by tenant, since their IDs are unique only within it. Visibility
+ * comes from spaces: a source's documents, and what is derived from them, are readable by
+ * whoever may read the source's space. Source ACLs decide nothing.
  *
  *     const service = new AuthzService(new SpiceDBGraph(connect(endpoint, key)), store); // or new MemoryGraph()
- *     await service.mirror(aclSnapshot, { spaceId });                // on acl.changed
+ *     await service.createSpace(spaceId, { tenantId, ownerId });
+ *     await service.grantSpace(spaceId, "viewer", tenantId);         // everyone in the tenant reads it
+ *     await service.registerSource(sourceId, spaceId);
  *     const filter = await service.scopeFilter(principal, "read");   // pushed into search indexes
  *
  * Apply the schema with `pnpm --filter @inspiration/access-control exec inspiration-authz-schema`.
@@ -29,19 +33,16 @@ export {
   sortRelationships,
   subject,
 } from "./graph.ts";
-export { aclChangedHandler } from "./handlers.ts";
 export { MemoryGraph, parseSchema } from "./memory-graph.ts";
 export {
   AuthzService,
-  aclTokens,
-  documentObjectId,
+  chunkTokens,
   documentRef,
   LINEAGE_DEPTH,
   PrincipalError,
   principalObjectId,
   SPACE_ROLES,
   type SpaceResolver,
-  type SpaceRole,
   subjectOf,
   supportingVersions,
 } from "./service.ts";

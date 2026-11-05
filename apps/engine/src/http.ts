@@ -20,8 +20,9 @@
  *
  * Resolving a todo and syncing a source are the writes. Only a todo's assignee may resolve it
  * (a todo of anyone else's answers 404), with a resolution it offers (else 400). Only a member
- * who may administer a space reads its overview or syncs its sources (spaces.ts). Both writes
- * answer once the engine has read everything they caused, so the next read sees the change.
+ * who may administer a space and read it reads its overview or syncs its sources (spaces.ts).
+ * Both writes answer once the engine has read everything they caused, so the next read sees
+ * the change.
  *
  * Identity: a request carries a principal token, "Authorization: Bearer <JWT>", which the
  * business layer signs and access control verifies (TokenVerifier). The token's scopes bound

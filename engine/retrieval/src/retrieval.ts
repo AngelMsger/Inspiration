@@ -1,5 +1,5 @@
 import { fileURLToPath } from "node:url";
-import { aclTokens } from "@inspiration/access-control";
+import { chunkTokens } from "@inspiration/access-control";
 import {
   type AnswerQuery,
   type AuthZ,
@@ -259,15 +259,11 @@ export class Retrieval implements Retriever {
   }
 
   handlers(): Record<string, EventHandler> {
-    return { "blocks.changed": this.onBlocksChanged, "acl.changed": this.onAclChanged };
+    return { "blocks.changed": this.onBlocksChanged };
   }
 
   readonly onBlocksChanged: EventHandler = async (event: EventEnvelope) => {
     await this.#serial(event.tenant_id, () => this.#index(event));
-  };
-
-  readonly onAclChanged: EventHandler = async (event: EventEnvelope) => {
-    await this.#serial(event.tenant_id, () => this.#retoken(event));
   };
 
   /** The tenant's indexed documents. */
@@ -310,7 +306,7 @@ export class Retrieval implements Retriever {
     const before = new Map(old.map((c) => [c.id, c]));
     const fresh = drafts.filter((d) => !before.has(d.id));
     const headers = await this.#headers(version, fresh);
-    const tokens = await this.#tokensOf(version);
+    const tokens = chunkTokens(version.tenant_id);
     const chunks = drafts.map((d): Chunk => {
       const header = before.get(d.id)?.contextual_header ?? headers.get(d.id);
       return {
@@ -427,28 +423,6 @@ export class Retrieval implements Retriever {
       });
     }
     return { vectors, model };
-  }
-
-  /** The tokens of the document's latest captured ACL; without one, only the tenant's services read it. */
-  async #tokensOf(version: SourceVersion): Promise<string[]> {
-    const snapshot = await this.store.getAclSnapshot(version.source_id, version.external_id);
-    return snapshot ? aclTokens(snapshot, version.tenant_id) : [`system:${version.tenant_id}`];
-  }
-
-  async #retoken(event: EventEnvelope): Promise<void> {
-    const changed = payloadOf(event, "acl.changed");
-    const document = `${changed.source_id}:${changed.external_id}`;
-    const state = await this.records.get(DOCUMENTS, key(event.tenant_id, document));
-    // Not indexed yet: indexing reads the latest ACL itself.
-    if (!state || state.deleted || !state.chunk_ids.length) return;
-    // The latest snapshot, not the event's: a late event of an older ACL must not win.
-    const snapshot = await this.store.getAclSnapshot(changed.source_id, changed.external_id);
-    if (!snapshot) throw new RangeError(`no ACL snapshot for ${document}`);
-    const tokens = aclTokens(snapshot, event.tenant_id);
-    const chunks = await this.store.getChunks(state.chunk_ids);
-    const changedChunks = chunks.filter((c) => JSON.stringify(c.acl_tokens ?? []) !== JSON.stringify(tokens));
-    if (!changedChunks.length) return;
-    await this.store.transaction((tx) => tx.putChunks(changedChunks.map((c) => ({ ...c, acl_tokens: tokens }))));
   }
 
   async #serial<T>(tenantId: string, fn: () => Promise<T>): Promise<T> {

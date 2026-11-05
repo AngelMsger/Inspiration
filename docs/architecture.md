@@ -140,7 +140,7 @@ There are exactly three paths.
 The main flow, from a changed document to a fresh page:
 
 ```
-source.changed -> source-sync fetch -> document.fetched (+ acl.changed -> access-control mirror)
+source.changed -> source-sync fetch -> document.fetched (+ acl.changed, an advisory ACL snapshot)
   -> normalization parses (the parsing worker for Office and PDF) and diffs blocks -> blocks.changed
   -> extraction -> claims.updated -> freshness -> artifact.dirty
                                    -> governance compares slot values -> todo.requested -> collaboration
@@ -245,27 +245,26 @@ deployment can move to Milvus or OpenSearch without touching retrieval.
 
 ## Security model
 
-The first two points describe access control as built. The adopted permission model
-changes them, and that is the next change to access-control: visibility comes from the
-space a unit is in, never from source permissions. A member's own space is readable by
-that member alone; shared spaces get their visibility top down from admins and stewards,
-and source ACLs only warn of an audience gap when something is published. A claim is
-visible when its space is readable and one complete proof of it is (see
-`docs/design/business-engine-contract.md`, rule 6).
+Visibility comes from the space a unit is in, never from source permissions (the adopted
+permission model; see `docs/design/business-engine-contract.md`). Still to come are the
+member's own space, readable by that member alone, and the proof rule for inputs a unit needs
+together: a claim is visible when its space is readable and one complete proof of it is.
 
-- **Source ACLs are mirrored.** Access control mirrors each document's ACL from its source
-  into SpiceDB. Unmapped and external principals get nothing. "Anyone with the link" and
-  public sharing are kept as separate relations so the oversharing scan can find them.
+- **Spaces decide who reads.** A source belongs to one space, and its documents are readable
+  by whoever may read the space: its audience (members, groups, departments or the whole
+  tenant) with a role from viewer to owner, each holding in every space below. The super
+  admin manages every space (its name, owners and audience) but reads only the spaces whose
+  audience includes them. Source ACLs decide nothing: source-sync keeps them as advisory
+  snapshots, for the audience-gap warning when something is published.
 - **Derived knowledge follows its sources.** A claim, page or SOP is readable only through
   source documents the viewer can read now. Access control decides this at read time by
   walking lineage along support paths (supporting evidence, derivations, dependencies), so it
-  can never drift from the source ACLs; evidence that contradicts or qualifies a claim never
-  makes it readable. Hidden support is never counted or named. Document checks for one
-  request go to SpiceDB in bulk and are memoised; retrieval keeps each indexed derived
-  unit's supporting documents so its pre-filter still applies.
-- **Search pre-filters.** `scopeFilter` gives each index the viewer's spaces, principal
-  tokens and clearance, so top-k is taken only over rows the viewer may see. Results are
-  re-checked before they leave the server.
+  follows the spaces the viewer can read now; evidence that contradicts or qualifies a claim
+  never makes it readable. Hidden support is never counted or named. Source checks for one
+  request go to SpiceDB in bulk and are memoised.
+- **Search pre-filters.** `scopeFilter` gives each index the viewer's readable spaces, their
+  tenant's token and their clearance, so top-k is taken only over rows the viewer may see.
+  Results are re-checked before they leave the server.
 - **Fresh reads after writes.** Every permission write returns SpiceDB's consistency token
   (a ZedToken). Decisions carry it as `consistency_token`, so a caller can ask a later
   read to be at least that fresh.

@@ -1517,7 +1517,7 @@ export interface Chunk {
   content_hash: ContentHash;
   sensitivity: SensitivityLabel;
   /**
-   * Principal tokens that may read the chunk's source document, mirrored from the source ACL by access control. Retrieval pre-filters on overlap with the viewer's tokens.
+   * The chunk's tenant tokens (access control's chunkTokens). Retrieval pre-filters on overlap with the viewer's tokens, which keeps tenants apart; the chunk's space decides who reads it.
    *
    */
   acl_tokens?: string[];
@@ -2322,7 +2322,8 @@ export interface TodoChoice {
 export interface IndexFilter {
   space_ids: SpaceId[];
   /**
-   * The viewer's own ID plus groups, departments and tenant-wide tokens.
+   * The tenant tokens the viewer matches: tenant:<tenant ID> for a member of the tenant, system:<tenant ID> for its services. Spaces decide who reads a row; the tokens keep tenants apart inside the index.
+   *
    */
   principal_tokens: string[];
   max_sensitivity: SensitivityLabel;

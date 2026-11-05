@@ -122,15 +122,6 @@ export interface AuthZ {
   canReadDerived(who: Principal, unitId: string): Promise<DerivedReadDecision>;
 }
 
-/**
- * Writes source ACLs into the permission system (driven by acl.changed). Both return the
- * consistency token of the write (a SpiceDB ZedToken), for at-least-as-fresh reads after it.
- */
-export interface AclMirror {
-  mirror(snapshot: AclSnapshot, options: { spaceId: string }): Promise<string | undefined>;
-  forget(sourceId: string, externalId: string): Promise<string | undefined>;
-}
-
 // ---------------------------------------------------------------- model gateway and agents
 
 /** The only way to call a model. Routes by sensitivity, enforces budgets, caches and meters. */

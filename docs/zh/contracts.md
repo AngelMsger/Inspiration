@@ -67,8 +67,8 @@ ID 是一个简短的种类前缀加一个 ULID（`clm_01JC...`），所以它�
 键得到页面 ID）。`kindOf(id)` 读回种类。内容哈希是 `sha256:<hex>`；`combineHashes` 用一个产物的输入以及其生产者的
 名称、版本、模型和提示词版本构建它的输入哈希。
 
-来源文档没有自己的 Inspiration ID。`ResourceRef` 用 `"<source id>:<external id>"` 命名它们，access-control 在
-SpiceDB 中以 `documentObjectId(sourceId, externalId)` 保存它们。
+来源文档没有自己的 Inspiration ID。`ResourceRef` 用 `"<source id>:<external id>"` 命名它们。access-control 不为它们
+建对象：谁能读来源所在的空间，谁就能读这份文档。
 
 组件名（`ComponentName`）是 kebab case：`extraction`、`page-compiler`。组件名就是它的事件生产者名、它的消费者组，
 以及它的模型任务名的第一部分（`extraction.extract_claims`）。
@@ -82,7 +82,7 @@ SpiceDB 中以 `documentObjectId(sourceId, externalId)` 保存它们。
 | --- | --- | --- |
 | `source.changed` | connectors、source-sync、research | source-sync |
 | `document.fetched` | source-sync | normalization |
-| `acl.changed` | source-sync | retrieval、access-control |
+| `acl.changed` | source-sync | collaboration |
 | `blocks.changed` | normalization | extraction、freshness、retrieval |
 | `claims.updated` | extraction、governance、collaboration | freshness、governance、page-compiler、retrieval |
 | `artifact.dirty` | freshness | extraction、page-compiler、retrieval |

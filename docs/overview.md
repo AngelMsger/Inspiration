@@ -757,7 +757,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | `source.changed` | connectors, source-sync, research | source-sync | Consumer built; publishers planned (webhooks, polls, research), so a sync runs when called |
 | `document.fetched` | source-sync | normalization | Built |
-| `acl.changed` | source-sync | access-control, retrieval; collaboration for the source-restricted todo (planned) | Built |
+| `acl.changed` | source-sync | collaboration for the source-restricted todo (planned); nothing else, since ACL snapshots are advisory | Built |
 | `blocks.changed` | normalization | extraction, freshness, retrieval | Built |
 | `claims.updated` | extraction; governance and collaboration (planned) | freshness, governance, page-compiler; retrieval (planned) | Built |
 | `artifact.dirty` | freshness | extraction, page-compiler, retrieval | Planned |
@@ -899,7 +899,7 @@ flowchart TD
 - **Shared answer caches** are keyed by readable spaces and clearance; an entry is dropped when a unit it used changes label, proof or grant; an answer that used a unit readable only through the reader's own grant is never shared.
 - **Search is filtered inside the index** by readable spaces and sensitivity, and every top result is checked again before it leaves the server.
 - **Source ACLs are advisory.** Source-sync keeps ACL snapshots only for the audience-gap warning and the source-restricted todo.
-- **Built today:** access-control on SpiceDB with tenant-keyed principals, source ACL mirroring, search scope filters and consistency tokens, and a lineage walk that accepts any one readable source. That is right for alternative evidence and too loose for jointly required inputs; nothing built writes such derivations yet. Replacing it with the space and proof rules is the next change to access-control.
+- **Built today:** access-control on SpiceDB with tenant-keyed principals, visibility by space (source ACLs decide nothing), the super admin managing spaces without reading those whose audience leaves them out, search scope filters and consistency tokens, and a lineage walk that accepts any one readable source. That walk is right for alternative evidence and too loose for jointly required inputs; nothing built writes such derivations yet. The proof rule and the member's own space come next.
 
 The design, its abuse cases and eight acceptance tests are in [Permissions in compiled knowledge](design/compiled-knowledge-permissions.md).
 

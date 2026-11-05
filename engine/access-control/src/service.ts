@@ -1,11 +1,14 @@
 /**
- * The permission service: AuthZ and AclMirror over a relationship graph.
+ * The permission service: AuthZ over a relationship graph.
  *
  * Rules, in one place:
  *
- * - Source documents keep the ACL of the system they came from. Unmapped and external
- *   principals in a source ACL get nothing.
- * - Spaces hold Inspiration roles: viewer < commenter < editor < steward / owner.
+ * - Visibility comes from spaces. A source belongs to one space, and its documents are
+ *   readable by whoever may read that space. Source ACLs decide nothing: source-sync keeps
+ *   them as advisory snapshots.
+ * - Spaces hold Inspiration roles: viewer < commenter < editor < steward < owner, each
+ *   holding in every space below. A tenant admin administers every space of the tenant (its
+ *   name, owners and audience) but reads only the spaces whose audience includes them.
  * - Derived knowledge (claims, pages, SOPs) is readable only through source documents the
  *   viewer can read now, found by walking lineage along support paths: supporting evidence,
  *   derivations and dependencies. Contradicting or qualifying evidence never makes a claim
@@ -15,7 +18,7 @@
  * - Principal IDs are unique only within their tenant (a person may have the same member ID
  *   in every tenant they join). Members, services, groups and departments are therefore
  *   keyed by tenant in the graph, and a principal only ever gets rights in its own tenant.
- * - Search indexes get an IndexFilter (spaces, principal tokens, clearance) so ranking only
+ * - Search indexes get an IndexFilter (spaces, the tenant's token, clearance) so ranking only
  *   ever sees rows the viewer may read; results are still re-checked before they leave.
  *
  * Every write returns the graph's consistency token (a SpiceDB ZedToken), which callers pass
@@ -23,9 +26,6 @@
  */
 
 import type {
-  AclMirror,
-  AclRole,
-  AclSnapshot,
   AuthZ,
   Decision,
   DerivedReadDecision,
@@ -36,32 +36,23 @@ import type {
   Principal,
   ResourceRef,
   SensitivityLabel,
+  SpaceRole,
 } from "@inspiration/contracts";
 import { kindOf } from "@inspiration/contracts";
-import {
-  formatRelationship,
-  type Graph,
-  type ObjectRef,
-  obj,
-  type Relationship,
-  rel,
-  type SubjectRef,
-  subject,
-} from "./graph.ts";
+import { type Graph, type ObjectRef, obj, type Relationship, rel, type SubjectRef, subject } from "./graph.ts";
 
 const READ_ONLY: ReadonlySet<Permission> = new Set(["discover", "read"]);
 /** How far canReadDerived walks lineage from a unit towards its source versions. */
 export const LINEAGE_DEPTH = 6;
-/** SpiceDB's object ID alphabet, without a leading "=". */
-const SAFE_ID = /^[a-zA-Z0-9/_\-+][a-zA-Z0-9/_\-=+]{0,899}$/;
-const DOCUMENT_ROLES: Readonly<Record<AclRole, string>> = {
-  viewer: "viewer",
-  commenter: "commenter",
-  editor: "editor",
-  owner: "owner",
-};
-export const SPACE_ROLES = ["owner", "steward", "editor", "commenter", "viewer"] as const;
-export type SpaceRole = (typeof SPACE_ROLES)[number];
+/** Space roles from the highest, with the permission that holding one (or a higher) grants. */
+const ROLE_PERMISSIONS = [
+  ["owner", "own"],
+  ["steward", "verify"],
+  ["editor", "edit"],
+  ["commenter", "comment"],
+  ["viewer", "read"],
+] as const satisfies readonly (readonly [SpaceRole, string])[];
+export const SPACE_ROLES = ROLE_PERMISSIONS.map(([role]) => role);
 
 /** Finds the space of resource types access control does not know (comments, todos, ...). */
 export type SpaceResolver = (res: ResourceRef) => Promise<string | undefined>;
@@ -72,15 +63,6 @@ export class PrincipalError extends Error {
 }
 
 // ---------------------------------------------------------------- IDs and tokens
-
-/**
- * SpiceDB object ID of a source document. External IDs outside SpiceDB's ID alphabet are
- * base64url-encoded behind a "=", which a plain ID never starts with.
- */
-export function documentObjectId(sourceId: string, externalId: string): string {
-  if (SAFE_ID.test(externalId)) return `${sourceId}|${externalId}`;
-  return `${sourceId}|=${Buffer.from(externalId, "utf8").toString("base64url")}`;
-}
 
 export function documentRef(sourceId: string, externalId: string): ResourceRef {
   return { type: "document", id: `${sourceId}:${externalId}` };
@@ -116,38 +98,17 @@ export function subjectOf(tenantId: string, principalId: string): SubjectRef {
 }
 
 /**
- * Principal tokens for chunk.acl_tokens (written by retrieval), matching scopeFilter's
- * principal_tokens. Every chunk also carries system:<tenant> for service principals.
+ * The tokens retrieval writes into chunk.acl_tokens, matching scopeFilter's principal_tokens:
+ * tenant:<tenant> for its members and system:<tenant> for its services. Spaces decide who
+ * reads a chunk; the tokens keep tenants apart inside the index.
  */
-export function aclTokens(snapshot: AclSnapshot, tenantId: string): string[] {
-  const tokens = new Set([`system:${tenantId}`]);
-  for (const e of snapshot.entries) {
-    switch (e.principal_kind) {
-      case "user":
-      case "group":
-      case "department":
-        if (e.principal_id) tokens.add(principalObjectId(tenantId, e.principal_id));
-        break;
-      case "tenant":
-      case "anyone_in_tenant":
-        tokens.add(`tenant:${tenantId}`);
-        break;
-      case "anyone_with_link":
-        tokens.add(`link:${tenantId}`);
-        break;
-      case "public":
-        tokens.add("public");
-        break;
-      case "external":
-        break;
-    }
-  }
-  return [...tokens].sort();
+export function chunkTokens(tenantId: string): string[] {
+  return [`system:${tenantId}`, `tenant:${tenantId}`];
 }
 
 // ---------------------------------------------------------------- the service
 
-export class AuthzService implements AuthZ, AclMirror {
+export class AuthzService implements AuthZ {
   readonly graph: Graph;
   readonly store: KnowledgeStore;
   readonly #spaces: SpaceResolver | undefined;
@@ -239,63 +200,6 @@ export class AuthzService implements AuthZ, AclMirror {
     return tenant.subject.id;
   }
 
-  // ------------------------------------------------------ AclMirror
-
-  /** Make the document's relationships equal to the snapshot, in one atomic write. */
-  async mirror(snapshot: AclSnapshot, { spaceId }: { spaceId: string }): Promise<string | undefined> {
-    const tenantId = await this.#tenantOf(spaceId);
-    const everyone = subject("tenant", tenantId, "member");
-    const source = snapshot.source_id;
-    const doc = obj("document", documentObjectId(source, snapshot.external_id));
-    const desired = new Map<string, Relationship>();
-    const want = (relation: string, s: SubjectRef) => {
-      const r = rel(doc, relation, s);
-      desired.set(formatRelationship(r), r);
-    };
-    want("source", subject("source", source));
-    if (snapshot.inherits_from_external_id) {
-      want("parent", subject("document", documentObjectId(source, snapshot.inherits_from_external_id)));
-    }
-    const prefixes = { user: "mem_", group: "grp_", department: "dep_" } as const;
-    for (const e of snapshot.entries) {
-      switch (e.principal_kind) {
-        case "user":
-        case "group":
-        case "department":
-          // Unmapped principals, and IDs of the wrong kind, are denied.
-          if (e.principal_id?.startsWith(prefixes[e.principal_kind])) {
-            want(DOCUMENT_ROLES[e.role], subjectOf(tenantId, e.principal_id));
-          }
-          break;
-        case "tenant":
-        case "anyone_in_tenant":
-          want("viewer", everyone);
-          break;
-        case "anyone_with_link":
-          want("link_viewer", everyone);
-          break;
-        case "public":
-          want("public_viewer", subject("member", "*"));
-          break;
-        case "external":
-          break;
-      }
-    }
-    const existing = new Map((await this.graph.read("document", doc.id)).map((r) => [formatRelationship(r), r]));
-    return this.graph.write({
-      touch: [
-        ...[...desired].filter(([k]) => !existing.has(k)).map(([, r]) => r),
-        rel(obj("source", source), "space", subject("space", spaceId)),
-      ],
-      delete: [...existing].filter(([k]) => !desired.has(k)).map(([, r]) => r),
-    });
-  }
-
-  async forget(sourceId: string, externalId: string): Promise<string | undefined> {
-    const existing = await this.graph.read("document", documentObjectId(sourceId, externalId));
-    return this.graph.write({ delete: existing });
-  }
-
   // ------------------------------------------------------ AuthZ
 
   #actingSubject(who: Principal): SubjectRef {
@@ -332,7 +236,7 @@ export class AuthzService implements AuthZ, AclMirror {
     }
   }
 
-  /** options.memo: per-request cache of document read checks, shared by checkMany. */
+  /** options.memo: per-request cache of source read checks, shared by checkMany. */
   async check(
     who: Principal,
     perm: Permission,
@@ -354,9 +258,8 @@ export class AuthzService implements AuthZ, AclMirror {
     }
     if (res.type === "document") {
       if (!READ_ONLY.has(perm)) return { allow: false, reason: "source documents are read-only in Inspiration" };
-      const [sourceId, ...rest] = res.id.split(":");
-      const doc = obj("document", documentObjectId(sourceId as string, rest.join(":")));
-      return this.#decision(await this.graph.check(doc, "read", s));
+      const sourceId = res.id.split(":", 1)[0] as string;
+      return this.#decision(await this.graph.check(obj("source", sourceId), "read", s));
     }
     if (res.type === "source") {
       const permission = perm === "admin" ? "admin" : READ_ONLY.has(perm) ? "read" : undefined;
@@ -388,20 +291,37 @@ export class AuthzService implements AuthZ, AclMirror {
     return Promise.all(resources.map((r) => this.check(who, perm, r, { memo })));
   }
 
+  /** The chunk tokens (chunkTokens) the principal matches: its tenant's, if it belongs to the tenant. */
   async principalTokens(who: Principal): Promise<string[]> {
     const s = this.#actingSubject(who);
     const tenant = obj("tenant", who.tenant_id);
     if (s.type === "service") {
       return (await this.graph.check(tenant, "system", s)) ? [`system:${who.tenant_id}`] : [];
     }
-    const [groups, departments, member] = await Promise.all([
-      this.graph.lookup("group", "member", s),
-      this.graph.lookup("department", "member", s),
-      this.graph.check(tenant, "everyone", s),
-    ]);
-    const tokens = [s.id, ...groups, ...departments, "public"];
-    if (member) tokens.push(`tenant:${who.tenant_id}`, `link:${who.tenant_id}`);
-    return [...new Set(tokens)].sort();
+    return (await this.graph.check(tenant, "everyone", s)) ? [`tenant:${who.tenant_id}`] : [];
+  }
+
+  /**
+   * The highest role the principal holds on each space, directly, through a group or the
+   * whole tenant, or from a space above; undefined where it holds none. A tenant admin
+   * manages every space without holding a role on it.
+   */
+  async spaceRoles(who: Principal, spaceIds: readonly string[]): Promise<(SpaceRole | undefined)[]> {
+    const s = this.#actingSubject(who);
+    const held = await this.graph.checkMany(
+      spaceIds.flatMap((id) => ROLE_PERMISSIONS.map(([, perm]) => [obj("space", id), perm] as const)),
+      s,
+    );
+    return spaceIds.map((_, i) => {
+      const at = ROLE_PERMISSIONS.findIndex((_, r) => held[i * ROLE_PERMISSIONS.length + r]);
+      return at < 0 ? undefined : ROLE_PERMISSIONS[at]?.[0];
+    });
+  }
+
+  /** The members who own a space, by member ID. */
+  async spaceOwners(spaceId: string): Promise<string[]> {
+    const owners = await this.graph.read("space", spaceId, "owner");
+    return owners.map((r) => r.subject.id.slice(r.subject.id.indexOf("|") + 1)).sort();
   }
 
   async clearance(who: Principal): Promise<SensitivityLabel> {
@@ -438,9 +358,10 @@ export class AuthzService implements AuthZ, AclMirror {
 
   /**
    * Readable when at least one source version that supports the unit belongs to a document
-   * the viewer can read now. readable_support lists only those source versions.
+   * the viewer can read now, that is a source in a space they may read. readable_support
+   * lists only those source versions.
    *
-   * Document checks go to the graph in one bulk call; options.memo carries their results
+   * Source checks go to the graph in one bulk call; options.memo carries their results
    * across the units of one request (a search result page, a page's blocks).
    */
   async canReadDerived(
@@ -453,17 +374,16 @@ export class AuthzService implements AuthZ, AclMirror {
     const versions = (await Promise.all(versionIds.map((id) => this.store.getSourceVersion(id)))).filter(
       (v) => v !== undefined,
     );
-    const docOf = new Map(versions.map((v) => [v.id, documentObjectId(v.source_id, v.external_id)]));
     const memo = options.memo ?? new Map<string, boolean>();
-    const unknown = [...new Set(docOf.values())].filter((d) => !memo.has(d)).sort();
+    const unknown = [...new Set(versions.map((v) => v.source_id))].filter((id) => !memo.has(id)).sort();
     if (unknown.length) {
       const results = await this.graph.checkMany(
-        unknown.map((d) => [obj("document", d), "read"] as const),
+        unknown.map((id) => [obj("source", id), "read"] as const),
         s,
       );
-      for (const [i, d] of unknown.entries()) memo.set(d, results[i] ?? false);
+      for (const [i, id] of unknown.entries()) memo.set(id, results[i] ?? false);
     }
-    const readable = versions.filter((v) => memo.get(docOf.get(v.id) ?? "")).map((v) => v.id);
+    const readable = versions.filter((v) => memo.get(v.source_id)).map((v) => v.id);
     return { allow: readable.length > 0, readable_support: readable };
   }
 }

@@ -1,9 +1,9 @@
 // Inspiration permission schema (SpiceDB). Access control owns it; apply it with `make authz-schema`.
 //
-// Source documents keep the ACL of the system they came from (mirrored by access control from
-// acl.changed). Spaces hold Inspiration's own roles. Derived knowledge (claims, pages,
-// SOPs) is not stored here: access control decides it at read time from the documents behind each
-// claim, so it always follows the sources the viewer can read now.
+// Visibility comes from spaces: a source belongs to one space, and its documents are readable by
+// whoever may read the space. Source ACLs decide nothing here; source-sync keeps them as advisory
+// snapshots. Derived knowledge (claims, pages, SOPs) is not stored here: access control decides it
+// at read time from the documents behind each claim, so it follows the spaces the viewer can read now.
 
 /**
  * A member: one person inside one tenant (mem_), provisioned by the business layer's directory.
@@ -50,14 +50,19 @@ definition space {
     relation commenter: member | group#member | department#member | tenant#member
     relation viewer: member | group#member | department#member | tenant#member
 
+    // Roles hold in every space below: a parent's owner owns its children.
     permission system = tenant->system
-    permission admin = owner + tenant->administer + parent->admin
-    permission verify = steward + admin
-    permission publish = steward + admin
+    permission own = owner + parent->own
+    permission verify = steward + own + parent->verify
+    permission publish = verify
     permission edit = editor + verify + parent->edit
     permission comment = commenter + edit + parent->comment
     permission read = viewer + comment + system + parent->read
     permission discover = read
+
+    // Administering a space (its name, owners and audience) is for its owners and the tenant's
+    // admins. A tenant admin manages every space but reads only those whose audience includes them.
+    permission admin = own + tenant->administer
 }
 
 definition source {
@@ -66,21 +71,4 @@ definition source {
     permission system = space->system
     permission admin = space->admin
     permission read = space->read
-}
-
-/** A source document. Its ID is "<source id>|<external id>" (see documentObjectId in src/service.ts). */
-definition document {
-    relation source: source
-    relation parent: document
-    relation owner: member | group#member | department#member
-    relation editor: member | group#member | department#member
-    relation commenter: member | group#member | department#member
-    relation viewer: member | group#member | department#member | tenant#member
-
-    // "Anyone in the company with the link": readable, and reported by the oversharing scan.
-    relation link_viewer: tenant#member
-    relation public_viewer: member:*
-
-    permission read = viewer + commenter + editor + owner + link_viewer + public_viewer + parent->read + source->system
-    permission discover = read
 }

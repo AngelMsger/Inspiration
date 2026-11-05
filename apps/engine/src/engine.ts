@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { AuthzService, aclChangedHandler, type Graph, MemoryGraph } from "@inspiration/access-control";
+import { AuthzService, type Graph, MemoryGraph } from "@inspiration/access-control";
 import { Inbox } from "@inspiration/collaboration";
 import type {
   BlobStore,
@@ -186,7 +186,6 @@ export class Engine {
       { group: "freshness", handlers: () => this.freshness.handlers() },
       { group: "page-compiler", handlers: () => this.topics.handlers() },
       { group: "collaboration", handlers: () => this.inbox.handlers() },
-      { group: "access-control", handlers: () => ({ "acl.changed": aclChangedHandler(this.authz) }) },
       { group: "retrieval", handlers: () => this.retrieval.handlers() },
     ];
     for (const c of components) {

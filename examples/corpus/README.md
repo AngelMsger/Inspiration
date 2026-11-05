@@ -2,13 +2,15 @@
 
 A small, hand-written tenant for the ingest prototype, the demo and design work: one
 fictional machinery maker, 恒远机械, with 38 documents. The finance department's space holds
-its policies (财务制度, 18 files), its team notes (财务团队: minutes, FAQs, a manual, a notice
+its policies (财务制度, 17 files), its team notes (财务团队: minutes, FAQs, a manual, a notice
 and a weekly report), an archive folder, one Feishu wiki document and one Feishu approval
-definition (its four instances are read with it). The company policies (公司制度, 8 files:
-HR, administration, purchasing and information security) are a second space. A Chinese copy
+definition (its four instances are read with it). The company policies (公司制度, 7 files:
+HR, administration, purchasing and information security) are a second space. Two small spaces
+hold what only some may read: the budget note in 财务制度/预算/内部 (财务内部) and the payroll
+policy in 公司制度/人事/薪酬 (人事薪酬). A Chinese copy
 is in [README.zh.md](README.zh.md); if the two differ, this English version wins.
 
-- `corpus.yaml` declares the tenant, its two spaces, its six sources and the directory that
+- `corpus.yaml` declares the tenant, its four spaces, its eight sources and the directory that
   maps source principals to engine principals.
 - `vocabulary.yaml` is the tenant's predicate catalogue: the single-valued facts (hotel caps,
   deadlines, leave days, loan settlement ...) that extraction puts into slots, so governance
@@ -137,12 +139,20 @@ recording again then pays only for answers that changed.
 
 ## Permissions
 
-- `财务制度` is readable by the whole tenant and edited by the finance group.
-- `财务制度/预算/内部` is finance only (`group:finance`), its budget note `confidential`.
-- `财务团队` is readable by the whole tenant.
-- `公司制度` is readable by the whole tenant and edited by the administration office; `人事`
-  adds HR editors, and `人事/薪酬` is HR only, its payroll policy `confidential`.
-- The Feishu FAQ is shared with the finance department and readable by the tenant by link.
+A space's audience decides who reads its documents (`corpus.yaml`, `spaces`). The ACLs the
+folders' `.acl.yaml` files and the Feishu fixtures carry are kept as each source reports them
+and decide nothing.
+
+- 财务部 (`财务制度`, `财务团队`, the archive and both Feishu sources) and 公司制度 are read by
+  the whole tenant; 周敏 and 张敏 own them.
+- 财务内部 holds `财务制度/预算/内部`, its budget note `confidential`. 周敏 owns it, and the
+  finance department (李娜, 王磊, 高燕, 刘洋) reads it.
+- 人事薪酬 holds `公司制度/人事/薪酬`, its payroll policy `confidential`. Only 张敏, its owner,
+  reads it.
+- What the folders say: `财务制度` is edited by the finance group, `财务制度/预算/内部` is finance
+  only, `公司制度` is edited by the administration office and `人事` adds HR editors,
+  `人事/薪酬` is HR only, and the Feishu FAQ is shared with the finance department and
+  readable by the tenant by link.
 
 ## Planted duplicate
 

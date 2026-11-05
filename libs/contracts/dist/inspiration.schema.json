@@ -2081,7 +2081,7 @@
           "$ref": "#/$defs/SensitivityLabel"
         },
         "acl_tokens": {
-          "description": "Principal tokens that may read the chunk's source document, mirrored from the source ACL by access control. Retrieval pre-filters on overlap with the viewer's tokens.\n",
+          "description": "The chunk's tenant tokens (access control's chunkTokens). Retrieval pre-filters on overlap with the viewer's tokens, which keeps tenants apart; the chunk's space decides who reads it.\n",
           "type": "array",
           "items": {
             "type": "string"
@@ -4667,7 +4667,7 @@
           }
         },
         "principal_tokens": {
-          "description": "The viewer's own ID plus groups, departments and tenant-wide tokens.",
+          "description": "The tenant tokens the viewer matches: tenant:<tenant ID> for a member of the tenant, system:<tenant ID> for its services. Spaces decide who reads a row; the tokens keep tenants apart inside the index.\n",
           "type": "array",
           "items": {
             "type": "string"
