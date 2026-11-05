@@ -127,8 +127,9 @@ producer name, its consumer group and the first part of its model task names.
 
 ## Definition of done
 
-- `make check` passes: Biome, `tsc` strict, contract freshness, all tests with the stack up. A
-  change to what the engine reads, governs or answers also passes `make check-full`, as CI does.
+- `make check` passes: Biome, `tsc` strict, contract freshness, the tests with the stack up,
+  the long corpus runs aside. A change to what the engine reads, governs or answers also
+  passes `make check-full`, as CI does.
 - `components.yaml` is updated (status, plugins, events, calls), and `test/manifest.test.ts`
   passes.
 - Public behaviour is described in the doc comment of `src/index.ts` or in `docs/`.
