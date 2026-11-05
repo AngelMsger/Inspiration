@@ -148,9 +148,9 @@ components:
   agent-api:
     title: Agent API
     layer: serve
-    status: planned
+    status: built
     runtime: node
-    owns: MCP server, REST and OpenAPI, Skills export, per-call audit
+    owns: The MCP server, stateless over streamable HTTP, with the tools search, ask and read, acting as the member an agent token names, cut to its spaces and to reading. Planned are REST and OpenAPI, the get_changes and report_feedback tools, Skills export, per-call audit and reacting to unit.published
     plugins: []
     publishes: []
     subscribes: [unit.published]
@@ -161,7 +161,7 @@ components:
     layer: control
     status: built
     runtime: node
-    owns: SpiceDB schema and graph, and an in-memory graph for tests; principal tokens verified against the business layer's published keys, with a development issuer for tests; visibility by space (a source's documents are readable by whoever may read its space; source ACLs decide nothing), space roles; the engine's copy of the business layer's directory (tenants, members) and the spaces with their owners and audiences, in its own schema (authz), granted in the graph to active members only; the derived-knowledge rule over lineage, search pre-filters, agent scopes; people and groups arrive from the business layer's directory. Planned are the personal space of the two-domain rule and the proof rule for jointly required inputs (adopted 2026-10-24), the oversharing scan, the audit log
+    owns: SpiceDB schema and graph, and an in-memory graph for tests; principal tokens verified against the business layer's published keys, with a development issuer for tests, agent tokens among them (the member they act for, their grant and spaces, reading only); visibility by space (a source's documents are readable by whoever may read its space; source ACLs decide nothing), space roles; the engine's copy of the business layer's directory (tenants, members) and the spaces with their owners and audiences, in its own schema (authz), granted in the graph to active members only; the derived-knowledge rule over lineage, search pre-filters, agent scopes; people and groups arrive from the business layer's directory. Planned are the personal space of the two-domain rule and the proof rule for jointly required inputs (adopted 2026-10-24), the oversharing scan, the audit log
     plugins: [migrations]
     publishes: []
     subscribes: []

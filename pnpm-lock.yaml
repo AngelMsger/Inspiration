@@ -163,6 +163,9 @@ importers:
       '@inspiration/access-control':
         specifier: workspace:*
         version: link:../../engine/access-control
+      '@inspiration/agent-api':
+        specifier: workspace:*
+        version: link:../../engine/agent-api
       '@inspiration/collaboration':
         specifier: workspace:*
         version: link:../../engine/collaboration
@@ -291,6 +294,19 @@ importers:
       '@inspiration/knowledge-store':
         specifier: workspace:*
         version: link:../knowledge-store
+      '@inspiration/testkit':
+        specifier: workspace:*
+        version: link:../../libs/testkit
+
+  engine/agent-api:
+    dependencies:
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../../libs/contracts
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../../libs/kernel
+    devDependencies:
       '@inspiration/testkit':
         specifier: workspace:*
         version: link:../../libs/testkit

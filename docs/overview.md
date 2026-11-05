@@ -563,7 +563,7 @@ flowchart TB
 | Pages | page-compiler | LLM Wiki pages, DeepWiki, Notion AI | Reference | Pages are compiled from statements for one audience, every sentence cites, and every rebuild is a version |
 | Knowledge store | knowledge-store | Wikibase (statements with references and qualifiers), XTDB and Datomic (history and time travel) | Reuse PostgreSQL; reference the models | One database a customer can run, with lineage and "known when" reads |
 | Search and answers | retrieval | RAGFlow, Onyx, Glean | Reuse pgvector and pg_search (OpenSearch or Milvus later); reference RAGFlow's pipeline | Indexes over statements as well as blocks, filtered by readable spaces before ranking, and a reader status on every citation |
-| Agent access | agent-api (planned) | The MCP servers of Glean and Notion | Reuse the MCP TypeScript SDK | Four task-shaped tools over the same permissions as the screens (section 18) |
+| Agent access | agent-api | The MCP servers of Glean and Notion | Reference; a small stateless server is built, since it answers four JSON-RPC methods with one JSON reply each | Four task-shaped tools over the same permissions as the screens (section 18) |
 | Interactive views | views (planned) | Claude Artifacts | Reference | Code and data kept apart, a render check and a person's approval, run in a sandboxed frame |
 | Agent framework | agent-runtime | LangGraph, OpenAI Agents SDK, Claude Agent SDK | Reference; our own small loop is built | Tools are gated by our permissions and approvals; if research needs long, durable runs, LangGraph.js is the first candidate to adopt |
 | Model gateway | model-gateway | LiteLLM, Portkey, OpenRouter | Reference | Routing by sensitivity label, budgets per company and member, versioned prompts and mocks are ours; LiteLLM can sit behind it as a provider adapter |
@@ -642,7 +642,7 @@ Each section of [`components.yaml`](../components.yaml) maps to one folder. A pa
 | Compile | page-compiler | Topics and placements; later cited pages, the omission check, diagrams, snapshots | Topics built |
 | Store | knowledge-store | The only owner of knowledge tables: lineage, bitemporal reads, slots, topics, page snapshots | Built |
 | Serve | retrieval | Every search index; hybrid search, rerank, permission filters, grounded answers | Built for passages, with the statements they quote joined at query time; also two baselines to measure answers against (a mature RAG and long context), a governed long context and compact answers; its own chunk tables, now in `kb`, and page, procedure and entity indexes planned |
-| Serve | agent-api | MCP server, REST and OpenAPI, Skills export, per-call audit | Planned |
+| Serve | agent-api | MCP server, REST and OpenAPI, Skills export, per-call audit | MCP server built with search, ask and read, acting as the member; the rest planned |
 | Serve | views | Interactive view templates, generation, render check, sandbox hosting | Planned |
 | Control | collaboration | The inbox; later comments, overrides, publishing, decisions, releases | Inbox built |
 | Control | access-control | Permissions on SpiceDB, search pre-filters, audit | Built; space and proof rules designed |

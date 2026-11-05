@@ -563,7 +563,7 @@ flowchart TB
 | 页面 | page-compiler | LLM Wiki 的页面、DeepWiki、Notion AI | 参考 | 页面由陈述为一个受众编译而成，每句都有引用，每次重建都是一个版本 |
 | 知识存储 | knowledge-store | Wikibase（带出处和限定词的陈述）、XTDB 和 Datomic（历史和时间回溯） | 复用 PostgreSQL；参考它们的模型 | 一个客户自己就能运行的数据库，带来龙去脉和“何时得知”的读取 |
 | 搜索与回答 | retrieval | RAGFlow、Onyx、Glean | 复用 pgvector 和 pg_search（以后可换 OpenSearch 或 Milvus）；参考 RAGFlow 的流水线 | 不仅为块建索引，也为陈述建索引；排序前先按可读空间过滤；每条引用带读者状态 |
-| Agent 访问 | agent-api（计划中） | Glean 和 Notion 的 MCP 服务器 | 复用 MCP TypeScript SDK | 四个按任务划分的工具，权限与界面相同（第 18 节） |
+| Agent 访问 | agent-api | Glean 和 Notion 的 MCP 服务器 | 参考；自建一个小型无状态服务器，因为它只应答四个 JSON-RPC 方法，每次一个 JSON 回复 | 四个按任务划分的工具，权限与界面相同（第 18 节） |
 | 交互式视图 | views（计划中） | Claude Artifacts | 参考 | 代码和数据分开，有渲染检查和人的批准，在沙箱框架中运行 |
 | Agent 框架 | agent-runtime | LangGraph、OpenAI Agents SDK、Claude Agent SDK | 参考；我们自己的小循环已经构建 | 工具受我们的权限和审批约束；如果研究需要长时间、可持久的运行，LangGraph.js 是第一个考虑采用的 |
 | 模型网关 | model-gateway | LiteLLM、Portkey、OpenRouter | 参考 | 按敏感标签路由、按企业和成员的预算、带版本的提示词和模拟都是我们自己的；LiteLLM 可以作为服务商适配器放在它后面 |
@@ -642,7 +642,7 @@ flowchart LR
 | 编译 | page-compiler | 主题和归属；之后是带引用的页面、省略检查、图示、快照 | 主题已构建 |
 | 存储 | knowledge-store | 知识表的唯一所有者：来龙去脉、双时态读取、事实槽、主题、页面快照 | 已构建 |
 | 服务 | retrieval | 所有搜索索引；混合搜索、重排、权限过滤、有依据的回答 | 段落已构建，段落引用的陈述在查询时一并带出；还有用来对照回答的对手（成熟 RAG、长上下文）、治理后的长上下文和精简回答；自己的分块表（目前在 `kb`）以及页面、流程和实体索引已计划 |
-| 服务 | agent-api | MCP 服务器、REST 和 OpenAPI、Skill 导出、逐次调用审计 | 已计划 |
+| 服务 | agent-api | MCP 服务器、REST 和 OpenAPI、Skill 导出、逐次调用审计 | MCP 服务器已构建，提供 search、ask 和 read，以成员身份行事；其余已计划 |
 | 服务 | views | 交互视图模板、生成、渲染检查、沙箱托管 | 已计划 |
 | 控制 | collaboration | 待办箱；之后是评论、人工覆盖、发布、决定、放行 | 待办箱已构建 |
 | 控制 | access-control | 基于 SpiceDB 的权限、搜索预过滤、审计 | 已构建；空间和依据规则已设计 |
