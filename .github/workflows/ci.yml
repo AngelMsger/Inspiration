@@ -25,12 +25,12 @@ jobs:
           cache: false
       - run: go install github.com/zricethezav/gitleaks/v8@v8.21.2
       - name: Gitleaks self-test
-        # The allowed consistency token passes, while a DeepSeek-shaped key made at run time is
-        # caught alone and beside that token. No file in the repository holds such a key.
+        # A contract example's consistency token passes, while a DeepSeek-shaped key made at run
+        # time is caught alone and beside that token. No file in the repository holds such a key.
         run: |
           gitleaks="$(go env GOPATH)/bin/gitleaks"
           dir="$RUNNER_TEMP/canary" && mkdir -p "$dir" && cd "$dir"
-          token="GhUKEzE3OTM4NDc2MzAwMDAwMDAwMDA="
+          token=$(jq -r .consistency_token "$GITHUB_WORKSPACE/libs/contracts/examples/MemberWritten.member.json")
           key="sk-$(openssl rand -hex 16)"
           printf '{"consistency_token": "%s"}\n' "$token" > fixture.json
           printf 'the key is %s\n' "$key" > alone.txt
