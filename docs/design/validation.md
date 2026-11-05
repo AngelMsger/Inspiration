@@ -1,6 +1,6 @@
 # Validating the knowledge core
 
-Status: proposed, 2026-10-27; paused on 2026-11-04 for the MVP.
+Status: adopted, 2026-11-05; paused since 2026-11-04 for the MVP.
 
 ## Where we stand
 
@@ -376,4 +376,4 @@ These are what real text taught that invented sentences never would have.
 
 ## About this page
 
-Proposed on 2026-10-27 and revised after each run since: on 2026-10-28 with the bars the product owner set for [the decisive test](#the-decisive-test); on 2026-10-29 with a cost model at the product owner's suggestion, and reorganized to give the current state first and the history last ([The runs so far](#the-runs-so-far)); on 2026-11-01 to the product owner's judgement that cost, accuracy and latency are weighed together, with a ledger of governance's own cost ([Governance against what answers save](#governance-against-what-answers-save)); on 2026-11-02 with the two topics built and, at the product owner's request, a larger searched corpus around them; on 2026-11-03 with the decisive test's answers; and on 2026-11-04 with the governance fix and the answers run again, and with the product owner's decision that evening to accept the lead and pause this line for an MVP ([MVP plan](mvp.md), adopted 2026-11-05). The pass bars and the design changes in this page are proposals until the product owner agrees them. The engine thread owns the benchmark code and this specification. A Chinese copy is in [docs/zh/design/validation.md](../zh/design/validation.md); if the two differ, this English version wins.
+Proposed on 2026-10-27 and revised after each run since: on 2026-10-28 with the bars the product owner set for [the decisive test](#the-decisive-test); on 2026-10-29 with a cost model at the product owner's suggestion, and reorganized to give the current state first and the history last ([The runs so far](#the-runs-so-far)); on 2026-11-01 to the product owner's judgement that cost, accuracy and latency are weighed together, with a ledger of governance's own cost ([Governance against what answers save](#governance-against-what-answers-save)); on 2026-11-02 with the two topics built and, at the product owner's request, a larger searched corpus around them; on 2026-11-03 with the decisive test's answers; and on 2026-11-04 with the governance fix and the answers run again, and with the product owner's decision that evening to accept the lead and pause this line for an MVP ([MVP plan](mvp.md), adopted 2026-11-05). The product owner adopted it on 2026-11-05, with the line still paused. The engine thread owns the benchmark code and this specification. A Chinese copy is in [docs/zh/design/validation.md](../zh/design/validation.md); if the two differ, this English version wins.

@@ -125,7 +125,7 @@ version has no counterpart for are kept here.
 ## Terms as of this snapshot
 
 The first version's Chinese screens call owners 负责人 (空间负责人, 主题负责人, and so on).
-On 2026-10-26, 维护人 was proposed in its place and is waiting for the product owner; the second
-version uses 维护人 until then. See the glossary in
+On 2026-10-26, 维护人 was proposed in its place, and the second version uses it; on 2026-11-05
+the product owner kept 负责人. See the glossary in
 [UI principles](../ui-principles.md) and section 4 of the [overview](../../overview.md). The
 screens stay as drawn and change when the canvas does.

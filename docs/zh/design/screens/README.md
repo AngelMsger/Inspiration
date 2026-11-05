@@ -46,12 +46,12 @@
 | --- | --- |
 | [V2-inbox](../../../design/screens/V2-inbox.dc.html) | 待办：先给四张数字卡片和概述，需要你的写明原因，其余用一次“替我决定”处理 |
 | [V2-decision](../../../design/screens/V2-decision.dc.html) | 一个决定：建议已经预先选好，附理由 |
-| [V2-space](../../../design/screens/V2-space.dc.html) | 维护空间，在它自己带底色的区域里：数字卡片和概述、按领域排列并按真实规模画的主题与维护人，以及选中领域的检查器 |
+| [V2-space](../../../design/screens/V2-space.dc.html) | 维护空间，在它自己带底色的区域里：数字卡片和概述、按领域排列并按真实规模画的主题与负责人，以及选中领域的检查器 |
 | [V2-conflicts](../../../design/screens/V2-conflicts.dc.html) | 维护空间：冲突队列（紧凑模式），没有能替你处理的时候 |
 | [V2-changes](../../../design/screens/V2-changes.dc.html) | 维护空间：制度新版本带来的批量变更，按变化的种类分组 |
 | [V2-review](../../../design/screens/V2-review.dc.html) | 维护空间：发布申请（紧凑模式） |
 | [V2-publish](../../../design/screens/V2-publish.dc.html) | 从我的空间发布：每份来源一个问题，建议已经选好 |
-| [V2-trace](../../../design/screens/V2-trace.dc.html) | 一个主题的追溯（主题维护人）：先列事实，再看用到它们的页面，其余按文档折叠 |
+| [V2-trace](../../../design/screens/V2-trace.dc.html) | 一个主题的追溯（主题负责人）：先列事实，再看用到它们的页面，其余按文档折叠 |
 | [V2-documents](../../../design/screens/V2-documents.dc.html) | 维护空间：文档与治理级别，按文件夹设定 |
 
 ## 选定的系统（D 行，英文）
@@ -110,5 +110,5 @@
 
 ## 快照中的用语
 
-第一版的中文界面把各级负责人称为“负责人”（空间负责人、主题负责人等）。2026-10-26 提议改为“维护人”，等待产品负责人确认；在此之前第二版用“维护人”。
+第一版的中文界面把各级负责人称为“负责人”（空间负责人、主题负责人等）。2026-10-26 曾提议改为“维护人”，第二版用了它；2026-11-05 产品负责人决定沿用“负责人”。
 见 [UI 原则](../ui-principles.md) 的词汇表和[概览](../../overview.md)第 4 节。界面保持绘制时的样子，随画布一起更新。
