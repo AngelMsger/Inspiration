@@ -9,6 +9,7 @@ import type { FileWritten, Principal, SpaceEntry } from "@inspiration/contracts"
 import { pathParts } from "@inspiration/source-sync";
 import type { Engine } from "./engine.ts";
 import { badRequest, forbidden, HttpError, validated } from "./http-errors.ts";
+import { readingOf } from "./reading.ts";
 
 /** The most a file may have. */
 export const MAX_FILE_BYTES = 50 * 1024 * 1024;
@@ -59,8 +60,13 @@ export async function putFile(
     ...(modifiedAt && { modified_at: modifiedAt }),
     uploaded_by: who.id,
   });
-  if (written.changed) engine.settleLater();
-  return written;
+  if (written.changed) {
+    engine.settleLater();
+    return { ...written, document: { ...written.document, reading: { state: "waiting" } } };
+  }
+  const listed = await engine.sync.document(area.id, path);
+  const [reading] = listed ? await readingOf(engine, who.tenant_id, [listed.version]) : [];
+  return reading ? { ...written, document: { ...written.document, reading } } : written;
 }
 
 /** The path as the URL carries it, each segment encoded. */

@@ -357,7 +357,7 @@ export type SlotStanding = "holds" | "outdated" | "disputed" | "differs";
  */
 export type GovernanceLevel = "governed" | "reference" | "search_only";
 /**
- * How far the engine has read a document's latest version. waiting: not parsed yet. reading: parsed and searchable, its statements being read. read: done, and a reference document is read further where a page or an answer uses it. paused: the company's reading budget for the day is spent, and reading carries on once the next day's budget starts; the version is searchable meanwhile. failed: the file could not be read, and the note says why.
+ * How far the engine has read a document's latest version. waiting: not parsed yet. reading: parsed and searchable, its statements being read. read: done, and a reference document is read further where a page or an answer uses it. paused: the company's reading budget for the day is spent, or the reading model could not be reached, and reading carries on by itself once the next day's budget starts or the model answers; the note says which, and the version is searchable meanwhile. failed: the file could not be read, and the note says why.
  *
  */
 export type ReadingState = "waiting" | "reading" | "read" | "paused" | "failed";

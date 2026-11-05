@@ -13,7 +13,8 @@
  * stand-ins of config/gateway.dev.yaml, or those of the --gateway file, as when the demo is
  * recorded with real answers (config/gateway.demo.yaml); a config that keeps its replies in
  * Valkey takes the server from --valkey. --today sets the day governance and freshness take as
- * now; without it, the real day.
+ * now; without it, the real day. Every RESUME_EVERY_MS it reads on the documents whose reading
+ * stopped at a spent budget or a model out of reach (Engine.resumeReading).
  *
  * Requests carry principal tokens the business layer signs for --issuer and --audience, checked
  * against its keys at --jwks: a URL (by default <issuer>/.well-known/jwks.json, since the engine may
@@ -31,7 +32,7 @@ import { type Jwks, jwksFromUrl, staticKeys, TokenVerifier } from "@inspiration/
 import { logger } from "@inspiration/kernel";
 import { Gateway, loadGatewayConfig, ValkeyCache } from "@inspiration/model-gateway";
 import { Corpus } from "./corpus.ts";
-import { Engine } from "./engine.ts";
+import { Engine, RESUME_EVERY_MS } from "./engine.ts";
 import { type Identity, serveApi } from "./http.ts";
 import { assignOwners } from "./owners.ts";
 
@@ -126,7 +127,12 @@ async function main(argv: string[]): Promise<number> {
     log.info("no corpus: tenants, members and spaces come from provisioning");
   }
   const server = await serveApi(engine, Number(values.port), identity);
+  // Reading a spent budget or an outage stopped carries on once the budget renews or the model answers.
+  const resuming = setInterval(() => {
+    engine.resumeReading().catch((error: unknown) => log.warn("resuming reading failed", { error }));
+  }, RESUME_EVERY_MS);
   const stop = () => {
+    clearInterval(resuming);
     server.close();
     void engine
       .close()
