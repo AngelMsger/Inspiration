@@ -13,8 +13,9 @@
  *
  * provision() writes what the business layer would, through access control's directory: the
  * tenant; as its active members the directory's members, the spaces' maintainers and readers,
- * the corpus's reader and everyone an optional people.yaml lists (named as it names them, and
- * given the super admin's roles where it says role: super_admin); every space owned by
+ * the corpus's reader and everyone an optional people.yaml lists (named as it names them,
+ * given the super admin's roles where it says role: super_admin, and cleared for the label
+ * its clearance names, as the business layer's security settings will); every space owned by
  * its maintainer (owner in corpus.yaml, else the reader) and read by its readers (the whole
  * tenant when not given), and each source in its space. Who reads a document is its space's
  * audience; the ACLs its folder or Feishu reports are kept as they are and decide nothing.
@@ -33,6 +34,7 @@ import {
   type PutMember,
   type PutTenant,
   parseAs,
+  type SensitivityLabel,
   type Source,
   schemaErrors,
 } from "@inspiration/contracts";
@@ -137,6 +139,8 @@ export class Corpus {
   readonly names: ReadonlyMap<string, string>;
   /** The members people.yaml makes the company's super admin. */
   readonly superAdmins: ReadonlySet<string>;
+  /** The members people.yaml clears for a label above internal, with the label. */
+  readonly cleared: ReadonlyMap<string, SensitivityLabel>;
   readonly #directoryOf = new Map<string, Record<string, string>>();
 
   constructor(
@@ -147,6 +151,7 @@ export class Corpus {
       files?: CorpusFile[];
       names?: Map<string, string>;
       superAdmins?: Set<string>;
+      cleared?: Map<string, SensitivityLabel>;
       createdAt?: Date;
     } = {},
   ) {
@@ -157,6 +162,7 @@ export class Corpus {
     this.files = options.files ?? [];
     this.names = options.names ?? new Map();
     this.superAdmins = options.superAdmins ?? new Set();
+    this.cleared = options.cleared ?? new Map();
     const spaces = new Set(manifest.spaces.map((s) => s.id));
     this.sources = manifest.sources.map((s) => {
       if (!spaces.has(s.space)) throw new CorpusError(`source ${s.id}: unknown space ${s.space}`);
@@ -287,6 +293,7 @@ export class Corpus {
       const version = seedVersion(await directory.member(tenantId, id), member);
       await directory.putMember(tenantId, id, { ...member, version });
     }
+    for (const [id, label] of this.cleared) await authz.grantClearance(tenantId, id, label);
     for (const space of this.manifest.spaces) {
       const owner = space.owner ?? this.reader.id;
       const existing = await directory.space(space.id);
@@ -359,13 +366,16 @@ function seedVersion(current: { version?: number } | undefined, fields: object):
 /** The roles the business layer gives its product role super_admin. */
 const SUPER_ADMIN_ROLES = ["owner", "admin", "security_admin", "auditor"] as const;
 
-/** Member ID to display name, and the super admins, from a people.yaml beside the corpus. */
-async function loadPeople(file: string): Promise<{ names: Map<string, string>; superAdmins: Set<string> }> {
+/** Member ID to display name, the super admins and who is cleared for what, from a people.yaml beside the corpus. */
+async function loadPeople(
+  file: string,
+): Promise<{ names: Map<string, string>; superAdmins: Set<string>; cleared: Map<string, SensitivityLabel> }> {
   const { people = [] } = parse(await readFile(file, "utf8")) as {
-    people?: { member: string; name: string; role?: string }[];
+    people?: { member: string; name: string; role?: string; clearance?: SensitivityLabel }[];
   };
   return {
     names: new Map(people.map((p) => [p.member, p.name])),
     superAdmins: new Set(people.filter((p) => p.role === "super_admin").map((p) => p.member)),
+    cleared: new Map(people.flatMap((p) => (p.clearance ? [[p.member, p.clearance] as const] : []))),
   };
 }

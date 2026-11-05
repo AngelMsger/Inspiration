@@ -1,7 +1,7 @@
 # The people of the demo company, as the business layer's accounts would name them. The web
 # app's development backend (apps/web/src/backend.ts) signs in as the first, and offers each
 # one to act as. Their member IDs are the ones corpus.yaml provisions; .example addresses
-# reach no one.
+# reach no one. clearance: the highest label the person may read, where it is above internal.
 
 tenant: ten_01HENGYUAN0000000000000001
 people:
@@ -25,6 +25,7 @@ people:
     name: 周敏
     about: 财务部 · 空间负责人
     locale: zh-CN
+    clearance: confidential
   - member: mem_01HENGYUAN0000000000GAOYAN
     email: gao.yan@hengyuan.example
     name: 高燕
@@ -40,6 +41,7 @@ people:
     name: 张敏
     about: 人力资源部 · 公司制度空间负责人
     locale: zh-CN
+    clearance: confidential
   - member: mem_01HENGYUAN000000000LINXIAO
     email: lin.xiao@hengyuan.example
     name: 林晓
