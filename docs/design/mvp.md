@@ -1,13 +1,13 @@
 # The MVP: a usable product that closes the business flow
 
-Status: proposed, 2026-11-04. It follows the product owner's decision of 2026-11-04 to accept the validation's result, keep the 10-point aim for later, and build a usable prototype next ([Validating the knowledge core](validation.md#where-we-stand)). It cuts the [business layer](business-layer.md)'s phase 1 and the remaining engine stages ([overview](../overview.md#24-next-steps-and-effort)) down to one company's full loop. A Chinese copy is in [docs/zh/design/mvp.md](../zh/design/mvp.md).
+Status: adopted, 2026-11-05, when the product owner took all five decisions below as recommended (02:50 UTC); proposed 2026-11-04. It follows the product owner's decision of 2026-11-04 to accept the validation's result, keep the 10-point aim for later, and build a usable prototype next ([Validating the knowledge core](validation.md#where-we-stand)). It cuts the [business layer](business-layer.md)'s phase 1 and the remaining engine stages ([overview](../overview.md#24-next-steps-and-effort)) down to one company's full loop. A Chinese copy is in [docs/zh/design/mvp.md](../zh/design/mvp.md).
 
 ## Conclusions
 
 - **The MVP is one company's whole loop, on real sign-in and the company's own documents.** A person signs in, creates a company and invites colleagues. Documents are uploaded into spaces. Anyone asks in English, Chinese or Japanese and gets a cited answer that is fast and cheap. Owners see a short inbox, because "Decide for me" settles the routine reviews and conflicts. Uploading a changed document changes the answer. An agent reads the same knowledge through MCP, with the member's rights and no more.
 - **Today's evidence measures three of the six advantages and estimates a fourth; the MVP builds the fixes for the other two.** Measured on our test corpora: answers more right than a mature RAG, though on the same corpus the governance fix was designed on; no flagship model and no thinking; much smaller and cheaper answers. Estimated, not measured: that reading repays its model cost on a read-heavy topic, at today's saving per answer and a given traffic and rate of change; people's time on todos is not in that figure. Not yet shown: that governance takes little of people's time (33 todos per 100 documents, with nothing settled for them), and that a whole answer is fast (search takes 11 seconds on our CPU-only machine). The MVP builds "Decide for me" and a faster search, then measures both on real use ([What the MVP must show](#what-the-mvp-must-show)).
 - **About 16 person-weeks in six slices, with a first usable cut after three of them** ([Slices](#slices)). Left out: My space and publishing, joint approval, email and chat-app notifications, live Feishu and other connections, research, views, the code graph and billing ([Scope](#scope)).
-- **Five decisions are the product owner's:** who tries it first, where it runs, whether live Feishu sync is in, the trial's model budget, and whether owners are offered a standing "Decide for me" on their first visit. Each has a recommended default ([Decisions for the product owner](#decisions-for-the-product-owner)).
+- **The product owner took all five decisions as recommended on 2026-11-05:** three to five people try it in Chinese for two weeks; it runs on one server in Hong Kong or Singapore; live Feishu sync comes after Gate B; the trial's models get CNY 100 a month; and owners are offered a standing "Decide for me" on their first inbox visit ([Decisions for the product owner](#decisions-for-the-product-owner)).
 
 ## What the MVP must show
 
@@ -74,11 +74,13 @@ Each gate is a script that runs the flow end to end against the real engine and 
 
 ## Decisions for the product owner
 
-1. **Who tries it first, in which language.** Recommended: three to five people on one team the product owner knows, in Chinese, with their own documents that are not confidential, for two weeks.
-2. **Where it runs.** Recommended: one cloud server in Hong Kong or Singapore, where a public site needs no ICP filing and DeepSeek is reachable; about 8 vCPU and 32 GB, plus a small GPU or a hosted reranker for search; a domain the product owner owns. Mainland China later, with the filing.
-3. **Live Feishu sync.** Recommended: not in the first cut; a changed document is uploaded again. Feishu right after Gate B, for about 2 more person-weeks: the credential broker and the live connector on the existing Feishu client.
-4. **The trial's model budget.** Recommended: CNY 100 a month in all, with a day budget per company. A company with 500 documents of about 3,000 tokens costs about CNY 10 to read and, at twice the off-peak price, about CNY 5 for 2,000 compact answers. DeepSeek is cleared for internal content only, so confidential documents stay out of the trial.
-5. **A standing "Decide for me".** Recommended: on an owner's first inbox visit, offer "Always decide routine reviews and conflicts for me", preselected, accepted with one press and pausable at any time. It is a request made in advance, the case open question 9 of the overview asks about ([Decide for me](decide-for-me.md)); without it, owners would face the 33 todos per 100 documents the validation measured.
+Decided on 2026-11-05 at 02:50 UTC: all five as recommended.
+
+1. **Who tries it first, in which language.** Decided as recommended: three to five people on one team the product owner knows, in Chinese, with their own documents that are not confidential, for two weeks.
+2. **Where it runs.** Decided as recommended: one cloud server in Hong Kong or Singapore, where a public site needs no ICP filing and DeepSeek is reachable; about 8 vCPU and 32 GB, plus a small GPU or a hosted reranker for search; a domain the product owner owns. Mainland China later, with the filing.
+3. **Live Feishu sync.** Decided as recommended: not in the first cut; a changed document is uploaded again. Feishu right after Gate B, for about 2 more person-weeks: the credential broker and the live connector on the existing Feishu client.
+4. **The trial's model budget.** Decided as recommended: CNY 100 a month in all, with a day budget per company. A company with 500 documents of about 3,000 tokens costs about CNY 10 to read and, at twice the off-peak price, about CNY 5 for 2,000 compact answers. DeepSeek is cleared for internal content only, so confidential documents stay out of the trial.
+5. **A standing "Decide for me".** Decided as recommended: on an owner's first inbox visit, offer "Always decide routine reviews and conflicts for me", preselected, accepted with one press and pausable at any time. It is a request made in advance, the case open question 9 of the overview asks about ([Decide for me](decide-for-me.md)); without it, owners would face the 33 todos per 100 documents the validation measured.
 
 ## Risks
 
