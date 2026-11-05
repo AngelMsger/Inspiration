@@ -231,7 +231,8 @@ The product serves English, Chinese and Japanese users, and more languages later
 - Tests are in English where the language does not matter. Where it does, the cases live in
   `test/data/<tag>.yaml` (`testData` from `@inspiration/testkit`), and a test runs over each
   language with `describe.each`. Sample data in `examples/` may be in any language, and so
-  may the screens copied from the design canvas into `docs/design/screens/`.
+  may the screens copied from the design canvas into `docs/design/screens/` and the READMEs'
+  Chinese and Japanese images in `docs/assets/`.
 - Docs are written in English and every doc in `docs/` has a Chinese copy at the same path in
   `docs/zh/` (a README beside its data as `README.zh.md`). Change both in the same pull
   request.

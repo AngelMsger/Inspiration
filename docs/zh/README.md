@@ -25,6 +25,7 @@
 | [契约](contracts.md) | 参考 | 修改 schema、代码生成、ID、事件、版本 |
 | [PageSpec 与视图](pagespec.md) | 参考 | 页面如何对应 Claude Artifacts，以及视图沙箱 |
 | [技术栈的许可证](licensing.md) | 参考 | 技术栈各部分的许可证及其对交付的影响 |
+| [开发](development.md) | 参考 | 从源码构建、测试和运行：运行环境、检查、测量工具、演示 |
 
 ## 设计
 
