@@ -190,6 +190,34 @@ decision.after: "確定後"
 decision.after_text: "読み手とエージェントには {value} が表示されます。ほかの値は原文で「古い」と表示され、回答に「決定待ち」と出なくなります。"
 decision.not_found: "この項目はもう対応待ちではありません。"
 decision.back: "受信トレイへ戻る"
+inbox.suggested_because: "提案：{value}。{reason}"
+inbox.suggested_reason: "提案：{reason}"
+decide.button: 代わりに決める
+decide.deciding: "決めています…"
+decide.hint: アシスタントがあなたの権限で決められるものを決め、残りは理由を添えてここに残します。どの決定も取り消せます。
+decide.summary: "決定 {decided} 件 · あなたに残した {left} 件"
+decide.line: "{fact}：{choice}"
+decide.left: あなたに残しました
+decide.undo: 取り消す
+decide.undoing: "取り消しています…"
+always.offer: 定例の確認と矛盾は、いつも代わりに決める
+always.offer_hint: 新しい確認・メモ・矛盾が届くたびに、アシスタントがあなたの権限で決め、確信が持てないものはあなたに残します。ここでいつでも一時停止できます。
+always.turn_on: いつも代わりに決める
+always.not_now: 今はしない
+always.on: 定例の確認と矛盾は、届くたびにアシスタントが代わりに決めます。
+always.paused: 「いつも代わりに決める」は一時停止中です。
+always.paused_undone: 「いつも代わりに決める」は自動で一時停止しました。同じ種類の直近 10 件の決定のうち 2 件を取り消したためです。
+always.pause: 一時停止
+always.resume: 再開する
+decided.link: 今週代わりに決めたことを見る
+decided.title: 代わりに決めたこと
+decided.lede: "第 {week} 週にアシスタントが代わりに決めたことです。対応は不要です。違う判断をするものは取り消してください。"
+decided.counts: "決定 {decided} 件 · あなたに残した {left} 件 · 取り消し {undone} 件"
+decided.none: 今週代わりに決めたことはまだありません。
+decided.undone: 取り消し済み
+decided.via.assistant_once: この件で依頼
+decided.via.assistant_batch: カードで依頼
+decided.via.delegation: いつも代わりに決める
 
 unit.day: "{n} 日"
 unit.cny_per_night: "1 泊 {n} 元"

@@ -11,12 +11,18 @@
 import type {
   ApiError,
   CreateSpace,
+  Decided,
+  DecidedWeek,
+  DecideTodos,
+  Delegation,
   DocumentTree,
   DocumentView,
   FileWritten,
   GroundedAnswer,
   Inbox,
+  InboxTodo,
   PatchSpace,
+  PutDelegation,
   PutSpaceAudience,
   PutSpaceOwners,
   ResolveTodo,
@@ -165,6 +171,13 @@ function apiOf(company: () => string | undefined, frame: boolean) {
     topic: (key: string) => call<TopicView>(`/v0/topics/${encodeURIComponent(key)}`),
     inbox: () => call<Inbox>("/v0/inbox"),
     resolve: (todo: string, how: ResolveTodo) => call<Todo>(`/v0/todos/${encodeURIComponent(todo)}/resolve`, how),
+    /** Decide for me: the assistant decides what it may of one card, or of a few todos, and leaves the rest. */
+    decide: (asked: DecideTodos) => call<Decided>("/v0/inbox/decide", asked),
+    undo: (decision: string) => call<InboxTodo>(`/v0/decisions/${encodeURIComponent(decision)}/undo`, {}),
+    decidedWeek: () => call<DecidedWeek>("/v0/inbox/decided"),
+    delegation: () => call<Delegation>("/v0/delegation"),
+    setDelegation: (state: PutDelegation["state"]) =>
+      call<Delegation>("/v0/delegation", { state } satisfies PutDelegation, "PUT"),
     overview: (space: string) => call<SpaceOverview>(`/v0/spaces/${encodeURIComponent(space)}/overview`),
     /** The spaces the person may administer: every space for the super admin. */
     managedSpaces: () => call<SpaceList>("/v0/spaces?manage=true"),

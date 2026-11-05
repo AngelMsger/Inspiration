@@ -190,6 +190,34 @@ decision.after: "确认后"
 decision.after_text: "读者和智能体看到 {value}。其他取值在原文里标为已过时，回答里不再提示“正在决定”。"
 decision.not_found: "这件待办已经不在你这里了。"
 decision.back: "回到待办"
+inbox.suggested_because: "建议：{value}。{reason}"
+inbox.suggested_reason: "建议：{reason}"
+decide.button: 替我决定
+decide.deciding: "正在决定…"
+decide.hint: 助手以你的权限决定它能决定的，其余留在这里，并说明原因。每一项都可以撤销。
+decide.summary: "已决定 {decided} 项 · 留给你 {left} 项"
+decide.line: "{fact}：{choice}"
+decide.left: 留给你
+decide.undo: 撤销
+decide.undoing: "正在撤销…"
+always.offer: 例行的复核和冲突，总是替我决定
+always.offer_hint: 新的复核、备注和冲突一到，助手就以你的权限决定，拿不准的留给你。随时可以在这里暂停。
+always.turn_on: 总是替我决定
+always.not_now: 暂不
+always.on: 例行的复核和冲突一到，助手就替你决定。
+always.paused: “总是替我决定”已暂停。
+always.paused_undone: “总是替我决定”已自动暂停：同一类里，助手最近 10 次决定被你撤销了 2 次。
+always.pause: 暂停
+always.resume: 重新开启
+decided.link: 查看本周替你决定的事
+decided.title: 替你决定的事
+decided.lede: "第 {week} 周助手替你决定的事。这里不需要你处理；你会决定得不一样的，撤销即可。"
+decided.counts: "已决定 {decided} 项 · 留给你 {left} 项 · 已撤销 {undone} 项"
+decided.none: 本周还没有替你决定的事。
+decided.undone: 已撤销
+decided.via.assistant_once: 你在这一项上让它决定
+decided.via.assistant_batch: 你在这张卡片上让它决定
+decided.via.delegation: 总是替我决定
 
 unit.day: "{n} 天"
 unit.cny_per_night: "{n} 元/晚"
