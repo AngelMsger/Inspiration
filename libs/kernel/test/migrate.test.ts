@@ -17,6 +17,7 @@ test("migration sets are discovered in run order", async () => {
     "bus",
     "gateway",
     "kb",
+    "authz",
     "agents",
     "sync",
     "normalization",

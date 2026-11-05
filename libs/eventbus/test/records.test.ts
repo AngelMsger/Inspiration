@@ -97,6 +97,19 @@ describe.each<{ backend: Backend; skip: boolean }>([
     await expect(records.find(ITEMS, { nope: "x" })).rejects.toThrow(RangeError);
   });
 
+  it.skipIf(skip)("transactions that lock the same name take turns", async ({ records }) => {
+    await records.transaction((tx) => tx.put(ITEMS, [item("src_a", "count", 0)]));
+    const bump = () =>
+      records.transaction(async (tx) => {
+        await tx.lock("test:count");
+        const count = (await tx.get(ITEMS, "src_a:count"))?.rank ?? 0;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        await tx.put(ITEMS, [item("src_a", "count", count + 1)]);
+      });
+    await Promise.all([bump(), bump(), bump()]);
+    expect((await records.get(ITEMS, "src_a:count"))?.rank).toBe(3);
+  });
+
   it.skipIf(skip)("put replaces by key and delete removes", async ({ records }) => {
     await records.transaction((tx) => tx.put(ITEMS, [item("src_a", "1", 1)]));
     await records.transaction(async (tx) => {

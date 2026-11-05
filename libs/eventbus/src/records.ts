@@ -90,6 +90,12 @@ export interface RecordTx extends RecordReader {
   publish(...events: EventEnvelope[]): Promise<void>;
   /** False when this group already handled the event; the mark commits with the transaction. */
   firstDelivery(group: string, eventId: string): Promise<boolean>;
+  /**
+   * Hold a lock on the name until the transaction ends, so transactions that lock the same
+   * name run one after another, across processes. Take it before reading what the
+   * transaction will change.
+   */
+  lock(name: string): Promise<void>;
 }
 
 export interface Records extends RecordReader {
@@ -225,6 +231,10 @@ class MemoryRecordTx extends MemoryReader implements RecordTx {
     }
     this.delivered.push([group, eventId]);
     return true;
+  }
+
+  async lock(_name: string): Promise<void> {
+    this.tables(); // memory transactions already run one at a time
   }
 }
 
@@ -378,6 +388,10 @@ class PgRecordTx extends PgReader implements RecordTx {
 
   firstDelivery(group: string, eventId: string): Promise<boolean> {
     return firstDelivery(this.db(), group, eventId);
+  }
+
+  async lock(name: string): Promise<void> {
+    await this.db().query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [name]);
   }
 }
 
