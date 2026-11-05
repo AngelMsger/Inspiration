@@ -7,21 +7,23 @@ measurement harness and the demo. What the product is and where it is going is i
 
 ## Set up and check
 
-You need Node 22.18 or later (Node 24 works too), pnpm and Docker with Compose. `package.json`
-pins pnpm 10.28.0 in `packageManager`, which corepack (`corepack enable`) and any pnpm from 10 on
-follow, and pins Node 22 and pnpm 10.28.0 for Volta. That pin matters: Volta starts pnpm through
-`bin/pnpm.cjs`, which pnpm 11 and later no longer ship, so a Volta pnpm of 11 or later fails with
-`Cannot find module …/bin/pnpm.cjs` outside this repository, and works inside it.
+You need Node 22.18 or later (Node 24 works too), pnpm, Python 3.10 or later, and Docker with
+Compose. `package.json` pins pnpm 10.28.0 in `packageManager`, which corepack (`corepack enable`)
+and any pnpm from 10 on follow, and pins Node 22 and pnpm 10.28.0 for Volta. That pin matters:
+Volta starts pnpm through `bin/pnpm.cjs`, which pnpm 11 and later no longer ship, so a Volta pnpm
+of 11 or later fails with `Cannot find module …/bin/pnpm.cjs` outside this repository, and works
+inside it.
 
 ```bash
-make install       # pnpm dependencies
+make install       # pnpm dependencies, and the parsing worker's Python libraries in .venv
 make up            # ParadeDB (Postgres 16 + pgvector + pg_search), Valkey, SpiceDB
 make migrate       # SQL migrations of every installed component
 make authz-schema  # the SpiceDB schema
 make check         # Biome, tsc, contract freshness, all tests with the stack required
 ```
 
-Without make, the same steps are `pnpm install`, `docker compose -f infra/compose.yaml up -d --wait`,
+Without make, the same steps are `pnpm install`, `python3 -m venv .venv && .venv/bin/pip install -r
+engine/parsing/worker/requirements.txt`, `docker compose -f infra/compose.yaml up -d --wait`,
 `pnpm exec inspiration-migrate`, `pnpm exec inspiration-authz-schema` and
 `INSPIRATION_REQUIRE_STACK=1 pnpm test`.
 
@@ -30,7 +32,9 @@ is set, as it is in CI. Each one gets its own database copied from a migrated te
 its own Valkey key prefix. `make test-unit` runs only the tests that need nothing.
 
 Everything is TypeScript on Node 22 except the parsing worker, which is Python because the
-best document parsers are. [`components.yaml`](../components.yaml) lists every component with its
+best document parsers are. The engine sends it Word, PowerPoint, Excel and PDF files at
+`INSPIRATION_PARSING_URL`; `pnpm parsing` starts it there, on port 8790. Without it, those
+files fail to read and say the worker is not reachable; the other formats need nothing. [`components.yaml`](../components.yaml) lists every component with its
 status (built, in progress or planned), and each package's `src/index.ts` says what it does.
 
 ## Run the engine over a corpus
@@ -89,6 +93,7 @@ http://localhost:3002, create a "Traditional web" application with the redirect 
 ```bash
 docker compose -f infra/compose.yaml --profile auth up -d --wait   # make up, and Logto on 3001
 pnpm --dir apps/web exec vite build                                 # the web app, into apps/web/dist
+pnpm parsing                                                        # reads uploaded Word, PowerPoint, Excel and PDF
 pnpm engine serve examples/corpus --issuer http://localhost:4200 --audience http://127.0.0.1:4100
 pnpm business serve --web apps/web/dist --sample examples/corpus    # the site at http://localhost:4200
 ```

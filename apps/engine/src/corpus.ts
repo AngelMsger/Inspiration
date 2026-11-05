@@ -246,6 +246,10 @@ export class Corpus {
     return spec ? `${spec.root}/${externalId}` : externalId;
   }
 
+  /** The predicate catalogue extraction reads for a tenant: the corpus's for its own, none for another. */
+  readonly vocabularyOf = (tenantId: string): Vocabulary | undefined =>
+    tenantId === this.tenantId ? this.vocabulary : undefined;
+
   /** The member a source's user is, as its directory section maps them. */
   memberOf(sourceId: string, user: string): string | undefined {
     const id = this.#directoryOf.get(sourceId)?.[`user:${user}`];

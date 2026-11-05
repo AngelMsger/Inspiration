@@ -144,12 +144,12 @@ The method, every run and its cost are in [Validating the knowledge core](docs/d
 **Two layers in one repository.** The **engine** is a system of record for knowledge with no screens: given a tenant and a principal, it answers what is known, where it comes from, who may see it and whether it is still true. The **business layer** is the product around it: accounts, companies, invitations, notifications and the web app. Calls go down, events come up, and the engine never depends on the business layer; a test fails any change that tries.
 
 <div align="center">
-<img src="docs/assets/components.en.png" alt="Component diagram, in rows from sources to use: research and outside sources; source-sync, connectors and parsing; normalization and extraction; freshness and governance; page-compiler and collaboration; retrieval, agent-api and views; the web app with the business backend, people and outside agents. Events such as blocks.changed, claims.updated, artifact.dirty and page.rendered connect them. A platform column holds contracts, the event bus, the knowledge store, access control, the model gateway, the agent runtime, the credential broker and the sandbox. Planned: research, parsing, agent-api, views, credential-broker and sandbox." width="100%">
+<img src="docs/assets/components.en.png" alt="Component diagram, in rows from sources to use: research and outside sources; source-sync, connectors and parsing; normalization and extraction; freshness and governance; page-compiler and collaboration; retrieval, agent-api and views; the web app with the business backend, people and outside agents. Events such as blocks.changed, claims.updated, artifact.dirty and page.rendered connect them. A platform column holds contracts, the event bus, the knowledge store, access control, the model gateway, the agent runtime, the credential broker and the sandbox. Planned: research, agent-api, views, credential-broker and sandbox." width="100%">
 </div>
 
 <sub>Every component by stage, with the events (solid) and calls (dashed) between them; the platform services on the right serve all of them. Dashed boxes are planned. Figure 10 of the [overview](docs/overview.md#9-architecture-at-a-glance) gives each component an outside equivalent and says what we reuse.</sub>
 
-- **Small components with one job each.** 13 of the engine's 19 components are built and tested, and the business layer's first two. [`components.yaml`](components.yaml) gives each one's ownership, the events it publishes and consumes, and the calls it may make; a test holds every package to it.
+- **Small components with one job each.** 14 of the engine's 19 components are built and tested, and the business layer's first two. [`components.yaml`](components.yaml) gives each one's ownership, the events it publishes and consumes, and the calls it may make; a test holds every package to it.
 - **Contracts first.** JSON Schema in [`libs/contracts/schema/`](libs/contracts/schema/) is the source of truth for every type and event that crosses a component; TypeScript types and validators are generated from it.
 - **Events commit with the data.** Components publish inside the store transaction through an outbox relayed to Valkey Streams. Delivery is at least once and every handler is idempotent.
 - **Plugins for everything replaceable.** Connectors, parsers, extractors, model providers, search indexes, event transports and migrations are plugins, looked up in a registry, so a part can be swapped without touching its callers.
@@ -158,7 +158,7 @@ The method, every run and its cost are in [Validating the knowledge core](docs/d
 
 | Concern | Choice |
 | --- | --- |
-| Language | TypeScript on Node 22, strict, run by type stripping; one Python worker for document parsing (planned) |
+| Language | TypeScript on Node 22, strict, run by type stripping; one Python worker for document parsing |
 | Storage and search | PostgreSQL 16 with pgvector and pg_search (ParadeDB): BM25 plus vectors, reranked |
 | Events | Transactional outbox, Valkey Streams |
 | Permissions | SpiceDB, modelled on Zanzibar |
@@ -199,7 +199,7 @@ Read more in [Architecture](docs/architecture.md), [Contracts](docs/contracts.md
 
 ## Get started
 
-Inspiration is not ready to install yet. To build and test it from source, you need Node 22.18 or later, pnpm and Docker (the repository pins pnpm 10.28.0 for corepack and Volta), then run `make install && make up && make check`; the [development guide](docs/development.md) covers the demo, the benchmarks and the model gateway.
+Inspiration is not ready to install yet. To build and test it from source, you need Node 22.18 or later, pnpm, Python 3.10 or later and Docker (the repository pins pnpm 10.28.0 for corepack and Volta), then run `make install && make up && make check`; the [development guide](docs/development.md) covers the demo, the benchmarks and the model gateway.
 
 ## Repository layout
 

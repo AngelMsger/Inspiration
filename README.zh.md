@@ -146,12 +146,12 @@ flowchart LR
 **一个仓库，两层。** **引擎**是知识的记录系统，没有界面：给定租户和主体，它回答知道什么、出处在哪、谁能看、是否仍然成立。**业务层**是围绕引擎的产品：账号、公司、邀请、通知和 Web 应用。调用向下，事件向上，引擎从不依赖业务层；任何试图这样做的改动都会让测试失败。
 
 <div align="center">
-<img src="docs/assets/components.zh.png" alt="组件图，按阶段从来源到使用分行：调研与外部数据源；source-sync、connectors 和 parsing；normalization 和 extraction；freshness 和 governance；page-compiler 和 collaboration；retrieval、agent-api 和 views；Web 应用与业务后端、人和外部 Agent。blocks.changed、claims.updated、artifact.dirty、page.rendered 等事件把它们连起来。右侧平台服务一列：契约、事件总线、知识库、鉴权、模型网关、Agent 运行时、凭据代理和沙箱。计划中：research、parsing、agent-api、views、credential-broker 和 sandbox。" width="100%">
+<img src="docs/assets/components.zh.png" alt="组件图，按阶段从来源到使用分行：调研与外部数据源；source-sync、connectors 和 parsing；normalization 和 extraction；freshness 和 governance；page-compiler 和 collaboration；retrieval、agent-api 和 views；Web 应用与业务后端、人和外部 Agent。blocks.changed、claims.updated、artifact.dirty、page.rendered 等事件把它们连起来。右侧平台服务一列：契约、事件总线、知识库、鉴权、模型网关、Agent 运行时、凭据代理和沙箱。计划中：research、agent-api、views、credential-broker 和 sandbox。" width="100%">
 </div>
 
 <sub>按阶段排列的每个组件，以及它们之间的事件（实线）和调用（虚线）；右侧的平台服务供所有组件使用。虚线框表示计划中。[总览](docs/zh/overview.md)的图 10 给每个组件列出了对应的外部同类项目，并说明我们复用了什么。</sub>
 
-- **小组件，各管一件事。** 引擎的 19 个组件中有 13 个已构建并有测试，业务层的前两个也已构建。[`components.yaml`](components.yaml) 写明每个组件拥有什么、发布和消费哪些事件、可以调用谁；测试让每个包都遵守它。
+- **小组件，各管一件事。** 引擎的 19 个组件中有 14 个已构建并有测试，业务层的前两个也已构建。[`components.yaml`](components.yaml) 写明每个组件拥有什么、发布和消费哪些事件、可以调用谁；测试让每个包都遵守它。
 - **契约优先。** [`libs/contracts/schema/`](libs/contracts/schema/) 里的 JSON Schema 是所有跨组件类型和事件的唯一来源，TypeScript 类型和校验器由它生成。
 - **事件和数据一起提交。** 组件在存储事务内通过 outbox 发布事件，再转发到 Valkey Streams。投递至少一次，每个处理器都是幂等的。
 - **可替换的部分都是插件。** 连接器、解析器、抽取器、模型提供方、搜索索引、事件传输和迁移都是插件，通过注册表查找，替换一个部分不用改调用方。
@@ -160,7 +160,7 @@ flowchart LR
 
 | 方面 | 选择 |
 | --- | --- |
-| 语言 | Node 22 上的 TypeScript，严格模式，直接剥离类型运行；文档解析用一个 Python worker（计划中） |
+| 语言 | Node 22 上的 TypeScript，严格模式，直接剥离类型运行；文档解析用一个 Python worker |
 | 存储和搜索 | PostgreSQL 16，加 pgvector 和 pg_search（ParadeDB）：BM25 加向量，再重排序 |
 | 事件 | 事务性 outbox，Valkey Streams |
 | 权限 | SpiceDB，参照 Zanzibar |
@@ -201,7 +201,7 @@ flowchart LR
 
 ## 开始使用
 
-Inspiration 还不能安装使用。要从源码构建和测试，需要 Node 22.18 或更高版本、pnpm 和 Docker（仓库为 corepack 和 Volta 固定了 pnpm 10.28.0），然后运行 `make install && make up && make check`；演示、基准测试和模型网关见[开发指南](docs/zh/development.md)。
+Inspiration 还不能安装使用。要从源码构建和测试，需要 Node 22.18 或更高版本、pnpm、Python 3.10 或更高版本和 Docker（仓库为 corepack 和 Volta 固定了 pnpm 10.28.0），然后运行 `make install && make up && make check`；演示、基准测试和模型网关见[开发指南](docs/zh/development.md)。
 
 ## 仓库结构
 

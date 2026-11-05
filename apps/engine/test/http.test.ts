@@ -69,7 +69,7 @@ beforeAll(async () => {
   engine = await Engine.open({
     blobDir: blobs,
     resolvePrincipal: corpus.resolvePrincipal,
-    vocabulary: () => corpus.vocabulary,
+    vocabulary: corpus.vocabularyOf,
     clock: () => new Date("2026-11-04T09:00:00Z"),
   });
   await seed(engine, corpus);
@@ -145,6 +145,12 @@ describe("engine HTTP API", () => {
     expect((await call("/v0/me")).body).toMatchObject({ admin: false, roles: ["member"] });
     const managed = (await call("/v0/spaces?manage=true", { member: ZHAO_LIN })).body.spaces as { id: string }[];
     expect(managed.map((s) => s.id)).toEqual([POLICY, FINANCE, BUDGET_SPACE, "spc_01HENGYUAN000000HRPAYROLL"].sort());
+  });
+
+  test("reads the corpus's catalogue for its own tenant only", async () => {
+    expect(await engine.vocabulary(corpus.tenantId)).toBe(corpus.vocabulary);
+    expect(corpus.vocabulary?.predicates.length).toBeGreaterThan(0);
+    expect(await engine.vocabulary("ten_01QINGHE000000000000000001")).toBeUndefined();
   });
 
   test("builds the Documents tree of a space the member may read", async () => {

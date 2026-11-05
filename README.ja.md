@@ -146,12 +146,12 @@ flowchart LR
 **1 つのリポジトリに 2 つの層。** **エンジン**は画面を持たないナレッジの記録システムです。テナントとプリンシパルを受け取り、何がわかっているか、出典はどこか、誰が見てよいか、今も正しいかに答えます。**ビジネス層**はその周りの製品で、アカウント、会社、招待、通知、Web アプリを担います。呼び出しは下へ、イベントは上へ流れ、エンジンがビジネス層に依存することはありません。そうしようとする変更はテストで失敗します。
 
 <div align="center">
-<img src="docs/assets/components.ja.png" alt="コンポーネント図。ソースから利用まで段階ごとの行：リサーチと外部のデータソース、source-sync・connectors・parsing、normalization・extraction、freshness・governance、page-compiler・collaboration、retrieval・agent-api・views、Web アプリと業務層・人・外部エージェント。blocks.changed、claims.updated、artifact.dirty、page.rendered などのイベントがそれらをつなぎます。右のプラットフォーム列：コントラクト、イベントバス、ナレッジストア、アクセス制御、モデルゲートウェイ、エージェント実行基盤、認証情報ブローカー、サンドボックス。予定：research、parsing、agent-api、views、credential-broker、sandbox。" width="100%">
+<img src="docs/assets/components.ja.png" alt="コンポーネント図。ソースから利用まで段階ごとの行：リサーチと外部のデータソース、source-sync・connectors・parsing、normalization・extraction、freshness・governance、page-compiler・collaboration、retrieval・agent-api・views、Web アプリと業務層・人・外部エージェント。blocks.changed、claims.updated、artifact.dirty、page.rendered などのイベントがそれらをつなぎます。右のプラットフォーム列：コントラクト、イベントバス、ナレッジストア、アクセス制御、モデルゲートウェイ、エージェント実行基盤、認証情報ブローカー、サンドボックス。予定：research、agent-api、views、credential-broker、sandbox。" width="100%">
 </div>
 
 <sub>段階ごとに並べたすべてのコンポーネントと、その間のイベント（実線）と呼び出し（破線）。右のプラットフォームサービスはすべてのコンポーネントが使います。破線の枠は予定です。各コンポーネントに相当する外部の製品と、私たちが再利用しているものは、[overview](docs/overview.md#9-architecture-at-a-glance) の Figure 10 にあります。</sub>
 
-- **1 つの仕事を持つ小さなコンポーネント。** エンジンの 19 のコンポーネントのうち 13 が構築とテストを終え、ビジネス層も最初の 2 つが完成しています。[`components.yaml`](components.yaml) が各コンポーネントの持ち物、発行・購読するイベント、呼び出してよい相手を定め、テストがすべてのパッケージにそれを守らせます。
+- **1 つの仕事を持つ小さなコンポーネント。** エンジンの 19 のコンポーネントのうち 14 が構築とテストを終え、ビジネス層も最初の 2 つが完成しています。[`components.yaml`](components.yaml) が各コンポーネントの持ち物、発行・購読するイベント、呼び出してよい相手を定め、テストがすべてのパッケージにそれを守らせます。
 - **コントラクトが先。** [`libs/contracts/schema/`](libs/contracts/schema/) の JSON Schema が、コンポーネントをまたぐすべての型とイベントの唯一の正です。TypeScript の型とバリデーターはここから生成されます。
 - **イベントはデータとともにコミット。** コンポーネントはストアのトランザクション内で outbox を通じてイベントを発行し、Valkey Streams に中継します。配信は少なくとも 1 回で、すべてのハンドラーは冪等です。
 - **差し替えられるものはすべてプラグイン。** コネクター、パーサー、抽出器、モデルプロバイダー、検索インデックス、イベント転送、マイグレーションはプラグインで、レジストリから引かれるため、呼び出し側を変えずに部品を差し替えられます。
@@ -160,7 +160,7 @@ flowchart LR
 
 | 項目 | 選択 |
 | --- | --- |
-| 言語 | Node 22 上の TypeScript（strict、型の除去でそのまま実行）。文書解析には Python のワーカーを 1 つ（計画中） |
+| 言語 | Node 22 上の TypeScript（strict、型の除去でそのまま実行）。文書解析には Python のワーカーを 1 つ |
 | 保存と検索 | PostgreSQL 16 と pgvector、pg_search（ParadeDB）。BM25 とベクトルを組み合わせ、リランク |
 | イベント | トランザクショナル outbox と Valkey Streams |
 | 権限 | Zanzibar をモデルにした SpiceDB |
@@ -201,7 +201,7 @@ flowchart LR
 
 ## はじめに
 
-Inspiration はまだインストールして使える段階ではありません。ソースからビルドしてテストするには、Node 22.18 以上、pnpm、Docker を用意して（リポジトリが corepack と Volta 向けに pnpm 10.28.0 を固定しています） `make install && make up && make check` を実行します。デモ、ベンチマーク、モデルゲートウェイについては [development guide](docs/development.md) を参照してください。
+Inspiration はまだインストールして使える段階ではありません。ソースからビルドしてテストするには、Node 22.18 以上、pnpm、Python 3.10 以上、Docker を用意して（リポジトリが corepack と Volta 向けに pnpm 10.28.0 を固定しています） `make install && make up && make check` を実行します。デモ、ベンチマーク、モデルゲートウェイについては [development guide](docs/development.md) を参照してください。
 
 ## リポジトリ構成
 

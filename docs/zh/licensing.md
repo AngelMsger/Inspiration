@@ -21,8 +21,17 @@
 | Vitest | MIT | 测试 |
 | Biome | MIT 或 Apache-2.0 | 代码检查和格式化 |
 
-parsing 工作进程用 Python；它的解析库（用于 Office、PDF 和扫描文档）在构建时选定，并在这里单独列行。注意
-copyleft 的 PDF 库（PyMuPDF 是 AGPL-3.0）。
+parsing 工作进程用 Python。它的库列在 `engine/parsing/worker/requirements.txt`：
+
+| 库 | 许可证 | 用途 |
+| --- | --- | --- |
+| python-docx | MIT | 读取 Word 文件 |
+| python-pptx | MIT | 读取 PowerPoint 文件 |
+| openpyxl | MIT | 读取 Excel 文件 |
+| pdfminer.six | MIT | 读取 PDF 文件的文本层 |
+| lxml | BSD-3-Clause | python-docx 和 python-pptx 底层的 XML 库 |
+
+它们依赖的库也都是宽松许可证：Pillow（MIT-CMU）、XlsxWriter（BSD-2-Clause）、et_xmlfile（MIT）、charset-normalizer（MIT）、cryptography（Apache-2.0 或 BSD-3-Clause）和 typing_extensions（PSF-2.0）。以后支持扫描件和版面分析时，注意 copyleft 的 PDF 库（PyMuPDF 是 AGPL-3.0）。
 
 ## 需要注意的地方
 

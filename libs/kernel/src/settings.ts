@@ -2,7 +2,8 @@
  * Deployment settings, read from INSPIRATION_* environment variables (and a .env file in the
  * working directory, which the environment overrides).
  *
- * The defaults match infra/compose.yaml, so a developer machine needs no configuration.
+ * The defaults match infra/compose.yaml and `pnpm parsing`, so a developer machine needs no
+ * configuration.
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -18,6 +19,8 @@ export interface Settings {
   /** YAML file with model providers, routes and budgets. */
   readonly gatewayConfig: string | undefined;
   readonly streamPrefix: string;
+  /** The parsing worker (engine/parsing) that reads Word, PowerPoint, Excel and PDF files. */
+  readonly parsingUrl: string;
 }
 
 const DEFAULTS: Settings = {
@@ -29,6 +32,7 @@ const DEFAULTS: Settings = {
   blobDir: ".data/blobs",
   gatewayConfig: undefined,
   streamPrefix: "insp",
+  parsingUrl: "http://127.0.0.1:8790",
 };
 
 function envName(key: string): string {

@@ -274,9 +274,9 @@ describe.each(BACKENDS)("normalization on $backend", ({ backend, skip }) => {
   });
 
   it.skipIf(skip)("files without a parser are noted, not retried", async ({ world }) => {
-    const pdf = await world.ingest({ external_id: "scan.pdf", text: "%PDF-1.7" });
-    expect((await world.normalization.normalize(pdf.id)).status).toBe("unsupported");
-    expect((await world.normalization.documents(SOURCE))[0]?.warnings).toEqual(["no parser for application/pdf"]);
+    const photo = await world.ingest({ external_id: "whiteboard.png", text: "PNG" });
+    expect((await world.normalization.normalize(photo.id)).status).toBe("unsupported");
+    expect((await world.normalization.documents(SOURCE))[0]?.warnings).toEqual(["no parser for image/png"]);
   });
 
   it.skipIf(skip)("document.fetched is handled under the normalization group", async ({ world }) => {
@@ -313,7 +313,7 @@ test("the built-in parsers are declared plugins, and the router picks the best",
   expect(await pick("text/plain")).toBe("text");
   expect(await pick("text/x-unknown")).toBe("text");
   expect(await pick("application/octet-stream", "readme.md")).toBe("markdown");
-  expect(await pick("application/pdf")).toBeUndefined();
+  expect(await pick("image/png")).toBeUndefined();
 
   const better: Parser = { name: "better-markdown", version: "1", accepts: () => 2, parse: async () => ({}) as never };
   const custom = new Normalization({
