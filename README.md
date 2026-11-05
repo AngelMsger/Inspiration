@@ -150,7 +150,7 @@ The method, every run and its cost are in [Validating the knowledge core](docs/d
 </picture>
 </div>
 
-<sub>Every component by stage, with the events (solid) and calls (dashed) between them; the platform services on the right serve all of them. Dashed boxes are planned. Figure 10 of the [overview](docs/overview.md#9-architecture-at-a-glance) gives each component an outside equivalent and says what we reuse.</sub>
+<sub>Every component by stage, with the events (solid) and calls (dashed) between them; the platform services on the right serve all of them. Dashed boxes are planned. The [overview](docs/overview.md#9-architecture-at-a-glance) gives each component an outside equivalent and says what we reuse.</sub>
 
 - **Small components with one job each.** 14 of the engine's 19 components are built and tested, and the business layer's first two. [`components.yaml`](components.yaml) gives each one's ownership, the events it publishes and consumes, and the calls it may make; a test holds every package to it.
 - **Contracts first.** JSON Schema in [`libs/contracts/schema/`](libs/contracts/schema/) is the source of truth for every type and event that crosses a component; TypeScript types and validators are generated from it.

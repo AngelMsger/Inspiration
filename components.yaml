@@ -62,7 +62,7 @@ components:
     layer: ingest
     status: built
     runtime: node
-    owns: Parser routing over the built-in Markdown, text, HTML and CSV parsers; canonical blocks and spans with stable IDs; block diff against the previous version; duplicate documents and editions of one document. Planned are Office, PDF and scans through the parsing worker, a language tag per block, mirror pages
+    owns: Parser routing over the built-in Markdown, text, HTML and CSV parsers and the parsing worker's parser for Word, PowerPoint, Excel and PDF; canonical blocks and spans with stable IDs; block diff against the previous version; duplicate documents and editions of one document. Planned are scans, a language tag per block, mirror pages
     plugins: [parsers, migrations]
     publishes: [blocks.changed]
     subscribes: [document.fetched]

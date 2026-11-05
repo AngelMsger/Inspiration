@@ -1,6 +1,6 @@
 # Inspiration: product requirements and technical architecture
 
-Version 2, as of 2026-10-27; the state of each part was brought up to date on 2026-11-03. This document replaces the first product and technical overview and folds in every discussion on it. Part I is the product requirements: who Inspiration is for, the scenarios it must handle and what it must do. Part II is the technical architecture: how it is built, and how we know the hard parts can work. Part III is the plan: where we are, what comes next, the risks and the decisions. Every requirement and component says whether it is built, designed, proposed or still open. The design documents listed at the end hold the details. A Chinese copy is in [zh/overview.md](zh/overview.md); if the two differ, this English version wins.
+Version 2, as of 2026-10-27; the state of each part was brought up to date on 2026-11-05. This document replaces the first product and technical overview and folds in every discussion on it. Part I is the product requirements: who Inspiration is for, the scenarios it must handle and what it must do. Part II is the technical architecture: how it is built, and how we know the hard parts can work. Part III is the plan: where we are, what comes next, the risks and the decisions. Every requirement and component says whether it is built, designed, proposed or still open. The design documents, listed in the [docs index](README.md), hold the details. A Chinese copy is in [zh/overview.md](zh/overview.md); if the two differ, this English version wins.
 
 | If you want to know | Read |
 | --- | --- |
@@ -9,7 +9,8 @@ Version 2, as of 2026-10-27; the state of each part was brought up to date on 20
 | What exactly must be built | 6 Functional requirements, 7 Quality requirements, 8 Releases |
 | How it works | 9 to 20 |
 | Whether the hard parts can work | 21 Feasibility |
-| What happens next, and what needs a decision | 23 to 27 |
+| What is being built now | 23 Where we are, and [the MVP](design/mvp.md) |
+| What happens next, and what needs a decision | 24 to 27 |
 
 ## 1. Summary
 
@@ -44,7 +45,7 @@ Four bets set Inspiration apart, each answering a failure of today's tools:
 
 **Who it is for.** Teams and companies whose knowledge lives across several tools (Feishu or Lark, Confluence, approval systems, file shares, PDFs). It starts with one person's library and grows into teams and companies. The strongest early uses are governing procedures and policies across tools, and a governed knowledge endpoint for a company's own agents. It is sold as SaaS first, with private deployment as a second profile of the same code. English, Chinese and Japanese are supported from the first release, as one knowledge base: knowledge is language-neutral, and language is only how it is expressed.
 
-**Where it stands.** The engine runs end to end on a mocked model through seven stages: ingest, extraction, governance, freshness, governance levels, topics and the inbox, all merged on `main`, and its language rules live in resource files. Search and grounded answers are built too. Pages, the agent API, the business layer and the UI are designed but not built. Since 2026-10-27, real models have been used to validate the knowledge core first, before the remaining stages are built ([validation](design/validation.md)).
+**Where it stands.** The engine runs end to end: ingest, parsing, extraction, governance, freshness, governance levels, topics, the inbox, search and grounded answers, all merged on `main`, with its language rules in resource files. From 2026-10-27 to 2026-11-04 real models validated the knowledge core first: Inspiration answers more questions right than a mature RAG, from a smaller input, though short of the 10-point aim, and the product owner accepted that lead ([validation](design/validation.md)). Since 2026-11-05 the [MVP](design/mvp.md) is being built, one company's whole loop. Sign-in, companies, members, spaces and their audiences are merged, and so are, on the engine side, uploads and the parsing worker for Word, PowerPoint, Excel and PDF. Pages, the agent API, "Decide for me" and the rest of the business layer are designed but not built.
 
 **What is new in this version.** It is written as a PRD plus an architecture, with scenarios that say why each design exists and a feasibility section that says what is proven and what is not. It also takes in the decisions and proposals from the discussions since the first version:
 
@@ -347,7 +348,7 @@ States: **Built** (on `main`, with tests), **Designed** (decided, not built), **
 | --- | --- | --- |
 | IN-1 | Connect Feishu documents, wiki and approvals and file uploads; serve Lark, Feishu's international edition, with the same connectors | Built (recorded fixtures) |
 | IN-2 | Watch sources continuously: push events as hints, a 15-minute poll and a nightly full listing that also finds deletions | Built |
-| IN-3 | Parse Office files, PDFs and scans into blocks with stable IDs | Planned (parsing worker) |
+| IN-3 | Parse Office files, PDFs and scans into blocks with stable IDs | Built for the text layer of Word, PowerPoint, Excel and PDF (parsing worker); scans planned |
 | IN-4 | Give every source or folder a governance level, inherited down the Documents tree; uploads and web pages start as Reference | Built |
 | IN-5 | Build procedures from approval flows: definition, mined logs and a write-up, each step tagged by origin and approved by its owner | Designed |
 | IN-6 | Store research reports as sources, with a re-check query and date per assumption | Designed |
@@ -541,74 +542,19 @@ flowchart TB
 
 **The business layer is the product around it for people and companies:** who someone is, which companies they belong to, what those companies bought, how a person is asked, reminded and told, and what the screens look like. It turns human and commercial decisions into engine commands and engine events into messages people read, and it can change from market to market without touching knowledge.
 
-**The whole system, with an external equivalent for each part.** Figure 10 shows every component and, for each one, products or projects that do a similar job. The mapping helps a reader place each part, and it records what we take from outside. We do not assemble these projects into one. Where a job is generic and the licence fits, we run an existing project as it is, sometimes behind a plugin so it can be replaced. Everywhere else we study the design and build our own, because that is where Inspiration adds something: verbatim evidence, fact slots, decisions by named people, and one permission model from the source to the answer.
+**The whole system, with an external equivalent for each part.** Figure 10 shows every component, and the table after it names, for each one, products or projects that do a similar job. The mapping helps a reader place each part, and it records what we take from outside. We do not assemble these projects into one. Where a job is generic and the licence fits, we run an existing project as it is, sometimes behind a plugin so it can be replaced. Everywhere else we study the design and build our own, because that is where Inspiration adds something: verbatim evidence, fact slots, decisions by named people, and one permission model from the source to the answer.
 
-```mermaid
-flowchart TB
-  subgraph SRC[Sources]
-    direction LR
-    s1["Feishu and Lark documents,<br/>wiki and approvals; uploads"]
-    s2["Code hosts<br/>(GitHub first)"]
-    s3[The web]
-    s1 ~~~ s2 ~~~ s3
-  end
-  subgraph ING[Ingest]
-    direction LR
-    con["connectors, source-sync<br/><i>≈ Airbyte, Onyx connectors</i><br/>reference"]
-    par["parsing (planned)<br/><i>Docling, PaddleOCR-VL</i><br/>reuse"]
-    nor["normalization<br/><i>≈ Unstructured, RAGFlow DeepDoc</i><br/>reference"]
-    cg["code-graph (proposed)<br/><i>codebase-memory-mcp</i><br/>reuse behind a plugin"]
-    res["research (planned)<br/><i>≈ GPT Researcher, Deep Research</i><br/>reference"]
-    con --> par --> nor
-    cg --> res
-  end
-  subgraph CMP[Compile]
-    direction LR
-    ext["extraction<br/><i>≈ LangExtract, GraphRAG</i><br/>reference"]
-    gov["governance, freshness<br/><i>≈ LLM Wiki lint, Guru verification</i><br/>reference"]
-    pc["page-compiler<br/><i>≈ LLM Wiki pages, DeepWiki</i><br/>reference"]
-    ext --> gov --> pc
-  end
-  subgraph STO[Store]
-    ks[("knowledge-store<br/><i>PostgreSQL</i>: reuse<br/><i>≈ Wikibase statements</i>: reference")]
-  end
-  subgraph SRV[Serve]
-    direction LR
-    ret["retrieval<br/><i>pgvector, pg_search</i>: reuse<br/><i>≈ RAGFlow</i>: reference"]
-    api["agent-api (planned)<br/>ask, search, read, get_changes<br/><i>MCP SDK</i>: reuse"]
-    vw["views (planned)<br/><i>≈ Claude Artifacts</i><br/>reference"]
-    ret --> api
-    api ~~~ vw
-  end
-  subgraph USE[People and agents]
-    direction LR
-    biz["Business layer: accounts, companies,<br/>publishing, approvals, notifications, web<br/><i>Logto</i>: reuse"]
-    agt["Company agents,<br/>MCP clients, CLI"]
-    biz ~~~ agt
-  end
-  subgraph CTL[Control, used by every stage]
-    direction LR
-    gw["model-gateway<br/><i>≈ LiteLLM</i><br/>reference"]
-    rt["agent-runtime<br/><i>≈ LangGraph</i><br/>reference"]
-    ac["access-control<br/><i>SpiceDB</i><br/>reuse"]
-    co["collaboration<br/>inbox and todos<br/>our own"]
-    cb["credential-broker, sandbox (planned)<br/><i>OpenBao, gVisor</i><br/>reuse"]
-    gw ~~~ rt ~~~ ac ~~~ co ~~~ cb
-  end
-  SRC --> ING
-  ING -- "blocks, passages, research reports" --> CMP
-  CMP <-- "statements, slots, topics, pages" --> STO
-  STO --> SRV
-  SRV --> USE
-  USE ~~~ CTL
-```
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="assets/components.en.dark.png">
+<img src="assets/components.en.png" alt="Every component by stage, with the events and calls between them">
+</picture>
 
-*Figure 10. The whole system. Each box names our component, and ≈ names an external product that does a similar job. Reuse means we run it as it is; behind a plugin means it can be replaced; reference means we studied its design and build our own. Components marked planned or proposed are not built yet.*
+*Figure 10. The whole system: every component by stage, with the events (solid lines) and synchronous calls (dashed lines) between them; the platform services on the right serve all of them. Dashed boxes are planned. In the table below, reuse means we run a project as it is, behind a plugin means it can be replaced, and reference means we studied its design and build our own. The figure is drawn from [assets/components.html](assets/components.html).*
 
 | Part | Our components | External equivalents | How we use them | Why |
 | --- | --- | --- | --- | --- |
 | Source integrations | connectors, source-sync | Airbyte, Onyx connectors, LlamaHub readers | Reference; vendor SDKs are used directly | We need versions, deletions, ACL snapshots, and one integration per vendor shared by sync and agent tools; Feishu and Lark are thin in those projects |
-| Document parsing | parsing (planned) | Docling, PaddleOCR-VL, MinerU, RAGFlow DeepDoc | Reuse Docling and PaddleOCR-VL in a Python worker | Parsing is a commodity; a router picks the parser per document type |
+| Document parsing | parsing | Docling, PaddleOCR-VL, MinerU, RAGFlow DeepDoc | Reuse python-docx, python-pptx, openpyxl and pdfminer.six in a Python worker for the text layer; Docling or PaddleOCR-VL later for scans and complex layouts | Parsing is a commodity; a router picks the parser per document type |
 | Blocks and passages | normalization | Unstructured's elements, Docling's document model, RAGFlow's chunking | Reference | Evidence needs block and passage IDs that stay stable across versions, and a diff per block; those tools rebuild a document from scratch |
 | Code repositories | code-graph (proposed) | codebase-memory-mcp, CodeGraphContext, Sourcegraph SCIP; DeepWiki and Code Wiki | Reuse codebase-memory-mcp in the sandbox, behind the `code_indexers` plugin; generated wikis are not used | A graph per commit gives symbols to anchor evidence on and a diff at every merge; generated prose is not evidence ([code repositories](design/code-repositories.md)) |
 | Deep research | research (planned) | OpenAI and Gemini Deep Research, GPT Researcher, LangChain's open_deep_research | Reference | A report must become a source, with verbatim evidence and assumptions that are re-checked when code or pages change |
@@ -686,7 +632,7 @@ Each section of [`components.yaml`](../components.yaml) maps to one folder. A pa
 | --- | --- | --- | --- |
 | Ingest | connectors | One integration per vendor: list, fetch, read ACLs, webhooks, agent tools. Built: local folders, Feishu documents and approvals (recorded fixtures) | Built |
 | Ingest | source-sync | Versions, tombstones, ACL snapshots, polls and reconcile; later `fetch_now` and the Documents tree | Built; poll and reconcile schedules planned (a sync runs when called) |
-| Ingest | parsing | Python worker for Office, PDF and scans (Docling, PaddleOCR-VL) behind an HTTP contract | Planned |
+| Ingest | parsing | Python worker for Word, PowerPoint, Excel and PDF behind an HTTP contract; later scans through OCR and layout models | Built for the text layer |
 | Ingest | normalization | Canonical blocks and spans with stable IDs, block diff, duplicate documents; later mirror pages | Built |
 | Ingest | research | Research agent over the agent API and approved web search; reports become sources | Planned |
 | Ingest | code-graph | A git mirror per repository and a code graph per commit, built in the sandbox; `code.changed` at every merge ([code repositories](design/code-repositories.md)) | Proposed |
@@ -709,8 +655,8 @@ Each section of [`components.yaml`](../components.yaml) maps to one folder. A pa
 
 | Component | Owns | Phase |
 | --- | --- | --- |
-| accounts | Users, login identities, sessions, the identity-provider adapter (Logto; Keycloak as fallback) | 1 |
-| tenancy | Tenants, members and member IDs, invitations, verified domains, company roles, sign-in policy, personal to company, transfers | 1 |
+| accounts | Users, login identities, sessions, the identity-provider adapter (Logto; Keycloak as fallback) | 1; built for the MVP |
+| tenancy | Tenants, members and member IDs, invitations, verified domains, company roles, sign-in policy, personal to company, transfers | 1; built for the MVP |
 | directory | SSO connections, Feishu contacts (SCIM in phase 2), groups, departments, external identity links | 1 and 2 |
 | access-grants | OAuth authorization server, client registry, device flow, personal tokens, company agents, revocation | 1 |
 | connections | Connect flows for company and personal connections, consents | 1 |
@@ -719,7 +665,7 @@ Each section of [`components.yaml`](../components.yaml) maps to one folder. A pa
 | notifications | Inbox, email, Feishu, Lark and DingTalk cards, digests, preferences, message catalogs | 1 |
 | admin | Space ownership, company settings, roles, audit and usage views | 1 |
 | billing | Plans, seats, quotas, per-member limits, model budgets | 3 |
-| web | The product web app and its backend for the frontend | 1 |
+| web | The product web app and its backend for the frontend | 1; being built |
 
 ## 11. How components talk
 
@@ -1027,7 +973,7 @@ The prototype runs on mocked models on purpose: it proves the pipeline, the volu
 | Permissions without leaks or blank pages | SpiceDB checks, scope filters and consistency tokens built; the compiled-knowledge design has eight acceptance tests | Precision of the omission check, which needs a model for "the other side" | An evaluation set of balanced arguments and abuse cases; the red team | Three of the four triggers need no model; "publish with a note" is always available |
 | Answers and agent efficiency | Answers built and measured on real models: of 150 questions on the company drive, a mature RAG 137, Inspiration 134 with 5,538 input tokens per answer against 9,936, compact answers 128 with 2,075 ([validation](design/validation.md)); the agent API is not built | Retrieval quality and tokens per task | Recall@10 and tokens per task against a chunk-only baseline (G1, G2) | Hybrid search with rerank; tools return handles before text |
 | Knowledge across languages | Language packs and language-neutral keys built | Missed and wrong merges across languages | A three-language evaluation corpus | Unmerged statements stay duplicates, never false conflicts |
-| Parsing Office, PDF and scans | Built-in text parsers | Throughput and layout quality, especially on domestic accelerators | Benchmark Docling and PaddleOCR-VL on the customer's hardware early in a pilot | A router with confidence escalation; placeholders that say "open in source" |
+| Parsing Office, PDF and scans | Built-in text parsers, and the parsing worker for the text layer of Word, PowerPoint, Excel and PDF | Throughput and layout quality, especially on domestic accelerators | Benchmark Docling and PaddleOCR-VL on the customer's hardware early in a pilot | A router with confidence escalation; placeholders that say "open in source" |
 | Feishu and Lark in production | Connectors built against recorded fixtures; single-flight refresh designed | Rate limits and token refresh on a real tenant | The pilot tenant | Reserved rate share for interactive calls; re-authorization todos |
 | Model cost | 5.6k model calls for 10,000 documents with governance levels, against 10k without | Tokens and money per document on real models | Measure in the probe | Levels, extract on use, the response cache and a flash-class model |
 | Compliance in China | Known requirements: generative AI filing, ICP licence, classified protection | Time to certify | Start filings before G3 | Private deployment first for regulated buyers |
@@ -1039,7 +985,7 @@ The prototype runs on mocked models on purpose: it proves the pipeline, the volu
 - **Plugins by registry.** Connectors, agent tools, parsers, diagram compilers, index backends, data providers, model providers, model mocks, view templates and migrations register by name in fixed plugin groups. A new source or model is a new plugin, not a core change.
 - **Tests on both backends.** Unit tests use in-memory doubles; code with a Postgres, Valkey or SpiceDB implementation runs the same tests against the real stack. `make check` runs Biome, strict `tsc`, contract freshness and every test with the stack up.
 - **A demo tenant and a scale generator.** `examples/corpus` is Hengyuan Machinery, with planted duplicates and conflicts; `pnpm bench synthesize` writes synthetic tenants of any size, and `pnpm bench ingest` prints a volume report.
-- **Every change lands through a pull request.** The product owner's local Codex reviews it; findings are fixed and the PR is merged. Correctness comes first, then layering, clear component boundaries and explicit contracts.
+- **Every change lands through a pull request, merged once CI passes.** The product owner's Codex review runs afterwards, and what it finds becomes a follow-up pull request or an issue (since 2026-11-05). Correctness comes first, then layering, clear component boundaries and explicit contracts.
 - **Complexity is kept down on purpose.** Build only what a requirement in force needs; an abstraction needs two users; reuse before adding a helper or a package; files at most 800 lines and functions at most a cognitive complexity of 40, both checked; at most one folder level under a package's `src/` and no grab-bag files; a new folder, library, app, component or plugin group needs the product owner's agreement first. [AGENTS.md](../AGENTS.md), "Keeping the code simple", has the rules.
 - **Names describe what things do.** No plan numbers in code, docs or events. [AGENTS.md](../AGENTS.md) has the full rules for anyone, human or agent, building a component.
 
@@ -1053,29 +999,18 @@ The prototype runs on mocked models on purpose: it proves the pipeline, the volu
 | Permissions | SpiceDB | SpiceDB, plus a policy engine for labels |
 | Queue | Postgres outbox and Valkey Streams | NATS JetStream or Kafka |
 | Models | Fake providers with mocks now; next one flash-class model (domestic in China), Qwen3-Embedding and Qwen3-Reranker | Routing across vLLM, SGLang and MindIE, per region and sensitivity |
-| Parsing | Docling and PaddleOCR-VL on one GPU | A router with confidence escalation |
+| Parsing | A Python worker for the text layer of Office files and PDFs; Docling and PaddleOCR-VL on one GPU for scans later | A router with confidence escalation |
 | Identity | Logto behind an OIDC adapter | Logto, Keycloak, or the customer's own identity provider |
 | Secrets | Envelope encryption under a deployment key | OpenBao Transit or the customer's KMS or HSM |
 | Sandbox | Docker with gVisor | Kata Containers or Firecracker with warm pools |
 | Deployment | Docker Compose on one node | Helm, air-gapped bundle, amd64 and arm64 |
 
-```mermaid
-flowchart TB
-  lb[Load balancer] --> webb["Web backend and<br/>business services"]
-  lb --> api["Agent API<br/>stateless"]
-  webb --> eng["Engine services<br/>and workers"]
-  api --> eng
-  eng --> pg[("PostgreSQL 16<br/>knowledge, outbox,<br/>business schema")]
-  eng --> sp[(SpiceDB)]
-  eng --> vk[("Valkey<br/>streams, cache")]
-  eng --> blob[(Blob store)]
-  eng --> gw[Model gateway]
-  gw --> prov["Model providers<br/>cleared per label"]
-  eng --> parse["Parsing worker<br/>GPU"]
-  eng --> sbx[Sandbox pool]
-```
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="assets/deployment.en.dark.png">
+<img src="assets/deployment.en.png" alt="The services, the open-source parts and how they connect">
+</picture>
 
-*Figure 17. One SaaS region. Each company's data stays in the region chosen when the company was created.*
+*Figure 17. The services and the open-source parts they run on, grouped as they split when load grows; dashed boxes are planned. In SaaS each region runs one such set, and a company's data stays in the region chosen when the company was created. The figure is drawn from [assets/deployment.html](assets/deployment.html).*
 
 - **Two deployment profiles from one codebase.** SaaS comes first: a company's region is fixed at creation, starting with mainland China and one global region. Public SaaS in mainland China needs a generative AI filing, an ICP licence and classified protection. Private deployment is the second profile, with domestic infrastructure (Kylin, Kunpeng or Hygon, KingbaseES, Ascend) as the target for certification.
 - **Licences.** pg_search is AGPL-3.0; BM25 sits behind a plugin interface so an OpenSearch index can replace it where a customer needs that. Valkey (BSD) is used instead of Redis. See [licensing.md](licensing.md).
@@ -1087,6 +1022,8 @@ flowchart TB
 **Built and merged on `main`:** contracts, kernel, event bus, test kit, knowledge store, access control, model gateway, agent runtime, connectors, source sync, normalization, extraction, governance, freshness, tenant-scoped member IDs, and the engine process with its CLI, demo corpus and synthesizer (PRs #2 to #7); governance levels, fact-slot keys and extract on use, topics and placements, and the inbox (PRs #8 to #10); language rules in resource files for en, zh and ja with a repo test against Chinese and Japanese in code (PRs #12 and #13); the move into a folder per layer (PR #15); the design documents (PRs #11 and #14) and this overview as product requirements and technical architecture (PR #17); a value from statements not yet in effect lends no authority (PR #16); a control corpus whose cases each have one right answer, with the engine's known gaps recorded (PR #18); who owns vendor integrations, the tool gate and the sandbox in `components.yaml` (PR #19); a snapshot of the UI screens (PR #20); and the design for code repositories (PRs #21 to #23).
 
 **Built and merged since** (PRs #27 to #86): the replay of a real policy through its edit history; facts a new version stops stating are kept, marked; values counted by independent source, with copies and translations once, and the original holding over a translation that says otherwise; real pages of the Kubernetes documentation in English, Chinese and Japanese; and retrieval, with search and answers that give the value that holds, checked with 12 questions in three languages (PRs #27 to #33); answers from the latest edition of a document (#38); cheap real runs with dry-run pricing, a response cache and a day budget (#39, #45); whole passages, a real embedding and reranker, query translation, the two baselines, a governed long context and compact answers (#59 to #66, #74); native Anthropic and OpenAI-compatible providers for the fast-model arm (#75); and the decisive test's corpus, fact catalogue and free preflight (#78, #79, #83, #84). What the real-model runs found is in [Validating the knowledge core](design/validation.md).
+
+**Built and merged since** (PRs #87 to #170): the decisive test and the governance fix, which closed the validation on 2026-11-04 ([validation](design/validation.md)); the [MVP](design/mvp.md) plan, adopted on 2026-11-05; for its first slice, principal tokens verified against the business layer's keys, visibility by space in place of source permissions, the engine's copy of the directory and the routes that administer spaces, and in the business layer accounts on Logto, companies, members and invite links, with the web app's sign-in and admin area; for its second, uploads into a space, the parsing worker for Word, PowerPoint, Excel and PDF, a fact vocabulary per company, reading that pauses at a spent budget, and clearance checked on reads; and the README and the product website in three languages.
 
 **Measured** on a synthetic tenant of 10,000 documents with the mocked model and fake embeddings (Postgres and Valkey). These numbers describe volumes and the pipeline, not model quality:
 
@@ -1107,11 +1044,11 @@ flowchart TB
 
 Topics come out about ten times larger than the design target of about 100 statements, because the synthetic tenant restates 30 subjects across many documents and fake embeddings cannot tell those sections apart. The budget never had to hold a todo back, because grouping by owner, topic and week already keeps every owner under it.
 
-**Designed, not built:** the two-domain permission rule and the principal token, publishing, compiled-knowledge permissions, the credential broker and sandbox, the Documents tree and mirror pages, pages and views, the agent API, research, the parsing worker, source deletions and change reviews, cross-language merge and pages in another language, code repositories as a source (proposed), and the whole business layer and UI.
+**Designed, not built:** the member's own space (My space) and the proof rule, publishing, compiled-knowledge permissions, the credential broker and sandbox, mirror pages, pages and views, the agent API, "Decide for me", research, scans and complex layouts, source deletions and change reviews, cross-language merge and pages in another language, code repositories as a source (proposed), and the rest of the business layer and the UI.
 
 ## 24. Next steps and effort
 
-The rule was to mock every model call until each stage runs end to end, and only then switch on real models. On 2026-10-27 the product owner put validating the knowledge core with real models first ([validation](design/validation.md)); the stages below follow its result. The proposed order of the remaining stages, for discussion:
+The rule was to mock every model call until each stage runs end to end, and only then switch on real models. On 2026-10-27 the product owner put validating the knowledge core with real models first ([validation](design/validation.md)); the stages below follow its result. Since 2026-11-05 the next steps are the [MVP](design/mvp.md)'s six slices, which take from these stages what one company's whole loop needs; the rest follows after it. The order proposed before the MVP was:
 
 1. **Engine side of the business contract:** the principal token, provisioning and the seed command, the space and proof rules in access-control, and domain keys on slots and conflicts.
 2. **Pages and views of sources:** cited page synthesis for an audience, `PageSpec` snapshots and diffs, the dependency graph with `artifact.dirty`, mirror pages and the Documents tree.
@@ -1181,6 +1118,9 @@ After that, pilot and product-v1 work for Artifact-level editing (templates, Wor
 | 2026-10-27 | Validate the knowledge core (extraction and governance) on real models first; the business layer and permissions can wait. Every run leaves a trace in the repo and its replies are kept, so nothing is paid for twice |
 | 2026-10-28 | Inspiration must lead a mature RAG by at least 10 points on stale and conflicting information, within one topic's material, on fast and cheap models as well as strong ones; organizing knowledge must never lose the right value |
 | 2026-11-01 | Cost, accuracy and latency are judged together. The cheapest provider runs the tests; a cheap GPT model or Claude Haiku only backs a conclusion. If governance cannot set the product apart, the fallback is a knowledge and identity gateway for agents |
+| 2026-11-04 | The validation's result is accepted: Inspiration answers stably more right than a mature RAG, short of 10 points, which stay a long-term goal for a larger dataset close to real use; tuning runs stop, and an MVP that closes the business flow comes next |
+| 2026-11-05 | The MVP is adopted with its five decisions as recommended: three to five people try it in Chinese for two weeks, on one server in Hong Kong or Singapore; live Feishu after Gate B; CNY 100 a month for models; a standing "Decide for me" offered to owners |
+| 2026-11-05 | A pull request is merged once CI passes; the product owner's Codex review runs afterwards, and its findings become a follow-up pull request or an issue. Outside research is supporting input only: public pages say that research supports a claim and link it, without naming its authors |
 
 ## 27. Open questions
 
@@ -1190,9 +1130,9 @@ After that, pilot and product-v1 work for Artifact-level editing (templates, Wor
 4. **Which SaaS region opens first,** and how gates G2 and G3 change for SaaS first.
 5. **Which model providers serve each region,** and at which sensitivity labels.
 6. **Which connectors come second and third outside China** (for example Confluence, Notion, Google Drive, SharePoint), and which first design partner and industry the pilot targets.
-7. **The order of the remaining prototype stages,** and whether a small, capped probe with a real model on real documents should run before every stage is mocked.
+7. **Answered: the order of the remaining stages.** The validation on real models came first (2026-10-27 to 2026-11-04), and the [MVP](design/mvp.md) sets the order now (2026-11-05).
 8. **Two details of the agent tools:** whether `search` ranks blocks and statements together by default, and whose budget pays for the model call inside `ask`.
-9. **Whether a standing "Decide for me" delegation counts as the member's approval** under AG-4 (section 6.7). Pressing Decide for me once is an explicit request, so it already fits AG-4. A standing delegation is a request made in advance, scoped to kinds of decision and pausable; the UI design proposes adding it to AG-4, and asks whether every vote in a joint approval may be delegated. Not decided ([Decide for me](design/decide-for-me.md), PR #25).
+9. **Answered: a standing "Decide for me" counts as the member's approval** under AG-4 (section 6.7), as a request made in advance, scoped to kinds of decision and pausable; the MVP offers it to owners on their first inbox visit (its decision 5, 2026-11-05). Whether every vote in a joint approval may be delegated waits for joint approval ([Decide for me](design/decide-for-me.md)).
 
 ## Appendix A. Glossary in three languages
 
@@ -1228,18 +1168,8 @@ One glossary feeds every status, button and empty state. The Chinese column is a
 
 ## Appendix B. Further reading
 
-- [UI principles](design/ui-principles.md): interaction principles, visual system, key screens and the UI's internationalization rules.
-- [Statements at scale](design/statements-at-scale.md): two outlines, fact slots, governance levels, grouped review and the measured volumes.
-- [Business layer](design/business-layer.md): accounts, companies, publishing, governance roles, agent access and the business-layer plan.
-- [Business layer and engine contract](design/business-engine-contract.md): the commands, events, principal token and schema changes between the two layers.
-- [Source changes](design/source-changes.md): what happens when a source corrects itself, is deleted or changes at scale.
-- [Knowledge and language](design/knowledge-and-language.md): translations, cross-language merge and pages in another language.
-- [Permissions in compiled knowledge](design/compiled-knowledge-permissions.md): writing for an audience, omissions that change the meaning, releases, abuse cases and trade-offs.
-- [Validating the knowledge core](design/validation.md): the claims of core value, pass bars, real corpora, answer keys, a plain-RAG baseline and the results that would change the design.
-- [Architecture](architecture.md): components, how they talk, storage and security as built.
-- [Contracts](contracts.md): changing schemas, IDs, events, versioning.
-- [PageSpec and views](pagespec.md): pages compared with Claude Artifacts, and the view sandbox.
-- [Licensing](licensing.md): licences of the stack and what they mean for delivery.
-- [`components.yaml`](../components.yaml): the component manifest.
+Every doc, with its status and what it covers, is listed in the [docs index](README.md). Beside the docs:
+
+- [`components.yaml`](../components.yaml): the component manifest, with what each component owns and what is still planned.
 - [AGENTS.md](../AGENTS.md): rules for building a component.
-- [`examples/corpus`](../examples/corpus/README.md): the demo tenant and what it should produce.
+- [`examples/`](../examples/README.md): the corpora, the demo tenant among them, and what each should produce.

@@ -85,7 +85,8 @@ describe("docs", () => {
     const wrong = design.flatMap((f) => {
       const stated = /^Status: (\w+)/m.exec(prose(f).slice(0, 5).join("\n"))?.[1]?.toLowerCase();
       if (!stated || !STATUSES.includes(stated)) return [`${f}: no status line starting with ${STATUSES.join(", ")}`];
-      const row = rows.find((r) => r.includes(`](${f.slice("docs/".length)})`));
+      // A doc's row starts with its link; other tables in the index may link it too.
+      const row = rows.find((r) => r.startsWith(`| [`) && r.includes(`](${f.slice("docs/".length)})`));
       const indexed = row?.split("|")[2]?.trim().split(/[ ,]/)[0]?.toLowerCase();
       return indexed === stated ? [] : [`${f}: the index says ${indexed ?? "nothing"}, the doc says ${stated}`];
     });
