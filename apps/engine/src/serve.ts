@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 /**
- * inspiration-engine serve <corpus> (--issuer <url> --audience <url> [--jwks <url|file>] | --dev-identity)
+ * inspiration-engine serve [<corpus>] (--issuer <url> --audience <url> [--jwks <url|file>] | --dev-identity)
  *     [--port 4100] [--today <YYYY-MM-DD>] [--gateway <file> [--valkey <url>]]
  *
- * Runs the engine in memory over a corpus and serves its HTTP API (http.ts) on localhost, for
- * the web app to read. The corpus stands in for the business layer: it provisions the tenant,
- * its spaces and members, and its sources are synced once at start and read to the end (every
- * event delivered, topics clustered and given owners) before the API answers. Models are the development
+ * Runs the engine in memory and serves its HTTP API (http.ts) on localhost. Without a corpus it
+ * starts empty, and the business layer provisions its tenants and members and creates their
+ * spaces over the API; being in memory, it forgets them when it stops, so provision again
+ * after a restart (the drift check, GET /v0/tenants/:tenant/members, shows an empty copy).
+ * With a corpus, the corpus stands in for the business layer as well: it provisions its
+ * tenant, spaces and members, and its sources are synced once at start and read to the end
+ * (every event delivered, topics clustered and given owners) before the API answers. Models are the development
  * stand-ins of config/gateway.dev.yaml, or those of the --gateway file, as when the demo is
  * recorded with real answers (config/gateway.demo.yaml); a config that keeps its replies in
  * Valkey takes the server from --valkey. --today sets the day governance and freshness take as
@@ -98,26 +101,29 @@ async function main(argv: string[]): Promise<number> {
   });
   const [command, dir] = positionals;
   const identity = identityOf(values);
-  if (command !== "serve" || !dir || !identity) {
+  if (command !== "serve" || positionals.length > 2 || !identity) {
     console.error(
-      "usage: inspiration-engine serve <corpus> (--issuer <url> --audience <url> [--jwks <url|file>] | --dev-identity)" +
+      "usage: inspiration-engine serve [<corpus>] (--issuer <url> --audience <url> [--jwks <url|file>] | --dev-identity)" +
         " [--port 4100] [--today YYYY-MM-DD] [--gateway <file> [--valkey <url>]]",
     );
     return 2;
   }
-  const corpus = await Corpus.load(dir);
+  const corpus = dir === undefined ? undefined : await Corpus.load(dir);
   const today = values.today ? new Date(`${values.today}T09:00:00Z`) : undefined;
   const models = values.gateway ? await gatewayOf(values.gateway, values.valkey) : undefined;
   const engine = await Engine.open({
     blobDir: await mkdtemp(join(tmpdir(), "inspiration-blobs-")),
-    resolvePrincipal: corpus.resolvePrincipal,
-    vocabulary: () => corpus.vocabulary,
+    ...(corpus && { resolvePrincipal: corpus.resolvePrincipal, vocabulary: () => corpus.vocabulary }),
     ...(today && { clock: () => today }),
     ...(models && { models: models.gateway }),
   });
-  const started = performance.now();
-  await seed(engine, corpus);
-  log.info("corpus read", { corpus: dir, seconds: Math.round((performance.now() - started) / 100) / 10 });
+  if (corpus) {
+    const started = performance.now();
+    await seed(engine, corpus);
+    log.info("corpus read", { corpus: dir, seconds: Math.round((performance.now() - started) / 100) / 10 });
+  } else {
+    log.info("no corpus: tenants, members and spaces come from provisioning");
+  }
   const server = await serveApi(engine, Number(values.port), identity);
   const stop = () => {
     server.close();

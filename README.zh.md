@@ -45,6 +45,7 @@ pnpm bench ask examples/kubernetes-docs "Kubernetes 集群最多可以有多少�
 ```bash
 pnpm demo                                          # 引擎在 4100 端口，Web 应用在 5173 端口
 pnpm engine serve examples/corpus --dev-identity   # 只启动引擎的 HTTP API，信任身份请求头
+pnpm engine serve --issuer <业务层 URL> --audience http://127.0.0.1:4100   # 空引擎，由业务层开通租户
 pnpm snapshot dist/snapshot                        # 把演示脚本录成一个静态页面
 ```
 
