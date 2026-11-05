@@ -189,12 +189,105 @@ kbd {
   font-weight: 600;
 }
 
+.menu .menu-sign-out {
+  border-top: 1px solid var(--rule);
+  border-radius: 0 0 4px 4px;
+  margin-top: 4px;
+  padding-top: 8px;
+  color: var(--muted);
+}
+
+/* Before the frame: signing in, and a first company */
+
+.gate {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.gate-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 28px;
+}
+
+.link-button {
+  font: inherit;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  color: var(--link);
+  cursor: pointer;
+}
+
+.link-button[aria-current="true"] {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.gate-card {
+  align-self: center;
+  width: min(440px, calc(100vw - 32px));
+  box-sizing: border-box;
+  margin: 8vh 16px 0;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 32px;
+  animation: rise var(--enter) var(--ease-out);
+}
+
+.gate-alert {
+  margin: 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--disputed);
+  color: var(--disputed);
+}
+
+.gate-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.gate-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.gate-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.gate-form input,
+.gate-form select {
+  font: inherit;
+  font-weight: 400;
+  background: var(--white);
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  padding: 7px 10px;
+}
+
 /* Left column: the Knowledge area */
 
 .body {
   flex: 1;
   display: flex;
   align-items: stretch;
+}
+
+/* While the page changes whom it acts as, the frame on screen takes no clicks (inert); it fades
+   only when the change is slow, so a quick one does not flash. */
+.app[inert] .body {
+  opacity: 0.6;
+  transition: opacity 0.2s ease 0.3s;
 }
 
 .left {

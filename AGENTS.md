@@ -72,7 +72,7 @@ producer name, its consumer group and the first part of its model task names.
 ## Contracts
 
 - `libs/contracts/schema/*.yaml` is the source of truth. Never edit
-  `dist/inspiration.schema.json`, `src/generated.ts` or `src/events.ts`; run
+  `dist/inspiration.schema.json`, `src/generated.ts`, `src/business.ts` or `src/events.ts`; run
   `pnpm contracts` after changing a schema.
 - Additive changes (a new optional field, a new type) are fine in your branch; say so in the
   PR. Anything that removes, renames or tightens a field, or changes an event payload, needs

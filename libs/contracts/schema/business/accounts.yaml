@@ -1,0 +1,83 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: business/accounts.yaml
+title: Accounts in the browser API
+description: >
+  The business backend's browser API (apps/business, under /api/) for the signed-in account:
+  its session, its language and signing out. A person has one account (the user) and a
+  member in each company they belong to. User IDs never leave the backend, so none appears
+  here. Business-layer types: engine packages never import them.
+
+$defs:
+  UiLocale:
+    description: The account's language, for the web app and for anything the engine writes for it.
+    type: string
+    enum: [en, zh-CN, ja]
+
+  Account:
+    description: The signed-in person, as the account settings show them.
+    type: object
+    required: [name, email, locale]
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+      email:
+        description: The verified address the person signs in with.
+        type: string
+        format: email
+      locale:
+        $ref: "#/$defs/UiLocale"
+
+  Session:
+    description: >
+      Who is signed in, the companies they belong to, and the one they are working in. GET
+      /api/session answers it, or 401 when nobody is signed in; every call that changes the
+      account or the current company answers it too.
+    type: object
+    required: [account, companies]
+    additionalProperties: false
+    properties:
+      account:
+        $ref: "#/$defs/Account"
+      companies:
+        description: The companies the account is an active member of, by name.
+        type: array
+        items:
+          $ref: "companies.yaml#/$defs/CompanyEntry"
+      current:
+        description: The company the person works in now; absent until they create or join one.
+        $ref: "companies.yaml#/$defs/CurrentMember"
+
+  AccountChange:
+    description: PATCH /api/account.
+    type: object
+    minProperties: 1
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+        minLength: 1
+        maxLength: 100
+      locale:
+        $ref: "#/$defs/UiLocale"
+
+  SwitchCompany:
+    description: POST /api/session, to work in another company the account belongs to.
+    type: object
+    required: [tenant_id]
+    additionalProperties: false
+    properties:
+      tenant_id:
+        $ref: "../common.yaml#/$defs/TenantId"
+
+  SignOut:
+    description: >
+      The answer to POST /api/auth/sign-out. The session is over; the page goes to next, the
+      identity provider's own sign-out, so a shared computer is signed out there too.
+    type: object
+    required: [next]
+    additionalProperties: false
+    properties:
+      next:
+        type: string
+        format: uri

@@ -18,8 +18,8 @@ is in [README.zh.md](README.zh.md); if the two differ, this English version wins
 - `files.yaml` says when each file last changed, as the company drive would report it.
   `Corpus.stamp` gives each file that time on ingest and serve, so governance and freshness see
   the same ages on every checkout.
-- `people.yaml` names eight members, whom the web app's stand-in backend offers to act as in
-  place of signing in; `script.yaml` is the demo in order (below).
+- `people.yaml` names eight members. The web app's stand-in backend signs in as the first and
+  offers each one to act as; `script.yaml` is the demo in order (below).
 - `updates/` holds the demo's upstream edit (below); no source reads it.
 
 Run it through the engine with `pnpm bench ingest examples/corpus` (see `apps/bench`). With
@@ -117,7 +117,8 @@ opens and what to look at or do there, in each interface language. Two steps mov
 
 `updates/travel-policy-revised` is the upstream edit: edition 7 of the travel policy, in
 effect from 2026-11-01, with the tier-1 cap at 650. Putting it in copies its files over the
-served copy of the corpus and syncs 财务制度 as 周敏. The policy's 600 row is superseded and its
+served copy of the corpus, dated 2026-11-04 as its `update.yaml` says, so a recording made on
+another day reads the same, and syncs 财务制度 as 周敏. The policy's 600 row is superseded and its
 tier-1 row holds 650, the hotel todo has nothing left to ask, and the space overview lists the
 policy as updated. Answers still give 650 and mark the FAQ's and minutes' 600 as outdated; they
 cite the price list, not yet the revised policy.
