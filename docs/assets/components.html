@@ -17,6 +17,17 @@
   --font-sans: "IBM Plex Sans", "Noto Sans SC", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", "Noto Sans SC", ui-monospace, monospace;
 }
+:root[data-theme="dark"] {
+  --bg: #0E1412; --surface: #151D1A; --sunk: #1B2521; --band: #141C19;
+  --ink: #E2EAE6; --muted: #9DABA5; --faint: #6F7C77; --line: #2B3632;
+  --event: #3DC2A9; --event-soft: #173A33;
+  --sync: #9898F2; --sync-soft: #25264A;
+  --ext: #BFA77C;
+  --platform: #1C2622; --platform-line: #3A4843;
+  --oss: #18232E; --oss-line: #36506A; --oss-ink: #8FB8DA; --oss-planned: #141C24;
+  --agent: #E895B6; --agent-soft: #3A1F2B;
+  --planned: #6A7772;
+}
 html[lang="ja"] { --font-sans: "IBM Plex Sans", "Noto Sans JP", system-ui, sans-serif; --font-mono: "IBM Plex Mono", "Noto Sans JP", ui-monospace, monospace; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-sans); font-size: 14px; }
@@ -63,6 +74,7 @@ svg#dia { display: block; width: 1070px; height: auto; }
 (() => {
   const lang = new URLSearchParams(location.search).get("lang") || "en";
   document.documentElement.lang = lang;
+  if (new URLSearchParams(location.search).get("theme") === "dark") document.documentElement.dataset.theme = "dark";
   // One entry per language: [en, zh, ja].
   const I = { en: 0, zh: 1, ja: 2 }[lang];
   const t = v => Array.isArray(v) ? v[I] : v;

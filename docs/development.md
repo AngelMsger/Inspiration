@@ -125,8 +125,8 @@ publishes it to GitHub Pages from `main`.
 
 The architecture diagrams in `docs/assets/` are drawn by `components.html` and `deployment.html`
 beside them, one file per figure with its words in English, Chinese and Japanese. Open one in a
-browser with `?lang=en`, `zh` or `ja`, and screenshot the `#fig` element at twice its size into
-`<figure>.<lang>.png`. When a component is built, take the `planned` flag off it there and redraw.
+browser with `?lang=en`, `zh` or `ja` (and `&theme=dark` for the dark version), and screenshot the
+`#fig` element at twice its size into `<figure>.<lang>.png` (or `<figure>.<lang>.dark.png`). When a component is built, take the `planned` flag off it there and redraw.
 
 ## Where things live
 

@@ -146,7 +146,10 @@ flowchart LR
 **一个仓库，两层。** **引擎**是知识的记录系统，没有界面：给定租户和主体，它回答知道什么、出处在哪、谁能看、是否仍然成立。**业务层**是围绕引擎的产品：账号、公司、邀请、通知和 Web 应用。调用向下，事件向上，引擎从不依赖业务层；任何试图这样做的改动都会让测试失败。
 
 <div align="center">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/assets/components.zh.dark.png">
 <img src="docs/assets/components.zh.png" alt="组件图，按阶段从来源到使用分行：调研与外部数据源；source-sync、connectors 和 parsing；normalization 和 extraction；freshness 和 governance；page-compiler 和 collaboration；retrieval、agent-api 和 views；Web 应用与业务后端、人和外部 Agent。blocks.changed、claims.updated、artifact.dirty、page.rendered 等事件把它们连起来。右侧平台服务一列：契约、事件总线、知识库、鉴权、模型网关、Agent 运行时、凭据代理和沙箱。计划中：research、agent-api、views、credential-broker 和 sandbox。" width="100%">
+</picture>
 </div>
 
 <sub>按阶段排列的每个组件，以及它们之间的事件（实线）和调用（虚线）；右侧的平台服务供所有组件使用。虚线框表示计划中。[总览](docs/zh/overview.md)的图 10 给每个组件列出了对应的外部同类项目，并说明我们复用了什么。</sub>
@@ -171,7 +174,10 @@ flowchart LR
 <details>
 <summary><b>怎么部署：</b>服务、开源组件以及它们怎么连接</summary>
 <br>
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/assets/deployment.zh.dark.png">
 <img src="docs/assets/deployment.zh.png" alt="部署图。上游：数据源、深度调研、模型 API 和本地推理。写入侧：接入、编译、解析和模型网关。存储与事件：Valkey Streams；PostgreSQL 16，内有知识表、pgvector、pg_search、每个组件一个 schema、outbox、账户与企业，以及 spicedb 和 logto 库；SpiceDB。读取侧：Agent 接口、检索与协作、Web 与业务后端、鉴权。使用方：调用方 Agent、交互视图、用户和 Logto。计划中的凭据与隔离执行：gVisor、沙箱执行器、凭据代理和 OpenBao。今天它是一个 compose 栈，引擎是一个进程。" width="100%">
+</picture>
 </details>
 
 更多内容见[架构](docs/zh/architecture.md)、[契约](docs/zh/contracts.md)和[总览](docs/zh/overview.md)的第二部分。

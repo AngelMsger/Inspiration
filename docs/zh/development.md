@@ -76,7 +76,7 @@ curl -s localhost:8100/healthz
 
 ## 重画架构图
 
-`docs/assets/` 里的架构图由旁边的 `components.html` 和 `deployment.html` 画出，每张图一个文件，文字有英文、中文和日文。用浏览器以 `?lang=en`、`zh` 或 `ja` 打开，把 `#fig` 元素按两倍尺寸截图，存为 `<图名>.<语言>.png`。某个组件构建完成后，在那里去掉它的 `planned` 标记再重画。
+`docs/assets/` 里的架构图由旁边的 `components.html` 和 `deployment.html` 画出，每张图一个文件，文字有英文、中文和日文。用浏览器以 `?lang=en`、`zh` 或 `ja` 打开（深色版再加 `&theme=dark`），把 `#fig` 元素按两倍尺寸截图，存为 `<图名>.<语言>.png`（深色版为 `<图名>.<语言>.dark.png`）。某个组件构建完成后，在那里去掉它的 `planned` 标记再重画。
 
 ## 东西都在哪里
 

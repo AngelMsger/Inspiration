@@ -116,7 +116,10 @@ One repository makes boundaries a matter of checks rather than of repository wal
 | Serve | retrieval, agent-api, views | Hybrid search and grounded answers, MCP and REST for agents, sandboxed interactive views |
 | Control | collaboration, access-control, model-gateway, agent-runtime, credential-broker, sandbox | The inbox, comments and proposals, permissions, every model call, the loop built-in agents run on, source connections and their credentials, isolated jobs for code we did not write (vendor CLIs and MCP servers) and render checks |
 
-![Every component by stage, with the events and calls between them](assets/components.en.png)
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="assets/components.en.dark.png">
+<img src="assets/components.en.png" alt="Every component by stage, with the events and calls between them">
+</picture>
 
 The figure draws each component in its stage, the events between components as solid lines and
 the synchronous calls as dashed ones. The platform services on the right serve every component.
@@ -303,7 +306,10 @@ interfaces are the seams for splitting later: the model gateway already runs as 
 HTTP service (`inspiration-gateway`) with a client that raises the same errors, and the
 event bus lets consumers run anywhere that reaches Valkey.
 
-![The services, the open-source parts and how they connect](assets/deployment.en.png)
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="assets/deployment.en.dark.png">
+<img src="assets/deployment.en.png" alt="The services, the open-source parts and how they connect">
+</picture>
 
 The figure groups the components into the services they split into as load grows, beside the
 open-source parts they run on. Today the groups all run in the engine's one process; the business

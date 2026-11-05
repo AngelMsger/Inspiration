@@ -146,7 +146,10 @@ flowchart LR
 **1 つのリポジトリに 2 つの層。** **エンジン**は画面を持たないナレッジの記録システムです。テナントとプリンシパルを受け取り、何がわかっているか、出典はどこか、誰が見てよいか、今も正しいかに答えます。**ビジネス層**はその周りの製品で、アカウント、会社、招待、通知、Web アプリを担います。呼び出しは下へ、イベントは上へ流れ、エンジンがビジネス層に依存することはありません。そうしようとする変更はテストで失敗します。
 
 <div align="center">
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/assets/components.ja.dark.png">
 <img src="docs/assets/components.ja.png" alt="コンポーネント図。ソースから利用まで段階ごとの行：リサーチと外部のデータソース、source-sync・connectors・parsing、normalization・extraction、freshness・governance、page-compiler・collaboration、retrieval・agent-api・views、Web アプリと業務層・人・外部エージェント。blocks.changed、claims.updated、artifact.dirty、page.rendered などのイベントがそれらをつなぎます。右のプラットフォーム列：コントラクト、イベントバス、ナレッジストア、アクセス制御、モデルゲートウェイ、エージェント実行基盤、認証情報ブローカー、サンドボックス。予定：research、agent-api、views、credential-broker、sandbox。" width="100%">
+</picture>
 </div>
 
 <sub>段階ごとに並べたすべてのコンポーネントと、その間のイベント（実線）と呼び出し（破線）。右のプラットフォームサービスはすべてのコンポーネントが使います。破線の枠は予定です。各コンポーネントに相当する外部の製品と、私たちが再利用しているものは、[overview](docs/overview.md#9-architecture-at-a-glance) の Figure 10 にあります。</sub>
@@ -171,7 +174,10 @@ flowchart LR
 <details>
 <summary><b>デプロイの形：</b>サービス、オープンソース部品、それらのつながり</summary>
 <br>
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="docs/assets/deployment.ja.dark.png">
 <img src="docs/assets/deployment.ja.png" alt="デプロイ図。上流：データソース、リサーチ、モデル API、ローカル推論。書き込み側：取り込み、コンパイル、解析、モデルゲートウェイ。ストレージとイベント：Valkey Streams、PostgreSQL 16（知識テーブル、pgvector、pg_search、コンポーネントごとの schema、outbox、アカウントと企業、spicedb と logto の DB）、SpiceDB。読み取り側：エージェント API、検索と協働、Web と業務層、アクセス制御。利用者：外部エージェント、ビュー、ユーザー、Logto。予定の認証情報と隔離実行：gVisor、サンドボックス、認証情報ブローカー、OpenBao。現在は compose スタック 1 つで、エンジンは 1 プロセスです。" width="100%">
+</picture>
 </details>
 
 詳しくは [Architecture](docs/architecture.md)、[Contracts](docs/contracts.md)、[overview](docs/overview.md) の Part II を参照してください。
