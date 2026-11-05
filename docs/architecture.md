@@ -39,9 +39,12 @@ owner (or a tenant admin) an overview of the space: its open work, the facts its
 in dispute, its documents by governance level and the latest changes. The writes so far are
 resolving a todo and, for a space's owner, syncing a source now; both answer once the engine
 has read everything they caused. Every read is checked against the member's permissions,
-and anything the member may not read answers as if it did not exist. Until the business layer
-signs principal tokens, a request names its tenant and member in the `x-inspiration-tenant`
-and `x-inspiration-member` headers, a development stand-in that listens on localhost only. The
+and anything the member may not read answers as if it did not exist. A request carries a
+principal token, a JWT the business layer signs with Ed25519 (`signJwt` in the kernel, which
+both layers use) and access control verifies against the business layer's published keys
+(`TokenVerifier`); its scopes bound what the request may do. For development, `--dev-identity`
+also lets a request name its tenant and member in the `x-inspiration-tenant` and
+`x-inspiration-member` headers, a stand-in that listens on localhost only. The
 web app's own backend is a stand-in too (`apps/web/src/backend.ts`): a person picks whom to act
 as, and only the backend sets those headers. `pnpm demo` runs both over the demo tenant, and
 `pnpm snapshot` records the demo script through both into a static page that answers from the

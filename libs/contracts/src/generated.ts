@@ -65,6 +65,17 @@ export type PrincipalKind = "member" | "group" | "department" | "agent" | "servi
 export type TenantId = string;
 export type Permission = "discover" | "read" | "comment" | "edit" | "verify" | "publish" | "admin";
 /**
+ * A grant a principal token carries. knowledge.read reads; knowledge.propose resolves todos, syncs a source and proposes changes; knowledge.write and comments.write are for agents acting on a member's request; provision.directory provisions tenants and members, for the business layer's tenancy service.
+ *
+ */
+export type Scope =
+  | "knowledge.read"
+  | "knowledge.propose"
+  | "knowledge.write"
+  | "comments.write"
+  | "provision.directory";
+export type Locale = string;
+/**
  * Capability class the caller needs. The gateway maps tiers to concrete models per deployment, so callers never hard-code a model name.
  *
  */
@@ -236,7 +247,6 @@ export type CommentId = string;
 export type ProposalKind =
   "edit_block" | "add_block" | "remove_block" | "restructure" | "claim_change";
 export type ClaimChangeOp = "add" | "retract" | "supersede" | "update";
-export type Locale = string;
 export type ClaimType =
   | "fact"
   | "rule"
@@ -562,6 +572,24 @@ export interface Principal {
    * For agents, the spaces the agent may touch. Absent means every space the member can read.
    */
   space_scope?: SpaceId[];
+  /**
+   * What the principal token lets its holder do, on top of the holder's permissions. A principal without scopes came from the engine itself (a worker or a test) and is not limited by them.
+   *
+   */
+  scopes?: Scope[];
+  locale?: Locale;
+  auth_context?: AuthContext;
+}
+/**
+ * How the session behind a token signed in. It feeds policy only (for example MFA for admin commands), never identity.
+ */
+export interface AuthContext {
+  /**
+   * The sign-in method, such as password, email_code or sso.
+   */
+  method: string;
+  mfa: boolean;
+  at: Instant;
 }
 export interface AgentSpec {
   /**
@@ -2463,6 +2491,42 @@ export interface Placement {
   confirmed: boolean;
   score?: Score01;
   placed_at: Instant;
+}
+/**
+ * The payload of a principal token: a JWT the business layer signs with EdDSA (Ed25519) and the engine verifies against the business layer's published keys (JWKS). The web backend mints one per tenant context, valid at most 5 minutes; OAuth access tokens for agents use the same claims. sub is never a user (account) ID. iat and exp are seconds since the epoch.
+ *
+ */
+export interface PrincipalClaims {
+  /**
+   * The business layer's URL.
+   */
+  iss: string;
+  /**
+   * The engine's URL, or a list that includes it.
+   */
+  aud: string | [string, ...string[]];
+  sub: PrincipalId;
+  tid: TenantId;
+  kind: PrincipalKind;
+  /**
+   * Scope values separated by single spaces.
+   */
+  scope: string;
+  locale?: Locale;
+  auth?: AuthContext;
+  obo?: PrincipalId;
+  /**
+   * For agents, the spaces they may touch.
+   */
+  spaces?: SpaceId[];
+  max_sens?: SensitivityLabel;
+  /**
+   * For agents, the grant ID, for revocation.
+   */
+  grant?: string;
+  iat: number;
+  exp: number;
+  jti: string;
 }
 export interface ProcessOrigin {
   source_version_id: SourceVersionId;

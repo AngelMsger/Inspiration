@@ -1,0 +1,13 @@
+{
+  "iss": "https://app.inspiration.example",
+  "aud": "https://engine.inspiration.example",
+  "sub": "mem_01QINGHE0000000000ZHOUMIN",
+  "tid": "ten_01QINGHE000000000000000001",
+  "kind": "member",
+  "scope": "knowledge.read knowledge.propose",
+  "locale": "zh-CN",
+  "auth": { "method": "password", "mfa": false, "at": "2026-11-05T02:58:00Z" },
+  "iat": 1793847600,
+  "exp": 1793847900,
+  "jti": "tok_01JB8Z6Q3W5Y7R9T1V3X5Z7B9D"
+}

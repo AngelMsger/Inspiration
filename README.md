@@ -65,9 +65,9 @@ may cost: the answer gives the hotel price list's 650 and says the travel policy
 tier-1 row says 650:
 
 ```bash
-pnpm demo                                    # the engine on port 4100, the web app on 5173
-pnpm engine serve examples/corpus            # the engine's HTTP API alone
-pnpm snapshot dist/snapshot                  # record the demo script as a static page
+pnpm demo                                          # the engine on port 4100, the web app on 5173
+pnpm engine serve examples/corpus --dev-identity   # the engine's HTTP API alone, trusting identity headers
+pnpm snapshot dist/snapshot                        # record the demo script as a static page
 ```
 
 The demo script (`examples/corpus/script.yaml`) lists those steps, each with the person who
