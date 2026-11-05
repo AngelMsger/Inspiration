@@ -15,6 +15,16 @@ import { createTestDatabase, VALKEY_URL } from "./stack.ts";
 export * from "./data.ts";
 export * from "./stack.ts";
 
+/**
+ * Whether to leave out the corpus runs that take minutes: the whole company drive, and the
+ * Kubernetes pages and the GitLab policy history on the stack. `make check` sets
+ * INSPIRATION_QUICK=1; CI and `make check-full` run them. The Kubernetes pages and the policy
+ * history still run in memory, which checks the same numbers.
+ */
+export function quick(): boolean {
+  return process.env.INSPIRATION_QUICK === "1";
+}
+
 /** Whether the global setup found the compose stack. */
 export function hasStack(): boolean {
   return inject("inspirationStack");

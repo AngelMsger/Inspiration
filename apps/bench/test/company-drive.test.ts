@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Corpus, Engine } from "@inspiration/engine";
 import { languageOf } from "@inspiration/kernel";
+import { quick } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
 import { parse } from "yaml";
 import {
@@ -97,9 +98,10 @@ describe("the company drive", () => {
   });
 
   // In memory only: this measures the pipeline on 311,000 tokens, and kubernetes.test.ts runs
-  // the question check on the stack.
+  // the question check on the stack. It takes minutes, so `make check` leaves it out.
   test("the engine, a mature RAG and a model reading everything, raw and governed, answer the same questions", {
     timeout: 300_000,
+    skip: quick(),
   }, async () => {
     const work = await mkdtemp(join(tmpdir(), "inspiration-drive-"));
     await cp(DRIVE, join(work, "company-drive"), { recursive: true });
