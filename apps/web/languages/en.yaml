@@ -92,7 +92,7 @@ upload.same: "{count} unchanged"
 upload.failed: "{count} not uploaded"
 upload.retry: Try again
 upload.clear: Clear
-upload.reading: The files are in the space now. Reading them runs in the background.
+upload.reading: The files are in the space now. Reading them runs in the background, and the list shows how it goes.
 upload.reason.too_large: Larger than 50 MB, the most a file may be.
 upload.reason.unsupported: "Not a kind of file Inspiration reads yet. It reads Word, PowerPoint, Excel, PDF, Markdown, text, HTML and CSV."
 upload.reason.forbidden: You can't add files to this space.
@@ -103,6 +103,20 @@ upload.new_version: Upload a new version
 upload.sending_one: Uploading…
 upload.same_version: That file is the same as this version.
 upload.other_kind: "A new version must be a {ext} file too."
+
+reading.waiting: Waiting to be read
+reading.reading: Being read
+reading.paused: Reading paused
+reading.failed: "Couldn't be read"
+reading.count.waiting: "{count} waiting to be read"
+reading.count.reading: "{count} being read"
+reading.count.paused: "{count} paused"
+reading.count.failed: "{count} couldn't be read"
+reading.paused_hint: Paused reading carries on by itself.
+reading.doc.waiting: "Inspiration hasn't read this document yet. Its text shows here once it has."
+reading.doc.reading: "Inspiration is still reading this document. You can search it already; its statements follow once reading is done."
+reading.doc.paused: Reading this document is paused and carries on by itself. You can search it meanwhile.
+reading.doc.failed: "Inspiration couldn't read this file."
 
 folder.name: Name
 folder.level: Governance level

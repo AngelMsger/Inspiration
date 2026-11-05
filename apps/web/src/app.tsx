@@ -25,6 +25,7 @@ import { TopicScreen, TopicsScreen } from "./knowledge.tsx";
 import { Palette } from "./palette.tsx";
 import { Failure } from "./parts.tsx";
 import { type Person, tagLocale } from "./people.ts";
+import { useFollowed } from "./reading.tsx";
 import { Link, navigate, type Route, useRoute } from "./route.tsx";
 import { Join, NoCompany, SignedOut } from "./signin.tsx";
 import { MaintainColumn, MaintainScreen } from "./space.tsx";
@@ -301,6 +302,8 @@ function Shell(props: {
   const inbox = useLoad(`inbox:${changes}:${synced}`, api.inbox);
   const changed = useCallback(() => setChanges((n) => n + 1), []);
   const sourcesChanged = useCallback(() => setSynced((n) => n + 1), []);
+  // Documents the engine is still reading are followed until it is done with them.
+  const followed = useFollowed(library.state === "done" ? library.value : undefined, sourcesChanged);
   const todos = useRef(0);
   if (inbox.state === "done") todos.current = countTodos(inbox.value);
   useEffect(() => {
@@ -338,18 +341,18 @@ function Shell(props: {
       <div className="body">
         {route.name === "admin" && <AdminArea route={route} session={props.session} />}
         {route.name !== "admin" && library.state === "failed" && <Failure error={library.error} />}
-        {route.name !== "admin" && library.state === "done" && (
+        {route.name !== "admin" && followed && (
           <>
             {route.name === "maintain" ? (
-              <MaintainColumn route={route} library={library.value} />
+              <MaintainColumn route={route} library={followed} />
             ) : (
               route.name !== "document" && (
-                <LeftColumn route={route} library={library.value} person={person} todos={todos.current} />
+                <LeftColumn route={route} library={followed} person={person} todos={todos.current} />
               )
             )}
             <Screen
               route={route}
-              library={library.value}
+              library={followed}
               person={person}
               people={people}
               inbox={inbox}
@@ -360,9 +363,9 @@ function Shell(props: {
           </>
         )}
       </div>
-      {palette && library.state === "done" && (
+      {palette && followed && (
         <Palette
-          library={library.value}
+          library={followed}
           people={demo ?? []}
           onActAs={(m) => void props.onActAs(m)}
           onLanguage={props.onLanguage}

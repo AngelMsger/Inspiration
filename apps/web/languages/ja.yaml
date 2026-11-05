@@ -92,7 +92,7 @@ upload.same: "{count} 件は変更なし"
 upload.failed: "{count} 件はアップロードされませんでした"
 upload.retry: もう一度
 upload.clear: クリア
-upload.reading: ファイルはスペースに入りました。読み込みはバックグラウンドで進みます。
+upload.reading: ファイルはスペースに入りました。読み込みはバックグラウンドで進み、一覧で進み具合がわかります。
 upload.reason.too_large: 50 MB を超えています。これが 1 ファイルの上限です。
 upload.reason.unsupported: この種類のファイルはまだ読めません。読めるのは Word、PowerPoint、Excel、PDF、Markdown、テキスト、HTML、CSV です。
 upload.reason.forbidden: このスペースにはファイルを追加できません。
@@ -103,6 +103,20 @@ upload.new_version: 新しい版をアップロード
 upload.sending_one: アップロード中…
 upload.same_version: このファイルは今の版と同じです。
 upload.other_kind: "新しい版も {ext} ファイルにしてください。"
+
+reading.waiting: 読み込み待ち
+reading.reading: 読み込み中
+reading.paused: 読み込み一時停止中
+reading.failed: 読み込めませんでした
+reading.count.waiting: "{count} 件が読み込み待ち"
+reading.count.reading: "{count} 件を読み込み中"
+reading.count.paused: "{count} 件が一時停止中"
+reading.count.failed: "{count} 件は読み込めませんでした"
+reading.paused_hint: 一時停止した読み込みは自動で再開します。
+reading.doc.waiting: Inspiration はまだこのドキュメントを読み込んでいません。読み込むと本文がここに表示されます。
+reading.doc.reading: Inspiration がこのドキュメントを読み込んでいます。すでに検索でき、読み込みが終わると記述が表示されます。
+reading.doc.paused: このドキュメントの読み込みは一時停止中で、自動で再開します。その間も検索できます。
+reading.doc.failed: Inspiration はこのファイルを読み込めませんでした。
 
 folder.name: 名前
 folder.level: ガバナンスレベル

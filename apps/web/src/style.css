@@ -1655,6 +1655,54 @@ a.secondary {
   overflow-wrap: anywhere;
 }
 
+/* Reading progress: quiet while the engine reads, red only for a file it could not read. */
+.reading-tag {
+  font-size: 12px;
+  border-radius: 3px;
+  padding: 0 6px;
+  margin-left: 8px;
+  white-space: nowrap;
+  color: var(--muted);
+  background: var(--rule);
+}
+
+.reading-tag.reading-failed {
+  color: var(--disputed);
+  background: var(--disputed-bg);
+}
+
+.reading-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: -8px 0 0;
+}
+
+.reading-note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--rule-strong);
+  background: var(--ground);
+  font-family: var(--sans);
+  font-size: 13.5px;
+}
+
+.reading-note.reading-failed {
+  border-left-color: var(--disputed);
+}
+
+.reading-note p {
+  margin: 0;
+}
+
+.reading-detail {
+  font-size: 12.5px;
+  overflow-wrap: anywhere;
+}
+
 /* On a phone the admin column becomes a row above the page, since its pages have no other way in. */
 @media (max-width: 760px) {
   .body:has(.left-admin) {

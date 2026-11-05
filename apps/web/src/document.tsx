@@ -3,12 +3,15 @@
 // selected passage only.
 
 import type { DocumentView, SourceBlock } from "@inspiration/contracts";
-import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { api, type Library, useLoad } from "./api.ts";
+import { documentsOf } from "./documents.tsx";
 import { citedAt, remember } from "./home.tsx";
 import { highlight, type Mark, marksOf, type Passage, passages, type Quote, weakest } from "./marks.ts";
 import { Crumbs, Failure, formatDate, Standing } from "./parts.tsx";
 import type { Person } from "./people.ts";
+import { stateOf } from "./reading.ts";
+import { ReadingNote } from "./reading.tsx";
 import { type DocumentRoute, Link, navigate } from "./route.tsx";
 import { NewVersion, UPLOADS } from "./upload.tsx";
 import { mayUpload } from "./uploads.ts";
@@ -25,14 +28,29 @@ export function DocumentScreen(props: {
   // A new version is read again; the documents list follows.
   const [versions, setVersions] = useState(0);
   const key = route.version ?? `${route.source}|${route.item}`;
-  const loaded = useLoad(`document:${key}:${versions}`, () => api.document(route));
-  if (loaded.state !== "done") {
+  // While the engine reads the latest version, the library follows it; the document is opened
+  // again each time its reading state changes, and the one opened before stays on screen meanwhile.
+  const entry = route.version
+    ? undefined
+    : documentsOf(props.library, say).find(
+        (d) => d.entry.source_id === route.source && d.entry.external_id === route.item,
+      )?.entry;
+  const loaded = useLoad(`document:${key}:${versions}:${entry ? stateOf(entry) : "read"}`, () => api.document(route));
+  const last = useRef<{ key: string; view: DocumentView }>(undefined);
+  if (loaded.state === "done") last.current = { key, view: loaded.value };
+  const view =
+    loaded.state === "done"
+      ? loaded.value
+      : loaded.state === "loading" && last.current?.key === key
+        ? last.current.view
+        : undefined;
+  if (!view) {
     return (
       <main className="reading">
-        {loaded.state === "loading" ? (
-          <p className="quiet">{say("doc.reading")}</p>
-        ) : (
+        {loaded.state === "failed" ? (
           <Failure error={loaded.error} notFound={say("doc.not_found")} />
+        ) : (
+          <p className="quiet">{say("doc.reading")}</p>
         )}
       </main>
     );
@@ -41,7 +59,7 @@ export function DocumentScreen(props: {
     setVersions((n) => n + 1);
     props.onSourcesChanged();
   };
-  return <Reading {...props} view={loaded.value} onNewVersion={changed} />;
+  return <Reading {...props} view={view} onNewVersion={changed} />;
 }
 
 function Reading(props: {
@@ -149,6 +167,7 @@ function Reading(props: {
               </span>
             )}
           </div>
+          <ReadingNote entry={view.document} />
           {list
             .filter((p, i) => !(i === 0 && p.block.kind === "heading" && p.block.text === view.document.title))
             .map((p) => (
