@@ -66,16 +66,18 @@ function Reading(props: {
   const uploaded = library.trees
     .get(view.space_id ?? "")
     ?.sources.some((s) => s.source_id === view.document.source_id && s.source_type === UPLOADS);
+  // The uploads' name is stored in English; the reader sees it in their language.
+  const sourceName = uploaded ? say("uploads.name") : view.source_name;
   const outdated = view.annotations.statements.filter((s) => s.standing === "outdated").length;
 
   useEffect(() => {
     remember(person.member, {
       title: view.document.title,
-      where: [space?.name, view.source_name].filter(Boolean).join(" · "),
+      where: [space?.name, sourceName].filter(Boolean).join(" · "),
       source: view.document.source_id,
       item: view.document.external_id,
     });
-  }, [person.member, view, space]);
+  }, [person.member, view, space, sourceName]);
   // Arriving from a citation brings the cited passage into view; a click leaves the page still.
   const cited = route.span ? selected?.block.id : undefined;
   useEffect(() => {
@@ -100,7 +102,7 @@ function Reading(props: {
               ),
               space && (
                 <Link key="source" to={{ ...top, source: view.document.source_id }}>
-                  {view.source_name}
+                  {sourceName}
                 </Link>
               ),
               ...folders.map((name, i) => (
@@ -132,7 +134,7 @@ function Reading(props: {
         <article className="paper">
           <h1>{view.document.title}</h1>
           <div className="meta">
-            <span>{[view.source_name, ...folders].join(" · ")}</span>
+            <span>{[sourceName, ...folders].join(" · ")}</span>
             <span>{say("doc.level", { level: say(`level.${view.document.governance_level}`) })}</span>
             <span>{say("doc.synced", { date: formatDate(tag, view.document.fetched_at) })}</span>
             {uploaded && space && mayUpload(space) && !route.version && (

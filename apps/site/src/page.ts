@@ -227,9 +227,12 @@ function cited(text: string): string {
 /** The kinds of source the hero figure and the sources section show, in their order. */
 const SOURCE_KINDS = ["document", "approval", "code", "research"] as const;
 
-function header(c: PageContext): string {
+/**
+ * The language menu, in the header and again in the footer. A menu rather than a row of names,
+ * so the page holds however many languages there are packs for.
+ */
+function languageMenu(c: PageContext): string {
   const p = c.pack;
-  // A menu rather than a row of names, so the header holds however many languages there are.
   const langs = c.packs
     .map(({ tag, pack }) =>
       tag === c.tag
@@ -237,6 +240,14 @@ function header(c: PageContext): string {
         : `<li><a href="${c.href(tag)}" hreflang="${pack.meta.htmlLang}" lang="${pack.meta.htmlLang}">${esc(pack.meta.name)}</a></li>`,
     )
     .join("");
+  return `<details class="lang-menu">
+        <summary aria-label="${esc(`${p.nav.language}: ${p.meta.name}`)}">${icon("globe", 17, "lang-globe")}<span>${esc(p.meta.name)}</span>${icon("chevron", 14, "lang-chevron")}</summary>
+        <ul>${langs}</ul>
+      </details>`;
+}
+
+function header(c: PageContext): string {
+  const p = c.pack;
   return `<header class="top">
   <div class="wrap top-row">
     <a class="wordmark" href="#top">Inspiration</a>
@@ -249,10 +260,7 @@ function header(c: PageContext): string {
     </nav>
     <div class="top-tools">
       <a class="gh" href="${REPOSITORY}" aria-label="${esc(p.nav.github)}" title="${esc(p.nav.github)}">${GITHUB_MARK}<span>GitHub</span></a>
-      <details class="lang-menu">
-        <summary aria-label="${esc(`${p.nav.language}: ${p.meta.name}`)}">${icon("globe", 17, "lang-globe")}<span>${esc(p.meta.name)}</span>${icon("chevron", 14, "lang-chevron")}</summary>
-        <ul>${langs}</ul>
-      </details>
+      ${languageMenu(c)}
       <script>${c.scripts.menu}</script>
     </div>
   </div>
@@ -645,15 +653,12 @@ function enterprise(c: PageContext): string {
 }
 
 function footer(c: PageContext): string {
-  const langs = c.packs
-    .map(({ tag, pack }) => `<a href="${c.href(tag)}" lang="${pack.meta.htmlLang}">${esc(pack.meta.name)}</a>`)
-    .join("");
   return `<footer class="foot">
   <div class="wrap foot-row">
     <span class="wordmark">Inspiration</span>
     <p>${esc(c.pack.footer.line)}</p>
     <a class="foot-gh" href="${REPOSITORY}">${GITHUB_MARK}GitHub</a>
-    <nav class="langs" aria-label="${esc(c.pack.nav.language)}">${langs}</nav>
+    ${languageMenu(c)}
   </div>
 </footer>`;
 }
