@@ -1,6 +1,6 @@
 // The admin area, where a super admin runs the company: who its members are, their role, the
-// invite links that bring new ones in, every member's access tokens (apps.tsx), and its spaces
-// with their space owners (admin-spaces.tsx).
+// invite links that bring new ones in, every member's access tokens (apps.tsx), its spaces
+// with their space owners (admin-spaces.tsx), and a month of its usage (usage.tsx).
 // It has a dark left column under "Admin" and the company's name, so it never passes for
 // reading. Anyone else who opens it is told who can; the business backend and the engine refuse
 // their calls too.
@@ -13,6 +13,7 @@ import { type ApiFailure, api, type Loaded, useLoad } from "./api.ts";
 import { AdminTokens } from "./apps.tsx";
 import { CopyField, Crumbs, Failure, formatDate, TwoStep, useChange } from "./parts.tsx";
 import { Link, type Route } from "./route.tsx";
+import { UsageScreen } from "./usage.tsx";
 import { useWords } from "./words.ts";
 
 type AdminRoute = Extract<Route, { name: "admin" }>;
@@ -61,7 +62,9 @@ export function AdminArea(props: { route: AdminRoute; session: Session }) {
             ),
             route.page === "space" && spaceName,
           ]
-        : [say("admin.title"), say("admin.people"), say(`admin.${section}`)]}
+        : section === "usage"
+          ? [say("admin.title"), say("admin.billing"), say("admin.usage")]
+          : [say("admin.title"), say("admin.people"), say(`admin.${section}`)]}
     </Crumbs>
   );
   return (
@@ -95,6 +98,8 @@ export function AdminArea(props: { route: AdminRoute; session: Session }) {
               say("admin.spaces"),
               lengthOf(spaces, (v) => v.spaces),
             )}
+            <div className="nav-heading">{say("admin.billing")}</div>
+            {item("usage", say("admin.usage"), undefined)}
           </>
         )}
       </nav>
@@ -106,6 +111,8 @@ export function AdminArea(props: { route: AdminRoute; session: Session }) {
           <AdminSpace id={route.space} spaces={spaces} members={members} company={company} onChanged={changed} />
         ) : route.page === "spaces" ? (
           <AdminSpaces spaces={spaces} members={members} company={company} onChanged={changed} />
+        ) : route.page === "usage" ? (
+          <UsageScreen company={company} members={members} spaces={spaces} />
         ) : route.page === "tokens" ? (
           <AdminTokens company={company} spaces={spaces} />
         ) : route.page === "invites" ? (

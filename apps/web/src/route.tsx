@@ -29,7 +29,7 @@ export type Route =
   | { name: "topic"; key: string }
   | { name: "documents"; space: string; source?: string; folders: string[] }
   | { name: "maintain"; space: string; page: "overview" | "topics" | "documents" | "access" }
-  | { name: "admin"; page: "members" | "invites" | "tokens" | "spaces" }
+  | { name: "admin"; page: "members" | "invites" | "tokens" | "spaces" | "usage" }
   | { name: "admin"; page: "space"; space: string }
   | { name: "join"; code: string }
   | { name: "apps" }
@@ -57,9 +57,12 @@ export function parse(url: URL): Route {
   if (knowledge?.[1]) return { name: "topics", space: decodeURIComponent(knowledge[1]) };
   const topic = url.pathname.match(/^\/topics\/([^/]+)$/);
   if (topic?.[1]) return { name: "topic", key: decodeURIComponent(topic[1]) };
-  const admin = url.pathname.match(/^\/admin(?:\/(members|invites|tokens|spaces))?$/);
+  const admin = url.pathname.match(/^\/admin(?:\/(members|invites|tokens|spaces|usage))?$/);
   if (admin) {
-    const page = admin[1] === "invites" || admin[1] === "tokens" || admin[1] === "spaces" ? admin[1] : "members";
+    const page =
+      admin[1] === "invites" || admin[1] === "tokens" || admin[1] === "spaces" || admin[1] === "usage"
+        ? admin[1]
+        : "members";
     return { name: "admin", page };
   }
   const adminSpace = url.pathname.match(/^\/admin\/spaces\/([^/]+)$/);

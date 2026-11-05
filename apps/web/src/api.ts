@@ -39,6 +39,7 @@ import type {
   Todo,
   TopicList,
   TopicView,
+  Usage,
 } from "@inspiration/contracts";
 import type {
   AccessTokenList,
@@ -185,6 +186,8 @@ function apiOf(company: () => string | undefined, frame: boolean) {
     overview: (space: string) => call<SpaceOverview>(`/v0/spaces/${encodeURIComponent(space)}/overview`),
     /** The spaces the person may administer: every space for the super admin. */
     managedSpaces: () => call<SpaceList>("/v0/spaces?manage=true"),
+    /** A month of the company's usage, the current one unless asked, for its super admin. */
+    usage: (month?: string) => call<Usage>(month ? `/v0/usage?month=${month}` : "/v0/usage"),
     /** `key` makes sending the same new space twice create it once. */
     createSpace: (body: CreateSpace, key: string) =>
       call<SpaceWritten>("/v0/spaces", body, "POST", { "idempotency-key": key }),

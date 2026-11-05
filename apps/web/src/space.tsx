@@ -8,7 +8,7 @@ import { type ReactNode, useRef, useState } from "react";
 import { SpaceAccess } from "./access.tsx";
 import { api, failureOf, type Library, type Loaded, useLoad } from "./api.ts";
 import { folderRows } from "./folders.ts";
-import { Crumbs, Failure, formatDate } from "./parts.tsx";
+import { Crumbs, Failure, formatDate, Metric } from "./parts.tsx";
 import type { Person } from "./people.ts";
 import { Link, type Route } from "./route.tsx";
 import type { Update } from "./updates.ts";
@@ -126,16 +126,6 @@ export function MaintainScreen(props: {
         </main>
       );
   }
-}
-
-function Metric(props: { label: string; value: number; children?: ReactNode }) {
-  return (
-    <div className="metric">
-      <div className="metric-label">{props.label}</div>
-      <div className="metric-value">{props.value}</div>
-      {props.children && <div className="metric-sub">{props.children}</div>}
-    </div>
-  );
 }
 
 function Overview(props: { overview: SpaceOverview }) {

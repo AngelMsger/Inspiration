@@ -365,6 +365,54 @@ spaces.gone: 这个空间不归你管理，或者已经不存在。
 spaces.pick_owner: 至少选一位空间负责人。
 spaces.save: 保存
 spaces.create: 创建空间
+admin.billing: 用量与账单
+admin.usage: 用量
+usage.month: 月份
+usage.loading: 正在统计本月用量…
+usage.lede: "{company} 的模型花了多少钱、回答得怎么样、待办交给人处理了多少，按 {zone} 的日期统计。这里只有次数、用时和费用，没有任何问题、回答或文档。"
+usage.cost: 模型费用
+usage.calls: "模型调用 {count} 次：阅读、回答和主题页"
+usage.answers: 回答
+usage.from_apps: "其中 {count} 个来自应用"
+usage.per_answer: "每个回答约 {cost}"
+usage.time: 回答用时
+usage.time_hint: "中位数，含检索；九成在 {p90} 以内"
+usage.per_hundred: 每百篇文档的待办
+usage.todos_hint: "待办 {todos} 件：替人决定 {decided} 件，留给人 {left} 件，撤销 {undone} 件"
+usage.documents: 文档
+usage.documents_hint: "已读完 {read} 篇"
+usage.documents_read: 已读完
+usage.cost_by_day: 每日模型费用
+usage.answers_by_day: 每日回答数
+usage.as_table: 以表格显示
+usage.day: 日期
+usage.budgets: 预算
+usage.budgets_hint: 显示的是现在的情况，与所选月份无关。预算用完后，它管的模型调用会停下，到下一天或下个月再恢复。
+usage.budget.extraction: 文档阅读
+usage.budget.retrieval: 回答
+usage.budget.page_compiler: 主题页编写
+usage.budget.pooled: 所有企业合计
+usage.period.day: "{what}，今天"
+usage.period.month: "{what}，本月"
+usage.period.total: "{what}，累计"
+usage.budget.spent: "{spent} / {limit}"
+usage.budget.reached: 已用完
+usage.budget.near: 快用完了
+usage.by_member: 按成员
+usage.member: 成员
+usage.apps: 来自应用
+usage.median: 用时中位数
+usage.former_member: 已离开的成员
+usage.idle: "本月没有用量：{names}"
+usage.by_space: 按空间
+usage.space: 空间
+usage.removed_space: 已删除的空间
+usage.read_of: "{read} / {documents}"
+usage.todos: 待办
+usage.decided: 替人决定
+usage.left: 留给人
+usage.undone: 撤销
+usage.footnote: "各行加起来不一定等于总数：企业的费用还包括不记在任何成员或空间名下的维护开销；一个回答读到几个空间，就在每个空间各算一次。"
 access.title: 谁能阅读
 access.lede: "下面列出的人都能阅读这个空间的文档和知识。空间负责人始终可以阅读，由{company}的超级管理员指定。"
 access.lede_admin: 作为超级管理员，你可以把读者移出空间；添加读者由空间负责人决定。
