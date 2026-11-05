@@ -115,7 +115,7 @@ describe("uploads", () => {
   test("an editor's file is in the Documents tree at once, and read in the background", async () => {
     const put = await call(filePath(TRAVEL), {
       bytes: "# Travel policy\n\nHotels cost at most 600 a night.",
-      headers: { "content-type": "application/octet-stream", "x-inspiration-modified": "2026-11-04T09:12:00Z" },
+      headers: { "content-type": "application/octet-stream", "x-inspiration-modified": "2026-11-04T17:12:00+08:00" },
     });
     expect(put.status).toBe(200);
     expect(contractErrors("FileWritten", put.body)).toEqual([]);
@@ -216,8 +216,10 @@ describe("uploads", () => {
     expect(errorOf(await call(`/v0/spaces/${space}/files/a%07.md`, { bytes: "x" }))).toEqual([400, "bad_request"]);
     expect(errorOf(await call(`/v0/spaces/${space}/files/a%E0.md`, { bytes: "x" }))).toEqual([400, "bad_request"]);
     expect(errorOf(await call(`/v0/spaces/${space}/files/a//b.md`, { bytes: "x" }))).toEqual([400, "bad_request"]);
-    const modified = await call(filePath("a.md"), { bytes: "x", headers: { "x-inspiration-modified": "yesterday" } });
-    expect(errorOf(modified)).toEqual([400, "bad_request"]);
+    for (const modified of ["yesterday", "2026-02-30T09:00:00Z", "2026-11-04T09:12:00", "2026-11-04"]) {
+      const sent = await call(filePath("a.md"), { bytes: "x", headers: { "x-inspiration-modified": modified } });
+      expect(errorOf(sent), modified).toEqual([400, "bad_request"]);
+    }
   });
 
   test("refuses a file over 50 MiB, by its declared length or as it streams, and keeps serving", async () => {

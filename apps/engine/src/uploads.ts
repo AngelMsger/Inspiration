@@ -78,10 +78,17 @@ function decodedPath(encoded: string): string {
   }
 }
 
+/**
+ * An ISO 8601 instant with its offset, on a day the calendar has. Without the offset Date reads
+ * the server's local time, and it takes 2026-02-30 for 2 March.
+ */
 function instant(value: string): string {
+  const [, year, month, day] =
+    /^(\d{4})-(\d\d)-(\d\d)T\d\d:\d\d(?::\d\d(?:\.\d+)?)?(?:Z|[+-]\d\d:\d\d)$/.exec(value) ?? [];
+  const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
   const at = new Date(value);
-  if (!/^\d{4}-\d\d-\d\dT/.test(value) || Number.isNaN(at.getTime())) {
-    throw badRequest(`x-inspiration-modified must be an ISO 8601 instant, not ${value}`);
+  if (Number.isNaN(at.getTime()) || date.getUTCMonth() !== Number(month) - 1 || date.getUTCDate() !== Number(day)) {
+    throw badRequest(`x-inspiration-modified must be an ISO 8601 instant with its offset, not ${value}`);
   }
   return at.toISOString();
 }
