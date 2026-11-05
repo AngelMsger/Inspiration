@@ -551,7 +551,10 @@ const RESULTS: { format: "right" | "money"; bars: [number, number]; of: number }
   { format: "money", bars: [0.0012, 0.0083], of: 0.0083 },
 ];
 
-/** Where the mechanism behind the results is shown; cited as the preprint it is. */
+/**
+ * Research that supports the mechanism behind the results. It is supporting evidence, not a
+ * selling point (the product owner, 2026-11-05), so the page links it without naming it.
+ */
 const PAPER = "https://arxiv.org/abs/2611.04169v1";
 
 function results(c: PageContext): string {

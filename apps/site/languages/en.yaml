@@ -260,9 +260,9 @@ results:
   right: "{value} of {of}"
   money: "CNY {value}"
   why: >-
-    **Why it works:** a model goes wrong when its input holds rival values for the fact it is
-    asked, not when the input is long. Inspiration settles which value holds before the model reads.
-  source: Liu, 2026, preprint
+    Why it works: a model goes wrong when its input holds rival values for the fact it is asked,
+    not when the input is long. Inspiration settles which value holds before the model reads.
+  source: Research supports this.
   note: >-
     Lab results from runs on 3 and 4 November 2026: 276 questions on two topics of one test
     corpus, answered by DeepSeek V4.1 Flash. The mature RAG uses hybrid search, a reranker,

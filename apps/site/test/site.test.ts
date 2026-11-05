@@ -88,7 +88,9 @@ describe("site", () => {
       expect(section.match(/class="result"/g), path).toHaveLength(3);
       expect(section.match(/class="res-track"/g), path).toHaveLength(6);
       expect(section.match(/class="res-bar ours"/g), path).toHaveLength(3);
+      // The research behind the mechanism is linked as support, not featured: no author named.
       expect(section, path).toContain('href="https://arxiv.org/abs/2611.04169v1"');
+      expect(section, path).not.toContain("Liu");
     }
     const en = pages.get("index.html") ?? "";
     for (const shown of ["178 of 204", "164 of 204", "27 of 27", "16 of 27", "CNY 0.0012", "CNY 0.0083"])
