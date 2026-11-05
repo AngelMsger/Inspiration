@@ -88,11 +88,24 @@ afterAll(async () => {
 /** A request as a member, with a token the development issuer signs; or with the headers given. */
 async function call(
   path: string,
-  options: { member?: string; body?: unknown; anonymous?: boolean; headers?: Record<string, string>; on?: Server } = {},
+  options: {
+    member?: string;
+    body?: unknown;
+    anonymous?: boolean;
+    headers?: Record<string, string>;
+    on?: Server;
+    claims?: Record<string, unknown>;
+  } = {},
 ) {
   const { port } = (options.on ?? server).address() as AddressInfo;
   const token = () =>
-    issuer.mint({ sub: options.member ?? corpus.reader.id, tid: corpus.tenantId, kind: "member", locale: "zh-CN" });
+    issuer.mint({
+      sub: options.member ?? corpus.reader.id,
+      tid: corpus.tenantId,
+      kind: "member",
+      locale: "zh-CN",
+      ...options.claims,
+    });
   const headers: Record<string, string> = options.anonymous
     ? {}
     : (options.headers ?? { authorization: `Bearer ${token()}` });
@@ -201,6 +214,18 @@ describe("engine HTTP API", () => {
       (await call(`/v0/documents?source=${FIN_BUDGET}&item=${encodeURIComponent(BUDGET)}`, { member: ZHOU_MIN }))
         .status,
     ).toBe(200);
+  });
+
+  test("hides from a token's max_sens what is labelled above it", async () => {
+    const travel = `/v0/documents?source=${FIN_POLICIES}&item=${encodeURIComponent(TRAVEL)}`;
+    expect((await call(travel)).body).toMatchObject({ version: { sensitivity: "internal" } });
+    expect((await call(travel, { claims: { max_sens: "internal" } })).status).toBe(200);
+    const narrowed = await call(travel, { claims: { max_sens: "public" } });
+    expect([narrowed.status, narrowed.body]).toEqual([404, { error: { code: "not_found", message: "no document" } }]);
+    const tree = (await call(`/v0/spaces/${FINANCE}/documents`, { claims: { max_sens: "public" } }))
+      .body as unknown as DocumentTree;
+    const policies = tree.sources.find((s) => s.source_id === FIN_POLICIES) as DocumentTreeNode;
+    expect(titles(policies)).not.toContain(DATA.travel.title);
   });
 
   test("lists a space's topics, and shows one with every value of the facts it holds", async () => {

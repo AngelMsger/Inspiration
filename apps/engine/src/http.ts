@@ -64,6 +64,7 @@ import { ConflictError, TokenError, type TokenVerifier } from "@inspiration/acce
 import {
   type AnswerQuery,
   type ApiError,
+  allows,
   ContractError,
   type DocumentTree,
   type DocumentView,
@@ -434,6 +435,8 @@ async function document(engine: Engine, who: Principal, query: URLSearchParams):
     { type: "document", id: `${source_id}:${external_id}` },
   ]);
   if (!decision?.allow) throw notFound("document");
+  // The check reads the latest version's label; a citation may name an older one.
+  if (who.max_sensitivity && !allows(who.max_sensitivity, listed.version.sensitivity)) throw notFound("document");
   await readableSpace(engine, who, source.space_id);
   // Where the engine keeps the stored copy is its own business, not the reader's.
   const {

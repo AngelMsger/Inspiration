@@ -7,7 +7,7 @@ import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { TokenVerifier } from "@inspiration/access-control";
+import { type Jwks, jwksFromUrl, TokenVerifier } from "@inspiration/access-control";
 import { devIssuer } from "@inspiration/access-control/testing";
 import { contractErrors, type PutMember } from "@inspiration/contracts";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
@@ -220,5 +220,41 @@ describe("space administration", () => {
       body: { ...tenant, status: "suspended", version: 2 },
     });
     expect((await call("/v0/me")).status).toBe(401);
+  });
+});
+
+describe("signing keys", () => {
+  test("a key the issuer retired provisions nothing once the cached keys are past their lifetime", async () => {
+    const tenantId = "ten_01QINGHE000000000000000003";
+    const retiring = devIssuer({ issuer: issuer.issuer, audience: issuer.audience, kid: "dev-retiring" });
+    let published: Jwks = { keys: [...issuer.jwks.keys, ...retiring.jwks.keys] };
+    let clock = 0;
+    const keys = jwksFromUrl("https://business.example/.well-known/jwks.json", {
+      maxAgeMs: 300_000,
+      now: () => clock,
+      fetch: async () => new Response(JSON.stringify(published)),
+    });
+    const rotating = await serveApi(engine, 0, {
+      tokens: new TokenVerifier({ issuer: issuer.issuer, audience: issuer.audience, keys }),
+    });
+    try {
+      const put = (signer: ReturnType<typeof devIssuer>, path: string, body: unknown) => {
+        const { port } = rotating.address() as AddressInfo;
+        const token = signer.mint({ sub: SERVICE, tid: tenantId, kind: "service" });
+        return fetch(`http://127.0.0.1:${port}/v0/tenants/${tenantId}${path}`, {
+          method: "PUT",
+          headers: { authorization: `Bearer ${token}` },
+          body: JSON.stringify(body),
+        });
+      };
+      expect((await put(retiring, "", tenant)).status).toBe(200); // the key is published, and cached
+      published = issuer.jwks; // the issuer retires it
+      clock = 301_000;
+      expect((await put(retiring, `/members/${ZHOU}`, member("Zhou Min"))).status).toBe(401);
+      expect(await engine.directory.member(tenantId, ZHOU)).toBeUndefined();
+      expect((await put(issuer, `/members/${ZHOU}`, member("Zhou Min"))).status).toBe(200); // the current key holds
+    } finally {
+      rotating.close();
+    }
   });
 });
