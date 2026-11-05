@@ -87,6 +87,9 @@ producer name, its consumer group and the first part of its model task names.
 - Call models only through the model gateway. Name tasks `<component>.<verb_object>`
   (`extraction.extract_claims`) and budget keys `tenant:<id>/<component>`; the names drive
   routing, budgets, metering and evals.
+- Never put a key, token or password in the repository, including in tests, logs and recorded
+  replies: name the environment variable that holds it (`api_key_env`). CI's `secrets` job
+  (Gitleaks, `.github/gitleaks.toml`) fails on any that reaches a commit.
 - Pass the content's sensitivity label on every call. The gateway refuses to send content
   to a provider that is not cleared for it.
 - Until real models are configured, a component that owns a model task ships a

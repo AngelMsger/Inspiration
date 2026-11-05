@@ -10,6 +10,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  secrets:
+    # Gitleaks over every commit of every branch, so a key that reaches the repository fails CI
+    # wherever it is. Findings print redacted. Built with `go install`, which checks the module
+    # against Go's checksum database.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+          cache: false
+      - run: go install github.com/zricethezav/gitleaks/v8@v8.21.2
+      - name: Gitleaks self-test
+        # A contract example's consistency token passes, while a DeepSeek-shaped key made at run
+        # time is caught alone and beside that token. No file in the repository holds such a key.
+        run: |
+          gitleaks="$(go env GOPATH)/bin/gitleaks"
+          dir="$RUNNER_TEMP/canary" && mkdir -p "$dir" && cd "$dir"
+          token=$(jq -r .consistency_token "$GITHUB_WORKSPACE/libs/contracts/examples/MemberWritten.member.json")
+          key="sk-$(openssl rand -hex 16)"
+          printf '{"consistency_token": "%s"}\n' "$token" > fixture.json
+          printf 'the key is %s\n' "$key" > alone.txt
+          printf '{"consistency_token": "%s", "note": "%s"}\n' "$token" "$key" > beside.json
+          scan() { "$gitleaks" dir "$@" --redact --no-banner --exit-code 0 --report-format json --report-path "$RUNNER_TEMP/report.json"; }
+          scan fixture.json
+          test "$(jq length "$RUNNER_TEMP/report.json")" -gt 0 || { echo "the default rules no longer flag the token"; exit 1; }
+          scan --config "$GITHUB_WORKSPACE/.github/gitleaks.toml" .
+          files=$(jq -c '[.[] | .File | split("/") | last] | unique' "$RUNNER_TEMP/report.json")
+          keys=$(jq -c '[.[] | select(.RuleID == "inspiration-deepseek-api-key") | .File | split("/") | last] | unique' "$RUNNER_TEMP/report.json")
+          echo "findings in $files, DeepSeek key in $keys"
+          test "$files" = '["alone.txt","beside.json"]' && test "$keys" = '["alone.txt","beside.json"]'
+      - name: Gitleaks
+        run: |
+          "$(go env GOPATH)/bin/gitleaks" git --config .github/gitleaks.toml --redact --verbose --no-banner .
+
   static:
     runs-on: ubuntu-latest
     steps:
