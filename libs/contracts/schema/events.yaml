@@ -396,6 +396,11 @@ $defs:
           superseded): collaboration replaces the open todo with this key, and creates none when
           there is no open one. It asks nothing new.
         type: boolean
+      suggestion:
+        description: >
+          The resolution the requester would choose and whether it is sure, so the assistant
+          can decide the todo for a member who lets it (Decide for me).
+        $ref: "collab.yaml#/$defs/TodoAdvice"
 
   TodoResolved:
     description: >

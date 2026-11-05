@@ -340,6 +340,27 @@ $defs:
         type: string
         minLength: 1
 
+  TodoAdvice:
+    description: >
+      What a component asking for a todo would choose on it, and on what that rests. The
+      assistant decides a todo with advice it is sure of and leaves the rest to the member with
+      the suggestion; collaboration writes the reason in the member's language from the basis.
+      changed: a dated change in effect. authority: the most authoritative source.
+      disagreement: documents as authoritative as each other disagree, and neither replaced the
+      other, so the requester is not sure.
+    type: object
+    required: [with, sure, basis]
+    properties:
+      with:
+        description: The key of one of the resolutions the request offers.
+        type: string
+        minLength: 1
+      sure:
+        type: boolean
+      basis:
+        type: string
+        enum: [changed, authority, disagreement]
+
   TodoLeft:
     description: >
       Why the assistant left a todo to the member when asked to decide it: it is not sure,
