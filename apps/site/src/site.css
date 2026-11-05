@@ -235,27 +235,14 @@ a.cite:hover {
   font-size: 15px;
 }
 .top-nav a,
-.langs a,
 .foot-gh {
   color: var(--muted);
   text-decoration: none;
 }
 .top-nav a:hover,
-.langs a:hover,
 .foot-gh:hover {
   color: var(--ink);
 }
-.langs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  font-size: 14px;
-}
-.langs a {
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
 /* The header's tools: the source on GitHub, and the language menu. Both read as quiet
    buttons that light up like the current tab when pointed at or open. */
 .top-tools {
@@ -2214,6 +2201,16 @@ main > section {
   font-size: 13.5px;
   color: var(--faint);
 }
+/* At the page's end the language menu opens upward, and keeps to the row's right end even
+   where the row wraps, so the list it opens stays on screen. */
+.foot .lang-menu {
+  margin-left: auto;
+  font-size: 14px;
+}
+.foot .lang-menu ul {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
 
 /* Narrow screens */
 @media (max-width: 1080px) {
@@ -2238,9 +2235,6 @@ main > section {
   .top-row {
     justify-content: space-between;
     gap: 16px;
-  }
-  .langs {
-    margin-left: auto;
   }
 }
 /* Below a small laptop the hero's figure goes under its copy, and the feature cards stack;
