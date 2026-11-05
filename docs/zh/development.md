@@ -4,7 +4,7 @@
 
 ## 安装和检查
 
-需要 Node 22.18 或更高版本、pnpm 10（`corepack enable`），以及带 Compose 的 Docker。
+需要 Node 22.18 或更高版本（Node 24 也可以）、pnpm，以及带 Compose 的 Docker。`package.json` 在 `packageManager` 里固定了 pnpm 10.28.0，corepack（`corepack enable`）和 10 及以上的任何 pnpm 都会照它切换；它还为 Volta 固定了 Node 22 和 pnpm 10.28.0。这个固定是必要的：Volta 通过 `bin/pnpm.cjs` 启动 pnpm，而 pnpm 11 及以后不再带这个文件，所以 Volta 里的 pnpm 11 或更高版本在本仓库之外会报 `Cannot find module …/bin/pnpm.cjs`，在本仓库里则能正常运行。
 
 ```bash
 make install       # pnpm 依赖
@@ -72,6 +72,10 @@ curl -s localhost:8100/healthz
 ## 构建网站
 
 `pnpm site` 把产品网站（`apps/site`）写到 `apps/site/dist`，每种语言一个静态页面；`pnpm site --serve` 提供网站，并在每次请求时重新构建。`Site` 工作流从 `main` 把它发布到 GitHub Pages。
+
+## 重画架构图
+
+`docs/assets/` 里的架构图由旁边的 `components.html` 和 `deployment.html` 画出，每张图一个文件，文字有英文、中文和日文。用浏览器以 `?lang=en`、`zh` 或 `ja` 打开，把 `#fig` 元素按两倍尺寸截图，存为 `<图名>.<语言>.png`。某个组件构建完成后，在那里去掉它的 `planned` 标记再重画。
 
 ## 东西都在哪里
 

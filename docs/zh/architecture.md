@@ -67,6 +67,10 @@ apps/<name>       组装根：引擎进程、它的测量工具、业务后端�
 | 服务 | retrieval、agent-api、views | 混合检索与有依据的回答、面向 Agent 的 MCP 和 REST、沙箱中的交互视图 |
 | 控制 | collaboration、access-control、model-gateway、agent-runtime、credential-broker、sandbox | 待办箱、评论与提议、权限、每一次模型调用、内置 Agent 运行的循环、来源连接及其凭据、为不是我们写的代码（厂商 CLI 和 MCP 服务器）和渲染检查提供的隔离作业 |
 
+![按阶段排列的每个组件，以及它们之间的事件和调用](../assets/components.zh.png)
+
+图中按阶段画出每个组件，组件之间的事件用实线，同步调用用虚线。右侧的平台服务供所有组件使用。虚线框表示计划中。
+
 共享库位于所有组件之下：**contracts**（类型、校验器、事件目录、组件接口）、**kernel**（设置、日志、插件、
 迁移、Blob 存储、数据库连接池、语言包）、**eventbus**（发件箱、中继、消费者）和 **testkit**（面向 compose 栈的测试夹具
 和测试数据）。
@@ -210,3 +214,7 @@ retrieval。
 原型在一个或少数几个进程中运行所有组件，对接 compose 栈。接口是之后拆分的接缝：model gateway 已经作为独立的
 HTTP 服务（`inspiration-gateway`）运行，其客户端抛出相同的错误；事件总线让消费者可以运行在任何能连到 Valkey 的
 地方。
+
+![服务、开源组件以及它们怎么连接](../assets/deployment.zh.png)
+
+图中把组件按负载增长后会拆成的服务分组，旁边是它们运行所依赖的开源组件。今天这些分组都在引擎的一个进程里运行；业务后端和 compose 栈（ParadeDB、Valkey、SpiceDB 和 Logto）在它旁边运行。两张图各由 [`assets/`](../assets/components.html) 里的一个源文件画出，怎么重画见[开发指南](development.md#重画架构图)。

@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inspiration components</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+:root {
+  --bg: #F3F5F3; --surface: #FFFFFF; --sunk: #E9EDEA; --band: #EDF1EE;
+  --ink: #15201C; --muted: #56635E; --faint: #87938E; --line: #D3DAD6;
+  --event: #0B7A68; --event-soft: #D8EEE9;
+  --sync: #5150C9; --sync-soft: #E3E3FA;
+  --ext: #8C7A5B;
+  --platform: #E6ECE8; --platform-line: #B9C5BF;
+  --agent: #A3456B; --agent-soft: #F7E6ED;
+  --planned: #9AA6A1;
+  --font-sans: "IBM Plex Sans", "Noto Sans SC", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", "Noto Sans SC", ui-monospace, monospace;
+}
+html[lang="ja"] { --font-sans: "IBM Plex Sans", "Noto Sans JP", system-ui, sans-serif; --font-mono: "IBM Plex Mono", "Noto Sans JP", ui-monospace, monospace; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font-sans); font-size: 14px; }
+#fig { width: 1102px; padding: 16px; background: var(--bg); }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+.key { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; }
+svg#dia { display: block; width: 1070px; height: auto; }
+.row-band { fill: var(--band); }
+.row-label { fill: var(--faint); font-size: 12px; font-weight: 500; letter-spacing: .12em; }
+.col-label { fill: var(--faint); font-size: 11.5px; font-weight: 500; letter-spacing: .04em; }
+.node .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.25; }
+.node.ext .box { fill: none; stroke: var(--ext); stroke-dasharray: 5 4; }
+.node.platform .box { fill: var(--platform); stroke: var(--platform-line); }
+.node.planned .box { stroke: var(--planned); stroke-dasharray: 6 4; stroke-width: 1.4; }
+.node .id { fill: var(--ext); font-size: 12px; font-weight: 500; }
+.node .name { fill: var(--ink); font-size: 14.5px; font-weight: 600; }
+.node .cname { fill: var(--ink); font-family: var(--font-mono); font-size: 13.5px; font-weight: 600; }
+.node .cn { fill: var(--event); font-size: 12.5px; font-weight: 500; }
+.node.platform .cn { fill: var(--muted); }
+.node.planned .cn { fill: var(--faint); }
+.node .desc { fill: var(--muted); font-size: 12px; }
+.node .api { fill: var(--muted); font-family: var(--font-mono); font-size: 11.5px; }
+.pill rect { stroke-width: 1; }
+.pill text { font-size: 10.5px; font-weight: 500; }
+.agent-badge rect { fill: var(--agent-soft); stroke: var(--agent); }
+.agent-badge text { fill: var(--agent); font-family: var(--font-mono); }
+.edge .ln { fill: none; stroke-width: 1.6; }
+.edge.event .ln { stroke: var(--event); }
+.edge.sync .ln { stroke: var(--sync); stroke-dasharray: 6 4; }
+.edge.ext .ln { stroke: var(--ext); stroke-dasharray: 3 4; }
+.edge .lbl { font-family: var(--font-mono); font-size: 11px; }
+.edge.event .lbl { fill: var(--event); }
+.edge.sync .lbl { fill: var(--sync); }
+.edge.ext .lbl { fill: var(--ext); font-family: var(--font-sans); }
+.edge .lbl-bg { fill: var(--surface); }
+.trunk-note text { fill: var(--event); font-family: var(--font-mono); font-size: 11px; }
+.trunk-note .muted { fill: var(--muted); font-family: var(--font-sans); }
+</style>
+</head>
+<body>
+<div id="fig"><div class="card"><div class="legend" id="legend"></div><svg id="dia" viewBox="0 0 1070 1046" role="img"></svg></div></div>
+<script>
+(() => {
+  const lang = new URLSearchParams(location.search).get("lang") || "en";
+  document.documentElement.lang = lang;
+  // One entry per language: [en, zh, ja].
+  const I = { en: 0, zh: 1, ja: 2 }[lang];
+  const t = v => Array.isArray(v) ? v[I] : v;
+
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 180, H = 80;
+  const C1 = 72, C2 = 352, C3 = 632, PX = 868;
+  const T = [40, 190, 340, 490, 640, 790, 940];
+  const OUT = ["Outside", "外部", "外部"];
+
+  // planned: not built yet (components.yaml)
+  const N = {
+    research: { x: C1, y: T[0], name: "research", cn: ["Deep research", "深度调研", "ディープリサーチ"], desc: ["findings · assumptions", "结论 · 假设 · 证据", "結論 · 仮説 · 証拠"], agent: true, planned: true },
+    SRC: { x: C2, y: T[0], name: ["Sources", "数据源", "データソース"], desc: ["Lark · Confluence · Concur", "飞书 · 钉钉 · Confluence", "Lark · Confluence · kintone"], desc2: ["GitHub · Notion · files · web", "简道云 · Notion · 文件 · 网页", "GitHub · Notion · ファイル"], ext: true },
+    "source-sync": { x: C1, y: T[1], name: "source-sync", cn: ["Sync", "同步编排", "同期"], desc: ["cursors · polling · reconciling", "游标 · 轮询 · 对账 · 按需抓取", "カーソル · ポーリング · 照合"] },
+    connectors: { x: C2, y: T[1], name: "connectors", cn: ["Connectors", "连接器", "コネクタ"], desc: ["fetch · read ACLs · webhooks", "抓取 · 读取 ACL · Webhook", "取得 · ACL · Webhook"] },
+    parsing: { x: C3, y: T[1], name: "parsing", cn: ["Parsing (Python worker)", "解析（Python worker）", "解析（Python worker）"], desc: ["Office · PDF · scans", "Office · PDF · 扫描件", "Office · PDF · スキャン"], planned: true },
+    normalization: { x: C1, y: T[2], name: "normalization", cn: ["Normalization", "文档规范化", "正規化"], desc: ["blocks and spans · diffs", "块与片段 · 哈希 · 版本差异", "ブロックとスパン · 差分"] },
+    extraction: { x: C2, y: T[2], name: "extraction", cn: ["Extraction", "知识抽取", "抽出"], desc: ["statements · entities", "陈述 · 证据 · 实体", "記述 · 証拠 · エンティティ"], agent: true },
+    freshness: { x: C2, y: T[3], name: "freshness", cn: ["Freshness", "新鲜度引擎", "鮮度"], desc: ["dependents · staleness · TTL", "依赖图 · 过期分 · TTL", "依存関係 · 鮮度 · TTL"] },
+    governance: { x: C3, y: T[3], name: "governance", cn: ["Governance", "治理", "ガバナンス"], desc: ["conflicts · citations · merges", "冲突 · 引用审计 · 合并", "矛盾 · 引用監査 · 統合"], agent: true },
+    "page-compiler": { x: C1, y: T[4], name: "page-compiler", cn: ["Page compiler", "页面编译器", "ページコンパイラ"], desc: ["outline · pages · charts", "目录 · 页面 · 图表", "目次 · ページ · 図表"] },
+    collaboration: { x: C2, y: T[4], name: "collaboration", cn: ["Collaboration", "协作与发布", "協働と公開"], desc: ["comments · inbox · publish", "评论 · 覆盖 · 待办 · 发布", "コメント · 受信箱 · 公開"], agent: true },
+    retrieval: { x: C1, y: T[5], name: "retrieval", cn: ["Search and answers", "索引、检索与回答", "検索と回答"], desc: ["hybrid search · space filter", "混合检索 · 重排 · 空间过滤", "ハイブリッド検索 · 権限"], agent: true },
+    "agent-api": { x: C2, y: T[5], name: "agent-api", cn: ["Agent API", "Agent 接口", "エージェント API"], desc: ["MCP · REST · Skills", "MCP · REST · Skills", "MCP · REST · Skills"], planned: true },
+    views: { x: C3, y: T[5], name: "views", cn: ["Interactive views", "交互视图", "インタラクティブビュー"], desc: ["templates · hosting", "模板 · 生成 · 托管", "テンプレート · 生成 · 配信"], agent: true, planned: true },
+    web: { x: C1, y: T[6], name: "web · business", cn: ["Web app and backend", "Web 应用与业务后端", "Web アプリと業務層"], desc: ["sign-in · companies · invites", "登录 · 企业 · 成员 · 邀请", "サインイン · 企業 · 招待"], desc2: ["reading · inbox · admin", "阅读 · 待办 · 管理", "閲覧 · 受信箱 · 管理"] },
+    USER: { x: C2, y: T[6], name: ["People", "人", "人"], desc: ["members · space owners", "成员 · 空间负责人", "メンバー · スペース担当者"], desc2: ["super admins", "超级管理员", "特権管理者"], ext: true },
+    AGENT: { x: C3, y: T[6], name: ["Outside agents", "外部 Agent", "外部エージェント"], desc: ["Dify · your own agents", "Dify · 扣子 · 自研", "Dify · 自社開発"], desc2: ["acting for a member", "代表某个成员", "メンバーの代理"], ext: true },
+    contracts: { x: PX, y: 40, name: "contracts", cn: ["Contracts", "契约", "コントラクト"], desc: ["from JSON Schema", "JSON Schema 生成", "JSON Schema から生成"], desc2: ["TS types · validators", "TS 类型与校验器", "TS 型 · バリデータ"], platform: true },
+    eventbus: { x: PX, y: 154, name: "eventbus", cn: ["Event bus", "事件总线", "イベントバス"], desc: "Postgres outbox", desc2: "+ Valkey Streams", platform: true },
+    "knowledge-store": { x: PX, y: 268, h: 176, name: "knowledge-store", cn: ["Knowledge store", "知识库", "ナレッジストア"], platform: true,
+      api: ["putSourceVersion", "upsertClaims", "supersede", "lineage", "dependents", "asOf", "putPageSnapshot"], foot: ["the only writer of knowledge", "唯一可写知识表的组件", "知識を書く唯一の部品"] },
+    "access-control": { x: PX, y: 478, name: "access-control", cn: ["Access control", "鉴权与审计", "アクセス制御"], desc: "check · scopeFilter", desc2: ["directory · spaces · SpiceDB", "目录 · 空间 · SpiceDB", "ディレクトリ · SpiceDB"], platform: true, mono1: true },
+    "model-gateway": { x: PX, y: 592, name: "model-gateway", cn: ["Model gateway", "模型网关", "モデルゲートウェイ"], desc: "complete · embed", desc2: ["rerank · ocr · budgets", "rerank · ocr · 预算", "rerank · ocr · 予算"], platform: true, mono1: true },
+    "agent-runtime": { x: PX, y: 706, name: "agent-runtime", cn: ["Agent runtime", "Agent 运行时", "エージェント実行基盤"], desc: ["tool loop · step limits", "工具循环 · 步数上限", "ツールループ · 上限"], desc2: ["approval gates · traces", "审批关卡 · 轨迹回放", "承認ゲート · 軌跡"], platform: true },
+    "credential-broker": { x: PX, y: 820, name: "credential-broker", cn: ["Credential broker", "凭据代理", "認証情報ブローカー"], desc: "lease · revoke", desc2: ["connections · refresh", "租户与成员连接 · 刷新", "接続 · 更新"], platform: true, mono1: true, planned: true },
+    sandbox: { x: PX, y: 934, name: "sandbox", cn: ["Sandbox", "沙箱", "サンドボックス"], desc: ["one container per job", "每个作业一个容器", "ジョブごとのコンテナ"], desc2: ["CLIs · agent tools · renders", "CLI · Agent 工具 · 渲染", "CLI · ツール · 描画"], platform: true, planned: true },
+  };
+
+  // kind: event | sync | ext
+  const E = [
+    { f: "SRC", t: "connectors", k: "ext", label: ["push hints · polling", "推送提示 · 轮询", "プッシュ通知 · ポーリング"], pts: [[442, 120], [442, 190]], l: [450, 160, "start"] },
+    { f: "research", t: "source-sync", k: "event", label: ["source.changed", "source.changed（新版本）", "source.changed（新版）"], pts: [[162, 120], [162, 190]], l: [154, 160, "end"] },
+    { f: "research", t: "source-sync", k: "sync", label: ["fetch_now (on demand)", "fetch_now（按需抓取）", "fetch_now（随時取得）"], pts: [[222, 120], [222, 190]], l: [230, 160, "start"] },
+    { f: "connectors", t: "source-sync", k: "event", label: "source.changed", pts: [[352, 214], [252, 214]], l: [302, 206, "middle"] },
+    { f: "source-sync", t: "connectors", k: "sync", label: "Connector API", pts: [[252, 248], [352, 248]], l: [302, 264, "middle"] },
+    { f: "source-sync", t: "normalization", k: "event", label: "document.fetched", pts: [[162, 270], [162, 340]], l: [170, 312, "start"] },
+    { f: "normalization", t: "parsing", k: "sync", label: "Parser.parse()", pts: [[252, 352], [292, 352], [292, 302], [722, 302], [722, 270]], l: [600, 294, "middle"] },
+    { f: "normalization", t: "retrieval", k: "event", label: "", pts: [[72, 396], [48, 396], [48, 836], [72, 836]] },
+    { f: "normalization", t: "extraction", k: "event", label: "blocks.changed", pts: [[252, 380], [352, 380]], l: [302, 372, "middle"] },
+    { f: "normalization", t: "freshness", k: "event", label: "blocks.changed", pts: [[232, 420], [232, 467], [372, 467], [372, 490]], l: [226, 448, "end"] },
+    { f: "extraction", t: "freshness", k: "event", label: "claims.updated", pts: [[412, 420], [412, 490]], l: [404, 440, "end"] },
+    { f: "freshness", t: "extraction", k: "event", label: "artifact.dirty", pts: [[472, 490], [472, 420]], l: [480, 448, "start"] },
+    { f: "extraction", t: "governance", k: "event", label: "claims.updated", pts: [[532, 400], [702, 400], [702, 490]], l: [617, 392, "middle"] },
+    { f: "collaboration", t: "extraction", k: "event", label: "comment.created", pts: [[532, 690], [840, 690], [840, 366], [532, 366]], l: [690, 358, "middle"] },
+    { f: "freshness", t: "page-compiler", k: "event", label: "artifact.dirty", pts: [[372, 570], [372, 606], [182, 606], [182, 640]], l: [276, 598, "middle"] },
+    { f: "freshness", t: "collaboration", k: "event", label: "review.due", pts: [[442, 570], [442, 640]], l: [434, 630, "end"] },
+    { f: "governance", t: "collaboration", k: "event", label: "todo.requested", pts: [[692, 570], [692, 606], [512, 606], [512, 640]], l: [610, 598, "middle"] },
+    { f: "page-compiler", t: "collaboration", k: "event", label: "page.rendered", pts: [[252, 680], [352, 680]], l: [302, 672, "middle"] },
+    { f: "page-compiler", t: "retrieval", k: "event", label: "page.rendered", pts: [[162, 720], [162, 790]], l: [154, 762, "end"] },
+    { f: "collaboration", t: "retrieval", k: "event", label: "unit.published", pts: [[372, 720], [372, 756], [212, 756], [212, 790]], l: [290, 748, "end"] },
+    { f: "collaboration", t: "agent-api", k: "event", label: "unit.published", pts: [[442, 720], [442, 790]], l: [450, 762, "start"] },
+    { f: "agent-api", t: "retrieval", k: "sync", label: "Retriever API", pts: [[352, 830], [252, 830]], l: [302, 822, "middle"] },
+    { f: "web", t: "retrieval", k: "sync", label: ["engine API /v0", "引擎 API /v0", "エンジン API /v0"], pts: [[162, 940], [162, 870]], l: [170, 912, "start"] },
+    { f: "USER", t: "web", k: "ext", label: ["browser · sign-in", "浏览器 · 登录", "ブラウザ"], pts: [[352, 980], [252, 980]], l: [302, 972, "middle"] },
+    { f: "views", t: "collaboration", k: "event", label: ["todo.requested (view approval)", "todo.requested（视图审批）", "todo.requested（ビュー承認）"], pts: [[722, 790], [722, 744], [512, 744], [512, 720]], l: [597, 738, "start"] },
+    { f: "AGENT", t: "agent-api", k: "ext", label: ["MCP / REST (for a member)", "MCP / REST（代表成员）", "MCP / REST（メンバーの代理）"], pts: [[722, 940], [722, 906], [492, 906], [492, 870]], l: [600, 898, "start"] },
+  ];
+
+  const svg = document.getElementById("dia");
+  svg.setAttribute("aria-label", t(["Inspiration components, events and synchronous calls", "Inspiration 组件、事件与同步调用", "Inspiration のコンポーネント、イベント、同期呼び出し"]));
+  const el = (tag, attrs = {}, parent) => {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+  const txt = (parent, x, y, s, cls, anchor) => {
+    const e = el("text", { x, y, class: cls }, parent);
+    if (anchor) e.setAttribute("text-anchor", anchor);
+    e.textContent = s;
+    return e;
+  };
+
+  // legend
+  const legend = document.getElementById("legend");
+  const key = (svgInner, w, h, label) => {
+    const s = document.createElement("span");
+    s.className = "key";
+    s.innerHTML = `<svg width="${w}" height="${h}" aria-hidden="true">${svgInner}</svg>`;
+    s.append(label);
+    legend.append(s);
+  };
+  key(`<line x1="0" y1="5" x2="34" y2="5" stroke="var(--event)" stroke-width="2"/>`, 34, 10, t(["Event, through the event bus", "异步事件（经事件总线）", "イベント（イベントバス経由）"]));
+  key(`<line x1="0" y1="5" x2="34" y2="5" stroke="var(--sync)" stroke-width="2" stroke-dasharray="6 4"/>`, 34, 10, t(["Synchronous call (contract API)", "同步调用（契约 API）", "同期呼び出し（コントラクト API）"]));
+  key(`<line x1="0" y1="5" x2="34" y2="5" stroke="var(--ext)" stroke-width="2" stroke-dasharray="3 4"/>`, 34, 10, t(["From outside", "外部接入", "外部から"]));
+  key(`<rect x="1" y="1" width="40" height="16" rx="8" fill="var(--agent-soft)" stroke="var(--agent)"/><text x="21" y="13" text-anchor="middle" font-size="10" font-family="IBM Plex Mono" fill="var(--agent)">Agent</text>`, 42, 18, t(["Runs a built-in agent", "内置 Agent", "組み込みエージェント"]));
+  key(`<rect x="1" y="1" width="32" height="16" rx="4" fill="var(--surface)" stroke="var(--planned)" stroke-width="1.4" stroke-dasharray="6 4"/>`, 34, 18, t(["Planned, not built yet", "计划中，尚未构建", "予定（未実装）"]));
+
+  const defs = el("defs", {}, svg);
+  for (const k of ["event", "sync", "ext"]) {
+    const m = el("marker", { id: "arr-" + k, viewBox: "0 0 10 10", refX: "9", refY: "5", markerWidth: "7", markerHeight: "7", orient: "auto-start-reverse" }, defs);
+    el("path", { d: "M0 0L10 5L0 10z", style: `fill: var(--${k})` }, m);
+  }
+
+  const rows = [["Sources", "来源", "ソース"], ["Ingest", "接入", "取り込み"], ["Compile", "编译", "コンパイル"], ["Govern", "治理", "統制"], ["Collaborate", "协作", "協働"], ["Serve", "服务", "提供"], ["Use", "使用", "利用"]];
+  const bands = el("g", {}, svg);
+  rows.forEach((r, i) => {
+    el("rect", { x: 4, y: T[i] - 18, width: 846, height: H + 36, rx: 10, class: "row-band" }, bands);
+    const e = el("text", { x: 22, y: T[i] + 40, class: "row-label", "text-anchor": "middle", transform: lang === "en" ? `rotate(-90 22 ${T[i] + 40})` : "", "writing-mode": lang === "en" ? "" : "vertical-rl" }, bands);
+    if (lang === "en") e.setAttribute("dominant-baseline", "middle");
+    e.textContent = t(r);
+  });
+  txt(svg, PX, 24, t(["Platform · called by all", "平台服务 · 所有组件同步调用", "プラットフォーム · 同期で呼ぶ"]), "col-label");
+
+  const tn = el("g", { class: "trunk-note" }, svg);
+  txt(tn, 72, T[3] + 26, "blocks.changed (normalization)", "");
+  const tm = txt(tn, 72, T[3] + 44, t(["runs down the left to retrieval's index", "沿左侧送往 retrieval 增量索引", "左側を通って retrieval の索引へ"]), "muted");
+  tm.setAttribute("font-size", "11.5");
+
+  const roundPath = (pts, r = 8) => {
+    let d = `M${pts[0][0]} ${pts[0][1]}`;
+    for (let i = 1; i < pts.length; i++) {
+      const [x, y] = pts[i];
+      if (i < pts.length - 1) {
+        const [px, py] = pts[i - 1], [nx, ny] = pts[i + 1];
+        const l1 = Math.hypot(x - px, y - py), l2 = Math.hypot(nx - x, ny - y);
+        const rr = Math.min(r, l1 / 2, l2 / 2);
+        const ax = x - (x - px) / l1 * rr, ay = y - (y - py) / l1 * rr;
+        const bx = x + (nx - x) / l2 * rr, by = y + (ny - y) / l2 * rr;
+        d += ` L${ax} ${ay} Q${x} ${y} ${bx} ${by}`;
+      } else d += ` L${x} ${y}`;
+    }
+    return d;
+  };
+  const edgeLayer = el("g", {}, svg);
+  E.forEach(e => {
+    const g = el("g", { class: `edge ${e.k}` }, edgeLayer);
+    el("path", { d: roundPath(e.pts), class: "ln", "marker-end": `url(#arr-${e.k})` }, g);
+    if (e.label && e.l) e.lblNode = txt(g, e.l[0], e.l[1], t(e.label), "lbl", e.l[2]);
+    e.g = g;
+  });
+
+  const fits = [];
+  const fit = (node, max, what) => fits.push([node, max, what]);
+  const nodeLayer = el("g", {}, svg);
+  for (const [k, n] of Object.entries(N)) {
+    const h = n.h || H;
+    const cls = ["node", n.ext ? "ext" : "", n.platform ? "platform" : "", n.planned ? "planned" : ""].join(" ").trim();
+    const g = el("g", { class: cls }, nodeLayer);
+    el("rect", { x: n.x, y: n.y, width: W, height: h, rx: 10, class: "box" }, g);
+    const inner = W - 22;
+    if (n.ext) {
+      txt(g, n.x + 12, n.y + 24, t(OUT), "id");
+      fit(txt(g, n.x + (lang === "en" ? 66 : 44), n.y + 24, t(n.name), "name"), inner - (lang === "en" ? 54 : 32), k);
+      if (n.desc) fit(txt(g, n.x + 12, n.y + 46, t(n.desc), "desc"), inner, k);
+      if (n.desc2) fit(txt(g, n.x + 12, n.y + 66, t(n.desc2), "desc"), inner, k);
+    } else {
+      fit(txt(g, n.x + 12, n.y + 23, n.name, "cname"), n.agent ? inner - 46 : inner, k);
+      fit(txt(g, n.x + 12, n.y + 42, t(n.cn), "cn"), inner, k);
+      if (n.api) {
+        n.api.forEach((a, j) => txt(g, n.x + 12, n.y + 62 + j * 14, a + "()", "api"));
+        fit(txt(g, n.x + 12, n.y + h - 10, t(n.foot), "desc"), inner, k);
+      } else if (n.desc2) {
+        fit(txt(g, n.x + 12, n.y + 58, t(n.desc), n.mono1 ? "api" : "desc"), inner, k);
+        fit(txt(g, n.x + 12, n.y + 73, t(n.desc2), "desc"), inner, k);
+      } else if (n.desc) {
+        fit(txt(g, n.x + 12, n.y + 62, t(n.desc), "desc"), inner, k);
+      }
+    }
+    if (n.agent) {
+      const ag = el("g", { class: "pill agent-badge" }, g);
+      el("rect", { x: n.x + W - 52, y: n.y + 10, width: 42, height: 18, rx: 9 }, ag);
+      txt(ag, n.x + W - 31, n.y + 23, "Agent", "", "middle");
+    }
+  }
+
+  document.fonts.ready.then(() => {
+    E.forEach(e => {
+      if (!e.lblNode) return;
+      const b = e.lblNode.getBBox();
+      const r = el("rect", { x: b.x - 3, y: b.y - 1, width: b.width + 6, height: b.height + 2, rx: 3, class: "lbl-bg" });
+      e.g.insertBefore(r, e.lblNode);
+    });
+    window.OVERFLOW = fits.filter(([node, max]) => node.getComputedTextLength() > max).map(([node, max, what]) => `${what}: "${node.textContent}" ${Math.round(node.getComputedTextLength())} > ${max}`);
+    document.body.dataset.ready = "1";
+  });
+})();
+</script>
+</body>
+</html>

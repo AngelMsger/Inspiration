@@ -116,6 +116,12 @@ One repository makes boundaries a matter of checks rather than of repository wal
 | Serve | retrieval, agent-api, views | Hybrid search and grounded answers, MCP and REST for agents, sandboxed interactive views |
 | Control | collaboration, access-control, model-gateway, agent-runtime, credential-broker, sandbox | The inbox, comments and proposals, permissions, every model call, the loop built-in agents run on, source connections and their credentials, isolated jobs for code we did not write (vendor CLIs and MCP servers) and render checks |
 
+![Every component by stage, with the events and calls between them](assets/components.en.png)
+
+The figure draws each component in its stage, the events between components as solid lines and
+the synchronous calls as dashed ones. The platform services on the right serve every component.
+Dashed boxes are planned.
+
 Shared libraries sit under all of them: **contracts** (types, validators, the event
 catalogue, component interfaces), **kernel** (settings, logging, plugins, migrations, blob
 store, database pools, language packs), **eventbus** (outbox, relay, consumers) and
@@ -296,3 +302,11 @@ The prototype runs every component in one process or a few, against the compose 
 interfaces are the seams for splitting later: the model gateway already runs as its own
 HTTP service (`inspiration-gateway`) with a client that raises the same errors, and the
 event bus lets consumers run anywhere that reaches Valkey.
+
+![The services, the open-source parts and how they connect](assets/deployment.en.png)
+
+The figure groups the components into the services they split into as load grows, beside the
+open-source parts they run on. Today the groups all run in the engine's one process; the business
+backend and the compose stack (ParadeDB, Valkey, SpiceDB and Logto) run beside it. Both figures
+are drawn from a source file each in [`assets/`](assets/components.html); the
+[development guide](development.md#redraw-the-diagrams) says how to redraw them.

@@ -39,7 +39,7 @@
 <img src="docs/assets/problem.ja.png" alt="回答カード：10 月 1 日から 1 泊 650 元、9 月 28 日の通知に基づき、出張ルールを担当する李娜さんが確認済み。その下に 5 つの文書。まだ 600 と書いている 3 つは旧版として示され、削除はされていません。" width="88%">
 </div>
 
-**Inspiration は、誰かが尋ねる前に、どの値が有効かを確定させます。** 650 と答え、通知を引用し、古い 3 つの文書を削除せずに旧版として示します。ソースが本当に食い違うときだけ、出張ルールの担当者に確認を求めます。モデルが助けを必要とするのはまさにここです。独立した研究によれば、検索が失敗する原因は入力の長さではなく、同じ事実について競合する値が入力にあることです（[Liu, 2026](https://arxiv.org/abs/2611.04169v1)）。
+**Inspiration は、誰かが尋ねる前に、どの値が有効かを確定させます。** 650 と答え、通知を引用し、古い 3 つの文書を削除せずに旧版として示します。ソースが本当に食い違うときだけ、出張ルールの担当者に確認を求めます。モデルが助けを必要とするのはまさにここです。モデルを誤らせるのは、入力の長さよりも、同じ事実について競合する値が入力にあることです（[これを裏付ける研究があります](https://arxiv.org/abs/2611.04169v1)）。
 
 | | いまの検索と RAG | Inspiration |
 | --- | --- | --- |
@@ -109,7 +109,7 @@ flowchart LR
 </tr>
 </table>
 
-ルールが変われば、答えも変わります。Feishu に新しい通知が届くと、2 つの段落が読まれ、1 つの事実が変わり、それを引用するすべての回答とページが 650 になり、トピックの担当者がワンクリックで提案を確定します。
+ルールが変われば、答えも変わります。Confluence に新しい通知が出ると、2 つの段落が読まれ、1 つの事実が変わり、それを引用するすべての回答とページが 650 になり、トピックの担当者がワンクリックで提案を確定します。
 
 <div align="center">
 <img src="docs/assets/how.ja.png" alt="出張トピック担当の李娜さんの受信トレイのカード：一級都市の宿泊上限が 650 元に。提案は確認済み。隣の回答は、マネージャー以下は 1 泊 650 元まで精算できると述べ、通知を引用しています。まだ 600 と書いている規程第 7 条は旧版として示されています。" width="72%">
@@ -145,25 +145,11 @@ flowchart LR
 
 **1 つのリポジトリに 2 つの層。** **エンジン**は画面を持たないナレッジの記録システムです。テナントとプリンシパルを受け取り、何がわかっているか、出典はどこか、誰が見てよいか、今も正しいかに答えます。**ビジネス層**はその周りの製品で、アカウント、会社、招待、通知、Web アプリを担います。呼び出しは下へ、イベントは上へ流れ、エンジンがビジネス層に依存することはありません。そうしようとする変更はテストで失敗します。
 
-```mermaid
-flowchart TB
-  people["<b>人</b> · 英語・中国語・日本語の Web アプリ"]
-  agents["<b>エージェント</b> · MCP クライアント、社内エージェント"]
-  biz["<b>ビジネス層</b> · Logto のアカウント · 会社とメンバー · スペース · 通知"]
-  subgraph engine["エンジン"]
-    direction LR
-    ingest["<b>取り込み</b><br/>connectors<br/>source-sync<br/>normalization<br/>parsing ◌"] --> compile["<b>コンパイル</b><br/>extraction<br/>governance<br/>freshness<br/>page-compiler"] --> store[("<b>保存</b><br/>knowledge-store<br/>PostgreSQL")] --> serve["<b>提供</b><br/>retrieval<br/>agent-api ◌<br/>views ◌"]
-  end
-  control["<b>制御、全段階で使用</b><br/>SpiceDB の access-control · model-gateway<br/>agent-runtime · 受信トレイ · イベントバス"]
-  src["<b>ソース</b> · Feishu と Lark · アップロード · コード · 調査"]
-  people --> biz
-  biz -- "署名付きプリンシパルのコマンド ↓ · イベント ↑" --> engine
-  agents -- "メンバーのトークン" --> engine
-  src --> engine
-  engine --- control
-```
+<div align="center">
+<img src="docs/assets/components.ja.png" alt="コンポーネント図。ソースから利用まで段階ごとの行：リサーチと外部のデータソース、source-sync・connectors・parsing、normalization・extraction、freshness・governance、page-compiler・collaboration、retrieval・agent-api・views、Web アプリと業務層・人・外部エージェント。blocks.changed、claims.updated、artifact.dirty、page.rendered などのイベントがそれらをつなぎます。右のプラットフォーム列：コントラクト、イベントバス、ナレッジストア、アクセス制御、モデルゲートウェイ、エージェント実行基盤、認証情報ブローカー、サンドボックス。予定：research、parsing、agent-api、views、credential-broker、sandbox。" width="100%">
+</div>
 
-<sub>◌ は計画中。すべてのコンポーネントと、それぞれに相当する外部の製品、私たちが再利用しているものを示した全体図は、[overview](docs/overview.md#9-architecture-at-a-glance) の Figure 10 にあります。</sub>
+<sub>段階ごとに並べたすべてのコンポーネントと、その間のイベント（実線）と呼び出し（破線）。右のプラットフォームサービスはすべてのコンポーネントが使います。破線の枠は予定です。各コンポーネントに相当する外部の製品と、私たちが再利用しているものは、[overview](docs/overview.md#9-architecture-at-a-glance) の Figure 10 にあります。</sub>
 
 - **1 つの仕事を持つ小さなコンポーネント。** エンジンの 19 のコンポーネントのうち 13 が構築とテストを終え、ビジネス層も最初の 2 つが完成しています。[`components.yaml`](components.yaml) が各コンポーネントの持ち物、発行・購読するイベント、呼び出してよい相手を定め、テストがすべてのパッケージにそれを守らせます。
 - **コントラクトが先。** [`libs/contracts/schema/`](libs/contracts/schema/) の JSON Schema が、コンポーネントをまたぐすべての型とイベントの唯一の正です。TypeScript の型とバリデーターはここから生成されます。
@@ -181,6 +167,12 @@ flowchart TB
 | 認証 | Logto（ビジネス層） |
 | モデル | OpenAI 互換の任意のプロバイダーと Anthropic を、モデルゲートウェイ経由で。上のテストは DeepSeek |
 | Web | React と Vite |
+
+<details>
+<summary><b>デプロイの形：</b>サービス、オープンソース部品、それらのつながり</summary>
+<br>
+<img src="docs/assets/deployment.ja.png" alt="デプロイ図。上流：データソース、リサーチ、モデル API、ローカル推論。書き込み側：取り込み、コンパイル、解析、モデルゲートウェイ。ストレージとイベント：Valkey Streams、PostgreSQL 16（知識テーブル、pgvector、pg_search、コンポーネントごとの schema、outbox、アカウントと企業、spicedb と logto の DB）、SpiceDB。読み取り側：エージェント API、検索と協働、Web と業務層、アクセス制御。利用者：外部エージェント、ビュー、ユーザー、Logto。予定の認証情報と隔離実行：gVisor、サンドボックス、認証情報ブローカー、OpenBao。現在は compose スタック 1 つで、エンジンは 1 プロセスです。" width="100%">
+</details>
 
 詳しくは [Architecture](docs/architecture.md)、[Contracts](docs/contracts.md)、[overview](docs/overview.md) の Part II を参照してください。
 
@@ -205,11 +197,11 @@ flowchart TB
 | 6 | トライアル | 1 台のサーバーへのデプロイ、利用状況ページとフィードバック | 計画中 |
 | 🏁 | **ゲート C：トライアル** | チーム外の数人が、自分の文書で 2 週間使う | |
 
-**MVP のあと：** デザインパートナーとのパイロット、Feishu のリアルタイム同期、メンバーごとのプライベートスペースと共有スペースへの公開、共同承認。検証は実際の利用に近い、より大きなデータセットで再開し、10 ポイントのリードを長期目標とします。その先には、Deep Research のレポートをソースにすること、承認フローを手順にすること、コードリポジトリのコードグラフ、インタラクティブなビュー、SSO とディレクトリ同期、プライベートデプロイがあります。
+**MVP のあと：** デザインパートナーとのパイロット、Lark（Feishu）のリアルタイム同期、メンバーごとのプライベートスペースと共有スペースへの公開、共同承認。検証は実際の利用に近い、より大きなデータセットで再開し、10 ポイントのリードを長期目標とします。その先には、Deep Research のレポートをソースにすること、承認フローを手順にすること、コードリポジトリのコードグラフ、インタラクティブなビュー、SSO とディレクトリ同期、プライベートデプロイがあります。
 
 ## はじめに
 
-Inspiration はまだインストールして使える段階ではありません。ソースからビルドしてテストするには、Node 22.18 以上、pnpm 10、Docker を用意して `make install && make up && make check` を実行します。デモ、ベンチマーク、モデルゲートウェイについては [development guide](docs/development.md) を参照してください。
+Inspiration はまだインストールして使える段階ではありません。ソースからビルドしてテストするには、Node 22.18 以上、pnpm、Docker を用意して（リポジトリが corepack と Volta 向けに pnpm 10.28.0 を固定しています） `make install && make up && make check` を実行します。デモ、ベンチマーク、モデルゲートウェイについては [development guide](docs/development.md) を参照してください。
 
 ## リポジトリ構成
 
@@ -233,7 +225,7 @@ infra/              プロトタイプ環境の docker compose と、実行用�
 config/             モデルゲートウェイの設定例
 docs/               overview、エンジンのリファレンス、設計文書。索引は docs/README.md
 docs/zh/            すべての文書の中国語版
-docs/assets/        README に載せる画像（英語・中国語・日本語）
+docs/assets/        README の画像とアーキテクチャ図、その元ファイル（英語・中国語・日本語）
 test/               リポジトリ全体のチェック：コンポーネントのマニフェスト、言語、文書、ファイルパス
 README*.md          このページの英語版、中国語版（README.zh.md）、日本語版（README.ja.md）
 ```
