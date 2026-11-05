@@ -23,6 +23,7 @@ export type Route =
   | { name: "home" }
   | { name: "ask"; q: string }
   | { name: "inbox" }
+  | { name: "decided" }
   | { name: "todo"; id: string }
   | { name: "topics"; space: string }
   | { name: "topic"; key: string }
@@ -68,6 +69,7 @@ export function parse(url: URL): Route {
   if (url.pathname === "/apps") return { name: "apps" };
   if (url.pathname === "/ask") return { name: "ask", q: get("q") ?? "" };
   if (url.pathname === "/inbox") return { name: "inbox" };
+  if (url.pathname === "/inbox/decided") return { name: "decided" };
   const todo = url.pathname.match(/^\/inbox\/([^/]+)$/);
   if (todo?.[1]) return { name: "todo", id: decodeURIComponent(todo[1]) };
   if (url.pathname === "/document") {
@@ -99,6 +101,8 @@ export function href(route: Route): string {
       return `/ask${query([["q", route.q]])}`;
     case "inbox":
       return "/inbox";
+    case "decided":
+      return "/inbox/decided";
     case "todo":
       return `/inbox/${encodeURIComponent(route.id)}`;
     case "topics":

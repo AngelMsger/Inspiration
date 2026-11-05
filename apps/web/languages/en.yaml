@@ -190,6 +190,34 @@ decision.after: "Once confirmed"
 decision.after_text: "Readers and agents see {value}. The other values are marked outdated where they are written, and answers stop saying it is being decided."
 decision.not_found: "This todo is no longer waiting for you."
 decision.back: "Back to the inbox"
+inbox.suggested_because: "Suggested: {value}. {reason}"
+inbox.suggested_reason: "Suggested: {reason}"
+decide.button: Decide for me
+decide.deciding: "Deciding…"
+decide.hint: The assistant decides what it can, with your rights, and leaves the rest here with why. You can undo each decision.
+decide.summary: "Decided {decided} · Left {left} for you"
+decide.line: "{fact}: {choice}"
+decide.left: Left for you
+decide.undo: Undo
+decide.undoing: "Undoing…"
+always.offer: Always decide routine reviews and conflicts for me
+always.offer_hint: As new reviews, notes and conflicts arrive, the assistant decides them with your rights and leaves you what it is unsure of. You can pause it here at any time.
+always.turn_on: Always decide for me
+always.not_now: Not now
+always.on: The assistant decides routine reviews and conflicts for you as they arrive.
+always.paused: Always decide for me is paused.
+always.paused_undone: Always decide for me paused itself, because you undid 2 of its last 10 decisions of one kind.
+always.pause: Pause
+always.resume: Turn it on
+decided.link: See what was decided for you this week
+decided.title: Decided for you
+decided.lede: "What the assistant decided for you in week {week}. Nothing here needs you; undo anything you would decide otherwise."
+decided.counts: "Decided {decided} · Left {left} for you · Undone {undone}"
+decided.none: Nothing was decided for you this week.
+decided.undone: Undone
+decided.via.assistant_once: You asked on this todo
+decided.via.assistant_batch: You asked on its card
+decided.via.delegation: Always decide for me
 
 unit.day: "{n} days"
 unit.cny_per_night: "¥{n} a night"

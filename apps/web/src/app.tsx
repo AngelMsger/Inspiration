@@ -18,6 +18,7 @@ import {
   useLoad,
 } from "./api.ts";
 import { AppsScreen } from "./apps.tsx";
+import { DecidedScreen } from "./decide.tsx";
 import { DocumentScreen } from "./document.tsx";
 import { Documents } from "./documents.tsx";
 import { Ask, countOf, Home } from "./home.tsx";
@@ -397,7 +398,9 @@ function Screen(props: {
     case "ask":
       return <Ask key={route.q} q={route.q} />;
     case "inbox":
-      return <InboxScreen person={person} inbox={props.inbox} onChanged={props.onChanged} />;
+      return <InboxScreen person={person} inbox={props.inbox} sampled={props.sampled} onChanged={props.onChanged} />;
+    case "decided":
+      return <DecidedScreen library={library} onChanged={props.onChanged} />;
     case "todo":
       return <DecisionScreen key={route.id} id={route.id} inbox={props.inbox} onChanged={props.onChanged} />;
     case "topics":
@@ -598,7 +601,7 @@ function LeftColumn(props: { route: Route; library: Library; person: Person; tod
       <Link
         to={{ name: "inbox" }}
         className={props.todos > 0 ? "nav-item nav-todos" : "nav-item"}
-        current={route.name === "inbox" || route.name === "todo"}
+        current={route.name === "inbox" || route.name === "todo" || route.name === "decided"}
       >
         <span>{say("nav.inbox")}</span>
         {props.todos > 0 && (
