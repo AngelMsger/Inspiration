@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * inspiration-engine serve [<corpus>] (--issuer <url> --audience <url> [--jwks <url|file>] | --dev-identity)
- *     [--port 4100] [--today <YYYY-MM-DD>] [--gateway <file> [--valkey <url>]]
+ *     [--port 4100] [--today <YYYY-MM-DD>]
+ *     [--gateway <file> [--corpus-gateway <file>] [--valkey <url>] [--usage <postgres url>]]
  *
  * Runs the engine in memory and serves its HTTP API (http.ts) on localhost. Without a corpus it
  * starts empty, and the business layer provisions its tenants and members and creates their
@@ -12,7 +13,12 @@
  * (every event delivered, topics clustered and given owners) before the API answers. Models are the development
  * stand-ins of config/gateway.dev.yaml, or those of the --gateway file, as when the demo is
  * recorded with real answers (config/gateway.demo.yaml); a config that keeps its replies in
- * Valkey takes the server from --valkey. --today sets the day governance and freshness take as
+ * Valkey takes the server from --valkey. --corpus-gateway gives the corpus's own tenant other
+ * models than everyone else's, as the trial does (config/gateway.trial.yaml): the sample
+ * company keeps the models its story rests on, while the companies that sign up read and
+ * answer on a real model. Either way the budgets are those of --gateway, counted in one usage
+ * ledger (models.ts); --usage keeps it in Postgres, and a config with a budget over a month
+ * or in total needs it. --today sets the day governance and freshness take as
  * now; without it, the real day. Every RESUME_EVERY_MS it reads on the documents whose reading
  * stopped at a spent budget or a model out of reach (Engine.resumeReading).
  *
@@ -30,10 +36,10 @@ import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { type Jwks, jwksFromUrl, staticKeys, TokenVerifier } from "@inspiration/access-control";
 import { logger } from "@inspiration/kernel";
-import { Gateway, loadGatewayConfig, ValkeyCache } from "@inspiration/model-gateway";
 import { Corpus } from "./corpus.ts";
 import { Engine, RESUME_EVERY_MS } from "./engine.ts";
 import { type Identity, serveApi } from "./http.ts";
+import { openModels } from "./models.ts";
 import { assignOwners } from "./owners.ts";
 
 const log = logger("engine.serve");
@@ -51,22 +57,6 @@ export async function seed(engine: Engine, corpus: Corpus): Promise<void> {
   await engine.settle();
   await assignOwners(engine, corpus);
   await engine.settle();
-}
-
-/** The gateway a --gateway file configures, with its Valkey response cache when it keeps one. */
-async function gatewayOf(
-  file: string,
-  valkeyUrl: string | undefined,
-): Promise<{ gateway: Gateway; close(): Promise<void> }> {
-  const config = loadGatewayConfig(file);
-  if (config.cache.backend !== "valkey") {
-    const gateway = await Gateway.create(config);
-    return { gateway, close: () => gateway.close() };
-  }
-  if (!valkeyUrl) throw new RangeError(`${file} keeps its response cache in Valkey: give --valkey`);
-  const cache = ValkeyCache.fromUrl(valkeyUrl);
-  const gateway = await Gateway.create(config, { cache });
-  return { gateway, close: () => gateway.close().then(() => cache.close()) };
 }
 
 /** Tokens when an issuer and audience are given, the development headers when asked; undefined when neither. */
@@ -93,7 +83,9 @@ async function main(argv: string[]): Promise<number> {
       port: { type: "string", default: "4100" },
       today: { type: "string" },
       gateway: { type: "string" },
+      "corpus-gateway": { type: "string" },
       valkey: { type: "string" },
+      usage: { type: "string" },
       issuer: { type: "string" },
       audience: { type: "string" },
       jwks: { type: "string" },
@@ -102,22 +94,30 @@ async function main(argv: string[]): Promise<number> {
   });
   const [command, dir] = positionals;
   const identity = identityOf(values);
-  if (command !== "serve" || positionals.length > 2 || !identity) {
+  const corpusGateway = values["corpus-gateway"];
+  if (command !== "serve" || positionals.length > 2 || !identity || (corpusGateway && (!dir || !values.gateway))) {
     console.error(
       "usage: inspiration-engine serve [<corpus>] (--issuer <url> --audience <url> [--jwks <url|file>] | --dev-identity)" +
-        " [--port 4100] [--today YYYY-MM-DD] [--gateway <file> [--valkey <url>]]",
+        " [--port 4100] [--today YYYY-MM-DD] [--gateway <file> [--corpus-gateway <file>] [--valkey <url>] [--usage <url>]]",
     );
     return 2;
   }
   const corpus = dir === undefined ? undefined : await Corpus.load(dir);
   const today = values.today ? new Date(`${values.today}T09:00:00Z`) : undefined;
-  const models = values.gateway ? await gatewayOf(values.gateway, values.valkey) : undefined;
+  const models = values.gateway
+    ? await openModels({
+        gateway: values.gateway,
+        ...(corpus && corpusGateway && { corpus: { gateway: corpusGateway, tenantId: corpus.tenantId } }),
+        ...(values.valkey && { valkeyUrl: values.valkey }),
+        ...(values.usage && { usageUrl: values.usage }),
+      })
+    : undefined;
   const engine = await Engine.open({
     blobDir: await mkdtemp(join(tmpdir(), "inspiration-blobs-")),
     // The corpus's catalogue is its tenant's alone; provisioned companies have none yet.
     ...(corpus && { resolvePrincipal: corpus.resolvePrincipal, vocabulary: corpus.vocabularyOf }),
     ...(today && { clock: () => today }),
-    ...(models && { models: models.gateway }),
+    ...(models && { models: models.models }),
   });
   if (corpus) {
     const started = performance.now();

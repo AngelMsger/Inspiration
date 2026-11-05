@@ -48,7 +48,8 @@ routes:
 
 budgets:
   # The owner approved one recording under CNY 1 (2026-11-04); a soft stop at the peak prices
-  # above, so the real spend off-peak stays near half of it.
+  # above, so the real spend off-peak stays near half of it. As the trial's --corpus-gateway,
+  # the trial's budgets hold instead (config/gateway.trial.yaml).
   - match: "*"
     period: day
     limit: 1
