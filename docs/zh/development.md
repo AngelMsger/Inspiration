@@ -54,9 +54,11 @@ pnpm snapshot dist/snapshot                        # 把演示脚本录制成静
 ```bash
 docker compose -f infra/compose.yaml --profile auth up -d --wait   # 即 make up，再加上 3001 端口的 Logto
 pnpm --dir apps/web exec vite build                                 # 构建 Web 应用，输出到 apps/web/dist
-pnpm engine serve examples/corpus --issuer http://localhost:4200 --audience http://127.0.0.1:4100
+pnpm engine serve --issuer http://localhost:4200 --audience http://127.0.0.1:4100   # 一个空的引擎
 pnpm business serve --web apps/web/dist                             # 网站在 http://localhost:4200
 ```
+
+这样启动的引擎没有文档，一切都放在内存里：企业和成员来自业务后端，空间在 Web 应用里创建。重启引擎之后，也要重启业务后端，它启动时会把所有企业和成员重新发给引擎；重启前创建的空间就没有了。
 
 ## 试用模型网关
 
