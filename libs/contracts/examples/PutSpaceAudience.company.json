@@ -1,0 +1,3 @@
+{
+  "grants": [{ "principal_id": "tenant", "role": "viewer" }]
+}

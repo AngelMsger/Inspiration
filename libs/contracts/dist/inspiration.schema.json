@@ -72,6 +72,15 @@
     ],
     "api": [
       "SpaceList",
+      "SpaceEntry",
+      "CreateSpace",
+      "SpaceOwnerIds",
+      "PutSpaceOwners",
+      "PatchSpace",
+      "SpaceWritten",
+      "SpaceAudience",
+      "PutSpaceAudience",
+      "Me",
       "DocumentTree",
       "DocumentView",
       "TopicList",
@@ -105,6 +114,8 @@
       "AclEntry",
       "AclSnapshot",
       "SpaceKind",
+      "SpaceRole",
+      "SpaceGrant",
       "Space",
       "Tenant",
       "AuditChannel",
@@ -140,6 +151,7 @@
     "common": [
       "TenantId",
       "SpaceId",
+      "MemberId",
       "SourceId",
       "SourceVersionId",
       "SourceBlockId",
@@ -426,6 +438,19 @@
       "DocumentEntry",
       "DocumentTreeNodeKind",
       "DocumentTreeNode"
+    ],
+    "tenancy": [
+      "TenantKind",
+      "TenantStatus",
+      "MemberStatus",
+      "MemberRole",
+      "DirectoryVersion",
+      "PutTenant",
+      "TenantWritten",
+      "PutMember",
+      "DirectoryMember",
+      "MemberWritten",
+      "DirectoryMemberList"
     ],
     "business/accounts": [
       "UiLocale",
@@ -977,11 +1002,13 @@
     },
     "ApiErrorCode": {
       "type": "string",
+      "description": "forbidden is a token whose scopes do not cover the route, or an admin write on a space the member may read but not administer; conflict is a directory command older than the engine's copy.\n",
       "enum": [
         "bad_request",
         "unauthenticated",
         "forbidden",
         "not_found",
+        "conflict",
         "internal"
       ]
     },
@@ -3052,6 +3079,33 @@
         }
       }
     },
+    "CreateSpace": {
+      "description": "The body of POST /v0/spaces, which only the super admin may send. The engine mints the space's ID; its kind is team.",
+      "type": "object",
+      "required": [
+        "name",
+        "owner_ids"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        },
+        "parent_id": {
+          "$ref": "#/$defs/SpaceId"
+        },
+        "owner_ids": {
+          "$ref": "#/$defs/SpaceOwnerIds"
+        },
+        "default_sensitivity": {
+          "description": "internal when not given.",
+          "$ref": "#/$defs/SensitivityLabel"
+        }
+      }
+    },
     "CurrentMember": {
       "description": "The account as a member of the company it works in now.",
       "type": "object",
@@ -3350,6 +3404,69 @@
           "$ref": "#/$defs/ProducerInfo"
         }
       }
+    },
+    "DirectoryMember": {
+      "description": "The engine's copy of a member of a tenant.",
+      "type": "object",
+      "required": [
+        "id",
+        "tenant_id",
+        "status",
+        "display_name",
+        "roles",
+        "version",
+        "updated_at"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/MemberId"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        },
+        "status": {
+          "$ref": "#/$defs/MemberStatus"
+        },
+        "display_name": {
+          "type": "string"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MemberRole"
+          }
+        },
+        "version": {
+          "$ref": "#/$defs/DirectoryVersion"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Instant"
+        }
+      }
+    },
+    "DirectoryMemberList": {
+      "description": "The answer to GET /v0/tenants/{tenant}/members, the engine's copy, for checking drift. Sorted by member ID.",
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "members"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DirectoryMember"
+          }
+        }
+      }
+    },
+    "DirectoryVersion": {
+      "description": "The business layer's version of a directory object, increasing with every change to it.",
+      "type": "integer",
+      "minimum": 1
     },
     "DirtyReason": {
       "type": "string",
@@ -5073,6 +5190,41 @@
         }
       }
     },
+    "Me": {
+      "description": "The answer to GET /v0/me: who the principal token names, as the engine's directory copy knows them. admin is true for the super admin, who may create spaces and name their owners.\n",
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "member_id",
+        "roles",
+        "admin"
+      ],
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        },
+        "member_id": {
+          "$ref": "#/$defs/MemberId"
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MemberRole"
+          }
+        },
+        "admin": {
+          "type": "boolean"
+        },
+        "locale": {
+          "$ref": "#/$defs/Locale"
+        }
+      }
+    },
+    "MemberId": {
+      "description": "One person inside one tenant; unique only within the tenant. A PrincipalId of kind member.",
+      "type": "string",
+      "pattern": "^mem_[0-9A-Za-z]{8,64}$"
+    },
     "MemberList": {
       "description": "GET /api/members, the active members of the current company, by name.",
       "type": "object",
@@ -5086,6 +5238,43 @@
           "items": {
             "$ref": "#/$defs/CompanyMember"
           }
+        }
+      }
+    },
+    "MemberRole": {
+      "description": "The engine's internal roles. The product's super admin holds owner, admin, security_admin and auditor together and everyone else holds member; the engine keeps them apart, so a later split of the super admin changes only the bundle the business layer grants. guest is for later.\n",
+      "type": "string",
+      "enum": [
+        "owner",
+        "admin",
+        "security_admin",
+        "auditor",
+        "member",
+        "guest"
+      ]
+    },
+    "MemberStatus": {
+      "description": "Only an active member holds rights. Suspending a member or recording that they left drops every grant at once.",
+      "type": "string",
+      "enum": [
+        "invited",
+        "active",
+        "suspended",
+        "left"
+      ]
+    },
+    "MemberWritten": {
+      "description": "The answer to PUT /v0/tenants/{tenant}/members/{member}.",
+      "type": "object",
+      "required": [
+        "member"
+      ],
+      "properties": {
+        "member": {
+          "$ref": "#/$defs/DirectoryMember"
+        },
+        "consistency_token": {
+          "type": "string"
         }
       }
     },
@@ -5672,6 +5861,20 @@
         }
       }
     },
+    "PatchSpace": {
+      "description": "The body of PATCH /v0/spaces/{space}, from the super admin or an owner of the space.",
+      "type": "object",
+      "minProperties": 1,
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    },
     "Permission": {
       "type": "string",
       "enum": [
@@ -6086,6 +6289,92 @@
         "published",
         "retired"
       ]
+    },
+    "PutMember": {
+      "description": "The body of PUT /v0/tenants/{tenant}/members/{member}. Display names only; the engine keeps no email.",
+      "type": "object",
+      "required": [
+        "status",
+        "display_name",
+        "roles",
+        "version"
+      ],
+      "properties": {
+        "status": {
+          "$ref": "#/$defs/MemberStatus"
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "roles": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MemberRole"
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "version": {
+          "$ref": "#/$defs/DirectoryVersion"
+        }
+      }
+    },
+    "PutSpaceAudience": {
+      "description": "The body of PUT /v0/spaces/{space}/audience: the whole audience apart from the owners, which only PUT /v0/spaces/{space}/owners changes. An owner grant in it answers 400. An owner of the space may set any audience; the super admin may only remove grants.\n",
+      "type": "object",
+      "required": [
+        "grants"
+      ],
+      "properties": {
+        "grants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpaceGrant"
+          }
+        }
+      }
+    },
+    "PutSpaceOwners": {
+      "description": "The body of PUT /v0/spaces/{space}/owners, which only the super admin may send. It replaces the owners.",
+      "type": "object",
+      "required": [
+        "owner_ids"
+      ],
+      "properties": {
+        "owner_ids": {
+          "$ref": "#/$defs/SpaceOwnerIds"
+        }
+      }
+    },
+    "PutTenant": {
+      "description": "The body of PUT /v0/tenants/{tenant}. It creates the tenant or updates it, and registers the calling service as the tenant's service.",
+      "type": "object",
+      "required": [
+        "name",
+        "kind",
+        "default_locale",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "$ref": "#/$defs/TenantKind"
+        },
+        "status": {
+          "description": "active when not given.",
+          "$ref": "#/$defs/TenantStatus"
+        },
+        "default_locale": {
+          "$ref": "#/$defs/Locale"
+        },
+        "version": {
+          "$ref": "#/$defs/DirectoryVersion"
+        }
+      }
     },
     "QualityGate": {
       "type": "string",
@@ -7729,7 +8018,7 @@
       "pattern": "^sv_[0-9A-Za-z]{8,64}$"
     },
     "Space": {
-      "description": "A container that holds permissions. Personal, team, org, or a mirror of one source.",
+      "description": "A container that holds permissions. Personal, team, org, or a mirror of one source. owner_id is the first of its owners (SpaceEntry lists them all).\n",
       "type": "object",
       "required": [
         "id",
@@ -7770,6 +8059,29 @@
         }
       }
     },
+    "SpaceAudience": {
+      "description": "Who may read a space, and with which role: the answer to GET and PUT /v0/spaces/{space}/audience, for the super admin and the space's owners. The owners appear as owner grants. Sorted by principal ID, then role.\n",
+      "type": "object",
+      "required": [
+        "space_id",
+        "grants"
+      ],
+      "properties": {
+        "space_id": {
+          "$ref": "#/$defs/SpaceId"
+        },
+        "grants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpaceGrant"
+          }
+        },
+        "consistency_token": {
+          "description": "Set when the answer is to a write.",
+          "type": "string"
+        }
+      }
+    },
     "SpaceChange": {
       "description": "A document as the latest sync left it, new to the space or an updated version.",
       "type": "object",
@@ -7787,6 +8099,55 @@
             "created",
             "updated"
           ]
+        }
+      }
+    },
+    "SpaceEntry": {
+      "description": "A space as one member sees it: the space, its owners, and the member's own role on it, the highest they hold, inherited from a parent space or not. role is absent when the member manages the space without holding a role on it, as the super admin may. grants counts the space's audience, and is set only in the list of spaces the member may administer (GET /v0/spaces?manage=true).\n",
+      "allOf": [
+        {
+          "$ref": "#/$defs/Space"
+        },
+        {
+          "type": "object",
+          "required": [
+            "owner_ids"
+          ],
+          "properties": {
+            "owner_ids": {
+              "$ref": "#/$defs/SpaceOwnerIds"
+            },
+            "role": {
+              "$ref": "#/$defs/SpaceRole"
+            },
+            "grants": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      ]
+    },
+    "SpaceGrant": {
+      "description": "One entry of a space's audience. principal_id \"tenant\" is everyone in the company.",
+      "type": "object",
+      "required": [
+        "principal_id",
+        "role"
+      ],
+      "properties": {
+        "principal_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MemberId"
+            },
+            {
+              "const": "tenant"
+            }
+          ]
+        },
+        "role": {
+          "$ref": "#/$defs/SpaceRole"
         }
       }
     },
@@ -7911,6 +8272,41 @@
           "items": {
             "$ref": "#/$defs/SpaceChange"
           }
+        }
+      }
+    },
+    "SpaceOwnerIds": {
+      "description": "A space's owners, active members of its tenant.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/MemberId"
+      },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "SpaceRole": {
+      "description": "A role on a space, from the least: viewer reads, commenter also comments, editor also edits, steward also verifies and publishes, owner also administers the space and sets its audience. A role on a space holds in every space below it.\n",
+      "type": "string",
+      "enum": [
+        "viewer",
+        "commenter",
+        "editor",
+        "steward",
+        "owner"
+      ]
+    },
+    "SpaceWritten": {
+      "description": "The answer to creating a space, naming its owners or renaming it.",
+      "type": "object",
+      "required": [
+        "space"
+      ],
+      "properties": {
+        "space": {
+          "$ref": "#/$defs/SpaceEntry"
+        },
+        "consistency_token": {
+          "type": "string"
         }
       }
     },
@@ -8325,6 +8721,7 @@
       }
     },
     "Tenant": {
+      "description": "A tenant as the business layer provisions it (tenancy.yaml). kind, status, default_locale and version are absent only for tenants a corpus stands in for.",
       "type": "object",
       "required": [
         "id",
@@ -8338,6 +8735,18 @@
         "name": {
           "type": "string"
         },
+        "kind": {
+          "$ref": "#/$defs/TenantKind"
+        },
+        "status": {
+          "$ref": "#/$defs/TenantStatus"
+        },
+        "default_locale": {
+          "$ref": "#/$defs/Locale"
+        },
+        "version": {
+          "$ref": "#/$defs/DirectoryVersion"
+        },
         "created_at": {
           "$ref": "#/$defs/Instant"
         }
@@ -8346,6 +8755,39 @@
     "TenantId": {
       "type": "string",
       "pattern": "^ten_[0-9A-Za-z]{8,64}$"
+    },
+    "TenantKind": {
+      "description": "team is a company. personal is one account's personal library, its own tenant that never becomes a company. enterprise is a team with its own identity provider, later.\n",
+      "type": "string",
+      "enum": [
+        "personal",
+        "team",
+        "enterprise"
+      ]
+    },
+    "TenantStatus": {
+      "description": "A suspended tenant answers no reads; a deleting one is waiting out its grace period.",
+      "type": "string",
+      "enum": [
+        "active",
+        "suspended",
+        "deleting"
+      ]
+    },
+    "TenantWritten": {
+      "description": "The answer to PUT /v0/tenants/{tenant}.",
+      "type": "object",
+      "required": [
+        "tenant"
+      ],
+      "properties": {
+        "tenant": {
+          "$ref": "#/$defs/Tenant"
+        },
+        "consistency_token": {
+          "type": "string"
+        }
+      }
     },
     "TextQuote": {
       "description": "W3C Web Annotation style text-quote selector, the fallback when a block key moves.",

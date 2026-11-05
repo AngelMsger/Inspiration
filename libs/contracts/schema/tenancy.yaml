@@ -1,0 +1,134 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: tenancy.yaml
+title: Provisioning
+description: >
+  What the business layer's tenancy service tells the engine about a tenant and its members, as
+  a service with the provision.directory scope. The engine keeps a copy of the directory and
+  is not its system of record. Every command is idempotent (an Idempotency-Key header), and
+  every directory object carries a version: a command with a higher version than the engine's
+  copy wins, the same version with the same content is a replay, and anything else answers
+  409 conflict. Every command answers with a consistency_token; a later read that sends it
+  back in the x-inspiration-consistency header sees the change.
+
+$defs:
+  TenantKind:
+    description: >
+      team is a company. personal is one account's personal library, its own tenant that never
+      becomes a company. enterprise is a team with its own identity provider, later.
+    type: string
+    enum: [personal, team, enterprise]
+
+  TenantStatus:
+    description: A suspended tenant answers no reads; a deleting one is waiting out its grace period.
+    type: string
+    enum: [active, suspended, deleting]
+
+  MemberStatus:
+    description: Only an active member holds rights. Suspending a member or recording that they left drops every grant at once.
+    type: string
+    enum: [invited, active, suspended, left]
+
+  MemberRole:
+    description: >
+      The engine's internal roles. The product's super admin holds owner, admin, security_admin
+      and auditor together and everyone else holds member; the engine keeps them apart, so a
+      later split of the super admin changes only the bundle the business layer grants. guest
+      is for later.
+    type: string
+    enum: [owner, admin, security_admin, auditor, member, guest]
+
+  DirectoryVersion:
+    description: The business layer's version of a directory object, increasing with every change to it.
+    type: integer
+    minimum: 1
+
+  PutTenant:
+    description: The body of PUT /v0/tenants/{tenant}. It creates the tenant or updates it, and registers the calling service as the tenant's service.
+    type: object
+    required: [name, kind, default_locale, version]
+    properties:
+      name:
+        type: string
+        minLength: 1
+      kind:
+        $ref: "#/$defs/TenantKind"
+      status:
+        description: active when not given.
+        $ref: "#/$defs/TenantStatus"
+      default_locale:
+        $ref: "common.yaml#/$defs/Locale"
+      version:
+        $ref: "#/$defs/DirectoryVersion"
+
+  TenantWritten:
+    description: The answer to PUT /v0/tenants/{tenant}.
+    type: object
+    required: [tenant]
+    properties:
+      tenant:
+        $ref: "authz.yaml#/$defs/Tenant"
+      consistency_token:
+        type: string
+
+  PutMember:
+    description: The body of PUT /v0/tenants/{tenant}/members/{member}. Display names only; the engine keeps no email.
+    type: object
+    required: [status, display_name, roles, version]
+    properties:
+      status:
+        $ref: "#/$defs/MemberStatus"
+      display_name:
+        type: string
+        minLength: 1
+      roles:
+        type: array
+        items:
+          $ref: "#/$defs/MemberRole"
+        minItems: 1
+        uniqueItems: true
+      version:
+        $ref: "#/$defs/DirectoryVersion"
+
+  DirectoryMember:
+    description: The engine's copy of a member of a tenant.
+    type: object
+    required: [id, tenant_id, status, display_name, roles, version, updated_at]
+    properties:
+      id:
+        $ref: "common.yaml#/$defs/MemberId"
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      status:
+        $ref: "#/$defs/MemberStatus"
+      display_name:
+        type: string
+      roles:
+        type: array
+        items:
+          $ref: "#/$defs/MemberRole"
+      version:
+        $ref: "#/$defs/DirectoryVersion"
+      updated_at:
+        $ref: "common.yaml#/$defs/Instant"
+
+  MemberWritten:
+    description: The answer to PUT /v0/tenants/{tenant}/members/{member}.
+    type: object
+    required: [member]
+    properties:
+      member:
+        $ref: "#/$defs/DirectoryMember"
+      consistency_token:
+        type: string
+
+  DirectoryMemberList:
+    description: The answer to GET /v0/tenants/{tenant}/members, the engine's copy, for checking drift. Sorted by member ID.
+    type: object
+    required: [tenant_id, members]
+    properties:
+      tenant_id:
+        $ref: "common.yaml#/$defs/TenantId"
+      members:
+        type: array
+        items:
+          $ref: "#/$defs/DirectoryMember"

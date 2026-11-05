@@ -101,8 +101,12 @@ export type Score01 = number;
 export type ClaimStatus =
   "proposed" | "active" | "verified" | "disputed" | "superseded" | "retracted";
 export type EntityId = string;
+/**
+ * forbidden is a token whose scopes do not cover the route, or an admin write on a space the member may read but not administer; conflict is a directory command older than the engine's copy.
+ *
+ */
 export type ApiErrorCode =
-  "bad_request" | "unauthenticated" | "forbidden" | "not_found" | "internal";
+  "bad_request" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "internal";
 export type ApprovalAction =
   | "start"
   | "approve"
@@ -294,6 +298,29 @@ export type ConflictClass =
   | "compatible";
 export type ConflictTier = "deterministic" | "semantic" | "nli" | "llm_judge";
 export type ConflictStatus = "open" | "auto_resolved" | "resolved" | "dismissed";
+/**
+ * A space's owners, active members of its tenant.
+ *
+ * @minItems 1
+ */
+export type SpaceOwnerIds = [MemberId, ...MemberId[]];
+/**
+ * One person inside one tenant; unique only within the tenant. A PrincipalId of kind member.
+ */
+export type MemberId = string;
+/**
+ * Only an active member holds rights. Suspending a member or recording that they left drops every grant at once.
+ */
+export type MemberStatus = "invited" | "active" | "suspended" | "left";
+/**
+ * The engine's internal roles. The product's super admin holds owner, admin, security_admin and auditor together and everyone else holds member; the engine keeps them apart, so a later split of the super admin changes only the bundle the business layer grants. guest is for later.
+ *
+ */
+export type MemberRole = "owner" | "admin" | "security_admin" | "auditor" | "member" | "guest";
+/**
+ * The business layer's version of a directory object, increasing with every change to it.
+ */
+export type DirectoryVersion = number;
 export type DocBlockKind =
   | "heading"
   | "paragraph"
@@ -415,6 +442,20 @@ export type PlacedBy = "clustering" | "page" | "member";
 export type PublishRequestId = string;
 export type PublishState = "draft" | "in_review" | "published" | "retired";
 export type QualityGate = "citations" | "conflicts" | "pii" | "permission_widening" | "freshness";
+/**
+ * A role on a space, from the least: viewer reads, commenter also comments, editor also edits, steward also verifies and publishes, owner also administers the space and sets its audience. A role on a space holds in every space below it.
+ *
+ */
+export type SpaceRole = "viewer" | "commenter" | "editor" | "steward" | "owner";
+/**
+ * team is a company. personal is one account's personal library, its own tenant that never becomes a company. enterprise is a team with its own identity provider, later.
+ *
+ */
+export type TenantKind = "personal" | "team" | "enterprise";
+/**
+ * A suspended tenant answers no reads; a deleting one is waiting out its grace period.
+ */
+export type TenantStatus = "active" | "suspended" | "deleting";
 export type RelationId = string;
 export type RenderCheckName =
   | "loads"
@@ -438,6 +479,15 @@ export type SopId = string;
 export type StepBasis = "from_definition" | "mined" | "inferred" | "document" | "human";
 export type SourceStatus = "active" | "paused" | "error" | "archived";
 export type SpaceKind = "personal" | "team" | "org" | "source_mirror";
+/**
+ * A space as one member sees it: the space, its owners, and the member's own role on it, the highest they hold, inherited from a parent space or not. role is absent when the member manages the space without holding a role on it, as the super admin may. grants counts the space's audience, and is set only in the list of spaces the member may administer (GET /v0/spaces?manage=true).
+ *
+ */
+export type SpaceEntry = Space & {
+  owner_ids: SpaceOwnerIds;
+  role?: SpaceRole;
+  grants?: number;
+};
 /**
  * read = no side effects; propose = creates a proposal or a todo that a person accepts in collaboration.
  */
@@ -1685,6 +1735,16 @@ export interface ConnectorCapabilities {
   max_requests_per_second?: number;
 }
 /**
+ * The body of POST /v0/spaces, which only the super admin may send. The engine mints the space's ID; its kind is team.
+ */
+export interface CreateSpace {
+  name: string;
+  description?: string;
+  parent_id?: SpaceId;
+  owner_ids: SpaceOwnerIds;
+  default_sensitivity?: SensitivityLabel;
+}
+/**
  * A resolved DataRef, before per-reader filtering. The serving path drops rows whose claims the reader cannot see, then injects the rest into the chart or view.
  *
  */
@@ -1733,6 +1793,25 @@ export interface DependencyEdge {
 export interface DerivedReadDecision {
   allow: boolean;
   readable_support: UnitId[];
+}
+/**
+ * The engine's copy of a member of a tenant.
+ */
+export interface DirectoryMember {
+  id: MemberId;
+  tenant_id: TenantId;
+  status: MemberStatus;
+  display_name: string;
+  roles: MemberRole[];
+  version: DirectoryVersion;
+  updated_at: Instant;
+}
+/**
+ * The answer to GET /v0/tenants/{tenant}/members, the engine's copy, for checking drift. Sorted by member ID.
+ */
+export interface DirectoryMemberList {
+  tenant_id: TenantId;
+  members: DirectoryMember[];
 }
 /**
  * A normalized block produced by a connector or a parser. The anchor is stable for the same block across versions whenever the source allows it (Feishu block IDs, page and paragraph index for files), and is what spans and citations point to.
@@ -2311,6 +2390,24 @@ export interface ListedItem {
   version?: Version;
 }
 /**
+ * The answer to GET /v0/me: who the principal token names, as the engine's directory copy knows them. admin is true for the super admin, who may create spaces and name their owners.
+ *
+ */
+export interface Me {
+  tenant_id: TenantId;
+  member_id: MemberId;
+  roles: MemberRole[];
+  admin: boolean;
+  locale?: Locale;
+}
+/**
+ * The answer to PUT /v0/tenants/{tenant}/members/{member}.
+ */
+export interface MemberWritten {
+  member: DirectoryMember;
+  consistency_token?: string;
+}
+/**
  * What Connector.fetch returns. Exactly one of blocks, file or process is normally set. When only file is set, normalization hands it to the parser router.
  *
  */
@@ -2473,6 +2570,13 @@ export interface ParseResult {
   warnings?: string[];
 }
 /**
+ * The body of PATCH /v0/spaces/{space}, from the super admin or an owner of the space.
+ */
+export interface PatchSpace {
+  name?: string;
+  description?: string;
+}
+/**
  * Where a statement sits in the knowledge outline: its topic, and the page block that cites it when a page does. A claim has at most one. A current claim of a governed document without one is unfiled and shows under its source section.
  *
  */
@@ -2560,6 +2664,48 @@ export interface QualityGateResult {
   passed: boolean;
   details?: string;
   unit_ids?: UnitId[];
+}
+/**
+ * The body of PUT /v0/tenants/{tenant}/members/{member}. Display names only; the engine keeps no email.
+ */
+export interface PutMember {
+  status: MemberStatus;
+  display_name: string;
+  /**
+   * @minItems 1
+   */
+  roles: [MemberRole, ...MemberRole[]];
+  version: DirectoryVersion;
+}
+/**
+ * The body of PUT /v0/spaces/{space}/audience: the whole audience apart from the owners, which only PUT /v0/spaces/{space}/owners changes. An owner grant in it answers 400. An owner of the space may set any audience; the super admin may only remove grants.
+ *
+ */
+export interface PutSpaceAudience {
+  grants: SpaceGrant[];
+}
+/**
+ * One entry of a space's audience. principal_id "tenant" is everyone in the company.
+ */
+export interface SpaceGrant {
+  principal_id: MemberId | "tenant";
+  role: SpaceRole;
+}
+/**
+ * The body of PUT /v0/spaces/{space}/owners, which only the super admin may send. It replaces the owners.
+ */
+export interface PutSpaceOwners {
+  owner_ids: SpaceOwnerIds;
+}
+/**
+ * The body of PUT /v0/tenants/{tenant}. It creates the tenant or updates it, and registers the calling service as the tenant's service.
+ */
+export interface PutTenant {
+  name: string;
+  kind: TenantKind;
+  status?: TenantStatus;
+  default_locale: Locale;
+  version: DirectoryVersion;
 }
 /**
  * An edge between two entities. Every edge is backed by at least one claim.
@@ -2869,7 +3015,8 @@ export interface SourceChanged {
   change: ChangeEvent;
 }
 /**
- * A container that holds permissions. Personal, team, org, or a mirror of one source.
+ * A container that holds permissions. Personal, team, org, or a mirror of one source. owner_id is the first of its owners (SpaceEntry lists them all).
+ *
  */
 export interface Space {
   id: SpaceId;
@@ -2881,6 +3028,18 @@ export interface Space {
   owner_id: PrincipalId;
   default_sensitivity: SensitivityLabel;
   created_at: Instant;
+}
+/**
+ * Who may read a space, and with which role: the answer to GET and PUT /v0/spaces/{space}/audience, for the super admin and the space's owners. The owners appear as owner grants. Sorted by principal ID, then role.
+ *
+ */
+export interface SpaceAudience {
+  space_id: SpaceId;
+  grants: SpaceGrant[];
+  /**
+   * Set when the answer is to a write.
+   */
+  consistency_token?: string;
 }
 /**
  * A document as the latest sync left it, new to the space or an updated version.
@@ -2896,9 +3055,16 @@ export interface SpaceList {
   tenant: Tenant;
   spaces: Space[];
 }
+/**
+ * A tenant as the business layer provisions it (tenancy.yaml). kind, status, default_locale and version are absent only for tenants a corpus stands in for.
+ */
 export interface Tenant {
   id: TenantId;
   name: string;
+  kind?: TenantKind;
+  status?: TenantStatus;
+  default_locale?: Locale;
+  version?: DirectoryVersion;
   created_at: Instant;
 }
 /**
@@ -2938,6 +3104,13 @@ export interface SpaceOverview {
    * The documents fetched most recently, newest first, at most ten.
    */
   changes: SpaceChange[];
+}
+/**
+ * The answer to creating a space, naming its owners or renaming it.
+ */
+export interface SpaceWritten {
+  space: SpaceEntry;
+  consistency_token?: string;
 }
 /**
  * An exact passage, table cell or form field. Every claim points to spans. A span's ID depends only on its block and text, so a span that did not change keeps its ID in later versions of the document; it is stored once, with the version that introduced it.
@@ -2995,6 +3168,13 @@ export interface SyncReport {
     external_id: string;
     error: string;
   }[];
+}
+/**
+ * The answer to PUT /v0/tenants/{tenant}.
+ */
+export interface TenantWritten {
+  tenant: Tenant;
+  consistency_token?: string;
 }
 export interface TodoCreated {
   todo_id: TodoId;

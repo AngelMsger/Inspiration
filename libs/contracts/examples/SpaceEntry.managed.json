@@ -1,0 +1,11 @@
+{
+  "id": "spc_01QINGHE000000000000POLICY",
+  "tenant_id": "ten_01QINGHE000000000000000001",
+  "kind": "team",
+  "name": "公司制度",
+  "owner_id": "mem_01QINGHE00000000000000LINA",
+  "owner_ids": ["mem_01QINGHE00000000000000LINA"],
+  "default_sensitivity": "internal",
+  "created_at": "2026-09-01T00:00:00Z",
+  "grants": 2
+}

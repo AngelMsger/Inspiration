@@ -1,0 +1,7 @@
+{
+  "tenant_id": "ten_01QINGHE000000000000000001",
+  "member_id": "mem_01QINGHE0000000000ZHOUMIN",
+  "roles": ["admin", "auditor", "owner", "security_admin"],
+  "admin": true,
+  "locale": "zh-CN"
+}

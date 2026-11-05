@@ -1,0 +1,6 @@
+{
+  "status": "active",
+  "display_name": "周敏",
+  "roles": ["owner", "admin", "security_admin", "auditor"],
+  "version": 3
+}

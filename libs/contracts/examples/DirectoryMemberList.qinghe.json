@@ -1,0 +1,32 @@
+{
+  "tenant_id": "ten_01QINGHE000000000000000001",
+  "members": [
+    {
+      "id": "mem_01QINGHE00000000000000LINA",
+      "tenant_id": "ten_01QINGHE000000000000000001",
+      "status": "active",
+      "display_name": "李娜",
+      "roles": ["member"],
+      "version": 2,
+      "updated_at": "2026-11-05T03:05:00Z"
+    },
+    {
+      "id": "mem_01QINGHE0000000000ZHOUMIN",
+      "tenant_id": "ten_01QINGHE000000000000000001",
+      "status": "active",
+      "display_name": "周敏",
+      "roles": ["owner", "admin", "security_admin", "auditor"],
+      "version": 3,
+      "updated_at": "2026-11-05T03:01:00Z"
+    },
+    {
+      "id": "mem_01QINGHE000000000ZHANGMIN",
+      "tenant_id": "ten_01QINGHE000000000000000001",
+      "status": "invited",
+      "display_name": "张敏",
+      "roles": ["member"],
+      "version": 1,
+      "updated_at": "2026-11-05T03:06:00Z"
+    }
+  ]
+}

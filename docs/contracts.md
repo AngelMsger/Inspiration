@@ -13,7 +13,9 @@ the database is `snake_case`; TypeScript APIs are `camelCase`. A Chinese copy is
 | `knowledge.yaml` | claims and evidence, entities, relations, SOPs, knowledge models, research, freshness, lineage, conflicts, where each value of a fact slot stands |
 | `page.yaml` | PageSpec and its 14 block types, data references, charts, diagrams, views and their message protocol, snapshots |
 | `collab.yaml` | comments, anchors, proposals, overrides, todos, publishing |
-| `authz.yaml` | principals, permissions, decisions, index filters, ACL snapshots, spaces, audit events |
+| `authz.yaml` | principals and principal tokens, permissions, decisions, index filters, ACL snapshots, spaces, space roles and grants, audit events |
+| `tenancy.yaml` | tenants and members as the business layer provisions them, and the engine's copy of the directory |
+| `api.yaml` | the engine's HTTP API: spaces and their administration, documents, topics, the inbox, overviews, errors |
 | `gateway.yaml` | completion, embedding, rerank and OCR requests and results, usage, budgets, errors |
 | `retrieval.yaml` | search and answer requests and results, citations, notes on disputed and replaced values, feedback |
 | `events.yaml` | the event envelope and the payload of each event type (`x-events`) |
