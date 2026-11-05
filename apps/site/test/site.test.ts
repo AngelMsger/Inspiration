@@ -25,6 +25,10 @@ describe("site", () => {
       expect(html, path).toContain('class="stage is-changed is-todo is-confirmed"');
       // No download or sign-up is offered while the product is in development.
       expect(html, path).not.toMatch(/download=|\.dmg|\.exe|\.zip|mailto:|<form/);
+      // Links are relative, so the site works under a project path such as GitHub Pages gives.
+      expect(markup, path).not.toMatch(/(href|src)="\/(?!\/)/);
+      // Where the web fonts cannot be reached the page still renders at once, in system fonts.
+      expect(markup, path).toMatch(/<link rel="stylesheet" href="https:\/\/fonts[^"]*" media="print" onload=/);
     }
     // The page says once, at its end, that the product is still being built.
     for (const { tag, pack } of loadPacks()) {

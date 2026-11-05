@@ -1,0 +1,56 @@
+name: Site
+
+# Publishes the product website (apps/site) to GitHub Pages whenever it changes on main, or
+# when run by hand; a pull request that changes it only builds it. The pages link relatively,
+# so they work under the project path (https://<owner>.github.io/<repository>/). Deploying
+# needs a public repository and Settings > Pages > Source set to "GitHub Actions"; while the
+# repository is private only the build runs.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - apps/site/**
+      - .github/workflows/site.yml
+  pull_request:
+    paths:
+      - apps/site/**
+      - .github/workflows/site.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @inspiration/site
+      - run: node apps/site/src/build.ts --out _site
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    if: ${{ github.ref == 'refs/heads/main' && !github.event.repository.private }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

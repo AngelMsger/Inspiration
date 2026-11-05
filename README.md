@@ -99,7 +99,7 @@ business/<name>     one package per business-layer component: tenancy so far; en
 apps/engine         the engine process: wires the components to the store, the bus and the blob store; HTTP API
 apps/web            the product web app over the engine's HTTP API, a stand-in backend (pnpm demo) and snapshots (pnpm snapshot)
 apps/bench          the measurement harness (pnpm bench): runs the engine over a corpus, reports, checks answers
-apps/site           the product website (pnpm site): static pages in three languages with a scripted demo
+apps/site           the product website (pnpm site): static pages in three languages with a scripted demo, published to GitHub Pages
 examples/<corpus>   corpora with the answers runs are checked against (see examples/README.md)
 infra/              docker compose for the prototype stack, and a local embedding server for runs
 config/             example configuration of the model gateway
