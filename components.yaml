@@ -254,8 +254,7 @@ libraries:
 business:
   accounts:
     title: Accounts
-    status: in_progress
-    owner: claude/project-thread-aoq6hn
+    status: built
     owns: Users (the account, usr_ IDs that never reach the engine), their login identities through the identity provider over OIDC (Logto, email and password), sessions, and the account's language. Planned are identity linking, sign-in policy per company, and deleting an account
     calls: []
   tenancy:

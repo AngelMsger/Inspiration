@@ -1,0 +1,25 @@
+{
+  "name": "@inspiration/accounts",
+  "version": "0.1.0",
+  "description": "Accounts: users, their sign-in through the identity provider over OIDC (Logto), sessions and the account's language",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "inspiration": {
+    "plugins": {
+      "migrations": {
+        "accounts": "./src/migrations.ts#MIGRATIONS"
+      }
+    }
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/kernel": "workspace:*"
+  },
+  "devDependencies": {
+    "@inspiration/testkit": "workspace:*"
+  }
+}

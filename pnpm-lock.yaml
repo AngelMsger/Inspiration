@@ -11,6 +11,9 @@ importers:
       '@inspiration/access-control':
         specifier: workspace:*
         version: link:engine/access-control
+      '@inspiration/accounts':
+        specifier: workspace:*
+        version: link:business/accounts
       '@inspiration/agent-runtime':
         specifier: workspace:*
         version: link:engine/agent-runtime
@@ -219,6 +222,19 @@ importers:
       vite:
         specifier: 8.3.4
         version: 8.3.4(@types/node@22.20.5)(yaml@2.9.1)
+
+  business/accounts:
+    dependencies:
+      '@inspiration/contracts':
+        specifier: workspace:*
+        version: link:../../libs/contracts
+      '@inspiration/kernel':
+        specifier: workspace:*
+        version: link:../../libs/kernel
+    devDependencies:
+      '@inspiration/testkit':
+        specifier: workspace:*
+        version: link:../../libs/testkit
 
   business/tenancy:
     dependencies:
