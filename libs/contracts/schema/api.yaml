@@ -177,6 +177,11 @@ $defs:
         type: array
         items:
           $ref: "source.yaml#/$defs/DocumentTreeNode"
+      reading:
+        description: >
+          The documents in the tree by reading state. While any are waiting or reading, the
+          tree is worth asking for again.
+        $ref: "source.yaml#/$defs/ReadingCounts"
 
   DocumentView:
     description: >

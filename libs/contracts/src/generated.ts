@@ -356,6 +356,11 @@ export type SlotStanding = "holds" | "outdated" | "disputed" | "differs";
  *
  */
 export type GovernanceLevel = "governed" | "reference" | "search_only";
+/**
+ * How far the engine has read a document's latest version. waiting: not parsed yet. reading: parsed and searchable, its statements being read. read: done, and a reference document is read further where a page or an answer uses it. paused: the company's reading budget for the day is spent, and reading carries on once the next day's budget starts; the version is searchable meanwhile. failed: the file could not be read, and the note says why.
+ *
+ */
+export type ReadingState = "waiting" | "reading" | "read" | "paused" | "failed";
 export type DocumentTreeNodeKind = "source" | "folder" | "document";
 /**
  * Qwen3-Embedding and similar models embed queries with an instruction prefix and documents without.
@@ -1906,6 +1911,14 @@ export interface DocumentEntry {
   approval_state?: ApprovalState;
   modified_at?: Instant;
   fetched_at: Instant;
+  reading?: DocumentReading;
+}
+export interface DocumentReading {
+  state: ReadingState;
+  /**
+   * For a paused or failed document, why, in plain English.
+   */
+  note?: string;
 }
 export interface DocumentFetched {
   source_id: SourceId;
@@ -1940,6 +1953,7 @@ export interface DocumentMetadata {
 export interface DocumentTree {
   space_id: SpaceId;
   sources: DocumentTreeNode[];
+  reading?: ReadingCounts;
 }
 /**
  * A source, a folder in it or a document, in a space's Documents tree. Sources and folders hold their children and count the documents below them; a folder with nothing the reader may open is left out, never shown as empty or counted.
@@ -1960,6 +1974,16 @@ export interface DocumentTreeNode {
   document_count?: number;
   children?: DocumentTreeNode[];
   document?: DocumentEntry;
+}
+/**
+ * Documents by reading state.
+ */
+export interface ReadingCounts {
+  waiting: number;
+  reading: number;
+  read: number;
+  paused: number;
+  failed: number;
 }
 /**
  * One document for its Original and Annotated views: the version shown, its blocks in reading order, and the marks on them.
