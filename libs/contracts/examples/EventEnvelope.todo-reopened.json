@@ -1,0 +1,20 @@
+{
+  "id": "evt_01JC0000000000000000000010",
+  "type": "todo.reopened",
+  "version": 1,
+  "tenant_id": "ten_01JC0000000000000000000001",
+  "occurred_at": "2026-10-24T10:42:00Z",
+  "producer": "collaboration",
+  "subject": "todo_01JC0000000000000000000001",
+  "data": {
+    "todo_id": "todo_01JC0000000000000000000001",
+    "kind": "conflict",
+    "space_id": "spc_01JC0000000000000000000001",
+    "dedupe_key": "governance:conflict:hotel_cap_per_night|一线城市",
+    "slot_key": "hotel_cap_per_night|一线城市",
+    "created_by": "governance",
+    "decision_id": "dcn_01JC0000000000000000000001",
+    "undid": "choose:650 CNY/night",
+    "reopened_by": "mem_01JC0000000000000000000001"
+  }
+}

@@ -107,7 +107,7 @@ export type ClaimStatus =
   "proposed" | "active" | "verified" | "disputed" | "superseded" | "retracted";
 export type EntityId = string;
 /**
- * forbidden is a token whose scopes do not cover the route, or an admin write on a space the member may read but not administer; conflict is a directory command older than the engine's copy; too_large is an upload over the size a file may have (status 413), and unsupported_type a file of a type the engine does not read (status 415).
+ * forbidden is a token whose scopes do not cover the route, or an admin write on a space the member may read but not administer; conflict is a directory command older than the engine's copy, or an undo of a decision already undone or replaced; too_large is an upload over the size a file may have (status 413), and unsupported_type a file of a type the engine does not read (status 415).
  *
  */
 export type ApiErrorCode =
@@ -3376,6 +3376,24 @@ export interface TodoCreated {
   assignee_id?: PrincipalId;
   priority: Priority;
   batch_key?: string;
+}
+/**
+ * A member undid what the assistant decided for them, and the todo is open again. The component that asked for it restores what the undone resolution's effect changed, as a new decision; the others ignore it.
+ *
+ */
+export interface TodoReopened {
+  todo_id: TodoId;
+  kind: TodoKind;
+  space_id: SpaceId;
+  dedupe_key: string;
+  slot_key?: string;
+  created_by: ComponentName;
+  decision_id: DecisionId;
+  /**
+   * The key of the resolution undone.
+   */
+  undid: string;
+  reopened_by: PrincipalId;
 }
 /**
  * A component asks for a human todo. Collaboration owns todos: it merges requests with the same dedupe_key into one open todo, publishing todo.created when it opens a new one, and a later request with the key replaces that todo's title, detail, priority and units. Requests carry small facts; the detail is a summary, not content.

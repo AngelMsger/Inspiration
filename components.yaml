@@ -98,7 +98,7 @@ components:
     owns: Fact-slot values counted by independent source, the value that holds, conflict cases and todo requests from the deterministic tier, notes on values only reference documents state, daily rechecks of dated changes. Planned are the semantic, NLI and model-judge tiers (through model-gateway and agent-runtime), citation audit, claim merge (claims.updated), coverage gaps and the taxonomy gardener, each with a token budget
     plugins: [migrations]
     publishes: [todo.requested, claims.updated]
-    subscribes: [claims.updated, todo.resolved]
+    subscribes: [claims.updated, todo.resolved, todo.reopened]
     calls: [knowledge-store, model-gateway, agent-runtime]
 
   page-compiler:
@@ -117,9 +117,9 @@ components:
     layer: control
     status: built
     runtime: node
-    owns: The inbox, with todos merged by dedupe key, routed to topic owners, on weekly cards within a budget; notes; first-review campaigns. Planned are Decide for me (the assistant's decisions on a member's todos, with reasons and undo, and the member's standing delegation; docs/design/decide-for-me.md), comments and anchoring (comment.created), agent replies, overrides (claims.updated), the publish state machine (unit.published), quality gates, verification expiry, reacting to page.rendered, the source-restricted todo when a source later shares a published document more narrowly (acl.changed, whose ACL snapshots are advisory)
+    owns: The inbox, with todos merged by dedupe key, routed to topic owners, on weekly cards within a budget; notes; first-review campaigns; Decide for me (docs/design/decide-for-me.md), the assistant's rule-based decisions on a member's todos, with reasons in their language and undo, and the member's standing delegation. Planned are the space owner's people-only kinds and the super admin's switch for Decide for me, a model task for what the rules leave, comments and anchoring (comment.created), agent replies, overrides (claims.updated), the publish state machine (unit.published), quality gates, verification expiry, reacting to page.rendered, the source-restricted todo when a source later shares a published document more narrowly (acl.changed, whose ACL snapshots are advisory)
     plugins: [migrations]
-    publishes: [comment.created, unit.published, todo.created, todo.resolved, claims.updated]
+    publishes: [comment.created, unit.published, todo.created, todo.resolved, todo.reopened, claims.updated]
     subscribes: [page.rendered, comment.created, todo.requested, todo.created, review.due, acl.changed]
     calls: [knowledge-store, access-control, model-gateway, agent-runtime, retrieval]
 

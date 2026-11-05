@@ -1,6 +1,6 @@
 // The inbox routes of the HTTP API: a member's open todos with what each asks them to choose,
-// and resolving one. Collaboration keeps the todos and retrieval says what each choice states,
-// as the member may read it.
+// what the assistant would choose and why it left one, and resolving one. Collaboration keeps
+// the todos and retrieval says what each choice states, as the member may read it.
 
 import { cardKind } from "@inspiration/collaboration";
 import type {
@@ -25,17 +25,23 @@ export async function factLabels(
   return (slot) => (slot ? catalogue.find((p) => p.predicate === slot.split("|")[0])?.label : undefined);
 }
 
-/** The member's open todos on their cards, with the statements each is about. */
-export async function inboxOf(engine: Engine, who: Principal): Promise<Inbox> {
-  const cards = await engine.inbox.cards(who.tenant_id, { assignee: who.id });
-  const topics = new Map((await engine.store.topics(who.tenant_id)).map((n) => [n.key, n]));
-  const asked = [...new Set(cards.flatMap((c) => c.todos.flatMap((t) => t.unit_ids)))];
+/**
+ * Todos as the inbox shows them to the member: the statements each is about, as the member may
+ * read them, its choices, and what the assistant would choose and why it left it.
+ */
+export async function inboxTodos(engine: Engine, who: Principal, todos: readonly Todo[]): Promise<InboxTodo[]> {
+  const asked = [...new Set(todos.flatMap((t) => t.unit_ids))];
   const labelOf = await factLabels(engine, who.tenant_id);
   const statements = new Map<string, SearchHit>(
     (await engine.retrieval.statementsOf(asked, who)).statements.map((h) => [h.unit_id, h]),
   );
-  const todoOf = (todo: Todo): InboxTodo => {
+  const marks = await engine.assistant.marks(
+    who,
+    todos.map((t) => t.id),
+  );
+  return todos.map((todo): InboxTodo => {
     const label = labelOf(todo.slot_key);
+    const { suggestion, left } = marks.get(todo.id) ?? {};
     return {
       todo,
       ...(label && { fact_label: label }),
@@ -49,8 +55,25 @@ export async function inboxOf(engine: Engine, who: Principal): Promise<Inbox> {
           ...(typeof claim_id === "string" && { unit_id: claim_id }),
         };
       }),
+      ...(suggestion && { suggestion }),
+      ...(left && { left }),
     };
-  };
+  });
+}
+
+/** The member's open todos on their cards, with the statements each is about. */
+export async function inboxOf(engine: Engine, who: Principal): Promise<Inbox> {
+  const cards = await engine.inbox.cards(who.tenant_id, { assignee: who.id });
+  const topics = new Map((await engine.store.topics(who.tenant_id)).map((n) => [n.key, n]));
+  const shown = new Map(
+    (
+      await inboxTodos(
+        engine,
+        who,
+        cards.flatMap((c) => c.todos),
+      )
+    ).map((t) => [t.todo.id, t]),
+  );
   return {
     cards: cards.map((c): InboxCard => {
       const topic: TaxonomyNode | undefined = c.taxonomy_key ? topics.get(c.taxonomy_key) : undefined;
@@ -59,7 +82,7 @@ export async function inboxOf(engine: Engine, who: Principal): Promise<Inbox> {
         kind: cardKind(c.batch_key),
         ...(c.week && { week: c.week }),
         ...(topic && { topic }),
-        todos: c.todos.map(todoOf),
+        todos: c.todos.map((t) => shown.get(t.id) as InboxTodo),
       };
     }),
   };
