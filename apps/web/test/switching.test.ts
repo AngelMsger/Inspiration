@@ -158,6 +158,46 @@ describe("changing company", () => {
     expect(busy).toBe(false);
   });
 
+  test("when the answer to a change is lost, the backend's word on where it stands settles it", async () => {
+    let busy = false;
+    const change = switcher((on) => {
+      busy = on;
+    });
+    const server = backend();
+    const asked = later<{ tenant_id: string; member_id: string }>();
+    const changed = change(
+      async () => {
+        await server.enter("ten_QINGHE");
+        throw new TypeError("network down");
+      },
+      async (s) => `${s.tenant_id} library`,
+      () => asked.promise,
+    );
+    await settle();
+    // The backend moved, the answer did not come: the page stays busy until it knows.
+    expect([server.state.current, busy]).toEqual(["ten_QINGHE", true]);
+    asked.resolve({ tenant_id: server.state.current, member_id: SAME });
+    const result = await changed;
+    expect(result?.value).toBe("ten_QINGHE library");
+    expect(String(result?.lost?.error)).toContain("network down");
+    expect(busy).toBe(false);
+  });
+
+  test("when asking where the backend stands fails too, the change fails", async () => {
+    let busy = false;
+    const change = switcher((on) => {
+      busy = on;
+    });
+    await expect(
+      change(
+        () => Promise.reject(new TypeError("network down")),
+        async () => "",
+        () => Promise.reject(new TypeError("still down")),
+      ),
+    ).rejects.toThrow("still down");
+    expect(busy).toBe(false);
+  });
+
   test("what was read for a member of one company is not kept for the same member ID in another", () => {
     const read = { tenant: "ten_HENGYUAN", member: SAME, library: "Hengyuan library" };
     expect(keptFor(read, { tenant_id: "ten_HENGYUAN", member_id: SAME })).toBe(read);

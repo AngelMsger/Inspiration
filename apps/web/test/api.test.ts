@@ -28,13 +28,18 @@ const byNow = <T>(call: Promise<T>) => Promise.race([call, settle().then(() => P
 const json = (value: unknown, status = 200) =>
   new Response(JSON.stringify(value), { status, headers: { "content-type": "application/json" } });
 
-/** The backend: the session's company, every call as it arrived, what it did, and calls to hold back. */
+/**
+ * The backend: the session's company, every call as it arrived, what it did, calls to hold back,
+ * calls whose answer is lost after they are done, and calls that fail once.
+ */
 function backend() {
   const server = {
     current: HENGYUAN,
     calls: [] as { route: string; company: string | null }[],
     done: [] as string[],
     held: new Map<string, Promise<void>>(),
+    lost: new Set<string>(),
+    failOnce: new Set<string>(),
   };
   globalThis.fetch = (async (input: string, init?: RequestInit) => {
     const path = input.slice("/api".length);
@@ -45,9 +50,12 @@ function backend() {
     // The session's company when the call is handled, not when it was sent.
     if (route === "POST /session") {
       server.current = (JSON.parse(String(init?.body)) as { tenant_id: string }).tenant_id;
+      if (server.lost.has(route)) throw new TypeError("network down");
       return json({ current: { tenant_id: server.current, member_id: SAME } });
     }
+    if (route === "GET /session") return json({ current: { tenant_id: server.current, member_id: SAME } });
     if (company && company !== server.current) return json({ error: { code: "conflict", message: "moved" } }, 409);
+    if (server.failOnce.delete(route)) return json({ error: { code: "internal", message: "engine down" } }, 502);
     server.done.push(`${route} in ${server.current}`);
     return json({ tenant: { id: server.current, name: server.current }, spaces: [], items: [] });
   }) as typeof fetch;
@@ -70,7 +78,7 @@ describe("calls while the company changes", () => {
     const server = backend();
     await api.inbox();
     await api.enterCompany(QINGHE);
-    await api.session().catch(() => undefined);
+    await api.session();
     await apiIn(QINGHE).spaces();
     expect(server.calls).toEqual([
       { route: "GET /v0/inbox", company: HENGYUAN },
@@ -142,5 +150,52 @@ describe("calls while the company changes", () => {
     showCompany(QINGHE, () => moved++);
     expect(await api.inbox()).toMatchObject({ tenant: { id: QINGHE } });
     expect(server.done).toEqual([`GET /v0/spaces in ${QINGHE}`, `GET /v0/inbox in ${QINGHE}`]);
+  });
+
+  test("the backend switched but its answer was lost: the session is read before the frame takes clicks", async () => {
+    const server = backend();
+    server.lost.add("POST /session");
+    let busy = false;
+    const change = switcher((on) => {
+      busy = on;
+    });
+    const hold = later();
+    const switched = change(
+      () => api.enterCompany(QINGHE),
+      async (s) => {
+        await hold.promise;
+        return apiIn((s as { current: { tenant_id: string } }).current.tenant_id).spaces();
+      },
+      api.session,
+    );
+    await settle();
+    expect([server.current, busy]).toEqual([QINGHE, true]);
+    // A click the old frame would make, were it not inert: it is not done in the next company.
+    const resolving = api.resolve("todo_1", { with: "confirm" });
+    hold.resolve();
+    const result = await switched;
+    expect(result?.value).toMatchObject({ tenant: { id: QINGHE } });
+    expect(String(result?.lost?.error)).toContain("network down");
+    expect(busy).toBe(false);
+    expect(await byNow(resolving)).toBe(PENDING);
+    expect(server.done).toEqual([`GET /v0/spaces in ${QINGHE}`]);
+  });
+
+  test("the next company's library fails at first: its frame reads it again, in the next company", async () => {
+    const server = backend();
+    server.failOnce.add("GET /v0/spaces");
+    const change = switcher();
+    const switched = await change(
+      () => api.enterCompany(QINGHE),
+      () =>
+        apiIn(QINGHE)
+          .spaces()
+          .catch(() => undefined),
+    );
+    expect(switched).toEqual({ value: undefined });
+    // The next frame is shown without a library and reads it itself.
+    showCompany(QINGHE, () => moved++);
+    expect(await api.spaces()).toMatchObject({ tenant: { id: QINGHE } });
+    expect(server.calls.filter((c) => c.route === "GET /v0/spaces").map((c) => c.company)).toEqual([QINGHE, QINGHE]);
   });
 });

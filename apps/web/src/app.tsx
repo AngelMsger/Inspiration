@@ -95,8 +95,10 @@ function personOf(session: Session, demo: Person[] | undefined): Person {
  * When people or companies are picked in quick succession, the last one picked is shown
  * (`switcher`), and until it is, the frame on screen takes no clicks. Its calls name the company
  * it shows, so none reads or acts in the next one meanwhile; when the session moves on without
- * it, as from another tab, it reads the session again (api.ts). Signed out, it shows how to sign
- * in; signed in to no company yet, how to make one.
+ * it, as from another tab, it reads the session again (api.ts). When a change fails, the backend
+ * may have made it all the same, so the page reads the session before the frame takes clicks
+ * again, and shows the failure only if the session stayed where it was. Signed out, it shows how
+ * to sign in; signed in to no company yet, how to make one.
  */
 export function App(props: { generation?: number }) {
   const generation = props.generation ?? 0;
@@ -124,9 +126,12 @@ export function App(props: { generation?: number }) {
   const latest = useRef(generation);
   // Reads who is signed in again, and shows the company the session works in.
   const reread = useRef(() => {});
+  // Whom the frame on screen acts as: a member of a company, or no one yet.
+  const onScreen = useRef<Session["current"]>(undefined);
   const show = useCallback((next: Switched<{ session: Session; entry?: Entry }>) => {
     if (!next) return;
     entry.current = next.value.entry;
+    onScreen.current = next.value.session.current;
     showCompany(next.value.session.current?.tenant_id, () => switching.current || reread.current());
     setFailure(undefined);
     setSignedOut(false);
@@ -151,14 +156,21 @@ export function App(props: { generation?: number }) {
     document.documentElement.lang = tagLocale(tag);
   }, [tag]);
 
-  const actAs = useCallback(
-    (member: string) => change(() => api.actAs(member), enter).then(show, fail),
+  // A change of person or company; when its request fails, the session says where it stands.
+  const switchTo = useCallback(
+    (ask: () => Promise<Session>) => {
+      const before = onScreen.current;
+      return change(ask, enter, api.session).then((next) => {
+        show(next);
+        const now = next?.value.session.current;
+        const stayed = now?.tenant_id === before?.tenant_id && now?.member_id === before?.member_id;
+        if (next?.lost && stayed) setFailure(failureOf(next.lost.error));
+      }, fail);
+    },
     [change, show, fail],
   );
-  const enterCompany = useCallback(
-    (tenant: string) => change(() => api.enterCompany(tenant), enter).then(show, fail),
-    [change, show, fail],
-  );
+  const actAs = useCallback((member: string) => switchTo(() => api.actAs(member)), [switchTo]);
+  const enterCompany = useCallback((tenant: string) => switchTo(() => api.enterCompany(tenant)), [switchTo]);
   const speak = useCallback(
     (t: Tag) => {
       setPicked(t);
@@ -173,9 +185,8 @@ export function App(props: { generation?: number }) {
     [session, fail],
   );
   const createCompany = useCallback(
-    (name: string, locale: UiLocale) =>
-      change(() => api.createCompany({ name, default_locale: locale }), enter).then(show, fail),
-    [change, show, fail],
+    (name: string, locale: UiLocale) => switchTo(() => api.createCompany({ name, default_locale: locale })),
+    [switchTo],
   );
   const signOut = useCallback(() => {
     api.signOut().then(({ next }) => window.location.assign(next), fail);
