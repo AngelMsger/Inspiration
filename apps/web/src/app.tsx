@@ -17,6 +17,7 @@ import {
   showCompany,
   useLoad,
 } from "./api.ts";
+import { AppsScreen } from "./apps.tsx";
 import { DocumentScreen } from "./document.tsx";
 import { Documents } from "./documents.tsx";
 import { Ask, countOf, Home } from "./home.tsx";
@@ -357,6 +358,7 @@ function Shell(props: {
               people={people}
               inbox={inbox}
               version={changes + synced}
+              sampled={sampled}
               onChanged={changed}
               onSourcesChanged={sourcesChanged}
             />
@@ -383,6 +385,8 @@ function Screen(props: {
   people: Person[];
   inbox: Loaded<Inbox>;
   version: number;
+  /** The sample company is on screen, where nothing is changed. */
+  sampled: boolean;
   onChanged: () => void;
   onSourcesChanged: () => void;
 }) {
@@ -417,6 +421,8 @@ function Screen(props: {
         />
       );
     // The shell shows the admin area itself, and the app the join screen.
+    case "apps":
+      return <AppsScreen library={library} sampled={props.sampled} />;
     case "admin":
     case "join":
       return null;
@@ -527,6 +533,15 @@ function TopBar(props: {
               ))}
             </>
           )}
+          <button
+            type="button"
+            onClick={() => {
+              close();
+              navigate({ name: "apps" });
+            }}
+          >
+            {say("account.apps")}
+          </button>
           {current.role === "super_admin" && (
             <button
               type="button"

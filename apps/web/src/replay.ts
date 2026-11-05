@@ -9,7 +9,7 @@
  * cannot be removed, so the guide always has them.
  */
 
-import type { AccountChange, ProductRole } from "@inspiration/contracts/business";
+import type { AccountChange, NewAccessToken, ProductRole } from "@inspiration/contracts/business";
 import { Company, Refused } from "./company.ts";
 import type { People, Person } from "./people.ts";
 
@@ -137,7 +137,7 @@ export function answer(
 
 const failure = (code: string, message: string) => ({ error: { code, message } });
 
-/** The company's members and invite links, and joining it, as the business backend answers them. */
+/** The company's members, invite links and access tokens, and joining it, as the business backend answers them. */
 function companyAnswer(
   tab: Replayed,
   person: Person,
@@ -147,7 +147,8 @@ function companyAnswer(
   name: string,
 ): { status: number; json?: unknown; joined?: boolean } | undefined {
   const { company } = tab;
-  const [, kind, id = "", role] = path.match(/^\/(members|invites|join)(?:\/([^/]+)(\/role)?)?$/) ?? [];
+  const [bare = "", query = ""] = path.split("?");
+  const [, kind, id = "", role] = bare.match(/^\/(members|invites|tokens|join)(?:\/([^/]+)(\/role)?)?$/) ?? [];
   const named = decodeURIComponent(id);
   try {
     if (kind === "join" && method === "GET") return { status: 200, json: company.preview(named, name) };
@@ -171,6 +172,19 @@ function companyAnswer(
     }
     if (kind === "invites" && id && method === "DELETE") {
       company.revoke(person, named);
+      return { status: 204 };
+    }
+    if (kind === "tokens" && !id && method === "GET") {
+      return {
+        status: 200,
+        json: company.tokens(person, `${tab.site}/mcp`, new URLSearchParams(query).get("all") === "true"),
+      };
+    }
+    if (kind === "tokens" && !id && method === "POST") {
+      return { status: 201, json: company.createToken(person, JSON.parse(body || "{}") as NewAccessToken) };
+    }
+    if (kind === "tokens" && id && method === "DELETE") {
+      company.revokeToken(person, named);
       return { status: 204 };
     }
   } catch (e) {

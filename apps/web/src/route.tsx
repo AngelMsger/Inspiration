@@ -28,9 +28,10 @@ export type Route =
   | { name: "topic"; key: string }
   | { name: "documents"; space: string; source?: string; folders: string[] }
   | { name: "maintain"; space: string; page: "overview" | "topics" | "documents" | "access" }
-  | { name: "admin"; page: "members" | "invites" | "spaces" }
+  | { name: "admin"; page: "members" | "invites" | "tokens" | "spaces" }
   | { name: "admin"; page: "space"; space: string }
   | { name: "join"; code: string }
+  | { name: "apps" }
   | DocumentRoute;
 
 export function parse(url: URL): Route {
@@ -55,12 +56,16 @@ export function parse(url: URL): Route {
   if (knowledge?.[1]) return { name: "topics", space: decodeURIComponent(knowledge[1]) };
   const topic = url.pathname.match(/^\/topics\/([^/]+)$/);
   if (topic?.[1]) return { name: "topic", key: decodeURIComponent(topic[1]) };
-  const admin = url.pathname.match(/^\/admin(?:\/(members|invites|spaces))?$/);
-  if (admin) return { name: "admin", page: admin[1] === "invites" || admin[1] === "spaces" ? admin[1] : "members" };
+  const admin = url.pathname.match(/^\/admin(?:\/(members|invites|tokens|spaces))?$/);
+  if (admin) {
+    const page = admin[1] === "invites" || admin[1] === "tokens" || admin[1] === "spaces" ? admin[1] : "members";
+    return { name: "admin", page };
+  }
   const adminSpace = url.pathname.match(/^\/admin\/spaces\/([^/]+)$/);
   if (adminSpace?.[1]) return { name: "admin", page: "space", space: decodeURIComponent(adminSpace[1]) };
   const join = url.pathname.match(/^\/join\/([^/]+)$/);
   if (join?.[1]) return { name: "join", code: decodeURIComponent(join[1]) };
+  if (url.pathname === "/apps") return { name: "apps" };
   if (url.pathname === "/ask") return { name: "ask", q: get("q") ?? "" };
   if (url.pathname === "/inbox") return { name: "inbox" };
   const todo = url.pathname.match(/^\/inbox\/([^/]+)$/);
@@ -106,6 +111,8 @@ export function href(route: Route): string {
       return route.page === "space" ? `/admin/spaces/${encodeURIComponent(route.space)}` : `/admin/${route.page}`;
     case "join":
       return `/join/${encodeURIComponent(route.code)}`;
+    case "apps":
+      return "/apps";
     case "documents":
       return `/spaces/${encodeURIComponent(route.space)}/documents${query([
         ["source", route.source],

@@ -289,6 +289,7 @@ guide.restart: 重新开始
 guide.hide: 收起
 
 account.admin: 管理后台
+account.apps: 使用知识的应用
 role.member: 成员
 action.cancel: 取消
 failure.demo_script: 演示的引导步骤要用到这个人，所以不能把他移出企业。
@@ -298,6 +299,7 @@ admin.back: "← 回到知识"
 admin.people: 人员
 admin.members: 成员
 admin.invites: 邀请链接
+admin.tokens: 访问令牌
 admin.only: "只有{company}的超级管理员可以打开管理后台。"
 members.count: "企业里有 {count} 人"
 members.name: 名字
@@ -311,8 +313,6 @@ members.needs_admin: 企业至少要有一位超级管理员。请先把别人�
 invites.lede: "任何人登录后打开链接，就会以成员身份加入{company}。链接 7 天内有效。目前还不能发邮件，请把链接复制到团队的聊天里。"
 invites.new: 新建邀请链接
 invites.made: 这个链接只显示这一次，离开页面前请复制。弄丢了就撤销它，再建一个。
-invites.copy: 复制
-invites.copied: 已复制
 invites.none: 没有有效的邀请链接。
 invites.made_by: 创建人
 invites.made_at: 创建时间
@@ -356,3 +356,34 @@ join.signed_out: 登录或创建账号后，会回到这里加入。
 join.gone: 这个邀请链接已经失效
 join.gone_lede: 它可能已过期或被撤销。请向发链接的同事要一个新的。
 join.home: 进入 Inspiration
+
+tokens.lede: "{company} 所有成员的访问令牌。你可以撤销其中任何一个。令牌创建之后，任何人都看不到它的密钥。"
+apps.title: 使用知识的应用
+apps.lede: 替你使用 Inspiration 的助手和工具，例如通过 MCP 接入的 Claude 或 Cursor。应用看到的永远不会超过你能看到的，而且只在你允许的空间里。
+apps.new: 创建访问令牌
+apps.name: 名称
+apps.name_hint: 用途，例如“我笔记本上的 Claude”
+apps.where: 可以读取的范围
+apps.all: 我能读取的所有空间
+apps.some: 只限这些空间
+apps.days: 有效期
+apps.days_n: "{count} 天"
+apps.reads_only: 它只能读取。你随时可以在这里撤销，超级管理员也可以。
+apps.create: 创建
+apps.made: "请现在复制「{name}」的令牌，它不会再显示。"
+apps.claude_code: 添加到 Claude Code，运行：
+apps.other: "在其他 MCP 客户端里，使用地址 {url}，并带上请求头 Authorization: Bearer 加这个令牌。"
+apps.done: 完成
+apps.none: 还没有访问令牌。
+apps.sample: 示例公司只能读取，所以没有访问令牌。创建你自己的公司后就可以创建。
+apps.col.member: 成员
+apps.col.name: 名称
+apps.col.where: 范围
+apps.col.expires: 到期
+apps.col.used: 最近使用
+apps.never: 尚未使用
+apps.space_gone: 你已无法读取的空间
+apps.revoke: 撤销
+apps.confirm_revoke: 确定撤销？使用它的应用会立即停止。
+copy.button: 复制
+copy.done: 已复制

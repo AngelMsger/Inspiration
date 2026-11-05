@@ -1,5 +1,6 @@
 // A demo company as its super admins change it: roles, members who leave, invite links and joining
-// by one, with the rules the business backend keeps. Every answer is held to its contract type.
+// by one, and members' access tokens, with the rules the business backend keeps. Every answer is
+// held to its contract type.
 
 import { contractErrors } from "@inspiration/contracts";
 import { describe, expect, test } from "vitest";
@@ -117,5 +118,40 @@ describe("a demo company", () => {
     // Only the one who came back counts as joined through the link.
     expect(company.invites(ADMIN, NOW).invites[0]?.joined).toBe(1);
     expect(() => company.join(MEMBER, "0".repeat(32), NOW)).toThrow(RangeError);
+  });
+
+  test("keeps a member's access tokens to them, a super admin sees every member's, and they go with their member", () => {
+    const company = new Company(people);
+    const mcp = "https://demo.example/mcp";
+    const made = company.createToken(MEMBER, { name: "Claude on my laptop", spaces: "all", days: 30 }, NOW);
+    expect(contractErrors("CreatedAccessToken", made)).toEqual([]);
+    expect(made.secret).toMatch(/^insp_pat_/);
+    expect(made.token.expires_at).toBe(new Date(NOW.getTime() + 30 * DAY).toISOString());
+    const later = new Date(NOW.getTime() + DAY);
+    company.createToken(MEMBER, { name: "Report", spaces: ["spc_01FINANCE000"], days: 90 }, later);
+    const own = company.tokens(MEMBER, mcp, false, later);
+    expect(contractErrors("AccessTokenList", own)).toEqual([]);
+    expect(own.tokens.map((t) => t.name)).toEqual(["Report", "Claude on my laptop"]);
+    expect(own.tokens.every((t) => t.member === undefined)).toBe(true);
+    expect(company.tokens(ADMIN, mcp, false, later).tokens).toEqual([]);
+    // Only a super admin sees every member's, and their names; nobody sees a secret again.
+    expect(refusal(() => company.tokens(MEMBER, mcp, true, later))).toEqual([403, "forbidden"]);
+    const all = company.tokens(ADMIN, mcp, true, later);
+    expect(contractErrors("AccessTokenList", all)).toEqual([]);
+    expect(all.tokens.map((t) => t.member?.display_name)).toEqual([MEMBER.name, MEMBER.name]);
+    expect(JSON.stringify(all)).not.toContain(made.secret);
+    // Another member cannot revoke it; its member and a super admin can.
+    const [report, laptop] = own.tokens.map((t) => t.id) as [string, string];
+    expect(() => company.revokeToken(SCRIPTED, laptop, later)).toThrow(RangeError);
+    company.revokeToken(MEMBER, laptop, later);
+    company.revokeToken(ADMIN, report, later);
+    expect(company.tokens(MEMBER, mcp, false, later).tokens).toEqual([]);
+    expect(() => company.revokeToken(MEMBER, laptop, later)).toThrow(RangeError);
+    // A token past its day, or whose member left, is no longer listed.
+    company.createToken(MEMBER, { name: "Short", spaces: "all", days: 1 }, NOW);
+    expect(company.tokens(MEMBER, mcp, false, new Date(NOW.getTime() + 2 * DAY)).tokens).toEqual([]);
+    company.createToken(MEMBER, { name: "Kept", spaces: "all", days: 90 }, NOW);
+    company.remove(ADMIN, MEMBER.member);
+    expect(company.tokens(ADMIN, mcp, true, later).tokens).toEqual([]);
   });
 });

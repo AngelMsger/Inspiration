@@ -1,5 +1,6 @@
 // The admin area, where a super admin runs the company: who its members are, their role, the
-// invite links that bring new ones in, and its spaces with their space owners (admin-spaces.tsx).
+// invite links that bring new ones in, every member's access tokens (apps.tsx), and its spaces
+// with their space owners (admin-spaces.tsx).
 // It has a dark left column under "Admin" and the company's name, so it never passes for
 // reading. Anyone else who opens it is told who can; the business backend and the engine refuse
 // their calls too.
@@ -9,7 +10,8 @@ import type { CompanyMember, Invite, InviteLink, ProductRole, Session } from "@i
 import { type ReactNode, useRef, useState } from "react";
 import { AdminSpace, AdminSpaces } from "./admin-spaces.tsx";
 import { type ApiFailure, api, type Loaded, useLoad } from "./api.ts";
-import { Crumbs, Failure, formatDate, TwoStep, useChange } from "./parts.tsx";
+import { AdminTokens } from "./apps.tsx";
+import { CopyField, Crumbs, Failure, formatDate, TwoStep, useChange } from "./parts.tsx";
 import { Link, type Route } from "./route.tsx";
 import { useWords } from "./words.ts";
 
@@ -84,6 +86,7 @@ export function AdminArea(props: { route: AdminRoute; session: Session }) {
             say("admin.invites"),
             lengthOf(invites, (v) => v.invites),
           )}
+        {admin && item("tokens", say("admin.tokens"), undefined)}
         {admin && (
           <>
             <div className="nav-heading">{say("admin.knowledge")}</div>
@@ -103,6 +106,8 @@ export function AdminArea(props: { route: AdminRoute; session: Session }) {
           <AdminSpace id={route.space} spaces={spaces} members={members} company={company} onChanged={changed} />
         ) : route.page === "spaces" ? (
           <AdminSpaces spaces={spaces} members={members} company={company} onChanged={changed} />
+        ) : route.page === "tokens" ? (
+          <AdminTokens company={company} spaces={spaces} />
         ) : route.page === "invites" ? (
           <Invites invites={invites} company={company} onChanged={changed} />
         ) : (
@@ -252,24 +257,10 @@ function Invites(props: { invites: Loaded<{ invites: Invite[] }>; company: strin
 /** A link just made: shown this once, with a way to copy it. */
 function MadeLink(props: { link: InviteLink }) {
   const { say } = useWords();
-  const field = useRef<HTMLInputElement>(null);
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    navigator.clipboard.writeText(props.link.url).then(
-      () => setCopied(true),
-      // Where the page may not write the clipboard, the link is selected for the person to copy.
-      () => field.current?.select(),
-    );
-  };
   return (
     <div className="made-link" role="status">
       <b>{say("invites.made")}</b>
-      <div className="made-link-row">
-        <input ref={field} readOnly value={props.link.url} onFocus={(e) => e.target.select()} />
-        <button type="button" className="secondary" onClick={copy}>
-          {copied ? say("invites.copied") : say("invites.copy")}
-        </button>
-      </div>
+      <CopyField value={props.link.url} label={say("invites.made")} />
     </div>
   );
 }
