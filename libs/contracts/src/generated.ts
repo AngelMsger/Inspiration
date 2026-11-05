@@ -102,11 +102,17 @@ export type ClaimStatus =
   "proposed" | "active" | "verified" | "disputed" | "superseded" | "retracted";
 export type EntityId = string;
 /**
- * forbidden is a token whose scopes do not cover the route, or an admin write on a space the member may read but not administer; conflict is a directory command older than the engine's copy.
+ * forbidden is a token whose scopes do not cover the route, or an admin write on a space the member may read but not administer; conflict is a directory command older than the engine's copy; too_large is an upload over the size a file may have (status 413).
  *
  */
 export type ApiErrorCode =
-  "bad_request" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "internal";
+  | "bad_request"
+  | "unauthenticated"
+  | "forbidden"
+  | "not_found"
+  | "conflict"
+  | "too_large"
+  | "internal";
 export type ApprovalAction =
   | "start"
   | "approve"
@@ -2184,6 +2190,14 @@ export interface FileMeta {
   page_count?: number;
   has_text_layer?: boolean;
   language?: Locale;
+}
+/**
+ * The answer to PUT /v0/spaces/{space}/files/{path}, which uploads one file into the space's uploads: the document the file is now, with its latest version, and whether this upload changed it. The same bytes at the same path change nothing, so a retry is safe; other bytes make a new version. Reading runs in the background.
+ *
+ */
+export interface FileWritten {
+  document: DocumentEntry;
+  changed: boolean;
 }
 export interface GatewayError {
   code: GatewayErrorCode;

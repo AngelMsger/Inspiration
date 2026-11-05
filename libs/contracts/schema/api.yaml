@@ -89,6 +89,20 @@ $defs:
       description:
         type: string
 
+  FileWritten:
+    description: >
+      The answer to PUT /v0/spaces/{space}/files/{path}, which uploads one file into the
+      space's uploads: the document the file is now, with its latest version, and whether this
+      upload changed it. The same bytes at the same path change nothing, so a retry is safe;
+      other bytes make a new version. Reading runs in the background.
+    type: object
+    required: [document, changed]
+    properties:
+      document:
+        $ref: "source.yaml#/$defs/DocumentEntry"
+      changed:
+        type: boolean
+
   SpaceWritten:
     description: >
       The answer to creating a space, naming its owners or renaming it, with a
@@ -455,8 +469,8 @@ $defs:
     description: >
       forbidden is a token whose scopes do not cover the route, or an admin write on a space the
       member may read but not administer; conflict is a directory command older than the
-      engine's copy.
-    enum: [bad_request, unauthenticated, forbidden, not_found, conflict, internal]
+      engine's copy; too_large is an upload over the size a file may have (status 413).
+    enum: [bad_request, unauthenticated, forbidden, not_found, conflict, too_large, internal]
 
   ApiError:
     description: The body of every error response.
