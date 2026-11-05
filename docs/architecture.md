@@ -75,13 +75,14 @@ One repository makes boundaries a matter of checks rather than of repository wal
   single-process development server, and no package depends on an app. The one exception is
   the measurement harness (`apps/bench`), which runs the engine process it measures.
 - **One manifest and one check.** Each section of [`components.yaml`](../components.yaml)
-  maps to one folder: `components` to `engine/`, `libraries` to `libs/`, `apps` to `apps/`,
-  and a `business` section to `business/` once the first business component exists. An
+  maps to one folder: `components` to `engine/`, `libraries` to `libs/`, `business` to
+  `business/` and `apps` to `apps/`. An
   engine component's `layer` field keeps naming its stage (ingest, compile, store, serve,
   control). `test/manifest.test.ts` fails a package that sits outside its section's folder,
   and anything in `engine/` or `libs/` that depends on `business/`.
-- **One schema tree.** Business-only types live in their own folder of the contracts, which
-  engine packages never import.
+- **One schema tree.** Business-only types live in their own folder of the contracts
+  (`libs/contracts/schema/business/`), generated into an entry of their own
+  (`@inspiration/contracts/business`) that nothing in `engine/` or `libs/` imports.
 - **One toolchain, separate deployments.** One lockfile, one Biome, `tsc` and Vitest setup,
   and one `make check`, so a contract change lands with both sides in one pull request. The
   engine's APIs stay versioned all the same, because outside agents use them too. The engine and

@@ -11,6 +11,7 @@
       "!libs/contracts/dist",
       "!libs/contracts/src/generated.ts",
       "!libs/contracts/src/events.ts",
+      "!libs/contracts/src/business.ts",
       "!docs/design/screens",
       "!examples/kubernetes-docs/docs",
       "!examples/decisive-test/kubernetes/docs",

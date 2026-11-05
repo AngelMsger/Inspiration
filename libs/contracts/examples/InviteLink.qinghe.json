@@ -1,0 +1,13 @@
+{
+  "invite": {
+    "id": "inv_01JC0000000000000000INVITE2",
+    "created_by": {
+      "member_id": "mem_01QINGHE0000000000ZHOUMIN",
+      "display_name": "周敏"
+    },
+    "created_at": "2026-11-05T04:00:00Z",
+    "expires_at": "2026-11-12T04:00:00Z",
+    "joined": 0
+  },
+  "url": "https://inspiration.example/join/q3R8v0kXbN2yWm5tLp7sHc4dFg9jKa1e"
+}

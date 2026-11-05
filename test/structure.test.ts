@@ -20,7 +20,11 @@ const CEILINGS: Record<string, number> = {
   "apps/bench/src/questions.ts": 1120,
   "engine/page-compiler/src/topics.ts": 1100,
 };
-const GENERATED = new Set(["libs/contracts/src/generated.ts", "libs/contracts/src/events.ts"]);
+const GENERATED = new Set([
+  "libs/contracts/src/generated.ts",
+  "libs/contracts/src/business.ts",
+  "libs/contracts/src/events.ts",
+]);
 const GRAB_BAGS = /^(utils?|helpers?|misc|common|shared)(\.|$)/;
 
 /** Hand-written TypeScript (.ts and .tsx) in the packages and the repo-wide tests, tracked or new. */
