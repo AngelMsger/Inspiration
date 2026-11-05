@@ -23,7 +23,7 @@ import {
   type TopicView,
 } from "@inspiration/contracts";
 import { testData } from "@inspiration/testkit";
-import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { Corpus, Engine, seed, serveApi } from "../src/index.ts";
 
 const CORPUS = fileURLToPath(new URL("../../../examples/corpus/", import.meta.url));
@@ -201,6 +201,23 @@ describe("engine HTTP API", () => {
     expect(contractErrors("GroundedAnswer", body)).toEqual([]);
     expect(body.answer).toContain(DATA.travel.held);
     expect((body.notes as { kind: string }[]).map((n) => n.kind)).toContain("conflict");
+  });
+
+  test("answers compact unless asked for the standard answer", async () => {
+    const compact = vi.spyOn(engine.compact, "answer");
+    const standard = vi.spyOn(engine.retrieval, "answer");
+    try {
+      const asked = (depth?: string) =>
+        call("/v0/answers", { body: { question: DATA.question, ...(depth && { depth }) } });
+      expect((await asked()).status).toBe(200);
+      expect((await asked("compact")).status).toBe(200);
+      expect((await asked("standard")).status).toBe(200);
+      expect([compact.mock.calls.length, standard.mock.calls.length]).toEqual([2, 1]);
+      expect((await asked("deep")).status).toBe(400);
+    } finally {
+      compact.mockRestore();
+      standard.mockRestore();
+    }
   });
 
   test("searches", async () => {

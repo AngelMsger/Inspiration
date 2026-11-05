@@ -76,12 +76,12 @@ describe("the inbox", () => {
     expect(factOf(say, unlabelled, undefined)).toBe("Annual leave differs");
   });
 
-  test("puts the suggestion first, each side with its statement when the member may read it", () => {
+  test("gives each side its statement, in the todo's order, when the member may read it", () => {
     const sides = sidesOf(conflict);
-    expect(sides.map((s) => [s.choice.value, s.statement?.unit_id, s.suggested])).toEqual([
-      ["5 day", "clm_five", true],
-      ["7 day", "clm_seven", false],
-      ["9 day", undefined, false],
+    expect(sides.map((s) => [s.choice.value, s.statement?.unit_id])).toEqual([
+      ["5 day", "clm_five"],
+      ["7 day", "clm_seven"],
+      ["9 day", undefined],
     ]);
   });
 });

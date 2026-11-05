@@ -88,6 +88,11 @@ export type PageId = string;
 export type BlockKey = string;
 export type ClaimId = string;
 /**
+ * How much an answer reads. compact, the default: the statements governance kept with their quotes and a few passages, a short input that a small model answers fast. standard: as many passages as statements, for a question the compact sources leave open.
+ *
+ */
+export type AnswerDepth = "compact" | "standard";
+/**
  * conflict: sources state different values and a person has yet to decide; the answer gives the value that holds meanwhile. outdated: a source the question found states a value governance replaced, and the answer gives the value that holds. thin_evidence: one source, read with low confidence.
  *
  */
@@ -748,6 +753,7 @@ export interface AnswerQuery {
   context?: string;
   filters?: SearchFilters;
   max_answer_tokens?: number;
+  depth?: AnswerDepth;
 }
 export interface SearchFilters {
   knowledge_classes?: KnowledgeClass[];
