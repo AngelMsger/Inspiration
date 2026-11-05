@@ -53,6 +53,13 @@ describe("site", () => {
     expect(pages.get("zh/index.html")).toMatch(/<a href="\.\.\/zh\/" aria-current="page" lang="zh-CN">/);
   });
 
+  test("examples name products used where each language is read: Feishu only on the Chinese page", () => {
+    const pages = build({ root: "en", explicitIndex: false, fragment: false });
+    for (const path of ["index.html", "ja/index.html"])
+      expect(pages.get(path), path).not.toMatch(/Feishu|\u98de\u4e66/);
+    expect(pages.get("zh/index.html")).toMatch(/\u98de\u4e66/);
+  });
+
   test("the inlined scripts, for the language menu, the hero figure, the search box and the demo, are valid JavaScript", () => {
     const html = build({ root: "en", explicitIndex: false, fragment: false }).get("index.html") ?? "";
     const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1] ?? "");
