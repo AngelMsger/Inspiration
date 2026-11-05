@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600" lang="zh-CN" role="img" aria-labelledby="t d">
+<title id="t">答得更准，读得更少</title>
+<desc id="d">决定性测试 · 92 条事实、276 个问题，用英文、中文和日文各问一遍 · DeepSeek V4.1 Flash，不开思考. 成熟 RAG: 234 / 276, 8,954 每次回答的输入 token; Inspiration: 248 / 276, 5,024 每次回答的输入 token; Inspiration 精简回答: 242 / 276, 1,961 每次回答的输入 token; 原始长上下文（整个话题）: 252 / 276, 202,402 每次回答的输入 token; 治理后的长上下文: 257 / 276, 206,884 每次回答的输入 token. 实验室结果：一套真实公开文本的语料，治理规则也是在这套语料上改进的。方法与局限见 docs/design/validation.md</desc>
+<style>text{font-family:Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Noto Sans CJK SC', 'Noto Sans SC', sans-serif;fill:#1c1e23}.serif{font-family:Newsreader, Georgia, 'Times New Roman', serif}.muted{fill:#545964}.faint{fill:#6b707c}.num{font-variant-numeric:tabular-nums}</style>
+<rect x="0.5" y="0.5" width="1199" height="599" rx="20" fill="#fbfaf7" stroke="#dcdad2"/>
+<text class="serif" x="48" y="70" font-size="36" font-weight="500">答得更准，读得更少</text>
+<text class="muted" x="48" y="106" font-size="17">决定性测试 · 92 条事实、276 个问题，用英文、中文和日文各问一遍 · DeepSeek V4.1 Flash，不开思考</text>
+<circle cx="54" cy="143" r="6" fill="#3a4fb0"/>
+<text x="68" y="148" font-size="16">经过 Inspiration 治理</text>
+<circle cx="402" cy="143" r="6" fill="#80858f"/>
+<text x="416" y="148" font-size="16">未经治理</text>
+<text x="396" y="196" font-size="17" font-weight="600">答对的题数（共 276 题）</text>
+<text class="faint" x="396" y="216" font-size="14">2026-11-04 重跑</text>
+<text x="776" y="196" font-size="17" font-weight="600">每次回答的输入 token</text>
+<text class="faint" x="776" y="216" font-size="14">2026-11-03 运行</text>
+<line x1="426.6" y1="210" x2="426.6" y2="486" stroke="#e2e0d8" stroke-width="1"/>
+<text class="faint num" x="426.6" y="506" font-size="14" text-anchor="middle">230</text>
+<line x1="487.8" y1="210" x2="487.8" y2="486" stroke="#e2e0d8" stroke-width="1"/>
+<text class="faint num" x="487.8" y="506" font-size="14" text-anchor="middle">240</text>
+<line x1="548.9" y1="210" x2="548.9" y2="486" stroke="#e2e0d8" stroke-width="1"/>
+<text class="faint num" x="548.9" y="506" font-size="14" text-anchor="middle">250</text>
+<line x1="610.1" y1="210" x2="610.1" y2="486" stroke="#e2e0d8" stroke-width="1"/>
+<text class="faint num" x="610.1" y="506" font-size="14" text-anchor="middle">260</text>
+<line x1="671.3" y1="210" x2="671.3" y2="486" stroke="#e2e0d8" stroke-width="1"/>
+<text class="faint num" x="671.3" y="506" font-size="14" text-anchor="middle">270</text>
+<line x1="708.0" y1="210" x2="708.0" y2="486" stroke="#c9c6bc" stroke-width="1" stroke-dasharray="3 3"/>
+<text class="faint num" x="708.0" y="506" font-size="14" text-anchor="middle">276</text>
+<line x1="776.0" y1="210" x2="776.0" y2="486" stroke="#e2e0d8" stroke-width="1"/>
+<text class="faint num" x="776.0" y="506" font-size="14" text-anchor="middle">0</text>
+<line x1="893.0" y1="210" x2="893.0" y2="486" stroke="#e2e0d8" stroke-width="1"/>
+<text class="faint num" x="893.0" y="506" font-size="14" text-anchor="middle">5,000</text>
+<line x1="1010.0" y1="210" x2="1010.0" y2="486" stroke="#e2e0d8" stroke-width="1"/>
+<text class="faint num" x="1010.0" y="506" font-size="14" text-anchor="middle">10,000</text>
+<text x="48" y="237" font-size="17" font-weight="400">成熟 RAG</text>
+<line x1="396" y1="232" x2="708" y2="232" stroke="#e2e0d8" stroke-width="2" stroke-linecap="round"/>
+<circle cx="451.1" cy="232" r="9" fill="#80858f" stroke="#fbfaf7" stroke-width="2"/>
+<text class="num" x="435.1" y="238" font-size="17" font-weight="600" text-anchor="end">234</text>
+<rect x="776" y="221.0" width="209.5" height="22" rx="4" fill="#80858f"/>
+<text class="num" x="995.5" y="238" font-size="17" font-weight="600">8,954</text>
+<text x="48" y="293" font-size="17" font-weight="600">Inspiration</text>
+<line x1="396" y1="288" x2="708" y2="288" stroke="#e2e0d8" stroke-width="2" stroke-linecap="round"/>
+<circle cx="536.7" cy="288" r="9" fill="#3a4fb0" stroke="#fbfaf7" stroke-width="2"/>
+<text class="num" x="520.7" y="294" font-size="17" font-weight="600" text-anchor="end">248</text>
+<rect x="776" y="277.0" width="117.6" height="22" rx="4" fill="#3a4fb0"/>
+<text class="num" x="903.6" y="294" font-size="17" font-weight="600">5,024</text>
+<text x="48" y="349" font-size="17" font-weight="400">Inspiration 精简回答</text>
+<line x1="396" y1="344" x2="708" y2="344" stroke="#e2e0d8" stroke-width="2" stroke-linecap="round"/>
+<circle cx="500.0" cy="344" r="9" fill="#3a4fb0" stroke="#fbfaf7" stroke-width="2"/>
+<text class="num" x="484.0" y="350" font-size="17" font-weight="600" text-anchor="end">242</text>
+<rect x="776" y="333.0" width="45.9" height="22" rx="4" fill="#3a4fb0"/>
+<text class="num" x="831.9" y="350" font-size="17" font-weight="600">1,961</text>
+<text x="48" y="405" font-size="17" font-weight="400">原始长上下文（整个话题）</text>
+<line x1="396" y1="400" x2="708" y2="400" stroke="#e2e0d8" stroke-width="2" stroke-linecap="round"/>
+<circle cx="561.2" cy="400" r="9" fill="#80858f" stroke="#fbfaf7" stroke-width="2"/>
+<text class="num" x="545.2" y="406" font-size="17" font-weight="600" text-anchor="end">252</text>
+<rect x="776" y="389.0" width="274" height="22" rx="4" fill="#80858f"/>
+<line x1="1009" y1="414.0" x2="1019" y2="386.0" stroke="#fbfaf7" stroke-width="4"/>
+<line x1="1018" y1="414.0" x2="1028" y2="386.0" stroke="#fbfaf7" stroke-width="4"/>
+<text class="num" x="1058" y="406" font-size="17" font-weight="600">约 202,000</text>
+<text x="48" y="461" font-size="17" font-weight="400">治理后的长上下文</text>
+<line x1="396" y1="456" x2="708" y2="456" stroke="#e2e0d8" stroke-width="2" stroke-linecap="round"/>
+<circle cx="591.8" cy="456" r="9" fill="#3a4fb0" stroke="#fbfaf7" stroke-width="2"/>
+<text class="num" x="575.8" y="462" font-size="17" font-weight="600" text-anchor="end">257</text>
+<rect x="776" y="445.0" width="274" height="22" rx="4" fill="#3a4fb0"/>
+<line x1="1009" y1="470.0" x2="1019" y2="442.0" stroke="#fbfaf7" stroke-width="4"/>
+<line x1="1018" y1="470.0" x2="1028" y2="442.0" stroke="#fbfaf7" stroke-width="4"/>
+<text class="num" x="1058" y="462" font-size="17" font-weight="600">约 207,000</text>
+<line x1="48" y1="538" x2="1152" y2="538" stroke="#e2e0d8"/>
+<text class="muted" x="48" y="570" font-size="15">实验室结果：一套真实公开文本的语料，治理规则也是在这套语料上改进的。方法与局限见 docs/design/validation.md</text>
+</svg>
