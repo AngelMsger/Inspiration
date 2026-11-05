@@ -54,6 +54,9 @@ ask.none: The documents you can read do not answer this.
 ask.sources: Sources
 ask.results: "Results · {count}"
 ask.gaps: Not covered
+ask.fuller: A fuller answer, from more sources
+ask.fuller_reading: "Reading more sources…"
+ask.fuller_shown: This answer read more sources than the first.
 note.outdated: Replaced value
 note.conflict: Being decided
 note.thin_evidence: One source only

@@ -9,6 +9,8 @@
 // already switching (`showCompany`). The calls that switch read the next company with `apiIn`.
 
 import type {
+  AnswerDepth,
+  AnswerQuery,
   ApiError,
   CreateSpace,
   Decided,
@@ -166,7 +168,9 @@ function apiOf(company: () => string | undefined, frame: boolean) {
         )}`,
       ),
     search: (text: string) => call<SearchResult>("/v0/search", { text }),
-    answer: (question: string) => call<GroundedAnswer>("/v0/answers", { question }),
+    /** The compact answer unless `depth` asks for the standard one, which reads more passages. */
+    answer: (question: string, depth?: AnswerDepth) =>
+      call<GroundedAnswer>("/v0/answers", { question, ...(depth && { depth }) } satisfies AnswerQuery),
     topics: (space: string) => call<TopicList>(`/v0/spaces/${encodeURIComponent(space)}/topics`),
     topic: (key: string) => call<TopicView>(`/v0/topics/${encodeURIComponent(key)}`),
     inbox: () => call<Inbox>("/v0/inbox"),
