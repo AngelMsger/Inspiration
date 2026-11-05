@@ -242,8 +242,8 @@ results:
       foot: 276 题中答对 242 对 234；每次输入 1,961 个 token 对 8,954 个。
   right: "{of} 题答对 {value}"
   money: "{value} 元"
-  why: "**为什么有效：**模型答错，不是因为输入太长，而是因为输入里同一个事实有互相竞争的值。Inspiration 在模型读之前就定下哪个值算数。"
-  source: Liu，2026，预印本
+  why: 为什么有效：模型答错，不是因为输入太长，而是因为输入里同一个事实有互相竞争的值。Inspiration 在模型读之前就定下哪个值算数。
+  source: 有研究支持这一点。
   note: 实验室结果，来自 2026 年 11 月 3 日和 4 日的运行：一套测试语料中两个主题的 276 个问题，由 DeepSeek V4.1 Flash 作答。成熟 RAG 用混合检索、重排序、问题翻译和 12 到 16 段原文。治理规则是在这套语料上调出来的，更大的真实数据测试在后面。
   method: 测量方法
   methodPath: docs/zh/design/validation.md
