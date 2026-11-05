@@ -657,6 +657,7 @@ kbd {
 
 .tabs {
   display: flex;
+  flex-shrink: 0;
   border: 1px solid var(--rule);
   border-radius: 4px;
   overflow: hidden;
@@ -668,6 +669,7 @@ kbd {
   background: none;
   border: 0;
   padding: 3px 12px;
+  white-space: nowrap;
   cursor: pointer;
   color: var(--muted);
   transition:
