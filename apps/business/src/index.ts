@@ -19,12 +19,15 @@
  *     DELETE /api/invites/:invite                  204
  *     GET    /api/join/:code                       JoinPreview, for anyone holding the link
  *     POST   /api/join/:code                       Session, joined as a member
+ *     PUT    /api/v0/spaces/:space/files/:path     a file's bytes, streamed on to the engine
  *     *      /api/v0/...                           the engine's /v0/..., as the current member
  *     GET    /.well-known/jwks.json                the keys the engine checks principal tokens with
  *
  * - The session is an HttpOnly, SameSite=Lax cookie (Secure when the public URL is https);
  *   accounts keeps only its hash. POST, PUT and PATCH need an application/json body, which a
- *   form on another site cannot send.
+ *   form on another site cannot send. A file upload may have any type instead, but must name
+ *   the page's company (x-inspiration-company), which such a form cannot send either, and
+ *   give its length, at most 50 MiB.
  * - With a sample company (serve --sample), Session.sample names it, and switching to it
  *   joins the account as a member. Its tokens carry knowledge.read alone, so the engine
  *   refuses every change there; its members are not listed.
@@ -38,7 +41,7 @@
  *   so a fresh grant shows at once. /api/v0/tenants/... is never passed on.
  * - Errors are ApiError bodies: 400 for a body that is not valid, 401 signed out, 403 for a
  *   change the member may not make, 404 for anything unknown, 409 for one that would leave a
- *   company with no super admin, 502 when the engine did not take a change (the change is
+ *   company with no super admin, 413 for a file over 50 MiB, 502 when the engine did not take a change (the change is
  *   kept, and sent again when the backend next starts).
  * - With a web directory it serves the built app: files under /assets/ for a year, and
  *   index.html for any other path outside /api/ and /.well-known/.

@@ -109,27 +109,28 @@ export class Browser {
     this.base = base;
   }
 
-  /** A call to the site; the answer's body is read as T, which the test names. */
   /** The session cookie's value, while signed in. */
   get session(): string | undefined {
     return this.cookies.get(SESSION_COOKIE);
   }
 
+  /** A call to the site, its body sent as JSON, or as it is when bytes; the answer's body is read as T, which the test names. */
   async call<T = unknown>(
     method: string,
     path: string,
     body?: unknown,
     headers: Record<string, string> = {},
   ): Promise<{ status: number; body: T; headers: Headers }> {
+    const bytes = body instanceof Uint8Array;
     const res = await fetch(`${this.base}${path}`, {
       method,
       redirect: "manual",
       headers: {
         ...(this.cookies.size && { cookie: [...this.cookies].map(([k, v]) => `${k}=${v}`).join("; ") }),
-        ...(body !== undefined && { "content-type": "application/json" }),
+        ...(body !== undefined && !bytes && { "content-type": "application/json" }),
         ...headers,
       },
-      ...(body !== undefined && { body: JSON.stringify(body) }),
+      ...(body !== undefined && { body: bytes ? body : JSON.stringify(body) }),
     });
     for (const set of res.headers.getSetCookie()) {
       const [name = "", value = ""] = (set.split(";")[0] ?? "").split("=");
