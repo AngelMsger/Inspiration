@@ -220,7 +220,7 @@ libs/kernel         設定、ログ、プラグインレジストリ、マイグ
 libs/eventbus       トランザクショナル outbox、Valkey Streams への中継、コンシューマー、インメモリバス
 libs/testkit        compose 環境に対するテストのフィクスチャ
 engine/<component>  エンジンのコンポーネントごとに 1 パッケージ（components.yaml を参照）
-business/<name>     ビジネス層のコンポーネントごとに 1 パッケージ。現在は accounts と tenancy。engine/ と libs/ はこれに依存しない
+business/<name>     ビジネス層のコンポーネントごとに 1 パッケージ。現在は accounts、tenancy、access-grants。engine/ と libs/ はこれに依存しない
 apps/engine         エンジンのプロセス。コンポーネントをストア、バス、blob ストアにつなぐ。HTTP API
 apps/business       ビジネス層のバックエンド（pnpm business serve）。サインイン、会社、招待リンク。メンバーとしてエンジンを呼ぶ
 apps/web            エンジンの HTTP API 上の製品 Web アプリ、代役のバックエンド（pnpm demo）、スナップショット（pnpm snapshot）

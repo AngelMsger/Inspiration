@@ -220,7 +220,7 @@ libs/kernel         设置、日志、插件注册表、迁移运行器、blob �
 libs/eventbus       事务性 outbox、转发到 Valkey Streams、消费者、内存总线
 libs/testkit        针对 compose 环境的测试夹具
 engine/<component>  每个引擎组件一个包（见 components.yaml）
-business/<name>     每个业务层组件一个包：目前是 accounts 和 tenancy；engine/ 和 libs/ 从不依赖它们
+business/<name>     每个业务层组件一个包：目前是 accounts、tenancy 和 access-grants；engine/ 和 libs/ 从不依赖它们
 apps/engine         引擎进程：把组件接到存储、总线和 blob 存储上；HTTP API
 apps/business       业务后端（pnpm business serve）：登录、企业和邀请链接；以成员身份调用引擎
 apps/web            基于引擎 HTTP API 的产品 Web 应用、替身后端（pnpm demo）和快照（pnpm snapshot）

@@ -17,10 +17,14 @@
  *     POST   /api/invites                          201 InviteLink, the one time the link is shown
  *     GET    /api/invites                          InviteList
  *     DELETE /api/invites/:invite                  204
+ *     GET    /api/tokens      ?all=true            AccessTokenList, every member's for a super admin
+ *     POST   /api/tokens      NewAccessToken       201 CreatedAccessToken, the one time the secret is shown
+ *     DELETE /api/tokens/:token                    204, the member's own or, by a super admin, anyone's
  *     GET    /api/join/:code                       JoinPreview, for anyone holding the link
  *     POST   /api/join/:code                       Session, joined as a member
  *     PUT    /api/v0/spaces/:space/files/:path     a file's bytes, streamed on to the engine
  *     *      /api/v0/...                           the engine's /v0/..., as the current member
+ *     *      /mcp                                  an MCP client's call, with a token's secret, on to the engine's /v0/mcp
  *     GET    /.well-known/jwks.json                the keys the engine checks principal tokens with
  *
  * - The session is an HttpOnly, SameSite=Lax cookie (Secure when the public URL is https);
@@ -31,6 +35,11 @@
  * - With a sample company (serve --sample), Session.sample names it, and switching to it
  *   joins the account as a member. Its tokens carry knowledge.read alone, so the engine
  *   refuses every change there; its members are not listed.
+ * - An MCP client calls /mcp with a personal access token's secret (access grants). The
+ *   backend checks the token and its member on every call, and passes the call on with a
+ *   five-minute agent token: the member as obo, the token as grant, its spaces and scopes.
+ *   The secret never reaches the engine, and an unknown, expired or revoked token, or one
+ *   whose member left, is answered 401. Removing a member revokes their tokens.
  * - A session works in one company at a time, its first by name until it switches. A call
  *   that acts in a company and names the one the page shows (x-inspiration-company) is
  *   answered 409 when the session works in another, as after a switch in a second tab.
@@ -46,8 +55,7 @@
  * - With a web directory it serves the built app: files under /assets/ for a year, and
  *   index.html for any other path outside /api/ and /.well-known/.
  *
- * Planned are the agents' tokens and grants, per-company sign-in policy, and audit of admin
- * changes.
+ * Planned are OAuth for MCP clients, per-company sign-in policy, and audit of admin changes.
  */
 
 export * from "./engine.ts";

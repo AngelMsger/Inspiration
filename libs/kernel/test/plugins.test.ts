@@ -56,6 +56,7 @@ describe("plugin registry", () => {
 
   test("the workspace declares its own plugins", () => {
     expect(registry("migrations").names()).toEqual([
+      "access-grants",
       "accounts",
       "agents",
       "authz",

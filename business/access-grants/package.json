@@ -1,0 +1,24 @@
+{
+  "name": "@inspiration/access-grants",
+  "version": "0.1.0",
+  "description": "Access grants: the personal access tokens members give MCP clients and scripts, kept as hashes, and their revocation",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "inspiration": {
+    "plugins": {
+      "migrations": {
+        "access-grants": "./src/migrations.ts#MIGRATIONS"
+      }
+    }
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/kernel": "workspace:*"
+  },
+  "devDependencies": {
+    "@inspiration/testkit": "workspace:*"
+  }
+}

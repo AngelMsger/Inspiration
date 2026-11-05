@@ -1,5 +1,6 @@
 import { createServer, type IncomingHttpHeaders, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { AccessGrants, MemoryGrants } from "@inspiration/access-grants";
 import { Accounts, MemoryAccounts, type ProviderIdentity } from "@inspiration/accounts";
 import { FakeProvider } from "@inspiration/accounts/testing";
 import { type Ed25519Jwk, generateSigningKey, publicKeyOf, verifyJwt } from "@inspiration/kernel";
@@ -49,6 +50,8 @@ const listen = async (server: Server) => {
  */
 export class FakeEngine {
   readonly calls: EngineCall[] = [];
+  /** What GET answers lists as the member's spaces. */
+  spaces: { id: string }[] = [];
   down = false;
   url = "";
   readonly #server: Server;
@@ -79,7 +82,7 @@ export class FakeEngine {
       };
       this.calls.push(call);
       if (this.down) return reply(503, { error: { code: "internal", message: "down" } });
-      if (call.method === "GET") return reply(200, { spaces: [] });
+      if (call.method === "GET") return reply(200, { spaces: this.spaces });
       reply(200, { echo: call.body, consistency_token: `ct-${this.calls.length}` });
     });
   }
@@ -165,6 +168,7 @@ export async function startBackend(options: { webDir?: string } = {}): Promise<B
     backendHandler({
       accounts: new Accounts(new MemoryAccounts(), provider),
       tenancy,
+      grants: new AccessGrants(new MemoryGrants()),
       engine: client,
       tokens,
       publicUrl: PUBLIC_URL,

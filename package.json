@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "@inspiration/access-control": "workspace:*",
+    "@inspiration/access-grants": "workspace:*",
     "@inspiration/accounts": "workspace:*",
     "@inspiration/agent-runtime": "workspace:*",
     "@inspiration/bench": "workspace:*",

@@ -2,6 +2,7 @@
 // answers from accounts and tenancy, or passes the call on to the engine.
 
 import type { IncomingMessage, ServerResponse } from "node:http";
+import type { AccessGrants } from "@inspiration/access-grants";
 import {
   type Accounts,
   localeOf,
@@ -34,6 +35,7 @@ import {
   type Tenancy,
   TenancyError,
 } from "@inspiration/tenancy";
+import { agentRoutes } from "./agents.ts";
 import { type EngineClient, EngineError } from "./engine.ts";
 import {
   cookie,
@@ -68,6 +70,8 @@ const FILE_LIMIT = 50 * 1024 * 1024;
 export interface BackendOptions {
   accounts: Accounts;
   tenancy: Tenancy;
+  /** Personal access tokens, for Apps with access and the MCP address. */
+  grants: AccessGrants;
   engine: EngineClient;
   tokens: Tokens;
   /** This site as the browser reaches it: invite links start with it, and https makes the cookie Secure. */
@@ -79,7 +83,7 @@ export interface BackendOptions {
 /** Who a route needs: anyone, a signed-in account, or a member of the company the session works in. */
 type Needs = "anyone" | "account" | "member";
 
-interface Call {
+export interface Call {
   req: IncomingMessage;
   res: ServerResponse;
   url: URL;
@@ -89,7 +93,7 @@ interface Call {
   current: Membership;
 }
 
-interface Route {
+export interface Route {
   method: string;
   path: RegExp;
   needs: Needs;
@@ -253,6 +257,7 @@ class Backend {
         needs: "member",
         run: async ({ res, params: [id], current }) => {
           await tenancy.remove(current.member, id ?? "");
+          await options.grants.revokeAll(current.member.tenant_id, id ?? "");
           sendJson(res, 204);
         },
       },
@@ -296,6 +301,7 @@ class Backend {
         file: true,
         run: (c) => this.#forward(c, true),
       },
+      ...agentRoutes(options),
       { method: "*", path: /^\/api\/v0\/.+$/, needs: "member", run: (c) => this.#forward(c) },
       {
         method: "GET",

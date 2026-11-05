@@ -29,6 +29,7 @@ test("migration sets are discovered in run order", async () => {
     "collaboration",
     "accounts",
     "tenancy",
+    "access-grants",
   ]);
 });
 
