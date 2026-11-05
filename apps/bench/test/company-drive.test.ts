@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Corpus, Engine } from "@inspiration/engine";
 import { languageOf } from "@inspiration/kernel";
+import { quick } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
 import { parse } from "yaml";
 import {
@@ -97,9 +98,10 @@ describe("the company drive", () => {
   });
 
   // In memory only: this measures the pipeline on 311,000 tokens, and kubernetes.test.ts runs
-  // the question check on the stack.
+  // the question check on the stack. It takes minutes, so `make check` leaves it out.
   test("the engine, a mature RAG and a model reading everything, raw and governed, answer the same questions", {
     timeout: 300_000,
+    skip: quick(),
   }, async () => {
     const work = await mkdtemp(join(tmpdir(), "inspiration-drive-"));
     await cp(DRIVE, join(work, "company-drive"), { recursive: true });
@@ -193,9 +195,9 @@ describe("the company drive", () => {
           beyond_raw: [],
         },
         by_kind: {
-          changed: { questions: 66, ...paths([16, 6], [18, 5], [10, 6], [13, 6], [17, 5]) },
+          changed: { questions: 66, ...paths([16, 6], [18, 5], [11, 6], [13, 6], [17, 5]) },
           not_stated: { questions: 15, ...paths([2, 0], [3, 0], [2, 1], [2, 2], [2, 0]) },
-          unchanged: { questions: 69, ...paths([32, 0], [31, 0], [32, 0], [34, 0], [33, 0]) },
+          unchanged: { questions: 69, ...paths([32, 0], [31, 0], [31, 0], [34, 0], [33, 0]) },
         },
         by_language: {
           en: { questions: 50, ...paths([29, 4], [29, 4], [25, 6], [31, 7], [30, 3]) },

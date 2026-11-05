@@ -1,0 +1,22 @@
+{
+  "tokens": [
+    {
+      "id": "tok_01JD8K2M4N6P8Q0R2S4T6V8W0X",
+      "name": "Claude Desktop",
+      "spaces": "all",
+      "scopes": ["knowledge.read"],
+      "created_at": "2026-11-05T06:00:00Z",
+      "expires_at": "2027-01-04T06:00:00Z",
+      "last_used_at": "2026-11-05T07:12:00Z"
+    },
+    {
+      "id": "tok_01JD8K0A2B4C6D8E0F2G4H6J8K",
+      "name": "Finance report script",
+      "spaces": ["spc_01HENGYUAN000000000FINANCE"],
+      "scopes": ["knowledge.read"],
+      "created_at": "2026-11-04T09:30:00Z",
+      "expires_at": "2026-12-04T09:30:00Z"
+    }
+  ],
+  "mcp_url": "https://inspiration.example/mcp"
+}

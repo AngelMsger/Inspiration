@@ -59,7 +59,7 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 | --- | --- | --- |
 | [Business layer](design/business-layer.md) | Adopted, 2026-10-24 | Accounts, companies, publishing and approvals above the engine |
 | [Business layer and engine contract](design/business-engine-contract.md) | Adopted, 2026-10-24 | The contract between the two layers and the schema changes it needs |
-| [Decide for me](design/decide-for-me.md) | Proposed, 2026-10-27 | Every decision a person makes can be handed to the assistant |
+| [Decide for me](design/decide-for-me.md) | Adopted, 2026-11-05 | Every decision a person makes can be handed to the assistant |
 
 ## Designs: UI
 

@@ -15,6 +15,10 @@ export function valueText(say: Say, value: string | undefined): string {
   return text === key ? value : text;
 }
 
+/** A resolution a person may choose: its value in the reader's words, else its label. */
+export const choiceText = (say: Say, choice: TodoChoice): string =>
+  choice.value ? valueText(say, choice.value) : choice.label;
+
 /**
  * A note in the reader's words when it names its values ("7 days" rather than "7 day"), else as the engine
  * wrote it, in the question's language.
@@ -46,19 +50,17 @@ export function factTitle(say: Say, name: string, slot: string | undefined): str
   return scope ? say("fact.scoped", { topic: name, scope }) : name;
 }
 
-/** One value a person may choose, with the statement that says it; the first is the suggestion. */
+/** One value a person may choose, with the statement that says it. */
 export interface Side {
   choice: TodoChoice;
   statement?: SearchHit;
-  suggested: boolean;
 }
 
 export function sidesOf(todo: InboxTodo): Side[] {
   const byId = new Map(todo.statements.map((h) => [h.unit_id, h]));
-  return todo.choices.map((choice, i) => ({
+  return todo.choices.map((choice) => ({
     choice,
     ...(choice.unit_id && byId.has(choice.unit_id) && { statement: byId.get(choice.unit_id) }),
-    suggested: i === 0,
   }));
 }
 

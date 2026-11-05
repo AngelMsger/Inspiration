@@ -335,6 +335,23 @@ describe("the company's people and invite links", () => {
     expect((await ask(undefined, "GET", `/api${url.pathname}`)).status).toBe(404);
     expect((await ask(admin, "GET", "/api/invites")).body.invites).toEqual([]);
   });
+
+  test("a member makes an access token, sees it once, and revokes it; a super admin sees every member's", async () => {
+    const made = await ask(first, "POST", "/api/tokens", { name: "Claude", spaces: "all", days: 30 });
+    expect(made.status).toBe(201);
+    expect(contractErrors("CreatedAccessToken", made.body)).toEqual([]);
+    expect((await ask(first, "POST", "/api/tokens", { name: "Too long", spaces: "all", days: 91 })).status).toBe(400);
+    const own = await ask(first, "GET", "/api/tokens");
+    expect(contractErrors("AccessTokenList", own.body)).toEqual([]);
+    expect(own.body.mcp_url).toBe(`${urlOf(company)}/mcp`);
+    expect(own.body.tokens).toMatchObject([{ id: made.body.token.id, name: "Claude" }]);
+    expect((await ask(first, "GET", "/api/tokens?all=true")).status).toBe(403);
+    const all = await ask(admin, "GET", "/api/tokens?all=true");
+    expect(all.body.tokens).toMatchObject([{ member: { member_id: first.member } }]);
+    expect((await ask(first, "DELETE", `/api/tokens/${made.body.token.id}`)).status).toBe(204);
+    expect((await ask(first, "DELETE", `/api/tokens/${made.body.token.id}`)).status).toBe(404);
+    expect((await ask(first, "GET", "/api/tokens")).body.tokens).toEqual([]);
+  });
 });
 
 describe("the demo's upstream edits", () => {

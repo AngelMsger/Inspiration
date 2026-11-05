@@ -19,17 +19,25 @@ make install       # pnpm dependencies, and the parsing worker's Python librarie
 make up            # ParadeDB (Postgres 16 + pgvector + pg_search), Valkey, SpiceDB
 make migrate       # SQL migrations of every installed component
 make authz-schema  # the SpiceDB schema
-make check         # Biome, tsc, contract freshness, all tests with the stack required
+make check         # Biome, tsc, contract freshness, all tests with the stack required, but the long corpus runs
+make check-full    # the same with the long corpus runs, as CI runs it
 ```
 
 Without make, the same steps are `pnpm install`, `python3 -m venv .venv && .venv/bin/pip install -r
 engine/parsing/worker/requirements.txt`, `docker compose -f infra/compose.yaml up -d --wait`,
 `pnpm exec inspiration-migrate`, `pnpm exec inspiration-authz-schema` and
-`INSPIRATION_REQUIRE_STACK=1 pnpm test`.
+`INSPIRATION_REQUIRE_STACK=1 INSPIRATION_QUICK=1 pnpm test` (without `INSPIRATION_QUICK` for
+`make check-full`).
 
 Tests that need the stack skip when it is not running, unless `INSPIRATION_REQUIRE_STACK=1`
 is set, as it is in CI. Each one gets its own database copied from a migrated template and
 its own Valkey key prefix. `make test-unit` runs only the tests that need nothing.
+
+`make check` leaves out three corpus runs that take minutes: the whole company drive, and the
+Kubernetes pages and the GitLab policy history on the stack (those two still run in memory, which
+checks the same numbers). On the product owner's laptop the whole suite took 162 seconds, 149 of
+them the company drive. `make check-full` runs everything, as CI does; run it before a pull request
+that changes what the engine reads, governs or answers, since those runs hold its numbers.
 
 Keys and passwords stay out of the repository. A config names the environment variable that
 holds a key (`api_key_env`), and `.env` is ignored. CI's `secrets` job runs Gitleaks over every

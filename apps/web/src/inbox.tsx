@@ -1,15 +1,30 @@
 // The inbox: what is waiting for the person, card by card, and the decision a conflict asks
 // for. Confirming the suggestion is one press on the card; the decision page shows both sides
 // before the person chooses. A confirmed choice changes what readers and agents see at once.
+//
+// Decide for me (decide.tsx) shows once the engine answers the member's standing delegation:
+// one press lets the assistant decide card by card, and what it left stays in place, marked
+// with why and with its suggestion selected. The sample company only reads, so it has none.
 
-import type { Inbox, InboxCard, InboxTodo, Todo } from "@inspiration/contracts";
+import type {
+  Decided,
+  Delegation,
+  Inbox,
+  InboxCard,
+  InboxTodo,
+  LeftTodo,
+  Todo,
+  TodoDecision,
+} from "@inspiration/contracts";
 import { type ReactNode, useRef, useState } from "react";
-import { api, failureOf, type Loaded } from "./api.ts";
+import { api, failureOf, type Loaded, useLoad } from "./api.ts";
+import { marked, suggestedSide } from "./decide.ts";
+import { AlwaysDecide, DecideBar, DecidedFold } from "./decide.tsx";
 import { citedAt } from "./home.tsx";
 import { Crumbs, Failure, Standing } from "./parts.tsx";
 import type { Person } from "./people.ts";
 import { Link, type Route } from "./route.tsx";
-import { factOf, type Side, sidesOf, valueText, weekOf } from "./todos.ts";
+import { choiceText, factOf, type Side, sidesOf, valueText, weekOf } from "./todos.ts";
 import { type Say, useWords } from "./words.ts";
 
 /** What a resolved todo changed, for the confirmation shown in its place. */
@@ -34,18 +49,47 @@ export function countTodos(inbox: Inbox | undefined): number {
   return (inbox?.cards ?? []).reduce((n, c) => n + c.todos.length, 0);
 }
 
-export function InboxScreen(props: { person: Person; inbox: Loaded<Inbox>; onChanged: () => void }) {
+/** The member's standing Decide for me, kept on screen while it is read again; none in the sample company. */
+function useDelegation(sampled: boolean): { delegation?: Delegation; reread: () => void } {
+  const [version, setVersion] = useState(0);
+  const loaded = useLoad(`delegation:${sampled}:${version}`, () =>
+    sampled ? Promise.resolve(undefined) : api.delegation(),
+  );
+  const last = useRef<Delegation>(undefined);
+  if (loaded.state === "done") last.current = loaded.value;
+  return { ...(last.current && { delegation: last.current }), reread: () => setVersion((v) => v + 1) };
+}
+
+export function InboxScreen(props: { person: Person; inbox: Loaded<Inbox>; sampled: boolean; onChanged: () => void }) {
   const { say } = useWords();
   const inbox = useLatest(props.inbox);
+  const { delegation, reread } = useDelegation(props.sampled);
   const [outcomes, setOutcomes] = useState<Outcome[]>([]);
+  // What the assistant decided and left in this visit, kept until the inbox read again holds it.
+  const [decisions, setDecisions] = useState<{ decision: TodoDecision; fact: string }[]>([]);
+  const [marks, setMarks] = useState<ReadonlyMap<string, LeftTodo>>(new Map());
   const resolved = (o: Outcome) => {
     setOutcomes((all) => [o, ...all]);
     props.onChanged();
   };
-  const done = new Set(outcomes.map((o) => o.todo));
+  const done = new Set([...outcomes.map((o) => o.todo), ...decisions.map((d) => d.decision.todo.id)]);
   const cards = (inbox?.cards ?? [])
-    .map((c) => ({ ...c, todos: c.todos.filter((t) => !done.has(t.todo.id)) }))
+    .map((c) => ({ ...c, todos: c.todos.filter((t) => !done.has(t.todo.id)).map((t) => marked(t, marks)) }))
     .filter((c) => c.todos.length);
+  const facts = new Map(cards.flatMap((c) => c.todos.map((t) => [t.todo.id, factOf(say, t, c)] as const)));
+  const onCard = (d: Decided) => {
+    setDecisions((all) => [
+      ...d.decisions.map((decision) => ({ decision, fact: facts.get(decision.todo.id) ?? decision.todo.title })),
+      ...all,
+    ]);
+    setMarks((all) => new Map([...all, ...d.left.map((l) => [l.todo_id, l] as const)]));
+  };
+  const undone = (decision: TodoDecision) => {
+    setDecisions((all) => all.filter((d) => d.decision.id !== decision.id));
+    props.onChanged();
+    // Undoing two of its last ten decisions of a kind pauses the standing delegation.
+    reread();
+  };
   const week = weekOf(inbox?.cards[0]?.week);
   const open = cards.reduce((n, c) => n + c.todos.length, 0);
   return (
@@ -61,6 +105,15 @@ export function InboxScreen(props: { person: Person; inbox: Loaded<Inbox>; onCha
           {[week && say("inbox.week", { week }), props.person.name].filter(Boolean).join(" · ")}
         </span>
       </div>
+      {delegation && !props.sampled && (
+        <>
+          <DecideBar cards={cards} onCard={onCard} onDone={props.onChanged} />
+          <AlwaysDecide delegation={delegation} onChanged={reread} />
+          {(decisions.length > 0 || marks.size > 0) && (
+            <DecidedFold decisions={decisions} left={marks.size} onUndone={undone} />
+          )}
+        </>
+      )}
       {outcomes.map((o) => (
         <OutcomeView key={o.todo} outcome={o} />
       ))}
@@ -69,6 +122,11 @@ export function InboxScreen(props: { person: Person; inbox: Loaded<Inbox>; onCha
       {inbox && cards.length === 0 && <p className="quiet">{say("inbox.empty")}</p>}
       {cards.flatMap((card) =>
         card.todos.map((t) => <TodoCard key={t.todo.id} item={t} card={card} onResolved={resolved} />),
+      )}
+      {delegation && !props.sampled && (
+        <p className="quiet">
+          <Link to={{ name: "decided" }}>{say("decided.link")}</Link>
+        </p>
       )}
     </main>
   );
@@ -113,7 +171,7 @@ function TodoCard(props: { item: InboxTodo; card: InboxCard; onResolved: (o: Out
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<ReturnType<typeof failureOf>>();
   const sides = sidesOf(item);
-  const suggested = sides[0];
+  const suggested = suggestedSide(item, sides);
   const titleOf = (s: Side) => s.statement?.title ?? say("inbox.hidden");
   const resolve = (side: Side | undefined) => {
     setBusy(true);
@@ -149,17 +207,26 @@ function TodoCard(props: { item: InboxTodo; card: InboxCard; onResolved: (o: Out
           ))}
         </ul>
       )}
+      {item.left && <LeftMark reason={item.left.reason} />}
       {suggested && (
         <p className="suggest">
-          {say("inbox.suggested", { value: valueText(say, suggested.choice.value), title: titleOf(suggested) })}
+          {item.suggestion
+            ? say("inbox.suggested_because", {
+                value: choiceText(say, suggested.choice),
+                reason: item.suggestion.reason,
+              })
+            : say("inbox.suggested", { value: choiceText(say, suggested.choice), title: titleOf(suggested) })}
         </p>
+      )}
+      {!suggested && item.suggestion && (
+        <p className="suggest">{say("inbox.suggested_reason", { reason: item.suggestion.reason })}</p>
       )}
       {failure && <Failure error={failure} />}
       <div className="actions">
         {suggested ? (
           <>
             <button type="button" className="primary" disabled={busy} onClick={() => resolve(suggested)}>
-              {say("inbox.confirm", { value: valueText(say, suggested.choice.value) })}
+              {say("inbox.confirm", { value: choiceText(say, suggested.choice) })}
             </button>
             <Link to={{ name: "todo", id: item.todo.id }}>{say("inbox.open")}</Link>
           </>
@@ -170,6 +237,16 @@ function TodoCard(props: { item: InboxTodo; card: InboxCard; onResolved: (o: Out
         )}
       </div>
     </article>
+  );
+}
+
+/** Why the assistant left a todo to the person, in the person's language. */
+function LeftMark(props: { reason: string }) {
+  const { say } = useWords();
+  return (
+    <p className="left-mark">
+      <span className="tag">{say("decide.left")}</span> <span className="quiet">{props.reason}</span>
+    </p>
   );
 }
 
@@ -217,7 +294,8 @@ function Decision(props: { item: InboxTodo; card: InboxCard; back: ReactNode; on
   const { say } = useWords();
   const { item, card } = props;
   const sides = sidesOf(item);
-  const [picked, setPicked] = useState(sides[0]?.choice.key);
+  const suggested = suggestedSide(item, sides);
+  const [picked, setPicked] = useState(suggested?.choice.key);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<ReturnType<typeof failureOf>>();
   const fact = factOf(say, item, card);
@@ -252,6 +330,8 @@ function Decision(props: { item: InboxTodo; card: InboxCard; back: ReactNode; on
           <span className={`kind kind-${item.todo.kind}`}>{say(`todo.${item.todo.kind}`)}</span>
         </div>
         <p>{now}</p>
+        {item.left && <LeftMark reason={item.left.reason} />}
+        {item.suggestion && <p className="suggest">{item.suggestion.reason}</p>}
         <div className="sides">
           {sides.map((s) => (
             <section key={s.choice.key} className="side">
@@ -278,7 +358,7 @@ function Decision(props: { item: InboxTodo; card: InboxCard; back: ReactNode; on
                 onChange={() => setPicked(s.choice.key)}
               />
               <span>{say("decision.choice", { value: value(s), title: titleOf(s) })}</span>
-              {s.suggested && <span className="tag">{say("decision.suggested")}</span>}
+              {s === suggested && <span className="tag">{say("decision.suggested")}</span>}
             </label>
           ))}
         </fieldset>

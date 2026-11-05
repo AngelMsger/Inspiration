@@ -1,0 +1,5 @@
+{
+  "state": "on",
+  "kinds": ["review_due", "stale", "conflict", "note"],
+  "changed_at": "2026-11-05T08:00:00Z"
+}

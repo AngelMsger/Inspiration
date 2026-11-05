@@ -657,6 +657,7 @@ kbd {
 
 .tabs {
   display: flex;
+  flex-shrink: 0;
   border: 1px solid var(--rule);
   border-radius: 4px;
   overflow: hidden;
@@ -668,6 +669,7 @@ kbd {
   background: none;
   border: 0;
   padding: 3px 12px;
+  white-space: nowrap;
   cursor: pointer;
   color: var(--muted);
   transition:
@@ -1438,6 +1440,10 @@ a.secondary {
   text-align: right;
 }
 
+.admin-action > .link-button {
+  white-space: nowrap;
+}
+
 .two-step {
   display: inline-flex;
   flex-wrap: wrap;
@@ -1474,7 +1480,8 @@ a.secondary {
   gap: 8px;
 }
 
-.made-link-row input {
+.made-link-row input,
+.made-link-row textarea {
   flex: 1 1 260px;
   min-width: 0;
   font: 13px var(--mono);
@@ -1504,7 +1511,8 @@ a.secondary {
   font-weight: 600;
 }
 
-.space-form input:not([type="checkbox"]),
+.space-form input:not([type="checkbox"], [type="radio"]),
+.space-form select,
 .audience-add select {
   font: inherit;
   font-weight: 400;
@@ -1529,6 +1537,16 @@ a.secondary {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 18px;
+}
+
+.token-spaces {
+  margin-top: 8px;
+  padding-left: 22px;
+}
+
+.made-link-row textarea {
+  resize: none;
+  overflow-wrap: anywhere;
 }
 
 .space-form .owner-pick {
@@ -2053,4 +2071,85 @@ body:has(.guide) {
   .demo-busy::after {
     animation: none;
   }
+}
+
+/* Decide for me: the press and the standing offer sit above the todos, this visit's decisions
+   fold under one line, and what the assistant left is marked where it stays. */
+.decide-bar,
+.decide-offer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--link);
+  border-radius: 4px;
+}
+
+.decide-offer p {
+  margin: 0;
+}
+
+.decide-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  font-size: 13.5px;
+}
+
+.always {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  font-size: 13.5px;
+}
+
+.always-undone {
+  color: var(--outdated);
+}
+
+.decided-fold {
+  border: 1px solid var(--holds);
+  border-radius: 4px;
+  background: var(--holds-bg);
+  padding: 10px 18px;
+}
+
+.decided-fold summary {
+  color: var(--holds);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.decided-line {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 0;
+  font-size: 14px;
+}
+
+.decided-line + .decided-line {
+  border-top: 1px solid var(--rule);
+}
+
+.decided-line p {
+  margin: 0;
+}
+
+.decided-undone {
+  color: var(--muted);
+}
+
+.left-mark {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 0;
+  font-size: 13.5px;
 }

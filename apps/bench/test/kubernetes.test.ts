@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Corpus, Engine } from "@inspiration/engine";
 import { languageOf } from "@inspiration/kernel";
-import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
+import { hasStack, quick, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
 import {
   type Control,
@@ -145,7 +145,7 @@ describe("the Kubernetes pages in three languages", () => {
     await check();
   });
 
-  describe.skipIf(!hasStack())("on the stack", () => {
+  describe.skipIf(!hasStack() || quick())("on the stack", () => {
     // Two ingests and 24 searches over Postgres take longer than the default limit.
     stackTest(
       "Postgres with the outbox relayed to Valkey Streams",
