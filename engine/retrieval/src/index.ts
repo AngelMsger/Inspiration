@@ -92,8 +92,8 @@
  *
  * Baselines, to measure the knowledge base against over the same documents and model
  * (RetrievalOptions.baseline): "mature" answers from passages alone, without statements or
- * governance, as a carefully built RAG does: the same search (hybrid, translated, reranked),
- * MATURE_SOURCES passages, each with its document's level and date; "long_context" gives
+ * governance, as a carefully built RAG does: the same search (hybrid, translated, reranked,
+ * over MATURE_POOL passages where the knowledge base reranks RERANK_POOL), MATURE_SOURCES passages, each with its document's level and date; "long_context" gives
  * the model every passage the asker may read in the spaces asked for, document by document,
  * and refuses with ContextTooLong when they come to more than contextTokens. The query's
  * filters are on statements, so neither baseline applies them.
