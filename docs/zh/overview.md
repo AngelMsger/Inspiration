@@ -757,7 +757,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | `source.changed` | connectors、source-sync、research | source-sync | 消费方已构建；发布方已计划（Webhook、轮询、research），所以目前在被调用时同步 |
 | `document.fetched` | source-sync | normalization | 已构建 |
-| `acl.changed` | source-sync | access-control、retrieval；collaboration（来源权限收紧待办，已计划） | 已构建 |
+| `acl.changed` | source-sync | collaboration（来源权限收紧待办，已计划）；ACL 快照仅供参考，所以没有其他消费者 | 已构建 |
 | `blocks.changed` | normalization | extraction、freshness、retrieval | 已构建 |
 | `claims.updated` | extraction；governance 和 collaboration（已计划） | freshness、governance、page-compiler；retrieval（已计划） | 已构建 |
 | `artifact.dirty` | freshness | extraction、page-compiler、retrieval | 已计划 |
@@ -899,7 +899,7 @@ flowchart TD
 - **共享的回答缓存**以可读空间和许可级别为键；当它用到的单元改变标签、依据或授权时，缓存条目被丢弃；用到只因读者自己的授权才可读的单元的回答，从不共享。
 - **搜索在索引内部过滤**可读空间和敏感度，每个靠前的结果在离开服务器之前再检查一次。
 - **来源 ACL 只作参考。** source-sync 保留 ACL 快照，只用于受众差异提醒和来源权限收紧待办。
-- **目前已构建**：基于 SpiceDB、以租户为键的主体的 access-control，来源 ACL 镜像，搜索范围过滤和一致性令牌，以及一个接受任意一个可读来源的来龙去脉遍历。这对可替代的证据是对的，对共同必需的输入则过于宽松；目前已构建的部分还不会写入这种推导。用空间和依据规则替换它，是 access-control 的下一个改动。
+- **目前已构建**：基于 SpiceDB、以租户为键的主体的 access-control，按空间决定可见性（来源 ACL 不决定任何事），超级管理员管理空间但读不到受众不包括自己的空间，搜索范围过滤和一致性令牌，以及一个接受任意一个可读来源的来龙去脉遍历。这种遍历对可替代的证据是对的，对共同必需的输入则过于宽松；目前已构建的部分还不会写入这种推导。接下来是依据规则和成员自己的空间。
 
 设计、滥用场景和八个验收测试见[汇编知识的权限](design/compiled-knowledge-permissions.md)。
 

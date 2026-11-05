@@ -12,12 +12,11 @@ travel:
   held: "650"
   held_by: 深圳协议酒店价目表
 
-# The finance-only budget note, the folder only finance may open and the folder above it.
+# The finance-only budget note, in a space of its own that only the finance department reads.
 budget:
-  item: 预算/内部/2027 年度预算编制说明.md
+  item: 2027 年度预算编制说明.md
   title: 2027 年度预算编制说明
-  folder: 内部
-  parent: 预算
+  space: 财务内部
 
 question: 去深圳出差住宿每晚能报多少？
 search: 住宿限额

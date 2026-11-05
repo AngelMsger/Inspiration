@@ -1,7 +1,7 @@
 // The routes of the HTTP API for maintaining a space: what is waiting in it and how its
 // documents stand, and syncing one of its sources now. Only a member who may administer the
-// space (its maintainer, or the tenant's super admin) gets an answer; anyone else gets 404, as
-// for anything they may not read.
+// space and read it (its owners, or the tenant's super admin where the space's audience
+// includes them) gets an answer; anyone else gets 404, as for anything they may not read.
 
 import type {
   GovernanceLevel,
@@ -18,9 +18,14 @@ import { factLabels } from "./todos.ts";
 const LEVELS: GovernanceLevel[] = ["governed", "reference", "search_only"];
 const CHANGES = 10;
 
-/** Whether the member may administer the space. */
+/** Whether the member may administer the space and read it. */
 export async function maintains(engine: Engine, who: Principal, spaceId: string): Promise<boolean> {
-  return (await engine.authz.check(who, "admin", { type: "space", id: spaceId })).allow;
+  const space = { type: "space", id: spaceId } as const;
+  const [admin, read] = await Promise.all([
+    engine.authz.check(who, "admin", space),
+    engine.authz.check(who, "read", space),
+  ]);
+  return admin.allow && read.allow;
 }
 
 /** The overview of a space its maintainer reads. */

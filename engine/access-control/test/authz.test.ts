@@ -1,37 +1,29 @@
 // Access control contract tests, run against the in-memory evaluator and a real SpiceDB.
 
 import {
-  type AclEntry,
-  type AclPrincipalKind,
-  type AclRole,
   type AclSnapshot,
   contentHash,
   type IdKind,
-  newEvent,
   newId,
   type Permission,
   type Principal,
   type ResourceRef,
 } from "@inspiration/contracts";
-import { InMemoryBus } from "@inspiration/eventbus";
 import { MemoryStore } from "@inspiration/knowledge-store";
 import { Sample } from "@inspiration/knowledge-store/testing";
 import { hasStack, SPICEDB_ENDPOINT, SPICEDB_KEY } from "@inspiration/testkit";
 import { describe, expect, test as unitTest } from "vitest";
 import {
   AuthzService,
-  aclChangedHandler,
-  aclTokens,
+  chunkTokens,
   closeClient,
   connect,
-  documentObjectId,
   documentRef,
   type Graph,
   GraphError,
   MemoryGraph,
   obj,
   PrincipalError,
-  principalObjectId,
   rel,
   SpiceDBGraph,
   subject,
@@ -44,27 +36,12 @@ const BACKENDS: { backend: Backend; skip: boolean }[] = [
   { backend: "spicedb", skip: !hasStack() },
 ];
 
-function acl(sourceId: string, externalId: string, entries: AclEntry[] = [], parent?: string): AclSnapshot {
-  return {
-    source_id: sourceId,
-    external_id: externalId,
-    fidelity: "exact",
-    entries,
-    ...(parent && { inherits_from_external_id: parent }),
-    captured_at: new Date().toISOString(),
-    acl_hash: contentHash(JSON.stringify(entries)),
-  };
-}
-
-function entry(kind: AclPrincipalKind, principalId?: string, role: AclRole = "viewer"): AclEntry {
-  return { principal_kind: kind, ...(principalId && { principal_id: principalId }), external_id: "ext", role };
-}
-
 const NAMES = {
   alice: "member",
   bob: "member",
   carol: "member",
   dave: "member",
+  erin: "member",
   svc: "service",
   finance: "group",
   managers: "group",
@@ -74,15 +51,26 @@ const NAMES = {
 type Name = keyof typeof NAMES;
 
 /**
- * alice: finance (nested in managers). bob: sales (a sub-department of the company).
- * carol: confidential clearance. dave: not in the tenant. svc: pipeline service.
+ * alice: finance (nested in managers), owns the company and finance spaces. bob: sales (a
+ * sub-department of the company), edits the company space and owns the sales space. carol:
+ * confidential clearance. dave: not in the tenant. erin: the tenant's admin, in no audience
+ * but the company's. svc: pipeline service.
+ *
+ * Spaces and their sources: company (everyone in the tenant reads it) with doc-all; finance
+ * (the finance group reads it) with doc-finance, and below it budget, which grants nothing of
+ * its own, with doc-budget; sales (the company department reads it) with doc-sales.
  */
 class World {
   readonly ids = Object.fromEntries(Object.entries(NAMES).map(([n, kind]) => [n, newId(kind)])) as Record<Name, string>;
   readonly tenant = newId("tenant");
   readonly space = newId("space");
   readonly financeSpace = newId("space");
+  readonly budgetSpace = newId("space");
+  readonly salesSpace = newId("space");
   readonly source = newId("source");
+  readonly financeSource = newId("source");
+  readonly budgetSource = newId("source");
+  readonly salesSource = newId("source");
   readonly kb = new Sample({ tenantId: this.tenant, spaceId: this.space, sourceId: this.source });
   readonly store = new MemoryStore();
   readonly authz: AuthzService;
@@ -92,8 +80,9 @@ class World {
   }
 
   async build(): Promise<this> {
-    const { authz, ids, tenant, space, financeSpace, source } = this;
-    for (const user of ["alice", "bob", "carol"] as const) await authz.addTenantMember(tenant, ids[user]);
+    const { authz, ids, tenant } = this;
+    for (const user of ["alice", "bob", "carol", "erin"] as const) await authz.addTenantMember(tenant, ids[user]);
+    await authz.addTenantAdmin(tenant, ids.erin);
     await authz.addService(tenant, ids.svc);
     await authz.grantClearance(tenant, ids.carol, "confidential");
     await authz.addMember(tenant, ids.finance, ids.alice);
@@ -101,25 +90,18 @@ class World {
     await authz.addMember(tenant, ids.sales, ids.bob);
     await authz.addMember(tenant, ids.company, ids.sales);
 
-    await authz.createSpace(space, { tenantId: tenant, ownerId: ids.alice });
-    await authz.grantSpace(space, "viewer", tenant);
-    await authz.grantSpace(space, "editor", ids.bob);
-    await authz.createSpace(financeSpace, { tenantId: tenant, ownerId: ids.alice });
-    await authz.grantSpace(financeSpace, "viewer", ids.finance);
-    await authz.registerSource(source, space);
-
-    const mirror = (snapshot: AclSnapshot) => authz.mirror(snapshot, { spaceId: space });
-    await mirror(acl(source, "doc-managers", [entry("group", ids.managers), entry("user", ids.bob)]));
-    await mirror(acl(source, "doc-all", [entry("anyone_in_tenant")]));
-    await mirror(
-      acl(source, "doc-company", [
-        entry("department", ids.company, "commenter"),
-        entry("user"), // unmapped: ignored
-        entry("external"),
-      ]),
-    );
-    await mirror(acl(source, "doc-link", [entry("anyone_with_link")]));
-    await mirror(acl(source, "doc-public", [entry("public")]));
+    await authz.createSpace(this.space, { tenantId: tenant, ownerId: ids.alice });
+    await authz.grantSpace(this.space, "viewer", tenant);
+    await authz.grantSpace(this.space, "editor", ids.bob);
+    await authz.createSpace(this.financeSpace, { tenantId: tenant, ownerId: ids.alice });
+    await authz.grantSpace(this.financeSpace, "viewer", ids.finance);
+    await authz.createSpace(this.budgetSpace, { tenantId: tenant, ownerId: ids.alice, parentId: this.financeSpace });
+    await authz.createSpace(this.salesSpace, { tenantId: tenant, ownerId: ids.bob });
+    await authz.grantSpace(this.salesSpace, "viewer", ids.company);
+    await authz.registerSource(this.source, this.space);
+    await authz.registerSource(this.financeSource, this.financeSpace);
+    await authz.registerSource(this.budgetSource, this.budgetSpace);
+    await authz.registerSource(this.salesSource, this.salesSpace);
     return this;
   }
 
@@ -136,33 +118,49 @@ class World {
     return (await this.authz.check(typeof who === "string" ? this.who(who) : who, perm, res)).allow;
   }
 
+  /** The source each test document comes from. */
+  sourceOf(externalId: string): string {
+    const source = {
+      "doc-all": this.source,
+      "doc-finance": this.financeSource,
+      "doc-budget": this.budgetSource,
+      "doc-sales": this.salesSource,
+    }[externalId];
+    if (!source) throw new RangeError(`no document ${externalId}`);
+    return source;
+  }
+
   doc(externalId: string): ResourceRef {
-    return documentRef(this.source, externalId);
+    return documentRef(this.sourceOf(externalId), externalId);
+  }
+
+  spaceRef(id: string): ResourceRef {
+    return { type: "space", id };
   }
 
   /**
-   * Claims backed by doc-managers, doc-all, both doc-managers and doc-company, and one
-   * derived from the first two.
+   * Claims backed by doc-finance, doc-all, both doc-finance and doc-sales, and one derived
+   * from the first two. Every claim sits in the company space; its sources decide.
    */
   async claims(): Promise<Record<string, string>> {
     const { kb, store } = this;
     const out: Record<string, string> = {};
     const spans: Record<string, Parameters<Sample["claim"]>[1]> = {};
-    for (const ext of ["doc-managers", "doc-all", "doc-company"]) {
-      const [sv, [span]] = kb.sourceVersion([`${ext}: hotels at most 600 yuan a night.`], { external_id: ext });
+    for (const ext of ["doc-finance", "doc-all", "doc-sales"]) {
+      const [sv, [span]] = kb.sourceVersion([`${ext}: hotels at most 600 yuan a night.`], {
+        external_id: ext,
+        source_id: this.sourceOf(ext),
+      });
       spans[ext] = span;
       out[`sv:${ext}`] = sv.id;
       await store.transaction((tx) => tx.putSourceVersion(sv, [span]));
     }
-    const backing = { mgr: ["doc-managers"], all: ["doc-all"], mixed: ["doc-managers", "doc-company"] };
+    const backing = { fin: ["doc-finance"], all: ["doc-all"], mixed: ["doc-finance", "doc-sales"] };
     for (const [name, exts] of Object.entries(backing)) {
       const [claim] = kb.claim(`claim ${name}`);
       const evidence = exts
         .flatMap((ext) => kb.claim(claim.statement, spans[ext])[1])
-        .map((e) => ({
-          ...e,
-          claim_id: claim.id,
-        }));
+        .map((e) => ({ ...e, claim_id: claim.id }));
       await store.transaction((tx) => tx.upsertClaims([claim], evidence));
       out[name] = claim.id;
     }
@@ -171,7 +169,7 @@ class World {
       tx.upsertClaims(
         [derived],
         [],
-        [{ claim_id: derived.id, from_claim_ids: [out.mgr as string, out.all as string], method: "merge" }],
+        [{ claim_id: derived.id, from_claim_ids: [out.fin as string, out.all as string], method: "merge" }],
       ),
     );
     out.derived = derived.id;
@@ -202,61 +200,48 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
   const test = authzTest(backend);
 
   describe.skipIf(skip)("documents", () => {
-    test("document ACLs follow the source", async ({ w }) => {
-      expect(await w.can("alice", "read", w.doc("doc-managers"))).toBe(true); // finance is nested in managers
-      expect(await w.can("bob", "read", w.doc("doc-managers"))).toBe(true);
-      expect(await w.can("carol", "read", w.doc("doc-managers"))).toBe(false);
-      expect(await w.can("carol", "read", w.doc("doc-all"))).toBe(true);
+    test("are readable by whoever may read their space", async ({ w }) => {
+      expect(await w.can("alice", "read", w.doc("doc-finance"))).toBe(true); // through the finance group
+      expect(await w.can("bob", "read", w.doc("doc-finance"))).toBe(false);
+      expect(await w.can("carol", "read", w.doc("doc-all"))).toBe(true); // everyone in the tenant
       expect(await w.can("dave", "read", w.doc("doc-all"))).toBe(false);
-      expect(await w.can("bob", "read", w.doc("doc-company"))).toBe(true); // sales is part of the company
-      expect(await w.can("alice", "read", w.doc("doc-company"))).toBe(false);
-      expect(await w.can("carol", "read", w.doc("doc-link"))).toBe(true);
-      expect(await w.can("dave", "read", w.doc("doc-public"))).toBe(true);
-      expect(await w.can("svc", "read", w.doc("doc-company"))).toBe(true); // services read everything in the tenant
-      const edit = await w.authz.check(w.who("alice"), "edit", w.doc("doc-managers"));
+      expect(await w.can("bob", "read", w.doc("doc-sales"))).toBe(true); // sales is part of the company
+      expect(await w.can("alice", "read", w.doc("doc-sales"))).toBe(false);
+      expect(await w.can("alice", "read", w.doc("doc-budget"))).toBe(true); // from the space above
+      expect(await w.can("svc", "read", w.doc("doc-sales"))).toBe(true); // services read everything in the tenant
+      expect(await w.can("alice", "read", documentRef(newId("source"), "doc-1"))).toBe(false);
+      const edit = await w.authz.check(w.who("alice"), "edit", w.doc("doc-finance"));
       expect(edit.allow).toBe(false);
       expect(edit.reason).toMatch(/read-only/);
     });
 
-    test("mirror replaces and forget removes", async ({ w }) => {
-      const token = await w.authz.mirror(acl(w.source, "doc-managers", [entry("group", w.ids.managers)]), {
-        spaceId: w.space,
-      });
+    test("ignore the ACL their source reports", async ({ w }) => {
+      // Source-sync keeps the snapshot as advisory; here it names only bob.
+      const snapshot: AclSnapshot = {
+        source_id: w.source,
+        external_id: "doc-all",
+        fidelity: "exact",
+        entries: [{ principal_kind: "user", principal_id: w.ids.bob, external_id: "bob", role: "viewer" }],
+        captured_at: new Date().toISOString(),
+        acl_hash: contentHash("bob"),
+      };
+      await w.store.transaction((tx) => tx.putAclSnapshot(snapshot));
+      expect(await w.can("carol", "read", w.doc("doc-all"))).toBe(true);
+    });
+
+    test("carry the consistency token of the last write", async ({ w }) => {
+      const token = await w.authz.grantSpace(w.salesSpace, "viewer", w.ids.carol);
       expect(token).toEqual(expect.any(String));
-      expect(await w.can("bob", "read", w.doc("doc-managers"))).toBe(false);
-      expect(await w.can("alice", "read", w.doc("doc-managers"))).toBe(true);
-      const decision = await w.authz.check(w.who("alice"), "read", w.doc("doc-managers"));
-      expect(decision.consistency_token).toBe(token);
-      await w.authz.forget(w.source, "doc-managers");
-      expect(await w.can("alice", "read", w.doc("doc-managers"))).toBe(false);
-      expect(await w.authz.graph.read("document", documentObjectId(w.source, "doc-managers"))).toEqual([]);
-    });
-
-    test("reading one object's relation gives what a wider read narrows to", async ({ w }) => {
-      await w.authz.mirror(acl(w.source, "doc-managers", [entry("group", w.ids.managers)]), { spaceId: w.space });
-      const one = await w.authz.graph.read("source", w.source, "space");
-      expect(one.map((r) => r.subject.id)).toEqual([w.space]);
-      const all = await w.authz.graph.read("source");
-      expect(one).toEqual(all.filter((r) => r.resource.id === w.source && r.relation === "space"));
-      expect(await w.authz.graph.read("source", "src_unknown", "space")).toEqual([]);
-    });
-
-    test("documents inherit their folder's ACL", async ({ w }) => {
-      await w.authz.mirror(acl(w.source, "folder", [entry("user", w.ids.carol)]), { spaceId: w.space });
-      await w.authz.mirror(acl(w.source, "folder/report.docx", [], "folder"), { spaceId: w.space });
-      expect(await w.can("carol", "read", w.doc("folder/report.docx"))).toBe(true);
-      expect(await w.can("bob", "read", w.doc("folder/report.docx"))).toBe(false);
-    });
-
-    test("mirroring into an unknown space fails", async ({ w }) => {
-      await expect(w.authz.mirror(acl(w.source, "x"), { spaceId: newId("space") })).rejects.toThrow(/not registered/);
+      const decision = await w.authz.check(w.who("carol"), "read", w.doc("doc-sales"));
+      expect(decision).toMatchObject({ allow: true, consistency_token: token });
+      await w.authz.revokeSpace(w.salesSpace, "viewer", w.ids.carol);
+      expect(await w.can("carol", "read", w.doc("doc-sales"))).toBe(false);
     });
   });
 
   describe.skipIf(skip)("spaces", () => {
     test("space roles", async ({ w }) => {
-      const space: ResourceRef = { type: "space", id: w.space };
-      const finance: ResourceRef = { type: "space", id: w.financeSpace };
+      const space = w.spaceRef(w.space);
       expect(await w.can("carol", "read", space)).toBe(true);
       expect(await w.can("carol", "comment", space)).toBe(false);
       expect(await w.can("bob", "comment", space)).toBe(true); // editor implies comment
@@ -264,27 +249,64 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
       expect(await w.can("alice", "admin", space)).toBe(true);
       expect(await w.can("alice", "publish", space)).toBe(true);
       expect(await w.can("dave", "discover", space)).toBe(false);
-      expect(await w.can("alice", "read", finance)).toBe(true);
-      expect(await w.can("bob", "read", finance)).toBe(false);
+      expect(await w.can("alice", "read", w.spaceRef(w.financeSpace))).toBe(true);
+      expect(await w.can("bob", "read", w.spaceRef(w.financeSpace))).toBe(false);
       const tenant: ResourceRef = { type: "tenant", id: w.tenant };
       expect(await w.can("bob", "read", tenant)).toBe(true);
       expect(await w.can("bob", "admin", tenant)).toBe(false);
       expect(await w.can("bob", "read", { type: "tenant", id: newId("tenant") })).toBe(false);
     });
+
+    test("hold in every space below", async ({ w }) => {
+      const budget = w.spaceRef(w.budgetSpace);
+      expect(await w.can("alice", "admin", budget)).toBe(true); // she owns the finance space above
+      expect(await w.can("alice", "verify", budget)).toBe(true);
+      expect(await w.can("bob", "read", budget)).toBe(false);
+      await w.authz.grantSpace(w.financeSpace, "steward", w.ids.bob);
+      expect(await w.can("bob", "verify", budget)).toBe(true);
+      expect(await w.can("bob", "admin", budget)).toBe(false);
+    });
+
+    test("the tenant's admin manages every space and reads only those whose audience includes them", async ({ w }) => {
+      const all = [w.space, w.financeSpace, w.budgetSpace, w.salesSpace];
+      for (const id of all) expect(await w.can("erin", "admin", w.spaceRef(id))).toBe(true);
+      expect(await w.can("erin", "admin", { type: "tenant", id: w.tenant })).toBe(true);
+      expect(await w.can("erin", "read", w.spaceRef(w.space))).toBe(true); // everyone in the tenant reads it
+      for (const id of [w.financeSpace, w.budgetSpace, w.salesSpace]) {
+        expect(await w.can("erin", "read", w.spaceRef(id))).toBe(false);
+        expect(await w.can("erin", "verify", w.spaceRef(id))).toBe(false);
+      }
+      expect(await w.can("erin", "read", w.doc("doc-finance"))).toBe(false);
+      expect((await w.authz.scopeFilter(w.who("erin"), "read")).space_ids).toEqual([w.space]);
+      expect([...(await w.authz.scopeFilter(w.who("erin"), "admin")).space_ids].sort()).toEqual([...all].sort());
+    });
+
+    test("say each member's highest role and who owns them", async ({ w }) => {
+      const all = [w.space, w.financeSpace, w.budgetSpace, w.salesSpace];
+      expect(await w.authz.spaceRoles(w.who("alice"), all)).toEqual(["owner", "owner", "owner", undefined]);
+      expect(await w.authz.spaceRoles(w.who("bob"), all)).toEqual(["editor", undefined, undefined, "owner"]);
+      expect(await w.authz.spaceRoles(w.who("carol"), all)).toEqual(["viewer", undefined, undefined, undefined]);
+      expect(await w.authz.spaceRoles(w.who("erin"), all)).toEqual(["viewer", undefined, undefined, undefined]);
+      expect(await w.authz.spaceRoles(w.who("dave"), all)).toEqual([undefined, undefined, undefined, undefined]);
+      expect(await w.authz.spaceOwners(w.space)).toEqual([w.ids.alice]);
+      await w.authz.grantSpace(w.space, "owner", w.ids.carol);
+      expect(await w.authz.spaceOwners(w.space)).toEqual([w.ids.alice, w.ids.carol].sort());
+      expect(await w.authz.spaceOwners(w.budgetSpace)).toEqual([w.ids.alice]);
+    });
   });
 
   describe.skipIf(skip)("derived knowledge", () => {
-    test("claims are readable only through readable sources", async ({ w }) => {
+    test("claims are readable only through sources in readable spaces", async ({ w }) => {
       const c = await w.claims();
       const claim = (name: string): ResourceRef => ({ type: "claim", id: c[name] as string });
-      expect(await w.can("alice", "read", claim("mgr"))).toBe(true);
-      expect(await w.can("carol", "read", claim("mgr"))).toBe(false);
+      expect(await w.can("alice", "read", claim("fin"))).toBe(true);
+      expect(await w.can("carol", "read", claim("fin"))).toBe(false);
       expect(await w.can("carol", "read", claim("all"))).toBe(true);
       expect(await w.can("dave", "read", claim("all"))).toBe(false); // not in the space either
 
       for (const [name, docs] of [
-        ["alice", ["doc-managers"]],
-        ["bob", ["doc-company", "doc-managers"]],
+        ["alice", ["doc-finance"]],
+        ["bob", ["doc-sales"]],
       ] as const) {
         const decision = await w.authz.canReadDerived(w.who(name), c.mixed as string);
         expect(decision.allow).toBe(true);
@@ -303,7 +325,7 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
       expect(await w.can("carol", "read", claim("derived"))).toBe(true);
       expect(await w.can("carol", "comment", claim("all"))).toBe(false); // a space viewer cannot comment
 
-      const decisions = await w.authz.checkMany(w.who("carol"), "read", [claim("mgr"), claim("all")]);
+      const decisions = await w.authz.checkMany(w.who("carol"), "read", [claim("fin"), claim("all")]);
       expect(decisions.map((d) => d.allow)).toEqual([false, true]);
     });
   });
@@ -311,14 +333,15 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
   describe.skipIf(skip)("contradicting evidence", () => {
     test("only supporting evidence makes a claim readable", async ({ w }) => {
       const { kb, store } = w;
-      const [managers, [secret]] = kb.sourceVersion(["Travel: hotels in tier-1 cities at most 600 yuan a night."], {
-        external_id: "doc-managers",
+      const [finance, [secret]] = kb.sourceVersion(["Travel: hotels in tier-1 cities at most 600 yuan a night."], {
+        external_id: "doc-finance",
+        source_id: w.financeSource,
       });
       const [all, [open]] = kb.sourceVersion(["Travel: hotels in tier-1 cities at most 650 yuan a night."], {
         external_id: "doc-all",
       });
       await store.transaction(async (tx) => {
-        await tx.putSourceVersion(managers, [secret]);
+        await tx.putSourceVersion(finance, [secret]);
         await tx.putSourceVersion(all, [open]);
       });
       const [claim, evidence] = kb.claim("The tier-1 city hotel cap is 600 yuan a night", secret);
@@ -341,7 +364,7 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
       expect(await w.can("carol", "read", { type: "claim", id: claim.id })).toBe(false);
       expect(await w.authz.canReadDerived(w.who("alice"), claim.id)).toEqual({
         allow: true,
-        readable_support: [managers.id],
+        readable_support: [finance.id],
       });
 
       // A claim derived from it inherits only its support.
@@ -355,13 +378,14 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
 
   describe.skipIf(skip)("agents", () => {
     test("agents act with the person's rights, cut to their scope", async ({ w }) => {
-      const space: ResourceRef = { type: "space", id: w.space };
+      const space = w.spaceRef(w.space);
       expect(await w.can(w.agent("bob"), "read", space)).toBe(true);
       expect(await w.can(w.agent("bob"), "comment", space)).toBe(false); // read-only by default
       expect(await w.can(w.agent("bob", { agent_scopes: ["read", "comment"] }), "comment", space)).toBe(true);
       expect(await w.can(w.agent("carol", { agent_scopes: ["comment"] }), "comment", space)).toBe(false);
       expect(await w.can(w.agent("bob", { space_scope: [w.financeSpace] }), "read", space)).toBe(false);
-      expect(await w.can(w.agent("carol"), "read", w.doc("doc-managers"))).toBe(false);
+      expect(await w.can(w.agent("carol"), "read", w.doc("doc-finance"))).toBe(false);
+      expect(await w.can(w.agent("alice", { space_scope: [w.space] }), "read", w.doc("doc-finance"))).toBe(false);
       const orphan: Principal = { id: newId("agent"), kind: "agent", tenant_id: w.tenant };
       await expect(w.authz.check(orphan, "read", space)).rejects.toThrow(PrincipalError);
       await expect(w.authz.check(w.agent("finance"), "read", space)).rejects.toThrow(PrincipalError);
@@ -372,31 +396,31 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
     test("the same principal ID in another tenant shares none of its rights", async ({ w }) => {
       // The business layer may give a person the same member ID in every tenant they join.
       const other = newId("tenant");
-      const otherSpace: ResourceRef = { type: "space", id: newId("space") };
+      const otherSpace = w.spaceRef(newId("space"));
       const elsewhere = (name: Name): Principal => ({ ...w.who(name), tenant_id: other });
       for (const name of ["alice", "bob", "carol"] as const) await w.authz.addTenantMember(other, w.ids[name]);
       await w.authz.createSpace(otherSpace.id, { tenantId: other, ownerId: w.ids.bob });
       await w.authz.grantSpace(otherSpace.id, "viewer", w.ids.carol);
       await w.authz.addMember(other, w.ids.finance, w.ids.bob);
 
-      expect(await w.can(elsewhere("alice"), "read", w.doc("doc-managers"))).toBe(false);
-      expect(await w.can(elsewhere("alice"), "read", { type: "space", id: w.space })).toBe(false);
+      expect(await w.can(elsewhere("alice"), "read", w.doc("doc-finance"))).toBe(false);
+      expect(await w.can(elsewhere("alice"), "read", w.spaceRef(w.space))).toBe(false);
       expect(await w.can(elsewhere("bob"), "admin", otherSpace)).toBe(true);
       expect(await w.can("bob", "admin", otherSpace)).toBe(false);
+      expect(await w.can("erin", "admin", otherSpace)).toBe(false); // an admin of the first tenant only
       expect(await w.can(elsewhere("carol"), "read", otherSpace)).toBe(true);
       expect(await w.can("carol", "read", otherSpace)).toBe(false);
       // The other tenant's group with the same ID is another group.
-      expect(await w.can("bob", "read", { type: "space", id: w.financeSpace })).toBe(false);
+      expect(await w.can("bob", "read", w.spaceRef(w.financeSpace))).toBe(false);
 
       const filter = await w.authz.scopeFilter(elsewhere("alice"), "read");
       expect(filter.space_ids).toEqual([]);
-      expect(filter.principal_tokens).not.toContain(principalObjectId(w.tenant, w.ids.alice));
-      expect(filter.principal_tokens).not.toContain(principalObjectId(w.tenant, w.ids.finance));
+      expect(filter.principal_tokens).toEqual([`tenant:${other}`]);
 
       // Removing a member in one tenant leaves the other alone.
       await w.authz.addMember(other, w.ids.finance, w.ids.alice);
       await w.authz.removeMember(other, w.ids.finance, w.ids.alice);
-      expect(await w.can("alice", "read", { type: "space", id: w.financeSpace })).toBe(true);
+      expect(await w.can("alice", "read", w.spaceRef(w.financeSpace))).toBe(true);
 
       await expect(w.authz.grantSpace(otherSpace.id, "viewer", w.tenant)).rejects.toThrow(PrincipalError);
       await expect(
@@ -406,31 +430,27 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
   });
 
   describe.skipIf(skip)("index pre-filter", () => {
-    test("the scope filter matches chunk tokens", async ({ w }) => {
+    test("the scope filter gives the readable spaces and matches the chunk tokens", async ({ w }) => {
       const alice = await w.authz.scopeFilter(w.who("alice"), "read");
-      expect([...alice.space_ids].sort()).toEqual([w.space, w.financeSpace].sort());
-      const token = (name: Name) => principalObjectId(w.tenant, w.ids[name]);
-      expect(alice.principal_tokens).toEqual(
-        expect.arrayContaining([token("alice"), token("finance"), token("managers"), `tenant:${w.tenant}`]),
-      );
+      expect([...alice.space_ids].sort()).toEqual([w.space, w.financeSpace, w.budgetSpace].sort());
+      expect(alice.principal_tokens).toEqual([`tenant:${w.tenant}`]);
       expect(alice.max_sensitivity).toBe("internal");
       const bob = await w.authz.scopeFilter(w.who("bob"), "read");
-      expect(bob.principal_tokens).toEqual(expect.arrayContaining([token("sales"), token("company")]));
+      expect([...bob.space_ids].sort()).toEqual([w.space, w.salesSpace].sort());
       const carol = await w.authz.scopeFilter(w.who("carol"), "read");
       expect(carol.max_sensitivity).toBe("confidential");
       const dave = await w.authz.scopeFilter(w.who("dave"), "read");
-      expect(dave.space_ids).toEqual([]);
-      expect(dave.max_sensitivity).toBe("public");
+      expect(dave).toEqual({ space_ids: [], principal_tokens: [], max_sensitivity: "public" });
 
-      const tokens = aclTokens(acl(w.source, "doc-managers", [entry("group", w.ids.managers)]), w.tenant);
-      expect(tokens).toEqual([token("managers"), `system:${w.tenant}`].sort());
+      const tokens = chunkTokens(w.tenant);
+      expect(tokens).toEqual([`system:${w.tenant}`, `tenant:${w.tenant}`]);
       expect(tokens.some((t) => alice.principal_tokens.includes(t))).toBe(true);
-      expect(tokens.some((t) => carol.principal_tokens.includes(t))).toBe(false);
+      expect(chunkTokens(newId("tenant")).some((t) => alice.principal_tokens.includes(t))).toBe(false);
 
       const svc = await w.authz.scopeFilter(w.who("svc"), "read");
       expect(svc.principal_tokens).toEqual([`system:${w.tenant}`]);
       expect(svc.max_sensitivity).toBe("secret");
-      expect(svc.space_ids).toContain(w.space);
+      expect([...svc.space_ids].sort()).toEqual([w.space, w.financeSpace, w.budgetSpace, w.salesSpace].sort());
 
       const agent = await w.authz.scopeFilter(w.agent("alice", { space_scope: [w.space] }), "read");
       expect(agent.space_ids).toEqual([w.space]);
@@ -438,56 +458,6 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
       expect(blocked).toEqual({ space_ids: [], principal_tokens: [], max_sensitivity: "public" });
     });
   });
-
-  describe.skipIf(skip)("events", () => {
-    test("acl.changed events are mirrored", async ({ w }) => {
-      const bus = new InMemoryBus();
-      bus.subscribe("acl.changed", "access-control", aclChangedHandler(w.authz));
-      const publish = (payload: Parameters<typeof newEvent<"acl.changed">>[1]) =>
-        bus.publish(newEvent("acl.changed", payload, { tenantId: w.tenant, producer: "source-sync" }));
-      const snapshot = acl(w.source, "doc-new", [entry("user", w.ids.carol)]);
-      const changed = {
-        source_id: w.source,
-        external_id: "doc-new",
-        space_id: w.space,
-        acl_hash: snapshot.acl_hash,
-        fidelity: snapshot.fidelity,
-      };
-      await publish({ ...changed, snapshot });
-      // A large ACL travels through the store instead of the event.
-      const stored = acl(w.source, "doc-stored", [entry("user", w.ids.dave)]);
-      await w.store.transaction((tx) => tx.putAclSnapshot(stored));
-      await publish({ ...changed, external_id: "doc-stored", acl_hash: stored.acl_hash });
-      await publish({ ...changed, external_id: "doc-unknown" });
-      await bus.drain();
-      expect(await w.can("carol", "read", w.doc("doc-new"))).toBe(true);
-      expect(await w.can("dave", "read", w.doc("doc-stored"))).toBe(true);
-      const dead = bus.deadLetters("access-control");
-      expect(dead.map((d) => (d.event?.data as { external_id: string } | undefined)?.external_id)).toEqual([
-        "doc-unknown",
-      ]);
-    });
-  });
-});
-
-unitTest("ACL tokens for open documents", () => {
-  const tenant = newId("tenant");
-  const snapshot = acl(newId("source"), "x", [
-    entry("anyone_in_tenant"),
-    entry("anyone_with_link"),
-    entry("public"),
-    entry("user"),
-  ]);
-  expect(aclTokens(snapshot, tenant)).toEqual(
-    [`system:${tenant}`, `tenant:${tenant}`, `link:${tenant}`, "public"].sort(),
-  );
-});
-
-unitTest("document IDs are valid SpiceDB IDs", () => {
-  expect(documentObjectId("src_1", "folder/doc-1")).toBe("src_1|folder/doc-1");
-  const odd = documentObjectId("src_1", "Bericht März 2026.docx");
-  expect(odd).toMatch(/^src_1\|=[A-Za-z0-9_-]+$/);
-  expect(documentObjectId("src_1", "=x")).not.toBe("src_1|=x");
 });
 
 unitTest("the in-memory graph rejects relationships the schema forbids", async () => {
@@ -497,6 +467,10 @@ unitTest("the in-memory graph rejects relationships the schema forbids", async (
   );
   await expect(
     g.write({ touch: [rel(obj("space", "spc_x"), "approver", subject("member", "ten_x|mem_x"))] }),
+  ).rejects.toThrow(/no relation/);
+  // Source ACLs are not permissions: there are no document objects to grant on.
+  await expect(
+    g.write({ touch: [rel(obj("document", "src_x|doc"), "viewer", subject("member", "ten_x|mem_x"))] }),
   ).rejects.toThrow(/no relation/);
   expect(() => new MemoryGraph("definition a { relation r: a\n permission p = r & r }")).toThrow(/only unions/);
 });

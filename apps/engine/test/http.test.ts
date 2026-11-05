@@ -30,10 +30,12 @@ const CORPUS = fileURLToPath(new URL("../../../examples/corpus/", import.meta.ur
 const FINANCE = "spc_01HENGYUAN000000000FINANCE";
 const POLICY = "spc_01HENGYUAN0000000000POLICY";
 const FIN_POLICIES = "src_01HENGYUAN0000000FINPOLICY";
+const BUDGET_SPACE = "spc_01HENGYUAN0000000FINBUDGET";
+const FIN_BUDGET = "src_01HENGYUAN0000000FINBUDGET";
 const DATA = testData<{
   spaces: string[];
   travel: { item: string; title: string; folder: string; disputed: string; held: string; held_by: string };
-  budget: { item: string; title: string; folder: string; parent: string };
+  budget: { item: string; title: string; space: string };
   question: string;
   search: string;
   hotel: { slot: string; fact: string };
@@ -47,7 +49,7 @@ const LI_NA = "mem_01HENGYUAN000000000000LINA";
 // Wrote the attendance policy and the onboarding guide, so owns their topics; maintains the
 // company-wide space.
 const ZHANG_MIN = "mem_01HENGYUAN00000000ZHANGMIN";
-// Maintains the finance space and edits the internal budget folder, which only she may open.
+// Maintains the finance space and the finance-only budget space.
 const ZHOU_MIN = "mem_01HENGYUAN000000000ZHOUMIN";
 
 const issuer = devIssuer();
@@ -114,24 +116,25 @@ describe("engine HTTP API", () => {
     const { status, body } = await call("/v0/spaces");
     expect(status).toBe(200);
     expect(contractErrors("SpaceList", body)).toEqual([]);
-    expect((body.spaces as { name: string }[]).map((s) => s.name)).toEqual(DATA.spaces);
+    const names = (b: Record<string, unknown>) => (b.spaces as { name: string }[]).map((s) => s.name);
+    expect(names(body)).toEqual(DATA.spaces);
+    expect(names((await call("/v0/spaces", { member: ZHOU_MIN })).body)).toEqual([...DATA.spaces, DATA.budget.space]);
   });
 
-  test("builds the Documents tree without the folders a member cannot open", async () => {
+  test("builds the Documents tree of a space the member may read", async () => {
     const reader = await call(`/v0/spaces/${FINANCE}/documents`);
     expect(contractErrors("DocumentTree", reader.body)).toEqual([]);
     const tree = reader.body as unknown as DocumentTree;
     const policies = tree.sources.find((s) => s.source_id === FIN_POLICIES) as DocumentTreeNode;
     expect(titles(policies)).toContain(DATA.travel.title);
     expect(titles(policies)).not.toContain(DATA.budget.title);
-    const budget = policies.children?.find((c) => c.name === DATA.budget.parent);
-    expect(budget?.children?.map((c) => c.name)).not.toContain(DATA.budget.folder);
+    expect((await call(`/v0/spaces/${BUDGET_SPACE}/documents`)).status).toBe(404);
 
-    const member = (await call(`/v0/spaces/${FINANCE}/documents`, { member: ZHOU_MIN }))
+    const member = (await call(`/v0/spaces/${BUDGET_SPACE}/documents`, { member: ZHOU_MIN }))
       .body as unknown as DocumentTree;
-    const theirs = member.sources.find((s) => s.source_id === FIN_POLICIES) as DocumentTreeNode;
-    expect(titles(theirs)).toContain(DATA.budget.title);
-    expect(theirs.document_count).toBe((policies.document_count ?? 0) + 1);
+    expect(contractErrors("DocumentTree", member)).toEqual([]);
+    const theirs = member.sources.find((s) => s.source_id === FIN_BUDGET) as DocumentTreeNode;
+    expect(titles(theirs)).toEqual([DATA.budget.title]);
   });
 
   test("shows a document with its blocks and the marks on them", async () => {
@@ -176,13 +179,13 @@ describe("engine HTTP API", () => {
   });
 
   test("a document the member may not read is not found, as an unknown one is", async () => {
-    const hidden = await call(`/v0/documents?source=${FIN_POLICIES}&item=${encodeURIComponent(BUDGET)}`);
+    const hidden = await call(`/v0/documents?source=${FIN_BUDGET}&item=${encodeURIComponent(BUDGET)}`);
     const unknown = await call(`/v0/documents?source=${FIN_POLICIES}&item=nothing.md`);
     expect([hidden.status, unknown.status]).toEqual([404, 404]);
     expect(hidden.body).toEqual({ error: { code: "not_found", message: "no document" } });
     expect(unknown.body).toEqual(hidden.body);
     expect(
-      (await call(`/v0/documents?source=${FIN_POLICIES}&item=${encodeURIComponent(BUDGET)}`, { member: ZHOU_MIN }))
+      (await call(`/v0/documents?source=${FIN_BUDGET}&item=${encodeURIComponent(BUDGET)}`, { member: ZHOU_MIN }))
         .status,
     ).toBe(200);
   });
@@ -220,15 +223,21 @@ describe("engine HTTP API", () => {
     expect(contractErrors("SpaceOverview", body)).toEqual([]);
     const overview = body as unknown as SpaceOverview;
     expect(overview.space.id).toBe(FINANCE);
-    // Two conflicts, the hotel cap and the budget deadline the minutes moved, and a note on the
-    // loan deadline the team's FAQ gives otherwise. Readers see only the hotel cap in dispute:
-    // the minutes date the budget deadline's change, so the later day holds.
+    // A conflict on the hotel cap, and a note on the loan deadline the team's FAQ gives
+    // otherwise. Readers see the hotel cap in dispute.
     expect(overview.work).toEqual([
-      { kind: "conflict", count: 2 },
+      { kind: "conflict", count: 1 },
       { kind: "note", count: 1 },
     ]);
     expect(overview.disputed).toEqual([{ slot_key: DATA.hotel.slot, label: DATA.hotel.fact }]);
-    // Counted as the maintainer may open them, the internal budget folder among them.
+    // The budget deadline the minutes moved waits in the finance-only space of the budget note.
+    // The minutes date the change, so the later day holds and nobody sees it in dispute.
+    const budget = (await call(`/v0/spaces/${BUDGET_SPACE}/overview`, { member: ZHOU_MIN }))
+      .body as unknown as SpaceOverview;
+    expect(budget.work).toEqual([{ kind: "conflict", count: 1 }]);
+    expect(budget.disputed).toEqual([]);
+    expect((await call(`/v0/spaces/${BUDGET_SPACE}/overview`, { member: ZHANG_MIN })).status).toBe(404);
+    // Counted as the maintainer may open them.
     const tree = (await call(`/v0/spaces/${FINANCE}/documents`, { member: ZHOU_MIN })).body as unknown as DocumentTree;
     const count = tree.sources.reduce((n, s) => n + (s.document_count ?? 0), 0);
     expect(overview.documents).toBe(count);

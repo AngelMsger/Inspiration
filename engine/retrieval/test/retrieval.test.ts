@@ -195,7 +195,7 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
           { id: "p1", text: "Meals are paid up to 100 yuan a day." },
           { id: "p2", text: "Hotels in tier-1 cities cost at most 600 yuan a night." },
         ],
-        { title: "Old handbook", readers: [ALICE] },
+        { title: "Old handbook", private: true },
       );
       const held = await world.claim(
         "Hotels in tier-1 cities cost at most 650 yuan a night.",
@@ -245,7 +245,7 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       const secret = await world.document(
         "board.md",
         [{ id: "p1", text: "The board approved hotels at most 900 yuan a night for directors." }],
-        { title: "Board minutes", readers: [ALICE] },
+        { title: "Board minutes", private: true },
       );
       const shared = await world.document(
         "faq.md",
@@ -286,8 +286,8 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       const cited = forBob.hits.find((h) => h.unit_id === both.id);
       expect(cited?.citations.map((c) => c.source_title)).toEqual(["Travel FAQ"]);
 
-      // Shared with Bob later: the chunks take the new ACL.
-      await world.share("board.md", [ALICE, BOB]);
+      // Alice shares her space with Bob: he finds it at once.
+      await world.share(BOB);
       const later = await world.retrieval.search({ text: "directors hotels 900 yuan" }, BOB);
       expect(later.hits.map((h) => h.unit_id)).toContain(hidden.id);
     });
@@ -326,7 +326,7 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       const rule = "Directors' hotels in tier-1 cities cost at most 987654 yuan a night.";
       const board = await world.document("board.md", [{ id: "p1", text: rule }], {
         title: "Board rules",
-        readers: [ALICE],
+        private: true,
       });
       const held = await world.claim(POLICY[1]?.text as string, policy.spansOf("p1")[0] as never, {
         ...cap(650),
@@ -577,7 +577,7 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       );
       const current = await world.document("research/maglev.md", maglev("in 2034 at the earliest"), {
         ...asOf("2026-10-12T04:05:32Z"),
-        readers: [ALICE],
+        private: true,
         editions: [old],
       });
       const question = { question: "When is the maglev line from Tokyo to Nagoya to open?" };
@@ -602,7 +602,7 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
       expect(
         (await world.retrieval.sources(question, ALICE)).flatMap((h) => h.citations.map((c) => c.source_version_id)),
       ).toEqual(expect.arrayContaining([current.version.id, draft.version.id]));
-      await world.document("research/maglev.md", [], { ...asOf("2026-10-25T00:00:00Z"), deleted: true });
+      await world.document("research/maglev.md", [], { ...asOf("2026-10-25T00:00:00Z"), private: true, deleted: true });
       expect((await world.retrieval.answer(question, ALICE)).answer).toContain("2027");
     });
 
@@ -641,7 +641,7 @@ describe.each(BACKENDS)("retrieval on $backend", ({ backend, skip }) => {
         const original = LANGUAGES[0]?.cases.answers as Cases["answers"];
         const policy = await world.document("policy.md", [{ id: "p1", text: original.policy }], {
           title: "Policy",
-          readers: [ALICE],
+          private: true,
         });
         const copy = await world.document("copy.md", [{ id: "p1", text: c.copy }], { title: "Copy" });
         const held = await world.claim(original.policy, policy.spansOf("p1")[0] as never, cap(650));

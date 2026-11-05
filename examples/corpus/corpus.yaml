@@ -6,7 +6,10 @@ tenant:
   id: ten_01HENGYUAN0000000000000001
   name: 恒远机械
 
-# owner: the member who maintains the space (周敏 and 张敏 in people.yaml).
+# owner: the member who maintains the space (周敏 and 张敏 in people.yaml). readers: who reads
+# it besides its owner; the whole tenant when not given. A space's audience decides who reads
+# its documents, so the finance-only budget notes and the HR-only payroll policy have spaces of
+# their own; the ACLs their folders carry are kept and decide nothing.
 spaces:
   - id: spc_01HENGYUAN000000000FINANCE
     name: 财务部
@@ -14,6 +17,18 @@ spaces:
   - id: spc_01HENGYUAN0000000000POLICY
     name: 公司制度
     owner: mem_01HENGYUAN00000000ZHANGMIN
+  - id: spc_01HENGYUAN0000000FINBUDGET
+    name: 财务内部
+    owner: mem_01HENGYUAN000000000ZHOUMIN
+    readers:
+      - mem_01HENGYUAN000000000000LINA
+      - mem_01HENGYUAN000000000WANGLEI
+      - mem_01HENGYUAN0000000000GAOYAN
+      - mem_01HENGYUAN000000000LIUYANG
+  - id: spc_01HENGYUAN000000HRPAYROLL
+    name: 人事薪酬
+    owner: mem_01HENGYUAN00000000ZHANGMIN
+    readers: []
 
 # The member questions are asked as: 陈晨, who reads what the whole tenant may.
 reader: mem_01HENGYUAN00000000CHENCHEN
@@ -51,6 +66,14 @@ sources:
     root: 财务制度
     directory: folder
     default_authority: 0.9
+    exclude: ["预算/内部/**"]
+  - id: src_01HENGYUAN0000000FINBUDGET
+    type: folder
+    space: spc_01HENGYUAN0000000FINBUDGET
+    name: 内部预算
+    root: 财务制度/预算/内部
+    directory: folder
+    default_authority: 0.9
   - id: src_01HENGYUAN000000000FINTEAM
     type: folder
     space: spc_01HENGYUAN000000000FINANCE
@@ -86,5 +109,13 @@ sources:
     space: spc_01HENGYUAN0000000000POLICY
     name: 公司制度
     root: 公司制度
+    directory: folder
+    default_authority: 0.9
+    exclude: ["人事/薪酬/**"]
+  - id: src_01HENGYUAN000000HRPAYROLL
+    type: folder
+    space: spc_01HENGYUAN000000HRPAYROLL
+    name: 薪酬
+    root: 公司制度/人事/薪酬
     directory: folder
     default_authority: 0.9

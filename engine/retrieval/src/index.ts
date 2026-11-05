@@ -10,8 +10,8 @@
  *   unchanged keeps its ID, header and embedding; chunks of the previous version that are
  *   gone are removed, and a deleted document's chunks with them. A late event of an older
  *   version changes nothing.
- * - Each chunk carries the principal tokens of its document's latest captured ACL
- *   (access-control's aclTokens), and an acl.changed rewrites them.
+ * - Each chunk carries its tenant's tokens (access-control's chunkTokens). Who may read it
+ *   comes from its space; source ACLs decide nothing.
  * - The duplicates blocks.changed reports are kept as editions of one text, each way
  *   (retrieval.editions): a copy, an older revision, last year's policy in a downloads
  *   folder. A document's report replaces the pairs it named before; pairs another document
@@ -19,7 +19,7 @@
  *
  * search(query, principal):
  * - The vector and keyword indexes each return their best rows under the principal's
- *   permission filter (spaces, ACL tokens, clearance), for the question and for its
+ *   permission filter (spaces, the tenant's token, clearance), for the question and for its
  *   translations into the other languages retrieval has packs for (retrieval.translate_question,
  *   asked while the question itself is searched), and reciprocal rank fusion merges them all.
  *   Without a model to translate it, the question searches alone. Every chunk is checked

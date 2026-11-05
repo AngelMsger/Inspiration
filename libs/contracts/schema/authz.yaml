@@ -171,7 +171,10 @@ $defs:
         items:
           $ref: "common.yaml#/$defs/SpaceId"
       principal_tokens:
-        description: The viewer's own ID plus groups, departments and tenant-wide tokens.
+        description: >
+          The tenant tokens the viewer matches: tenant:<tenant ID> for a member of the tenant,
+          system:<tenant ID> for its services. Spaces decide who reads a row; the tokens keep
+          tenants apart inside the index.
         type: array
         items:
           type: string

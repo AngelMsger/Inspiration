@@ -1,7 +1,7 @@
 {
   "name": "@inspiration/access-control",
   "version": "0.1.0",
-  "description": "Access control: permissions on SpiceDB, source ACL mirroring, search pre-filters, the derived-knowledge rule",
+  "description": "Access control: permissions on SpiceDB, visibility by space, search pre-filters, the derived-knowledge rule, principal tokens",
   "private": true,
   "type": "module",
   "exports": {

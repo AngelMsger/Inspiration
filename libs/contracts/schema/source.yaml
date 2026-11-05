@@ -804,8 +804,9 @@ $defs:
         $ref: "common.yaml#/$defs/SensitivityLabel"
       acl_tokens:
         description: >
-          Principal tokens that may read the chunk's source document, mirrored from the
-          source ACL by access control. Retrieval pre-filters on overlap with the viewer's tokens.
+          The chunk's tenant tokens (access control's chunkTokens). Retrieval pre-filters on
+          overlap with the viewer's tokens, which keeps tenants apart; the chunk's space decides
+          who reads it.
         type: array
         items:
           type: string

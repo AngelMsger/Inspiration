@@ -70,8 +70,8 @@ taxonomy keys, for example). `kindOf(id)` reads the kind back. Content hashes ar
 producer's name, version, model and prompt version.
 
 Source documents have no Inspiration ID of their own. A `ResourceRef` names them as
-`"<source id>:<external id>"`, and access control stores them in SpiceDB under
-`documentObjectId(sourceId, externalId)`.
+`"<source id>:<external id>"`. Access control has no object for them: a document is readable
+by whoever may read its source's space.
 
 Component names (`ComponentName`) are kebab case: `extraction`, `page-compiler`. A
 component's name is its event producer name, its consumer group and the first part of its
@@ -88,7 +88,7 @@ chain.
 | --- | --- | --- |
 | `source.changed` | connectors, source-sync, research | source-sync |
 | `document.fetched` | source-sync | normalization |
-| `acl.changed` | source-sync | retrieval, access-control |
+| `acl.changed` | source-sync | collaboration |
 | `blocks.changed` | normalization | extraction, freshness, retrieval |
 | `claims.updated` | extraction, governance, collaboration | freshness, governance, page-compiler, retrieval |
 | `artifact.dirty` | freshness | extraction, page-compiler, retrieval |

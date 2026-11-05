@@ -1,8 +1,6 @@
 import { join } from "node:path";
 import { AuthzService, MemoryGraph } from "@inspiration/access-control";
 import {
-  type AclEntry,
-  type AclSnapshot,
   type Claim,
   type ClaimEvidence,
   contentHash,
@@ -40,6 +38,9 @@ export const SPACE = "spc_01JC00000000000000000SPACE";
 /** A second space every member reads, with no documents. */
 export const EMPTY_SPACE = "spc_01JC0000000000000000EMPTY1";
 export const SOURCE = "src_01JC0000000000000000FOLDER";
+/** Alice's own space and its source: only she reads it until it is shared. */
+export const PRIVATE_SPACE = "spc_01JC000000000000000PRIVATE";
+export const PRIVATE_SOURCE = "src_01JC000000000000000PRIVATE";
 export const HOTEL = "hotel_cap_per_night|tier-1 city";
 
 export type Backend = "memory" | "postgres";
@@ -55,7 +56,7 @@ const member = (name: string): Principal => ({
   tenant_id: TENANT,
 });
 
-/** alice and bob are members of the tenant and read the space; carol is cleared for confidential. */
+/** alice and bob are members of the tenant and read the space; carol is cleared for confidential; alice alone reads her private space. */
 export const ALICE = member("alice");
 export const BOB = member("bob");
 export const CAROL = member("carol");
@@ -69,8 +70,8 @@ export interface Para {
 
 export interface DocOptions {
   title?: string;
-  /** Members who may read it; the whole tenant when not given. */
-  readers?: readonly Principal[];
+  /** In Alice's private space, which only she reads until it is shared; in the space every member reads when not given. */
+  private?: true;
   sensitivity?: SensitivityLabel;
   deleted?: boolean;
   language?: string;
@@ -101,11 +102,11 @@ export interface World {
   staleness: Map<string, Staleness>;
   /**
    * Store a version of a document the way normalization does (block and span IDs stable
-   * across versions, a span per sentence), with its ACL, then index it.
+   * across versions, a span per sentence), then index it.
    */
   document: (externalId: string, paras: readonly Para[], options?: DocOptions) => Promise<Doc>;
-  /** Give a document a new ACL and deliver acl.changed. */
-  share: (externalId: string, readers: readonly Principal[] | "tenant") => Promise<void>;
+  /** Let a member read Alice's private space. */
+  share: (member: Principal) => Promise<void>;
   /** Store a claim quoting a span, as extraction does. */
   claim: (statement: string, span: Span, fields?: Partial<Claim> & { quote?: string }) => Promise<Claim>;
 }
@@ -125,21 +126,6 @@ export const cap = (n: number): Partial<Claim> => ({
   qualifiers: ["tier-1 city"],
   value: { kind: "money", number: n, currency: "CNY", unit: "CNY/night", normalized: `${n} CNY/night` },
 });
-
-function aclOf(externalId: string, readers: readonly Principal[] | "tenant", capturedAt: Date): AclSnapshot {
-  const entries: AclEntry[] =
-    readers === "tenant"
-      ? [{ principal_kind: "anyone_in_tenant", external_id: "everyone", role: "viewer" }]
-      : readers.map((r) => ({ principal_kind: "user", principal_id: r.id, external_id: r.id, role: "viewer" }));
-  return {
-    source_id: SOURCE,
-    external_id: externalId,
-    fidelity: "exact",
-    entries,
-    captured_at: capturedAt.toISOString(),
-    acl_hash: contentHash(JSON.stringify(entries)),
-  };
-}
 
 export const retrievalTest = (backend: Backend) =>
   // biome-ignore lint/correctness/noEmptyPattern: Vitest reads fixture dependencies from this pattern
@@ -176,6 +162,8 @@ export const retrievalTest = (backend: Backend) =>
     await authz.grantSpace(SPACE, "viewer", TENANT);
     await authz.createSpace(EMPTY_SPACE, { tenantId: TENANT, ownerId: ALICE.id });
     await authz.grantSpace(EMPTY_SPACE, "viewer", TENANT);
+    await authz.createSpace(PRIVATE_SPACE, { tenantId: TENANT, ownerId: ALICE.id });
+    await authz.registerSource(PRIVATE_SOURCE, PRIVATE_SPACE);
     await authz.grantClearance(TENANT, CAROL.id, "confidential");
     await authz.registerSource(SOURCE, SPACE);
 
@@ -201,12 +189,13 @@ export const retrievalTest = (backend: Backend) =>
 
     const document: World["document"] = async (externalId, paras, options = {}) => {
       const previous = last.get(externalId);
+      const source = options.private ? PRIVATE_SOURCE : SOURCE;
       tick++;
       const version: SourceVersion = {
         id: newId("source_version"),
         tenant_id: TENANT,
-        source_id: SOURCE,
-        space_id: SPACE,
+        source_id: source,
+        space_id: options.private ? PRIVATE_SPACE : SPACE,
         external_id: externalId,
         version: {
           content_hash: contentHash(JSON.stringify(paras)),
@@ -228,7 +217,7 @@ export const retrievalTest = (backend: Backend) =>
       const byPara = new Map<string, Span[]>();
       const path: string[] = [];
       for (const [ordinal, p] of (options.deleted ? [] : paras).entries()) {
-        const id = stableId("source_block", SOURCE, externalId, p.id);
+        const id = stableId("source_block", source, externalId, p.id);
         const block: SourceBlock = {
           id,
           tenant_id: TENANT,
@@ -266,22 +255,19 @@ export const retrievalTest = (backend: Backend) =>
       }
       // Spans an earlier version introduced are stored with it; the blocks only list them.
       const known = new Set(previous ? (await store.spansOf(previous.id)).map((s) => s.id) : []);
-      const acl = aclOf(externalId, options.readers ?? "tenant", new Date(version.fetched_at));
       await store.transaction(async (tx) => {
         await tx.putSourceVersion(version);
-        await tx.putAclSnapshot(acl);
         await tx.putBlocks(
           version.id,
           blocks,
           spans.filter((s) => !known.has(s.id)),
         );
       });
-      await authz.mirror(acl, { spaceId: SPACE });
       const stored = await store.spansOf(version.id);
       const event = newEvent(
         "blocks.changed",
         {
-          source_id: SOURCE,
+          source_id: source,
           source_version_id: version.id,
           ...(previous && { previous_version_id: previous.id }),
           added_block_ids: blocks.map((b) => b.id),
@@ -292,7 +278,7 @@ export const retrievalTest = (backend: Backend) =>
           ...(options.deleted && { deleted: true }),
           ...(options.editions?.length && {
             duplicates: options.editions.map((d) => ({
-              source_id: SOURCE,
+              source_id: d.version.source_id,
               external_id: d.version.external_id,
               source_version_id: d.version.id,
               exact: false,
@@ -313,17 +299,8 @@ export const retrievalTest = (backend: Backend) =>
       };
     };
 
-    const share: World["share"] = async (externalId, readers) => {
-      const acl = aclOf(externalId, readers, new Date(Date.UTC(2026, 9, 2, 0, ++tick)));
-      await store.transaction((tx) => tx.putAclSnapshot(acl));
-      await authz.mirror(acl, { spaceId: SPACE });
-      await retrieval.onAclChanged(
-        newEvent(
-          "acl.changed",
-          { source_id: SOURCE, external_id: externalId, space_id: SPACE, acl_hash: acl.acl_hash, fidelity: "exact" },
-          { tenantId: TENANT, producer: "source-sync" },
-        ),
-      );
+    const share: World["share"] = async (member) => {
+      await authz.grantSpace(PRIVATE_SPACE, "viewer", member.id);
     };
 
     const claim: World["claim"] = async (statement, span, fields = {}) => {

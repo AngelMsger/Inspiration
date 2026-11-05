@@ -67,17 +67,16 @@ function bench(...args: string[]): Promise<{ code: number; stderr: string }> {
   });
 }
 
-/** A corpus of one policy and one question, which the first run on a database may read. */
-async function policyCorpus(): Promise<string> {
+/** A corpus of one policy and one question, in one space the whole tenant reads unless told otherwise. */
+async function policyCorpus(space: { owner?: string; readers?: string[] } = {}): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "inspiration-preflight-"));
   await mkdir(join(dir, "topic"));
   await writeFile(join(dir, "topic", "policy.md"), "# Travel\n\nHotel stays are reimbursable up to $300 per night.\n");
-  await writeFile(join(dir, "topic", ".acl.yaml"), "readers: [tenant]\n");
   await writeFile(
     join(dir, "corpus.yaml"),
     JSON.stringify({
       tenant: { id: "ten_01PREFLIGHT000000000TENANT", name: "Preflight" },
-      spaces: [{ id: "spc_01PREFLIGHT0000000000SPACE", name: "Travel" }],
+      spaces: [{ id: "spc_01PREFLIGHT0000000000SPACE", name: "Travel", ...space }],
       sources: [
         {
           id: "src_01PREFLIGHT0000000000TOPIC",
@@ -97,40 +96,40 @@ async function policyCorpus(): Promise<string> {
   return dir;
 }
 
-describe.skipIf(!hasStack())("a run that stops before its questions", () => {
+/** Ingests the corpus with the bench CLI and reads the report it wrote. */
+async function ingest(dir: string, json: string, ...args: string[]) {
+  const gateway = join(workspaceRoot(), "config", "gateway.dev.yaml");
+  const { code, stderr } = await bench("ingest", dir, "--gateway", gateway, "--json", json, ...args);
+  return { code, stderr, report: JSON.parse(await readFile(json, "utf8")) };
+}
+
+describe("a run that stops before its questions", () => {
+  test("still writes its report and cost when the reader may read none of the indexed documents", {
+    timeout: 60_000,
+  }, async () => {
+    const dir = await policyCorpus({ owner: "mem_01PREFLIGHT0000000000OTHER", readers: [] });
+    const run = await ingest(dir, join(dir, "run.json"));
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("stopped before questions: the reader may read none of the 1 indexed documents");
+    expect(run.report.questions).toBeUndefined();
+    expect(run.report.stopped).toMatchObject({ before: "questions", indexed: 1, readable: 0 });
+    expect(run.report.stopped.reason).toContain("readers");
+    expect(run.report.cost).toBeDefined();
+  });
+});
+
+describe.skipIf(!hasStack())("a run resumed on an existing database", () => {
   stackTest(
-    "still writes its report and cost when resumed on a database whose permissions were in memory",
+    "answers its questions, since spaces are provisioned again on every run",
     { timeout: 120_000 },
     async ({ databaseUrl }) => {
       const dir = await policyCorpus();
-      const gateway = join(workspaceRoot(), "config", "gateway.dev.yaml");
-      const run = async (json: string) => {
-        const { code, stderr } = await bench(
-          "ingest",
-          dir,
-          "--database",
-          databaseUrl,
-          "--gateway",
-          gateway,
-          "--json",
-          json,
-        );
-        return { code, stderr, report: JSON.parse(await readFile(json, "utf8")) };
-      };
-
-      const fresh = await run(join(dir, "fresh.json"));
-      expect(fresh.code).toBe(0);
-      expect(fresh.report.questions).toBeDefined();
-      expect(fresh.report.cost).toBeDefined();
-      expect(fresh.report.stopped).toBeUndefined();
-
-      const resumed = await run(join(dir, "resumed.json"));
-      expect(resumed.code).toBe(1);
-      expect(resumed.stderr).toContain("stopped before questions: the reader may read none of the 1 indexed documents");
-      expect(resumed.report.questions).toBeUndefined();
-      expect(resumed.report.stopped).toMatchObject({ before: "questions", indexed: 1, readable: 0 });
-      expect(resumed.report.stopped.reason).toContain("replay into a fresh one");
-      expect(resumed.report.cost).toBeDefined();
+      for (const name of ["fresh.json", "resumed.json"]) {
+        const run = await ingest(dir, join(dir, name), "--database", databaseUrl);
+        expect(run.code).toBe(0);
+        expect(run.report.questions).toBeDefined();
+        expect(run.report.stopped).toBeUndefined();
+      }
     },
   );
 });

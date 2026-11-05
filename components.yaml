@@ -117,10 +117,10 @@ components:
     layer: control
     status: built
     runtime: node
-    owns: The inbox, with todos merged by dedupe key, routed to topic owners, on weekly cards within a budget; notes; first-review campaigns. Planned are comments and anchoring (comment.created), agent replies, overrides (claims.updated), the publish state machine (unit.published), quality gates, verification expiry, reacting to page.rendered
+    owns: The inbox, with todos merged by dedupe key, routed to topic owners, on weekly cards within a budget; notes; first-review campaigns. Planned are comments and anchoring (comment.created), agent replies, overrides (claims.updated), the publish state machine (unit.published), quality gates, verification expiry, reacting to page.rendered, the source-restricted todo when a source later shares a published document more narrowly (acl.changed, whose ACL snapshots are advisory)
     plugins: [migrations]
     publishes: [comment.created, unit.published, todo.created, todo.resolved, claims.updated]
-    subscribes: [page.rendered, comment.created, todo.requested, todo.created, review.due]
+    subscribes: [page.rendered, comment.created, todo.requested, todo.created, review.due, acl.changed]
     calls: [knowledge-store, access-control, model-gateway, agent-runtime, retrieval]
 
   knowledge-store:
@@ -139,10 +139,10 @@ components:
     layer: serve
     status: built
     runtime: node
-    owns: Chunks of every document with a contextual header, an embedding and ACL tokens, kept across versions; hybrid search (vector and keyword indexes, RRF), the reranker over statements and passages together, ACL pre-filter and post-check; grounded answers that give the value governance holds, in the question's language, with notes on disputed and replaced values, read from the latest edition of a document the asker can read; questions searched in every pack language too; mature-RAG and long-context baselines to measure answers against, and a governed long context that reads everything the asker may read after governance. Planned are its own chunk tables and index backends, now in the knowledge store; page, procedure and entity indexes (claims.updated, artifact.dirty, page.rendered, unit.published), FAQ precompute and the semantic cache
+    owns: Chunks of every document with a contextual header, an embedding and its tenant's tokens, kept across versions; hybrid search (vector and keyword indexes, RRF), the reranker over statements and passages together, the permission pre-filter (spaces, clearance) and post-check; grounded answers that give the value governance holds, in the question's language, with notes on disputed and replaced values, read from the latest edition of a document the asker can read; questions searched in every pack language too; mature-RAG and long-context baselines to measure answers against, and a governed long context that reads everything the asker may read after governance. Planned are its own chunk tables and index backends, now in the knowledge store; page, procedure and entity indexes (claims.updated, artifact.dirty, page.rendered, unit.published), FAQ precompute and the semantic cache
     plugins: [migrations, model_mocks]
     publishes: []
-    subscribes: [acl.changed, blocks.changed, claims.updated, artifact.dirty, page.rendered, unit.published]
+    subscribes: [blocks.changed, claims.updated, artifact.dirty, page.rendered, unit.published]
     calls: [knowledge-store, access-control, model-gateway, governance, freshness]
 
   agent-api:
@@ -161,10 +161,10 @@ components:
     layer: control
     status: built
     runtime: node
-    owns: SpiceDB schema and graph, and an in-memory graph for tests; principal tokens verified against the business layer's published keys, with a development issuer for tests; source ACL mirroring, the derived-knowledge rule over lineage, search pre-filters, agent scopes; people and groups arrive from the business layer's directory. Planned are the two-domain space and proof rules that replace source ACLs and the lineage rule (adopted 2026-10-24), the oversharing scan, the audit log
+    owns: SpiceDB schema and graph, and an in-memory graph for tests; principal tokens verified against the business layer's published keys, with a development issuer for tests; visibility by space (a source's documents are readable by whoever may read its space; source ACLs decide nothing), space roles, the derived-knowledge rule over lineage, search pre-filters, agent scopes; people and groups arrive from the business layer's directory. Planned are the personal space of the two-domain rule and the proof rule for jointly required inputs (adopted 2026-10-24), the oversharing scan, the audit log
     plugins: []
     publishes: []
-    subscribes: [acl.changed]
+    subscribes: []
     calls: [knowledge-store]
 
   model-gateway:

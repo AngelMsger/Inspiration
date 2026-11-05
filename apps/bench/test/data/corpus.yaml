@@ -27,7 +27,7 @@ topics:
   - [IT 设备申领说明, 7]
   - [交通, 4]
   - [休假, 7]
-  - [住宿, 21]
+  - [住宿, 20]
   - [协议酒店, 6]
   - [固定资产, 11]
   - [固定资产折旧年限表, 5]
@@ -49,8 +49,8 @@ cards:
   - [review, ["annual_leave_days (工龄 1 至 10 年): 5 day or 7 day"]]
   - [notes, ["loan_settlement_days: 30 day in 借款常见问题, 15 day holds"]]
 
-# The folder only the finance group may read.
-confidential: 预算/内部/
+# The source of the budget notes, in the space only the finance department reads.
+confidential: 内部预算
 
 # An edit to the header of the policy's hotel table.
 edit:

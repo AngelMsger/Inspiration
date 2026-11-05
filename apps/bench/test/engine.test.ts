@@ -123,7 +123,7 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
   expect(first.outline.run).toMatchObject({
     sections: 69,
     statements: 142,
-    placed: { governed: 98, reference: 14, search_only: 0 },
+    placed: { governed: 98, reference: 13, search_only: 0 },
     unfiled: 44,
     topics: { live: 18, by_level: { "1": 2, "2": 16, "3": 0 }, created: 18, retired: 0 },
     churn: { before: 0, moved: 0 },
@@ -155,10 +155,10 @@ async function scenario({ engine, corpus, dir, clock }: Run): Promise<void> {
     expect((await engine.governance.slot(corpus.tenantId, slot)).decision?.proposed.value, slot).toBe(value);
   }
 
-  // The finance-only folder keeps its group, mapped through the directory.
-  const [budget] = (await engine.sync.items(corpus.sources[0]?.id as string)).filter((i) =>
-    i.external_id.startsWith(FOUND.confidential),
-  );
+  // The finance-only budget notes keep their folder's ACL, its group mapped through the
+  // directory, though their space decides who reads them.
+  const notes = corpus.sources.find((s) => s.name === FOUND.confidential);
+  const [budget] = await engine.sync.items(notes?.id as string);
   const version = await engine.store.getSourceVersion(budget?.source_version_id as string);
   expect(version?.sensitivity).toBe("confidential");
   const acl = await engine.store.getAclSnapshot(

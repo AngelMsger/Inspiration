@@ -41,9 +41,9 @@
  * facts the corpus's catalogue lacks before the first call, and refuses to start when the
  * catalogue names none of them, unless --allow-uncatalogued; nothing has run then, so there
  * is no report. Later, before questions, any run stops when the reader may read none of the
- * indexed documents, as after a run resumed on an existing database, whose permissions were
- * in memory. Reading has run by then, maybe paid for, so the run still prints its cost and
- * writes its report, whose `stopped` says where it stopped and why, and exits 1.
+ * indexed documents, as when no space of corpus.yaml lists the reader among its readers.
+ * Reading has run by then, maybe paid for, so the run still prints its cost and writes its
+ * report, whose `stopped` says where it stopped and why, and exits 1.
  *
  * synthesize writes a synthetic corpus of about n documents, with truth.json listing every
  * fact it states, for scale runs.
@@ -293,8 +293,7 @@ async function main(argv: string[]): Promise<number> {
       if (seen.indexed && !seen.readable) {
         const reason =
           `the reader may read none of the ${seen.indexed} indexed documents, so every search would find nothing; ` +
-          "a run resumed on an existing database has no permissions (they live in memory), so replay into a " +
-          "fresh one, where saved replies cost nothing";
+          "check that the spaces in corpus.yaml list the reader among their readers";
         console.error(`stopped before questions: ${reason}`);
         out.stopped = { before: "questions", reason, ...seen };
         await writeReport(engine, gateway, out, values);
