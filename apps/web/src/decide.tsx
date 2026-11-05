@@ -120,9 +120,17 @@ export function DecidedFold(props: {
   onUndone: (decision: TodoDecision) => void;
 }) {
   const { say } = useWords();
+  const summary = say("decide.summary", { decided: props.decisions.length, left: props.left });
+  if (props.decisions.length === 0) {
+    return (
+      <p className="decided-fold" role="status">
+        {summary}
+      </p>
+    );
+  }
   return (
     <details className="decided-fold">
-      <summary>{say("decide.summary", { decided: props.decisions.length, left: props.left })}</summary>
+      <summary>{summary}</summary>
       {props.decisions.map((d) => (
         <DecidedLine
           key={d.decision.id}
