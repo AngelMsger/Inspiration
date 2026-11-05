@@ -89,12 +89,12 @@ curl -s localhost:8100/healthz
 ## Layout
 
 ```
-libs/contracts      schema/*.yaml is the source of truth; codegen/ writes src/generated.ts and src/events.ts
+libs/contracts      schema/*.yaml is the source of truth, schema/business/ the business layer's own; codegen/ writes the TypeScript
 libs/kernel         settings, logging, plugin registry, migrations runner, blob stores, database pools
 libs/eventbus       transactional outbox, relay to Valkey Streams, consumers, in-memory bus
 libs/testkit        fixtures for tests against the compose stack
 engine/<component>  one package per engine component (see components.yaml)
-business/           business-layer packages (none yet); engine/ and libs/ never depend on them
+business/<name>     one package per business-layer component: tenancy so far; engine/ and libs/ never depend on them
 apps/engine         the engine process: wires the components to the store, the bus and the blob store; HTTP API
 apps/web            the product web app over the engine's HTTP API, a stand-in backend (pnpm demo) and snapshots (pnpm snapshot)
 apps/bench          the measurement harness (pnpm bench): runs the engine over a corpus, reports, checks answers
@@ -107,8 +107,9 @@ docs/zh/            Chinese copies of every doc
 test/               repo-wide checks: the component manifest, languages, docs, file paths
 ```
 
-Business components will live in `business/`, next to `engine/` and `libs/` (see
-[Architecture](docs/architecture.md#one-repository-a-folder-per-layer)).
+Business components live in `business/`, next to `engine/` and `libs/` (see
+[Architecture](docs/architecture.md#one-repository-a-folder-per-layer)), and are listed in the
+`business` section of `components.yaml`.
 
 ## Documentation
 

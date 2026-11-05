@@ -260,8 +260,7 @@ business:
     calls: []
   tenancy:
     title: Tenancy
-    status: in_progress
-    owner: claude/project-thread-aoq6hn
+    status: built
     owns: Companies (tenants) and their members, the one rule that assigns member IDs, the product roles super admin and member, and invite links; provisions tenants and members in the engine as a service. Planned are joining by verified email domain, transfers from the personal library, and offboarding with handovers
     calls: [engine]
 

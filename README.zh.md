@@ -64,12 +64,12 @@ curl -s localhost:8100/healthz
 ## 目录结构
 
 ```
-libs/contracts      schema/*.yaml 是唯一事实来源；codegen/ 生成 src/generated.ts 和 src/events.ts
+libs/contracts      schema/*.yaml 是唯一事实来源，schema/business/ 是业务层自己的；codegen/ 生成 TypeScript
 libs/kernel         设置、日志、插件注册表、迁移运行器、blob 存储、数据库连接池
 libs/eventbus       事务性 outbox、转发到 Valkey Streams、消费者、内存事件总线
 libs/testkit        针对 compose 运行环境的测试夹具
 engine/<component>  每个引擎组件一个包（见 components.yaml）
-business/           业务层的包（尚无）；engine/ 和 libs/ 从不依赖它们
+business/<name>     每个业务层组件一个包：目前有 tenancy；engine/ 和 libs/ 从不依赖它们
 apps/engine         引擎进程：把组件接到存储、事件总线和 blob 存储上；HTTP API
 apps/web            产品 Web 应用，基于引擎的 HTTP API，带一个替身后端（pnpm demo）和录像（pnpm snapshot）
 apps/bench          测量工具（pnpm bench）：在语料上运行引擎、生成报告、核对答案
@@ -82,7 +82,7 @@ docs/zh/            每篇文档的中文副本
 test/               仓库级检查：组件清单、语言、文档、文件路径
 ```
 
-业务组件将放在 `business/` 中，与 `engine/` 和 `libs/` 并列（见[架构](docs/zh/architecture.md)中的“一个仓库，每层一个目录”）。
+业务组件放在 `business/` 中，与 `engine/` 和 `libs/` 并列（见[架构](docs/zh/architecture.md)中的“一个仓库，每层一个目录”），并列在 `components.yaml` 的 `business` 一节。
 
 ## 文档
 
