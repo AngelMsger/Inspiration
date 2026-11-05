@@ -197,11 +197,15 @@ export class Directory {
 
   // ------------------------------------------------------------------------------ spaces
 
-  /** Create a team space; a parent must be a space of the same tenant. */
+  /**
+   * Create a team space; a parent must be a space of the same tenant. options.spaceId names
+   * the space instead of minting its ID, for a seed whose IDs are fixed (a corpus); the HTTP
+   * API never sends one.
+   */
   async createSpace(
     tenantId: string,
     create: CreateSpace,
-    options: { idempotencyKey?: string } = {},
+    options: { idempotencyKey?: string; spaceId?: string } = {},
   ): Promise<SpaceWritten> {
     return this.#write(tenantId, async (tx) => {
       if (!(await tx.get(TENANTS, tenantId))) throw new RangeError(`no tenant ${tenantId}`);
@@ -211,6 +215,12 @@ export class Directory {
       if (earlier && earlier.request !== request) {
         throw new ConflictError(`idempotency key ${JSON.stringify(key)} was sent with another request`);
       }
+      if (options.spaceId !== undefined && kindOf(options.spaceId) !== "space") {
+        throw new RangeError(`${options.spaceId} is not a space ID`);
+      }
+      if (options.spaceId !== undefined && (await tx.get(SPACES, options.spaceId))) {
+        throw new ConflictError(`space ${options.spaceId} exists`);
+      }
       let record = earlier && (await tx.get(SPACES, earlier.space_id));
       if (!record) {
         await assignable(tx, tenantId, create.owner_ids);
@@ -219,7 +229,7 @@ export class Directory {
           if (parent?.space.tenant_id !== tenantId) throw new RangeError(`no space ${create.parent_id} in ${tenantId}`);
         }
         const space: Space = {
-          id: newId("space"),
+          id: options.spaceId ?? newId("space"),
           tenant_id: tenantId,
           kind: "team",
           name: create.name,

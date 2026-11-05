@@ -5,6 +5,7 @@
 tenant:
   id: ten_01HENGYUAN0000000000000001
   name: 恒远机械
+  locale: zh-CN
 
 # owner: the member who maintains the space (周敏 and 张敏 in people.yaml). readers: who reads
 # it besides its owner; the whole tenant when not given. A space's audience decides who reads

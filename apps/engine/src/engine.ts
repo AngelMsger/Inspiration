@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { AuthzService, type Graph, MemoryGraph } from "@inspiration/access-control";
+import { AuthzService, Directory, type Graph, MemoryGraph } from "@inspiration/access-control";
 import { Inbox } from "@inspiration/collaboration";
 import type {
   BlobStore,
@@ -88,6 +88,8 @@ export class Engine {
   readonly topics: Topics;
   readonly inbox: Inbox;
   readonly authz: AuthzService;
+  /** The copy of the business layer's tenants and members, and the spaces, granted in the same graph as authz reads. */
+  readonly directory: Directory;
   /** Each tenant's predicate catalogue, as extraction reads it; the inbox names facts by it. */
   readonly vocabulary: NonNullable<ExtractionOptions["vocabulary"]>;
   readonly retrieval: Retrieval;
@@ -158,7 +160,9 @@ export class Engine {
     this.freshness = new Freshness({ store: this.store, records: this.records, ...clock });
     this.topics = new Topics({ store: this.store, records: this.records, models: this.models, ...clock });
     this.inbox = new Inbox({ store: this.store, records: this.records, ...clock });
-    this.authz = new AuthzService(parts.graph ?? new MemoryGraph(), this.store);
+    const graph = parts.graph ?? new MemoryGraph();
+    this.authz = new AuthzService(graph, this.store);
+    this.directory = new Directory(this.records, graph);
     const memory = this.store instanceof MemoryStore ? this.store : undefined;
     const indexes = {
       store: this.store,

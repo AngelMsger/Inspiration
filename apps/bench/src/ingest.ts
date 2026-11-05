@@ -167,7 +167,7 @@ export async function ingest(engine: Engine, corpus: Corpus, options: { truth?: 
   const before = { ...totals, windows_by_level: { ...totals.windows_by_level } };
   const started = performance.now();
   const runs: { source: (typeof corpus.sources)[number]; report: SyncReport }[] = [];
-  await corpus.provision(engine.authz);
+  await corpus.provision(engine.directory, engine.authz);
   await corpus.stamp();
   for (const source of corpus.sources) {
     await engine.sync.addSource(source);

@@ -3050,11 +3050,12 @@ export interface SpaceChange {
   kind: "created" | "updated";
 }
 /**
- * The spaces of the tenant the member may read.
+ * The spaces of the tenant the member may read, each with its owners and the member's role; with manage=true, the spaces the member may administer instead, each with its number of grants.
+ *
  */
 export interface SpaceList {
   tenant: Tenant;
-  spaces: Space[];
+  spaces: SpaceEntry[];
 }
 /**
  * A tenant as the business layer provisions it (tenancy.yaml). kind, status, default_locale and version are absent only for tenants a corpus stands in for.

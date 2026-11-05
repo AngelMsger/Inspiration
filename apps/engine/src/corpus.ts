@@ -11,27 +11,29 @@
  * where a checkout dates every file the day it was made. A file written for a test says so
  * (kind constructed), with what it changes and the file it is based on, if any.
  *
- * provision() writes what the business layer would into access control: the directory's
- * members, the spaces' maintainers and readers and the corpus's reader as members of the
- * tenant, every space owned by its maintainer (owner in corpus.yaml, else the reader) and read
- * by its readers (the whole tenant when not given), and each source in its space. Who reads a
- * document is its space's audience; the ACLs its folder or Feishu reports are kept as they
- * are and decide nothing. Questions (questions.ts) are asked as the reader.
+ * provision() writes what the business layer would, through access control's directory: the
+ * tenant, the directory's members, the spaces' maintainers and readers and the corpus's reader
+ * as its active members (named as an optional people.yaml names them), every space owned by
+ * its maintainer (owner in corpus.yaml, else the reader) and read by its readers (the whole
+ * tenant when not given), and each source in its space. Who reads a document is its space's
+ * audience; the ACLs its folder or Feishu reports are kept as they are and decide nothing.
+ * Questions (questions.ts) are asked as the reader.
  */
 
 import { createHash } from "node:crypto";
 import { access, readdir, readFile, utimes } from "node:fs/promises";
 import { join, posix, relative, resolve, sep } from "node:path";
-import type { AuthzService } from "@inspiration/access-control";
+import type { AuthzService, Directory } from "@inspiration/access-control";
 import { globToRegExp } from "@inspiration/connectors";
 import {
   type AclEntry,
+  canonicalJson,
   type Principal,
+  type PutMember,
+  type PutTenant,
   parseAs,
   type Source,
-  type Space,
   schemaErrors,
-  type Tenant,
 } from "@inspiration/contracts";
 import { loadVocabulary, type Vocabulary } from "@inspiration/extraction";
 import type { PrincipalResolver } from "@inspiration/source-sync";
@@ -58,10 +60,11 @@ interface SourceSpec {
 }
 
 export interface CorpusManifest {
-  tenant: { id: string; name: string };
+  /** locale: the tenant's default locale; en when not given. */
+  tenant: { id: string; name: string; locale?: string };
   /**
    * owner: the member who maintains the space; the reader when not given. readers: who reads
-   * it besides its owner, as member, group or department IDs; the whole tenant when not given.
+   * it besides its owner, as member IDs; the whole tenant when not given.
    */
   spaces: { id: string; name: string; owner?: string; readers?: string[] }[];
   /** Section name, then "<principal kind>:<source principal ID>", then the engine principal. */
@@ -129,18 +132,21 @@ export class Corpus {
   readonly sources: Source[];
   readonly vocabulary: Vocabulary | undefined;
   readonly files: readonly CorpusFile[];
+  /** Member ID to display name, from people.yaml. */
+  readonly names: ReadonlyMap<string, string>;
   readonly #directoryOf = new Map<string, Record<string, string>>();
 
   constructor(
     dir: string,
     manifest: CorpusManifest,
-    options: { vocabulary?: Vocabulary; files?: CorpusFile[]; createdAt?: Date } = {},
+    options: { vocabulary?: Vocabulary; files?: CorpusFile[]; names?: Map<string, string>; createdAt?: Date } = {},
   ) {
     const createdAt = options.createdAt ?? new Date(0);
     this.dir = resolve(dir);
     this.manifest = manifest;
     this.vocabulary = options.vocabulary;
     this.files = options.files ?? [];
+    this.names = options.names ?? new Map();
     const spaces = new Set(manifest.spaces.map((s) => s.id));
     this.sources = manifest.sources.map((s) => {
       if (!spaces.has(s.space)) throw new CorpusError(`source ${s.id}: unknown space ${s.space}`);
@@ -198,9 +204,11 @@ export class Corpus {
       );
     const vocabulary = join(dir, "vocabulary.yaml");
     const files = join(dir, "files.yaml");
+    const people = join(dir, "people.yaml");
     return new Corpus(dir, manifest, {
       ...((await exists(vocabulary)) && { vocabulary: await loadVocabulary(vocabulary) }),
       ...((await exists(files)) && { files: await loadFiles(files) }),
+      ...((await exists(people)) && { names: await loadNames(people) }),
     });
   }
 
@@ -234,40 +242,54 @@ export class Corpus {
     return { id, kind: "member", tenant_id: this.tenantId };
   }
 
-  /** The tenant as the business layer would name it. */
-  get tenant(): Tenant {
-    return { id: this.tenantId, name: this.manifest.tenant.name, created_at: new Date(0).toISOString() };
+  /** The tenancy service that provisions the corpus, as the business layer's would. */
+  get service(): string {
+    return `svc_${this.tenantId.slice("ten_".length)}`;
   }
 
-  /** The corpus's spaces as the business layer would describe them, each owned by its maintainer. */
-  get spaces(): Space[] {
-    return this.manifest.spaces.map((s) => ({
-      id: s.id,
-      tenant_id: this.tenantId,
-      kind: "team",
-      name: s.name,
-      owner_id: s.owner ?? this.reader.id,
-      default_sensitivity: "internal",
-      created_at: new Date(0).toISOString(),
-    }));
-  }
-
-  /** What the business layer would provision in access control for the corpus. Idempotent. */
-  async provision(authz: AuthzService): Promise<void> {
+  /**
+   * What the business layer would provision for the corpus, through the directory. Run again,
+   * it replays what is unchanged, so the graph is granted again even when only the records
+   * outlived the last run, and sends a newer version of what corpus.yaml changed.
+   */
+  async provision(directory: Directory, authz: AuthzService): Promise<void> {
     const tenantId = this.tenantId;
+    const tenant: Omit<PutTenant, "version"> = {
+      name: this.manifest.tenant.name,
+      kind: "team",
+      status: "active",
+      default_locale: this.manifest.tenant.locale ?? "en",
+    };
+    const version = seedVersion(await directory.tenant(tenantId), tenant);
+    await directory.putTenant(tenantId, { ...tenant, version }, this.service);
     const members = new Set([
       this.reader.id,
-      ...this.manifest.spaces
-        .flatMap((s) => [s.owner ?? [], s.readers ?? []].flat())
-        .filter((id) => id.startsWith("mem_")),
-      ...Object.values(this.manifest.directory ?? {}).flatMap((section) =>
-        Object.values(section).filter((id) => id.startsWith("mem_")),
-      ),
+      ...this.manifest.spaces.flatMap((s) => [s.owner ?? [], s.readers ?? []].flat()),
+      ...Object.values(this.manifest.directory ?? {}).flatMap((section) => Object.values(section)),
     ]);
-    for (const id of [...members].sort()) await authz.addTenantMember(tenantId, id);
+    for (const id of [...members].filter((m) => m.startsWith("mem_")).sort()) {
+      const member: Omit<PutMember, "version"> = {
+        status: "active",
+        display_name: this.names.get(id) ?? id,
+        roles: ["member"],
+      };
+      const version = seedVersion(await directory.member(tenantId, id), member);
+      await directory.putMember(tenantId, id, { ...member, version });
+    }
     for (const space of this.manifest.spaces) {
-      await authz.createSpace(space.id, { tenantId, ownerId: space.owner ?? this.reader.id });
-      for (const reader of space.readers ?? [tenantId]) await authz.grantSpace(space.id, "viewer", reader);
+      const owner = space.owner ?? this.reader.id;
+      const existing = await directory.space(space.id);
+      if (!existing)
+        await directory.createSpace(tenantId, { name: space.name, owner_ids: [owner] }, { spaceId: space.id });
+      else {
+        if (existing.name !== space.name) await directory.patchSpace(space.id, { name: space.name });
+        await directory.putOwners(space.id, [owner]);
+      }
+      const readers = space.readers ?? [tenantId];
+      await directory.putAudience(
+        space.id,
+        readers.map((id) => ({ principal_id: id === tenantId ? "tenant" : id, role: "viewer" })),
+      );
     }
     for (const source of this.sources) await authz.registerSource(source.id, source.space_id);
   }
@@ -312,4 +334,19 @@ async function loadFiles(file: string): Promise<CorpusFile[]> {
   const errors = schemaErrors(FILES_SCHEMA, data);
   if (errors.length) throw new CorpusError(`files.yaml: ${errors.join("; ")}`);
   return data.files;
+}
+
+/** The version a seed sends: the copy's own when the fields are unchanged, so a run again replays; else one more. */
+function seedVersion(current: { version?: number } | undefined, fields: object): number {
+  const version = current?.version;
+  if (version === undefined) return 1;
+  const held = current as Record<string, unknown>;
+  const same = Object.entries(fields).every(([k, v]) => canonicalJson(held[k]) === canonicalJson(v));
+  return same ? version : version + 1;
+}
+
+/** Member ID to display name, from a people.yaml beside the corpus. */
+async function loadNames(file: string): Promise<Map<string, string>> {
+  const { people = [] } = parse(await readFile(file, "utf8")) as { people?: { member: string; name: string }[] };
+  return new Map(people.map((p) => [p.member, p.name]));
 }

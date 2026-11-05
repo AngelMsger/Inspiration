@@ -36,7 +36,7 @@ const log = logger("engine.serve");
 
 /** Provision the corpus, sync every source, read it all and give its topics owners, as the demo starts. */
 export async function seed(engine: Engine, corpus: Corpus): Promise<void> {
-  await corpus.provision(engine.authz);
+  await corpus.provision(engine.directory, engine.authz);
   await corpus.stamp();
   for (const source of corpus.sources) {
     await engine.sync.addSource(source);
@@ -118,15 +118,7 @@ async function main(argv: string[]): Promise<number> {
   const started = performance.now();
   await seed(engine, corpus);
   log.info("corpus read", { corpus: dir, seconds: Math.round((performance.now() - started) / 100) / 10 });
-  const server = await serveApi(
-    engine,
-    {
-      tenant: (id) => (id === corpus.tenantId ? corpus.tenant : undefined),
-      spaces: (id) => (id === corpus.tenantId ? corpus.spaces : []),
-    },
-    Number(values.port),
-    identity,
-  );
+  const server = await serveApi(engine, Number(values.port), identity);
   const stop = () => {
     server.close();
     void engine

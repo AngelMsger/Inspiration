@@ -7815,7 +7815,7 @@
       ]
     },
     "SpaceList": {
-      "description": "The spaces of the tenant the member may read.",
+      "description": "The spaces of the tenant the member may read, each with its owners and the member's role; with manage=true, the spaces the member may administer instead, each with its number of grants.\n",
       "type": "object",
       "required": [
         "tenant",
@@ -7828,7 +7828,7 @@
         "spaces": {
           "type": "array",
           "items": {
-            "$ref": "#/$defs/Space"
+            "$ref": "#/$defs/SpaceEntry"
           }
         }
       }
