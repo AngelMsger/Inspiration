@@ -27,14 +27,14 @@ export const nameOf = (node: DocumentTreeNode, say: Say) =>
   node.kind === "source" && node.source_type === UPLOADS ? say("uploads.name") : node.name;
 
 /** Every document of the library, with where it sits: its space, source and folders. */
-export function documentsOf(library: Library): { entry: DocumentEntry; where: string[] }[] {
+export function documentsOf(library: Library, say: Say): { entry: DocumentEntry; where: string[] }[] {
   const out: { entry: DocumentEntry; where: string[] }[] = [];
   const walk = (node: DocumentTreeNode, space: string, source: string) => {
     if (node.document) out.push({ entry: node.document, where: [space, source, ...node.path.slice(0, -1)] });
     for (const c of node.children ?? []) walk(c, space, source);
   };
   for (const space of library.spaces) {
-    for (const s of library.trees.get(space.id)?.sources ?? []) walk(s, space.name, s.name);
+    for (const s of library.trees.get(space.id)?.sources ?? []) walk(s, space.name, nameOf(s, say));
   }
   return out;
 }

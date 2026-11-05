@@ -39,7 +39,7 @@ export function Palette(props: {
       label: `${s.name} › ${say("nav.documents")}`,
       run: () => navigate({ name: "documents", space: s.id, folders: [] }),
     })),
-    ...documentsOf(props.library).map((d) => ({
+    ...documentsOf(props.library, say).map((d) => ({
       id: `doc-${d.entry.source_id}-${d.entry.external_id}`,
       label: d.entry.title,
       hint: d.where.join(" · "),
