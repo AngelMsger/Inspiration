@@ -21,6 +21,11 @@
   --disputed-bg: #f5e1dc;
   --maintain: #e6eaf6;
   --maintain-strong: #d3daf0;
+  --admin: #262a33;
+  --admin-ink: #eceae4;
+  --admin-faint: #a9adb7;
+  --admin-strong: #3a3f4a;
+  --admin-link: #c9cff0;
   --sans: "Instrument Sans", "Noto Sans SC", "Noto Sans JP", system-ui, sans-serif;
   --serif: Newsreader, "Noto Serif SC", Georgia, serif;
   --mono: "Geist Mono", ui-monospace, monospace;
@@ -1354,6 +1359,160 @@ a.secondary {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+/* The admin area: a dark left column, so it never passes for reading, and plain tables */
+
+.left-admin {
+  background: var(--admin);
+  color: var(--admin-ink);
+  border-right-color: var(--admin);
+}
+
+.left-admin .nav-item {
+  color: var(--admin-ink);
+}
+
+.left-admin .nav-item:hover {
+  background: rgb(255 255 255 / 6%);
+}
+
+.left-admin .nav-item[aria-current="page"] {
+  background: var(--admin-strong);
+}
+
+.left-admin .nav-heading,
+.left-admin .count {
+  color: var(--admin-faint);
+}
+
+.admin-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px 12px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--admin-strong);
+}
+
+.admin-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--admin-faint);
+}
+
+.admin-back {
+  font-size: 13px;
+  margin-top: 6px;
+  color: var(--admin-link);
+}
+
+.admin-back:hover {
+  color: var(--white);
+}
+
+.lede {
+  margin: 0;
+  max-width: 65ch;
+  color: var(--muted);
+}
+
+.admin-page .failure {
+  margin: 0;
+}
+
+.admin-table select {
+  font: inherit;
+  background: var(--white);
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+
+.admin-table .number {
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-action {
+  text-align: right;
+}
+
+.two-step {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.link-button:disabled {
+  color: var(--faint);
+  cursor: default;
+}
+
+.link-button.danger {
+  color: var(--disputed);
+  font-weight: 600;
+}
+
+/* A link just made is shown once, so it stands out until the page is left. */
+.made-link {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--holds);
+  border-radius: 4px;
+}
+
+.made-link-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.made-link-row input {
+  flex: 1 1 260px;
+  min-width: 0;
+  font: 13px var(--mono);
+  background: var(--white);
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+
+/* On a phone the admin column becomes a row above the page, since its pages have no other way in. */
+@media (max-width: 760px) {
+  .body:has(.left-admin) {
+    flex-direction: column;
+  }
+
+  .left.left-admin {
+    display: flex;
+    flex: none;
+    flex-flow: row wrap;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 8px 16px;
+  }
+
+  .left-admin .admin-head {
+    flex: 1 0 100%;
+    margin: 0;
+    padding: 4px 0 8px;
+  }
+
+  .left-admin .nav-heading {
+    display: none;
+  }
+
+  .admin-table {
+    display: block;
+    overflow-x: auto;
+  }
 }
 
 /* Changes: what happened, then when, aligned so a column of times reads at a glance. */
