@@ -41,14 +41,20 @@ describe("site", () => {
     expect(pages.get("index.html")).toContain('href="ja/"');
   });
 
-  test("the header offers every language in a menu, marks the current one, and links to the source", () => {
+  test("the header and the footer offer every language in a menu, mark the current one, and link to the source", () => {
     const pages = build({ root: "en", explicitIndex: false, fragment: false });
     for (const [path, html] of pages) {
       const header = /<header class="top">[\s\S]*?<\/header>/.exec(html)?.[0] ?? "";
-      const menu = /<details class="lang-menu">[\s\S]*?<\/details>/.exec(header)?.[0] ?? "";
-      expect(menu.match(/<li>/g), path).toHaveLength(LANGUAGES.length);
-      expect(menu.match(/aria-current="page"/g), path).toHaveLength(1);
+      const footer = /<footer class="foot">[\s\S]*?<\/footer>/.exec(html)?.[0] ?? "";
+      for (const part of [header, footer]) {
+        const menu = /<details class="lang-menu">[\s\S]*?<\/details>/.exec(part)?.[0] ?? "";
+        expect(menu.match(/<li>/g), path).toHaveLength(LANGUAGES.length);
+        expect(menu.match(/aria-current="page"/g), path).toHaveLength(1);
+      }
+      // Languages appear only in the two menus, never as a row of names that grows with them.
+      expect(html.match(/<a [^>]*hreflang=/g), path).toHaveLength(2 * (LANGUAGES.length - 1));
       expect(header, path).toContain('class="gh" href="https://github.com/');
+      expect(footer, path).toContain('class="foot-gh" href="https://github.com/');
     }
     expect(pages.get("zh/index.html")).toMatch(/<a href="\.\.\/zh\/" aria-current="page" lang="zh-CN">/);
   });

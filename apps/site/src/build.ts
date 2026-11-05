@@ -16,8 +16,8 @@
  * is in active development the site offers no download and no sign-up, and says so once, in
  * its closing lines.
  *
- * The header links to the source code on GitHub and offers the languages in a menu, so it holds
- * however many languages there are packs for; the footer lists them all as links.
+ * The header and the footer link to the source code on GitHub and offer the languages in a
+ * menu, so they hold however many languages there are packs for.
  *
  * Usage (`pnpm site` runs this file):
  *
