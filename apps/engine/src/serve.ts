@@ -113,7 +113,8 @@ async function main(argv: string[]): Promise<number> {
   const models = values.gateway ? await gatewayOf(values.gateway, values.valkey) : undefined;
   const engine = await Engine.open({
     blobDir: await mkdtemp(join(tmpdir(), "inspiration-blobs-")),
-    ...(corpus && { resolvePrincipal: corpus.resolvePrincipal, vocabulary: () => corpus.vocabulary }),
+    // The corpus's catalogue is its tenant's alone; provisioned companies have none yet.
+    ...(corpus && { resolvePrincipal: corpus.resolvePrincipal, vocabulary: corpus.vocabularyOf }),
     ...(today && { clock: () => today }),
     ...(models && { models: models.gateway }),
   });
