@@ -376,8 +376,8 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
     });
   });
 
-  describe.skipIf(skip)("a token's max_sensitivity", () => {
-    test("hides a document, a claim or a page labelled above it, and lowers the clearance", async ({ w }) => {
+  describe.skipIf(skip)("clearance and a token's max_sensitivity", () => {
+    test("hide a document, a claim or a page labelled above them; a token only lowers the clearance", async ({ w }) => {
       const { kb, store } = w;
       const [version, [span]] = kb.sourceVersion(["Board pay: the chair takes 1.2 million a year."], {
         external_id: "doc-all",
@@ -392,14 +392,17 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
         max_sensitivity: max,
       });
 
+      // Carol is cleared for confidential; bob reads the space too, but only up to internal.
       expect(await w.can("carol", "read", w.doc("doc-all"))).toBe(true);
       expect(await w.can("carol", "read", claimRef)).toBe(true);
-      expect(await w.can(limited("carol", "confidential"), "read", w.doc("doc-all"))).toBe(true);
-      const narrowed = await w.authz.check(limited("carol", "internal"), "read", w.doc("doc-all"));
-      expect(narrowed).toMatchObject({
+      expect(await w.authz.check(w.who("bob"), "read", w.doc("doc-all"))).toMatchObject({
         allow: false,
-        reason: "labelled confidential, above the token's max_sensitivity",
+        reason: "labelled confidential, above the principal's clearance",
       });
+      expect(await w.can("bob", "read", claimRef)).toBe(false);
+      expect(await w.can("bob", "read", w.spaceRef(w.space))).toBe(true);
+      expect(await w.can(limited("carol", "confidential"), "read", w.doc("doc-all"))).toBe(true);
+      expect(await w.can(limited("carol", "internal"), "read", w.doc("doc-all"))).toBe(false);
       expect(await w.can(limited("carol", "internal"), "read", claimRef)).toBe(false);
       const many = await w.authz.checkMany(limited("alice", "public"), "read", [
         w.doc("doc-all"),
