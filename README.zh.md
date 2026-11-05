@@ -39,7 +39,7 @@
 <img src="docs/assets/problem.zh.png" alt="一张回答卡片：自 10 月 1 日起每晚 650 元，依据 9 月 28 日的通知，由维护差旅规则的李娜确认。下面列出五份文档：三份仍写着 600 的标为已过时，没有一份被删除。" width="88%">
 </div>
 
-**Inspiration 在有人提问之前就确定哪个值有效。** 它回答 650，引用那份通知，把三份旧文档标为已过时但不删除，只有来源真正冲突时才去问维护差旅规则的人。模型恰恰在这里需要帮助：独立研究发现，检索失败的原因是输入里同一事实有相互竞争的值，而不是输入太长（[Liu, 2026](https://arxiv.org/abs/2611.04169v1)）。
+**Inspiration 在有人提问之前就确定哪个值有效。** 它回答 650，引用那份通知，把三份旧文档标为已过时但不删除，只有来源真正冲突时才去问维护差旅规则的人。模型恰恰在这里需要帮助：让它出错的，更多是输入里同一事实有相互竞争的值，而不是输入太长（[有研究支持这一点](https://arxiv.org/abs/2611.04169v1)）。
 
 | | 今天的搜索和 RAG | Inspiration |
 | --- | --- | --- |
@@ -145,27 +145,13 @@ flowchart LR
 
 **一个仓库，两层。** **引擎**是知识的记录系统，没有界面：给定租户和主体，它回答知道什么、出处在哪、谁能看、是否仍然成立。**业务层**是围绕引擎的产品：账号、公司、邀请、通知和 Web 应用。调用向下，事件向上，引擎从不依赖业务层；任何试图这样做的改动都会让测试失败。
 
-```mermaid
-flowchart TB
-  people["<b>人</b> · 英文、中文、日文的 Web 应用"]
-  agents["<b>智能体</b> · MCP 客户端、公司的智能体"]
-  biz["<b>业务层</b> · 基于 Logto 的账号 · 公司和成员 · 空间 · 通知"]
-  subgraph engine["引擎"]
-    direction LR
-    ingest["<b>摄取</b><br/>connectors<br/>source-sync<br/>normalization<br/>parsing ◌"] --> compile["<b>编译</b><br/>extraction<br/>governance<br/>freshness<br/>page-compiler"] --> store[("<b>存储</b><br/>knowledge-store<br/>PostgreSQL")] --> serve["<b>服务</b><br/>retrieval<br/>agent-api ◌<br/>views ◌"]
-  end
-  control["<b>控制，每个阶段都用</b><br/>基于 SpiceDB 的 access-control · model-gateway<br/>agent-runtime · 待办 · 事件总线"]
-  src["<b>来源</b> · 飞书和 Lark · 上传 · 代码 · 调研"]
-  people --> biz
-  biz -- "带签名主体的命令 ↓ · 事件 ↑" --> engine
-  agents -- "成员的令牌" --> engine
-  src --> engine
-  engine --- control
-```
+<div align="center">
+<img src="docs/assets/components.zh.png" alt="组件图，按阶段从来源到使用分行：调研与外部数据源；source-sync、connectors 和 parsing；normalization 和 extraction；freshness 和 governance；page-compiler 和 collaboration；retrieval、agent-api 和 views；Web 应用与业务后端、人和外部 Agent。blocks.changed、claims.updated、artifact.dirty、page.rendered 等事件把它们连起来。右侧平台服务一列：契约、事件总线、知识库、鉴权、模型网关、Agent 运行时、凭据代理和沙箱。计划中：research、agent-api、views、credential-broker 和 sandbox。" width="100%">
+</div>
 
-<sub>◌ 表示计划中。完整的全景图，包括每个组件对应的外部同类项目以及我们复用了什么，见[总览](docs/zh/overview.md)的图 10。</sub>
+<sub>按阶段排列的每个组件，以及它们之间的事件（实线）和调用（虚线）；右侧的平台服务供所有组件使用。虚线框表示计划中。[总览](docs/zh/overview.md)的图 10 给每个组件列出了对应的外部同类项目，并说明我们复用了什么。</sub>
 
-- **小组件，各管一件事。** 引擎的 19 个组件中有 13 个已构建并有测试，业务层的前两个也已构建。[`components.yaml`](components.yaml) 写明每个组件拥有什么、发布和消费哪些事件、可以调用谁；测试让每个包都遵守它。
+- **小组件，各管一件事。** 引擎的 19 个组件中有 14 个已构建并有测试，业务层的前两个也已构建。[`components.yaml`](components.yaml) 写明每个组件拥有什么、发布和消费哪些事件、可以调用谁；测试让每个包都遵守它。
 - **契约优先。** [`libs/contracts/schema/`](libs/contracts/schema/) 里的 JSON Schema 是所有跨组件类型和事件的唯一来源，TypeScript 类型和校验器由它生成。
 - **事件和数据一起提交。** 组件在存储事务内通过 outbox 发布事件，再转发到 Valkey Streams。投递至少一次，每个处理器都是幂等的。
 - **可替换的部分都是插件。** 连接器、解析器、抽取器、模型提供方、搜索索引、事件传输和迁移都是插件，通过注册表查找，替换一个部分不用改调用方。
@@ -174,13 +160,19 @@ flowchart TB
 
 | 方面 | 选择 |
 | --- | --- |
-| 语言 | Node 22 上的 TypeScript，严格模式，直接剥离类型运行；文档解析用一个 Python worker（计划中） |
+| 语言 | Node 22 上的 TypeScript，严格模式，直接剥离类型运行；文档解析用一个 Python worker |
 | 存储和搜索 | PostgreSQL 16，加 pgvector 和 pg_search（ParadeDB）：BM25 加向量，再重排序 |
 | 事件 | 事务性 outbox，Valkey Streams |
 | 权限 | SpiceDB，参照 Zanzibar |
 | 身份 | Logto，在业务层 |
 | 模型 | 任何兼容 OpenAI 的提供方和 Anthropic，都经过模型网关；上面的测试用的是 DeepSeek |
 | Web | React 和 Vite |
+
+<details>
+<summary><b>怎么部署：</b>服务、开源组件以及它们怎么连接</summary>
+<br>
+<img src="docs/assets/deployment.zh.png" alt="部署图。上游：数据源、深度调研、模型 API 和本地推理。写入侧：接入、编译、解析和模型网关。存储与事件：Valkey Streams；PostgreSQL 16，内有知识表、pgvector、pg_search、每个组件一个 schema、outbox、账户与企业，以及 spicedb 和 logto 库；SpiceDB。读取侧：Agent 接口、检索与协作、Web 与业务后端、鉴权。使用方：调用方 Agent、交互视图、用户和 Logto。计划中的凭据与隔离执行：gVisor、沙箱执行器、凭据代理和 OpenBao。今天它是一个 compose 栈，引擎是一个进程。" width="100%">
+</details>
 
 更多内容见[架构](docs/zh/architecture.md)、[契约](docs/zh/contracts.md)和[总览](docs/zh/overview.md)的第二部分。
 
@@ -209,7 +201,7 @@ flowchart TB
 
 ## 开始使用
 
-Inspiration 还不能安装使用。要从源码构建和测试，需要 Node 22.18+、pnpm 10 和 Docker，然后运行 `make install && make up && make check`；演示、基准测试和模型网关见[开发指南](docs/zh/development.md)。
+Inspiration 还不能安装使用。要从源码构建和测试，需要 Node 22.18 或更高版本、pnpm、Python 3.10 或更高版本和 Docker（仓库为 corepack 和 Volta 固定了 pnpm 10.28.0），然后运行 `make install && make up && make check`；演示、基准测试和模型网关见[开发指南](docs/zh/development.md)。
 
 ## 仓库结构
 
@@ -233,7 +225,7 @@ infra/              原型环境的 docker compose，以及运行时用的本地
 config/             模型网关的示例配置
 docs/               总览、引擎参考和设计文档，索引在 docs/README.md
 docs/zh/            每份文档的中文副本
-docs/assets/        README 里展示的图片，有英文、中文和日文版
+docs/assets/        README 里的图片和架构图，连同它们的源文件，有英文、中文和日文版
 test/               仓库级检查：组件清单、语言、文档、文件路径
 README*.md          本页的英文、中文（README.zh.md）和日文（README.ja.md）版本
 ```
