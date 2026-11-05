@@ -180,7 +180,7 @@ flowchart LR
 </picture>
 </details>
 
-詳しくは [Architecture](docs/architecture.md)、[Contracts](docs/contracts.md)、[overview](docs/overview.md) の Part II を参照してください。
+詳しくは [Architecture](docs/architecture.md) と [Contracts](docs/contracts.md) を参照してください。
 
 ## ロードマップ
 
@@ -242,10 +242,10 @@ README*.md          このページの英語版、中国語版（README.zh.md）
 
 | 読むもの | 内容 |
 | --- | --- |
-| [Overview](docs/overview.md)（[中文](docs/zh/overview.md)） | プロダクト要件と技術アーキテクチャを 1 つにまとめた文書。シナリオ、図、実現可能性、構築済みのものと計画中のもの |
+| [Overview](docs/overview.md)（[中文](docs/zh/overview.md)） | プロダクト要件とアーキテクチャの概観。シナリオ、図、実現可能性、構築済みのものと計画中のもの |
 | [The MVP](docs/design/mvp.md) | 範囲、スライス、ゲート、その背景にある決定 |
 | [Validating the knowledge core](docs/design/validation.md) | 実際の文書で主張をどう検証するか、各実行とその費用 |
-| [Architecture](docs/architecture.md) | 2 つの層、コンポーネント、その間のやりとり |
+| [Architecture](docs/architecture.md) | システムの各部分。2 つの層、コンポーネントとイベント、ナレッジモデル、ガバナンス、権限、モデルとエージェント、検索、構築とデプロイ |
 | [Development](docs/development.md) | ソースからのビルド、テスト、実行 |
 | [All docs](docs/README.md) | すべてのドキュメントとそのステータス：採択、提案中、置き換え済み |
 

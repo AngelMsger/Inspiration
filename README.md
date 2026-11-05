@@ -178,7 +178,7 @@ The method, every run and its cost are in [Validating the knowledge core](docs/d
 </picture>
 </details>
 
-Read more in [Architecture](docs/architecture.md), [Contracts](docs/contracts.md) and the [overview](docs/overview.md)'s Part II.
+Read more in [Architecture](docs/architecture.md) and [Contracts](docs/contracts.md).
 
 ## Roadmap
 
@@ -240,10 +240,10 @@ README*.md          this page in English, Chinese (README.zh.md) and Japanese (R
 
 | Read | For |
 | --- | --- |
-| [Overview](docs/overview.md) ([中文](docs/zh/overview.md)) | The product requirements and the technical architecture in one document: scenarios, diagrams, feasibility, what is built and what is planned |
+| [Overview](docs/overview.md) ([中文](docs/zh/overview.md)) | The product requirements and the architecture at a glance: scenarios, diagrams, feasibility, what is built and what is planned |
 | [The MVP](docs/design/mvp.md) | Scope, slices, gates and the decisions behind them |
 | [Validating the knowledge core](docs/design/validation.md) | How the claims are tested on real documents, every run and its cost |
-| [Architecture](docs/architecture.md) | The two layers, the components and how they talk |
+| [Architecture](docs/architecture.md) | Each part of the system: the two layers, components and events, the knowledge model, governance, permissions, models and agents, search, how it is built and deployed |
 | [Development](docs/development.md) | Building, testing and running everything from source |
 | [All docs](docs/README.md) | Every doc with its status: adopted, proposed or superseded |
 

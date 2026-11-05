@@ -21,7 +21,7 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 | What the product is, for whom, and why | [Overview](overview.md), Part I |
 | What is being built now, and what was left out | [The MVP](design/mvp.md) |
 | What has been proven, and at what cost | [Validating the knowledge core](design/validation.md), "Where we stand" |
-| How the system is put together | [Architecture](architecture.md), then the overview's Part II |
+| How the system is put together | The overview's [Architecture at a glance](overview.md#9-architecture-at-a-glance), then [Architecture](architecture.md) |
 | How to build, test and run it | [Development](development.md) |
 | Why one area works the way it does | Its design doc below |
 
@@ -29,7 +29,7 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 
 | Doc | Status | What it covers |
 | --- | --- | --- |
-| [Overview](overview.md) | Version 2, 2026-10-27; brought up to date 2026-11-05 | Product requirements and technical architecture in one document: scenarios, diagrams, feasibility, what is built and planned, open questions |
+| [Overview](overview.md) | Version 2, 2026-10-27; brought up to date 2026-11-05 | Product requirements and the architecture at a glance: scenarios, diagrams, feasibility, what is built and planned, open questions |
 | [The MVP](design/mvp.md) | Adopted, 2026-11-05 | A usable product that closes the business flow for one company: scope, slices and decisions |
 | [Validating the knowledge core](design/validation.md) | Proposed, 2026-10-27 | How extraction and governance are measured on real documents, and the results so far |
 
@@ -37,7 +37,7 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 
 | Doc | Status | What it covers |
 | --- | --- | --- |
-| [Architecture](architecture.md) | Reference | Engine and business layer, components, how they talk, storage, security |
+| [Architecture](architecture.md) | Reference | Each part of the system: the two layers and the request path, components and events, the knowledge model, governance, storage, permissions, connectors, models and agents, search, languages, how it is built and deployed |
 | [Contracts](contracts.md) | Reference | Changing schemas, code generation, IDs, events, versioning |
 | [PageSpec and views](pagespec.md) | Reference | How pages match Claude Artifacts, and the view sandbox |
 | [Development](development.md) | Reference | Building, testing and running everything from source: the stack, the checks, the bench, the demo |

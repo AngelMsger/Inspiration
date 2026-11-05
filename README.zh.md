@@ -180,7 +180,7 @@ flowchart LR
 </picture>
 </details>
 
-更多内容见[架构](docs/zh/architecture.md)、[契约](docs/zh/contracts.md)和[总览](docs/zh/overview.md)的第二部分。
+更多内容见[架构](docs/zh/architecture.md)和[契约](docs/zh/contracts.md)。
 
 ## 路线图
 
@@ -242,10 +242,10 @@ README*.md          本页的英文、中文（README.zh.md）和日文（README
 
 | 阅读 | 内容 |
 | --- | --- |
-| [总览](docs/zh/overview.md)（[English](docs/overview.md)） | 产品需求和技术架构合在一份文档里：场景、图、可行性、已构建和计划中的内容 |
+| [总览](docs/zh/overview.md)（[English](docs/overview.md)） | 产品需求和架构概览：场景、图、可行性、已构建和计划中的内容 |
 | [MVP](docs/zh/design/mvp.md) | 范围、切片、关口以及背后的决定 |
 | [验证知识核心](docs/zh/design/validation.md) | 如何在真实文档上检验这些结论，每次运行和它的花费 |
-| [架构](docs/zh/architecture.md) | 两层、各个组件以及它们如何通信 |
+| [架构](docs/zh/architecture.md) | 系统的每个部分：两层、组件与事件、知识模型、治理、权限、模型与 Agent、搜索、如何构建和部署 |
 | [开发](docs/zh/development.md) | 从源码构建、测试和运行 |
 | [全部文档](docs/zh/README.md) | 每份文档及其状态：已采纳、提议中或已被取代 |
 

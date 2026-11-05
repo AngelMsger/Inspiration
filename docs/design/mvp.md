@@ -1,6 +1,6 @@
 # The MVP: a usable product that closes the business flow
 
-Status: adopted, 2026-11-05, when the product owner took all five decisions below as recommended (02:50 UTC); proposed 2026-11-04. It follows the product owner's decision of 2026-11-04 to accept the validation's result, keep the 10-point aim for later, and build a usable prototype next ([Validating the knowledge core](validation.md#where-we-stand)). It cuts the [business layer](business-layer.md)'s phase 1 and the remaining engine stages ([overview](../overview.md#24-next-steps-and-effort)) down to one company's full loop. A Chinese copy is in [docs/zh/design/mvp.md](../zh/design/mvp.md).
+Status: adopted, 2026-11-05, when the product owner took all five decisions below as recommended (02:50 UTC); proposed 2026-11-04. It follows the product owner's decision of 2026-11-04 to accept the validation's result, keep the 10-point aim for later, and build a usable prototype next ([Validating the knowledge core](validation.md#where-we-stand)). It cuts the [business layer](business-layer.md)'s phase 1 and the remaining engine stages ([overview](../overview.md#12-next-steps-and-effort)) down to one company's full loop. A Chinese copy is in [docs/zh/design/mvp.md](../zh/design/mvp.md).
 
 ## Conclusions
 
@@ -55,7 +55,7 @@ The product owner's test, 2026-11-04: the qualitative direction must be right, a
 
 ## Slices
 
-Each slice lands through pull requests as usual. The estimates are on the [overview](../overview.md#24-next-steps-and-effort)'s basis; agents built the first engine stages in days, so calendar time depends more on review and integration than on these figures.
+Each slice lands through pull requests as usual. The estimates are on the [overview](../overview.md#12-next-steps-and-effort)'s basis; agents built the first engine stages in days, so calendar time depends more on review and integration than on these figures.
 
 | Slice | What it builds | Person-weeks |
 | --- | --- | --- |
