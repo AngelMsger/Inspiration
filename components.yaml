@@ -49,9 +49,9 @@ components:
   parsing:
     title: Document parsing worker
     layer: ingest
-    status: planned
+    status: built
     runtime: python
-    owns: Stateless Office, PDF, scan and Excel parsing into normalized blocks with anchors, behind an HTTP contract; called by normalization, subscribes to nothing
+    owns: Stateless parsing of Word, PowerPoint, Excel and PDF files (their text layer) into normalized blocks with anchors, in a Python worker behind an HTTP contract, and the worker parser normalization's router picks for those types; subscribes to nothing. Planned are scans and images through OCR on the model gateway, and layout models for complex PDFs
     plugins: [parsers]
     publishes: []
     subscribes: []

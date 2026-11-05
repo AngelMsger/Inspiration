@@ -5,8 +5,10 @@ COMPOSE := docker compose -f infra/compose.yaml
 
 .PHONY: install up down clean migrate authz-schema contracts contracts-check lint format typecheck test test-unit check gateway
 
-install:          ## install dependencies
+install:          ## install dependencies, and the parsing worker's Python libraries in .venv
 	pnpm install --frozen-lockfile
+	python3 -m venv .venv
+	.venv/bin/pip install --quiet -r engine/parsing/worker/requirements.txt
 
 up:               ## start Postgres (ParadeDB), Valkey and SpiceDB and wait until healthy
 	$(COMPOSE) up -d --wait

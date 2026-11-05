@@ -74,6 +74,7 @@ const MIME_BY_EXT: Record<string, string> = {
   html: "text/html",
   csv: "text/csv",
   pdf: "application/pdf",
+  png: "image/png",
 };
 
 export const normalizationTest = (backend: Backend) =>

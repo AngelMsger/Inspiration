@@ -22,8 +22,19 @@ if the two differ, this English version wins.
 | Vitest | MIT | tests |
 | Biome | MIT or Apache-2.0 | lint and format |
 
-The parsing worker is Python; its parser libraries (for Office, PDF and scanned documents)
-are chosen when it is built and get their own rows here. Watch for copyleft PDF libraries
+The parsing worker is Python. Its libraries, in `engine/parsing/worker/requirements.txt`:
+
+| Library | Licence | Used as |
+| --- | --- | --- |
+| python-docx | MIT | reads Word files |
+| python-pptx | MIT | reads PowerPoint files |
+| openpyxl | MIT | reads Excel files |
+| pdfminer.six | MIT | reads the text layer of PDF files |
+| lxml | BSD-3-Clause | XML, under python-docx and python-pptx |
+
+What they pull in is permissive too: Pillow (MIT-CMU), XlsxWriter (BSD-2-Clause),
+et_xmlfile (MIT), charset-normalizer (MIT), cryptography (Apache-2.0 or BSD-3-Clause) and
+typing_extensions (PSF-2.0). Watch for copyleft PDF libraries when scans and layout come
 (PyMuPDF is AGPL-3.0).
 
 ## What needs attention

@@ -1,0 +1,24 @@
+{
+  "name": "@inspiration/parsing",
+  "version": "0.1.0",
+  "description": "The parsing worker: Word, PowerPoint, Excel and PDF files into normalized blocks, in Python behind an HTTP contract",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "inspiration": {
+    "plugins": {
+      "parsers": {
+        "worker": "./src/worker.ts#workerParser"
+      }
+    }
+  },
+  "dependencies": {
+    "@inspiration/contracts": "workspace:*",
+    "@inspiration/kernel": "workspace:*"
+  },
+  "devDependencies": {
+    "@inspiration/testkit": "workspace:*"
+  }
+}

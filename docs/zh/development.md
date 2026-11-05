@@ -4,21 +4,21 @@
 
 ## 安装和检查
 
-需要 Node 22.18 或更高版本、pnpm 10（`corepack enable`），以及带 Compose 的 Docker。
+需要 Node 22.18 或更高版本、pnpm 10（`corepack enable`）、Python 3.10 或更高版本，以及带 Compose 的 Docker。
 
 ```bash
-make install       # pnpm 依赖
+make install       # pnpm 依赖，以及 .venv 里解析 worker 的 Python 库
 make up            # ParadeDB（Postgres 16 + pgvector + pg_search）、Valkey、SpiceDB
 make migrate       # 所有已安装组件的 SQL 迁移
 make authz-schema  # SpiceDB schema
 make check         # Biome、tsc、契约是否最新、所有测试（要求运行环境已启动）
 ```
 
-不用 make 时，对应的步骤是 `pnpm install`、`docker compose -f infra/compose.yaml up -d --wait`、`pnpm exec inspiration-migrate`、`pnpm exec inspiration-authz-schema` 和 `INSPIRATION_REQUIRE_STACK=1 pnpm test`。
+不用 make 时，对应的步骤是 `pnpm install`、`python3 -m venv .venv && .venv/bin/pip install -r engine/parsing/worker/requirements.txt`、`docker compose -f infra/compose.yaml up -d --wait`、`pnpm exec inspiration-migrate`、`pnpm exec inspiration-authz-schema` 和 `INSPIRATION_REQUIRE_STACK=1 pnpm test`。
 
 需要运行环境的测试在环境未启动时会跳过，除非设置了 `INSPIRATION_REQUIRE_STACK=1`（CI 中就是这样）。每个测试都有自己的数据库（从已迁移的模板复制）和自己的 Valkey 键前缀。`make test-unit` 只运行什么都不需要的测试。
 
-除解析 worker 外全部是 Node 22 上的 TypeScript；解析 worker 用 Python，因为最好的文档解析器是 Python 的。[`components.yaml`](../../components.yaml) 列出每个组件及其状态（已构建、进行中或已计划），每个包的 `src/index.ts` 说明它做什么。
+除解析 worker 外全部是 Node 22 上的 TypeScript；解析 worker 用 Python，因为最好的文档解析器是 Python 的。引擎把 Word、PowerPoint、Excel 和 PDF 文件发给 `INSPIRATION_PARSING_URL` 上的 worker；`pnpm parsing` 在默认的 8790 端口启动它。没有它时，这些文件读取失败并说明 worker 连不上；其他格式不需要它。[`components.yaml`](../../components.yaml) 列出每个组件及其状态（已构建、进行中或已计划），每个包的 `src/index.ts` 说明它做什么。
 
 ## 在语料上运行引擎
 
