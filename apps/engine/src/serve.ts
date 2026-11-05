@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * inspiration-engine serve [<corpus>] (--issuer <url> --audience <url> [--jwks <url|file>] | --dev-identity)
- *     [--port 4100] [--today <YYYY-MM-DD>] [--gateway <file> [--valkey <url>]]
+ *     [--port 4100] [--today <YYYY-MM-DD>] [--gateway <file> [--corpus-gateway <file>] [--valkey <url>]]
  *
  * Runs the engine in memory and serves its HTTP API (http.ts) on localhost. Without a corpus it
  * starts empty, and the business layer provisions its tenants and members and creates their
@@ -12,7 +12,10 @@
  * (every event delivered, topics clustered and given owners) before the API answers. Models are the development
  * stand-ins of config/gateway.dev.yaml, or those of the --gateway file, as when the demo is
  * recorded with real answers (config/gateway.demo.yaml); a config that keeps its replies in
- * Valkey takes the server from --valkey. --today sets the day governance and freshness take as
+ * Valkey takes the server from --valkey. --corpus-gateway gives the corpus's own tenant other
+ * models than everyone else's, as the trial does (config/gateway.trial.yaml): the sample
+ * company keeps the stand-ins its story rests on, while the companies that sign up read and
+ * answer on a real model. --today sets the day governance and freshness take as
  * now; without it, the real day.
  *
  * Requests carry principal tokens the business layer signs for --issuer and --audience, checked
@@ -28,6 +31,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { type Jwks, jwksFromUrl, staticKeys, TokenVerifier } from "@inspiration/access-control";
+import type { ModelGateway } from "@inspiration/contracts";
 import { logger } from "@inspiration/kernel";
 import { Gateway, loadGatewayConfig, ValkeyCache } from "@inspiration/model-gateway";
 import { Corpus } from "./corpus.ts";
@@ -68,6 +72,17 @@ async function gatewayOf(
   return { gateway, close: () => gateway.close().then(() => cache.close()) };
 }
 
+/** One tenant's calls on its own models, every other tenant's on the rest, by the calls' budget keys. */
+export function byTenant(tenantId: string, own: ModelGateway, rest: ModelGateway): ModelGateway {
+  const pick = (req: { budget_key: string }) => (req.budget_key.startsWith(`tenant:${tenantId}/`) ? own : rest);
+  return {
+    complete: (req) => pick(req).complete(req),
+    embed: (req) => pick(req).embed(req),
+    rerank: (req) => pick(req).rerank(req),
+    ocr: (req) => pick(req).ocr(req),
+  };
+}
+
 /** Tokens when an issuer and audience are given, the development headers when asked; undefined when neither. */
 function identityOf(values: {
   issuer?: string;
@@ -92,6 +107,7 @@ async function main(argv: string[]): Promise<number> {
       port: { type: "string", default: "4100" },
       today: { type: "string" },
       gateway: { type: "string" },
+      "corpus-gateway": { type: "string" },
       valkey: { type: "string" },
       issuer: { type: "string" },
       audience: { type: "string" },
@@ -101,22 +117,26 @@ async function main(argv: string[]): Promise<number> {
   });
   const [command, dir] = positionals;
   const identity = identityOf(values);
-  if (command !== "serve" || positionals.length > 2 || !identity) {
+  const corpusGateway = values["corpus-gateway"];
+  if (command !== "serve" || positionals.length > 2 || !identity || (corpusGateway && (!dir || !values.gateway))) {
     console.error(
       "usage: inspiration-engine serve [<corpus>] (--issuer <url> --audience <url> [--jwks <url|file>] | --dev-identity)" +
-        " [--port 4100] [--today YYYY-MM-DD] [--gateway <file> [--valkey <url>]]",
+        " [--port 4100] [--today YYYY-MM-DD] [--gateway <file> [--corpus-gateway <file>] [--valkey <url>]]",
     );
     return 2;
   }
   const corpus = dir === undefined ? undefined : await Corpus.load(dir);
   const today = values.today ? new Date(`${values.today}T09:00:00Z`) : undefined;
   const models = values.gateway ? await gatewayOf(values.gateway, values.valkey) : undefined;
+  const corpusModels = corpusGateway ? await gatewayOf(corpusGateway, values.valkey) : undefined;
   const engine = await Engine.open({
     blobDir: await mkdtemp(join(tmpdir(), "inspiration-blobs-")),
     // The corpus's catalogue is its tenant's alone; provisioned companies have none yet.
     ...(corpus && { resolvePrincipal: corpus.resolvePrincipal, vocabulary: corpus.vocabularyOf }),
     ...(today && { clock: () => today }),
-    ...(models && { models: models.gateway }),
+    ...(models && {
+      models: corpus && corpusModels ? byTenant(corpus.tenantId, corpusModels.gateway, models.gateway) : models.gateway,
+    }),
   });
   if (corpus) {
     const started = performance.now();
@@ -131,6 +151,7 @@ async function main(argv: string[]): Promise<number> {
     void engine
       .close()
       .then(() => models?.close())
+      .then(() => corpusModels?.close())
       .then(() => process.exit(0));
   };
   process.on("SIGINT", stop);

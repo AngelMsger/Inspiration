@@ -161,6 +161,28 @@ describe("budgets and cache", () => {
     await gateway.complete(completionRequest("again", { budget_key: "tenant:b/extraction" }));
   });
 
+  test("every budget that matches a key holds: a company's own and one pooled over all", async () => {
+    const config = {
+      ...gatewayConfig(),
+      budgets: [
+        { match: "tenant:*/extraction", period: "day" as const, limit: 0.0003 },
+        { match: "tenant:*", period: "month" as const, limit: 0.0006, pooled: true },
+      ],
+    };
+    const providers = Object.fromEntries(config.providers.map((p) => [p.name, new FakeProvider(p)]));
+    const gateway = new Gateway(config, { providers });
+    const longText = "word ".repeat(200); // about 250 tokens, 0.00025 CNY
+    // Company a spends past its day budget; company b is still under its own.
+    await gateway.complete(completionRequest(longText, { budget_key: "tenant:a/extraction" }));
+    await gateway.complete(completionRequest(`${longText}more`, { budget_key: "tenant:a/extraction" }));
+    const own = await rejection(gateway.complete(completionRequest("again", { budget_key: "tenant:a/extraction" })));
+    expect([own.code, own.message]).toEqual(["budget_exceeded", expect.stringContaining("tenant:a/extraction")]);
+    await gateway.complete(completionRequest(`${longText}b`, { budget_key: "tenant:b/extraction" }));
+    // Together they spent the pooled month: b is refused below its own day budget, on any key.
+    const pooled = await rejection(gateway.complete(completionRequest("again", { budget_key: "tenant:b/retrieval" })));
+    expect([pooled.code, pooled.message]).toEqual(["budget_exceeded", expect.stringContaining("budget tenant:* ")]);
+  });
+
   test("calls started together stop at the limit, as calls one after another would", async () => {
     const config = { ...gatewayConfig(), budgets: [{ match: "tenant:a/*", period: "day" as const, limit: 0.0003 }] };
     const providers = Object.fromEntries(config.providers.map((p) => [p.name, new FakeProvider(p)]));

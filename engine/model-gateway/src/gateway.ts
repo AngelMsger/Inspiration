@@ -12,7 +12,8 @@
  *
  * A budget is a soft stop. A call is refused once the period's spend, with what calls still in
  * flight in this process hold (their input and output limit at the first candidate's price),
- * reaches the limit. A call let in below it can cost more than it held, through a schema retry
+ * reaches the limit of any budget whose glob matches its key, so a company's day budget and
+ * a pooled month budget over every company both hold. A call let in below it can cost more than it held, through a schema retry
  * or a dearer fallback, and calls in other processes count once they are metered.
  */
 
@@ -46,7 +47,7 @@ import { logger, registry } from "@inspiration/kernel";
 import { MemoryCache, type ResponseCache } from "./cache.ts";
 import {
   type BudgetConfig,
-  budgetFor,
+  budgetsFor,
   ConfigError,
   cost,
   type GatewayConfig,
@@ -221,8 +222,8 @@ export class Gateway implements ModelGateway {
    * another would: at most one call past the limit. Holds are counted before the spend is
    * read, so a call that finishes in between counts twice, never not at all.
    */
-  async #checkBudget(budgetKey: string, budget: BudgetConfig | undefined, held: () => number): Promise<void> {
-    if (budget?.limit === undefined) return;
+  async #checkBudget(budgetKey: string, budget: BudgetConfig, held: () => number): Promise<void> {
+    if (budget.limit === undefined) return;
     const inFlight = held();
     const since = periodStart(budget.period, new Date(), this.timeZone);
     const spent = (await budgetSpent(this.usage, budget, budgetKey, since)) + inFlight;
@@ -230,14 +231,14 @@ export class Gateway implements ModelGateway {
       const holding = inFlight ? `, ${inFlight.toFixed(4)} of it held by calls in flight,` : "";
       throw new GatewayException(
         "budget_exceeded",
-        `budget ${budgetKey} spent ${spent.toFixed(4)}${holding} of ${budget.limit} ${this.config.currency} this ${budget.period}`,
+        `budget ${budget.pooled ? budget.match : budgetKey} spent ${spent.toFixed(4)}${holding} of ${budget.limit} ${this.config.currency} this ${budget.period}`,
       );
     }
   }
 
   /** A hold on the budget for the call, and the sum of the holds of calls started before it. */
-  #hold(budgetKey: string, budget: BudgetConfig | undefined, amount: number) {
-    const pool = budget?.pooled ? `match:${budget.match}` : `key:${budgetKey}`;
+  #hold(budgetKey: string, budget: BudgetConfig, amount: number) {
+    const pool = budget.pooled ? `match:${budget.match}` : `key:${budget.match}\x1f${budgetKey}`;
     const holds = this.#held.get(pool) ?? [];
     const hold = { amount };
     holds.push(hold);
@@ -302,27 +303,29 @@ export class Gateway implements ModelGateway {
     const requestId = newId("request");
     const base = { requestId, operation, req, started: performance.now(), meta };
     const candidates = this.candidates(operation, req.sensitivity, { tier: meta.tier, task: meta.task });
-    const budget = budgetFor(this.config, req.budget_key);
     const first = candidates[0];
     const tokens = first && meta.tokens?.(first);
-    const hold = this.#hold(req.budget_key, budget, tokens ? cost(first.model.price, tokens.input, tokens.output) : 0);
+    const amount = tokens ? cost(first.model.price, tokens.input, tokens.output) : 0;
+    const holds = budgetsFor(this.config, req.budget_key).map((budget) => ({
+      budget,
+      ...this.#hold(req.budget_key, budget, amount),
+    }));
     try {
-      return await this.#routed(base, candidates, budget, hold.before, run);
+      return await this.#routed(base, candidates, holds, run);
     } finally {
-      hold.release();
+      for (const hold of holds) hold.release();
     }
   }
 
   async #routed<R extends object>(
     base: { requestId: string; operation: GatewayOperation; req: Common; started: number; meta: Meta },
     candidates: Candidate[],
-    budget: BudgetConfig | undefined,
-    held: () => number,
+    budgets: readonly { budget: BudgetConfig; before: () => number }[],
     run: (candidate: Candidate) => Promise<Attempt<R>>,
   ): Promise<R & { request_id: string; provider: string; model: string; usage: TokenUsage; cost: Money }> {
     const { requestId, operation, req, meta } = base;
     try {
-      await this.#checkBudget(req.budget_key, budget, held);
+      for (const { budget, before } of budgets) await this.#checkBudget(req.budget_key, budget, before);
     } catch (e) {
       if (!(e instanceof GatewayException)) throw e;
       await this.#record(base, { status: "budget_exceeded", error: e.error.message });

@@ -35,8 +35,8 @@
  *         prefer: [deepseek/deepseek-v4.1-flash]
  *         only: true
  *         cache_only: true                      # replay saved replies; refuse a miss before any network
- *     budgets:
- *       - match: "tenant:*"                     # budget_key glob; first match wins
+ *     budgets:                                # a call must fit every budget whose glob matches its key
+ *       - match: "tenant:*"                     # budget_key glob
  *         period: month
  *         limit: 5000                           # for each key it matches
  *       - match: "*"
@@ -315,9 +315,14 @@ export function globMatch(pattern: string, text: string): boolean {
   return new RegExp(`^${re}$`).test(text);
 }
 
-/** The first budget whose glob matches the key. */
+/** The first budget whose glob matches the key: the one its budget status reports. */
 export function budgetFor(config: GatewayConfig, budgetKey: string): BudgetConfig | undefined {
   return config.budgets.find((b) => globMatch(b.match, budgetKey));
+}
+
+/** Every budget whose glob matches the key; a call must fit them all. */
+export function budgetsFor(config: GatewayConfig, budgetKey: string): BudgetConfig[] {
+  return config.budgets.filter((b) => globMatch(b.match, budgetKey));
 }
 
 /** The first route whose glob matches the task. */
