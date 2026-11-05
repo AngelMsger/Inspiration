@@ -1440,6 +1440,10 @@ a.secondary {
   text-align: right;
 }
 
+.admin-action > .link-button {
+  white-space: nowrap;
+}
+
 .two-step {
   display: inline-flex;
   flex-wrap: wrap;
@@ -1476,7 +1480,8 @@ a.secondary {
   gap: 8px;
 }
 
-.made-link-row input {
+.made-link-row input,
+.made-link-row textarea {
   flex: 1 1 260px;
   min-width: 0;
   font: 13px var(--mono);
@@ -1506,7 +1511,8 @@ a.secondary {
   font-weight: 600;
 }
 
-.space-form input:not([type="checkbox"]),
+.space-form input:not([type="checkbox"], [type="radio"]),
+.space-form select,
 .audience-add select {
   font: inherit;
   font-weight: 400;
@@ -1531,6 +1537,16 @@ a.secondary {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 18px;
+}
+
+.token-spaces {
+  margin-top: 8px;
+  padding-left: 22px;
+}
+
+.made-link-row textarea {
+  resize: none;
+  overflow-wrap: anywhere;
 }
 
 .space-form .owner-pick {

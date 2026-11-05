@@ -33,12 +33,15 @@ import type {
   TopicView,
 } from "@inspiration/contracts";
 import type {
+  AccessTokenList,
   AccountChange,
   CompanyMember,
+  CreatedAccessToken,
   InviteLink,
   InviteList,
   JoinPreview,
   MemberList,
+  NewAccessToken,
   NewCompany,
   ProductRole,
   RoleChange,
@@ -139,6 +142,10 @@ function apiOf(company: () => string | undefined, frame: boolean) {
     invites: () => call<InviteList>("/invites"),
     invite: () => call<InviteLink>("/invites", {}),
     revoke: (invite: string) => call<void>(`/invites/${encodeURIComponent(invite)}`, undefined, "DELETE"),
+    /** The member's access tokens, or with `all` every member's, for a super admin. */
+    tokens: (all = false) => call<AccessTokenList>(all ? "/tokens?all=true" : "/tokens"),
+    createToken: (token: NewAccessToken) => call<CreatedAccessToken>("/tokens", token),
+    revokeToken: (token: string) => call<void>(`/tokens/${encodeURIComponent(token)}`, undefined, "DELETE"),
     joinPreview: (code: string) => call<JoinPreview>(`/join/${encodeURIComponent(code)}`),
     join: (code: string) => call<Session>(`/join/${encodeURIComponent(code)}`, {}),
     /** Whom the demo lets the page act as; the business backend has no such route. */

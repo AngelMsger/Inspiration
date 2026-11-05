@@ -289,6 +289,7 @@ guide.restart: Start over
 guide.hide: Hide
 
 account.admin: Admin
+account.apps: Apps with access
 role.member: Member
 action.cancel: Cancel
 failure.demo_script: "The demo's guided steps need this person, so they stay in the company."
@@ -298,6 +299,7 @@ admin.back: "← Back to knowledge"
 admin.people: People
 admin.members: Members
 admin.invites: Invite links
+admin.tokens: Access tokens
 admin.only: "Only a super admin of {company} can open the admin pages."
 members.count: "{count} in the company"
 members.name: Name
@@ -311,8 +313,6 @@ members.needs_admin: A company needs at least one super admin. Make someone else
 invites.lede: "Anyone who opens a link while signed in joins {company} as a member. A link works for 7 days. There is no email yet, so copy the link into your team's chat."
 invites.new: New invite link
 invites.made: "This link is shown only now. Copy it before you leave the page; if it gets lost, revoke it and make a new one."
-invites.copy: Copy
-invites.copied: Copied
 invites.none: No invite links are open.
 invites.made_by: Made by
 invites.made_at: Made
@@ -356,3 +356,34 @@ join.signed_out: Sign in, or create an account, and you come back here to join.
 join.gone: This invite link no longer works
 join.gone_lede: It may have expired or been revoked. Ask the colleague who sent it for a new one.
 join.home: Go to Inspiration
+
+tokens.lede: "Every member's access tokens in {company}. You can revoke any of them. Nobody sees a token's secret after it is made."
+apps.title: Apps with access
+apps.lede: "Assistants and tools that use Inspiration for you, such as Claude or Cursor through MCP. An app never sees more than you can, and only in the spaces you allow."
+apps.new: Create an access token
+apps.name: Name
+apps.name_hint: What it is for, such as Claude on my laptop
+apps.where: Where it may read
+apps.all: All spaces you can read
+apps.some: Only these spaces
+apps.days: Lasts
+apps.days_n: "{count} days"
+apps.reads_only: It can only read. You can revoke it here at any time, and a super admin can too.
+apps.create: Create
+apps.made: "Copy the token for {name} now. It is not shown again."
+apps.claude_code: "To add it to Claude Code, run:"
+apps.other: "In another MCP client, use the address {url}, with the header Authorization: Bearer followed by the token."
+apps.done: Done
+apps.none: No access tokens yet.
+apps.sample: The sample company only reads, so it has no access tokens. Create a company of your own to make one.
+apps.col.member: Member
+apps.col.name: Name
+apps.col.where: Where
+apps.col.expires: Expires
+apps.col.used: Last used
+apps.never: Not used yet
+apps.space_gone: a space you no longer read
+apps.revoke: Revoke
+apps.confirm_revoke: "Revoke it? Apps using it stop at once."
+copy.button: Copy
+copy.done: Copied

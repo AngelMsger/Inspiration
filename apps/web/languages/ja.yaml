@@ -289,6 +289,7 @@ guide.restart: 最初から
 guide.hide: 隠す
 
 account.admin: 管理画面
+account.apps: アクセスを許可したアプリ
 role.member: メンバー
 action.cancel: キャンセル
 failure.demo_script: デモのガイドでこの人を使うため、会社から外せません。
@@ -298,6 +299,7 @@ admin.back: "← ナレッジに戻る"
 admin.people: ユーザー
 admin.members: メンバー
 admin.invites: 招待リンク
+admin.tokens: アクセストークン
 admin.only: "管理画面を開けるのは {company} のスーパー管理者だけです。"
 members.count: "会社のメンバー {count} 人"
 members.name: 名前
@@ -311,8 +313,6 @@ members.needs_admin: 会社には少なくとも 1 人のスーパー管理者�
 invites.lede: "ログインした状態でリンクを開いた人は、メンバーとして {company} に参加します。リンクの有効期間は 7 日です。まだメールは送れないため、リンクをチームのチャットに貼ってください。"
 invites.new: 招待リンクを作成
 invites.made: このリンクが表示されるのは今だけです。ページを離れる前にコピーしてください。なくした場合は取り消して作り直します。
-invites.copy: コピー
-invites.copied: コピーしました
 invites.none: 有効な招待リンクはありません。
 invites.made_by: 作成者
 invites.made_at: 作成日時
@@ -356,3 +356,34 @@ join.signed_out: ログインするかアカウントを作成すると、ここ
 join.gone: この招待リンクは使えません
 join.gone_lede: 有効期限が切れたか、取り消された可能性があります。送ってくれた同僚に新しいリンクを頼んでください。
 join.home: Inspiration を開く
+
+tokens.lede: "{company} の全メンバーのアクセストークンです。どれでも取り消せます。トークンの秘密の値は、作成後は誰にも見えません。"
+apps.title: アクセスを許可したアプリ
+apps.lede: あなたの代わりに Inspiration を使うアシスタントやツールです。たとえば MCP でつないだ Claude や Cursor。アプリが見られるのはあなたが見られる範囲までで、許可したスペースだけです。
+apps.new: アクセストークンを作成
+apps.name: 名前
+apps.name_hint: 用途（例：ノートパソコンの Claude）
+apps.where: 読み取れる範囲
+apps.all: 自分が読めるすべてのスペース
+apps.some: 次のスペースだけ
+apps.days: 有効期間
+apps.days_n: "{count} 日"
+apps.reads_only: 読み取りだけができます。ここからいつでも取り消せます。スーパー管理者も取り消せます。
+apps.create: 作成
+apps.made: "「{name}」のトークンを今コピーしてください。二度と表示されません。"
+apps.claude_code: Claude Code に追加するには、次を実行します：
+apps.other: "ほかの MCP クライアントでは、アドレス {url} に、ヘッダー Authorization: Bearer とこのトークンを付けて使います。"
+apps.done: 完了
+apps.none: アクセストークンはまだありません。
+apps.sample: サンプル会社は読み取り専用なので、アクセストークンはありません。自分の会社を作ると作成できます。
+apps.col.member: メンバー
+apps.col.name: 名前
+apps.col.where: 範囲
+apps.col.expires: 有効期限
+apps.col.used: 最終利用
+apps.never: まだ使われていません
+apps.space_gone: 今は読めないスペース
+apps.revoke: 取り消す
+apps.confirm_revoke: 取り消しますか？使っているアプリはすぐに止まります。
+copy.button: コピー
+copy.done: コピーしました
