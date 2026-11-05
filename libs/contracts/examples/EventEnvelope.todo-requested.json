@@ -22,12 +22,20 @@
       {
         "key": "choose:650 CNY/night",
         "label": "Keep 650 CNY/night",
-        "effect": { "slot_key": "hotel_cap_per_night|一线城市", "value": "650 CNY/night", "claim_id": "clm_01JC0000000000000000000002" }
+        "effect": {
+          "slot_key": "hotel_cap_per_night|一线城市",
+          "value": "650 CNY/night",
+          "claim_id": "clm_01JC0000000000000000000002"
+        }
       },
       {
         "key": "choose:600 CNY/night",
         "label": "Choose 600 CNY/night",
-        "effect": { "slot_key": "hotel_cap_per_night|一线城市", "value": "600 CNY/night", "claim_id": "clm_01JC0000000000000000000001" }
+        "effect": {
+          "slot_key": "hotel_cap_per_night|一线城市",
+          "value": "600 CNY/night",
+          "claim_id": "clm_01JC0000000000000000000001"
+        }
       }
     ],
     "suggestion": { "with": "choose:650 CNY/night", "sure": true, "basis": "changed" }
