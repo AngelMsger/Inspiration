@@ -119,12 +119,16 @@ producer name, its consumer group and the first part of its model task names.
   `engine/knowledge-store/test/fixtures.ts`). `stackTest` from `@inspiration/testkit`
   gives a test its own migrated database (`databaseUrl`) and Valkey key prefix
   (`streamPrefix`, `valkey`).
+- `INSPIRATION_QUICK=1` (set by `make check`) leaves out the corpus runs that take minutes
+  (`quick` from `@inspiration/testkit`); CI and `make check-full` run them. Give a new test
+  that takes more than about 20 seconds the same skip under `quick()`.
 - `INSPIRATION_REQUIRE_STACK=1` (set by `make check` and CI) turns a missing stack into a
   failure instead of skips; `INSPIRATION_STACK=off` skips the stack probe entirely.
 
 ## Definition of done
 
-- `make check` passes: Biome, `tsc` strict, contract freshness, all tests with the stack up.
+- `make check` passes: Biome, `tsc` strict, contract freshness, all tests with the stack up. A
+  change to what the engine reads, governs or answers also passes `make check-full`, as CI does.
 - `components.yaml` is updated (status, plugins, events, calls), and `test/manifest.test.ts`
   passes.
 - Public behaviour is described in the doc comment of `src/index.ts` or in `docs/`.

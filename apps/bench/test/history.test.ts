@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Corpus, Engine } from "@inspiration/engine";
-import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
+import { hasStack, quick, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { describe, expect, test } from "vitest";
 import {
   type History,
@@ -93,7 +93,7 @@ describe("the GitLab expense policy history", { timeout: 60_000 }, () => {
     await check();
   });
 
-  describe.skipIf(!hasStack())("on the stack", () => {
+  describe.skipIf(!hasStack() || quick())("on the stack", () => {
     stackTest("Postgres with the outbox relayed to Valkey Streams", async ({ databaseUrl, streamPrefix, valkey }) => {
       expect(valkey).toBeDefined(); // removes this run's stream keys afterwards
       await check({ databaseUrl, streamPrefix });
