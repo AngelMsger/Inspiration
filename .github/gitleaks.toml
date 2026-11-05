@@ -25,9 +25,9 @@ description = "Anthropic API key"
 regex = '''\bsk-ant-[A-Za-z0-9_-]{20,}'''
 keywords = ["sk-ant-"]
 
-# SpiceDB consistency tokens (ZedTokens) in the contract examples: a timestamp in protobuf and
-# base64, not a credential.
+# SpiceDB consistency tokens (ZedTokens) in the contract examples: a 19-digit timestamp in
+# protobuf and base64, not a credential. The regex is matched against each finding's secret
+# alone, so a key elsewhere on the same line is still reported (CI's self-test checks this).
 [allowlist]
 description = "SpiceDB consistency tokens"
-regexTarget = "line"
-regexes = ['''"consistency_token": "''']
+regexes = ['''^GhUKEz[A-Za-z0-9+/]{25}=$''']
