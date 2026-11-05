@@ -7,7 +7,7 @@ import {
   type TodoRequested,
   valueKeyOf,
 } from "@inspiration/contracts";
-import type { FakeProvider } from "@inspiration/model-gateway";
+import type { FakeProvider, MemoryUsage } from "@inspiration/model-gateway";
 import { describe, expect } from "vitest";
 import { BACKENDS, extractionTest, type Para, TENANT, type World } from "./fixtures.ts";
 
@@ -550,6 +550,13 @@ describe.each(BACKENDS)("$backend store", ({ backend, skip }) => {
       expect(world.routed()).toEqual(["internal", "confidential"]);
       const claims = await world.store.asOf({});
       expect(claims.find((c) => c.statement.startsWith("The R&D budget"))?.sensitivity).toBe("confidential");
+    });
+
+    test("reading a document is charged to its space, never to a member", async ({ world }) => {
+      const { version } = await world.version("travel-policy.md", POLICY);
+      const ledger = (world.gateway.usage as MemoryUsage).records;
+      expect(ledger.length).toBeGreaterThan(0);
+      expect(ledger.map((r) => [r.space_id, r.member_id])).toEqual(ledger.map(() => [version.space_id, undefined]));
     });
 
     test("claims without a verbatim quote are rejected", async ({ world }) => {

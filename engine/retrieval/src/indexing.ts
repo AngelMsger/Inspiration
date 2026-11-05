@@ -221,6 +221,7 @@ export class Indexer {
         schema: CONTEXT_SCHEMA,
         sensitivity: version.sensitivity,
         tenantId: version.tenant_id,
+        spaceId: version.space_id,
         metadata: { source_version_id: version.id },
       });
       for (const h of output?.headers ?? []) {
@@ -246,6 +247,7 @@ export class Indexer {
         sensitivity: version.sensitivity,
         budget_key: `tenant:${version.tenant_id}/${COMPONENT}`,
         tenant_id: version.tenant_id,
+        space_id: version.space_id,
       });
       model = result.model;
       batch.forEach((c, j) => {

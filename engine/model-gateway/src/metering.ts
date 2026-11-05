@@ -75,8 +75,9 @@ export class MemoryUsage implements UsageSink {
 
 const INSERT = `
 INSERT INTO gateway.usage (request_id, at, tenant_id, operation, task, prompt_version, budget_key, sensitivity,
-    provider, model, status, input_tokens, output_tokens, cached_tokens, cost, currency, latency_ms, error)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+    provider, model, status, input_tokens, output_tokens, cached_tokens, cost, currency, latency_ms, error,
+    member_id, space_id)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
 ON CONFLICT (request_id) DO NOTHING`;
 
 /** Writes gateway.usage. Budget sums use the (budget_key, at) index. */
@@ -107,6 +108,8 @@ export class PostgresUsage implements UsageSink {
       r.cost.currency,
       r.latency_ms,
       r.error ?? null,
+      r.member_id ?? null,
+      r.space_id ?? null,
     ]);
   }
 

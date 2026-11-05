@@ -2,6 +2,7 @@
 // and how a disagreement no person has settled is marked in what the model reads.
 
 import { newId, type Principal, type SlotVerdict } from "@inspiration/contracts";
+import type { MemoryUsage } from "@inspiration/model-gateway";
 import { describe, expect, vi } from "vitest";
 import {
   ANSWER_SOURCES,
@@ -74,6 +75,16 @@ describe.each(BACKENDS)("answers on $backend", ({ backend, skip }) => {
       // Indexing is not an answer's: a new document's calls go to no record.
       await world.document("meals.md", POLICY.slice(2), { title: "Meals" });
       expect(await world.records.count(ANSWERS, { tenant_id: TENANT })).toBe(4);
+
+      // The gateway's ledger charges every call: an answer's to the member who asked or for whom
+      // an agent asked, indexing a document to its space.
+      const ledger = (world.gateway.usage as MemoryUsage).records;
+      const charged = (member: string) => ledger.filter((r) => r.member_id === member).length;
+      const calls = (...ids: string[]) => ids.reduce((n, id) => n + of(id).calls.length, 0);
+      expect(charged(ALICE.id)).toBe(calls(given.answer_id, nothing.answer_id, rival.answer_id));
+      expect(charged(BOB.id)).toBe(calls(asked.answer_id));
+      expect(ledger.filter((r) => !r.member_id).every((r) => r.space_id === SPACE)).toBe(true);
+      expect(ledger.some((r) => r.space_id === SPACE && r.operation === "embed")).toBe(true);
     });
 
     test("both sides of a disagreement are marked in what an answer reads", async ({ world }) => {

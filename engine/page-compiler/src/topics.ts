@@ -407,7 +407,7 @@ export class Topics {
       return true;
     });
     if (fresh.length) {
-      const vectors = await this.#embed(tenantId, latest.sensitivity, fresh);
+      const vectors = await this.#embed(tenantId, latest.space_id, latest.sensitivity, fresh);
       const leaves = (await this.records.find(TOPICS, { tenant_id: tenantId, space_id: latest.space_id, leaf: true }))
         .filter((t) => !t.retired)
         .map((t) => ({ key: t.key, centroid: dequantize(t.centroid) }));
@@ -654,7 +654,12 @@ export class Topics {
    * One vector per section: its heading's embedding plus its text's, normalized, so sections
    * under the same heading stay together even when their passages differ.
    */
-  async #embed(tenantId: string, sensitivity: SensitivityLabel, built: readonly Built[]): Promise<Float32Array[]> {
+  async #embed(
+    tenantId: string,
+    spaceId: string,
+    sensitivity: SensitivityLabel,
+    built: readonly Built[],
+  ): Promise<Float32Array[]> {
     const texts = built.flatMap((b) => [b.heading as string, b.text as string]);
     const vectors: number[][] = [];
     for (let i = 0; i < texts.length; i += EMBED_BATCH) {
@@ -665,6 +670,7 @@ export class Topics {
         sensitivity,
         budget_key: `tenant:${tenantId}/${COMPONENT}`,
         tenant_id: tenantId,
+        space_id: spaceId,
       });
       vectors.push(...result.vectors);
       this.totals.embed_calls++;

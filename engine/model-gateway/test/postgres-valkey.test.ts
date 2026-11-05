@@ -13,7 +13,10 @@ describe.skipIf(!hasStack())("gateway on the stack", () => {
       const usage = new PostgresUsage(pool);
       const gateway = makeGateway({ usage });
       const key = "tenant:capped/extraction";
-      const first = await gateway.complete(completionRequest("word ".repeat(200), { budget_key: key }));
+      const member = "mem_01QINGHE00000000000000LINA";
+      const first = await gateway.complete(
+        completionRequest("word ".repeat(200), { budget_key: key, member_id: member }),
+      );
       await expect(gateway.complete(completionRequest("again", { budget_key: key }))).rejects.toMatchObject({
         code: "budget_exceeded",
       });
@@ -23,6 +26,8 @@ describe.skipIf(!hasStack())("gateway on the stack", () => {
         request_id: first.request_id,
         provider: "cloud",
         task: "extraction.extract_claims",
+        member_id: member,
+        space_id: null,
       });
       expect(Number(rows[0].cost)).toBeCloseTo(first.cost.amount, 8);
       expect(await usage.spent(key, undefined)).toBeCloseTo(first.cost.amount, 8);

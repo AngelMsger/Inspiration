@@ -2,7 +2,7 @@
 // read, for the usage page: never the question or the answer.
 
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { ModelGateway, Money, TokenUsage } from "@inspiration/contracts";
+import type { ModelGateway, Money, Principal, TokenUsage } from "@inspiration/contracts";
 import { defineTable } from "@inspiration/eventbus";
 import type { Baseline } from "./search.ts";
 
@@ -53,14 +53,35 @@ export const ANSWERS = defineTable<AnswerRecord>("retrieval.answers", {
  */
 const running = new AsyncLocalStorage<AnswerCall[]>();
 
-/** The gateway, each call counted for the answer it is made for, if any. */
+/** The member the calls running now are charged to, as search and answers are. */
+const charged = new AsyncLocalStorage<string>();
+
+/** The member a principal's work is charged to: the member, or the one an agent acts for. */
+export function memberOf(who: Principal): string | undefined {
+  return who.kind === "agent" ? who.on_behalf_of : who.kind === "member" ? who.id : undefined;
+}
+
+/** What fn gives, each call it makes through a metered gateway charged to the principal's member. */
+export function chargedTo<T>(who: Principal, fn: () => Promise<T>): Promise<T> {
+  const member = memberOf(who);
+  return member ? charged.run(member, fn) : fn();
+}
+
+/**
+ * The gateway, each call charged to the member it is made for, if any, and counted for the
+ * answer it is made for, if any.
+ */
 export function metered(models: ModelGateway): ModelGateway {
   const note = (call: Omit<AnswerCall, "input_tokens" | "output_tokens">, usage: TokenUsage) => {
     running.getStore()?.push({ ...call, input_tokens: usage.input_tokens, output_tokens: usage.output_tokens });
   };
+  const charge = <R extends { member_id?: string }>(req: R): R => {
+    const member = charged.getStore();
+    return member && !req.member_id ? { ...req, member_id: member } : req;
+  };
   return {
     async complete(req) {
-      const done = await models.complete(req);
+      const done = await models.complete(charge(req));
       note(
         { operation: "complete", task: req.task, provider: done.provider, model: done.model, cost: done.cost },
         done.usage,
@@ -68,12 +89,12 @@ export function metered(models: ModelGateway): ModelGateway {
       return done;
     },
     async embed(req) {
-      const done = await models.embed(req);
+      const done = await models.embed(charge(req));
       note({ operation: "embed", provider: done.provider, model: done.model, cost: done.cost }, done.usage);
       return done;
     },
     async rerank(req) {
-      const done = await models.rerank(req);
+      const done = await models.rerank(charge(req));
       note({ operation: "rerank", provider: done.provider, model: done.model, cost: done.cost }, done.usage);
       return done;
     },

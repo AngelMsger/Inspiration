@@ -168,6 +168,8 @@ export async function complete<T>(
     schema: Record<string, unknown>;
     sensitivity: SensitivityLabel;
     tenantId: string;
+    /** The space the call is charged to, for a document's upkeep. */
+    spaceId?: string;
     maxOutputTokens?: number;
     metadata?: Record<string, string>;
   },
@@ -185,6 +187,7 @@ export async function complete<T>(
       sensitivity: call.sensitivity,
       budget_key: `tenant:${call.tenantId}/${COMPONENT}`,
       tenant_id: call.tenantId,
+      ...(call.spaceId && { space_id: call.spaceId }),
       temperature: 0,
       ...(call.maxOutputTokens && { max_output_tokens: call.maxOutputTokens }),
       ...(call.metadata && { metadata: call.metadata }),

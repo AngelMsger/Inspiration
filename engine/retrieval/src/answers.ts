@@ -30,7 +30,7 @@ import {
   standingOf,
 } from "./hits.ts";
 import { DOCUMENTS, documentOf, EDITIONS, type Edition, key } from "./indexing.ts";
-import { ANSWERS, type AnswerRecord, costOf, metering } from "./metering.ts";
+import { ANSWERS, type AnswerRecord, costOf, memberOf, metering } from "./metering.ts";
 import {
   ANSWER_PROMPT_VERSION,
   ANSWER_SCHEMA,
@@ -296,7 +296,7 @@ export class Answers {
     const record: AnswerRecord = {
       answer_id: value.answer.answer_id,
       tenant_id: who.tenant_id,
-      member_id: (who.kind === "agent" && who.on_behalf_of) || who.id,
+      member_id: memberOf(who) ?? who.id,
       ...(who.kind === "agent" && { agent_id: who.id }),
       at,
       month: at.slice(0, 7),

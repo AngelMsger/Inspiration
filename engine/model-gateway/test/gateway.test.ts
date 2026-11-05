@@ -47,6 +47,26 @@ describe("routing", () => {
     expect(rec).toMatchObject({ status: "ok", provider: "cloud", task: "extraction.extract_claims" });
   });
 
+  test("records whom a call is charged to, as its request names them", async () => {
+    const gateway = makeGateway();
+    const member = "mem_01QINGHE00000000000000LINA";
+    const space = "spc_01QINGHE0000000000FINANCE";
+    await gateway.complete(completionRequest("asked", { member_id: member }));
+    await gateway.embed({
+      texts: ["read"],
+      input_type: "document",
+      sensitivity: "internal",
+      budget_key: "tenant:t/retrieval",
+      space_id: space,
+    });
+    await gateway.complete(completionRequest("upkeep"));
+    expect(usageOf(gateway).records.map((r) => [r.operation, r.member_id, r.space_id])).toEqual([
+      ["complete", member, undefined],
+      ["embed", undefined, space],
+      ["complete", undefined, undefined],
+    ]);
+  });
+
   test.each<SensitivityLabel>(["confidential", "secret"])(
     "%s content never leaves the local provider",
     async (label) => {

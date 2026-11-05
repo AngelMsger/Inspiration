@@ -70,7 +70,9 @@
  * with its provider, model, tokens and cost, and their cost together, the member it was for
  * (an agent's member, with the agent), the spaces of the sources it read and how many sources
  * it read; never the question or the answer. A record that cannot be written is logged, and
- * the answer is still given.
+ * the answer is still given. In the gateway's ledger every model call of a search or an answer
+ * is charged to that member (member_id), and the calls that index a document, its contextual
+ * headers and embeddings, to the document's space (space_id).
  *
  * An answer reads the latest edition of a document the asker can read. An edition replaces
  * another when it changed later, by the dates its source gives, at no lower governance level

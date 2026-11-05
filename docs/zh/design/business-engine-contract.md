@@ -87,7 +87,7 @@ grant      string               # agent grant ID, for revocation
 - **`retrieval.yaml`：** `IndexFilter` = 可读的 `space_ids` + `max_sensitivity`（+ 发布者授权）。结果新增 `dispute? { conflict_id, since, serve }`；读者可读空间之外的引用以 `restricted` 返回。
 - **`source.yaml`：** `Source.connection_id`（来自连接器设计）、`Source.freshness`、`CoverageDiff { reachable, unreachable[] { external_id, reason }, added }`、`AudienceGap { audience_size, cannot_open, documents[] { document_id, cannot_open } }`（只在能精确读取 ACL 时计算，否则为 `unknown`）。
 - **`events.yaml`：** `todo.updated`、`publish_request.updated`、`decision.applied`、`member.offboarded`、`usage.recorded`（每小时一次，按租户、成员、空间和预算键），以及引擎内部的 `source.moved`（发布时触发重建）。`connection.changed` 来自连接器设计。任何事件载荷都不带展示文字。
-- **`gateway.yaml`：** `UsageRecord` 新增可选的 `member_id` 和 `space_id`，预算检查同时读取成员上限和租户用量池。
+- **`gateway.yaml`：** `UsageRecord` 新增可选的 `member_id` 和 `space_id`，预算检查同时读取成员上限和租户用量池。main 上已经完成的：每个请求和用量记录都带有 `member_id` 和 `space_id`；成员上限尚未构建。
 - **`common.yaml`：** `RuleId`（`rul_`）和 `MessageKey`。组件名是 kebab-case（`^[a-z][a-z0-9]*(-[a-z0-9]+)*$`），所以 `tenancy` 这类业务层名称可以通过。只有引擎发布事件；业务层组件以消费组的形式，列在 `components.yaml` 新增的“外部消费方”一节下。
 - **传输：** 原型阶段，业务层消费方用自己的消费组读取引擎的 Valkey 流；产品提供事件拉取端点。访问控制的写操作已经返回 ZedToken，决定把它作为 `consistency_token` 携带，所以开通命令会把它传下去，保证写后读一致。`usage.recorded` 由模型网关通过 outbox 产生。
 
