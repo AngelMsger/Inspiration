@@ -8,6 +8,7 @@ import {
   MemoryTenancy,
   type Person,
   PostgresTenancy,
+  type SampleCompany,
   Tenancy,
 } from "../src/index.ts";
 
@@ -52,6 +53,13 @@ export const person = (name: string, n: number): Person => ({
   email: `${name.toLowerCase()}@example.com`,
 });
 
+/** The sample company every test's tenancy offers. */
+export const SAMPLE: SampleCompany = {
+  id: "ten_01SAMPLE00000000000000000001",
+  name: "Hengyuan",
+  default_locale: "zh-CN",
+};
+
 export const ZHOU = person("Zhou", 1);
 export const ZHANG = person("Zhang", 2);
 export const LI = person("Li", 3);
@@ -62,7 +70,11 @@ export const tenancyTest = (backend: (typeof BACKENDS)[number]["backend"]) =>
     const engine = new FakeEngine();
     const clock = new Clock();
     if (backend === "memory") {
-      return { tenancy: new Tenancy(new MemoryTenancy(), engine, { clock: clock.read }), engine, clock };
+      return {
+        tenancy: new Tenancy(new MemoryTenancy(), engine, { clock: clock.read, sample: SAMPLE }),
+        engine,
+        clock,
+      };
     }
     const db = await createTestDatabase();
     const pool = await openPool(db.url);
@@ -70,5 +82,9 @@ export const tenancyTest = (backend: (typeof BACKENDS)[number]["backend"]) =>
       await pool.end();
       await db.drop();
     });
-    return { tenancy: new Tenancy(new PostgresTenancy(pool), engine, { clock: clock.read }), engine, clock };
+    return {
+      tenancy: new Tenancy(new PostgresTenancy(pool), engine, { clock: clock.read, sample: SAMPLE }),
+      engine,
+      clock,
+    };
   });

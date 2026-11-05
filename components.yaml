@@ -260,7 +260,7 @@ business:
   tenancy:
     title: Tenancy
     status: built
-    owns: Companies (tenants) and their members, the one rule that assigns member IDs, the product roles super admin and member, and invite links; provisions tenants and members in the engine as a service. Planned are joining by verified email domain, transfers from the personal library, and offboarding with handovers
+    owns: Companies (tenants) and their members, the one rule that assigns member IDs, the product roles super admin and member, and invite links; the sample company's visitors; provisions tenants and members in the engine as a service. Planned are joining by verified email domain, transfers from the personal library, and offboarding with handovers
     calls: [engine]
 
 # Composition roots: deployable processes that wire components to the store, the bus and
@@ -271,7 +271,7 @@ apps:
   engine:
     owns: The engine process; corpus manifests and topic owners, standing in for the business layer's provisioning, which they send through access control's directory; its HTTP API, version 0 (pnpm engine serve), with the routes for provisioning tenants and members and for administering spaces
   business:
-    owns: The business backend, the browser's only server (pnpm business serve); the browser API for sign-in, companies, members and invite links over accounts and tenancy; principal tokens and their JWKS; the engine's provisioning and its /v0 API passed on as the member; the built web app
+    owns: The business backend, the browser's only server (pnpm business serve); the browser API for sign-in, companies, members and invite links over accounts and tenancy; the sample company, read only; principal tokens and their JWKS; the engine's provisioning and its /v0 API passed on as the member; the built web app
   web:
     owns: The product web app (React, Vite) over the business backend's browser API and, through it, the engine's HTTP API; signing in, the account menu and a first company; the admin area for a company's members, invite links and spaces with their space owners, and joining by a link; who reads a space, for its space owners; its language packs, and a development stand-in for the business backend; the demo (pnpm demo) and its recorded page (pnpm snapshot). Planned are creating a company, uploads, Decide for me, Apps with access and the usage page
   bench:

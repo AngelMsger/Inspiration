@@ -159,7 +159,11 @@ class Backend {
         needs: "account",
         run: async ({ req, res, signedIn }) => {
           const { tenant_id } = parseAs<SwitchCompany>("SwitchCompany", await readJson(req));
-          if (!(await tenancy.membership(tenant_id, signedIn.user.id))) throw new RangeError(`no company ${tenant_id}`);
+          const opened =
+            tenant_id === tenancy.sample?.id
+              ? await tenancy.visit(personOf(signedIn))
+              : await tenancy.membership(tenant_id, signedIn.user.id);
+          if (!opened) throw new RangeError(`no company ${tenant_id}`);
           const session = await accounts.workIn(signedIn.session, tenant_id);
           sendJson(res, 200, await this.#session({ ...signedIn, session }));
         },
@@ -353,8 +357,9 @@ class Backend {
 
   async #session(signedIn: SignedIn): Promise<Session> {
     const { user, session } = signedIn;
-    const companies = await this.#o.tenancy.companiesOf(user.id);
-    let current = companies.find((m) => m.company.id === session.tenant_id);
+    const { tenancy } = this.#o;
+    const companies = await tenancy.companiesOf(user.id);
+    let current = session.tenant_id ? await tenancy.membership(session.tenant_id, user.id) : undefined;
     if (!current && companies[0]) {
       current = companies[0];
       await this.#o.accounts.workIn(session, current.company.id);
@@ -366,6 +371,7 @@ class Backend {
         name: company.name,
         role: member.role,
       })),
+      ...(tenancy.sample && { sample: { tenant_id: tenancy.sample.id, name: tenancy.sample.name } }),
       ...(current && {
         current: {
           tenant_id: current.company.id,
@@ -431,7 +437,9 @@ class Backend {
       throw new HttpError(404, "not_found", `no route ${req.method} ${url.pathname}`);
     const method = req.method ?? "GET";
     const body = method === "GET" || method === "HEAD" ? undefined : await readBody(req, FORWARD_LIMIT);
-    const token = this.#o.tokens.member(current.member, signedIn.user.locale, signedIn.session.created_at);
+    const token = this.#o.tokens.member(current.member, signedIn.user.locale, signedIn.session.created_at, {
+      readOnly: current.company.sample,
+    });
     const answer = await this.#o.engine.forward(
       `${path}${url.search}`,
       { method, headers: req.headers, ...(body && { body: new Uint8Array(body) }) },

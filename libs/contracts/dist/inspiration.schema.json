@@ -465,6 +465,7 @@
       "InviteId",
       "ProductRole",
       "CompanyEntry",
+      "SampleCompany",
       "CurrentMember",
       "NewCompany",
       "CompanyMember",
@@ -7001,6 +7002,23 @@
       "type": "string",
       "pattern": "^run_[0-9A-Za-z]{8,64}$"
     },
+    "SampleCompany": {
+      "description": "A company with sample documents, to look around before uploading one's own. POST /api/session with its tenant_id opens it: the account joins it as a member who only reads, so the engine refuses every change there. It is never one of the account's companies, and its members are not listed.\n",
+      "type": "object",
+      "required": [
+        "tenant_id",
+        "name"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
     "Scope": {
       "description": "A grant a principal token carries. knowledge.read reads; knowledge.propose resolves todos, syncs a source and proposes changes; knowledge.write and comments.write are for agents acting on a member's request; provision.directory provisions tenants and members, for the business layer's tenancy service.\n",
       "type": "string",
@@ -7282,8 +7300,12 @@
           }
         },
         "current": {
-          "description": "The company the person works in now; absent until they create or join one.",
+          "description": "The company the person works in now; absent until they create or join one, or open the sample company.\n",
           "$ref": "#/$defs/CurrentMember"
+        },
+        "sample": {
+          "description": "The sample company anyone signed in may open, when this site has one.",
+          "$ref": "#/$defs/SampleCompany"
         }
       }
     },
