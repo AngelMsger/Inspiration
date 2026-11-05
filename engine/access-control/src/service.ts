@@ -18,6 +18,10 @@
  * - Principal IDs are unique only within their tenant (a person may have the same member ID
  *   in every tenant they join). Members, services, groups and departments are therefore
  *   keyed by tenant in the graph, and a principal only ever gets rights in its own tenant.
+ * - Clearance comes from the graph (internal for every member, confidential or secret where
+ *   granted) and bounds search. A token may lower it (the principal's max_sensitivity); then
+ *   a document (by its latest version), a claim or a page labelled above that ceiling is
+ *   hidden from direct reads too.
  * - Search indexes get an IndexFilter (spaces, the tenant's token, clearance) so ranking only
  *   ever sees rows the viewer may read; results are still re-checked before they leave.
  *
@@ -38,7 +42,7 @@ import type {
   SensitivityLabel,
   SpaceRole,
 } from "@inspiration/contracts";
-import { kindOf } from "@inspiration/contracts";
+import { allows, kindOf } from "@inspiration/contracts";
 import { type Graph, type ObjectRef, obj, type Relationship, rel, type SubjectRef, subject } from "./graph.ts";
 
 const READ_ONLY: ReadonlySet<Permission> = new Set(["discover", "read"]);
@@ -258,8 +262,11 @@ export class AuthzService implements AuthZ {
     }
     if (res.type === "document") {
       if (!READ_ONLY.has(perm)) return { allow: false, reason: "source documents are read-only in Inspiration" };
-      const sourceId = res.id.split(":", 1)[0] as string;
-      return this.#decision(await this.graph.check(obj("source", sourceId), "read", s));
+      const [sourceId = "", ...rest] = res.id.split(":");
+      if (!(await this.graph.check(obj("source", sourceId), "read", s))) return this.#decision(false);
+      if (!who.max_sensitivity) return this.#decision(true);
+      const latest = await this.store.latestSourceVersion(sourceId, rest.join(":"));
+      return this.#withinCeiling(who, latest?.sensitivity);
     }
     if (res.type === "source") {
       const permission = perm === "admin" ? "admin" : READ_ONLY.has(perm) ? "read" : undefined;
@@ -274,7 +281,19 @@ export class AuthzService implements AuthZ {
       const derived = await this.canReadDerived(who, res.id, options);
       if (!derived.allow) return { allow: false, reason: "no readable source supports it" };
     }
+    if (who.max_sensitivity && res.type === "claim") {
+      return this.#withinCeiling(who, (await this.store.getClaims([res.id]))[0]?.sensitivity);
+    }
+    if (who.max_sensitivity && res.type === "page") {
+      return this.#withinCeiling(who, (await this.store.getPage(res.id))?.spec.sensitivity);
+    }
     return this.#decision(true);
+  }
+
+  /** Whether a label is within the ceiling the principal's token sets. */
+  #withinCeiling(who: Principal, label: SensitivityLabel | undefined): Decision {
+    if (!who.max_sensitivity || label === undefined || allows(who.max_sensitivity, label)) return this.#decision(true);
+    return { ...this.#decision(false), reason: `labelled ${label}, above the token's max_sensitivity` };
   }
 
   #decision(allow: boolean): Decision {
@@ -335,9 +354,15 @@ export class AuthzService implements AuthZ {
       ],
       s,
     );
-    if (secret) return "secret";
-    if (confidential) return "confidential";
-    return member || s.type === "service" ? "internal" : "public";
+    const granted: SensitivityLabel = secret
+      ? "secret"
+      : confidential
+        ? "confidential"
+        : member || s.type === "service"
+          ? "internal"
+          : "public";
+    // A token may narrow the clearance, never widen it.
+    return who.max_sensitivity && !allows(who.max_sensitivity, granted) ? who.max_sensitivity : granted;
   }
 
   async scopeFilter(who: Principal, perm: Permission): Promise<IndexFilter> {

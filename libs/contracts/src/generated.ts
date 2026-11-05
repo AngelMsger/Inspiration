@@ -627,6 +627,7 @@ export interface Principal {
    *
    */
   scopes?: Scope[];
+  max_sensitivity?: SensitivityLabel;
   locale?: Locale;
   auth_context?: AuthContext;
 }

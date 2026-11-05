@@ -1,7 +1,7 @@
 // Principal tokens: what verifies, what is refused and why, and how keys are fetched.
 
 import { describe, expect, test } from "vitest";
-import { jwksFromUrl, staticKeys, TokenError, TokenVerifier } from "../src/index.ts";
+import { type Jwks, jwksFromUrl, staticKeys, TokenError, TokenVerifier } from "../src/index.ts";
 import { devIssuer } from "../src/testing.ts";
 
 const TENANT = "ten_01QINGHE000000000000000001";
@@ -41,6 +41,14 @@ describe("a principal token", () => {
       id: "svc_01TENANCY0000000000000000",
       scopes: ["provision.directory"],
     });
+  });
+
+  test("narrows what its holder may read with max_sens", async () => {
+    expect(await verifier.verify(member({ max_sens: "public" }), NOW)).toMatchObject({
+      id: MEMBER,
+      max_sensitivity: "public",
+    });
+    expect(await verifier.verify(member(), NOW)).not.toHaveProperty("max_sensitivity");
   });
 
   test("may list several audiences", async () => {
@@ -105,6 +113,21 @@ describe("a token is refused when", () => {
     expect(await refusal(member({ kind: "group", sub: "grp_01QINGHE0000000000FINANCE" }))).toMatch(/not accepted/);
   });
 
+  test("it carries a claim for agents, which no other token may carry", async () => {
+    expect(await refusal(member({ obo: "mem_01QINGHE00000000000000LINA" }))).toMatch(/member token carries obo/);
+    const service = issuer.mint(
+      {
+        sub: "svc_01TENANCY0000000000000000",
+        tid: TENANT,
+        kind: "service",
+        spaces: ["spc_01FINANCE00000000000000000"],
+        grant: "g1",
+      },
+      { now: NOW },
+    );
+    expect(await refusal(service)).toMatch(/service token carries spaces, grant/);
+  });
+
   test("it carries an unknown scope or misses a required claim", async () => {
     expect(await refusal(member({ scope: "knowledge.read root" }))).toMatch(/unknown scope root/);
     expect(await refusal(member({ tid: undefined }))).toMatch(/claims/);
@@ -157,6 +180,71 @@ describe("signing keys", () => {
     clock = 31_000;
     await expect(guarded.verify(unknown, NOW)).rejects.toThrow(TokenError);
     expect(calls).toBe(2);
+  });
+
+  test("are trusted only for their lifetime, so a key the issuer stops publishing is refused", async () => {
+    const next = devIssuer({ issuer: issuer.issuer, audience: issuer.audience, kid: "dev-2" });
+    let published: Jwks = { keys: [...issuer.jwks.keys, ...next.jwks.keys] };
+    let calls = 0;
+    let clock = 0;
+    const keys = jwksFromUrl("https://app.example/jwks", {
+      maxAgeMs: 300_000,
+      now: () => clock,
+      fetch: async () => {
+        calls += 1;
+        return new Response(JSON.stringify(published));
+      },
+    });
+    const retiring = new TokenVerifier({ issuer: issuer.issuer, audience: issuer.audience, keys });
+    const signed = () => next.mint({ sub: MEMBER, tid: TENANT, kind: "member" }, { now: NOW });
+    expect(await retiring.verify(signed(), NOW)).toMatchObject({ id: MEMBER });
+    published = issuer.jwks; // the issuer retires dev-2
+    clock = 299_000;
+    expect(await retiring.verify(signed(), NOW)).toMatchObject({ id: MEMBER }); // still within the lifetime
+    expect(calls).toBe(1);
+    clock = 301_000;
+    await expect(retiring.verify(signed(), NOW)).rejects.toThrow(TokenError);
+    expect(await retiring.verify(member(), NOW)).toMatchObject({ id: MEMBER }); // dev-1 still holds
+    expect(calls).toBe(2);
+  });
+
+  test("refuse every token once their lifetime is over and the URL cannot be fetched", async () => {
+    let up = true;
+    let calls = 0;
+    let clock = 0;
+    const keys = jwksFromUrl("https://app.example/jwks", {
+      maxAgeMs: 300_000,
+      minRefreshMs: 30_000,
+      now: () => clock,
+      fetch: async () => {
+        calls += 1;
+        return up ? new Response(JSON.stringify(issuer.jwks)) : new Response("", { status: 503 });
+      },
+    });
+    const closed = new TokenVerifier({ issuer: issuer.issuer, audience: issuer.audience, keys });
+    await closed.verify(member(), NOW);
+    up = false;
+    clock = 301_000;
+    for (let i = 0; i < 3; i++) await expect(closed.verify(member(), NOW)).rejects.toThrow(/answered 503/);
+    expect(calls).toBe(2); // asked again only once in the refresh interval
+    up = true;
+    clock = 332_000;
+    expect(await closed.verify(member(), NOW)).toMatchObject({ id: MEMBER });
+    expect(calls).toBe(3);
+  });
+
+  test("are fetched once for requests that need them at the same time", async () => {
+    let calls = 0;
+    const keys = jwksFromUrl("https://app.example/jwks", {
+      fetch: async () => {
+        calls += 1;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return new Response(JSON.stringify(issuer.jwks));
+      },
+    });
+    const shared = new TokenVerifier({ issuer: issuer.issuer, audience: issuer.audience, keys });
+    await Promise.all(Array.from({ length: 5 }, () => shared.verify(member(), NOW)));
+    expect(calls).toBe(1);
   });
 
   test("that are not Ed25519 are refused", async () => {
