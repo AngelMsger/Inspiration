@@ -376,6 +376,45 @@ describe.each(BACKENDS)("$backend graph", ({ backend, skip }) => {
     });
   });
 
+  describe.skipIf(skip)("a token's max_sensitivity", () => {
+    test("hides a document, a claim or a page labelled above it, and lowers the clearance", async ({ w }) => {
+      const { kb, store } = w;
+      const [version, [span]] = kb.sourceVersion(["Board pay: the chair takes 1.2 million a year."], {
+        external_id: "doc-all",
+        sensitivity: "confidential",
+      });
+      await store.transaction((tx) => tx.putSourceVersion(version, [span]));
+      const [claim, evidence] = kb.claim("The chair takes 1.2 million a year", span, { sensitivity: "confidential" });
+      await store.transaction((tx) => tx.upsertClaims([claim], evidence));
+      const claimRef = { type: "claim", id: claim.id } as const;
+      const limited = (name: Name, max: Principal["max_sensitivity"]): Principal => ({
+        ...w.who(name),
+        max_sensitivity: max,
+      });
+
+      expect(await w.can("carol", "read", w.doc("doc-all"))).toBe(true);
+      expect(await w.can("carol", "read", claimRef)).toBe(true);
+      expect(await w.can(limited("carol", "confidential"), "read", w.doc("doc-all"))).toBe(true);
+      const narrowed = await w.authz.check(limited("carol", "internal"), "read", w.doc("doc-all"));
+      expect(narrowed).toMatchObject({
+        allow: false,
+        reason: "labelled confidential, above the token's max_sensitivity",
+      });
+      expect(await w.can(limited("carol", "internal"), "read", claimRef)).toBe(false);
+      const many = await w.authz.checkMany(limited("alice", "public"), "read", [
+        w.doc("doc-all"),
+        w.doc("doc-finance"),
+      ]);
+      expect(many.map((d) => d.allow)).toEqual([false, true]); // doc-finance has no stored version, so no label
+
+      expect((await w.authz.scopeFilter(limited("alice", "public"), "read")).max_sensitivity).toBe("public");
+      expect(await w.authz.clearance(limited("alice", "secret"))).toBe("internal"); // never widened
+      expect(await w.authz.clearance(limited("carol", "internal"))).toBe("internal");
+      expect(await w.authz.clearance(limited("carol", "secret"))).toBe("confidential");
+      expect(await w.authz.clearance(limited("svc", "internal"))).toBe("internal");
+    });
+  });
+
   describe.skipIf(skip)("agents", () => {
     test("agents act with the person's rights, cut to their scope", async ({ w }) => {
       const space = w.spaceRef(w.space);
