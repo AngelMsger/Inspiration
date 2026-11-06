@@ -35,10 +35,11 @@ The product owner's decisions in force, oldest first, and the questions still op
 | 2026-11-04 | The validation's result is accepted: Inspiration answers stably more right than a mature RAG, short of 10 points, which stay a long-term goal for a larger dataset close to real use; tuning runs stop, and an MVP that closes the business flow comes next |
 | 2026-11-05 | The MVP is adopted with its five decisions as recommended: three to five people try it in Chinese for two weeks, on one server in Hong Kong or Singapore; live Feishu after Gate B; CNY 100 a month for models; a standing "Decide for me" offered to owners |
 | 2026-11-05 | A pull request is merged once CI passes; the product owner's Codex review runs afterwards, and its findings become a follow-up pull request or an issue. Outside research is supporting input only: public pages say that research supports a claim and link it, without naming its authors |
+| 2026-11-05 | The validation spec and the UI philosophy are adopted, and validation stays paused for the MVP. Scoped owners are 负责人 in Chinese (空间负责人, 主题负责人, 页面负责人, 流程负责人), not the 维护人 proposed on 2026-10-26 |
 
 ## Open questions
 
-1. **Confirm the boundary between the super admin and owners, and the Chinese name 维护人** ([overview, section 4](overview.md#4-users-and-roles)).
+1. **Confirm the boundary between the super admin and owners** ([overview, section 4](overview.md#4-users-and-roles)). Half answered: owners are 负责人 in Chinese (2026-11-05).
 2. **Confirm the trade-off in compiled-knowledge permissions:** at `internal` and `confidential`, readers learn that relevant restricted material exists and whom to ask, never its content; `secret` material leaves no trace (see [Permissions](architecture.md#permissions)).
 3. **Review the proposed Japanese terms** in the [glossary](overview.md#appendix-a-glossary-in-three-languages).
 4. **Which SaaS region opens first,** and how gates G2 and G3 change for SaaS first.

@@ -49,7 +49,7 @@ Four bets set Inspiration apart, each answering a failure of today's tools:
 
 **What is new in this version.** It is written as a PRD plus an architecture, with scenarios that say why each design exists and a feasibility section that says what is proven and what is not. It also takes in the decisions and proposals from the discussions since the first version:
 
-- The super admin runs the company and owners run knowledge, with a sharper line between them; the Chinese name for owners becomes 维护人 (proposed, section 4).
+- The super admin runs the company and owners run knowledge, with a sharper line between them (proposed, section 4).
 - Compiled knowledge is written for its audience and never cut per reader; an omission that changes the meaning goes to a person (proposed, see [Permissions](architecture.md#permissions)).
 - Anyone who holds a credential to a source may import from it; personal connections are no longer blocked by email domain or Feishu organization (decided, see [Connectors](architecture.md#connectors-credentials-and-the-sandbox)).
 - Agents running on their own only read or propose; a member's explicit request is the approval for an edit under that member's own rights (decided, see [Models and agents](architecture.md#models-and-agents)).
@@ -167,7 +167,7 @@ flowchart LR
 - **One safety lever stays with the super admin.** In a security incident the super admin can narrow any space's audience at once, which is audited. Widening an audience is always the space owner's call.
 - **One person can hold both roles.** In a small team the super admin is often also a space owner; the two roles still act separately and are audited separately. Someone working alone holds all three.
 
-**Names.** In English the role is Owner, always with its scope: Space owner, Topic owner, Page owner, Procedure owner. In Chinese it becomes 维护人 (空间维护人, 主题维护人, 页面维护人, 流程维护人) instead of 负责人, because 负责人 reads as "the person in charge" and blurs into 管理员; 维护 belongs to knowledge as 管理 belongs to the company, and 文档维护人 is a familiar phrase. The Japanese drafts are スペース担当者 and so on.
+**Names.** In English the role is Owner, always with its scope: Space owner, Topic owner, Page owner, Procedure owner. In Chinese it is 负责人 (空间负责人, 主题负责人, 页面负责人, 流程负责人), the word the product already uses; 维护人 was proposed on 2026-10-26, and the product owner kept 负责人 on 2026-11-05. The Japanese drafts are スペース担当者 and so on.
 
 **Product roles are bundles of internal roles.** Inside, permissions are finer: a space has the internal roles `viewer`, `commenter`, `editor`, `steward` and `owner`, and topics and pages have owners. The super admin holds the company-level internal roles `owner`, `admin`, `security_admin` and `auditor` together. A later preset, such as the separate system, security and audit admins some Chinese buyers require, is a new bundle, not new code.
 
@@ -719,7 +719,7 @@ One glossary feeds every status, button and empty state. The Chinese column is a
 | Knowledge tree, Documents tree | 知识树, 文档树 | ナレッジツリー, ドキュメントツリー |
 | Original, Annotated, Knowledge views | 原文, 批注, 知识 | 原文, 注釈, ナレッジ |
 | Fresh, Review due, Outdated, Disputed | 有效, 待复核, 已过时, 有争议 | 有効, 要確認, 旧版, 異論あり |
-| Space owner, Topic owner, Page owner, Procedure owner (proposed in Chinese); Super admin | 空间维护人、主题维护人、页面维护人、流程维护人；超级管理员 | スペース担当者、トピック担当者、ページ担当者、手順担当者；特権管理者 |
+| Space owner, Topic owner, Page owner, Procedure owner; Super admin | 空间负责人、主题负责人、页面负责人、流程负责人；超级管理员 | スペース担当者、トピック担当者、ページ担当者、手順担当者；特権管理者 |
 | Rule | 裁决规则 | 裁定ルール |
 | Any one, Everyone (approval modes) | 或签, 会签 | いずれか承認, 全員承認 |
 | Who can read this | 可见范围 | 公開範囲 |

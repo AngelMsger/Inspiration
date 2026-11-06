@@ -173,7 +173,7 @@ The Chinese terms are adopted. The Japanese terms are proposed and wait for the 
 | Trace view | 追溯 | 追跡 | Owners only |
 | Governed, Reference, Search only | 严格, 宽松, 仅检索 | 規程, 参考, 検索のみ | Governance levels |
 | Fresh, Review due, Outdated, Disputed | 有效, 待复核, 已过时, 有争议 | 有効, 要確認, 旧版, 異論あり | Only Outdated and Disputed show inline |
-| Space owner, Topic owner, Page owner, Procedure owner; Super admin | 空间维护人、主题维护人、页面维护人、流程维护人；超级管理员 | スペース担当者、トピック担当者、ページ担当者、手順担当者；特権管理者 | With Member, the only roles the UI shows. An owner is always named with its scope, never a bare "Owner" (维护人, 担当者). The Chinese 维护人 is proposed (2026-10-26) in place of 负责人 |
+| Space owner, Topic owner, Page owner, Procedure owner; Super admin | 空间负责人、主题负责人、页面负责人、流程负责人；超级管理员 | スペース担当者、トピック担当者、ページ担当者、手順担当者；特権管理者 | With Member, the only roles the UI shows. An owner is always named with its scope, never a bare "Owner" (负责人, 担当者). The Chinese 负责人 was confirmed on 2026-11-05 |
 | Rule | 裁决规则 | 裁定ルール | Made from a decision with "Make this a rule" |
 | Any one, Everyone (joint approval) | 或签, 会签 | いずれか承認, 全員承認 | Approval modes |
 | Who can read this | 可见范围 | 公開範囲 | Always with a count |
@@ -197,7 +197,7 @@ Adopted on 2026-10-23 and 2026-10-24:
 Adopted on 2026-10-26:
 
 - Three roles in the UI: member, owner and super admin. An owner is always named with its scope (space owner, topic owner, page owner, procedure owner), because a bare "owner" is ambiguous.
-- Proposed later the same day, waiting for the product owner: the super admin runs the company and owners run knowledge (the super admin creates spaces and names their owners but never decides what knowledge says or who reads a space), and the Chinese name for owners becomes 维护人 instead of 负责人. See section 4 of the [overview](../overview.md).
+- Proposed later the same day, waiting for the product owner: the super admin runs the company and owners run knowledge (the super admin creates spaces and names their owners but never decides what knowledge says or who reads a space). The Chinese name for owners was settled on 2026-11-05: 负责人, not the 维护人 proposed that day. See section 4 of the [overview](../overview.md).
 - In Chinese, a company is 企业 and the governance levels are 严格, 宽松 and 仅检索. English says Company and Japanese 企業, to match.
 
 Direction from the product owner on 2026-10-27:

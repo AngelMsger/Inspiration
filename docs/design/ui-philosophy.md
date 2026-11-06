@@ -1,6 +1,6 @@
 # Inspiration UI: design philosophy
 
-Status: proposed, 2026-10-27; the second version of the design canvas applies it.
+Status: adopted, 2026-11-05; the second version of the design canvas and the MVP web app follow it.
 
 ## Conclusions
 
@@ -9,7 +9,7 @@ Status: proposed, 2026-10-27; the second version of the design canvas applies it
 - **Settings follow who answers for them:** you, a space owner, or the super admin, who decides who and how but never what knowledge says.
 - **Every list is drawn at its real size:** up to 10 items are all shown, up to 100 are grouped or folded, and above that a search or a summary comes first.
 - **The assistant is quiet:** an overview before every pile, its suggestion already selected, Decide for me on piles rather than on every item, a reason when it leaves a decision to a person, and Why and Undo on everything it did. It has no avatar, no colour and no chat sidebar.
-- **The second version of the design canvas applies these rules** ([screens](screens/README.md)). Still open: 维护人 or 负责人 in Chinese, the numbers on each overview's cards, and some Japanese terms ([Still open](#still-open)).
+- **The second version of the design canvas applies these rules** ([screens](screens/README.md)). Still open: the numbers on each overview's cards and some Japanese terms ([Still open](#still-open)).
 
 ## 1. The stance: a quiet surface over complete depth
 
@@ -192,7 +192,7 @@ An audit of the design canvas (version 72) against this document:
 | Lists drawn with three to five rows and no search where the real list holds hundreds (members, topics, spaces) | Section 6 | Each list drawn at its typical size, with how it behaves when large |
 | The assistant shows up in six ways: a Suggested chip, "the system suggests", comment replies, plain text, nothing at all, and draft Decide for me buttons on every item | Section 7 | One pattern: overview, suggestion as the default, Decide for me on piles |
 | Two demo stories with different people: Procurement in English, Finance travel in Chinese | | One story and one cast on every screen |
-| 负责人 on the canvas, 维护人 in the documents | Waiting for the product owner | Follow the decision; until then, the documents' 维护人 |
+| 负责人 on the canvas, 维护人 in the documents | The product owner kept 负责人 on 2026-11-05 | 负责人 everywhere; the second version's boards say 维护人 until they are redrawn |
 | The early explorations A, B and C share the canvas with the chosen design | | Moved to an archive area |
 
 The second version (canvas version 74, rows V2 in [screens](screens/README.md)) applies these rules to nineteen screens. The first row covers the structure, reading, the account and admin; the second covers working: the inbox, decisions, managing a space, publishing and Trace. From the first version, only the three boards after importing (E-doc, E-doc-layers and E-doc-knowledge) still stand. Canvas version 79 applies the placement table in section 3 to every second-version board: the top bar names the company as plain text, the account menu switches companies, and Decide for me is no longer an account menu item, because it happens in the inbox and in each decision; its settings are the standing delegations under Account. It also adds V2-tree, which compared four options for showing a space's documents and knowledge in the left column; the product owner chose to keep today's shape, with Documents and Knowledge under each space.
@@ -217,11 +217,10 @@ Checked against the engine on 2026-10-27 (`main` after pull request #24, and the
 
 ## Still open
 
-- Whether owners are 维护人 or 负责人 in Chinese.
 - Which numbers each overview's cards show. The canvas draws a first choice per screen.
 - The Japanese terms for Suggested, Decided for you and Left for you.
 - Whether Japanese key phrases stay bold or use emphasis dots (section 4).
 
 ## About this page
 
-Proposed on 2026-10-27, after the product owner asked for one clear philosophy that every screen follows, instead of fixes one comment at a time. It goes from the general to the specific: the stance, the beliefs, one grammar with four places you can tell apart, where settings live, how big each list really is, how the assistant shows up, and what this changes on the design canvas. The [UI principles](ui-principles.md) and the drawn screens follow from this page; where they differ, this page wins until they are redone. A Chinese copy is in [docs/zh/design/ui-philosophy.md](../zh/design/ui-philosophy.md); if the two differ, this English version wins.
+Proposed on 2026-10-27, after the product owner asked for one clear philosophy that every screen follows, instead of fixes one comment at a time. It goes from the general to the specific: the stance, the beliefs, one grammar with four places you can tell apart, where settings live, how big each list really is, how the assistant shows up, and what this changes on the design canvas. The [UI principles](ui-principles.md) and the drawn screens follow from this page; where they differ, this page wins until they are redone. Adopted on 2026-11-05. A Chinese copy is in [docs/zh/design/ui-philosophy.md](../zh/design/ui-philosophy.md); if the two differ, this English version wins.
