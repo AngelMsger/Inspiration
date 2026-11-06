@@ -70,7 +70,7 @@ Each slice lands through pull requests as usual. The estimates are on the [overv
 | **Gate C, the trial** | Three to five people outside the team use it for two weeks with their own documents; the usage page reports the measures above | |
 | **Total** | | **about 16** |
 
-Each gate is a script that runs the flow end to end against the real engine and business layer, as the business layer's integration gates do, and runs in CI where the stack allows. Who builds what is for the coordinator to assign; a natural split is the engine thread for the engine side of every slice, the demo thread for the web app, which grows from the demo, and a business thread for accounts, tenancy and admin.
+Each gate is a script that runs the flow end to end against the real engine and business layer, as the business layer's integration gates do, and runs in CI where the stack allows. The gate checks are tests in `apps/bench/test` on one site (`site.ts`): the business backend in front of the engine in one process, signed in through a stand-in identity provider, in memory and on the stack. The first, company isolation for Gate B, is `company-isolation.test.ts`. Who builds what is for the coordinator to assign; a natural split is the engine thread for the engine side of every slice, the demo thread for the web app, which grows from the demo, and a business thread for accounts, tenancy and admin.
 
 ## Decisions for the product owner
 

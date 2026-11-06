@@ -66,6 +66,8 @@ pnpm business serve --web apps/web/dist --sample examples/corpus    # 网站在 
 
 这里的演示语料就是示例企业：任何登录的人都可以打开它，读到全企业可读的内容，但谁也不能修改它。两条命令都去掉语料，就是一个没有文档的引擎。无论哪种方式，引擎都把一切放在内存里：企业和成员来自业务后端，空间在 Web 应用里创建。重启引擎之后，也要重启业务后端，它启动时会把所有企业和成员，以及示例企业的每位访客，重新发给引擎；重启前创建的空间就没有了。
 
+关口检查不用 Logto 也能跑这两层：`apps/bench/test/site.ts` 在一个进程里启动业务后端和它后面的引擎，用替身身份提供方登录，先在内存里跑，服务栈启动时再在 Postgres 和 SpiceDB 上跑。单独跑一个：`pnpm vitest run apps/bench/test/company-isolation.test.ts`；`make check` 会跑全部。
+
 ## 试用模型网关
 
 不需要模型服务器也可以试用模型网关，用假的提供方运行它：

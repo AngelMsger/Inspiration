@@ -5,7 +5,8 @@ import { Accounts, MemoryAccounts, type ProviderIdentity } from "@inspiration/ac
 import { FakeProvider } from "@inspiration/accounts/testing";
 import { type Ed25519Jwk, generateSigningKey, publicKeyOf, verifyJwt } from "@inspiration/kernel";
 import { MemoryTenancy, type SampleCompany, Tenancy } from "@inspiration/tenancy";
-import { backendHandler, EngineClient, SESSION_COOKIE, Tokens } from "../src/index.ts";
+import { backendHandler, EngineClient, Tokens } from "../src/index.ts";
+import { Browser, signIn } from "../src/testing.ts";
 
 export const PUBLIC_URL = "https://inspiration.example";
 export const ENGINE_AUDIENCE = "https://engine.example";
@@ -103,49 +104,6 @@ export class FakeEngine {
   }
 }
 
-/** A browser on the backend's site: it keeps the cookies it is sent and never follows redirects. */
-export class Browser {
-  readonly base: string;
-  readonly cookies = new Map<string, string>();
-
-  constructor(base: string) {
-    this.base = base;
-  }
-
-  /** The session cookie's value, while signed in. */
-  get session(): string | undefined {
-    return this.cookies.get(SESSION_COOKIE);
-  }
-
-  /** A call to the site, its body sent as JSON, or as it is when bytes; the answer's body is read as T, which the test names. */
-  async call<T = unknown>(
-    method: string,
-    path: string,
-    body?: unknown,
-    headers: Record<string, string> = {},
-  ): Promise<{ status: number; body: T; headers: Headers }> {
-    const bytes = body instanceof Uint8Array;
-    const res = await fetch(`${this.base}${path}`, {
-      method,
-      redirect: "manual",
-      headers: {
-        ...(this.cookies.size && { cookie: [...this.cookies].map(([k, v]) => `${k}=${v}`).join("; ") }),
-        ...(body !== undefined && !bytes && { "content-type": "application/json" }),
-        ...headers,
-      },
-      ...(body !== undefined && { body: bytes ? body : JSON.stringify(body) }),
-    });
-    for (const set of res.headers.getSetCookie()) {
-      const [name = "", value = ""] = (set.split(";")[0] ?? "").split("=");
-      if (/Max-Age=0(;|$)/.test(set)) this.cookies.delete(name);
-      else this.cookies.set(name, value);
-    }
-    const text = await res.text();
-    const json: unknown = res.headers.get("content-type")?.startsWith("application/json") ? JSON.parse(text) : text;
-    return { status: res.status, body: json as T, headers: res.headers };
-  }
-}
-
 export interface Backend {
   url: string;
   provider: FakeProvider;
@@ -183,14 +141,7 @@ export async function startBackend(options: { webDir?: string } = {}): Promise<B
     engine,
     tenancy,
     browser,
-    async signIn(who) {
-      const b = browser();
-      await b.call("GET", "/api/auth/sign-in");
-      const { code, state } = provider.code(who);
-      const back = await b.call("GET", `/api/auth/callback?${new URLSearchParams({ code, state })}`);
-      if (back.status !== 302 || !b.session) throw new Error(`sign-in failed: ${back.headers.get("location")}`);
-      return b;
-    },
+    signIn: (who) => signIn(url, provider, who),
     async close() {
       await new Promise<void>((resolve) => server.close(() => resolve()));
       await engine.close();

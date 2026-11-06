@@ -66,6 +66,8 @@ describe("development backend", () => {
   const { tenant, people } = loadPeople(PEOPLE);
   const [first, second] = people as [Person, Person];
   const cookieOf = (set: string | null) => (set ?? "").split(";")[0] as string;
+  /** The headers of a page showing the company, as the web app names it. */
+  const inCompany = (cookie: string) => ({ cookie, "x-inspiration-company": tenant });
   const signIn = async (back = "/inbox") => {
     const res = await fetch(`${urlOf(web)}/api/auth/sign-in?return_to=${encodeURIComponent(back)}`, {
       redirect: "manual",
@@ -111,7 +113,7 @@ describe("development backend", () => {
 
   test("lists the company's members, changes the account, and signs out", async () => {
     const { cookie } = await signIn();
-    const members = await call("/api/members", { headers: { cookie } });
+    const members = await call("/api/members", { headers: inCompany(cookie) });
     expect(contractErrors("MemberList", members.body)).toEqual([]);
     expect((members.body as { members: unknown[] }).members).toHaveLength(people.length);
     const changed = await call("/api/account", {
@@ -122,7 +124,7 @@ describe("development backend", () => {
     expect((changed.body as Session).account.locale).toBe("ja");
     // The engine writes for the account in its language, as the business backend's token says.
     seen = [];
-    await call("/api/v0/inbox", { headers: { cookie, "x-inspiration-locale": "en" } });
+    await call("/api/v0/inbox", { headers: { ...inCompany(cookie), "x-inspiration-locale": "en" } });
     expect(seen[0]?.headers["x-inspiration-locale"]).toBe("ja");
     // What the contract refuses: another language, nothing to change, a field it does not have.
     for (const refused of ['{"locale":"fr"}', "{}", '{"name":"Lin","email":"lin@example.com"}']) {
@@ -155,18 +157,26 @@ describe("development backend", () => {
 
     seen = [];
     const { status, body } = await call("/api/v0/inbox?x=1", {
-      headers: { cookie, "x-inspiration-member": "mem_SOMEONEELSE", "x-inspiration-tenant": "ten_OTHER" },
+      headers: { ...inCompany(cookie), "x-inspiration-member": "mem_SOMEONEELSE", "x-inspiration-tenant": "ten_OTHER" },
     });
     expect(status).toBe(200);
     expect(body).toEqual({ path: "/v0/inbox?x=1", member: second.member });
     expect(seen[0]?.headers["x-inspiration-tenant"]).toBe(tenant);
   });
 
-  test("refuses a call that names another company than the session's", async () => {
+  test("refuses a call that names no company, or another than the session's", async () => {
     const { cookie } = await signIn();
     seen = [];
     const elsewhere = await call("/api/v0/inbox", { headers: { cookie, "x-inspiration-company": "ten_01QINGHE" } });
     expect([elsewhere.status, (elsewhere.body as { error: { code: string } }).error.code]).toEqual([409, "conflict"]);
+    for (const path of ["/api/v0/inbox", "/api/members", "/api/tokens", "/api/demo/people"]) {
+      const unnamed = await call(path, { headers: { cookie } });
+      expect([path, unnamed.status, (unnamed.body as { error: { code: string } }).error.code]).toEqual([
+        path,
+        400,
+        "bad_request",
+      ]);
+    }
     expect(seen).toEqual([]);
     const here = await call("/api/v0/inbox", { headers: { cookie, "x-inspiration-company": tenant } });
     expect(here.status).toBe(200);
@@ -178,10 +188,11 @@ describe("development backend", () => {
     const { cookie } = await signIn();
     seen = [];
     bodies = [];
-    const headers = { cookie, "content-type": "application/json", "idempotency-key": "space-1" };
+    const headers = { ...inCompany(cookie), "content-type": "application/json", "idempotency-key": "space-1" };
     await call("/api/v0/spaces", { method: "POST", headers, body: '{"name":"Payroll"}' });
-    await call("/api/v0/spaces/spc_1/owners", { method: "PUT", headers: { cookie }, body: '{"owner_ids":["mem_1"]}' });
-    await call("/api/v0/spaces/spc_1", { method: "PATCH", headers: { cookie }, body: '{"name":"Pay"}' });
+    const owners = '{"owner_ids":["mem_1"]}';
+    await call("/api/v0/spaces/spc_1/owners", { method: "PUT", headers: inCompany(cookie), body: owners });
+    await call("/api/v0/spaces/spc_1", { method: "PATCH", headers: inCompany(cookie), body: '{"name":"Pay"}' });
     expect(seen.map((r) => `${r.method} ${r.url} ${r.headers["idempotency-key"] ?? "-"}`)).toEqual([
       "POST /v0/spaces space-1",
       "PUT /v0/spaces/spc_1/owners -",
@@ -198,13 +209,13 @@ describe("development backend", () => {
     const big = "x".repeat(100 * 1024);
     const path = "/v0/spaces/spc_1/files/%E5%88%B6%E5%BA%A6/a.docx";
     const modified = "2026-11-04T09:12:00.000Z";
-    const headers = { cookie, "content-type": docx, "x-inspiration-modified": modified };
+    const headers = { ...inCompany(cookie), "content-type": docx, "x-inspiration-modified": modified };
     const put = await call(`/api${path}`, { method: "PUT", headers, body: big });
     expect(put.status).toBe(200);
     const sent = seen.map((r) => [r.method, r.url, r.headers["content-type"], r.headers["x-inspiration-modified"]]);
     expect(sent).toEqual([["PUT", path, docx, modified]]);
     expect(bodies[0]?.length).toBe(big.length);
-    const refused = await call("/api/v0/answers", { method: "POST", headers: { cookie }, body: big });
+    const refused = await call("/api/v0/answers", { method: "POST", headers: inCompany(cookie), body: big });
     expect([refused.status, refused.body.error?.code]).toEqual([413, "too_large"]);
     expect(seen).toHaveLength(1);
   });
@@ -213,11 +224,11 @@ describe("development backend", () => {
     const { cookie } = await signIn();
     const posted = await call("/api/v0/answers", {
       method: "POST",
-      headers: { cookie },
+      headers: inCompany(cookie),
       body: JSON.stringify({ question: "hotel cap" }),
     });
     expect(posted.body).toEqual({ path: "/v0/answers", member: first.member });
-    expect((await call("/api/v0/missing", { headers: { cookie } })).status).toBe(404);
+    expect((await call("/api/v0/missing", { headers: inCompany(cookie) })).status).toBe(404);
   });
 
   test("refuses someone outside the company, and leaves the page to the page", async () => {
@@ -238,7 +249,7 @@ describe("development backend", () => {
     const server = createServer((req, res) => down(req, res, () => res.end()));
     await listen(server);
     const res = await fetch(`${urlOf(server)}/api/v0/spaces`, {
-      headers: { cookie: `inspiration_member=${first.member}` },
+      headers: { cookie: `inspiration_member=${first.member}`, "x-inspiration-company": tenant },
     });
     server.close();
     expect(res.status).toBe(502);
@@ -255,7 +266,7 @@ describe("the company's people and invite links", () => {
   // A backend of its own, since these tests change the company.
   let company: Server;
   const as = (person?: Person): Record<string, string> =>
-    person ? { cookie: `inspiration_member=${person.member}` } : {};
+    person ? { cookie: `inspiration_member=${person.member}`, "x-inspiration-company": tenant } : {};
   const ask = async (person: Person | undefined, method: string, path: string, body?: unknown) => {
     const res = await fetch(`${urlOf(company)}${path}`, {
       method,
@@ -360,7 +371,7 @@ describe("the company's people and invite links", () => {
 
 describe("the demo's upstream edits", () => {
   const { tenant, people } = loadPeople(PEOPLE);
-  const headers = { cookie: `inspiration_member=${people[0]?.member}` };
+  const headers = { cookie: `inspiration_member=${people[0]?.member}`, "x-inspiration-company": tenant };
   let corpus: string;
   let demo: Server;
 

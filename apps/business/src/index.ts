@@ -29,9 +29,9 @@
  *
  * - The session is an HttpOnly, SameSite=Lax cookie (Secure when the public URL is https);
  *   accounts keeps only its hash. POST, PUT and PATCH need an application/json body, which a
- *   form on another site cannot send. A file upload may have any type instead, but must name
- *   the page's company (x-inspiration-company), which such a form cannot send either, and
- *   give its length, at most 50 MiB.
+ *   form on another site cannot send. A file upload may have any type instead, but names the
+ *   page's company (x-inspiration-company), as every call in a company does and such a form
+ *   cannot, and gives its length, at most 50 MiB.
  * - With a sample company (serve --sample), Session.sample names it, and switching to it
  *   joins the account as a member. Its tokens carry knowledge.read alone, so the engine
  *   refuses every change there; its members are not listed.
@@ -40,18 +40,27 @@
  *   five-minute agent token: the member as obo, the token as grant, its spaces and scopes.
  *   The secret never reaches the engine, and an unknown, expired or revoked token, or one
  *   whose member left, is answered 401. Removing a member revokes their tokens.
- * - A session works in one company at a time, its first by name until it switches. A call
- *   that acts in a company and names the one the page shows (x-inspiration-company) is
- *   answered 409 when the session works in another, as after a switch in a second tab.
+ * - A session works in one company at a time, its first by name until it switches, and a
+ *   switch moves every tab. Every call that acts in a company (/api/members, /api/invites,
+ *   /api/tokens and /api/v0/...) names the company its page shows in x-inspiration-company.
+ *   One that names none, or something that is not a tenant ID, is answered 400; one that names
+ *   another company than the session's is answered 409, before anything is done, as a tab
+ *   still showing the company another tab switched away from is. The call then acts as the
+ *   account's member in that company and as nothing else: tenancy and access grants check what
+ *   that member may do, and the engine checks the principal token minted for them, their tenant
+ *   and membership as its directory has them, and every object ID against that tenant. The
+ *   calls that act in no company (sign-in, the session, the account, a new company, joining)
+ *   do not read a company they name; an MCP client's company is its token's.
  * - Every call to the engine carries a principal token (tokens.ts): EdDSA, five minutes, the
  *   member's ID, company, scopes and language; the account's user ID never leaves this
  *   backend. Tenancy provisions companies and members as the tenancy service, and the
  *   backend sends the newest consistency token of a company's writes with its next calls,
  *   so a fresh grant shows at once. /api/v0/tenants/... is never passed on.
- * - Errors are ApiError bodies: 400 for a body that is not valid, 401 signed out, 403 for a
- *   change the member may not make, 404 for anything unknown, 409 for one that would leave a
- *   company with no super admin, 413 for a file over 50 MiB, 502 when the engine did not take a change (the change is
- *   kept, and sent again when the backend next starts).
+ * - Errors are ApiError bodies: 400 for a body that is not valid or a call that names no
+ *   company, 401 signed out, 403 for a change the member may not make, 404 for anything
+ *   unknown, 409 for a call naming another company than the session's or a change that would
+ *   leave a company with no super admin, 413 for a file over 50 MiB, 502 when the engine did
+ *   not take a change (the change is kept, and sent again when the backend next starts).
  * - With a web directory it serves the built app: files under /assets/ for a year, and
  *   index.html for any other path outside /api/ and /.well-known/.
  *

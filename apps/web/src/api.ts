@@ -2,11 +2,12 @@
 // for who is signed in and their company, /api/v0/ for the engine's HTTP API as that member,
 // and, in the demo only, /api/demo/. Bodies are the contract types, the business ones for the first.
 //
-// The session works in one company at a time, and switching moves it for every tab, so a call
-// that acts in a company names the company of the frame that makes it (x-inspiration-company).
-// The backend answers 409 conflict when the session has moved on to another. A frame never sees
-// that answer: its call stays unanswered, and the page reads the session again, unless it is
-// already switching (`showCompany`). The calls that switch read the next company with `apiIn`.
+// The session works in one company at a time, and switching moves it for every tab, so every
+// call but the few that act in no company names the company of the frame that makes it
+// (x-inspiration-company); the backend refuses one that names none. It answers 409 conflict
+// when the session has moved on to another. A frame never sees that answer: its call stays
+// unanswered, and the page reads the session again, unless it is already switching
+// (`showCompany`). The calls that switch read the next company with `apiIn`.
 
 import type {
   AnswerDepth,
@@ -77,8 +78,11 @@ export class ApiFailure extends Error {
 export const failureOf = (error: unknown): ApiFailure =>
   error instanceof ApiFailure ? error : new ApiFailure(0, "internal", String(error));
 
-/** The calls that act in a company, which name it. */
-const IN_COMPANY = /^\/(members|invites|v0\/|demo\/(people|updates))/;
+/**
+ * The calls that act in no company, which name none: signing in and out, the session, the
+ * account, a new company, joining one, and acting as another person in the demo.
+ */
+const NO_COMPANY = /^\/(auth\/|join\/|(session|account|companies|demo\/act-as)(\?|$))/;
 
 /** The company of the frame on screen, and what to do when the session has moved on from it. */
 let shown: string | undefined;
@@ -99,7 +103,7 @@ async function send<T>(
   frame: boolean,
   extra: Record<string, string> = {},
 ) {
-  const named = IN_COMPANY.test(path) ? company : undefined;
+  const named = NO_COMPANY.test(path) ? undefined : company;
   const headers: Record<string, string> = { ...extra, ...(named && { "x-inspiration-company": named }) };
   // A file goes as its bytes; anything else as JSON.
   const res = await fetch(

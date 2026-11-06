@@ -139,6 +139,21 @@ importers:
         specifier: ^2.9.1
         version: 2.9.1
     devDependencies:
+      '@inspiration/access-control':
+        specifier: workspace:*
+        version: link:../../engine/access-control
+      '@inspiration/access-grants':
+        specifier: workspace:*
+        version: link:../../business/access-grants
+      '@inspiration/accounts':
+        specifier: workspace:*
+        version: link:../../business/accounts
+      '@inspiration/business':
+        specifier: workspace:*
+        version: link:../business
+      '@inspiration/tenancy':
+        specifier: workspace:*
+        version: link:../../business/tenancy
       '@inspiration/testkit':
         specifier: workspace:*
         version: link:../../libs/testkit

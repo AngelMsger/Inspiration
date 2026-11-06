@@ -3,7 +3,8 @@ import type { ApiError } from "@inspiration/contracts";
 import type { Session } from "@inspiration/contracts/business";
 import { afterEach, beforeEach, expect, test } from "vitest";
 import { COMPANY_HEADER } from "../src/index.ts";
-import { type Backend, type Browser, startBackend, ZHOU } from "./fixtures.ts";
+import type { Browser } from "../src/testing.ts";
+import { type Backend, startBackend, ZHOU } from "./fixtures.ts";
 
 let site: Backend;
 let zhou: Browser;
@@ -21,11 +22,7 @@ const bytes = new TextEncoder().encode("PK\u0003\u0004 a travel policy");
 
 test("streams a file on to the engine as it came, with its type and its date", async () => {
   const modified = "2026-10-01T08:00:00.000Z";
-  const out = await zhou.call("PUT", PATH, bytes, {
-    "content-type": DOCX,
-    "x-inspiration-modified": modified,
-    [COMPANY_HEADER]: company,
-  });
+  const out = await zhou.call("PUT", PATH, bytes, { "content-type": DOCX, "x-inspiration-modified": modified });
   expect(out.status).toBe(200);
   const call = site.engine.calls.at(-1);
   expect(call?.path).toBe(PATH.slice("/api".length));
@@ -37,9 +34,10 @@ test("streams a file on to the engine as it came, with its type and its date", a
 
 test("refuses a file that does not name the page's company, as a form on another site would send it", async () => {
   const before = site.engine.calls.length;
+  expect((await zhou.call("PUT", PATH, bytes, { [COMPANY_HEADER]: "ten_01OTHER00000000" })).status).toBe(409);
+  zhou.company = undefined;
   const out = await zhou.call<ApiError>("PUT", PATH, bytes, { "content-type": "text/plain" });
   expect([out.status, out.body.error.code]).toEqual([400, "bad_request"]);
-  expect((await zhou.call("PUT", PATH, bytes, { [COMPANY_HEADER]: "ten_01OTHER00000000" })).status).toBe(409);
   expect(site.engine.calls.length).toBe(before);
 });
 

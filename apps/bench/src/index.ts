@@ -30,8 +30,11 @@
  * `pnpm bench cache export` writes the gateway's response cache to a file (exportReplies) and
  * `cache import` reads it back (importReplies), so the next run pays only for new calls.
  *
- * It is the one app that depends on another: components.yaml lists the engine under its
- * `uses`, and nothing else may depend on an app.
+ * Its tests also hold the gate checks (docs/design/mvp.md): test/site.ts runs the business
+ * backend in front of the engine in one process, and each check drives it as browsers do.
+ *
+ * It is the one app that depends on others: components.yaml lists the engine and the business
+ * backend under its `uses`, and nothing else may depend on an app.
  */
 
 export {
