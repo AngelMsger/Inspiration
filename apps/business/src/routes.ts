@@ -11,7 +11,7 @@ import {
   type SignedIn,
   SignInError,
 } from "@inspiration/accounts";
-import { ContractError, parseAs } from "@inspiration/contracts";
+import { ContractError, contractErrors, parseAs } from "@inspiration/contracts";
 import type {
   AccountChange,
   CompanyMember,
@@ -80,7 +80,10 @@ export interface BackendOptions {
   webDir?: string;
 }
 
-/** Who a route needs: anyone, a signed-in account, or a member of the company the session works in. */
+/**
+ * Who a route needs: anyone, a signed-in account, or a member of the company the call names,
+ * which must be the one the session works in (Backend.#current).
+ */
 type Needs = "anyone" | "account" | "member";
 
 export interface Call {
@@ -98,8 +101,8 @@ export interface Route {
   path: RegExp;
   needs: Needs;
   /**
-   * A file's bytes, of any type, instead of a JSON body. Such a call names the page's company
-   * (COMPANY_HEADER), which a form on another site cannot send.
+   * A file's bytes, of any type, instead of a JSON body. Like every call that acts in a
+   * company, it names the page's company (COMPANY_HEADER), which a form on another site cannot send.
    */
   file?: true;
   run(call: Call): Promise<void>;
@@ -356,35 +359,39 @@ class Backend {
   }
 
   /**
-   * The membership the session works in: the company it names while the account is still an
-   * active member of it, else the account's first company, which the session then keeps. A
-   * page that names the company it shows (COMPANY_HEADER) and shows another, as a second tab
-   * may after the first switched, is answered 409, so it never acts in a company it does not show.
+   * The membership a call acts as. The call names the company its page shows (companyNamed),
+   * and that must be the company the session works in, or the answer is 409 before anything
+   * is done: a tab still showing a company the session has left, after another tab switched,
+   * never acts in either. What the call may do there is then the member's to decide: tenancy
+   * and access grants check the member, and the engine checks the principal token minted for it.
    */
   async #current(signedIn: SignedIn, req: IncomingMessage): Promise<Membership> {
-    const { session, user } = signedIn;
-    let current = session.tenant_id ? await this.#o.tenancy.membership(session.tenant_id, user.id) : undefined;
-    if (!current) {
-      [current] = await this.#o.tenancy.companiesOf(user.id);
-      if (!current) throw new HttpError(400, "bad_request", "the account has no company yet");
-      await this.#o.accounts.workIn(session, current.company.id);
-    }
-    const shown = req.headers[COMPANY_HEADER];
-    if (typeof shown === "string" && shown !== current.company.id) {
-      throw new HttpError(409, "conflict", "the session works in another company now");
+    const named = companyNamed(req);
+    const current = await this.#workingIn(signedIn);
+    if (current?.company.id !== named) {
+      throw new HttpError(409, "conflict", `the session does not work in ${named} now`);
     }
     return current;
   }
 
+  /**
+   * The company the session works in: the one it names while the account is still an active
+   * member of it, else the account's first company, which the session then keeps.
+   */
+  async #workingIn({ session, user }: SignedIn): Promise<Membership | undefined> {
+    const { tenancy } = this.#o;
+    const named = session.tenant_id ? await tenancy.membership(session.tenant_id, user.id) : undefined;
+    if (named) return named;
+    const [first] = await tenancy.companiesOf(user.id);
+    if (first) await this.#o.accounts.workIn(session, first.company.id);
+    return first;
+  }
+
   async #session(signedIn: SignedIn): Promise<Session> {
-    const { user, session } = signedIn;
+    const { user } = signedIn;
     const { tenancy } = this.#o;
     const companies = await tenancy.companiesOf(user.id);
-    let current = session.tenant_id ? await tenancy.membership(session.tenant_id, user.id) : undefined;
-    if (!current && companies[0]) {
-      current = companies[0];
-      await this.#o.accounts.workIn(session, current.company.id);
-    }
+    const current = await this.#workingIn(signedIn);
     return {
       account: { name: user.name, email: user.email, locale: user.locale },
       companies: companies.map(({ company, member }) => ({
@@ -478,13 +485,22 @@ class Backend {
 }
 
 /**
- * A file call names the page's company and gives its length, at most FILE_LIMIT: Node then
- * reads exactly that many bytes, so the stream to the engine never passes the limit.
+ * The company a call that acts in one names: exactly one tenant ID in COMPANY_HEADER. A call
+ * that names none, or something else, is refused: the backend never guesses where it acts.
  */
-function fileGuard(req: IncomingMessage): void {
-  if (typeof req.headers[COMPANY_HEADER] !== "string") {
+function companyNamed(req: IncomingMessage): string {
+  const named = req.headers[COMPANY_HEADER];
+  if (typeof named !== "string" || contractErrors("TenantId", named).length) {
     throw new HttpError(400, "bad_request", `name the company the page shows in ${COMPANY_HEADER}`);
   }
+  return named;
+}
+
+/**
+ * A file call gives its length, at most FILE_LIMIT: Node then reads exactly that many bytes,
+ * so the stream to the engine never passes the limit.
+ */
+function fileGuard(req: IncomingMessage): void {
   const length = req.headers["content-length"];
   if (length === undefined) throw new HttpError(400, "bad_request", "send the file's length in content-length");
   if (Number(length) > FILE_LIMIT) {

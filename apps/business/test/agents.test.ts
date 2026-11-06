@@ -1,7 +1,8 @@
 import type { ApiError } from "@inspiration/contracts";
 import type { AccessTokenList, CreatedAccessToken, InviteLink, Session } from "@inspiration/contracts/business";
 import { afterEach, beforeEach, expect, test } from "vitest";
-import { type Backend, type Browser, PUBLIC_URL, SAMPLE, startBackend, ZHANG, ZHOU } from "./fixtures.ts";
+import type { Browser } from "../src/testing.ts";
+import { type Backend, PUBLIC_URL, SAMPLE, startBackend, ZHANG, ZHOU } from "./fixtures.ts";
 
 let site: Backend;
 let zhou: Browser;

@@ -1,5 +1,6 @@
 import type { ApiError } from "@inspiration/contracts";
 import type {
+  AccessTokenList,
   InviteLink,
   InviteList,
   JoinPreview,
@@ -161,6 +162,46 @@ describe("companies", () => {
     );
   });
 
+  test("a call in a company must name it, and acts nowhere when it names none or another", async () => {
+    const { zhou, tenantId } = await zhousCompany();
+    const before = site.engine.calls.length;
+    const calls = [
+      ["GET", "/api/members"],
+      ["POST", "/api/invites", {}],
+      ["POST", "/api/tokens", { name: "CLI", spaces: "all", days: 30 }],
+      ["GET", "/api/v0/spaces"],
+      ["POST", "/api/v0/spaces", { name: "Finance", owner_ids: [] }],
+    ] as const;
+    for (const [method, path, body] of calls) {
+      for (const [named, status] of [
+        ["ten_01OTHER000000000000000000", 409],
+        ["", 400],
+        ["Qinghe Tech", 400],
+        [`${tenantId}, ${tenantId}`, 400],
+      ] as const) {
+        const out = await zhou.call<ApiError>(method, path, body, { [COMPANY_HEADER]: named });
+        expect([method, path, named, out.status, out.body.error.code]).toEqual([
+          method,
+          path,
+          named,
+          status,
+          status === 409 ? "conflict" : "bad_request",
+        ]);
+      }
+    }
+    zhou.company = undefined;
+    for (const [method, path, body] of calls) expect((await zhou.call(method, path, body)).status).toBe(400);
+    expect(site.engine.calls.length).toBe(before);
+    zhou.company = tenantId;
+    expect((await zhou.call<InviteList>("GET", "/api/invites")).body.invites).toEqual([]);
+    expect((await zhou.call<AccessTokenList>("GET", "/api/tokens")).body.tokens).toEqual([]);
+
+    // A call in no company does not read the company it names.
+    const named = { [COMPANY_HEADER]: "ten_01OTHER000000000000000000" };
+    expect((await zhou.call("GET", "/api/session", undefined, named)).status).toBe(200);
+    expect((await zhou.call("PATCH", "/api/account", { locale: "ja" }, named)).status).toBe(200);
+  });
+
   test("renaming the account renames its member in every company", async () => {
     const { zhou } = await zhousCompany();
     const renamed = await zhou.call<Session>("PATCH", "/api/account", { name: "Zhou Min", locale: "zh-CN" });
@@ -240,8 +281,11 @@ describe("invite links and members", () => {
     expect((await zhang.call("DELETE", `/api/members/${zhouId}`)).status).toBe(204);
     expect(JSON.parse(site.engine.calls.at(-1)?.body ?? "")).toMatchObject({ status: "left" });
 
-    // Zhou has no company left: the session says so, and company calls are refused.
+    // Zhou has no company left: the page still showing it is told so, the session says so,
+    // and with no company to name, company calls are refused.
+    expect((await zhou.call("GET", "/api/members")).status).toBe(409);
     expect((await zhou.call<Session>("GET", "/api/session")).body.companies).toEqual([]);
+    expect(zhou.company).toBeUndefined();
     expect((await zhou.call("GET", "/api/members")).status).toBe(400);
     expect((await zhou.call("GET", "/api/v0/spaces")).status).toBe(400);
   });
@@ -250,7 +294,7 @@ describe("invite links and members", () => {
 describe("the engine's API", () => {
   test("goes on as the member, with the company's newest consistency token", async () => {
     const { zhou, session, tenantId } = await zhousCompany();
-    const answer = await zhou.call("GET", "/api/v0/spaces?manage=true", undefined, { [COMPANY_HEADER]: tenantId });
+    const answer = await zhou.call("GET", "/api/v0/spaces?manage=true");
     expect(answer).toMatchObject({ status: 200, body: { spaces: [] } });
 
     const call = site.engine.calls.at(-1);

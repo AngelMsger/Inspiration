@@ -7,10 +7,10 @@
  * the account's language for what the engine writes (x-inspiration-locale). The
  * page cannot name a member itself: the backend builds the headers it forwards, so identity
  * headers from the browser never reach the engine. A call that acts in a company names the one
- * its frame shows (x-inspiration-company); naming another than the session's answers 409
- * conflict, as the business backend does. Roles, members who leave and invite links are kept
- * while the server runs (company.ts); someone who left has no company until they join by a
- * link. Under /api/demo/ are what only the demo has: acting as another person of the company,
+ * its frame shows (x-inspiration-company), as with the business backend: naming none answers
+ * 400, and naming another than the session's 409 conflict. Roles, members who leave and invite
+ * links are kept while the server runs (company.ts); someone who left has no company until they
+ * join by a link. Under /api/demo/ are what only the demo has: acting as another person of the company,
  * and its upstream edits.
  *
  *     GET    /api/session              Session, or 401 when signed out
@@ -57,6 +57,8 @@ const COOKIE = "inspiration_member";
 const MAX_BODY = 64 * 1024;
 /** A file uploaded into a space may be as large as the engine takes (MAX_FILE). */
 const FILE_ROUTE = /^\/api\/v0\/spaces\/[^/]+\/files\//;
+/** The calls that act in the company, and so name it. */
+const IN_COMPANY = /^\/api\/(members|invites|tokens|v0\/|demo\/(people|updates))/;
 
 /** The people file: a tenant ID and at least one person, each with a member ID and a name. */
 export function loadPeople(path: string): People {
@@ -221,6 +223,14 @@ export function backend(options: People & { engine: string; updates?: Updates })
     return true;
   };
 
+  // A call that acts in the company names it, as with the business backend: none is 400, another 409.
+  const checkCompany = (url: URL, req: IncomingMessage) => {
+    if (!IN_COMPANY.test(url.pathname)) return;
+    const named = req.headers["x-inspiration-company"];
+    if (named === undefined) throw new Refused(400, "bad_request", "name the company the page shows");
+    if (named !== people.tenant) throw new Refused(409, "conflict", "the session works in another company");
+  };
+
   return async (req: IncomingMessage, res: ServerResponse, next: () => void): Promise<void> => {
     const url = new URL(req.url ?? "/", "http://localhost");
     if (!url.pathname.startsWith("/api/")) return next();
@@ -241,11 +251,8 @@ export function backend(options: People & { engine: string; updates?: Updates })
         return send(res, 200, company.preview(decodeURIComponent(code), await companyName()));
       const person = signedIn(req);
       if (!person) return send(res, 401, error("unauthenticated", "sign in first"));
-      const named = req.headers["x-inspiration-company"];
-      if (named !== undefined && named !== people.tenant) {
-        return send(res, 409, error("conflict", "the session works in another company"));
-      }
       if (await accountRoute(route, req, res, person)) return;
+      checkCompany(url, req);
       // Someone who left has an account, but no company to act in until they join again.
       const outside = !company.isMember(person) && !code && route !== "POST /api/demo/act-as";
       if (outside) return send(res, 400, error("bad_request", "no current company"));

@@ -1,7 +1,7 @@
 {
   "name": "@inspiration/bench",
   "version": "0.1.0",
-  "description": "The measurement harness: ingest runs and reports over a corpus, the control check, history replay, questions, the reading check, cost, synthetic corpora; CLI",
+  "description": "The measurement harness: ingest runs and reports over a corpus, the control check, history replay, questions, the reading check, cost, synthetic corpora; CLI; the gate checks over the business backend and the engine",
   "private": true,
   "type": "module",
   "exports": {
@@ -26,6 +26,11 @@
     "yaml": "^2.9.1"
   },
   "devDependencies": {
+    "@inspiration/access-control": "workspace:*",
+    "@inspiration/access-grants": "workspace:*",
+    "@inspiration/accounts": "workspace:*",
+    "@inspiration/business": "workspace:*",
+    "@inspiration/tenancy": "workspace:*",
     "@inspiration/testkit": "workspace:*"
   }
 }

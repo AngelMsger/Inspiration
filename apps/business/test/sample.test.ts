@@ -22,7 +22,8 @@ test("opens the sample company to anyone signed in, as a member who only reads",
     `PUT /v0/tenants/${SAMPLE.id}/members/${member}`,
   ]);
 
-  await zhou.call("GET", "/api/v0/spaces", undefined, { [COMPANY_HEADER]: SAMPLE.id });
+  await zhou.call("GET", "/api/v0/spaces");
+  expect(site.engine.calls.at(-1)?.headers).not.toHaveProperty(COMPANY_HEADER);
   expect(site.engine.calls.at(-1)?.claims).toMatchObject({ sub: member, tid: SAMPLE.id, scope: "knowledge.read" });
   expect((await zhou.call("GET", "/api/members")).status).toBe(403);
   expect((await zhou.call("POST", "/api/invites", {})).status).toBe(403);

@@ -122,6 +122,11 @@ the engine, restart the business backend too, which sends every company and memb
 visitor of the sample company, to it again when it starts; spaces made before the restart are
 gone.
 
+The gate checks run the same two layers without Logto: `apps/bench/test/site.ts` starts the
+business backend in front of the engine in one process, with a stand-in identity provider, in
+memory and, with the stack up, on Postgres and SpiceDB. Run one with
+`pnpm vitest run apps/bench/test/company-isolation.test.ts`; `make check` runs them all.
+
 ## Try the model gateway
 
 To try the model gateway without a model server, run it with the fake providers:
