@@ -49,13 +49,13 @@ hero:
         place: "[[confluence:Confluence]]"
         event: Edited
       - kind: Approvals
-        place: Concur
+        place: "[[jira:Jira]]"
         event: New records
       - kind: Code
         place: "[[github:GitHub]]"
         event: Merged
       - kind: Research
-        place: Report
+        place: "[[inspiration:Inspiration]]"
         event: Re-checked
     topic: Business travel
     topicMeta: Topic · maintained by Li Na

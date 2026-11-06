@@ -1,7 +1,7 @@
 // The page, as one function of a language pack. Every word comes from the pack; this file
 // holds only structure, so a language is added by adding a pack.
 
-import { GITHUB_MARK, logo } from "./logos.ts";
+import { GITHUB_MARK, logo, SITE_ICON } from "./logos.ts";
 
 /** A line of the hero's headline, with the number of the footnote that follows it. */
 export interface TitleRun {
@@ -672,12 +672,6 @@ function footer(c: PageContext): string {
 </footer>`;
 }
 
-const ICON =
-  "data:image/svg+xml," +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#EFEEE9"/><text x="9" y="25" font-family="Georgia,serif" font-size="24" fill="#1C1E23">i</text><rect x="18" y="5" width="9" height="11" rx="2.5" fill="#2E3F8F"/><text x="20.2" y="13.6" font-family="Arial,sans-serif" font-size="8.5" font-weight="700" fill="#FBFAF7">1</text></svg>',
-  );
-
 export function renderPage(c: PageContext): string {
   const m = c.pack.meta;
   const fonts = `https://fonts.googleapis.com/css2?${m.fonts.map((f) => `family=${f.replace(/ /g, "+")}`).join("&")}&display=swap`;
@@ -687,7 +681,7 @@ export function renderPage(c: PageContext): string {
 <meta property="og:description" content="${esc(m.description)}">
 <meta property="og:type" content="website">
 ${c.packs.map(({ tag, pack }) => `<link rel="alternate" hreflang="${pack.meta.htmlLang}" href="${c.href(tag)}">`).join("\n")}
-<link rel="icon" href="${ICON}">
+<link rel="icon" href="${SITE_ICON}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="${esc(fonts)}" media="print" onload="this.media='all'">

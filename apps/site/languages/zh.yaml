@@ -40,13 +40,13 @@ hero:
         place: "[[lark:飞书]]"
         event: 有修改
       - kind: 审批流
-        place: "[[lark:飞书]]"
+        place: "[[jiandaoyun:简道云]]"
         event: 新记录
       - kind: 代码仓库
         place: "[[github:GitHub]]"
         event: 已合并
       - kind: 深度调研
-        place: 调研报告
+        place: "[[inspiration:Inspiration]]"
         event: 已复核
     topic: 差旅
     topicMeta: 主题 · 李娜维护
@@ -144,7 +144,7 @@ sources:
   lead: 它也藏在审批实际的走法里、代码真正的行为里、上个季度的调研里。
   items:
     - title: 知识库与文档
-      text: "[[lark:飞书]]和 Lark 的文档、知识库和上传文件，[[confluence:Confluence]]、钉钉随后接入。"
+      text: "[[lark:飞书]]（及 Lark）的文档、知识库和上传文件，[[confluence:Confluence]]、[[dingtalk:钉钉]]随后接入。"
       fresh: 文档一改，只重读改动的段落。
     - title: 审批流
       text: 几个月的审批记录整理成流程，照实际发生的来写。

@@ -48,7 +48,7 @@ hero:
         place: "[[github:GitHub]]"
         event: マージ
       - kind: リサーチ
-        place: レポート
+        place: "[[inspiration:Inspiration]]"
         event: 再確認
     topic: 出張
     topicMeta: トピック · 李娜さんが担当
