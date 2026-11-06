@@ -81,11 +81,17 @@ describe("site", () => {
       const footer = /<footer class="foot">[\s\S]*?<\/footer>/.exec(html)?.[0] ?? "";
       expect(footer, tag).toContain(pack.footer.marks);
     }
-    // Each language's examples show the products read there, by their marks.
+    // Every source in the hero figure shows its mark, and each language's examples show the
+    // products read there, each once.
     const feeds = (path: string) => /<ul class="feeds">[\s\S]*?<\/ul>/.exec(pages.get(path) ?? "")?.[0] ?? "";
-    expect(feeds("zh/index.html").match(/logo-lark/g)).toHaveLength(2);
+    for (const path of pages.keys()) {
+      const marks = feeds(path).match(/class="logo logo-[a-z]+"/g) ?? [];
+      expect(marks, path).toHaveLength(4);
+      expect(new Set(marks).size, path).toBe(4);
+    }
+    expect(feeds("zh/index.html")).toContain("logo-jiandaoyun");
     expect(feeds("ja/index.html")).toContain("logo-kintone");
-    expect(feeds("index.html")).toContain("logo-confluence");
+    expect(feeds("index.html")).toContain("logo-jira");
     expect(() => logo("unknown")).toThrow(RangeError);
   });
 
