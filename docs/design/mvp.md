@@ -97,6 +97,14 @@ Decided on 2026-11-05 at 02:50 UTC: all five as recommended.
 
 The [pilot](../overview.md#8-releases-scope-and-success-measures) with a design partner, live Feishu, My space and publishing, and joint approval. Once the engine's shape is stable, the validation line resumes on a larger dataset close to real use, aiming at the 10 points as a long-term goal inside the engine; the trial's wrong answers, kept with consent, can start that dataset.
 
+Ideas from issues that are worth keeping but off the MVP's path are closed with the label [`deferred`](https://github.com/AngelMsger/Inspiration/issues?q=label%3Adeferred), and each is reopened when its trigger comes:
+
+| Issue | What it asks | Reopen when |
+| --- | --- | --- |
+| [#68](https://github.com/AngelMsger/Inspiration/issues/68) | The evidence audit reads paraphrased denials and narrower conditions, and a statement's value carries its condition (a contract change) | The validation line resumes |
+| [#95](https://github.com/AngelMsger/Inspiration/issues/95) | A decision that makes a value no longer current records why: the decision was wrong, or the world changed | "Decide for me" weighs a person's earlier decisions ([its second step](decide-for-me.md)) |
+| [#173](https://github.com/AngelMsger/Inspiration/issues/173) | The store, not one process, keeps two uploads to the same place apart | The engine runs more than one writing process |
+
 ## About this page
 
-Proposed on 2026-11-04, after the product owner's decision that day to accept the validation's result, keep the 10-point aim for later and build a usable prototype next ([Validating the knowledge core](validation.md#where-we-stand)). Adopted on 2026-11-05 at 02:50 UTC, when the product owner took all five decisions as recommended ([Decisions for the product owner](#decisions-for-the-product-owner)). It cuts the [business layer](business-layer.md)'s phase 1 and the remaining engine stages ([overview](../overview.md#12-next-steps-and-effort)) down to one company's full loop. A Chinese copy is in [docs/zh/design/mvp.md](../zh/design/mvp.md); if the two differ, this English version wins.
+Proposed on 2026-11-04, after the product owner's decision that day to accept the validation's result, keep the 10-point aim for later and build a usable prototype next ([Validating the knowledge core](validation.md#where-we-stand)). Adopted on 2026-11-05 at 02:50 UTC, when the product owner took all five decisions as recommended ([Decisions for the product owner](#decisions-for-the-product-owner)). The deferred issues were added after the issue triage of 2026-11-06. It cuts the [business layer](business-layer.md)'s phase 1 and the remaining engine stages ([overview](../overview.md#12-next-steps-and-effort)) down to one company's full loop. A Chinese copy is in [docs/zh/design/mvp.md](../zh/design/mvp.md); if the two differ, this English version wins.
