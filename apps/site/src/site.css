@@ -329,6 +329,17 @@ a.cite:hover {
   gap: 7px;
   font-size: 14px;
 }
+/* A product named as a source: its mark at the height of the text, then its name. */
+.brand {
+  white-space: nowrap;
+}
+.logo {
+  display: inline-block;
+  width: auto;
+  height: 1.2em;
+  margin-right: 0.3em;
+  vertical-align: -0.24em;
+}
 
 /* Hero */
 /* The headline shares the row with the figure, so its size follows its column: each line of
@@ -433,10 +444,40 @@ h1 .cite {
   text-align: center;
 }
 .feed-place {
-  font-size: 11.5px;
+  margin-top: 2px;
+  font-size: 12px;
   line-height: 1.3;
   color: var(--faint);
   white-space: nowrap;
+}
+/* A named product reads at a glance: its mark a size up, its name in the darker grey. */
+.feed-place .brand {
+  color: var(--muted);
+}
+.feed-place .logo {
+  height: 1.4em;
+  vertical-align: -0.38em;
+}
+/* On a phone a quarter of the figure is narrow: the name steps down a size to keep its mark
+   inside the tile. */
+@container (max-width: 420px) {
+  .feed-place {
+    font-size: 10.5px;
+  }
+  .feed-place .logo {
+    margin-right: 0.2em;
+  }
+}
+@container (max-width: 340px) {
+  .feed-tile {
+    padding-inline: 2px;
+  }
+  .feed-place {
+    font-size: 10px;
+  }
+  .feed-place .logo {
+    height: 1.3em;
+  }
 }
 .feed-event {
   position: absolute;
@@ -1280,19 +1321,9 @@ main > section {
     transform 0.8s var(--arrive);
 }
 .sat-label {
-  display: flex;
-  align-items: center;
-  gap: 7px;
   font-size: 11.5px;
   font-weight: 500;
   color: var(--faint);
-}
-.doc-ico {
-  width: 10px;
-  height: 12px;
-  border: 1.4px solid var(--indigo);
-  border-radius: 2px;
-  flex: none;
 }
 .notice-card {
   left: 16px;

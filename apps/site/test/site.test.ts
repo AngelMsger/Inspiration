@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { build, loadPacks, server, write } from "../src/build.ts";
+import { logo } from "../src/logos.ts";
 
 const LANGUAGES = ["en", "ja", "zh"];
 
@@ -64,6 +65,28 @@ describe("site", () => {
     for (const path of ["index.html", "ja/index.html"])
       expect(pages.get(path), path).not.toMatch(/Feishu|\u98de\u4e66/);
     expect(pages.get("zh/index.html")).toMatch(/\u98de\u4e66/);
+  });
+
+  test("a product named as a source carries its own mark, and the footer credits the marks to their owners", () => {
+    const pages = build({ root: "en", explicitIndex: false, fragment: false });
+    for (const { tag, pack } of loadPacks()) {
+      const html = pages.get(tag === "en" ? "index.html" : `${tag}/index.html`) ?? "";
+      expect(html, tag).not.toContain("[[");
+      const brands = html.match(/<span class="brand">[\s\S]*?<\/span>/g) ?? [];
+      expect(brands.length, tag).toBeGreaterThan(3);
+      for (const brand of brands)
+        expect(brand, tag).toMatch(
+          /^<span class="brand"><(svg|img) class="logo logo-[a-z]+"[\s\S]*>[^<>\s][^<>]*<\/span>$/,
+        );
+      const footer = /<footer class="foot">[\s\S]*?<\/footer>/.exec(html)?.[0] ?? "";
+      expect(footer, tag).toContain(pack.footer.marks);
+    }
+    // Each language's examples show the products read there, by their marks.
+    const feeds = (path: string) => /<ul class="feeds">[\s\S]*?<\/ul>/.exec(pages.get(path) ?? "")?.[0] ?? "";
+    expect(feeds("zh/index.html").match(/logo-lark/g)).toHaveLength(2);
+    expect(feeds("ja/index.html")).toContain("logo-kintone");
+    expect(feeds("index.html")).toContain("logo-confluence");
+    expect(() => logo("unknown")).toThrow(RangeError);
   });
 
   test("the inlined scripts, for the language menu, the hero figure, the search box and the demo, are valid JavaScript", () => {
