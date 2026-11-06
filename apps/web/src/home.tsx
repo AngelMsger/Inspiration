@@ -115,10 +115,11 @@ export const countOf = (library: Library, space: string) =>
 export function Ask(props: { q: string }) {
   const { say } = useWords();
   const compact = useLoad(`answer:${props.q}`, () => api.answer(props.q));
-  // The standard answer, read from more passages, only when the person asks for it.
-  const [fuller, setFuller] = useState(false);
-  const standard = useLoad(`answer:${props.q}:${fuller}`, () =>
-    fuller ? api.answer(props.q, "standard") : Promise.resolve(undefined),
+  // The standard answer, read from more passages, only when the person asks for it. Each ask is
+  // a new try, so the button comes back after a failure and asks again.
+  const [tries, setTries] = useState(0);
+  const standard = useLoad(`answer:${props.q}:${tries}`, () =>
+    tries > 0 ? api.answer(props.q, "standard") : Promise.resolve(undefined),
   );
   const answer =
     standard.state === "done" && standard.value ? { state: "done" as const, value: standard.value } : compact;
@@ -130,16 +131,16 @@ export function Ask(props: { q: string }) {
         {answer.state === "loading" && <p className="quiet">{say("ask.reading")}</p>}
         {answer.state === "failed" && <Failure error={answer.error} />}
         {answer.state === "done" && <Answer answer={answer.value} q={props.q} />}
-        {compact.state === "done" && !fuller && (
+        {tries > 0 && standard.state === "loading" && <p className="quiet">{say("ask.fuller_reading")}</p>}
+        {standard.state === "failed" && <Failure error={standard.error} />}
+        {standard.state === "done" && standard.value && <p className="quiet">{say("ask.fuller_shown")}</p>}
+        {compact.state === "done" && (tries === 0 || standard.state === "failed") && (
           <div>
-            <button type="button" className="link-button" onClick={() => setFuller(true)}>
+            <button type="button" className="link-button" onClick={() => setTries((n) => n + 1)}>
               {say("ask.fuller")}
             </button>
           </div>
         )}
-        {fuller && standard.state === "loading" && <p className="quiet">{say("ask.fuller_reading")}</p>}
-        {standard.state === "failed" && <Failure error={standard.error} />}
-        {standard.state === "done" && standard.value && <p className="quiet">{say("ask.fuller_shown")}</p>}
       </section>
       {found.state === "done" && found.value.hits.length > 0 && (
         <>
