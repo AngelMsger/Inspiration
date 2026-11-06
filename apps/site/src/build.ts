@@ -17,7 +17,9 @@
  * its closing lines.
  *
  * The header and the footer link to the source code on GitHub and offer the languages in a
- * menu, so they hold however many languages there are packs for.
+ * menu, so they hold however many languages there are packs for. Products named as knowledge
+ * sources carry their makers' own marks (logos.ts), and the footer says the names and marks
+ * are their owners'.
  *
  * Usage (`pnpm site` runs this file):
  *

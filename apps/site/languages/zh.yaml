@@ -37,13 +37,13 @@ hero:
       示意图：知识库、审批流、代码仓库和调研报告汇入同一个主题“差旅”，再由它回答人和智能体。每条事实都标明来自哪种来源；某个来源一变，它支撑的事实会重新核对，变化随即传到所有读者。
     feeds:
       - kind: 知识库
-        place: 飞书
+        place: "[[lark:飞书]]"
         event: 有修改
       - kind: 审批流
-        place: 飞书
+        place: "[[lark:飞书]]"
         event: 新记录
       - kind: 代码仓库
-        place: GitHub
+        place: "[[github:GitHub]]"
         event: 已合并
       - kind: 深度调研
         place: 调研报告
@@ -109,7 +109,7 @@ demo:
     动画：一位成员问深圳的住宿上限，得到 600 元。一份新通知进来后，回答变成 650 元并引用这份通知，旧制度标为已过时；主题负责人按一下，确认建议的修改。
   steps:
     - title: 来源变了
-      text: 财务部在飞书发了新通知，只重读变化的两段。
+      text: 财务部在[[lark:飞书]]发了新通知，只重读变化的两段。
     - title: 答案跟上
       text: 回答、知识页和智能体都改成 650 元并引用通知，旧条款标为已过时。
     - title: 负责人确认
@@ -126,7 +126,7 @@ demo:
     policy: 差旅费管理办法 · 第七条
     notice: 关于调整一线城市住宿标准的通知
     outdated: 已过时
-    changeLabel: 飞书 · 新文档
+    changeLabel: "[[lark:飞书]] · 新文档"
     changeMeta: 读了 2 段 · 1 条事实有变
     inbox: 待办
     owner: 李娜 · 差旅主题负责人
@@ -144,7 +144,7 @@ sources:
   lead: 它也藏在审批实际的走法里、代码真正的行为里、上个季度的调研里。
   items:
     - title: 知识库与文档
-      text: 飞书和 Lark 的文档、知识库和上传文件，Confluence、钉钉随后接入。
+      text: "[[lark:飞书]]和 Lark 的文档、知识库和上传文件，[[confluence:Confluence]]、钉钉随后接入。"
       fresh: 文档一改，只重读改动的段落。
     - title: 审批流
       text: 几个月的审批记录整理成流程，照实际发生的来写。
@@ -279,3 +279,4 @@ closing:
 
 footer:
   line: 示例中的公司、人名和数字均为虚构。
+  marks: 产品名称和标志归各自所有者所有，Inspiration 与其并无关联。

@@ -39,13 +39,13 @@ hero:
       図：Wiki、承認フロー、コードリポジトリ、調査レポートがひとつのトピック「出張」に集まり、人とエージェントに答えます。各事実にはどのソースから来たかが示され、ソースが変わると、それに支えられた事実が確認し直され、変化が読む人すべてに届きます。
     feeds:
       - kind: Wiki
-        place: Confluence
+        place: "[[confluence:Confluence]]"
         event: 編集あり
       - kind: 承認フロー
-        place: kintone
+        place: "[[kintone:kintone]]"
         event: 新しい記録
       - kind: コード
-        place: GitHub
+        place: "[[github:GitHub]]"
         event: マージ
       - kind: リサーチ
         place: レポート
@@ -111,7 +111,7 @@ demo:
     アニメーション：メンバーが深圳の宿泊上限を尋ね、600 元という答えを得ます。新しい通知が届くと、答えは通知を出典とする 650 元に変わり、古い規程は旧版と表示されます。トピック担当者はワンクリックで提案された変更を確認します。
   steps:
     - title: ソースが変わる
-      text: 財務部が Confluence に通知を出します。読み直すのは、変わった 2 段落だけ。
+      text: 財務部が [[confluence:Confluence]] に通知を出します。読み直すのは、変わった 2 段落だけ。
     - title: 答えが追随する
       text: 回答もページもエージェントも 650 元になり、通知を出典に挙げます。古い記述は旧版と表示。
     - title: 担当者が確認する
@@ -128,7 +128,7 @@ demo:
     policy: 差旅费管理办法 · 第七条
     notice: 关于调整一线城市住宿标准的通知
     outdated: 旧版
-    changeLabel: Confluence · 新しい文書
+    changeLabel: "[[confluence:Confluence]] · 新しい文書"
     changeMeta: 2 段落を読み取り · 事実 1 件が変更
     inbox: 受信トレイ
     owner: 李娜 · 出張トピック担当者
@@ -146,7 +146,7 @@ sources:
   lead: 承認の実際の進み方にも、コードの本当の動きにも、前の四半期の調査にもあります。
   items:
     - title: Wiki と文書
-      text: ドキュメント、Wiki、アップロードしたファイル。今は Lark、次に Confluence に対応します。
+      text: ドキュメント、Wiki、アップロードしたファイル。今は [[lark:Lark]]、次に [[confluence:Confluence]] に対応します。
       fresh: 編集されたら、変わった段落だけを読み直します。
     - title: 承認フロー
       text: 数か月分の承認記録から、実際の運用どおりの手順書をつくります。
@@ -282,3 +282,4 @@ closing:
 
 footer:
   line: 例に登場する会社名・人名・数値はすべて架空のものです。
+  marks: 製品名とロゴは各社の商標です。Inspiration は各社と提携していません。

@@ -1,6 +1,8 @@
 // The page, as one function of a language pack. Every word comes from the pack; this file
 // holds only structure, so a language is added by adding a pack.
 
+import { GITHUB_MARK, logo } from "./logos.ts";
+
 /** A line of the hero's headline, with the number of the footnote that follows it. */
 export interface TitleRun {
   text: string;
@@ -144,7 +146,7 @@ export interface Pack {
   enterprise: { kicker: string; title: string; items: { title: string; text: string }[] };
   /** The page's last words; the only place that says the product is still being built. */
   closing: { title: string; note: string };
-  footer: { line: string };
+  footer: { line: string; marks: string };
 }
 
 /** What a page needs besides its own pack. */
@@ -165,7 +167,17 @@ export interface PageContext {
 const ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ESCAPES[c] ?? c);
 /** Pack text, with `**…**` around the words a reader should not miss. */
-const rich = (s: string): string => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+/**
+ * Pack text to markup: **bold** for a key phrase, and [[id:Name]] for a product named as a
+ * source, which puts the product's mark before its name.
+ */
+const rich = (s: string): string =>
+  esc(s)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(
+      /\[\[([a-z]+):(.+?)\]\]/g,
+      (_, id: string, name: string) => `<span class="brand">${logo(id)}${name}</span>`,
+    );
 
 /** The language of the source documents in the story; their titles and quotes stay in it. */
 const SOURCE_LANG = "zh-CN";
@@ -206,9 +218,6 @@ const icon = (name: keyof typeof ICONS, size: number, cls: string): string =>
 
 /** Where the source code lives; linked from the header and the footer. */
 const REPOSITORY = "https://github.com/AngelMsger/Inspiration";
-/** GitHub's mark (Octicons, MIT licence), filled rather than stroked like the other icons. */
-const GITHUB_MARK =
-  '<svg class="gh-mark" width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>';
 
 /** Where each footnote number in the headline points: the section that shows the claim. */
 const NOTE_TARGETS = ["#problem", "#how"];
@@ -298,7 +307,7 @@ function heroFigure(c: PageContext): string {
   const f = c.pack.hero.figure;
   const feeds = SOURCE_KINDS.map((kind, i) => {
     const feed = at(f.feeds, i, "hero.figure.feeds");
-    return `<li class="feed" data-feed="${i}"><span class="feed-event">${esc(feed.event)}</span><span class="feed-tile">${icon(kind, 20, "feed-ico")}<span class="feed-kind">${esc(feed.kind)}</span><span class="feed-place">${esc(feed.place)}</span></span></li>`;
+    return `<li class="feed" data-feed="${i}"><span class="feed-event">${esc(feed.event)}</span><span class="feed-tile">${icon(kind, 20, "feed-ico")}<span class="feed-kind">${esc(feed.kind)}</span><span class="feed-place">${rich(feed.place)}</span></span></li>`;
   }).join("");
   const wires = SOURCE_KINDS.map((_, i) => {
     const x = 50 + i * 100;
@@ -420,7 +429,7 @@ function stage(c: PageContext): string {
       </div>
     </div>
     <div class="sat notice-card">
-      <p class="sat-label"><span class="doc-ico" aria-hidden="true"></span>${esc(u.changeLabel)}</p>
+      <p class="sat-label">${rich(u.changeLabel)}</p>
       <p class="sat-title" lang="${SOURCE_LANG}">${esc(u.notice)}</p>
       <p class="sat-meta">${esc(u.changeMeta)}</p>
     </div>
@@ -656,7 +665,7 @@ function footer(c: PageContext): string {
   return `<footer class="foot">
   <div class="wrap foot-row">
     <span class="wordmark">Inspiration</span>
-    <p>${esc(c.pack.footer.line)}</p>
+    <p>${esc(c.pack.footer.line)}<br>${esc(c.pack.footer.marks)}</p>
     <a class="foot-gh" href="${REPOSITORY}">${GITHUB_MARK}GitHub</a>
     ${languageMenu(c)}
   </div>
