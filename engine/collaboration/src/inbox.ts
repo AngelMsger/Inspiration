@@ -190,6 +190,8 @@ function resolvedEvent(item: Item, at: Date): EventEnvelope {
 }
 
 export interface InboxOptions {
+  /** A deployment may route unowned work to the space owner supplied by its directory. */
+  fallbackOwner?: (tenantId: string, spaceId: string) => Promise<string | undefined>;
   store: KnowledgeStore;
   records: Records;
   clock?: () => Date;
@@ -207,9 +209,11 @@ export class Inbox {
   readonly clock: () => Date;
   readonly settings: InboxSettings;
   readonly totals = { received: 0, created: 0, merged: 0, withdrawn: 0, rerouted: 0 };
+  readonly #fallbackOwner?: InboxOptions["fallbackOwner"];
   readonly #running = new Map<string, Promise<unknown>>();
 
   constructor(options: InboxOptions) {
+    this.#fallbackOwner = options.fallbackOwner;
     this.store = options.store;
     this.records = options.records;
     this.clock = options.clock ?? (() => new Date());
@@ -278,7 +282,7 @@ export class Inbox {
       for (const item of open
         .filter((i) => !hosts.has(i) && !i.campaign)
         .sort((a, b) => rank(a) - rank(b) || (a.todo.created_at < b.todo.created_at ? -1 : 1))) {
-        const route = await this.#route(item.todo.unit_ids, topics);
+        const route = await this.#route(item.todo.unit_ids, topics, tenantId, item.todo.space_id);
         const same = route.topic === item.todo.taxonomy_key && route.owner === item.todo.assignee_id;
         if (same && !item.with_todo) continue;
         await this.records.transaction(async (tx) => {
@@ -379,7 +383,7 @@ export class Inbox {
   async #receive(event: EventEnvelope, request: Request): Promise<void> {
     await this.#serial(event.tenant_id, async () => {
       const tenantId = event.tenant_id;
-      const route = await this.#route(request.unit_ids, await this.#topics(tenantId));
+      const route = await this.#route(request.unit_ids, await this.#topics(tenantId), tenantId, request.space_id);
       const now = this.clock();
       const created = await this.records.transaction(async (tx) => {
         if (!(await tx.firstDelivery(COMPONENT, event.id))) return undefined;
@@ -648,7 +652,12 @@ export class Inbox {
    * document, the topic most of its statements are in. Its owner is the topic's, else the
    * nearest owner above it.
    */
-  async #route(units: readonly string[], topics: ReadonlyMap<string, TaxonomyNode>): Promise<Route> {
+  async #route(
+    units: readonly string[],
+    topics: ReadonlyMap<string, TaxonomyNode>,
+    tenantId: string,
+    spaceId: string,
+  ): Promise<Route> {
     const claims = units.filter((u) => idKind(u) === "claim");
     let topic: string | undefined;
     if (claims.length) {
@@ -667,11 +676,11 @@ export class Inbox {
       topic = majority(placed);
     }
     const node = topic === undefined ? undefined : topics.get(topic);
-    if (!node || node.status === "retired") return {};
+    if (!node || node.status === "retired") return { owner: await this.#fallbackOwner?.(tenantId, spaceId) };
     for (let n: TaxonomyNode | undefined = node; n; n = n.parent_key ? topics.get(n.parent_key) : undefined) {
       if (n.owner_id) return { topic: node.key, owner: n.owner_id };
     }
-    return { topic: node.key };
+    return { topic: node.key, owner: await this.#fallbackOwner?.(tenantId, spaceId) };
   }
 
   async #spaceOf(units: readonly string[]): Promise<string | undefined> {

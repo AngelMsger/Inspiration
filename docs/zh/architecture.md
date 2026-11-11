@@ -103,7 +103,7 @@ flowchart LR
 
 | 阶段 | 组件 | 职责 | 状态 |
 | --- | --- | --- | --- |
-| 导入 | connectors | 每个厂商一个集成：列举、抓取、读取 ACL、Webhook、Agent 工具。已构建：本地文件夹、飞书文档和审批（录制的测试数据） | 已构建 |
+| 导入 | connectors | 每个厂商一个集成：列举、抓取、读取 ACL、Webhook、Agent 工具。已构建：本地文件夹、自建 Confluence 空间页面、飞书 docx／知识库页面链接，以及录制的飞书审批测试数据 | 已构建 |
 | 导入 | source-sync | 版本、删除标记、ACL 快照、轮询和对账；之后是 `fetch_now` 和文档树 | 已构建；轮询和对账的定时调度已计划（目前在被调用时同步） |
 | 导入 | parsing | 处理 Word、PowerPoint、Excel 和 PDF 的 Python worker，通过 HTTP 契约调用；之后通过 OCR 和版面模型处理扫描件 | 文本层已构建 |
 | 导入 | normalization | 带稳定 ID 的规范块和片段、块差异、重复文档；之后是镜像页 | 已构建 |

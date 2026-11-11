@@ -78,6 +78,8 @@ export interface BackendOptions {
   publicUrl: string;
   /** The built web app, served for every path outside /api/ and /.well-known/. */
   webDir?: string;
+  local?: boolean;
+  mockModels?: boolean;
 }
 
 /**
@@ -156,7 +158,8 @@ class Backend {
         method: "GET",
         path: /^\/api\/health$/,
         needs: "anyone",
-        run: async ({ res }) => sendJson(res, 200, { ok: true }),
+        run: async ({ res }) =>
+          sendJson(res, 200, { ok: true, local: options.local === true, mock_models: options.mockModels === true }),
       },
       { method: "GET", path: /^\/api\/auth\/sign-in$/, needs: "anyone", run: (c) => this.#signIn(c) },
       { method: "GET", path: /^\/api\/auth\/callback$/, needs: "anyone", run: (c) => this.#callback(c) },

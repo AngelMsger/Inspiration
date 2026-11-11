@@ -32,7 +32,7 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 | Doc | Status | What it covers |
 | --- | --- | --- |
 | [Overview](overview.md) | Version 2, 2026-10-27; brought up to date 2026-11-05 | Product requirements and the architecture at a glance: scenarios, diagrams, feasibility, what is built and planned |
-| [Decisions and open questions](decisions.md) | Kept current, 2026-11-05 | The product owner's decisions in force, by date, and the questions still open |
+| [Decisions and open questions](decisions.md) | Kept current, 2026-11-11 | The product owner's decisions in force, by date, and the questions still open |
 | [The MVP](design/mvp.md) | Adopted, 2026-11-05 | A usable product that closes the business flow for one company: scope, slices and decisions |
 | [Validating the knowledge core](design/validation.md) | Adopted, 2026-11-05 | How extraction and governance are measured on real documents, and the results so far |
 
@@ -45,6 +45,8 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 | [PageSpec and views](pagespec.md) | Reference | How pages match Claude Artifacts, and the view sandbox |
 | [Development](development.md) | Reference | Building, testing and running everything from source: the stack, the checks, the bench, the demo |
 | [Licensing](licensing.md) | Reference | Licences of the stack and what they mean for delivery |
+
+| [Local validation](local.md) | Reference | Persistent local startup, Confluence Data Center / Server and Feishu connections, DeepSeek, validation and troubleshooting |
 
 ## Designs: knowledge
 

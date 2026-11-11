@@ -422,6 +422,9 @@
       "SourceStatus",
       "ScopeSpec",
       "Source",
+      "SourceSyncState",
+      "CreateConnection",
+      "ConnectionList",
       "AclFidelity",
       "ConnectorCapabilities",
       "SourceItemKind",
@@ -3149,6 +3152,36 @@
         "llm_judge"
       ]
     },
+    "ConnectionList": {
+      "type": "object",
+      "required": [
+        "sources",
+        "configured"
+      ],
+      "properties": {
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Source"
+          }
+        },
+        "configured": {
+          "type": "object",
+          "required": [
+            "confluence",
+            "feishu"
+          ],
+          "properties": {
+            "confluence": {
+              "type": "boolean"
+            },
+            "feishu": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
     "ConnectorCapabilities": {
       "type": "object",
       "required": [
@@ -3217,6 +3250,46 @@
         "currency": {
           "type": "string",
           "pattern": "^[A-Z]{3}$"
+        }
+      }
+    },
+    "CreateConnection": {
+      "description": "Connect a configured local credential to an Inspiration space. No secret is accepted here.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type",
+        "name",
+        "targets",
+        "governance_level"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "confluence",
+            "feishu.docx"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "targets": {
+          "description": "One Confluence space key, or Feishu docx/wiki page URLs.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 100,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        },
+        "governance_level": {
+          "$ref": "#/$defs/GovernanceLevel"
         }
       }
     },
@@ -3910,6 +3983,10 @@
           "$ref": "#/$defs/SourceVersionId"
         },
         "mime_type": {
+          "type": "string"
+        },
+        "url": {
+          "description": "Original HTTP(S) page, when the connector provides one. Opening it uses the reader's upstream permissions.",
           "type": "string"
         },
         "language": {
@@ -8281,6 +8358,9 @@
         },
         "updated_at": {
           "$ref": "#/$defs/Instant"
+        },
+        "sync": {
+          "$ref": "#/$defs/SourceSyncState"
         }
       }
     },
@@ -8434,6 +8514,36 @@
         "error",
         "archived"
       ]
+    },
+    "SourceSyncState": {
+      "description": "Last requested connection sync, persisted across process restarts.",
+      "type": "object",
+      "required": [
+        "state",
+        "started_at"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": [
+            "running",
+            "succeeded",
+            "failed"
+          ]
+        },
+        "started_at": {
+          "$ref": "#/$defs/Instant"
+        },
+        "finished_at": {
+          "$ref": "#/$defs/Instant"
+        },
+        "note": {
+          "type": "string"
+        },
+        "report": {
+          "$ref": "#/$defs/SyncReport"
+        }
+      }
     },
     "SourceVersion": {
       "description": "One fetched revision of one item. Immutable once written.",

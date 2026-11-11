@@ -22,3 +22,6 @@ days:
 label_mark: ": "
 list_mark: ", "
 full_stop: "."
+
+discovery_numeric:
+  - '^\s*(?<label>[^:\n]+):\s*[0-9]+(?:\.[0-9]+)?(?:\s+(?<unit>[^.\n]+))?\.?$'

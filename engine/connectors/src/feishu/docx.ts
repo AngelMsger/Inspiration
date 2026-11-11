@@ -40,6 +40,8 @@ import {
   type TextBody,
 } from "./api.ts";
 
+import { HttpFeishuApi } from "./http.ts";
+
 const ROLE: Record<PermissionMember["perm"], AclRole> = { view: "viewer", edit: "editor", full_access: "owner" };
 const KIND: Record<PermissionMember["member_type"], AclEntry["principal_kind"]> = {
   openid: "user",
@@ -145,7 +147,13 @@ export class FeishuDocxConnector implements Connector {
   }
 
   capabilities(): ConnectorCapabilities {
-    return { list: true, fetch: true, acl: true, acl_fidelity: "exact", structured_blocks: true };
+    return {
+      list: true,
+      fetch: true,
+      acl: true,
+      acl_fidelity: this.api.connectionScoped ? "connection_scoped" : "exact",
+      structured_blocks: true,
+    };
   }
 
   #version(doc: FeishuDocument): Version {
@@ -159,7 +167,7 @@ export class FeishuDocxConnector implements Connector {
   }
 
   async list(scope: ScopeSpec, _cursor?: Cursor): Promise<ListPage> {
-    const wanted = scope.ids?.length ? new Set(scope.ids) : undefined;
+    const wanted = !this.api.connectionScoped && scope.ids?.length ? new Set(scope.ids) : undefined;
     const items = [];
     for (const meta of await this.api.listDocuments()) {
       if (wanted && !wanted.has(meta.document_id)) continue;
@@ -176,7 +184,7 @@ export class FeishuDocxConnector implements Connector {
       external_id: doc.meta.document_id,
       kind: "document",
       title: doc.meta.title,
-      uri: `https://feishu.cn/docx/${doc.meta.document_id}`,
+      uri: doc.meta.url ?? `https://feishu.cn/docx/${doc.meta.document_id}`,
     };
   }
 
@@ -190,12 +198,12 @@ export class FeishuDocxConnector implements Connector {
       version,
       title: doc.meta.title,
       mime_type: "application/vnd.feishu.docx+json",
-      language: "zh-CN",
+      ...(!this.api.connectionScoped && { language: "zh-CN" }),
       blocks: docBlocks(doc),
       metadata: {
         modified_at: doc.meta.modified_at,
         path: doc.meta.path ?? [],
-        url: `https://feishu.cn/docx/${doc.meta.document_id}`,
+        url: doc.meta.url ?? `https://feishu.cn/docx/${doc.meta.document_id}`,
         ...(doc.meta.owner_id !== undefined && { author_external_id: doc.meta.owner_id }),
         ...(Object.keys(extra).length > 0 && { extra }),
       },
@@ -211,7 +219,7 @@ export class FeishuDocxConnector implements Connector {
 
   #snapshot(doc: FeishuDocument): AclSnapshot {
     return aclSnapshot(this.source.id, doc.meta.document_id, memberEntries(doc.members, doc.link_share_entity), {
-      fidelity: "exact",
+      fidelity: this.api.connectionScoped ? "connection_scoped" : "exact",
       capturedAt: new Date(),
     });
   }
@@ -221,6 +229,9 @@ export class FeishuDocxConnector implements Connector {
   }
 }
 
-export function feishuDocxConnector(source: Source, _ctx: ConnectorContext): Connector {
-  return new FeishuDocxConnector(source);
+export function feishuDocxConnector(source: Source, ctx: ConnectorContext): Connector {
+  return new FeishuDocxConnector(
+    source,
+    source.scope.options?.fixtures ? feishuApi(source.scope.options) : new HttpFeishuApi(source, ctx),
+  );
 }

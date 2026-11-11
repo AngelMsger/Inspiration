@@ -11,6 +11,7 @@ import { folderRows } from "./folders.ts";
 import { Crumbs, Failure, formatDate, Metric } from "./parts.tsx";
 import type { Person } from "./people.ts";
 import { Link, type Route } from "./route.tsx";
+import { Sources } from "./sources.tsx";
 import type { Update } from "./updates.ts";
 import { useWords } from "./words.ts";
 
@@ -45,6 +46,7 @@ export function MaintainColumn(props: { route: MaintainRoute; library: Library }
       <div className="nav-heading">{say("maintain.structure")}</div>
       {item("topics", say("maintain.topics"))}
       {item("documents", say("maintain.documents"))}
+      {item("sources", say("maintain.sources"))}
       <div className="nav-heading">{say("maintain.access_heading")}</div>
       {item("access", say("maintain.access"))}
     </nav>
@@ -115,6 +117,14 @@ export function MaintainScreen(props: {
           {crumbs}
           {heading}
           <Folders library={props.library} space={route.space} overview={overview.value} />
+        </main>
+      );
+    case "sources":
+      return (
+        <main className="centre">
+          {crumbs}
+          {heading}
+          <Sources key={route.space} space={route.space} onChanged={props.onSourcesChanged} />
         </main>
       );
     case "access":

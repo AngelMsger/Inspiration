@@ -51,6 +51,7 @@ export interface Para {
 export interface World {
   store: KnowledgeStore;
   gateway: Gateway;
+  records: Records;
   extraction: Extraction;
   /**
    * Store a version of a document with these blocks the way normalization does (block and
@@ -78,7 +79,7 @@ function pieces(para: Para): string[] {
   return para.text.split(/(?<=[.?!])\s+/).filter(Boolean);
 }
 
-export const extractionTest = (backend: Backend) =>
+export const extractionTest = (backend: Backend, options: { discoverFacts?: boolean; emptyCatalogue?: boolean } = {}) =>
   // biome-ignore lint/correctness/noEmptyPattern: Vitest reads fixture dependencies from this pattern
   test.extend("world", async ({}, { onCleanup }): Promise<World> => {
     // Every reading of the clock is a second later, so known-when intervals never collapse.
@@ -107,7 +108,14 @@ export const extractionTest = (backend: Backend) =>
         );
     }
     const gateway = await Gateway.create(loadGatewayConfig(join(workspaceRoot(), "config", "gateway.dev.yaml")));
-    const extraction = new Extraction({ store, records, models: gateway, vocabulary: () => VOCABULARY, clock });
+    const extraction = new Extraction({
+      store,
+      records,
+      models: gateway,
+      vocabulary: () => (options.emptyCatalogue ? undefined : VOCABULARY),
+      discoverFacts: options.discoverFacts,
+      clock,
+    });
     const last = new Map<string, { version: SourceVersion; blocks: SourceBlock[] }>();
     let tick = 0;
 
@@ -199,6 +207,7 @@ export const extractionTest = (backend: Backend) =>
 
     return {
       store,
+      records,
       gateway,
       extraction,
       version,

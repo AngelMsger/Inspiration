@@ -10,19 +10,22 @@
  *   translation of the one without it (DocumentMetadata.translation_of). A Markdown file whose
  *   front matter is not valid YAML is listed, but fetching it fails (FrontMatterError) rather
  *   than fall back to the folder's labels, so sync keeps its earlier version and reports it.
+ * - confluence: Data Center / Server space pages through REST with PAT authentication.
  * - feishu.docx: Feishu documents as blocks anchored by native block IDs, with members and
- *   link sharing as the ACL.
+ *   link sharing as the ACL for fixtures; live docx/wiki links use the connection-scoped view.
  * - feishu.approval: Feishu approval definitions and instance timelines, for SOP mining.
  *
- * The Feishu connectors read through FeishuApi; recorded fixtures stand in for the HTTP API
- * until a tenant gives the app credentials. ACL entries carry the source's own principal
+ * Feishu docx reads through FeishuApi, either fixtures or the live app-authenticated API.
+ * Approval imports still use fixtures. ACL entries carry the source's own principal
  * IDs; mapping them to engine principals is source sync's job.
  */
 
 export { aclHash, aclSnapshot, normalizeEntries, parseEntry } from "./acl.ts";
+export * from "./confluence.ts";
 export * from "./feishu/api.ts";
 export { FeishuApprovalConnector, feishuApprovalConnector, processSnapshot } from "./feishu/approval.ts";
 export { docBlocks, FeishuDocxConnector, feishuDocxConnector, memberEntries, plainText } from "./feishu/docx.ts";
+export { feishuLink } from "./feishu/http.ts";
 export {
   FolderConnector,
   FrontMatterError,
@@ -32,3 +35,4 @@ export {
   MIME_TYPES,
   translationOf,
 } from "./folder.ts";
+export * from "./http.ts";

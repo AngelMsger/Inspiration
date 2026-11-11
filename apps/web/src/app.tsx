@@ -446,6 +446,11 @@ function TopBar(props: {
   onSignOut: () => void;
 }) {
   const { say, tag } = useWords();
+  const modelMode = useLoad("model-mode", async () => {
+    const response = await fetch("/api/health");
+    const body: unknown = await response.json();
+    return !!body && typeof body === "object" && "mock_models" in body && body.mock_models === true;
+  });
   const menu = useRef<HTMLDetailsElement>(null);
   const close = () => menu.current?.removeAttribute("open");
   const { account, companies, sample } = props.session;
@@ -455,6 +460,11 @@ function TopBar(props: {
   const about = props.demo?.find((p) => p.member === current.member_id)?.about;
   return (
     <header className="top">
+      {modelMode.state === "done" && modelMode.value && (
+        <span className="sample-tag" title={say("local.mock_detail")}>
+          {say("local.mock")}
+        </span>
+      )}
       <Link to={{ name: "home" }} className="wordmark">
         Inspiration
       </Link>

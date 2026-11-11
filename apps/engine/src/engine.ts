@@ -50,6 +50,8 @@ export interface EngineOptions {
   blobDir: string;
   /** Maps source principals to engine principals; the business layer's directory. */
   resolvePrincipal?: PrincipalResolver;
+  secret?: (name: string) => Promise<string>;
+  discoverFacts?: boolean;
   /** Defaults to the development gateway (config/gateway.dev.yaml): fake providers only. */
   models?: ModelGateway;
   /**
@@ -80,7 +82,7 @@ interface Running {
 
 /**
  * The engine process: one store, one blob store, one event bus, and the built components
- * subscribed under their own consumer groups. Long-running deployments call run(); batch
+ * subscribed under their own consumer groups. Long-running deployments drain work with settleLater(); batch
  * runs (ingest a corpus, then report) call settle() to deliver until nothing is left.
  */
 export class Engine {
@@ -92,6 +94,7 @@ export class Engine {
   readonly ledger: Gateway | undefined;
   /** What the engine takes as now. */
   readonly clock: () => Date;
+  readonly discoverFacts: boolean;
   readonly sync: SourceSync;
   readonly normalization: Normalization;
   readonly extraction: Extraction;
@@ -142,12 +145,15 @@ export class Engine {
     relay?: OutboxRelay;
     pool?: Pool;
     resolvePrincipal?: PrincipalResolver;
+    secret?: (name: string) => Promise<string>;
+    discoverFacts?: boolean;
     vocabulary?: ExtractionOptions["vocabulary"];
     clock?: () => Date;
     graph?: Graph;
     contextTokens?: number;
     compactSources?: AnswerSources;
   }) {
+    this.discoverFacts = parts.discoverFacts === true;
     this.store = parts.store;
     this.records = parts.records;
     this.blobs = parts.blobs;
@@ -163,6 +169,7 @@ export class Engine {
       store: this.store,
       records: this.records,
       blobs: this.blobs,
+      ...(parts.secret && { secret: parts.secret }),
       ...(parts.resolvePrincipal && { resolvePrincipal: parts.resolvePrincipal }),
     });
     this.normalization = new Normalization({
@@ -176,13 +183,24 @@ export class Engine {
       store: this.store,
       records: this.records,
       models: this.models,
+      discoverFacts: parts.discoverFacts,
       ...(parts.vocabulary && { vocabulary: parts.vocabulary }),
     });
     const clock = parts.clock && { clock: parts.clock };
     this.governance = new Governance({ store: this.store, records: this.records, ...clock });
     this.freshness = new Freshness({ store: this.store, records: this.records, ...clock });
     this.topics = new Topics({ store: this.store, records: this.records, models: this.models, ...clock });
-    this.inbox = new Inbox({ store: this.store, records: this.records, ...clock });
+    this.inbox = new Inbox({
+      store: this.store,
+      records: this.records,
+      ...clock,
+      ...(parts.discoverFacts && {
+        fallbackOwner: async (tenant, space) => {
+          const entry = await this.directory.space(space);
+          return entry?.tenant_id === tenant ? entry.owner_ids[0] : undefined;
+        },
+      }),
+    });
     this.assistant = new Assistant({ inbox: this.inbox });
     const graph = parts.graph ?? new MemoryGraph();
     this.authz = new AuthzService(graph, this.store);
@@ -243,6 +261,8 @@ export class Engine {
     } else transport = new InMemoryTransport();
     closers.push(() => transport.close());
     const resolve = {
+      discoverFacts: options.discoverFacts,
+      ...(options.secret && { secret: options.secret }),
       ...(options.resolvePrincipal && { resolvePrincipal: options.resolvePrincipal }),
       ...(options.vocabulary && { vocabulary: options.vocabulary }),
       ...(options.clock && { clock: options.clock }),

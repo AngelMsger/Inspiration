@@ -466,3 +466,38 @@ apps.revoke: 取り消す
 apps.confirm_revoke: 取り消しますか？使っているアプリはすぐに止まります。
 copy.button: コピー
 copy.done: コピーしました
+
+maintain.sources: "接続"
+source.confluence: "Confluence Data Center / Server"
+connections.lede: "オンライン文書を接続し、原文の変更後に再同期します。"
+connections.access: "取り込んだ文書はこのスペースの閲覧者に公開されます。元の文書の個別権限は複製されません。個人検証には非公開スペースを使用してください。"
+connections.kind: "接続先"
+connections.name: "接続名"
+connections.space_key: "Confluence スペースキー（例：HR）"
+connections.links: "Feishu の docx または wiki ページ URL（1 行に 1 件）"
+connections.level: "文書の処理方法"
+connections.reference: "参考資料：検索と引用が可能で、回答に使用する際に事実を抽出します。"
+connections.governed: "管理対象：事実を抽出し、不一致の確認をスペース所有者に依頼します。規程や正式な指示向けです。"
+connections.search_only: "検索のみ：索引と引用に対応し、事実の抽出は行いません。"
+connections.connect: "接続して同期"
+connections.starting: "開始中…"
+connections.sync: "今すぐ同期"
+connections.connected: "接続済みのソース"
+connections.empty: "オンラインのソースはまだ接続されていません。"
+connections.running: "同期中…"
+connections.succeeded: "同期完了"
+connections.failed: "同期の確認が必要です"
+connections.result: "追加 {created} · 更新 {updated} · 変更なし {unchanged} · 削除 {deleted} · 失敗 {failed}"
+connections.open: "取り込んだ文書を開く"
+connections.processing: "同期後も解析と索引作成がバックグラウンドで続きます。「文書」で進捗を確認し、質問して引用を確認してください。"
+connections.configure_confluence: ".env に INSPIRATION_CONFLUENCE_URL と INSPIRATION_CONFLUENCE_TOKEN を設定して pnpm local を再起動してください。"
+connections.configure_feishu: ".env に INSPIRATION_FEISHU_APP_ID と INSPIRATION_FEISHU_APP_SECRET を設定して pnpm local を再起動してください。"
+
+signin.local_title: "このコンピューターの Inspiration"
+signin.local_lede: "このコンピューターの Inspiration を開きます。メール、パスワード、外部認証サービスは不要です。"
+signin.local_open: "Inspiration を開く"
+
+local.mock: "模擬モデル"
+local.mock_detail: "動作確認用です。回答は DeepSeek による生成ではありません。"
+
+doc.open_source: "元のページを開く"

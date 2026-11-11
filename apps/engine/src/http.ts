@@ -107,11 +107,13 @@ import {
 } from "@inspiration/contracts";
 import { logger } from "@inspiration/kernel";
 import { documentTree, entryOf, foldersOf, type ListedDocument } from "@inspiration/source-sync";
+import { connections, connectSource, startSync } from "./connections.ts";
 import { decidedWeek, decideTodos, putDelegation, undoDecision } from "./decisions.ts";
 import type { Engine } from "./engine.ts";
 import { badRequest, HttpError, notFound } from "./http-errors.ts";
 import { members, putMember, putTenant } from "./provisioning.ts";
 import { countsOf, readingOf } from "./reading.ts";
+import { answerWithReading } from "./reading-on-use.ts";
 import { audienceOf, createSpace, patchSpace, putAudience, putOwners, spaceList } from "./space-admin.ts";
 import { maintains, overviewOf, syncNow } from "./spaces.ts";
 import { factLabels, inboxOf, resolveTodo } from "./todos.ts";
@@ -151,6 +153,19 @@ function routesOf(engine: Engine): Route[] {
     throw new HttpError(405, "bad_request", "the MCP endpoint takes one message per POST and opens no stream");
   };
   return [
+    { method: "GET", path: /^\/v0\/spaces\/([^/]+)\/sources$/, run: (who, m) => connections(engine, who, param(m)) },
+    {
+      method: "POST",
+      path: /^\/v0\/spaces\/([^/]+)\/sources$/,
+      scope: "knowledge.propose",
+      run: async (who, m, req) => connectSource(engine, who, param(m), await req.json()),
+    },
+    {
+      method: "POST",
+      path: /^\/v0\/sources\/([^/]+)\/sync\/start$/,
+      scope: "knowledge.propose",
+      run: (who, m) => startSync(engine, who, param(m)),
+    },
     {
       method: "POST",
       path: /^\/v0\/mcp$/,
@@ -209,7 +224,7 @@ function routesOf(engine: Engine): Route[] {
       path: /^\/v0\/answers$/,
       run: async (who, _m, req) => {
         const query = parseAs<AnswerQuery>("AnswerQuery", await req.json());
-        return (query.depth === "standard" ? engine.retrieval : engine.compact).answer(query, who);
+        return answerWithReading(engine, query, who);
       },
     },
     { method: "GET", path: /^\/v0\/inbox$/, run: (who) => inboxOf(engine, who) },
@@ -385,7 +400,7 @@ function mcpOf(engine: Engine): McpServer {
     version: "0",
     library: {
       search: (query, who) => engine.retrieval.search(query, who),
-      answer: (query, who) => (query.depth === "standard" ? engine.retrieval : engine.compact).answer(query, who),
+      answer: (query, who) => answerWithReading(engine, query, who),
       document: (version, who) => document(engine, who, new URLSearchParams({ version })),
     },
     refusal: (error) => httpErrorOf(error)?.message,

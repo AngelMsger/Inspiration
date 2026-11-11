@@ -26,6 +26,7 @@ import {
 import { defineTable, type Records } from "@inspiration/eventbus";
 import { logger } from "@inspiration/kernel";
 import { PromptRegistry } from "@inspiration/model-gateway";
+import { FactDiscovery } from "./discovery.ts";
 import { OUTPUT_SCHEMA, PROMPT_VERSION, TASK, type WindowInput, type WindowOutput } from "./protocol.ts";
 import { fitToCatalogue, mentioned, type Vocabulary } from "./vocabulary.ts";
 import { type Built, buildClaim, dayStart, type Window, windowsOf } from "./windows.ts";
@@ -51,6 +52,7 @@ export interface ExtractionOptions {
   vocabulary?: (tenantId: string) => Vocabulary | undefined | Promise<Vocabulary | undefined>;
   clock?: () => Date;
   windowChars?: number;
+  discoverFacts?: boolean;
 }
 
 export interface ExtractionResult {
@@ -153,6 +155,7 @@ export class Extraction {
     windows_by_level: { governed: 0, reference: 0, search_only: 0 } as Record<GovernanceLevel, number>,
   };
   readonly #vocabulary: NonNullable<ExtractionOptions["vocabulary"]>;
+  readonly #discovery?: FactDiscovery;
   readonly #running = new Map<string, Promise<unknown>>();
 
   constructor(options: ExtractionOptions) {
@@ -168,6 +171,7 @@ export class Extraction {
       this.prompts = new PromptRegistry();
       this.prompts.loadDir(PROMPTS_DIR);
     }
+    if (options.discoverFacts) this.#discovery = new FactDiscovery(this.records, this.models, this.prompts);
   }
 
   get producer(): ProducerInfo {
@@ -389,7 +393,12 @@ export class Extraction {
     const level = levelOf(version);
     const targets = new Set([...change.added_block_ids, ...change.changed_block_ids]);
     if (change.deleted || level === "search_only" || !targets.size) return { extracted, read };
-    const vocabulary = (await this.#vocabulary(version.tenant_id))?.predicates ?? [];
+    let vocabulary = (await this.#vocabulary(version.tenant_id))?.predicates ?? [];
+    if (this.#discovery)
+      vocabulary = [
+        ...vocabulary,
+        ...(await this.#discovery.catalogue(version.tenant_id, version.space_id, version.sensitivity)),
+      ];
     // Unless a page or an answer uses it, a reference document is read only where it names a
     // catalogue fact, and only the claims that fill a slot are kept.
     const slotsOnly = level === "reference" && !use;
@@ -398,6 +407,7 @@ export class Extraction {
     const now = this.clock().toISOString();
     try {
       for (const window of await windowsOf(this.store, version, targets, this.windowChars, touches)) {
+        if (this.#discovery && !slotsOnly) vocabulary = await this.#discovery.discover(version, window, vocabulary);
         result.windows++;
         const output = await this.#complete(version, window, vocabulary);
         if (!output) {

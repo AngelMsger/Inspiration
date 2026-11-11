@@ -44,6 +44,7 @@ import {
 import { PostgresTenancy, type SampleCompany, MIGRATIONS as TENANCY, Tenancy } from "@inspiration/tenancy";
 import { parse } from "yaml";
 import { EngineClient } from "./engine.ts";
+import { LocalIdentity } from "./local-identity.ts";
 import { backendHandler } from "./routes.ts";
 import { Tokens } from "./tokens.ts";
 
@@ -52,7 +53,7 @@ const log = logger("business.serve");
 const USAGE = "usage: inspiration-business serve [--port 4200] [--web <dir>] [--sample <corpus>]";
 
 /** The settings above, from the environment over .env. */
-function settingsOf(env: Record<string, string | undefined>) {
+function settingsOf(env: Record<string, string | undefined>, local: boolean) {
   const need = (name: string) => {
     const value = env[name];
     if (!value) throw new RangeError(`set ${name} (see inspiration-business --help)`);
@@ -65,13 +66,15 @@ function settingsOf(env: Record<string, string | undefined>) {
     publicUrl,
     engineUrl,
     audience: env.INSPIRATION_ENGINE_AUDIENCE || engineUrl,
-    logto: {
-      issuer: need("INSPIRATION_LOGTO_ISSUER"),
-      clientId: need("INSPIRATION_LOGTO_APP_ID"),
-      clientSecret: need("INSPIRATION_LOGTO_APP_SECRET"),
-      redirectUri: `${publicUrl}/api/auth/callback`,
-      signedOutUri: `${publicUrl}/`,
-    },
+    provider: local
+      ? new LocalIdentity(publicUrl)
+      : new OidcProvider({
+          issuer: need("INSPIRATION_LOGTO_ISSUER"),
+          clientId: need("INSPIRATION_LOGTO_APP_ID"),
+          clientSecret: need("INSPIRATION_LOGTO_APP_SECRET"),
+          redirectUri: `${publicUrl}/api/auth/callback`,
+          signedOutUri: `${publicUrl}/`,
+        }),
     key: pem ? signingKeyFromPem(pem, need("INSPIRATION_SIGNING_KEY_ID")) : undefined,
   };
 }
@@ -90,6 +93,7 @@ async function main(argv: string[]): Promise<number> {
     args: argv,
     allowPositionals: true,
     options: {
+      local: { type: "boolean", default: false },
       port: { type: "string", default: "4200" },
       web: { type: "string" },
       sample: { type: "string" },
@@ -101,7 +105,7 @@ async function main(argv: string[]): Promise<number> {
     return 2;
   }
   const file = existsSync(".env") ? parseEnv(readFileSync(".env", "utf8")) : {};
-  const settings = settingsOf({ ...file, ...process.env });
+  const settings = settingsOf({ ...file, ...process.env }, values.local);
   const key = settings.key ?? generateSigningKey(`dev-${Date.now()}`);
   if (!settings.key) log.warn("no INSPIRATION_SIGNING_KEY: signing with a key made for this run", { kid: key.kid });
 
@@ -110,7 +114,7 @@ async function main(argv: string[]): Promise<number> {
   const pool = await openPool(databaseUrl);
   const tokens = new Tokens({ issuer: settings.publicUrl, audience: settings.audience, key });
   const engine = new EngineClient(settings.engineUrl, tokens);
-  const accounts = new Accounts(new PostgresAccounts(pool), new OidcProvider(settings.logto));
+  const accounts = new Accounts(new PostgresAccounts(pool), settings.provider);
   const tenancy = new Tenancy(
     new PostgresTenancy(pool),
     engine,
@@ -120,6 +124,8 @@ async function main(argv: string[]): Promise<number> {
   const server = createServer(
     backendHandler({
       accounts,
+      local: values.local,
+      mockModels: values.local && process.env.INSPIRATION_LOCAL_MODEL_MODE === "mock",
       tenancy,
       grants: new AccessGrants(new PostgresGrants(pool)),
       engine,

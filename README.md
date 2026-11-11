@@ -29,6 +29,8 @@
 > [!NOTE]
 > **Inspiration is in active development and not ready for use yet.** The knowledge engine runs end to end, and has been tested on real models against a mature RAG. The MVP, a usable product for one company, is being built now ([roadmap](#roadmap)).
 
+For local validation with your own Confluence or Feishu documents and DeepSeek, see the [local guide](docs/local.md) and run `pnpm local` after setup.
+
 ## Why Inspiration
 
 **Company knowledge is spread over wikis, approval systems, drives and chats, and it changes all the time.** Ask how much a hotel night in Shenzhen may cost, and search finds five documents: the travel policy, a rate sheet and the new-hire guide say 600; a newer notice and the FAQ say 650. A RAG system hands all five to a model and hopes it picks the right one, and every agent built on it inherits the guess.
@@ -195,17 +197,17 @@ Read more in [Architecture](docs/architecture.md) and [Contracts](docs/contracts
 | 2 | Documents in | Upload files and folders, with new versions; Word, PowerPoint, Excel and PDF parsing; reading on a real model within a daily budget | ✅ Built |
 | 3 | Fast cited answers | The compact answer by default, a faster reranker, stable search, disputed values marked in the answer | ✅ Built |
 | 🏁 | **Gate A: first usable** | Sign in, upload your own files, ask in English, Chinese or Japanese, get a cited answer | |
-| 4 | Governance that asks little | "Decide for me" on every inbox card, with reasons and undo; reading on demand | 🚧 "Decide for me" built in the engine and the web app; reading on demand still to come |
+| 4 | Governance that asks little | "Decide for me" on every inbox card, with reasons and undo; reading on demand | 🚧 "Decide for me" built in the engine and the web app; reading on demand available in the local validation profile |
 | 5 | Agents | An MCP server with search, ask and read, acting as the member; personal tokens | ✅ Built; tested end to end with the official MCP client library, through the business backend to the engine |
 | 🏁 | **Gate B: the flow closed** | A colleague reads only their spaces, a new version changes the answer, an agent sees only what its member may | |
 | 6 | Trial | One deployed server, a usage page and feedback | Next; the trial's model budgets are built |
 | 🏁 | **Gate C: the trial** | A few people outside the team use it for two weeks with their own documents | |
 
-**After the MVP:** a pilot with a design partner; live sync from Lark (Feishu); a private space for every member, with publishing into shared spaces; joint approval. The validation line resumes on a larger dataset close to real use, with the 10-point lead as its long-term goal. Later come Deep Research reports as sources, approval flows turned into procedures, code repositories as a code graph, interactive views, SSO and directory sync, and private deployment.
+**After the MVP:** a pilot with a design partner; broader Lark (Feishu) sync; a private space for every member, with publishing into shared spaces; joint approval. The validation line resumes on a larger dataset close to real use, with the 10-point lead as its long-term goal. Later come Deep Research reports as sources, approval flows turned into procedures, code repositories as a code graph, interactive views, SSO and directory sync, and private deployment.
 
 ## Get started
 
-Inspiration is not ready to install yet. To build and test it from source, you need Node 22.18 or later, pnpm, Python 3.10 or later and Docker (the repository pins pnpm 10.28.0 for corepack and Volta), then run `make install && make up && make check`; the [development guide](docs/development.md) covers the demo, the benchmarks and the model gateway.
+Inspiration can be run locally from source for validation; it is not a packaged production release. To build and test it from source, you need Node 22.18 or later, pnpm, Python 3.10 or later and Docker (the repository pins pnpm 10.28.0 for corepack and Volta), then run `make install && make up && make check`; the [development guide](docs/development.md) covers the demo, the benchmarks and the model gateway.
 
 ## Repository layout
 
@@ -231,6 +233,7 @@ docs/               overview, engine reference and design docs, indexed in docs/
 docs/zh/            Chinese copies of every doc
 docs/assets/        the READMEs' images and the architecture diagrams, with their sources, in English, Chinese and Japanese
 test/               repo-wide checks: the component manifest, languages, docs, file paths
+.env.example        local environment settings; copy to .env and keep credentials on this computer
 README*.md          this page in English, Chinese (README.zh.md) and Japanese (README.ja.md)
 ```
 

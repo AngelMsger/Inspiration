@@ -1,7 +1,6 @@
 /**
  * The slice of the Feishu (Lark) open platform the connectors use, as an interface, so the
- * same connector code runs on recorded fixtures now and on the HTTP API once a tenant gives
- * the app credentials. Shapes follow the API's JSON (docx/v1 blocks, drive permission
+ * same connector code runs on recorded fixtures now and on the HTTP API with app credentials. Shapes follow the API's JSON (docx/v1 blocks, drive permission
  * members, approval/v4 definitions and instances), trimmed to the fields we read.
  */
 
@@ -55,7 +54,8 @@ export interface DocumentMeta {
   document_id: string;
   revision_id: number;
   title: string;
-  modified_at: string;
+  modified_at?: string;
+  url?: string;
   /** Wiki path from the space root. */
   path?: string[];
   owner_id?: string;
@@ -104,6 +104,7 @@ export interface FeishuApproval {
 }
 
 export interface FeishuApi {
+  readonly connectionScoped?: boolean;
   listDocuments(): Promise<DocumentMeta[]>;
   document(documentId: string): Promise<FeishuDocument>;
   listApprovals(): Promise<{ approval_code: string; approval_name: string; modified_at: string }[]>;
@@ -166,6 +167,8 @@ export class FixtureFeishuApi implements FeishuApi {
 export function feishuApi(options: Readonly<Record<string, unknown>> | undefined): FeishuApi {
   const fixtures = options?.fixtures;
   if (typeof fixtures === "string") return new FixtureFeishuApi(fixtures);
-  // The HTTP client needs an app ID and secret from the tenant; until then only fixtures work.
-  throw new RangeError("feishu sources need scope.options.fixtures until the HTTP client is configured");
+  // Live sources use HttpFeishuApi through the connector factory, which supplies its secret context.
+  throw new RangeError(
+    "use scope.options.fixtures for recorded Feishu data, or the connector factory for a live connection",
+  );
 }

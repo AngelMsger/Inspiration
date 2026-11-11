@@ -46,7 +46,7 @@ export class VocabularyError extends Error {
   override name = "VocabularyError";
 }
 
-const SCHEMA = {
+export const VOCABULARY_SCHEMA = {
   type: "object",
   required: ["predicates"],
   properties: {
@@ -176,7 +176,7 @@ function valueFor(entry: PredicateEntry, value: ClaimValue): ClaimValue | undefi
 }
 
 export function parseVocabulary(value: unknown): Vocabulary {
-  const errors = schemaErrors(SCHEMA, value);
+  const errors = schemaErrors(VOCABULARY_SCHEMA, value);
   if (errors.length) throw new VocabularyError(`invalid predicate catalogue: ${errors.join("; ")}`);
   return value as Vocabulary;
 }
