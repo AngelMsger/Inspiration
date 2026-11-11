@@ -13,6 +13,12 @@
  * did. A permission change alone writes no new version, so nothing is re-parsed or
  * re-embedded. Items gone from the listing get a tombstone version (deleted: true).
  *
+ * sync() and startSync() share one serialized job and persist its running state and final
+ * report on the source. startSync() returns after the running state commits, with a finished
+ * promise for the same result sync() awaits. Concurrent requests join that job. Status writes
+ * preserve source configuration and connector credentials; recover() marks interrupted jobs
+ * retryable on startup, and close() finishes accepted imports before storage shuts down.
+ *
  * Each version gets its governance level: the item's (front matter, folder defaults,
  * document properties), else the source's, else reference.
  *
@@ -49,6 +55,7 @@ export {
   SourceSync,
   type SourceSyncOptions,
   type SyncReport,
+  type SyncTask,
 } from "./sync.ts";
 export { documentTree, entryOf, foldersOf } from "./tree.ts";
 export { MAX_PATH, pathParts, UPLOAD_TYPE, UPLOADS, type Upload, type UploadRecord, uploadAreaId } from "./uploads.ts";

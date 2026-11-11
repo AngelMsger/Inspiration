@@ -80,7 +80,7 @@ $defs:
         $ref: "#/$defs/SourceSyncState"
 
   SourceSyncState:
-    description: Last requested connection sync, persisted across process restarts.
+    description: Last full source sync, shared by synchronous and background requests and persisted across restarts.
     type: object
     required: [state, started_at]
     properties:

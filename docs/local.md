@@ -85,7 +85,10 @@ after changing credentials. Original links do not grant additional upstream perm
 6. Add a conflicting governed statement. Check the owner's Inbox, review the evidence and
    resolve it. Newly discovered facts are model proposals, not validated company policy.
 7. Restart `pnpm local`, open the same company and check documents, citations and connection
-   results again. An interrupted sync is marked failed with a retry instruction.
+   results again. An interrupted sync is marked failed with a retry instruction. Both sync
+   API entry points use the same source-sync job and persisted result; concurrent requests
+   join the running import. One failed Feishu page is reported individually while readable
+   pages continue updating, and its last imported version is retained.
 
 For an empty company, fact discovery proposes a normalization catalogue from verbatim
 passages, separated by space and sensitivity. Ordinary extraction still validates evidence;
@@ -93,6 +96,17 @@ governance still requires a person's decision where the rules ask for one. The c
 bounded to 200 predicates per space and sensitivity. New topics are organized in the
 background about once a minute and get the space's first owner; small or unfiled topics also
 route review work to that owner. Search and citations are usable before topic organization.
+
+`--discover-facts` controls only catalogue discovery. The HTTP/MCP server enables on-use
+reading independently, and space-owner routing and background organization also work with a
+supplied catalogue. Extraction resolves passages in the version the citation names, including
+unchanged spans reused from older versions. Before answering, the engine applies only that
+read's committed events to the existing governance and freshness handlers. Their inbox
+idempotency makes later bus delivery safe; answers never drain unrelated background work.
+
+Live Feishu wiki targets use the wiki page token as their stable identity, independently of
+the underlying docx token. Sources imported by the earlier draft using resolved docx identities
+will be reimported once under wiki identities; historical versions and citations remain.
 
 ## Diagnose
 

@@ -16,6 +16,9 @@
  * - feishu.approval: Feishu approval definitions and instance timelines, for SOP mining.
  *
  * Feishu docx reads through FeishuApi, either fixtures or the live app-authenticated API.
+ * Live document listing only enumerates configured targets; resolving wiki links and reading
+ * revision-pinned blocks happens in fetch, so one failed document cannot stop its neighbours.
+ * Wiki targets keep a wiki:<token> identity even when their docx target changes.
  * Approval imports still use fixtures. ACL entries carry the source's own principal
  * IDs; mapping them to engine principals is source sync's job.
  */

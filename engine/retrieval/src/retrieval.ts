@@ -25,7 +25,14 @@ import {
 } from "@inspiration/contracts";
 import type { Records } from "@inspiration/eventbus";
 import { PromptRegistry } from "@inspiration/model-gateway";
-import { ANSWER_SOURCES, type AnswerSources, Answers, LONG_CONTEXT_TOKENS, MATURE_SOURCES } from "./answers.ts";
+import {
+  ANSWER_SOURCES,
+  type AnswerSources,
+  Answers,
+  LONG_CONTEXT_TOKENS,
+  MATURE_SOURCES,
+  type ReadOnUse,
+} from "./answers.ts";
 import { DOCUMENTS, type IndexedDocument, Indexer } from "./indexing.ts";
 import { chargedTo, metered } from "./metering.ts";
 import { type Baseline, Search } from "./search.ts";
@@ -66,6 +73,8 @@ export interface RetrievalOptions {
    * says.
    */
   answerSources?: AnswerSources;
+  /** Optional reading of authorized answer passages, inside answer timing and with its own component budget. */
+  readOnUse?: ReadOnUse;
   prompts?: PromptRegistry;
   clock?: () => Date;
 }
@@ -136,6 +145,7 @@ export class Retrieval implements Retriever {
       totals: this.totals,
     });
     this.#answers = new Answers({
+      readOnUse: options.readOnUse,
       search: this.#search,
       records: this.records,
       models: this.models,

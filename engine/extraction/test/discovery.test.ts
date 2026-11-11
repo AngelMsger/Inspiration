@@ -1,6 +1,6 @@
 import { slotOf } from "@inspiration/contracts";
 import type { FakeProvider } from "@inspiration/model-gateway";
-import { describe, expect } from "vitest";
+import { assert, describe, expect, vi } from "vitest";
 import { FactDiscovery } from "../src/discovery.ts";
 import { Extraction } from "../src/index.ts";
 import { BACKENDS, extractionTest, TENANT } from "./fixtures.ts";
@@ -48,6 +48,40 @@ describe.each(BACKENDS)("$backend cold start", ({ backend, skip }) => {
       expect((await world.extraction.extractOnUse(ignored.version.id, ignored.change.added_block_ids)).added).toEqual(
         [],
       );
+    });
+
+    test("on-use citations follow the current version and commit before their standing handler runs", async ({
+      world,
+    }) => {
+      const first = await world.version(
+        "reference.md",
+        [
+          { id: "leave", text: "Leave allowance: 20 days." },
+          { id: "meal", text: "Meal allowance: 40 credits." },
+        ],
+        { level: "reference" },
+      );
+      const latest = await world.version(
+        "reference.md",
+        [
+          { id: "leave", text: "Leave allowance: 25 days." },
+          { id: "meal", text: "Meal allowance: 40 credits." },
+        ],
+        { level: "reference" },
+      );
+      const spans = await world.store.getSpans(first.change.added_span_ids);
+      const meal = spans.find((span) => span.text.includes("Meal allowance"));
+      assert(meal);
+      const citations = [{ source_version_id: latest.version.id, span_id: meal.id }];
+      const committed = vi.fn(async (event) => {
+        expect((await world.events()).some((stored) => stored.id === event.id)).toBe(true);
+      });
+      expect(await world.extraction.extractCitations("ten_00000000OTHER", citations, committed)).toEqual([]);
+      const [read] = await world.extraction.extractCitations(TENANT, citations, committed);
+      expect((await world.store.getClaims(read?.added ?? []))[0]?.value?.number).toBe(40);
+      expect(committed).toHaveBeenCalledTimes(1);
+      await world.extraction.extractCitations(TENANT, citations, committed);
+      expect(committed).toHaveBeenCalledTimes(1);
     });
 
     test("a catalogue proposal with fabricated evidence cannot give a claim a slot", async ({ world }) => {

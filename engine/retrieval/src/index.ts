@@ -113,6 +113,11 @@
  * answer may be incomplete because material the asker cannot read would change it
  * (docs/design/compiled-knowledge-permissions.md), and editions of a renamed document,
  * which normalization does not pair unless nearly the same.
+ *
+ * A readOnUse callback may read authorized citations before composing an answer. When it
+ * requests a refresh, sources are retrieved again through the same authorization and
+ * standing rules. Compact and standard answers share this path, inside answer timing;
+ * reading keeps its component's model budget. No callback is used by the rival baselines.
  */
 
 export {

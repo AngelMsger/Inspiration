@@ -171,9 +171,15 @@ export class FeishuDocxConnector implements Connector {
     const items = [];
     for (const meta of await this.api.listDocuments()) {
       if (wanted && !wanted.has(meta.document_id)) continue;
-      // Listing reads each document for its hashes; the HTTP client will use revision IDs instead.
-      const doc = await this.api.document(meta.document_id);
-      items.push({ ref: this.#ref(doc), version: this.#version(doc) });
+      items.push({
+        ref: {
+          source_id: this.source.id,
+          external_id: meta.document_id,
+          kind: "document" as const,
+          ...(meta.title && { title: meta.title }),
+          ...(meta.url && { uri: meta.url }),
+        },
+      });
     }
     return { items };
   }
@@ -194,7 +200,7 @@ export class FeishuDocxConnector implements Connector {
     if (sameVersion(known, version)) return { unchanged: true };
     const { approval_state, sensitivity, governance_level, ...extra } = doc.properties ?? {};
     const out: NormalizedDocument = {
-      ref: this.#ref(doc),
+      ref: { ...this.#ref(doc), external_id: ref.external_id },
       version,
       title: doc.meta.title,
       mime_type: "application/vnd.feishu.docx+json",
@@ -207,7 +213,7 @@ export class FeishuDocxConnector implements Connector {
         ...(doc.meta.owner_id !== undefined && { author_external_id: doc.meta.owner_id }),
         ...(Object.keys(extra).length > 0 && { extra }),
       },
-      acl: this.#snapshot(doc),
+      acl: this.#snapshot(doc, ref.external_id),
     };
     if (typeof approval_state === "string" && APPROVAL_STATES.has(approval_state)) {
       out.approval_state = approval_state as ApprovalState;
@@ -217,15 +223,15 @@ export class FeishuDocxConnector implements Connector {
     return out;
   }
 
-  #snapshot(doc: FeishuDocument): AclSnapshot {
-    return aclSnapshot(this.source.id, doc.meta.document_id, memberEntries(doc.members, doc.link_share_entity), {
+  #snapshot(doc: FeishuDocument, externalId: string): AclSnapshot {
+    return aclSnapshot(this.source.id, externalId, memberEntries(doc.members, doc.link_share_entity), {
       fidelity: this.api.connectionScoped ? "connection_scoped" : "exact",
       capturedAt: new Date(),
     });
   }
 
   async acl(ref: SourceRef): Promise<AclSnapshot> {
-    return this.#snapshot(await this.api.document(ref.external_id));
+    return this.#snapshot(await this.api.document(ref.external_id), ref.external_id);
   }
 }
 

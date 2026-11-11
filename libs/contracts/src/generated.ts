@@ -1797,7 +1797,7 @@ export interface ScopeSpec {
   };
 }
 /**
- * Last requested connection sync, persisted across process restarts.
+ * Last full source sync, shared by synchronous and background requests and persisted across restarts.
  */
 export interface SourceSyncState {
   state: "running" | "succeeded" | "failed";

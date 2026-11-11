@@ -56,6 +56,8 @@ export interface ExtractionOptions {
 }
 
 export interface ExtractionResult {
+  /** The committed claims.updated event; callers may apply it before answering. Bus delivery is unchanged. */
+  event?: EventEnvelope;
   /** Model calls, and those whose output stayed invalid after the gateway's retry. */
   windows: number;
   failed_windows: number;
@@ -201,7 +203,11 @@ export class Extraction {
    * nothing. A governed version is extracted in full already and a search-only one never is,
    * so for those, and for a version older than one already extracted, nothing happens.
    */
-  async extractOnUse(sourceVersionId: string, blockIds: readonly string[]): Promise<ExtractionResult> {
+  async extractOnUse(
+    sourceVersionId: string,
+    blockIds: readonly string[],
+    onCommitted?: EventHandler,
+  ): Promise<ExtractionResult> {
     const version = await this.store.getSourceVersion(sourceVersionId);
     if (!version) throw new RangeError(`unknown source version ${sourceVersionId}`);
     const use: BlocksChanged = {
@@ -213,7 +219,41 @@ export class Extraction {
       added_span_ids: [],
       removed_span_ids: [],
     };
-    return this.#serial(version, () => this.#extract(version, use, { use: true }));
+    return this.#serial(version, async () => {
+      const result = await this.#extract(version, use, { use: true });
+      // A concurrent read of this document waits for its standing update too.
+      if (result.event) await onCommitted?.(result.event);
+      return result;
+    });
+  }
+
+  /** Read authorized citations in the version they cite, including spans reused from an older version. */
+  async extractCitations(
+    tenantId: string,
+    citations: readonly { source_version_id: string; span_id: string }[],
+    onCommitted?: EventHandler,
+  ): Promise<ExtractionResult[]> {
+    const versions = new Map<string, Set<string>>();
+    for (const citation of citations) {
+      const spans = versions.get(citation.source_version_id) ?? new Set<string>();
+      spans.add(citation.span_id);
+      versions.set(citation.source_version_id, spans);
+    }
+    const results: ExtractionResult[] = [];
+    for (const [id, spans] of versions) {
+      const version = await this.store.getSourceVersion(id);
+      if (!version || version.tenant_id !== tenantId || levelOf(version) !== "reference" || version.deleted) continue;
+      const blocks = (await this.store.blocksOf(id)).filter((b) => b.span_ids.some((span) => spans.has(span)));
+      if (blocks.length)
+        results.push(
+          await this.extractOnUse(
+            id,
+            blocks.map((b) => b.id),
+            onCommitted,
+          ),
+        );
+    }
+    return results;
   }
 
   async #serial<T>(version: SourceVersion, fn: () => Promise<T>): Promise<T> {
@@ -344,6 +384,10 @@ export class Extraction {
       ...(cause && { causation: cause }),
       occurredAt: this.clock(),
     };
+    const event =
+      payload.added.length || payload.updated.length || payload.superseded.length
+        ? newEvent("claims.updated", payload, meta)
+        : undefined;
     await this.store.transaction(async (tx) => {
       if (fresh.length) {
         await tx.upsertClaims(
@@ -358,12 +402,11 @@ export class Extraction {
         ...before.restored.map(({ unstated: _, ...c }) => ({ ...c, updated_at: now })),
       ];
       if (marked.length) await tx.upsertClaims(marked, []);
-      if (payload.added.length || payload.updated.length || payload.superseded.length) {
-        await tx.publish(newEvent("claims.updated", payload, meta));
-      }
+      if (event) await tx.publish(event);
       for (const request of asked.requests) await tx.publish(newEvent("todo.requested", request, meta));
     });
     await this.#remember(mark, next);
+    if (event) result.event = event;
     log.debug("extracted claims", {
       source_version: version.id,
       windows: result.windows,

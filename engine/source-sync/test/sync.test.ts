@@ -17,7 +17,7 @@ import { MemoryRecords, PgRecords, type Records } from "@inspiration/eventbus";
 import { LocalBlobStore, openPool } from "@inspiration/kernel";
 import { MemoryStore, PostgresStore } from "@inspiration/knowledge-store";
 import { createTestDatabase, hasStack } from "@inspiration/testkit";
-import { describe, expect, test, vi } from "vitest";
+import { assert, describe, expect, test, vi } from "vitest";
 import { documentTree, pathParts, SourceSync, uploadAreaId } from "../src/index.ts";
 
 const TENANT = "ten_01JC0000000000000000TENANT";
@@ -103,6 +103,54 @@ describe.each<{ backend: Backend; skip: boolean }>([
   { backend: "postgres", skip: !hasStack() },
 ])("source sync on $backend", ({ backend, skip }) => {
   const it = syncTest(backend);
+
+  it.skipIf(skip)(
+    "both sync entry points share a job, persist results and preserve source configuration",
+    async ({ world }) => {
+      await world.write("policy.md", "Leave allowance: 20 days.");
+      // Delay one list while another caller joins and source metadata changes.
+      const implementation = FolderConnector.prototype.list;
+      let release!: () => void;
+      const blocked = new Promise<void>((done) => {
+        release = done;
+      });
+      const slow = vi.spyOn(FolderConnector.prototype, "list").mockImplementation(async function (
+        this: FolderConnector,
+        scope,
+        cursor,
+      ) {
+        await blocked;
+        return implementation.call(this, scope, cursor);
+      });
+      try {
+        const task = await world.sync.startSync(SOURCE);
+        expect(task.source.sync?.state).toBe("running");
+        const joined = world.sync.sync(SOURCE);
+        const source = await world.sync.getSource(SOURCE);
+        assert(source);
+        await world.sync.addSource({ ...source, name: "Renamed during import" });
+        release();
+        expect(await joined).toEqual(await task.finished);
+        expect(slow).toHaveBeenCalledTimes(1);
+        expect(await world.sync.getSource(SOURCE)).toMatchObject({
+          name: "Renamed during import",
+          sync: { state: "succeeded", report: { outcomes: { created: 1 } } },
+        });
+        await world.sync.sync(SOURCE);
+        expect((await world.sync.getSource(SOURCE))?.sync?.report?.outcomes.unchanged).toBe(1);
+        const reopened = new SourceSync({ store: world.store, records: world.records, blobs: world.sync.blobs });
+        expect((await reopened.getSource(SOURCE))?.sync?.state).toBe("succeeded");
+        await reopened.addSource({ ...source, sync: { state: "running", started_at: new Date().toISOString() } });
+        await reopened.recover();
+        expect((await reopened.getSource(SOURCE))?.sync?.state).toBe("failed");
+        expect((await reopened.sync(SOURCE)).outcomes.unchanged).toBe(1);
+      } finally {
+        release();
+        slow.mockRestore();
+        await world.sync.close();
+      }
+    },
+  );
 
   it.skipIf(skip)(
     "the Documents tree folds a space's documents into folders, and builds none the reader cannot open",

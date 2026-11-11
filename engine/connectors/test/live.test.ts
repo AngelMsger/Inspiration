@@ -146,6 +146,8 @@ test("Feishu resolves wiki links, pins all block pages to a revision and refresh
   });
   const list = await connector.list(src.scope);
   expect(list.items).toHaveLength(1);
+  expect(requests).toHaveLength(0);
+  expect(list.items[0]?.ref.external_id).toBe("wiki:wiki123");
   const doc = (await connector.fetch(list.items[0]?.ref ?? { source_id: "", external_id: "" })) as NormalizedDocument;
   expect(contractErrors("NormalizedDocument", doc)).toEqual([]);
   expect(doc.metadata?.url).toBe(src.scope.ids?.[0]);
@@ -172,5 +174,8 @@ test("a missing Feishu page token aborts the import", async () => {
     ...context(),
     secret: async () => JSON.stringify({ app_id: "test-app", app_secret: credential }),
   });
-  await expect(connector.list(src.scope)).rejects.toThrow("incomplete block listing");
+  const [item] = (await connector.list(src.scope)).items;
+  await expect(connector.fetch(item?.ref ?? { source_id: "", external_id: "" })).rejects.toThrow(
+    "incomplete block listing",
+  );
 });

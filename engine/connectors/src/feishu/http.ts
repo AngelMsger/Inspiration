@@ -61,14 +61,18 @@ export class HttpFeishuApi implements FeishuApi {
   readonly connectionScoped = true;
   readonly #source: Source;
   readonly #ctx: ConnectorContext;
-  readonly #docs = new Map<string, FeishuDocument>();
+  readonly #targets = new Map<string, ReturnType<typeof feishuLink>>();
   #token?: { value: string; until: number };
 
   constructor(source: Source, ctx: ConnectorContext) {
     this.#source = source;
     this.#ctx = ctx;
     if (!source.scope.ids?.length) throw new RangeError("add at least one Feishu document URL");
-    for (const link of source.scope.ids) feishuLink(link);
+    for (const input of source.scope.ids) {
+      const link = feishuLink(input);
+      // A wiki page keeps its identity even if its underlying docx target changes.
+      this.#targets.set(link.kind === "wiki" ? `wiki:${link.token}` : link.token, link);
+    }
   }
 
   async #access(): Promise<string> {
@@ -134,45 +138,36 @@ export class HttpFeishuApi implements FeishuApi {
     return response.data as T;
   }
 
-  async listDocuments(): Promise<DocumentMeta[]> {
-    this.#docs.clear();
-    const out: DocumentMeta[] = [];
-    for (const input of this.#source.scope.ids ?? []) {
-      const link = feishuLink(input);
-      let id = link.token;
-      if (link.kind === "wiki") {
-        const { node } = await this.#get<{ node: { obj_type: string; obj_token: string } }>(
-          `wiki/v2/spaces/get_node?token=${id}`,
-          {
-            type: "object",
-            required: ["node"],
-            properties: {
-              node: {
-                type: "object",
-                required: ["obj_type", "obj_token"],
-                properties: {
-                  obj_type: { type: "string" },
-                  obj_token: { type: "string", pattern: "^[a-zA-Z0-9]+$" },
-                },
+  async listDocuments(): Promise<{ document_id: string; url: string }[]> {
+    return [...this.#targets].map(([document_id, link]) => ({ document_id, url: link.url }));
+  }
+
+  async document(targetId: string): Promise<FeishuDocument> {
+    const link = this.#targets.get(targetId);
+    if (!link) throw new RangeError("unknown Feishu document target");
+    let id = link.token;
+    if (link.kind === "wiki") {
+      const { node } = await this.#get<{ node: { obj_type: string; obj_token: string } }>(
+        `wiki/v2/spaces/get_node?token=${id}`,
+        {
+          type: "object",
+          required: ["node"],
+          properties: {
+            node: {
+              type: "object",
+              required: ["obj_type", "obj_token"],
+              properties: {
+                obj_type: { type: "string" },
+                obj_token: { type: "string", pattern: "^[a-zA-Z0-9]+$" },
               },
             },
           },
-        );
-        if (node.obj_type !== "docx")
-          throw new ConnectionError("Feishu: this wiki node is not an upgraded document (docx).");
-        id = node.obj_token;
-      }
-      const doc = await this.document(id);
-      doc.meta.url = link.url;
-      out.push(doc.meta);
+        },
+      );
+      if (node.obj_type !== "docx")
+        throw new ConnectionError("Feishu: this wiki node is not an upgraded document (docx).");
+      id = node.obj_token;
     }
-    return [...new Map(out.map((m) => [m.document_id, m])).values()];
-  }
-
-  async document(id: string): Promise<FeishuDocument> {
-    const cached = this.#docs.get(id);
-    if (cached) return cached;
-    if (!/^[a-zA-Z0-9]+$/.test(id)) throw new RangeError("invalid Feishu document ID");
     const { document: meta } = await this.#get<{ document: Omit<DocumentMeta, "modified_at"> }>(
       `docx/v1/documents/${id}`,
       META,
@@ -196,9 +191,7 @@ export class HttpFeishuApi implements FeishuApi {
         throw new ConnectionError("Feishu: incomplete block listing; retry sync.");
       seen.add(cursor);
     } while (cursor);
-    const doc: FeishuDocument = { meta, blocks, members: [] };
-    this.#docs.set(id, doc);
-    return doc;
+    return { meta: { ...meta, url: link.url }, blocks, members: [] };
   }
 
   async listApprovals(): Promise<never> {

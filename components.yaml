@@ -40,7 +40,7 @@ components:
     layer: ingest
     status: built
     runtime: node
-    owns: Lists a source page by page, fetches the items whose hashes changed, and stores source versions, tombstones and ACL snapshots with each version's governance level; syncs a source or one item when asked; the Documents tree; uploads, each space's upload area of files people put in (sync.uploads), stored as a source's items are. Planned are 15-minute polls and the nightly reconcile as schedules, rate budgets, subscription upkeep, debounce, publishing source.changed, SourceSync.fetch_now, removing an upload
+    owns: Lists a source page by page, fetches the items whose hashes changed, and stores source versions, tombstones and ACL snapshots with each version's governance level; syncs a source or one item when asked; owns synchronous and background sync jobs, persisted results and interruption recovery; the Documents tree; uploads, each space's upload area of files people put in (sync.uploads), stored as a source's items are. Planned are 15-minute polls and the nightly reconcile as schedules, rate budgets, subscription upkeep, debounce, publishing source.changed, SourceSync.fetch_now, removing an upload
     plugins: [migrations]
     publishes: [source.changed, document.fetched, acl.changed]
     subscribes: [source.changed]
@@ -73,7 +73,7 @@ components:
     layer: compile
     status: built
     runtime: node
-    owns: Claims with verbatim evidence, fact-slot keys, reading by governance level and extract on use; opt-in evidence-backed predicate discovery, persisted per space and sensitivity; facts a version stops stating, kept and marked, with a todo for their owner; how far each document's reading has come, paused at a spent budget or a model out of reach and resumed. Planned are entity resolution, SOPs from documents and approval mining, knowledge models, the artifact.dirty and comment.created subscriptions
+    owns: Claims with verbatim evidence, fact-slot keys, reading by governance level and extract on use, resolving citations in their cited version; opt-in evidence-backed predicate discovery, persisted per space and sensitivity; facts a version stops stating, kept and marked, with a todo for their owner; how far each document's reading has come, paused at a spent budget or a model out of reach and resumed. Planned are entity resolution, SOPs from documents and approval mining, knowledge models, the artifact.dirty and comment.created subscriptions
     plugins: [migrations, model_mocks]
     publishes: [claims.updated, todo.requested]
     subscribes: [blocks.changed, artifact.dirty, comment.created]
@@ -274,7 +274,7 @@ business:
 # it lists that app under `uses`.
 apps:
   engine:
-    owns: The engine process, persistent local startup, local connection management and durable sync reports, answer-time reading and background topic organization; corpus manifests and topic owners, standing in for the business layer's provisioning, which they send through access control's directory; its HTTP API, version 0 (pnpm engine serve), with the routes for provisioning tenants and members, for administering spaces and for uploading files, whose reading runs in the background, the agent API's MCP endpoint, and the super admin's month of usage (GET /v0/usage), counts, times and cost only
+    owns: The engine process, persistent local startup, local connection management over source sync, answer-time reading and background topic organization; corpus manifests and topic owners, standing in for the business layer's provisioning, which they send through access control's directory; its HTTP API, version 0 (pnpm engine serve), with the routes for provisioning tenants and members, for administering spaces and for uploading files, whose reading runs in the background, the agent API's MCP endpoint, and the super admin's month of usage (GET /v0/usage), counts, times and cost only
   business:
     owns: The business backend, an explicit loopback-only local owner identity for workstation validation, the browser's only server (pnpm business serve); the browser API for sign-in, companies, members and invite links over accounts and tenancy; the sample company, read only; Apps with access and the MCP address, passing an MCP client's calls on as an agent acting for the member; principal tokens and their JWKS; the engine's provisioning and its /v0 API passed on as the member; the built web app
   web:

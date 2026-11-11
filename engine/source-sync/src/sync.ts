@@ -17,7 +17,9 @@ import {
   payloadOf,
   type Source,
   type SourceRef,
+  type SourceSyncState,
   type SourceVersion,
+  type SyncReport,
   sameVersion,
   type Version,
 } from "@inspiration/contracts";
@@ -70,14 +72,8 @@ export interface ListedDocument {
   entry: DocumentEntry;
 }
 
-export type ItemOutcome = "created" | "updated" | "acl_changed" | "unchanged" | "deleted" | "failed";
-
-export interface SyncReport {
-  source_id: string;
-  listed: number;
-  outcomes: Record<ItemOutcome, number>;
-  errors: { external_id: string; error: string }[];
-}
+export type ItemOutcome = keyof SyncReport["outcomes"];
+export type { SyncReport } from "@inspiration/contracts";
 
 export interface SourceSyncOptions {
   store: KnowledgeStore;
@@ -88,6 +84,17 @@ export interface SourceSyncOptions {
   connector?: (type: string) => Promise<ConnectorFactory>;
   secret?: (name: string) => Promise<string>;
   clock?: () => Date;
+}
+
+/** A sync whose running state is committed; its result is persisted before finished resolves. */
+export interface SyncTask {
+  source: Source;
+  finished: Promise<SyncReport>;
+}
+
+interface SyncJob {
+  started: Promise<Source>;
+  finished: Promise<SyncReport>;
 }
 
 const DEFAULT_SENSITIVITY = "internal";
@@ -111,6 +118,7 @@ export class SourceSync {
   readonly #connectors = new Map<string, Connector>();
   /** One sync per source at a time; item fetches of one source are serialized behind it. */
   readonly #running = new Map<string, Promise<unknown>>();
+  readonly #syncs = new Map<string, SyncJob>();
 
   constructor(options: SourceSyncOptions) {
     this.store = options.store;
@@ -248,42 +256,124 @@ export class SourceSync {
    * and write tombstones for items that are gone.
    */
   sync(sourceId: string, options: { via?: ChangeVia } = {}): Promise<SyncReport> {
-    return this.#serialized(sourceId, async () => {
-      const source = await this.#source(sourceId);
-      const connector = await this.#connector(source);
-      const report: SyncReport = {
-        source_id: sourceId,
-        listed: 0,
-        outcomes: { created: 0, updated: 0, acl_changed: 0, unchanged: 0, deleted: 0, failed: 0 },
-        errors: [],
-      };
-      const known = new Map((await this.items(sourceId)).map((i) => [i.external_id, i]));
-      const seen = new Set<string>();
-      let cursor: string | undefined;
-      do {
-        const page = await connector.list(source.scope, cursor);
-        for (const item of page.items) {
-          report.listed++;
-          seen.add(item.ref.external_id);
-          const state = known.get(item.ref.external_id);
-          if (state && !state.deleted && sameVersion(state.version, item.version)) {
-            report.outcomes.unchanged++;
-            continue;
-          }
-          const outcome = await this.#fetchItem(source, connector, item.ref, state, options.via ?? "poll");
-          report.outcomes[outcome.outcome]++;
-          if (outcome.error) report.errors.push({ external_id: item.ref.external_id, error: outcome.error });
-        }
-        cursor = page.next_cursor;
-      } while (cursor);
-      for (const state of known.values()) {
-        if (state.deleted || seen.has(state.external_id)) continue;
-        await this.#tombstone(source, state);
-        report.outcomes.deleted++;
-      }
-      log.info("synced source", { source: sourceId, ...report.outcomes });
-      return report;
+    return this.#start(sourceId, options).finished;
+  }
+
+  /** Start the same sync in the background. Concurrent requests join the running job. */
+  async startSync(sourceId: string, options: { via?: ChangeVia } = {}): Promise<SyncTask> {
+    const job = this.#start(sourceId, options);
+    return { source: await job.started, finished: job.finished };
+  }
+
+  /** On process startup, mark unfinished work retryable without discarding imported items. */
+  async recover(): Promise<void> {
+    for (const source of await this.listSources()) {
+      if (source.sync?.state === "running" && !this.#syncs.has(source.id))
+        await this.#syncState(source.id, {
+          ...source.sync,
+          state: "failed",
+          finished_at: this.#now(),
+          note: "Sync was interrupted by a restart. Retry to continue.",
+        });
+    }
+  }
+
+  /** Finish accepted imports before the process closes its store. */
+  async close(): Promise<void> {
+    await Promise.allSettled([...this.#syncs.values()].map((job) => job.finished));
+  }
+
+  async #syncState(id: string, sync: SourceSyncState): Promise<Source> {
+    return this.records.transaction(async (tx) => {
+      const source = await tx.get(SOURCES, id);
+      if (!source) throw new RangeError(`unknown source ${id}`);
+      const next = { ...source, sync };
+      await tx.put(SOURCES, [next]);
+      return next;
     });
+  }
+
+  #start(sourceId: string, options: { via?: ChangeVia }): SyncJob {
+    const pending = this.#syncs.get(sourceId);
+    if (pending) return pending;
+    let started!: (source: Source) => void;
+    let failed!: (error: unknown) => void;
+    const start = new Promise<Source>((resolve, reject) => {
+      started = resolve;
+      failed = reject;
+    });
+    const finished = this.#serialized(sourceId, async () => {
+      const startedAt = this.#now();
+      const source = await this.#syncState(sourceId, { state: "running", started_at: startedAt });
+      started(source);
+      try {
+        const report = await this.#reconcile(sourceId, options);
+        await this.#syncState(sourceId, {
+          state: report.outcomes.failed ? "failed" : "succeeded",
+          started_at: startedAt,
+          finished_at: this.#now(),
+          report,
+        });
+        return report;
+      } catch (error) {
+        await this.#syncState(sourceId, {
+          state: "failed",
+          started_at: startedAt,
+          finished_at: this.#now(),
+          note: error instanceof Error ? error.message : "sync failed; retry",
+        });
+        throw error;
+      }
+    });
+    const job = { started: start, finished };
+    this.#syncs.set(sourceId, job);
+    // Both entry points observe the same failure, even if only one promise is awaited.
+    void start.catch(() => undefined);
+    void finished.then(
+      () => this.#syncs.delete(sourceId),
+      (error: unknown) => {
+        failed(error);
+        this.#syncs.delete(sourceId);
+      },
+    );
+    return job;
+  }
+
+  async #reconcile(sourceId: string, options: { via?: ChangeVia }): Promise<SyncReport> {
+    const source = await this.#source(sourceId);
+    const connector = await this.#connector(source);
+    const report: SyncReport = {
+      source_id: sourceId,
+      listed: 0,
+      outcomes: { created: 0, updated: 0, acl_changed: 0, unchanged: 0, deleted: 0, failed: 0 },
+      errors: [],
+    };
+    const known = new Map((await this.items(sourceId)).map((i) => [i.external_id, i]));
+    const seen = new Set<string>();
+    let cursor: string | undefined;
+    do {
+      const page = await connector.list(source.scope, cursor);
+      for (const item of page.items) {
+        report.listed++;
+        seen.add(item.ref.external_id);
+        const state = known.get(item.ref.external_id);
+        if (state && !state.deleted && sameVersion(state.version, item.version)) {
+          report.outcomes.unchanged++;
+          continue;
+        }
+        const outcome = await this.#fetchItem(source, connector, item.ref, state, options.via ?? "poll");
+        report.outcomes[outcome.outcome]++;
+        if (outcome.error) report.errors.push({ external_id: item.ref.external_id, error: outcome.error });
+      }
+      cursor = page.next_cursor;
+    } while (cursor);
+    for (const state of known.values()) {
+      if (state.deleted || seen.has(state.external_id)) continue;
+      await this.#tombstone(source, state);
+      report.outcomes.deleted++;
+    }
+    log.info("synced source", { source: sourceId, ...report.outcomes });
+    return report;
   }
 
   /** Bring one item up to date, as a webhook or a manual refresh asks. */

@@ -46,13 +46,13 @@ import {
   writeSchema,
 } from "@inspiration/access-control";
 import { getSettings, logger } from "@inspiration/kernel";
-import { connectionSecret, recoverConnections } from "./connections.ts";
+import { connectionSecret } from "./connections.ts";
 import { Corpus } from "./corpus.ts";
 import { Engine, RESUME_EVERY_MS } from "./engine.ts";
 import { type Identity, serveApi } from "./http.ts";
 import { openModels } from "./models.ts";
+import { organizeKnowledge } from "./organization.ts";
 import { assignOwners } from "./owners.ts";
-import { organizeKnowledge } from "./reading-on-use.ts";
 
 const log = logger("engine.serve");
 
@@ -135,6 +135,7 @@ async function main(argv: string[]): Promise<number> {
   const engine = await Engine.open({
     secret: connectionSecret,
     discoverFacts: values["discover-facts"],
+    readOnUse: true,
     blobDir: persistent ? settings.blobDir : await mkdtemp(join(tmpdir(), "inspiration-blobs-")),
     ...(persistent && {
       databaseUrl: settings.databaseUrl,
@@ -148,12 +149,10 @@ async function main(argv: string[]): Promise<number> {
     ...(models && { models: models.models, ledger: models.ledger }),
   });
   const dirty = new Set<string>();
-  if (values["discover-facts"]) {
-    for (const source of await engine.sync.listSources()) dirty.add(source.tenant_id);
-    engine.observe("claims.updated", "local-organization", async (event) => {
-      dirty.add(event.tenant_id);
-    });
-  }
+  for (const source of await engine.sync.listSources()) dirty.add(source.tenant_id);
+  engine.observe("claims.updated", "knowledge-organization", async (event) => {
+    dirty.add(event.tenant_id);
+  });
   let organizing = false;
   const organize = setInterval(async () => {
     if (organizing || !dirty.size) return;
@@ -177,7 +176,7 @@ async function main(argv: string[]): Promise<number> {
   } else {
     log.info("no corpus: tenants, members and spaces come from provisioning");
   }
-  await recoverConnections(engine);
+  await engine.sync.recover();
   engine.resumeReading().catch((error: unknown) => log.warn("resuming reading after startup failed", { error }));
   const server = await serveApi(engine, Number(values.port), identity);
   // Resume committed work after a restart, including events whose request already returned.

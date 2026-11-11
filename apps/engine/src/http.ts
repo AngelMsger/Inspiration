@@ -113,7 +113,6 @@ import type { Engine } from "./engine.ts";
 import { badRequest, HttpError, notFound } from "./http-errors.ts";
 import { members, putMember, putTenant } from "./provisioning.ts";
 import { countsOf, readingOf } from "./reading.ts";
-import { answerWithReading } from "./reading-on-use.ts";
 import { audienceOf, createSpace, patchSpace, putAudience, putOwners, spaceList } from "./space-admin.ts";
 import { maintains, overviewOf, syncNow } from "./spaces.ts";
 import { factLabels, inboxOf, resolveTodo } from "./todos.ts";
@@ -224,7 +223,7 @@ function routesOf(engine: Engine): Route[] {
       path: /^\/v0\/answers$/,
       run: async (who, _m, req) => {
         const query = parseAs<AnswerQuery>("AnswerQuery", await req.json());
-        return answerWithReading(engine, query, who);
+        return (query.depth === "standard" ? engine.retrieval : engine.compact).answer(query, who);
       },
     },
     { method: "GET", path: /^\/v0\/inbox$/, run: (who) => inboxOf(engine, who) },
@@ -400,7 +399,7 @@ function mcpOf(engine: Engine): McpServer {
     version: "0",
     library: {
       search: (query, who) => engine.retrieval.search(query, who),
-      answer: (query, who) => answerWithReading(engine, query, who),
+      answer: (query, who) => (query.depth === "standard" ? engine.retrieval : engine.compact).answer(query, who),
       document: (version, who) => document(engine, who, new URLSearchParams({ version })),
     },
     refusal: (error) => httpErrorOf(error)?.message,

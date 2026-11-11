@@ -58,6 +58,9 @@ export interface AnswerSources {
   passages: number;
   statements: number;
 }
+
+/** Read authorized passages before composing an answer; true requests a refreshed view after reading. */
+export type ReadOnUse = (citations: readonly Citation[], who: Principal) => Promise<boolean>;
 /**
  * A compact answer: the governed statements found, each a conclusion with the quote behind it,
  * and a few whole passages for what reading missed. It reads about half of what a full
@@ -97,6 +100,7 @@ export class Answers {
   readonly contextTokens: number;
   readonly answerSources: AnswerSources;
   readonly totals: AnswerTotals;
+  readonly readOnUse: ReadOnUse | undefined;
 
   constructor(options: {
     search: Search;
@@ -109,6 +113,7 @@ export class Answers {
     contextTokens: number;
     answerSources: AnswerSources;
     totals: AnswerTotals;
+    readOnUse?: ReadOnUse;
   }) {
     this.search = options.search;
     this.records = options.records;
@@ -120,6 +125,7 @@ export class Answers {
     this.contextTokens = options.contextTokens;
     this.answerSources = options.answerSources;
     this.totals = options.totals;
+    this.readOnUse = options.readOnUse;
   }
 
   /**
@@ -319,7 +325,17 @@ export class Answers {
   async #answer(query: AnswerQuery, who: Principal): Promise<{ answer: GroundedAnswer; read: SearchHit[] }> {
     const language = languageOf(query.question);
     const pack = packFor(language);
-    const { hits, searched } = await this.sources(query, who);
+    let selected = await this.sources(query, who);
+    if (
+      await this.readOnUse?.(
+        selected.hits.flatMap((h) => h.citations),
+        who,
+      )
+    ) {
+      // Reuse the normal authorized retrieval path after reading changes claims or standing.
+      selected = await this.sources(query, who);
+    }
+    const { hits, searched } = selected;
     const refOf = new Map(hits.map((h, i) => [h.unit_id, String(i + 1)]));
     const versions = await this.search.versions(
       hits.flatMap((h) => (h.kind === "chunk" ? h.citations.slice(0, 1).map((c) => c.source_version_id) : [])),

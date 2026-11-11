@@ -3,11 +3,13 @@ import { AuthzService, Directory, type Graph, MemoryGraph } from "@inspiration/a
 import { Assistant, Inbox } from "@inspiration/collaboration";
 import type {
   BlobStore,
+  Citation,
   EventEnvelope,
   EventHandler,
   EventPublisher,
   KnowledgeStore,
   ModelGateway,
+  Principal,
   ReviewDue,
 } from "@inspiration/contracts";
 import {
@@ -38,6 +40,8 @@ import { Topics } from "@inspiration/page-compiler";
 import { type AnswerSources, COMPACT_SOURCES, Retrieval } from "@inspiration/retrieval";
 import { type PrincipalResolver, SourceSync } from "@inspiration/source-sync";
 
+import { readForAnswer } from "./reading-on-use.ts";
+
 const log = logger("engine");
 
 export interface EngineOptions {
@@ -52,6 +56,8 @@ export interface EngineOptions {
   resolvePrincipal?: PrincipalResolver;
   secret?: (name: string) => Promise<string>;
   discoverFacts?: boolean;
+  /** Read authorized reference passages before answering, independently of catalogue discovery. */
+  readOnUse?: boolean;
   /** Defaults to the development gateway (config/gateway.dev.yaml): fake providers only. */
   models?: ModelGateway;
   /**
@@ -94,7 +100,6 @@ export class Engine {
   readonly ledger: Gateway | undefined;
   /** What the engine takes as now. */
   readonly clock: () => Date;
-  readonly discoverFacts: boolean;
   readonly sync: SourceSync;
   readonly normalization: Normalization;
   readonly extraction: Extraction;
@@ -147,13 +152,13 @@ export class Engine {
     resolvePrincipal?: PrincipalResolver;
     secret?: (name: string) => Promise<string>;
     discoverFacts?: boolean;
+    readOnUse?: boolean;
     vocabulary?: ExtractionOptions["vocabulary"];
     clock?: () => Date;
     graph?: Graph;
     contextTokens?: number;
     compactSources?: AnswerSources;
   }) {
-    this.discoverFacts = parts.discoverFacts === true;
     this.store = parts.store;
     this.records = parts.records;
     this.blobs = parts.blobs;
@@ -194,12 +199,10 @@ export class Engine {
       store: this.store,
       records: this.records,
       ...clock,
-      ...(parts.discoverFacts && {
-        fallbackOwner: async (tenant, space) => {
-          const entry = await this.directory.space(space);
-          return entry?.tenant_id === tenant ? entry.owner_ids[0] : undefined;
-        },
-      }),
+      fallbackOwner: async (tenant, space) => {
+        const entry = await this.directory.space(space);
+        return entry?.tenant_id === tenant ? entry.owner_ids[0] : undefined;
+      },
     });
     this.assistant = new Assistant({ inbox: this.inbox });
     const graph = parts.graph ?? new MemoryGraph();
@@ -217,13 +220,19 @@ export class Engine {
     };
     const governed = { ...indexes, verdicts: this.governance, staleness: this.freshness };
     const context = parts.contextTokens && { contextTokens: parts.contextTokens };
-    this.retrieval = new Retrieval(governed);
+    const answering = {
+      ...governed,
+      ...(parts.readOnUse && {
+        readOnUse: (citations: readonly Citation[], who: Principal) => readForAnswer(this, citations, who),
+      }),
+    };
+    this.retrieval = new Retrieval(answering);
     this.baselines = {
       mature: new Retrieval({ ...indexes, baseline: "mature" }),
       long_context: new Retrieval({ ...indexes, baseline: "long_context", ...context }),
     };
     this.governedLongContext = new Retrieval({ ...governed, readAll: true, ...context });
-    this.compact = new Retrieval({ ...governed, answerSources: parts.compactSources ?? COMPACT_SOURCES });
+    this.compact = new Retrieval({ ...answering, answerSources: parts.compactSources ?? COMPACT_SOURCES });
     const components: Running[] = [
       { group: "source-sync", handlers: () => this.sync.handlers() },
       { group: "normalization", handlers: () => this.normalization.handlers() },
@@ -262,6 +271,7 @@ export class Engine {
     closers.push(() => transport.close());
     const resolve = {
       discoverFacts: options.discoverFacts,
+      readOnUse: options.readOnUse,
       ...(options.secret && { secret: options.secret }),
       ...(options.resolvePrincipal && { resolvePrincipal: options.resolvePrincipal }),
       ...(options.vocabulary && { vocabulary: options.vocabulary }),
@@ -376,7 +386,8 @@ export class Engine {
   }
 
   async close(): Promise<void> {
-    await this.#delivering;
+    await this.sync.close();
+    await this.settle();
     for (const close of this.#closers) {
       await close().catch((error: unknown) => log.warn("close failed", { error }));
     }

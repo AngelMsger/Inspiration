@@ -105,7 +105,8 @@ export interface FeishuApproval {
 
 export interface FeishuApi {
   readonly connectionScoped?: boolean;
-  listDocuments(): Promise<DocumentMeta[]>;
+  /** Stable document targets. Reading content and resolving wiki links belong to document(). */
+  listDocuments(): Promise<{ document_id: string; title?: string; url?: string }[]>;
   document(documentId: string): Promise<FeishuDocument>;
   listApprovals(): Promise<{ approval_code: string; approval_name: string; modified_at: string }[]>;
   approval(approvalCode: string): Promise<FeishuApproval>;

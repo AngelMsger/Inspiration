@@ -13,7 +13,6 @@ import type { Engine } from "./engine.ts";
 import { badRequest, notFound } from "./http-errors.ts";
 import { maintains } from "./spaces.ts";
 
-const running = new WeakMap<Engine, Map<string, Promise<Source>>>();
 const enabled = () => process.env.INSPIRATION_LOCAL_CONNECTIONS === "1";
 
 export async function connectionSecret(name: string): Promise<string> {
@@ -92,66 +91,9 @@ export async function startSync(engine: Engine, who: Principal, id: string): Pro
     throw notFound("source");
   if (!enabled() || !["confluence", "feishu.docx"].includes(source.type))
     throw badRequest("this source is not a local connection");
-  let tasks = running.get(engine);
-  if (!tasks) {
-    tasks = new Map();
-    running.set(engine, tasks);
-  }
-  const pending = tasks.get(id);
-  if (pending) return pending;
-  const begin = (async () => {
-    const started: Source = { ...source, sync: { state: "running", started_at: new Date().toISOString() } };
-    await engine.sync.addSource(started);
-    void finishSync(engine, started)
-      .catch(() => logger("engine.connections").warn("could not persist sync result", { source: id }))
-      .finally(() => tasks.delete(id));
-    return started;
-  })();
-  tasks.set(id, begin);
-  return begin.catch((error: unknown) => {
-    tasks.delete(id);
-    throw error;
-  });
-}
-
-async function finishSync(engine: Engine, source: Source): Promise<void> {
-  try {
-    const report = await engine.sync.sync(source.id, { via: "manual" });
-    await engine.sync.addSource({
-      ...source,
-      sync: {
-        state: report.outcomes.failed ? "failed" : "succeeded",
-        started_at: source.sync?.started_at ?? source.created_at,
-        finished_at: new Date().toISOString(),
-        report,
-      },
-    });
-    engine.settleLater();
-  } catch (error) {
-    await engine.sync.addSource({
-      ...source,
-      sync: {
-        state: "failed",
-        started_at: source.sync?.started_at ?? source.created_at,
-        finished_at: new Date().toISOString(),
-        note: error instanceof Error ? error.message : "connection failed; retry sync",
-      },
-    });
-  }
-}
-
-/** Interrupted imports never pretend to have finished; a retry reconciles their stored items. */
-export async function recoverConnections(engine: Engine): Promise<void> {
-  for (const source of await engine.sync.listSources()) {
-    if (source.sync?.state === "running")
-      await engine.sync.addSource({
-        ...source,
-        sync: {
-          ...source.sync,
-          state: "failed",
-          finished_at: new Date().toISOString(),
-          note: "Sync was interrupted by a restart. Retry to continue.",
-        },
-      });
-  }
+  const task = await engine.sync.startSync(id, { via: "manual" });
+  void task.finished
+    .catch(() => logger("engine.connections").warn("sync failed", { source: id }))
+    .finally(() => engine.settleLater());
+  return task.source;
 }
