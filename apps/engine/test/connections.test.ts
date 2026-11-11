@@ -29,28 +29,31 @@ beforeEach(async () => {
   small = false;
   upstream = createServer((_req, res) => {
     res.writeHead(status, { "content-type": "application/json" });
+    const page = {
+      id: "12",
+      title: "Leave",
+      version: { number: amount, when: "2026-11-01T00:00:00Z" },
+      body: {
+        view: {
+          value: small
+            ? `<p>Leave allowance: ${amount} days.</p>`
+            : `<p>Leave allowance: ${amount} days.</p><p>Meal allowance: 40 credits.</p><p>Training allowance: 100 credits.</p><p>Notice period: 30 days.</p><p>Trial period: 90 days.</p>`,
+        },
+      },
+      ancestors: [],
+    };
     res.end(
-      JSON.stringify({
-        results: [
-          {
-            id: "12",
-            title: "Leave",
-            version: { number: amount, when: "2026-11-01T00:00:00Z" },
-            body: {
-              view: {
-                value: small
-                  ? `<p>Leave allowance: ${amount} days.</p>`
-                  : `<p>Leave allowance: ${amount} days.</p><p>Meal allowance: 40 credits.</p><p>Training allowance: 100 credits.</p><p>Notice period: 30 days.</p><p>Trial period: 90 days.</p>`,
-              },
+      JSON.stringify(
+        _req.url?.startsWith("/rest/api/content/12?")
+          ? page
+          : {
+              results: [{ id: page.id, title: page.title }],
+              start: 0,
+              limit: 25,
+              size: 1,
+              _links: {},
             },
-            ancestors: [],
-          },
-        ],
-        start: 0,
-        limit: 25,
-        size: 1,
-        _links: {},
-      }),
+      ),
     );
   });
   await new Promise<void>((done) => upstream.listen(0, "127.0.0.1", done));

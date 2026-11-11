@@ -2,7 +2,8 @@ import { slotOf } from "@inspiration/contracts";
 import type { FakeProvider } from "@inspiration/model-gateway";
 import { assert, describe, expect, vi } from "vitest";
 import { FactDiscovery } from "../src/discovery.ts";
-import { Extraction } from "../src/index.ts";
+import { Extraction, type PredicateEntry } from "../src/index.ts";
+import { windowsOf } from "../src/windows.ts";
 import { BACKENDS, extractionTest, TENANT } from "./fixtures.ts";
 
 describe.each(BACKENDS)("$backend cold start", ({ backend, skip }) => {
@@ -82,6 +83,75 @@ describe.each(BACKENDS)("$backend cold start", ({ backend, skip }) => {
       expect(committed).toHaveBeenCalledTimes(1);
       await world.extraction.extractCitations(TENANT, citations, committed);
       expect(committed).toHaveBeenCalledTimes(1);
+    });
+
+    test("configured vocabulary stays authoritative and is never persisted as discovered vocabulary", async ({
+      world,
+    }) => {
+      const document = await world.version("reference.md", [{ id: "p", text: "Leave allowance: 20 days." }], {
+        level: "reference",
+      });
+      const [window] = await windowsOf(world.store, document.version, new Set(document.change.added_block_ids), 1500);
+      assert(window);
+      const supplied: PredicateEntry = {
+        predicate: "leave_allowance",
+        label: "Configured allowance",
+        aliases: ["Leave allowance"],
+        value: { kind: "number", unit: "day", words: ["days"] },
+      };
+      const reply = JSON.stringify({
+        predicates: [
+          {
+            ...supplied,
+            label: "Model label",
+            aliases: ["allowance"],
+            evidence: [{ span: "s1", quote: "Leave allowance: 20 days." }],
+          },
+        ],
+      });
+      for (const name of ["cloud", "local"])
+        world.gateway.provider<FakeProvider>(name).script("extraction.discover_facts", reply);
+      const discovery = new FactDiscovery(world.records, world.gateway, world.extraction.prompts);
+      expect(await discovery.discover(document.version, window, [supplied])).toEqual([supplied]);
+      expect(await discovery.catalogue(TENANT, document.version.space_id, "internal")).toEqual([]);
+      // Removing a configured entry must not bring it back from discovery's stored state.
+      expect(await discovery.discover(document.version, window, [])).toEqual([]);
+    });
+
+    test("discovery merges evidenced wording without losing earlier predicate or qualifier aliases", async ({
+      world,
+    }) => {
+      const documents = await Promise.all(
+        ["US", "United States"].map((region, i) =>
+          world.version(`reference-${i}.md`, [{ id: "p", text: `${region} leave allowance: 20 days.` }], {
+            level: "reference",
+          }),
+        ),
+      );
+      const discovery = new FactDiscovery(world.records, world.gateway, world.extraction.prompts);
+      for (const [i, document] of documents.entries()) {
+        const region = i === 0 ? "US" : "United States";
+        const [window] = await windowsOf(world.store, document.version, new Set(document.change.added_block_ids), 1500);
+        assert(window);
+        const reply = JSON.stringify({
+          predicates: [
+            {
+              predicate: "leave_allowance",
+              label: "Leave allowance",
+              aliases: [`${region} leave allowance`],
+              qualifiers: [{ name: "us", aliases: [region, "Unevidenced alias"] }],
+              value: { kind: "number", unit: "days", words: ["days"] },
+              evidence: [{ span: "s1", quote: `${region} leave allowance: 20 days.` }],
+            },
+          ],
+        });
+        for (const name of ["cloud", "local"])
+          world.gateway.provider<FakeProvider>(name).script("extraction.discover_facts", reply);
+        await discovery.discover(document.version, window, []);
+      }
+      const [entry] = await discovery.catalogue(TENANT, documents[0]?.version.space_id ?? "", "internal");
+      expect(entry?.aliases).toEqual(["US leave allowance", "United States leave allowance"]);
+      expect(entry?.qualifiers).toEqual([{ name: "us", aliases: ["US", "United States"] }]);
     });
 
     test("a catalogue proposal with fabricated evidence cannot give a claim a slot", async ({ world }) => {

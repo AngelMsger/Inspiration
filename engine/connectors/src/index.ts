@@ -1,7 +1,7 @@
 /**
  * Connectors: one plugin per source type in the "connectors" group, each a
  * ConnectorFactory(source, context). Source sync drives them; a connector lists items with
- * their version hashes, fetches one item as a NormalizedDocument and reads its ACL. It never
+ * optional version hashes, fetches one item as a NormalizedDocument and reads its ACL. It never
  * stores anything itself.
  *
  * - folder: a local or mounted directory. Files go to the parser router; front matter and
@@ -15,7 +15,10 @@
  *   link sharing as the ACL for fixtures; live docx/wiki links use the connection-scoped view.
  * - feishu.approval: Feishu approval definitions and instance timelines, for SOP mining.
  *
- * Feishu docx reads through FeishuApi, either fixtures or the live app-authenticated API.
+ * Confluence listing enumerates page identities; fetch always reads the current page, so
+ * single-page refreshes cannot reuse stale content and a failed page does not stop its neighbours.
+ * Feishu docx reads through FeishuDocumentsApi, with fixture and live implementations.
+ * Approval reads use FeishuApprovalsApi; document adapters need no approval placeholders.
  * Live document listing only enumerates configured targets; resolving wiki links and reading
  * revision-pinned blocks happens in fetch, so one failed document cannot stop its neighbours.
  * Wiki targets keep a wiki:<token> identity even when their docx target changes.

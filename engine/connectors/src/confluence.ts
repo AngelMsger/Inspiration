@@ -19,6 +19,14 @@ import {
 import { aclSnapshot } from "./acl.ts";
 import { connectionUrl, remoteJson } from "./http.ts";
 
+const PAGE_REF = {
+  type: "object",
+  required: ["id", "title"],
+  properties: {
+    id: { type: "string", pattern: "^[0-9]+$" },
+    title: { type: "string" },
+  },
+};
 const PAGE = {
   type: "object",
   required: ["id", "title", "version", "body", "ancestors"],
@@ -58,7 +66,7 @@ interface Page {
   ancestors: { title: string }[];
 }
 interface PageList {
-  results: Page[];
+  results: Pick<Page, "id" | "title">[];
   start: number;
   limit: number;
   size: number;
@@ -71,7 +79,6 @@ export class ConfluenceConnector implements Connector {
   readonly source: Source;
   readonly #ctx: ConnectorContext;
   readonly #base: URL;
-  readonly #pages = new Map<string, Page>();
 
   constructor(source: Source, ctx: ConnectorContext) {
     this.source = source;
@@ -94,7 +101,7 @@ export class ConfluenceConnector implements Connector {
     );
   }
 
-  #ref(page: Page): SourceRef {
+  #ref(page: Pick<Page, "id" | "title">): SourceRef {
     return {
       source_id: this.source.id,
       external_id: page.id,
@@ -115,14 +122,12 @@ export class ConfluenceConnector implements Connector {
   }
 
   async list(scope: ScopeSpec, cursor?: Cursor): Promise<ListPage> {
-    if (!cursor) this.#pages.clear();
     const start = cursor ? Number(cursor) : 0;
     if (!Number.isSafeInteger(start) || start < 0) throw new RangeError("invalid Confluence cursor");
     const query = new URLSearchParams({
       spaceKey: scope.ids?.[0] ?? "",
       type: "page",
       status: "current",
-      expand: EXPAND,
       start: String(start),
       limit: "25",
     });
@@ -130,7 +135,7 @@ export class ConfluenceConnector implements Connector {
       type: "object",
       required: ["results", "start", "limit", "size"],
       properties: {
-        results: { type: "array", items: PAGE },
+        results: { type: "array", items: PAGE_REF },
         start: { const: start },
         limit: { type: "integer", minimum: 1 },
         size: { type: "integer", minimum: 0 },
@@ -139,19 +144,16 @@ export class ConfluenceConnector implements Connector {
     });
     if (page._links?.next && !page.results.length)
       throw new RangeError("Confluence returned an incomplete page; retry sync");
-    for (const item of page.results) this.#pages.set(item.id, item);
     // Only use the server's indication of another page, never its URL, which could move the token to another host.
     return {
-      items: page.results.map((p) => ({ ref: this.#ref(p), version: this.#version(p) })),
+      items: page.results.map((p) => ({ ref: this.#ref(p) })),
       ...(page._links?.next && { next_cursor: String(start + page.results.length) }),
     };
   }
 
   async fetch(ref: SourceRef, known?: Version) {
     if (!/^\d+$/.test(ref.external_id)) throw new RangeError("invalid Confluence page ID");
-    const page =
-      this.#pages.get(ref.external_id) ??
-      (await this.#read<Page>(`rest/api/content/${ref.external_id}?expand=${EXPAND}`, PAGE));
+    const page = await this.#read<Page>(`rest/api/content/${ref.external_id}?expand=${EXPAND}`, PAGE);
     const version = this.#version(page);
     if (sameVersion(known, version)) return { unchanged: true as const };
     const file = await this.#ctx.blobs.put(new TextEncoder().encode(page.body.view.value), {

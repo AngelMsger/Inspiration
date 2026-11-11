@@ -32,9 +32,9 @@ import {
 } from "@inspiration/contracts";
 import { aclHash, aclSnapshot } from "../acl.ts";
 import {
-  type FeishuApi,
   type FeishuBlock,
   type FeishuDocument,
+  type FeishuDocumentsApi,
   feishuApi,
   type PermissionMember,
   type TextBody,
@@ -139,9 +139,9 @@ const LABELS = new Set(["public", "internal", "confidential", "secret"]);
 export class FeishuDocxConnector implements Connector {
   readonly type = "feishu.docx";
   readonly source: Source;
-  readonly api: FeishuApi;
+  readonly api: FeishuDocumentsApi;
 
-  constructor(source: Source, api: FeishuApi = feishuApi(source.scope.options)) {
+  constructor(source: Source, api: FeishuDocumentsApi = feishuApi(source.scope.options)) {
     this.source = source;
     this.api = api;
   }

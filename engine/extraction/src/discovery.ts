@@ -58,6 +58,22 @@ const SCHEMA = {
   },
 };
 
+function vocabularyOf(discovered: PredicateEntry[], supplied: PredicateEntry[]): PredicateEntry[] {
+  return [...new Map([...discovered, ...supplied].map((entry) => [entry.predicate, entry])).values()];
+}
+
+function mergeQualifiers(
+  before: NonNullable<PredicateEntry["qualifiers"]>,
+  added: NonNullable<PredicateEntry["qualifiers"]>,
+) {
+  const entries = new Map(before.map((q) => [q.name, q]));
+  for (const entry of added) {
+    const previous = entries.get(entry.name);
+    entries.set(entry.name, { ...entry, aliases: [...new Set([...(previous?.aliases ?? []), ...entry.aliases])] });
+  }
+  return [...entries.values()];
+}
+
 export class FactDiscovery {
   readonly #records: Records;
   readonly #models: ModelGateway;
@@ -69,8 +85,14 @@ export class FactDiscovery {
     this.#prompts = prompts;
   }
 
-  async catalogue(tenant: string, space: string, sensitivity: SensitivityLabel): Promise<PredicateEntry[]> {
-    return (await this.#records.get(CATALOGUES, `${tenant}:${space}:${sensitivity}`))?.predicates ?? [];
+  async catalogue(
+    tenant: string,
+    space: string,
+    sensitivity: SensitivityLabel,
+    supplied: PredicateEntry[] = [],
+  ): Promise<PredicateEntry[]> {
+    const discovered = (await this.#records.get(CATALOGUES, `${tenant}:${space}:${sensitivity}`))?.predicates ?? [];
+    return vocabularyOf(discovered, supplied);
   }
 
   async discover(version: SourceVersion, window: Window, supplied: PredicateEntry[]): Promise<PredicateEntry[]> {
@@ -97,9 +119,12 @@ export class FactDiscovery {
       predicates: [],
       read: [],
     };
-    const known = new Map([...state.predicates, ...supplied].map((p) => [p.predicate, p]));
+    // Explicit vocabulary remains configuration; discovery owns only evidence-backed entries.
+    const configured = new Set(supplied.map((p) => p.predicate));
+    const learned = new Map(state.predicates.filter((p) => !configured.has(p.predicate)).map((p) => [p.predicate, p]));
+    const known = () => vocabularyOf([...learned.values()], supplied);
     const hash = contentHash(JSON.stringify([VERSION, version.id, window.blocks]));
-    if (state.read.includes(hash) || known.size >= 200) return [...known.values()];
+    if (state.read.includes(hash) || learned.size >= 200) return known();
     let output: { predicates: Proposal[] };
     try {
       const completion = await this.#models.complete({
@@ -113,14 +138,14 @@ export class FactDiscovery {
         temperature: 0,
         response_schema: SCHEMA,
         messages: this.#prompts.render(TASK, VERSION, {
-          input: JSON.stringify({ title: version.title, vocabulary: [...known.values()], blocks: window.blocks }),
+          input: JSON.stringify({ title: version.title, vocabulary: known(), blocks: window.blocks }),
         }) as [ChatMessage, ...ChatMessage[]],
         metadata: { source_version_id: version.id },
       });
       output = completion.json as { predicates: Proposal[] };
       parseVocabulary(output);
     } catch (error) {
-      if (error instanceof GatewayException && error.code === "invalid_output") return [...known.values()];
+      if (error instanceof GatewayException && error.code === "invalid_output") return known();
       throw error;
     }
     for (const proposal of output.predicates) {
@@ -132,28 +157,29 @@ export class FactDiscovery {
       const aliases = proposal.aliases.filter((a) => text.includes(a.toLowerCase()));
       if (!aliases.length) continue;
       const { evidence: _, ...entry } = proposal;
-      const previous = known.get(entry.predicate);
+      if (configured.has(entry.predicate)) continue;
+      const previous = learned.get(entry.predicate);
       // Established value kinds and units never change silently after claims have used them.
       if (previous && canonicalJson(previous.value) !== canonicalJson(entry.value)) continue;
-      const qualifiers = (entry.qualifiers ?? []).filter((q) => q.aliases.some((a) => text.includes(a.toLowerCase())));
-      known.set(
+      const qualifiers = (entry.qualifiers ?? [])
+        .map((q) => ({ ...q, aliases: q.aliases.filter((a) => text.includes(a.toLowerCase())) }))
+        .filter((q) => q.aliases.length);
+      learned.set(
         entry.predicate,
         previous
           ? {
               ...previous,
               aliases: [...new Set([...previous.aliases, ...aliases])],
-              qualifiers: [
-                ...new Map([...(previous.qualifiers ?? []), ...qualifiers].map((q) => [q.name, q])).values(),
-              ],
+              qualifiers: mergeQualifiers(previous.qualifiers ?? [], qualifiers),
             }
           : { ...entry, aliases, ...(qualifiers.length ? { qualifiers } : { qualifiers: [] }) },
       );
-      if (known.size >= 200) break;
+      if (learned.size >= 200) break;
     }
     await this.#records.transaction((tx) =>
-      tx.put(CATALOGUES, [{ ...state, predicates: [...known.values()], read: [...state.read.slice(-1999), hash] }]),
+      tx.put(CATALOGUES, [{ ...state, predicates: [...learned.values()], read: [...state.read.slice(-1999), hash] }]),
     );
-    return [...known.values()];
+    return known();
   }
 }
 

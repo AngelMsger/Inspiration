@@ -45,12 +45,14 @@ test("Confluence follows pages within the configured context, cites originals an
     vi.fn(async (url: URL, init: RequestInit) => {
       requests.push(url);
       expect(url.origin).toBe("https://wiki.example.test");
-      expect(url.pathname).toBe("/confluence/rest/api/content");
+      expect(url.pathname).toMatch(/^\/confluence\/rest\/api\/content(?:\/12)?$/);
       expect(init.redirect).toBe("error");
       expect((init.headers as Record<string, string>).authorization).toBe(`Bearer ${credential}`);
+      if (url.pathname.endsWith("/12")) return response(current);
+      expect(url.searchParams.has("expand")).toBe(false);
       const start = Number(url.searchParams.get("start"));
       return response({
-        results: [start ? page("13") : current],
+        results: [start ? { id: "13", title: "Other" } : { id: current.id, title: current.title }],
         start,
         size: 1,
         limit: 1,
@@ -72,12 +74,36 @@ test("Confluence follows pages within the configured context, cites originals an
   ).toContain("20 days");
   expect(await connector.fetch(doc.ref, doc.version)).toEqual({ unchanged: true });
   current = page("12", "<p>Leave allowance: 25 days.</p>", 2);
-  await connector.list(connector.source.scope);
+  // A webhook or manual single-page refresh must not need another listing.
   const changed = (await connector.fetch(doc.ref, doc.version)) as NormalizedDocument;
   expect(changed.version.content_hash).not.toBe(doc.version.content_hash);
   expect(changed.version.external_version).toBe("2");
-  expect(requests).toHaveLength(3);
+  expect(requests).toHaveLength(5);
   expect(await registry("connectors").get("confluence")).toBeTypeOf("function");
+});
+
+test("Confluence enumeration does not read bodies and a failed fetch leaves other pages readable", async () => {
+  vi.stubGlobal("fetch", async (url: URL) => {
+    if (url.pathname.endsWith("/content"))
+      return response({
+        results: [
+          { id: "12", title: "Leave" },
+          { id: "13", title: "Other" },
+        ],
+        start: 0,
+        limit: 25,
+        size: 2,
+      });
+    if (url.pathname.endsWith("/12")) return response({}, 403);
+    return response(page("13"));
+  });
+  const connector = new ConfluenceConnector(source("confluence"), context());
+  const { items } = await connector.list(connector.source.scope);
+  expect(items).toHaveLength(2);
+  await expect(connector.fetch(items[0]?.ref ?? { source_id: "", external_id: "" })).rejects.toThrow("HTTP 403");
+  const doc = (await connector.fetch(items[1]?.ref ?? { source_id: "", external_id: "" })) as NormalizedDocument;
+  expect(doc.ref.external_id).toBe("13");
+  expect(contractErrors("NormalizedDocument", doc)).toEqual([]);
 });
 
 test.each([401, 403, 429, 500])(

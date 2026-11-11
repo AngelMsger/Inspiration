@@ -436,12 +436,10 @@ export class Extraction {
     const level = levelOf(version);
     const targets = new Set([...change.added_block_ids, ...change.changed_block_ids]);
     if (change.deleted || level === "search_only" || !targets.size) return { extracted, read };
-    let vocabulary = (await this.#vocabulary(version.tenant_id))?.predicates ?? [];
+    const supplied = (await this.#vocabulary(version.tenant_id))?.predicates ?? [];
+    let vocabulary = supplied;
     if (this.#discovery)
-      vocabulary = [
-        ...vocabulary,
-        ...(await this.#discovery.catalogue(version.tenant_id, version.space_id, version.sensitivity)),
-      ];
+      vocabulary = await this.#discovery.catalogue(version.tenant_id, version.space_id, version.sensitivity, supplied);
     // Unless a page or an answer uses it, a reference document is read only where it names a
     // catalogue fact, and only the claims that fill a slot are kept.
     const slotsOnly = level === "reference" && !use;
@@ -450,7 +448,7 @@ export class Extraction {
     const now = this.clock().toISOString();
     try {
       for (const window of await windowsOf(this.store, version, targets, this.windowChars, touches)) {
-        if (this.#discovery && !slotsOnly) vocabulary = await this.#discovery.discover(version, window, vocabulary);
+        if (this.#discovery && !slotsOnly) vocabulary = await this.#discovery.discover(version, window, supplied);
         result.windows++;
         const output = await this.#complete(version, window, vocabulary);
         if (!output) {

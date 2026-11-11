@@ -1,7 +1,7 @@
 /** Live Feishu docx reads. A complete, revision-pinned block listing precedes each import. */
 import { type ConnectorContext, type Source, schemaErrors } from "@inspiration/contracts";
 import { ConnectionError, remoteJson } from "../http.ts";
-import type { DocumentMeta, FeishuApi, FeishuBlock, FeishuDocument } from "./api.ts";
+import type { DocumentMeta, FeishuBlock, FeishuDocument, FeishuDocumentsApi } from "./api.ts";
 
 const ROOT = "https://open.feishu.cn/open-apis/";
 const OBJECT = { type: "object" };
@@ -57,7 +57,7 @@ export function feishuLink(link: string): { kind: "docx" | "wiki"; token: string
   return { kind: match[1] as "docx" | "wiki", token: match[2] as string, url: `${url.origin}${url.pathname}` };
 }
 
-export class HttpFeishuApi implements FeishuApi {
+export class HttpFeishuApi implements FeishuDocumentsApi {
   readonly connectionScoped = true;
   readonly #source: Source;
   readonly #ctx: ConnectorContext;
@@ -192,12 +192,5 @@ export class HttpFeishuApi implements FeishuApi {
       seen.add(cursor);
     } while (cursor);
     return { meta: { ...meta, url: link.url }, blocks, members: [] };
-  }
-
-  async listApprovals(): Promise<never> {
-    throw new RangeError("live approvals are not supported");
-  }
-  async approval(): Promise<never> {
-    throw new RangeError("live approvals are not supported");
   }
 }

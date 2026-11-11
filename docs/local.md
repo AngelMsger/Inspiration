@@ -87,15 +87,19 @@ after changing credentials. Original links do not grant additional upstream perm
 7. Restart `pnpm local`, open the same company and check documents, citations and connection
    results again. An interrupted sync is marked failed with a retry instruction. Both sync
    API entry points use the same source-sync job and persisted result; concurrent requests
-   join the running import. One failed Feishu page is reported individually while readable
-   pages continue updating, and its last imported version is retained.
+   join the running import. Confluence listing enumerates pages; fetching reads each current
+   page independently, including single-page refreshes. One failed Confluence or Feishu page
+   is reported individually while readable pages continue updating, and its last imported
+   version is retained.
 
 For an empty company, fact discovery proposes a normalization catalogue from verbatim
 passages, separated by space and sensitivity. Ordinary extraction still validates evidence;
 governance still requires a person's decision where the rules ask for one. The catalogue is
-bounded to 200 predicates per space and sensitivity. New topics are organized in the
-background about once a minute and get the space's first owner; small or unfiled topics also
-route review work to that owner. Search and citations are usable before topic organization.
+bounded to 200 discovered predicates per space and sensitivity. Explicit tenant vocabulary
+takes precedence and stays separate from discovery state; later reads retain earlier
+evidenced aliases. New topics are organized in the background about once a minute and get
+the space's first owner; small or unfiled topics also route review work to that owner. Search
+and citations are usable before topic organization.
 
 `--discover-facts` controls only catalogue discovery. The HTTP/MCP server enables on-use
 reading independently, and space-owner routing and background organization also work with a

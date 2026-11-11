@@ -103,14 +103,19 @@ export interface FeishuApproval {
   properties?: Record<string, unknown>;
 }
 
-export interface FeishuApi {
+export interface FeishuDocumentsApi {
   readonly connectionScoped?: boolean;
   /** Stable document targets. Reading content and resolving wiki links belong to document(). */
   listDocuments(): Promise<{ document_id: string; title?: string; url?: string }[]>;
   document(documentId: string): Promise<FeishuDocument>;
+}
+
+export interface FeishuApprovalsApi {
   listApprovals(): Promise<{ approval_code: string; approval_name: string; modified_at: string }[]>;
   approval(approvalCode: string): Promise<FeishuApproval>;
 }
+
+export interface FeishuApi extends FeishuDocumentsApi, FeishuApprovalsApi {}
 
 /**
  * Feishu content recorded as JSON files: docs/<document_id>.json (a FeishuDocument) and

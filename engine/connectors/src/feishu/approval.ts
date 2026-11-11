@@ -29,7 +29,7 @@ import {
   type Version,
 } from "@inspiration/contracts";
 import { aclHash, aclSnapshot } from "../acl.ts";
-import { type FeishuApi, type FeishuApproval, feishuApi } from "./api.ts";
+import { type FeishuApproval, type FeishuApprovalsApi, feishuApi } from "./api.ts";
 import { memberEntries } from "./docx.ts";
 
 const ACTIONS: Record<string, ApprovalAction> = {
@@ -110,9 +110,9 @@ export function processSnapshot(a: FeishuApproval, options: { realActorIds?: boo
 export class FeishuApprovalConnector implements Connector {
   readonly type = "feishu.approval";
   readonly source: Source;
-  readonly api: FeishuApi;
+  readonly api: FeishuApprovalsApi;
 
-  constructor(source: Source, api: FeishuApi = feishuApi(source.scope.options)) {
+  constructor(source: Source, api: FeishuApprovalsApi = feishuApi(source.scope.options)) {
     this.source = source;
     this.api = api;
   }
