@@ -36,6 +36,7 @@ The product owner's decisions in force, oldest first, and the questions still op
 | 2026-11-05 | The MVP is adopted with its five decisions as recommended: three to five people try it in Chinese for two weeks, on one server in Hong Kong or Singapore; live Feishu after Gate B; CNY 100 a month for models; a standing "Decide for me" offered to owners |
 | 2026-11-05 | A pull request is merged once CI passes; the product owner's Codex review runs afterwards, and its findings become a follow-up pull request or an issue. Outside research is supporting input only: public pages say that research supports a claim and link it, without naming its authors |
 | 2026-11-05 | The validation spec and the UI philosophy are adopted, and validation stays paused for the MVP. Scoped owners are 负责人 in Chinese (空间负责人, 主题负责人, 页面负责人, 流程负责人), not the 维护人 proposed on 2026-10-26 |
+| 2026-11-11 | Validate on the owner’s local computer with direct Confluence Data Center / Server and Feishu document connections, using a DeepSeek API key; close the local experience gaps before live validation. See [Local validation](local.md). |
 
 ## Open questions
 

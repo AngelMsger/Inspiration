@@ -12,7 +12,8 @@
       "connectors": {
         "folder": "./src/folder.ts#folderConnector",
         "feishu.docx": "./src/feishu/docx.ts#feishuDocxConnector",
-        "feishu.approval": "./src/feishu/approval.ts#feishuApprovalConnector"
+        "feishu.approval": "./src/feishu/approval.ts#feishuApprovalConnector",
+        "confluence": "./src/confluence.ts#confluenceConnector"
       }
     }
   },

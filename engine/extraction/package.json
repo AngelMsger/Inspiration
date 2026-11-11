@@ -13,7 +13,8 @@
         "extraction": "./src/migrations.ts#MIGRATIONS"
       },
       "model_mocks": {
-        "extraction.extract_claims": "./src/mock.ts#mockExtractClaims"
+        "extraction.extract_claims": "./src/mock.ts#mockExtractClaims",
+        "extraction.discover_facts": "./src/discovery.ts#mockDiscoverFacts"
       }
     }
   },

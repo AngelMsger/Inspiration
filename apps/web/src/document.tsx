@@ -153,6 +153,11 @@ function Reading(props: {
           <h1>{view.document.title}</h1>
           <div className="meta">
             <span>{[sourceName, ...folders].join(" · ")}</span>
+            {view.document.url && /^https?:\/\//i.test(view.document.url) && (
+              <a href={view.document.url} target="_blank" rel="noopener noreferrer">
+                {say("doc.open_source")}
+              </a>
+            )}
             <span>{say("doc.level", { level: say(`level.${view.document.governance_level}`) })}</span>
             <span>{say("doc.synced", { date: formatDate(tag, view.document.fetched_at) })}</span>
             {uploaded && space && mayUpload(space) && !route.version && (

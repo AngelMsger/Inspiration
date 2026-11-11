@@ -3,11 +3,13 @@ import { AuthzService, Directory, type Graph, MemoryGraph } from "@inspiration/a
 import { Assistant, Inbox } from "@inspiration/collaboration";
 import type {
   BlobStore,
+  Citation,
   EventEnvelope,
   EventHandler,
   EventPublisher,
   KnowledgeStore,
   ModelGateway,
+  Principal,
   ReviewDue,
 } from "@inspiration/contracts";
 import {
@@ -38,6 +40,8 @@ import { Topics } from "@inspiration/page-compiler";
 import { type AnswerSources, COMPACT_SOURCES, Retrieval } from "@inspiration/retrieval";
 import { type PrincipalResolver, SourceSync } from "@inspiration/source-sync";
 
+import { readForAnswer } from "./reading-on-use.ts";
+
 const log = logger("engine");
 
 export interface EngineOptions {
@@ -50,6 +54,10 @@ export interface EngineOptions {
   blobDir: string;
   /** Maps source principals to engine principals; the business layer's directory. */
   resolvePrincipal?: PrincipalResolver;
+  secret?: (name: string) => Promise<string>;
+  discoverFacts?: boolean;
+  /** Read authorized reference passages before answering, independently of catalogue discovery. */
+  readOnUse?: boolean;
   /** Defaults to the development gateway (config/gateway.dev.yaml): fake providers only. */
   models?: ModelGateway;
   /**
@@ -80,7 +88,7 @@ interface Running {
 
 /**
  * The engine process: one store, one blob store, one event bus, and the built components
- * subscribed under their own consumer groups. Long-running deployments call run(); batch
+ * subscribed under their own consumer groups. Long-running deployments drain work with settleLater(); batch
  * runs (ingest a corpus, then report) call settle() to deliver until nothing is left.
  */
 export class Engine {
@@ -142,6 +150,9 @@ export class Engine {
     relay?: OutboxRelay;
     pool?: Pool;
     resolvePrincipal?: PrincipalResolver;
+    secret?: (name: string) => Promise<string>;
+    discoverFacts?: boolean;
+    readOnUse?: boolean;
     vocabulary?: ExtractionOptions["vocabulary"];
     clock?: () => Date;
     graph?: Graph;
@@ -163,6 +174,7 @@ export class Engine {
       store: this.store,
       records: this.records,
       blobs: this.blobs,
+      ...(parts.secret && { secret: parts.secret }),
       ...(parts.resolvePrincipal && { resolvePrincipal: parts.resolvePrincipal }),
     });
     this.normalization = new Normalization({
@@ -176,13 +188,22 @@ export class Engine {
       store: this.store,
       records: this.records,
       models: this.models,
+      discoverFacts: parts.discoverFacts,
       ...(parts.vocabulary && { vocabulary: parts.vocabulary }),
     });
     const clock = parts.clock && { clock: parts.clock };
     this.governance = new Governance({ store: this.store, records: this.records, ...clock });
     this.freshness = new Freshness({ store: this.store, records: this.records, ...clock });
     this.topics = new Topics({ store: this.store, records: this.records, models: this.models, ...clock });
-    this.inbox = new Inbox({ store: this.store, records: this.records, ...clock });
+    this.inbox = new Inbox({
+      store: this.store,
+      records: this.records,
+      ...clock,
+      fallbackOwner: async (tenant, space) => {
+        const entry = await this.directory.space(space);
+        return entry?.tenant_id === tenant ? entry.owner_ids[0] : undefined;
+      },
+    });
     this.assistant = new Assistant({ inbox: this.inbox });
     const graph = parts.graph ?? new MemoryGraph();
     this.authz = new AuthzService(graph, this.store);
@@ -199,13 +220,19 @@ export class Engine {
     };
     const governed = { ...indexes, verdicts: this.governance, staleness: this.freshness };
     const context = parts.contextTokens && { contextTokens: parts.contextTokens };
-    this.retrieval = new Retrieval(governed);
+    const answering = {
+      ...governed,
+      ...(parts.readOnUse && {
+        readOnUse: (citations: readonly Citation[], who: Principal) => readForAnswer(this, citations, who),
+      }),
+    };
+    this.retrieval = new Retrieval(answering);
     this.baselines = {
       mature: new Retrieval({ ...indexes, baseline: "mature" }),
       long_context: new Retrieval({ ...indexes, baseline: "long_context", ...context }),
     };
     this.governedLongContext = new Retrieval({ ...governed, readAll: true, ...context });
-    this.compact = new Retrieval({ ...governed, answerSources: parts.compactSources ?? COMPACT_SOURCES });
+    this.compact = new Retrieval({ ...answering, answerSources: parts.compactSources ?? COMPACT_SOURCES });
     const components: Running[] = [
       { group: "source-sync", handlers: () => this.sync.handlers() },
       { group: "normalization", handlers: () => this.normalization.handlers() },
@@ -243,6 +270,9 @@ export class Engine {
     } else transport = new InMemoryTransport();
     closers.push(() => transport.close());
     const resolve = {
+      discoverFacts: options.discoverFacts,
+      readOnUse: options.readOnUse,
+      ...(options.secret && { secret: options.secret }),
       ...(options.resolvePrincipal && { resolvePrincipal: options.resolvePrincipal }),
       ...(options.vocabulary && { vocabulary: options.vocabulary }),
       ...(options.clock && { clock: options.clock }),
@@ -356,7 +386,8 @@ export class Engine {
   }
 
   async close(): Promise<void> {
-    await this.#delivering;
+    await this.sync.close();
+    await this.settle();
     for (const close of this.#closers) {
       await close().catch((error: unknown) => log.warn("close failed", { error }));
     }

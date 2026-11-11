@@ -330,8 +330,8 @@ describe("feishu connectors on fixtures", () => {
     const api = new FixtureFeishuApi(join(dir, "feishu"));
     const connector = new FeishuDocxConnector(source("feishu.docx", {}), api);
     const [item] = (await connector.list({ kind: "feishu.wiki_space" })).items;
-    expect(item?.version?.external_version).toBe("7");
     const doc = asDocument(await connector.fetch(item?.ref ?? { source_id: "", external_id: "" }));
+    expect(doc.version.external_version).toBe("7");
     expect(doc.blocks?.map((b) => [b.anchor, b.kind, b.text])).toEqual([
       ["h1", "heading", "Article 3 Hotels"],
       ["p1", "paragraph", "Tier-1 cities: at most 600 yuan a night."],

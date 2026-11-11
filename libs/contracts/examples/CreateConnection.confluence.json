@@ -1,0 +1,6 @@
+{
+  "type": "confluence",
+  "name": "HR wiki",
+  "targets": ["HR"],
+  "governance_level": "governed"
+}

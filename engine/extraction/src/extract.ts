@@ -26,6 +26,7 @@ import {
 import { defineTable, type Records } from "@inspiration/eventbus";
 import { logger } from "@inspiration/kernel";
 import { PromptRegistry } from "@inspiration/model-gateway";
+import { FactDiscovery } from "./discovery.ts";
 import { OUTPUT_SCHEMA, PROMPT_VERSION, TASK, type WindowInput, type WindowOutput } from "./protocol.ts";
 import { fitToCatalogue, mentioned, type Vocabulary } from "./vocabulary.ts";
 import { type Built, buildClaim, dayStart, type Window, windowsOf } from "./windows.ts";
@@ -51,9 +52,12 @@ export interface ExtractionOptions {
   vocabulary?: (tenantId: string) => Vocabulary | undefined | Promise<Vocabulary | undefined>;
   clock?: () => Date;
   windowChars?: number;
+  discoverFacts?: boolean;
 }
 
 export interface ExtractionResult {
+  /** The committed claims.updated event; callers may apply it before answering. Bus delivery is unchanged. */
+  event?: EventEnvelope;
   /** Model calls, and those whose output stayed invalid after the gateway's retry. */
   windows: number;
   failed_windows: number;
@@ -153,6 +157,7 @@ export class Extraction {
     windows_by_level: { governed: 0, reference: 0, search_only: 0 } as Record<GovernanceLevel, number>,
   };
   readonly #vocabulary: NonNullable<ExtractionOptions["vocabulary"]>;
+  readonly #discovery?: FactDiscovery;
   readonly #running = new Map<string, Promise<unknown>>();
 
   constructor(options: ExtractionOptions) {
@@ -168,6 +173,7 @@ export class Extraction {
       this.prompts = new PromptRegistry();
       this.prompts.loadDir(PROMPTS_DIR);
     }
+    if (options.discoverFacts) this.#discovery = new FactDiscovery(this.records, this.models, this.prompts);
   }
 
   get producer(): ProducerInfo {
@@ -197,7 +203,11 @@ export class Extraction {
    * nothing. A governed version is extracted in full already and a search-only one never is,
    * so for those, and for a version older than one already extracted, nothing happens.
    */
-  async extractOnUse(sourceVersionId: string, blockIds: readonly string[]): Promise<ExtractionResult> {
+  async extractOnUse(
+    sourceVersionId: string,
+    blockIds: readonly string[],
+    onCommitted?: EventHandler,
+  ): Promise<ExtractionResult> {
     const version = await this.store.getSourceVersion(sourceVersionId);
     if (!version) throw new RangeError(`unknown source version ${sourceVersionId}`);
     const use: BlocksChanged = {
@@ -209,7 +219,41 @@ export class Extraction {
       added_span_ids: [],
       removed_span_ids: [],
     };
-    return this.#serial(version, () => this.#extract(version, use, { use: true }));
+    return this.#serial(version, async () => {
+      const result = await this.#extract(version, use, { use: true });
+      // A concurrent read of this document waits for its standing update too.
+      if (result.event) await onCommitted?.(result.event);
+      return result;
+    });
+  }
+
+  /** Read authorized citations in the version they cite, including spans reused from an older version. */
+  async extractCitations(
+    tenantId: string,
+    citations: readonly { source_version_id: string; span_id: string }[],
+    onCommitted?: EventHandler,
+  ): Promise<ExtractionResult[]> {
+    const versions = new Map<string, Set<string>>();
+    for (const citation of citations) {
+      const spans = versions.get(citation.source_version_id) ?? new Set<string>();
+      spans.add(citation.span_id);
+      versions.set(citation.source_version_id, spans);
+    }
+    const results: ExtractionResult[] = [];
+    for (const [id, spans] of versions) {
+      const version = await this.store.getSourceVersion(id);
+      if (!version || version.tenant_id !== tenantId || levelOf(version) !== "reference" || version.deleted) continue;
+      const blocks = (await this.store.blocksOf(id)).filter((b) => b.span_ids.some((span) => spans.has(span)));
+      if (blocks.length)
+        results.push(
+          await this.extractOnUse(
+            id,
+            blocks.map((b) => b.id),
+            onCommitted,
+          ),
+        );
+    }
+    return results;
   }
 
   async #serial<T>(version: SourceVersion, fn: () => Promise<T>): Promise<T> {
@@ -340,6 +384,10 @@ export class Extraction {
       ...(cause && { causation: cause }),
       occurredAt: this.clock(),
     };
+    const event =
+      payload.added.length || payload.updated.length || payload.superseded.length
+        ? newEvent("claims.updated", payload, meta)
+        : undefined;
     await this.store.transaction(async (tx) => {
       if (fresh.length) {
         await tx.upsertClaims(
@@ -354,12 +402,11 @@ export class Extraction {
         ...before.restored.map(({ unstated: _, ...c }) => ({ ...c, updated_at: now })),
       ];
       if (marked.length) await tx.upsertClaims(marked, []);
-      if (payload.added.length || payload.updated.length || payload.superseded.length) {
-        await tx.publish(newEvent("claims.updated", payload, meta));
-      }
+      if (event) await tx.publish(event);
       for (const request of asked.requests) await tx.publish(newEvent("todo.requested", request, meta));
     });
     await this.#remember(mark, next);
+    if (event) result.event = event;
     log.debug("extracted claims", {
       source_version: version.id,
       windows: result.windows,
@@ -389,7 +436,10 @@ export class Extraction {
     const level = levelOf(version);
     const targets = new Set([...change.added_block_ids, ...change.changed_block_ids]);
     if (change.deleted || level === "search_only" || !targets.size) return { extracted, read };
-    const vocabulary = (await this.#vocabulary(version.tenant_id))?.predicates ?? [];
+    const supplied = (await this.#vocabulary(version.tenant_id))?.predicates ?? [];
+    let vocabulary = supplied;
+    if (this.#discovery)
+      vocabulary = await this.#discovery.catalogue(version.tenant_id, version.space_id, version.sensitivity, supplied);
     // Unless a page or an answer uses it, a reference document is read only where it names a
     // catalogue fact, and only the claims that fill a slot are kept.
     const slotsOnly = level === "reference" && !use;
@@ -398,6 +448,7 @@ export class Extraction {
     const now = this.clock().toISOString();
     try {
       for (const window of await windowsOf(this.store, version, targets, this.windowChars, touches)) {
+        if (this.#discovery && !slotsOnly) vocabulary = await this.#discovery.discover(version, window, supplied);
         result.windows++;
         const output = await this.#complete(version, window, vocabulary);
         if (!output) {

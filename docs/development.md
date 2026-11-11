@@ -1,5 +1,7 @@
 # Development
 
+For your own documents, start with [Local validation](local.md): `pnpm local` runs the persistent application with Confluence and Feishu connections.
+
 How to build, test and run Inspiration from this repository: the stack, the checks, the
 measurement harness and the demo. What the product is and where it is going is in the
 [README](../README.md) and the [overview](overview.md); the rules for changing anything are in

@@ -107,6 +107,7 @@ import {
 } from "@inspiration/contracts";
 import { logger } from "@inspiration/kernel";
 import { documentTree, entryOf, foldersOf, type ListedDocument } from "@inspiration/source-sync";
+import { connections, connectSource, startSync } from "./connections.ts";
 import { decidedWeek, decideTodos, putDelegation, undoDecision } from "./decisions.ts";
 import type { Engine } from "./engine.ts";
 import { badRequest, HttpError, notFound } from "./http-errors.ts";
@@ -151,6 +152,19 @@ function routesOf(engine: Engine): Route[] {
     throw new HttpError(405, "bad_request", "the MCP endpoint takes one message per POST and opens no stream");
   };
   return [
+    { method: "GET", path: /^\/v0\/spaces\/([^/]+)\/sources$/, run: (who, m) => connections(engine, who, param(m)) },
+    {
+      method: "POST",
+      path: /^\/v0\/spaces\/([^/]+)\/sources$/,
+      scope: "knowledge.propose",
+      run: async (who, m, req) => connectSource(engine, who, param(m), await req.json()),
+    },
+    {
+      method: "POST",
+      path: /^\/v0\/sources\/([^/]+)\/sync\/start$/,
+      scope: "knowledge.propose",
+      run: (who, m) => startSync(engine, who, param(m)),
+    },
     {
       method: "POST",
       path: /^\/v0\/mcp$/,

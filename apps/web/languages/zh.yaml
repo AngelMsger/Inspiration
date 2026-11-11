@@ -466,3 +466,38 @@ apps.revoke: 撤销
 apps.confirm_revoke: 确定撤销？使用它的应用会立即停止。
 copy.button: 复制
 copy.done: 已复制
+
+maintain.sources: "文档连接"
+source.confluence: "Confluence 自建版"
+connections.lede: "连接在线文档；原文更新后，点击同步即可读取新版本。"
+connections.access: "导入内容对本空间的读者可见，不会复制来源系统的逐篇权限。个人验证建议使用私有空间。"
+connections.kind: "来源系统"
+connections.name: "连接名称"
+connections.space_key: "Confluence 空间标识（例如 HR）"
+connections.links: "飞书 docx 或知识库页面链接，每行一个"
+connections.level: "如何处理这些文档"
+connections.reference: "宽松：可搜索、可引用，回答用到时进一步抽取事实。"
+connections.governed: "严格：抽取事实、检测分歧并交给空间负责人复核，适合制度和正式规范。"
+connections.search_only: "仅检索：建立索引并支持引用，不抽取事实。"
+connections.connect: "连接并同步"
+connections.starting: "正在启动…"
+connections.sync: "立即同步"
+connections.connected: "已连接来源"
+connections.empty: "尚未连接在线文档来源。"
+connections.running: "正在同步…"
+connections.succeeded: "同步完成"
+connections.failed: "同步需要处理"
+connections.result: "新增 {created} · 更新 {updated} · 未变 {unchanged} · 移除 {deleted} · 失败 {failed}"
+connections.open: "查看已导入文档"
+connections.processing: "同步后会继续在后台解析、建立索引。进入文档查看处理进度，再提问并检查引用。"
+connections.configure_confluence: "请先在 .env 配置 INSPIRATION_CONFLUENCE_URL 和 INSPIRATION_CONFLUENCE_TOKEN，然后重启 pnpm local。"
+connections.configure_feishu: "请先在 .env 配置 INSPIRATION_FEISHU_APP_ID 和 INSPIRATION_FEISHU_APP_SECRET，然后重启 pnpm local。"
+
+signin.local_title: "本机上的 Inspiration"
+signin.local_lede: "进入 Inspiration，无需邮箱、密码或在线身份服务。"
+signin.local_open: "进入 Inspiration"
+
+local.mock: "模拟模型"
+local.mock_detail: "仅用于流程演练，回答不是由 DeepSeek 生成。"
+
+doc.open_source: "打开来源网页"

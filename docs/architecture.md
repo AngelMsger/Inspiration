@@ -55,6 +55,14 @@ as, and only the backend sets those headers. `pnpm demo` runs both over the demo
 `pnpm snapshot` records the demo script through both into a static page that answers from the
 recording (`apps/web/src/replay.ts`).
 
+The source-sync component owns full-sync execution, persisted status and restart recovery;
+HTTP handlers only authorize and start or await that same job. Retrieval owns the answer
+lifecycle for HTTP and MCP. Its optional reading callback invokes extraction on authorized
+citations in their cited versions, then applies the original committed events through the
+existing idempotent governance and freshness handlers. Other event consumers run in the
+background; an answer does not drain the engine's global queue. Catalogue discovery is an
+extraction option, independent of answer-time reading, owner routing and topic organization.
+
 The business backend (`apps/business`) is the browser's real server, on the site's own origin.
 It signs people in through Logto (OIDC, in `business/accounts`), keeps their companies, members
 and invite links (`business/tenancy`), provisions each change in the engine as the tenancy
@@ -163,7 +171,7 @@ One repository makes boundaries a matter of checks rather than of repository wal
 
 | Stage | Component | Job | State |
 | --- | --- | --- | --- |
-| Ingest | connectors | One integration per vendor: list, fetch, read ACLs, webhooks, agent tools. Built: local folders, Feishu documents and approvals (recorded fixtures) | Built |
+| Ingest | connectors | One integration per vendor: list, fetch, read ACLs, webhooks, agent tools. Built: local folders, live Confluence space pages and Feishu docx/wiki page links, recorded Feishu approvals | Built |
 | Ingest | source-sync | Versions, tombstones, ACL snapshots, polls and reconcile; later `fetch_now` and the Documents tree | Built; poll and reconcile schedules planned (a sync runs when called) |
 | Ingest | parsing | Python worker for Word, PowerPoint, Excel and PDF behind an HTTP contract; later scans through OCR and layout models | Built for the text layer |
 | Ingest | normalization | Canonical blocks and spans with stable IDs, block diff, duplicate documents; later mirror pages | Built |

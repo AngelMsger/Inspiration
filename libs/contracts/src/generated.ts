@@ -314,6 +314,12 @@ export type ConflictClass =
   | "compatible";
 export type ConflictTier = "deterministic" | "semantic" | "nli" | "llm_judge";
 export type ConflictStatus = "open" | "auto_resolved" | "resolved" | "dismissed";
+export type SourceStatus = "active" | "paused" | "error" | "archived";
+/**
+ * How much of a source the engine governs. governed: fully extracted, and its claims get owners, review clocks and conflict todos. reference: extracted only on use (a passage that touches a catalogue slot, or one a page or an answer cites), with no owners, reviews or todos; a value that differs from a governed one is a note, never a conflict todo. search_only: never extracted, only searched.
+ *
+ */
+export type GovernanceLevel = "governed" | "reference" | "search_only";
 /**
  * A space's owners, active members of its tenant.
  *
@@ -393,11 +399,6 @@ export type ReviewStatus = "unreviewed" | "verified" | "disputed" | "published";
  *
  */
 export type SlotStanding = "holds" | "outdated" | "disputed" | "differs";
-/**
- * How much of a source the engine governs. governed: fully extracted, and its claims get owners, review clocks and conflict todos. reference: extracted only on use (a passage that touches a catalogue slot, or one a page or an answer cites), with no owners, reviews or todos; a value that differs from a governed one is a note, never a conflict todo. search_only: never extracted, only searched.
- *
- */
-export type GovernanceLevel = "governed" | "reference" | "search_only";
 /**
  * How far the engine has read a document's latest version. waiting: not parsed yet. reading: parsed and searchable, its statements being read. read: done, and a reference document is read further where a page or an answer uses it. paused: the company's reading budget for the day is spent, or the reading model could not be reached, and reading carries on by itself once the next day's budget starts or the model answers; the note says which, and the version is searchable meanwhile. failed: the file could not be read, and the note says why.
  *
@@ -508,7 +509,6 @@ export type SopId = string;
  * Where an SOP statement comes from; shown to readers and reviewers.
  */
 export type StepBasis = "from_definition" | "mined" | "inferred" | "document" | "human";
-export type SourceStatus = "active" | "paused" | "error" | "archived";
 export type SpaceKind = "personal" | "team" | "org" | "source_mirror";
 /**
  * A space as one member sees it: the space, its owners, and the member's own role on it, the highest they hold, inherited from a parent space or not. role is absent when the member manages the space without holding a role on it, as the super admin may. grants counts the space's audience, and is set only in the list of spaces the member may administer (GET /v0/spaces?manage=true).
@@ -1745,6 +1745,87 @@ export interface ConflictCase {
   detected_at: Instant;
   producer?: ProducerInfo;
 }
+export interface ConnectionList {
+  sources: Source[];
+  configured: {
+    confluence: boolean;
+    feishu: boolean;
+  };
+}
+/**
+ * One connected system or upload area, for example one Feishu wiki space.
+ */
+export interface Source {
+  id: SourceId;
+  tenant_id: TenantId;
+  space_id: SpaceId;
+  type: PluginName;
+  name: string;
+  scope: ScopeSpec;
+  status: SourceStatus;
+  owner_id?: PrincipalId;
+  default_sensitivity?: SensitivityLabel;
+  default_authority?: Score01;
+  governance_level?: GovernanceLevel;
+  /**
+   * Name of a secret in the deployment's secret store. Never the secret itself.
+   */
+  credentials_ref?: string;
+  created_at: Instant;
+  updated_at?: Instant;
+  sync?: SourceSyncState;
+}
+/**
+ * What part of a source to ingest. The connector defines kind and options.
+ */
+export interface ScopeSpec {
+  /**
+   * Connector-defined scope kind, for example "feishu.wiki_space".
+   */
+  kind: string;
+  /**
+   * External IDs of the roots to ingest (spaces, folders, approval definitions).
+   */
+  ids?: string[];
+  /**
+   * Glob patterns on the source path.
+   */
+  include?: string[];
+  exclude?: string[];
+  options?: {
+    [k: string]: unknown | undefined;
+  };
+}
+/**
+ * Last full source sync, shared by synchronous and background requests and persisted across restarts.
+ */
+export interface SourceSyncState {
+  state: "running" | "succeeded" | "failed";
+  started_at: Instant;
+  finished_at?: Instant;
+  note?: string;
+  report?: SyncReport;
+}
+/**
+ * What syncing a source did: how many items it listed and what became of them. The response to syncing a source now, once the engine has read everything the sync changed.
+ *
+ */
+export interface SyncReport {
+  source_id: SourceId;
+  listed: number;
+  outcomes: {
+    created: number;
+    updated: number;
+    acl_changed: number;
+    unchanged: number;
+    deleted: number;
+    failed: number;
+  };
+  errors: {
+    external_id: string;
+    error: string;
+  }[];
+}
 export interface ConnectorCapabilities {
   list: boolean;
   fetch: boolean;
@@ -1771,6 +1852,21 @@ export interface ConnectorCapabilities {
    */
   process?: boolean;
   max_requests_per_second?: number;
+}
+/**
+ * Connect a configured local credential to an Inspiration space. No secret is accepted here.
+ */
+export interface CreateConnection {
+  type: "confluence" | "feishu.docx";
+  name: string;
+  /**
+   * One Confluence space key, or Feishu docx/wiki page URLs.
+   *
+   * @minItems 1
+   * @maxItems 100
+   */
+  targets: [string, ...string[]];
+  governance_level: GovernanceLevel;
 }
 /**
  * The body of POST /v0/spaces, which only the super admin may send. The engine mints the space's ID; its kind is team.
@@ -2082,6 +2178,10 @@ export interface DocumentEntry {
   title: string;
   source_version_id: SourceVersionId;
   mime_type?: string;
+  /**
+   * Original HTTP(S) page, when the connector provides one. Opening it uses the reader's upstream permissions.
+   */
+  url?: string;
   language?: Locale;
   governance_level: GovernanceLevel;
   approval_state?: ApprovalState;
@@ -3092,27 +3192,6 @@ export interface ReviewDue {
    */
   backlog?: boolean;
 }
-/**
- * What part of a source to ingest. The connector defines kind and options.
- */
-export interface ScopeSpec {
-  /**
-   * Connector-defined scope kind, for example "feishu.wiki_space".
-   */
-  kind: string;
-  /**
-   * External IDs of the roots to ingest (spaces, folders, approval definitions).
-   */
-  ids?: string[];
-  /**
-   * Glob patterns on the source path.
-   */
-  include?: string[];
-  exclude?: string[];
-  options?: {
-    [k: string]: unknown | undefined;
-  };
-}
 export interface SearchQuery {
   text: string;
   kinds?: HitKind[];
@@ -3239,28 +3318,6 @@ export interface SopException {
   condition: string;
   handling: string;
   claim_ids?: ClaimId[];
-}
-/**
- * One connected system or upload area, for example one Feishu wiki space.
- */
-export interface Source {
-  id: SourceId;
-  tenant_id: TenantId;
-  space_id: SpaceId;
-  type: PluginName;
-  name: string;
-  scope: ScopeSpec;
-  status: SourceStatus;
-  owner_id?: PrincipalId;
-  default_sensitivity?: SensitivityLabel;
-  default_authority?: Score01;
-  governance_level?: GovernanceLevel;
-  /**
-   * Name of a secret in the deployment's secret store. Never the secret itself.
-   */
-  credentials_ref?: string;
-  created_at: Instant;
-  updated_at?: Instant;
 }
 export interface SourceChanged {
   source_id: SourceId;
@@ -3402,26 +3459,6 @@ export interface SubscriptionInfo {
   subscription_id: string;
   scope_ids: string[];
   expires_at?: Instant;
-}
-/**
- * What syncing a source did: how many items it listed and what became of them. The response to syncing a source now, once the engine has read everything the sync changed.
- *
- */
-export interface SyncReport {
-  source_id: SourceId;
-  listed: number;
-  outcomes: {
-    created: number;
-    updated: number;
-    acl_changed: number;
-    unchanged: number;
-    deleted: number;
-    failed: number;
-  };
-  errors: {
-    external_id: string;
-    error: string;
-  }[];
 }
 /**
  * The answer to PUT /v0/tenants/{tenant}.

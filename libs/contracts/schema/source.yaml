@@ -76,6 +76,68 @@ $defs:
         $ref: "common.yaml#/$defs/Instant"
       updated_at:
         $ref: "common.yaml#/$defs/Instant"
+      sync:
+        $ref: "#/$defs/SourceSyncState"
+
+  SourceSyncState:
+    description: Last full source sync, shared by synchronous and background requests and persisted across restarts.
+    type: object
+    required: [state, started_at]
+    properties:
+      state:
+        type: string
+        enum: [running, succeeded, failed]
+      started_at:
+        $ref: "common.yaml#/$defs/Instant"
+      finished_at:
+        $ref: "common.yaml#/$defs/Instant"
+      note:
+        type: string
+      report:
+        $ref: "api.yaml#/$defs/SyncReport"
+
+  CreateConnection:
+    description: Connect a configured local credential to an Inspiration space. No secret is accepted here.
+    type: object
+    additionalProperties: false
+    required: [type, name, targets, governance_level]
+    properties:
+      type:
+        type: string
+        enum: [confluence, feishu.docx]
+      name:
+        type: string
+        minLength: 1
+        maxLength: 120
+      targets:
+        description: One Confluence space key, or Feishu docx/wiki page URLs.
+        type: array
+        minItems: 1
+        maxItems: 100
+        uniqueItems: true
+        items:
+          type: string
+          minLength: 1
+          maxLength: 2048
+      governance_level:
+        $ref: "#/$defs/GovernanceLevel"
+
+  ConnectionList:
+    type: object
+    required: [sources, configured]
+    properties:
+      sources:
+        type: array
+        items:
+          $ref: "#/$defs/Source"
+      configured:
+        type: object
+        required: [confluence, feishu]
+        properties:
+          confluence:
+            type: boolean
+          feishu:
+            type: boolean
 
   AclFidelity:
     description: >
@@ -828,6 +890,9 @@ $defs:
       source_version_id:
         $ref: "common.yaml#/$defs/SourceVersionId"
       mime_type:
+        type: string
+      url:
+        description: Original HTTP(S) page, when the connector provides one. Opening it uses the reader's upstream permissions.
         type: string
       language:
         $ref: "common.yaml#/$defs/Locale"

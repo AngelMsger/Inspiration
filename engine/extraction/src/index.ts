@@ -16,7 +16,13 @@
  * - reference: only the blocks that name a catalogue fact (an alias in the text, the
  *   headings or the table header), and of their claims only those that fill a slot; the
  *   rest are counted as unused. extractOnUse(version, blocks), for a page or an answer that
- *   cites a passage, reads those blocks in full.
+ *   cites a passage, reads those blocks in full. extractCitations(tenant, citations) resolves
+ *   blocks in the cited version, since an unchanged span retains its original version ID.
+ *   Explicit tenant vocabulary takes precedence over discovered entries and is never saved
+ *   as discovery state. Discovered predicate and qualifier aliases accumulate across reads.
+ *   An optional onCommitted handler receives the original committed claims.updated event
+ *   before another on-use read of the document proceeds; background delivery still applies
+ *   the same event idempotently.
  * - search_only: nothing.
  *
  * A returned claim is kept when at least one quote is verbatim from its span. It is true

@@ -13,6 +13,8 @@ import type {
   AnswerDepth,
   AnswerQuery,
   ApiError,
+  ConnectionList,
+  CreateConnection,
   CreateSpace,
   Decided,
   DecidedWeek,
@@ -30,6 +32,7 @@ import type {
   PutSpaceOwners,
   ResolveTodo,
   SearchResult,
+  Source,
   SpaceAudience,
   SpaceEntry,
   SpaceList,
@@ -164,6 +167,9 @@ function apiOf(company: () => string | undefined, frame: boolean) {
     /** Whom the demo lets the page act as; the business backend has no such route. */
     demoPeople: () => call<{ people: Person[] }>("/demo/people"),
     actAs: (member: string) => call<Session>("/demo/act-as", { member }),
+    connections: (id: string) => call<ConnectionList>(`${space(id)}/sources`),
+    connectSource: (id: string, body: CreateConnection) => call<Source>(`${space(id)}/sources`, body),
+    startSync: (id: string) => call<Source>(`/v0/sources/${encodeURIComponent(id)}/sync/start`, {}),
     spaces: () => call<SpaceList>("/v0/spaces"),
     tree: (space: string) => call<DocumentTree>(`/v0/spaces/${encodeURIComponent(space)}/documents`),
     document: (by: { source?: string; item?: string; version?: string }) =>

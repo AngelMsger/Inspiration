@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
  * inspiration-engine serve [<corpus>] (--issuer <url> --audience <url> [--jwks <url|file>] | --dev-identity)
- *     [--port 4100] [--today <YYYY-MM-DD>]
+ *     [--persistent] [--discover-facts] [--port 4100] [--today <YYYY-MM-DD>]
  *     [--gateway <file> [--corpus-gateway <file>] [--valkey <url>] [--usage <postgres url>]]
  *
- * Runs the engine in memory and serves its HTTP API (http.ts) on localhost. Without a corpus it
+ * --persistent uses the configured Postgres, Valkey, SpiceDB and blob directory; otherwise
+ * runs the engine in memory. Serves its HTTP API (http.ts) on localhost. Without a corpus it
  * starts empty, and the business layer provisions its tenants and members and creates their
  * spaces over the API; being in memory, it forgets them when it stops, so provision again
  * after a restart (the drift check, GET /v0/tenants/:tenant/members, shows an empty copy).
@@ -29,17 +30,28 @@
  * headers instead (the demo and its snapshot run so).
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseArgs } from "node:util";
-import { type Jwks, jwksFromUrl, staticKeys, TokenVerifier } from "@inspiration/access-control";
-import { logger } from "@inspiration/kernel";
+import { parseArgs, parseEnv } from "node:util";
+import {
+  closeClient,
+  connect,
+  type Jwks,
+  jwksFromUrl,
+  SpiceDBGraph,
+  staticKeys,
+  TokenVerifier,
+  writeSchema,
+} from "@inspiration/access-control";
+import { getSettings, logger } from "@inspiration/kernel";
+import { connectionSecret } from "./connections.ts";
 import { Corpus } from "./corpus.ts";
 import { Engine, RESUME_EVERY_MS } from "./engine.ts";
 import { type Identity, serveApi } from "./http.ts";
 import { openModels } from "./models.ts";
+import { organizeKnowledge } from "./organization.ts";
 import { assignOwners } from "./owners.ts";
 
 const log = logger("engine.serve");
@@ -90,6 +102,8 @@ async function main(argv: string[]): Promise<number> {
       audience: { type: "string" },
       jwks: { type: "string" },
       "dev-identity": { type: "boolean", default: false },
+      persistent: { type: "boolean", default: false },
+      "discover-facts": { type: "boolean", default: false },
     },
   });
   const [command, dir] = positionals;
@@ -103,22 +117,58 @@ async function main(argv: string[]): Promise<number> {
     return 2;
   }
   const corpus = dir === undefined ? undefined : await Corpus.load(dir);
+  const settings = getSettings();
+  const persistent = values.persistent;
+  const client = persistent
+    ? connect(settings.spicedbEndpoint, settings.spicedbKey, { insecure: settings.spicedbInsecure })
+    : undefined;
+  if (client) await writeSchema(client);
   const today = values.today ? new Date(`${values.today}T09:00:00Z`) : undefined;
   const models = values.gateway
     ? await openModels({
         gateway: values.gateway,
         ...(corpus && corpusGateway && { corpus: { gateway: corpusGateway, tenantId: corpus.tenantId } }),
-        ...(values.valkey && { valkeyUrl: values.valkey }),
-        ...(values.usage && { usageUrl: values.usage }),
+        ...((values.valkey || persistent) && { valkeyUrl: values.valkey ?? settings.valkeyUrl }),
+        ...((values.usage || persistent) && { usageUrl: values.usage ?? settings.databaseUrl }),
       })
     : undefined;
   const engine = await Engine.open({
-    blobDir: await mkdtemp(join(tmpdir(), "inspiration-blobs-")),
+    secret: connectionSecret,
+    discoverFacts: values["discover-facts"],
+    readOnUse: true,
+    blobDir: persistent ? settings.blobDir : await mkdtemp(join(tmpdir(), "inspiration-blobs-")),
+    ...(persistent && {
+      databaseUrl: settings.databaseUrl,
+      valkeyUrl: settings.valkeyUrl,
+      streamPrefix: settings.streamPrefix,
+    }),
+    ...(client && { graph: new SpiceDBGraph(client) }),
     // The corpus's catalogue is its tenant's alone; provisioned companies have none yet.
     ...(corpus && { resolvePrincipal: corpus.resolvePrincipal, vocabulary: corpus.vocabularyOf }),
     ...(today && { clock: () => today }),
     ...(models && { models: models.models, ledger: models.ledger }),
   });
+  const dirty = new Set<string>();
+  for (const source of await engine.sync.listSources()) dirty.add(source.tenant_id);
+  engine.observe("claims.updated", "knowledge-organization", async (event) => {
+    dirty.add(event.tenant_id);
+  });
+  let organizing = false;
+  const organize = setInterval(async () => {
+    if (organizing || !dirty.size) return;
+    organizing = true;
+    const tenants = [...dirty];
+    dirty.clear();
+    try {
+      for (const tenant of tenants)
+        await organizeKnowledge(engine, tenant).catch((error: unknown) => {
+          dirty.add(tenant);
+          log.warn("organizing knowledge paused", { error });
+        });
+    } finally {
+      organizing = false;
+    }
+  }, 60_000);
   if (corpus) {
     const started = performance.now();
     await seed(engine, corpus);
@@ -126,17 +176,25 @@ async function main(argv: string[]): Promise<number> {
   } else {
     log.info("no corpus: tenants, members and spaces come from provisioning");
   }
+  await engine.sync.recover();
+  engine.resumeReading().catch((error: unknown) => log.warn("resuming reading after startup failed", { error }));
   const server = await serveApi(engine, Number(values.port), identity);
+  // Resume committed work after a restart, including events whose request already returned.
+  engine.settleLater();
+  const delivering = persistent ? setInterval(() => engine.settleLater(), 1000) : undefined;
   // Reading a spent budget or an outage stopped carries on once the budget renews or the model answers.
   const resuming = setInterval(() => {
     engine.resumeReading().catch((error: unknown) => log.warn("resuming reading failed", { error }));
   }, RESUME_EVERY_MS);
   const stop = () => {
     clearInterval(resuming);
+    clearInterval(organize);
+    clearInterval(delivering);
     server.close();
     void engine
       .close()
       .then(() => models?.close())
+      .then(() => client && closeClient(client))
       .then(() => process.exit(0));
   };
   process.on("SIGINT", stop);
@@ -145,6 +203,9 @@ async function main(argv: string[]): Promise<number> {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
+  if (existsSync(".env")) {
+    for (const [name, value] of Object.entries(parseEnv(readFileSync(".env", "utf8")))) process.env[name] ??= value;
+  }
   main(process.argv.slice(2)).then(
     (code) => {
       if (code) process.exit(code);

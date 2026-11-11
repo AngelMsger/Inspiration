@@ -81,6 +81,11 @@ export function Documents(props: { route: DocumentsRoute; library: Library; onSo
         ]}
       </Crumbs>
       <h1 className="title">{node ? nameOf(node, say) : say("nav.documents")}</h1>
+      {space.role === "owner" && (
+        <p>
+          <Link to={{ name: "maintain", space: space.id, page: "sources" }}>{say("connections.connect")}</Link>
+        </p>
+      )}
       <ReadingSummary nodes={node ? [node] : tree.sources} />
       {mayUpload(space) ? (
         <Uploader space={space} sources={tree.sources} folder={folder} onSent={props.onSourcesChanged}>

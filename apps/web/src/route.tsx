@@ -28,7 +28,7 @@ export type Route =
   | { name: "topics"; space: string }
   | { name: "topic"; key: string }
   | { name: "documents"; space: string; source?: string; folders: string[] }
-  | { name: "maintain"; space: string; page: "overview" | "topics" | "documents" | "access" }
+  | { name: "maintain"; space: string; page: "overview" | "topics" | "documents" | "access" | "sources" }
   | { name: "admin"; page: "members" | "invites" | "tokens" | "spaces" | "usage" }
   | { name: "admin"; page: "space"; space: string }
   | { name: "join"; code: string }
@@ -47,10 +47,12 @@ export function parse(url: URL): Route {
       folders: q.getAll("folder"),
     };
   }
-  const maintain = url.pathname.match(/^\/spaces\/([^/]+)\/maintain(?:\/(topics|documents|access))?$/);
+  const maintain = url.pathname.match(/^\/spaces\/([^/]+)\/maintain(?:\/(topics|documents|access|sources))?$/);
   if (maintain?.[1]) {
     const page =
-      maintain[2] === "topics" || maintain[2] === "documents" || maintain[2] === "access" ? maintain[2] : "overview";
+      maintain[2] === "sources" || maintain[2] === "topics" || maintain[2] === "documents" || maintain[2] === "access"
+        ? maintain[2]
+        : "overview";
     return { name: "maintain", space: decodeURIComponent(maintain[1]), page };
   }
   const knowledge = url.pathname.match(/^\/spaces\/([^/]+)\/knowledge$/);

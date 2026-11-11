@@ -5,6 +5,7 @@ export function entryOf(version: SourceVersion): DocumentEntry {
   return {
     source_id: version.source_id,
     external_id: version.external_id,
+    ...(version.metadata?.url && /^https?:\/\//i.test(version.metadata.url) && { url: version.metadata.url }),
     title: version.title,
     source_version_id: version.id,
     // Versions written before levels have none and count as governed (SourceVersion).

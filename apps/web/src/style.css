@@ -2346,3 +2346,28 @@ p.decided-fold {
   margin: 0;
   font-size: 13.5px;
 }
+
+/* Online source setup and durable sync reports. */
+.connection-form {
+  max-width: 38rem;
+  margin: 1.5rem 0 2rem;
+}
+.connection-form textarea {
+  width: 100%;
+  font: inherit;
+  padding: 0.65rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.4rem;
+  resize: vertical;
+}
+.connection-card {
+  padding: 1rem 0;
+  border-top: 1px solid var(--rule);
+}
+.connection-card .heading {
+  margin-bottom: 0.5rem;
+}
+.connection-targets {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

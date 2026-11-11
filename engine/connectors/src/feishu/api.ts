@@ -1,7 +1,6 @@
 /**
  * The slice of the Feishu (Lark) open platform the connectors use, as an interface, so the
- * same connector code runs on recorded fixtures now and on the HTTP API once a tenant gives
- * the app credentials. Shapes follow the API's JSON (docx/v1 blocks, drive permission
+ * same connector code runs on recorded fixtures now and on the HTTP API with app credentials. Shapes follow the API's JSON (docx/v1 blocks, drive permission
  * members, approval/v4 definitions and instances), trimmed to the fields we read.
  */
 
@@ -55,7 +54,8 @@ export interface DocumentMeta {
   document_id: string;
   revision_id: number;
   title: string;
-  modified_at: string;
+  modified_at?: string;
+  url?: string;
   /** Wiki path from the space root. */
   path?: string[];
   owner_id?: string;
@@ -103,12 +103,19 @@ export interface FeishuApproval {
   properties?: Record<string, unknown>;
 }
 
-export interface FeishuApi {
-  listDocuments(): Promise<DocumentMeta[]>;
+export interface FeishuDocumentsApi {
+  readonly connectionScoped?: boolean;
+  /** Stable document targets. Reading content and resolving wiki links belong to document(). */
+  listDocuments(): Promise<{ document_id: string; title?: string; url?: string }[]>;
   document(documentId: string): Promise<FeishuDocument>;
+}
+
+export interface FeishuApprovalsApi {
   listApprovals(): Promise<{ approval_code: string; approval_name: string; modified_at: string }[]>;
   approval(approvalCode: string): Promise<FeishuApproval>;
 }
+
+export interface FeishuApi extends FeishuDocumentsApi, FeishuApprovalsApi {}
 
 /**
  * Feishu content recorded as JSON files: docs/<document_id>.json (a FeishuDocument) and
@@ -166,6 +173,8 @@ export class FixtureFeishuApi implements FeishuApi {
 export function feishuApi(options: Readonly<Record<string, unknown>> | undefined): FeishuApi {
   const fixtures = options?.fixtures;
   if (typeof fixtures === "string") return new FixtureFeishuApi(fixtures);
-  // The HTTP client needs an app ID and secret from the tenant; until then only fixtures work.
-  throw new RangeError("feishu sources need scope.options.fixtures until the HTTP client is configured");
+  // Live sources use HttpFeishuApi through the connector factory, which supplies its secret context.
+  throw new RangeError(
+    "use scope.options.fixtures for recorded Feishu data, or the connector factory for a live connection",
+  );
 }

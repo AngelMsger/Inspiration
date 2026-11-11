@@ -1,5 +1,7 @@
 # 开发
 
+验证自己的文档，请先看[本地验证](local.md)：`pnpm local` 运行持久化应用，并直接连接 Confluence 和飞书。
+
 如何在本仓库里构建、测试和运行 Inspiration：运行环境、检查、测量工具和演示。产品是什么、往哪里走，见 [README](../../README.zh.md) 和[总览](overview.md)；修改任何东西的规则见 [AGENTS.md](../../AGENTS.md)。本文是 [docs/development.md](../development.md) 的中文副本；两者不一致时以英文版为准。
 
 ## 安装和检查

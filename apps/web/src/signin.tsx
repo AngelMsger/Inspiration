@@ -14,6 +14,12 @@ import { TAGS, type Tag, tagOf, useWords, wordsOf } from "./words.ts";
 export function SignedOut(props: { onLanguage: (tag: Tag) => void }) {
   const { say } = useWords();
   // The business backend sends a sign-in that did not work, or was cancelled, back with sign_in=failed.
+  const mode = useLoad("runtime-mode", async () => {
+    const response = await fetch("/api/health");
+    const body: unknown = await response.json();
+    return !!body && typeof body === "object" && "local" in body && body.local === true;
+  });
+  const local = mode.state === "done" && mode.value;
   const query = new URLSearchParams(location.search);
   const failed = query.get("sign_in") === "failed";
   query.delete("sign_in");
@@ -23,20 +29,22 @@ export function SignedOut(props: { onLanguage: (tag: Tag) => void }) {
     <div className="gate">
       <GateTop onLanguage={props.onLanguage} />
       <main className="gate-card">
-        <h1 className="title">{say("signin.title")}</h1>
+        <h1 className="title">{say(local ? "signin.local_title" : "signin.title")}</h1>
         {failed && (
           <p className="gate-alert" role="alert">
             {say("signin.failed")}
           </p>
         )}
-        <p>{say("signin.lede")}</p>
+        <p>{say(local ? "signin.local_lede" : "signin.lede")}</p>
         <div className="gate-actions">
           <a className="primary" href={signInAt("sign_in", back)}>
-            {say("signin.sign_in")}
+            {say(local ? "signin.local_open" : "signin.sign_in")}
           </a>
-          <a className="secondary" href={signInAt("sign_up", back)}>
-            {say("signin.sign_up")}
-          </a>
+          {!local && (
+            <a className="secondary" href={signInAt("sign_up", back)}>
+              {say("signin.sign_up")}
+            </a>
+          )}
         </div>
       </main>
     </div>
