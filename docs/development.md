@@ -28,9 +28,7 @@ IDs, machine limits and time-specific prices are historical context, not current
 Only MVP-path issues stay open; keep worthwhile off-path ideas in the MVP's
 [After the MVP](design/mvp.md#after-the-mvp) table with a `deferred` issue and a reopening trigger.
 
-Every change goes through a PR. Trigger the product owner's Codex review, then merge as
-soon as CI passes; review runs asynchronously. Record later findings in a follow-up PR, a
-PR comment or a bug issue. Review correctness first, then engineering quality.
+Every change goes through a PR and passes CI before merging.
 
 ## Set up and check
 

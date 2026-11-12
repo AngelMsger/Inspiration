@@ -38,7 +38,7 @@
 | [架构](architecture.md) | 参考 | 系统的每个部分：两层与请求路径、组件与事件、知识模型、治理、存储、权限、连接器、模型与 Agent、搜索、语言、如何构建和部署 |
 | [契约](contracts.md) | 参考 | 修改 schema、代码生成、ID、事件、版本 |
 | [PageSpec 与视图](pagespec.md) | 参考 | 页面如何对应 Claude Artifacts，以及视图沙箱 |
-| [开发](development.md) | 参考 | 接续早期工作、评审与交付、付费运行预检，以及从源码构建、测试和运行 |
+| [开发](development.md) | 参考 | 接续早期工作、交付、付费运行预检，以及从源码构建、测试和运行 |
 | [技术栈的许可证](licensing.md) | 参考 | 技术栈各部分的许可证及其对交付的影响 |
 
 | [本地验证](local.md) | Reference | 持久化本地运行、自建 Confluence 与飞书连接、DeepSeek、验证步骤和排查 |

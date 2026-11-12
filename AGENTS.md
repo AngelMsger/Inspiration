@@ -149,10 +149,7 @@ producer name, its consumer group and the first part of its model task names.
 - Public behaviour is described in the doc comment of `src/index.ts` or in `docs/`.
 - Whatever the change replaces or leaves unused is gone or marked (see below).
 - The change keeps to "Keeping the code simple" below.
-- The change lands through a pull request. Trigger the product owner's Codex review first,
-  then merge as soon as CI passes; the review is asynchronous. Findings arriving later are
-  recorded in a follow-up PR, a PR comment or a bug issue. Review correctness first, then
-  engineering quality.
+- The change lands through a pull request.
 
 ## Keeping the code simple
 
