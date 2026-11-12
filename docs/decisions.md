@@ -32,11 +32,17 @@ The product owner's decisions in force, oldest first, and the questions still op
 | 2026-10-27 | Validate the knowledge core (extraction and governance) on real models first; the business layer and permissions can wait. Every run leaves a trace in the repo and its replies are kept, so nothing is paid for twice |
 | 2026-10-28 | Inspiration must lead a mature RAG by at least 10 points on stale and conflicting information, within one topic's material, on fast and cheap models as well as strong ones; organizing knowledge must never lose the right value |
 | 2026-11-01 | Cost, accuracy and latency are judged together. The cheapest provider runs the tests; a cheap GPT model or Claude Haiku only backs a conclusion. If governance cannot set the product apart, the fallback is a knowledge and identity gateway for agents |
+| 2026-11-02 | Model credentials use `INSPIRATION_DEEPSEEK_API_KEY`, `INSPIRATION_OPENAI_API_KEY` and `INSPIRATION_ANTHROPIC_API_KEY`; configs name them explicitly. See [Development](development.md) for the current migration behavior |
 | 2026-11-04 | The validation's result is accepted: Inspiration answers stably more right than a mature RAG, short of 10 points, which stay a long-term goal for a larger dataset close to real use; tuning runs stop, and an MVP that closes the business flow comes next |
 | 2026-11-05 | The MVP is adopted with its five decisions as recommended: three to five people try it in Chinese for two weeks, on one server in Hong Kong or Singapore; live Feishu after Gate B; CNY 100 a month for models; a standing "Decide for me" offered to owners |
-| 2026-11-05 | A pull request is merged once CI passes; the product owner's Codex review runs afterwards, and its findings become a follow-up pull request or an issue. Outside research is supporting input only: public pages say that research supports a claim and link it, without naming its authors |
+| 2026-11-05 | Trigger the product owner's Codex review, then merge the PR as soon as CI passes; review is asynchronous. Later findings become a follow-up PR, a PR comment or a bug issue; review correctness first, then engineering quality. Outside research is supporting input only: public pages say that research supports a claim and link it, without naming its authors |
+| 2026-11-05 | The MVP reranker stays on the CPU; reduce candidate pools and check search coverage for free. Japan is also acceptable for the hosted trial, alongside Hong Kong and Singapore; no hosting provider is selected by this decision |
 | 2026-11-05 | The validation spec and the UI philosophy are adopted, and validation stays paused for the MVP. Scoped owners are 负责人 in Chinese (空间负责人, 主题负责人, 页面负责人, 流程负责人), not the 维护人 proposed on 2026-10-26 |
 | 2026-11-11 | Validate on the owner’s local computer with direct Confluence Data Center / Server and Feishu document connections, using a DeepSeek API key; close the local experience gaps before live validation. See [Local validation](local.md). |
+
+Earlier agent memory was reconciled with the repository on 2026-11-12; the table retains
+the original decision dates. Temporary spending approvals and hosting estimates remain
+historical context, not new budgets or deployment commitments.
 
 ## Open questions
 

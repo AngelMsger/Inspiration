@@ -5,6 +5,12 @@ stepping on each other. Read them before you change anything.
 
 ## Before you start
 
+Read [the overview](docs/overview.md), [decisions in force](docs/decisions.md) and the
+[MVP](docs/design/mvp.md) before picking work. Use the [README roadmap](README.md#roadmap)
+and the code for implementation status; dated agent notes and merged-PR lists are history.
+The current local validation path is in [docs/local.md](docs/local.md). The paid benchmark
+tuning line remains paused; local product validation does not reopen it.
+
 1. Find your component in `components.yaml`. It says what the component owns, which events
    it publishes and consumes, which synchronous APIs it may call, and which plugin groups it
    provides. Set its `status` to `in_progress` and its `owner` to your branch.
@@ -99,6 +105,10 @@ producer name, its consumer group and the first part of its model task names.
   pipeline runs end to end; numbers from a mock measure the pipeline, not model quality.
 - Prompts are versioned YAML files (`PromptRegistry.loadDir`). Change the version whenever
   the text changes; the version is part of every artifact's inputs hash.
+- Before a paid validation step, run the exact command for free, inspect its catalogue,
+  permissions and search results, reuse saved replies, and forecast new spend against the
+  budget for that task. Keep a reusable run log and export the replies. Historical run caps
+  are not a new budget; see [the paid-run checklist](docs/development.md#before-a-paid-validation-run).
 - Built-in agents run on the agent runtime (`Runtime`) with an `AgentSpec` named
   `<component>.<agent>`. Their tools only read or propose; nothing an agent does changes
   knowledge without a person approving it.
@@ -139,7 +149,10 @@ producer name, its consumer group and the first part of its model task names.
 - Public behaviour is described in the doc comment of `src/index.ts` or in `docs/`.
 - Whatever the change replaces or leaves unused is gone or marked (see below).
 - The change keeps to "Keeping the code simple" below.
-- The change lands through a pull request.
+- The change lands through a pull request. Trigger the product owner's Codex review first,
+  then merge as soon as CI passes; the review is asynchronous. Findings arriving later are
+  recorded in a follow-up PR, a PR comment or a bug issue. Review correctness first, then
+  engineering quality.
 
 ## Keeping the code simple
 
@@ -218,6 +231,10 @@ be current. `test/docs.test.ts` checks the mechanical part; the rest is on every
   history goes in "About this page" at the end. When the product owner decides, or a pull
   request it cites as open is merged, the next change to that doc updates the line, in both
   languages.
+- **Conclusions first.** Documents state the conclusion, then any decision needed from the
+  product owner, before the supporting detail. Update the existing canonical document when
+  reconciling agent memory; do not create a competing decision list. Keep temporary session
+  limits, artifact IDs and one-off approvals out of standing rules.
 - **Link, don't copy.** Material from outside is copied only into `examples/`, with its
   source and date, so runs repeat without the network. Elsewhere, link to the source.
 - **Merged branches are deleted.**
@@ -247,6 +264,9 @@ The product serves English, Chinese and Japanese users, and more languages later
 - Docs are written in English and every doc in `docs/` has a Chinese copy at the same path in
   `docs/zh/` (a README beside its data as `README.zh.md`). Change both in the same pull
   request.
+- Product roles and wording follow the [three-language glossary](docs/overview.md#appendix-a-glossary-in-three-languages).
+  Always name an owner's scope (space, topic, page or procedure); knowledge is shared across
+  languages, not copied into separate language-specific knowledge bases.
 
 ## Style
 
