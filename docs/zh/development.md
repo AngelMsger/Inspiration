@@ -4,6 +4,22 @@
 
 如何在本仓库里构建、测试和运行 Inspiration：运行环境、检查、测量工具和演示。产品是什么、往哪里走，见 [README](../../README.zh.md) 和[总览](overview.md)；修改任何东西的规则见 [AGENTS.md](../../AGENTS.md)。本文是 [docs/development.md](../development.md) 的中文副本；两者不一致时以英文版为准。
 
+## 接续开发
+
+先把 MVP 做到可用，验证完整业务流程；付费基准调优仍然暂停。2026-11-11 的[本地验证](local.md)决定增加了持久化本地运行，以及直接连接 Confluence 和飞书的能力，没有重启决定性测试。
+
+| 要恢复的上下文 | 权威出处 |
+| --- | --- |
+| 产品方向、已采纳决定和待决问题 | [总览](overview.md)、[决定](decisions.md)、[MVP](design/mvp.md) |
+| 实际可用的能力及其位置 | [README 路线图](../../README.zh.md#路线图)、[组件清单](../../components.yaml)、代码和 `apps/bench/test/` 中的关口检查 |
+| 契约、身份和分层边界 | [契约](contracts.md)、[架构](architecture.md)、`libs/contracts/schema/` |
+| 证据、适用边界和可复用的付费回复 | [验证](design/validation.md)、[运行记录](../../apps/bench/runs/README.zh.md) |
+| 产品用语与交互 | [术语表](overview.md#附录-a-三种语言的词表)、[界面理念](design/ui-philosophy.md) |
+
+把 Agent 笔记中有价值的内容合入这些已有出处，同一个 PR 更新中英文。文档先给结论，紧接着列出需要产品负责人决定的事项，最新讨论材料留在仓库里。旧线程分工、预览产物 ID、机器限制和特定时期的价格都是历史背景，不是当前配置。只有 MVP 路径上的 issue 保持打开；值得保留的其他想法进入 MVP 的 [MVP 之后](design/mvp.md#mvp-之后)表，关联标记为 `deferred` 的 issue，并写明重新打开的条件。
+
+每个改动都通过 PR。先触发产品负责人的 Codex 评审，CI 通过后即合并，评审异步进行。晚到的发现记入后续 PR、PR 评论或缺陷 issue。评审先看正确性，再看工程质量。
+
 ## 安装和检查
 
 需要 Node 22.18 或更高版本（Node 24 也可以）、pnpm、Python 3.10 或更高版本，以及带 Compose 的 Docker。`package.json` 在 `packageManager` 里固定了 pnpm 10.28.0，corepack（`corepack enable`）和 10 及以上的任何 pnpm 都会照它切换；它还为 Volta 固定了 Node 22 和 pnpm 10.28.0。这个固定是必要的：Volta 通过 `bin/pnpm.cjs` 启动 pnpm，而 pnpm 11 及以后不再带这个文件，所以 Volta 里的 pnpm 11 或更高版本在本仓库之外会报 `Cannot find module …/bin/pnpm.cjs`，在本仓库里则能正常运行。
@@ -27,6 +43,8 @@ make check-full    # 同上，再加上耗时很长的语料运行，与 CI 相�
 
 除解析 worker 外全部是 Node 22 上的 TypeScript；解析 worker 用 Python，因为最好的文档解析器是 Python 的。引擎把 Word、PowerPoint、Excel 和 PDF 文件发给 `INSPIRATION_PARSING_URL` 上的 worker；`pnpm parsing` 在默认的 8790 端口启动它。没有它时，这些文件读取失败并说明 worker 连不上；其他格式不需要它。[`components.yaml`](../../components.yaml) 列出每个组件及其状态（已构建、进行中或已计划），每个包的 `src/index.ts` 说明它做什么。
 
+真实模型配置使用 `INSPIRATION_DEEPSEEK_API_KEY`、`INSPIRATION_OPENAI_API_KEY` 和 `INSPIRATION_ANTHROPIC_API_KEY`。提供方读取 `api_key_env` 指定的变量，没有从这些名称统一自动回退到旧的无前缀名称的机制。迁移旧环境时，设置配置指定的名称。改变进程环境后需要重启进程；如果会话平台只在启动时注入变量，就新建会话或重启容器。
+
 ## 在语料上运行引擎
 
 要在一个语料上运行引擎并打印它产生了什么，使用测量工具：
@@ -40,6 +58,16 @@ pnpm bench ask examples/kubernetes-docs "How many nodes can a Kubernetes cluster
 ```
 
 [`examples/README.zh.md`](../../examples/README.zh.md) 列出每个语料、它测量什么、怎么运行，以及哪个测试用它的答案来检查。真实模型上的运行及其花费和记录在 [`apps/bench/runs/`](../../apps/bench/runs/README.zh.md)。
+
+## 付费验证前
+
+付费验证步骤在当前任务范围内时，按以下清单执行。18 元的批准、后来增加到 23 元的上限，以及 MVP 每月的试用预算，都只属于各自任务，不是新基准运行的长期预算。优先用最便宜且适合的提供方；便宜的 GPT 模型或 Claude Haiku 只用来佐证结论。成本、准确率和延迟一起评判，计算治理的模型调用和人的时间，不只看回答省下多少 token。
+
+1. 阅读[已有结果](design/validation.md#现在的状况)，把已保存的回复导入基准专用缓存，明确新运行需要验证什么。
+2. 用完全相同的语料、网关配置、参数和对比组执行 `--dry-run`。检查输出：答案键里的事实有目录条目，读者能访问已索引的文档，检索能找到预期证据。命令执行成功不代表这些检查通过。
+3. 按未命中缓存的调用预测花费，对照当前任务剩余预算。核对提供方当前价格和折扣时段；旧 DeepSeek 价格测量只是当时的证据。仅缓存定价及其局限见[如何让运行保持便宜](design/validation.md#如何让运行保持便宜)。
+4. 使用新的基准数据库和没有旧事件流的运行名称。检查磁盘空间、本地模型是否就绪，以及当前环境的进程生命周期。要计入报告的运行不续用旧数据库，也不假设之前云会话的限制仍然适用。
+5. 在中英文[运行记录](../../apps/bench/runs/README.zh.md)中保留提交、完整命令、提示词版本、设置、结果和计量费用。导出回复，记录报告和导出文件的可取回位置。历史共享文件路径本身不能证明备份仍然可用。这些产物中不得出现凭据。
 
 ## 运行演示
 
@@ -82,6 +110,8 @@ curl -s localhost:8100/healthz
 ## 构建网站
 
 `pnpm site` 把产品网站（`apps/site`）写到 `apps/site/dist`，每种语言一个静态页面；`pnpm site --serve` 提供网站，并在每次请求时重新构建。`Site` 工作流从 `main` 把它发布到 GitHub Pages。
+
+README 和网站的数字必须对应同一份[运行证据](design/validation.md#现在的状况)。区分实测和估算；外部研究支持的是机制，不能证明本项目的领先幅度或成本主张（[外部证据](outside-evidence.md)）。公开文案链接研究，不写作者姓名。例子按地区本地化：中文用飞书，英文和日文用 Confluence、Concur、kintone 等熟悉的产品。以可读性为准；开发中提示只在页尾出现一次，不编造联系邮箱。
 
 ## 重画架构图
 

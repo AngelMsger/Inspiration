@@ -7,6 +7,31 @@ measurement harness and the demo. What the product is and where it is going is i
 [README](../README.md) and the [overview](overview.md); the rules for changing anything are in
 [AGENTS.md](../AGENTS.md). A Chinese copy is in [zh/development.md](zh/development.md).
 
+## Continuing work
+
+Build the usable MVP and validate its whole flow; paid benchmark tuning remains paused.
+The 2026-11-11 [local validation](local.md) decision adds persistent local operation and
+direct Confluence and Feishu connections. It does not restart the decisive-test campaign.
+
+| Context to recover | Canonical source |
+| --- | --- |
+| Product direction, adopted decisions and unanswered questions | [Overview](overview.md), [decisions](decisions.md), [MVP](design/mvp.md) |
+| What actually works, and where it lives | [README roadmap](../README.md#roadmap), [component manifest](../components.yaml), code and gate checks in `apps/bench/test/` |
+| Contracts, identities and layer boundaries | [Contracts](contracts.md), [architecture](architecture.md), `libs/contracts/schema/` |
+| Evidence, its limits and reusable paid replies | [Validation](design/validation.md), [run logs](../apps/bench/runs/README.md) |
+| Product language and interaction | [Glossary](overview.md#appendix-a-glossary-in-three-languages), [UI philosophy](design/ui-philosophy.md) |
+
+Fold useful agent notes into these existing sources, with a Chinese copy in the same PR.
+Lead with conclusions, put any decision needed from the product owner next, and keep the
+latest discussion materials in the repository. Old thread assignments, preview artifact
+IDs, machine limits and time-specific prices are historical context, not current setup.
+Only MVP-path issues stay open; keep worthwhile off-path ideas in the MVP's
+[After the MVP](design/mvp.md#after-the-mvp) table with a `deferred` issue and a reopening trigger.
+
+Every change goes through a PR. Trigger the product owner's Codex review, then merge as
+soon as CI passes; review runs asynchronously. Record later findings in a follow-up PR, a
+PR comment or a bug issue. Review correctness first, then engineering quality.
+
 ## Set up and check
 
 You need Node 22.18 or later (Node 24 works too), pnpm, Python 3.10 or later, and Docker with
@@ -49,6 +74,12 @@ The passwords in `infra/compose.yaml` are public development defaults, so the st
 listen on 127.0.0.1 only; a machine that other people can log in to sets its own
 `INSPIRATION_PG_PASSWORD` and `INSPIRATION_SPICEDB_KEY`.
 
+The real-model configs use `INSPIRATION_DEEPSEEK_API_KEY`, `INSPIRATION_OPENAI_API_KEY` and
+`INSPIRATION_ANTHROPIC_API_KEY`. Providers read the variable named by `api_key_env`; there is
+no general fallback from these names to the old unprefixed names. Set the configured name
+when migrating an older environment. Restart the process after changing its environment;
+if the session platform injects variables only at startup, start a new session or container.
+
 Everything is TypeScript on Node 22 except the parsing worker, which is Python because the
 best document parsers are. The engine sends it Word, PowerPoint, Excel and PDF files at
 `INSPIRATION_PARSING_URL`; `pnpm parsing` starts it there, on port 8790. Without it, those
@@ -70,6 +101,30 @@ pnpm bench ask examples/kubernetes-docs "How many nodes can a Kubernetes cluster
 [`examples/README.md`](../examples/README.md) lists every corpus, what it measures, how to run
 it and which test holds it to its answers. The runs on real models, with their costs and logs,
 are in [`apps/bench/runs/`](../apps/bench/runs/README.md).
+
+## Before a paid validation run
+
+Use this checklist when a paid validation step is in scope. The CNY 18 approval, its later
+CNY 23 cap and the MVP's monthly trial budget belong to their respective tasks; none is a
+standing budget for new benchmark runs. Use the cheapest suitable provider first; a cheap
+GPT model or Claude Haiku only backs a conclusion. Judge cost, accuracy and latency together,
+including governance model calls and people's time, not just answer-token savings.
+
+1. Read the [existing results](design/validation.md#where-we-stand), import saved replies
+   into a bench cache and identify what the new run needs to establish.
+2. Rehearse the exact corpus, gateway config, flags and comparison arms with `--dry-run`.
+   Inspect the output: keyed facts have catalogue entries, the reader can access indexed
+   documents, and search finds the expected evidence. Passing the command alone is not enough.
+3. Forecast the uncached calls against the task's remaining budget. Verify current provider
+   prices and discount hours; the old DeepSeek price measurements are dated evidence. For
+   cache-only pricing and its limits, follow [How runs stay cheap](design/validation.md#how-runs-stay-cheap).
+4. Use a fresh benchmark database and a run name with no old event streams. Check disk space,
+   local model readiness and the current environment's process lifetime. Do not resume an
+   old database for a scored report or assume an earlier cloud session's limits still apply.
+5. Keep commits, exact commands, prompt versions, settings, results and metered cost in a
+   bilingual [run log](../apps/bench/runs/README.md). Export replies and record where the
+   report and export can be retrieved. Historical shared-file paths alone do not establish
+   that a backup is still available. Never put credentials in those artifacts.
 
 ## Run the demo
 
@@ -143,6 +198,13 @@ curl -s localhost:8100/healthz
 `pnpm site` writes the product website (`apps/site`) to `apps/site/dist`, one static page per
 language; `pnpm site --serve` serves it and rebuilds on every request. The `Site` workflow
 publishes it to GitHub Pages from `main`.
+
+Keep README and website numbers tied to the same [recorded evidence](design/validation.md#where-we-stand).
+Distinguish measured results from estimates; external research supports the mechanism, not
+our lead size or cost claims ([Outside evidence](outside-evidence.md)). Link that research
+without naming its authors in public copy. Localize examples: Feishu in Chinese, and familiar
+products such as Confluence, Concur and kintone in English and Japanese. Readability is the
+bar; keep the development-status notice once at the page end and do not invent a contact email.
 
 ## Redraw the diagrams
 
