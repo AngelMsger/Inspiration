@@ -7,7 +7,7 @@ The product owner's decisions in force, oldest first, and the questions still op
 | Decided | Decision |
 | --- | --- |
 | 2026-10-22 | Product name Inspiration; Artifact-level page presentation is committed scope; capabilities first, accepted through MCP, REST and the CLI |
-| 2026-10-23 | TypeScript everywhere except a Python parsing worker; descriptive component names; every change through a PR reviewed by the product owner's local Codex |
+| 2026-10-23 | TypeScript everywhere except a Python parsing worker; descriptive component names; every change through a PR |
 | 2026-10-23 | A mocked end-to-end prototype of every stage first; real model access only after it runs; engine and UI iterate together on measured volumes |
 | 2026-10-24 | Three IDs: tenant, user (account) and member |
 | 2026-10-24 | Two knowledge domains: My space private, shared spaces governed top down; source permissions only warn; publishing moves knowledge; credentials decide freshness only |
@@ -35,7 +35,7 @@ The product owner's decisions in force, oldest first, and the questions still op
 | 2026-11-02 | Model credentials use `INSPIRATION_DEEPSEEK_API_KEY`, `INSPIRATION_OPENAI_API_KEY` and `INSPIRATION_ANTHROPIC_API_KEY`; configs name them explicitly. See [Development](development.md) for the current migration behavior |
 | 2026-11-04 | The validation's result is accepted: Inspiration answers stably more right than a mature RAG, short of 10 points, which stay a long-term goal for a larger dataset close to real use; tuning runs stop, and an MVP that closes the business flow comes next |
 | 2026-11-05 | The MVP is adopted with its five decisions as recommended: three to five people try it in Chinese for two weeks, on one server in Hong Kong or Singapore; live Feishu after Gate B; CNY 100 a month for models; a standing "Decide for me" offered to owners |
-| 2026-11-05 | Trigger the product owner's Codex review, then merge the PR as soon as CI passes; review is asynchronous. Later findings become a follow-up PR, a PR comment or a bug issue; review correctness first, then engineering quality. Outside research is supporting input only: public pages say that research supports a claim and link it, without naming its authors |
+| 2026-11-05 | Outside research is supporting input only: public pages say that research supports a claim and link it, without naming its authors |
 | 2026-11-05 | The MVP reranker stays on the CPU; reduce candidate pools and check search coverage for free. Japan is also acceptable for the hosted trial, alongside Hong Kong and Singapore; no hosting provider is selected by this decision |
 | 2026-11-05 | The validation spec and the UI philosophy are adopted, and validation stays paused for the MVP. Scoped owners are 负责人 in Chinese (空间负责人, 主题负责人, 页面负责人, 流程负责人), not the 维护人 proposed on 2026-10-26 |
 | 2026-11-11 | Validate on the owner’s local computer with direct Confluence Data Center / Server and Feishu document connections, using a DeepSeek API key; close the local experience gaps before live validation. See [Local validation](local.md). |

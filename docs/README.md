@@ -44,7 +44,7 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 | [Architecture](architecture.md) | Reference | Each part of the system: the two layers and the request path, components and events, the knowledge model, governance, storage, permissions, connectors, models and agents, search, languages, how it is built and deployed |
 | [Contracts](contracts.md) | Reference | Changing schemas, code generation, IDs, events, versioning |
 | [PageSpec and views](pagespec.md) | Reference | How pages match Claude Artifacts, and the view sandbox |
-| [Development](development.md) | Reference | Continuing earlier work, review and delivery, paid-run preflight, and building, testing and running from source |
+| [Development](development.md) | Reference | Continuing earlier work, delivery, paid-run preflight, and building, testing and running from source |
 | [Licensing](licensing.md) | Reference | Licences of the stack and what they mean for delivery |
 
 | [Local validation](local.md) | Reference | Persistent local startup, Confluence Data Center / Server and Feishu connections, DeepSeek, validation and troubleshooting |
