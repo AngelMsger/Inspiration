@@ -189,7 +189,9 @@ function TodoCard(props: { item: InboxTodo; card: InboxCard; onResolved: (o: Out
         <span className={`kind kind-${item.todo.kind}`}>{say(`todo.${item.todo.kind}`)}</span>
         {card.week && <span className="quiet">{say("inbox.week", { week: weekOf(card.week) })}</span>}
       </div>
-      <h2>{factOf(say, item, card)}</h2>
+      <h2>
+        <Link to={{ name: "todo", id: item.todo.id }}>{factOf(say, item, card)}</Link>
+      </h2>
       {sides.length > 0 ? (
         <p className="quiet todo-sides">
           {sides
@@ -207,6 +209,7 @@ function TodoCard(props: { item: InboxTodo; card: InboxCard; onResolved: (o: Out
           ))}
         </ul>
       )}
+      {item.comment && <p className="quiet">{item.comment.comment.body.slice(0, 160)}</p>}
       {item.left && <LeftMark reason={item.left.reason} />}
       {suggested && (
         <p className="suggest">
@@ -223,13 +226,11 @@ function TodoCard(props: { item: InboxTodo; card: InboxCard; onResolved: (o: Out
       )}
       {failure && <Failure error={failure} />}
       <div className="actions">
+        <Link to={{ name: "todo", id: item.todo.id }}>{say("inbox.open")}</Link>
         {suggested ? (
-          <>
-            <button type="button" className="primary" disabled={busy} onClick={() => resolve(suggested)}>
-              {say("inbox.confirm", { value: choiceText(say, suggested.choice) })}
-            </button>
-            <Link to={{ name: "todo", id: item.todo.id }}>{say("inbox.open")}</Link>
-          </>
+          <button type="button" className="primary" disabled={busy} onClick={() => resolve(suggested)}>
+            {say("inbox.confirm", { value: choiceText(say, suggested.choice) })}
+          </button>
         ) : (
           <button type="button" className="secondary" disabled={busy} onClick={() => resolve(undefined)}>
             {say("inbox.acknowledge")}
@@ -255,9 +256,19 @@ export function DecisionScreen(props: { id: string; inbox: Loaded<Inbox>; onChan
   const { say } = useWords();
   const inbox = useLatest(props.inbox);
   const [outcome, setOutcome] = useState<Outcome>();
-  const found = (inbox?.cards ?? []).flatMap((card) =>
-    card.todos.filter((t) => t.todo.id === props.id).map((item) => ({ item, card })),
-  )[0];
+  const fetched = useLoad(`todo:${props.id}`, () =>
+    document.documentElement.dataset.routes === "hash" ? Promise.resolve(undefined) : api.todo(props.id),
+  );
+  const found =
+    (inbox?.cards ?? []).flatMap((card) =>
+      card.todos.filter((t) => t.todo.id === props.id).map((item) => ({ item, card })),
+    )[0] ??
+    (fetched.state === "done" && fetched.value
+      ? {
+          item: fetched.value,
+          card: { todos: [fetched.value], kind: "review" as const, batch_key: fetched.value.todo.batch_key ?? "" },
+        }
+      : undefined);
   const back = <Link to={{ name: "inbox" }}>{say("inbox.title")}</Link>;
   if (outcome) {
     return (
@@ -273,10 +284,13 @@ export function DecisionScreen(props: { id: string; inbox: Loaded<Inbox>; onChan
       <main className="centre">
         <Crumbs>{[back]}</Crumbs>
         {props.inbox.state === "failed" && <Failure error={props.inbox.error} />}
+        {fetched.state === "failed" && <Failure error={fetched.error} />}
         <p className="quiet">{inbox ? say("decision.not_found") : say("inbox.loading")}</p>
       </main>
     );
   }
+  if (!sidesOf(found.item).length || !["open", "in_progress"].includes(found.item.todo.status))
+    return <Review item={found.item} card={found.card} onChanged={props.onChanged} />;
   return (
     <Decision
       item={found.item}
@@ -330,6 +344,7 @@ function Decision(props: { item: InboxTodo; card: InboxCard; back: ReactNode; on
           <span className={`kind kind-${item.todo.kind}`}>{say(`todo.${item.todo.kind}`)}</span>
         </div>
         <p>{now}</p>
+        {item.todo.detail && <p className="todo-detail">{item.todo.detail}</p>}
         {item.left && <LeftMark reason={item.left.reason} />}
         {item.suggestion && <p className="suggest">{item.suggestion.reason}</p>}
         <div className="sides">
@@ -337,7 +352,9 @@ function Decision(props: { item: InboxTodo; card: InboxCard; back: ReactNode; on
             <section key={s.choice.key} className="side">
               <div className="side-value">{value(s)}</div>
               {s.statement?.citations[0] ? (
-                <Link to={citedAt(s.statement.citations[0])}>{say("quote.title", { title: titleOf(s) })}</Link>
+                <Link to={{ ...citedAt(s.statement.citations[0]), todo: item.todo.id }}>
+                  {say("quote.title", { title: titleOf(s) })}
+                </Link>
               ) : (
                 <span>{say("quote.title", { title: titleOf(s) })}</span>
               )}
@@ -393,5 +410,96 @@ function Decision(props: { item: InboxTodo; card: InboxCard; back: ReactNode; on
         </p>
       </aside>
     </div>
+  );
+}
+
+/** All todo kinds open with their source context, including closed source discussions. */
+function Review(props: { item: InboxTodo; card: InboxCard; onChanged: () => void }) {
+  const { say } = useWords();
+  const { item } = props;
+  const [status, setStatus] = useState(item.todo.status);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<ReturnType<typeof failureOf>>();
+  const comment = item.comment;
+  const finish = (next: "done" | "dismissed") => {
+    setBusy(true);
+    api
+      .resolve(item.todo.id, { status: next })
+      .then(
+        (todo) => {
+          setStatus(todo.status);
+          props.onChanged();
+        },
+        (e: unknown) => setError(failureOf(e)),
+      )
+      .finally(() => setBusy(false));
+  };
+  return (
+    <main className="centre">
+      <Crumbs>
+        {[
+          <Link key="back" to={{ name: "inbox" }}>
+            {say("inbox.title")}
+          </Link>,
+          factOf(say, item, props.card),
+        ]}
+      </Crumbs>
+      <h1 className="title">{factOf(say, item, props.card)}</h1>
+      <p className="quiet">
+        {say(`todo.${item.todo.kind}`)} · {say("decision.status", { status: say(`discussion.${status}`) })}
+      </p>
+      {item.todo.detail && <p className="todo-detail">{item.todo.detail}</p>}
+      <h2>{say("decision.context")}</h2>
+      {comment && (
+        <section className="side">
+          <Link
+            to={{
+              name: "document",
+              version: comment.comment.source_version_id,
+              block: comment.comment.block_id,
+              view: "original",
+              todo: item.todo.id,
+            }}
+          >
+            {comment.document_title}
+          </Link>
+          <blockquote>{comment.comment.quote}</blockquote>
+          {comment.comment.replacement !== undefined && (
+            <p>
+              <b>{say("discussion.replacement")}</b> {comment.comment.replacement || say("discussion.delete")}
+            </p>
+          )}
+          <p className="todo-detail">{comment.comment.body}</p>
+        </section>
+      )}
+      {item.statements.map((s) => (
+        <section className="side" key={s.unit_id}>
+          <Standing value={s.standing} />
+          <p>{s.snippet}</p>
+          {s.citations.map((c) => (
+            <p key={c.span_id}>
+              <Link to={{ ...citedAt(c), todo: item.todo.id }}>{c.source_title}</Link>
+              <blockquote>{c.quote}</blockquote>
+            </p>
+          ))}
+        </section>
+      ))}
+      {!comment && !item.statements.length && <p className="quiet">{say("decision.no_context")}</p>}
+      {error && <Failure error={error} />}
+      {["open", "in_progress"].includes(status) && (
+        <>
+          <p className="quiet">{say("decision.review_note")}</p>
+          <div className="actions">
+            <button type="button" className="primary" disabled={busy} onClick={() => finish("done")}>
+              {say("decision.reviewed")}
+            </button>
+            <button type="button" className="secondary" disabled={busy} onClick={() => finish("dismissed")}>
+              {say("decision.dismiss")}
+            </button>
+          </div>
+        </>
+      )}
+      <Link to={{ name: "inbox" }}>{say("decision.back")}</Link>
+    </main>
   );
 }

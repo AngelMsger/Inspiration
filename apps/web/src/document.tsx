@@ -3,8 +3,9 @@
 // selected passage only.
 
 import type { DocumentView, SourceBlock } from "@inspiration/contracts";
-import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { api, type Library, useLoad } from "./api.ts";
+import { blockAnchor, Discussion, type SelectionAnchor, selectedAnchor } from "./discussion.tsx";
 import { documentsOf } from "./documents.tsx";
 import { citedAt, remember } from "./home.tsx";
 import { highlight, type Mark, marksOf, type Passage, passages, type Quote, weakest } from "./marks.ts";
@@ -12,6 +13,7 @@ import { Crumbs, Failure, formatDate, Standing } from "./parts.tsx";
 import type { Person } from "./people.ts";
 import { stateOf } from "./reading.ts";
 import { ReadingNote } from "./reading.tsx";
+import { ReadingContext } from "./reading-context.tsx";
 import { type DocumentRoute, Link, navigate } from "./route.tsx";
 import { NewVersion, UPLOADS } from "./upload.tsx";
 import { mayUpload } from "./uploads.ts";
@@ -22,6 +24,7 @@ export function DocumentScreen(props: {
   library: Library;
   person: Person;
   onSourcesChanged: () => void;
+  onChanged: () => void;
 }) {
   const { say } = useWords();
   const { route } = props;
@@ -68,12 +71,18 @@ function Reading(props: {
   person: Person;
   view: DocumentView;
   onNewVersion: () => void;
+  onChanged: () => void;
 }) {
   const { say, tag } = useWords();
   const { route, view, library, person } = props;
   const list = useMemo(() => passages(view.blocks), [view]);
   const marks = useMemo(() => marksOf(view), [view]);
   const annotated = route.view === "annotated";
+  const [selection, setSelection] = useState<SelectionAnchor>();
+  const [discussion, setDiscussion] = useState<SelectionAnchor>();
+  const issues = list.filter((p) =>
+    marks.get(p.block.id)?.some((m) => m.statement.standing === "outdated" || m.statement.standing === "disputed"),
+  );
   const selected = list.find((p) =>
     route.block
       ? p.block.id === route.block
@@ -89,6 +98,11 @@ function Reading(props: {
   const outdated = view.annotations.statements.filter((s) => s.standing === "outdated").length;
 
   useEffect(() => {
+    if (route.source !== view.document.source_id || route.item !== view.document.external_id) {
+      navigate({ ...route, source: view.document.source_id, item: view.document.external_id }, { replace: true });
+    }
+  }, [route, view.document.source_id, view.document.external_id]);
+  useEffect(() => {
     remember(person.member, {
       title: view.document.title,
       where: [space?.name, sourceName].filter(Boolean).join(" · "),
@@ -97,20 +111,47 @@ function Reading(props: {
     });
   }, [person.member, view, space, sourceName]);
   // Arriving from a citation brings the cited passage into view; a click leaves the page still.
-  const cited = route.span ? selected?.block.id : undefined;
+  const cited = route.span || route.todo ? selected?.block.id : undefined;
   useEffect(() => {
     if (cited) document.getElementById(cited)?.scrollIntoView({ block: "center" });
   }, [cited]);
 
   const select = (block: string | undefined) => navigate({ ...route, block, span: undefined }, { replace: true });
+  const jump = (step: number) => {
+    const visible = issues.findIndex(
+      (p) => (document.getElementById(p.block.id)?.getBoundingClientRect().top ?? -1) >= 90,
+    );
+    const current = issues.findIndex((p) => p.block.id === selected?.block.id);
+    const index =
+      current >= 0 ? current + step : step > 0 ? Math.max(visible, 0) : (visible < 0 ? issues.length : visible) - 1;
+    const issue = issues[(index + issues.length) % issues.length];
+    if (issue) {
+      setDiscussion(undefined);
+      select(issue.block.id);
+      document.getElementById(issue.block.id)?.scrollIntoView({ block: "center" });
+    }
+  };
+  const discuss = (anchor: SelectionAnchor) => {
+    setDiscussion(anchor);
+    setSelection(undefined);
+    select(undefined);
+  };
   const top = { name: "documents" as const, space: view.space_id ?? "", folders: [] };
   const folders = view.path ?? [];
 
   return (
-    <div className="with-panel">
+    <div className="with-panel document-layout">
       <main className="reading">
         <div className="reading-head">
-          <Crumbs back={route.from && <Link to={{ name: "ask", q: route.from }}>← {say("doc.back")}</Link>}>
+          <Crumbs
+            back={
+              route.todo ? (
+                <Link to={{ name: "todo", id: route.todo }}>← {say("inbox.open")}</Link>
+              ) : (
+                route.from && <Link to={{ name: "ask", q: route.from }}>← {say("doc.back")}</Link>
+              )
+            }
+          >
             {[
               space && <span key="space">{space.name}</span>,
               space && (
@@ -135,6 +176,29 @@ function Reading(props: {
             ]}
           </Crumbs>
           <span className="grow" />
+          {annotated && (
+            <div className="issue-nav">
+              <span>{say("doc.issues", { count: issues.length })}</span>
+              <button
+                type="button"
+                className="plain"
+                disabled={!issues.length}
+                aria-label={say("doc.previous")}
+                onClick={() => jump(-1)}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                className="plain"
+                disabled={!issues.length}
+                aria-label={say("doc.next")}
+                onClick={() => jump(1)}
+              >
+                ↓
+              </button>
+            </div>
+          )}
           <div role="tablist" aria-label={say("doc.views")} className="tabs">
             {(["original", "annotated"] as const).map((v) => (
               <button
@@ -142,14 +206,22 @@ function Reading(props: {
                 type="button"
                 role="tab"
                 aria-selected={route.view === v}
-                onClick={() => navigate({ ...route, view: v }, { replace: true })}
+                onClick={() => {
+                  setDiscussion(undefined);
+                  setSelection(undefined);
+                  navigate({ ...route, view: v, block: undefined, span: undefined }, { replace: true });
+                }}
               >
                 {say(`doc.${v}`)}
               </button>
             ))}
           </div>
         </div>
-        <article className="paper">
+        <article
+          className="paper"
+          onMouseUp={() => setSelection(selectedAnchor(view.blocks))}
+          onKeyUp={() => setSelection(selectedAnchor(view.blocks))}
+        >
           <h1>{view.document.title}</h1>
           <div className="meta">
             <span>{[sourceName, ...folders].join(" · ")}</span>
@@ -179,14 +251,55 @@ function Reading(props: {
               <PassageView
                 key={p.block.id}
                 passage={p}
-                marks={annotated ? marks.get(p.block.id) : undefined}
-                selected={selected?.block.id === p.block.id}
-                onSelect={() => select(selected?.block.id === p.block.id ? undefined : p.block.id)}
+                marks={
+                  annotated
+                    ? marks
+                        .get(p.block.id)
+                        ?.filter((m) => m.statement.standing === "outdated" || m.statement.standing === "disputed")
+                    : undefined
+                }
+                selected={annotated && selected?.block.id === p.block.id}
+                onSelect={() => {
+                  setDiscussion(undefined);
+                  select(selected?.block.id === p.block.id ? undefined : p.block.id);
+                }}
+                onDiscuss={() => discuss(blockAnchor(p.rows[0] ?? p.block))}
               />
             ))}
         </article>
       </main>
-      {selected && (
+      {selection && (
+        <div className="selection-tools">
+          <button type="button" className="primary" onClick={() => discuss(selection)}>
+            {say("discussion.action")}
+          </button>
+          <button
+            type="button"
+            className="secondary"
+            onClick={() => {
+              setSelection(undefined);
+              window.getSelection()?.removeAllRanges();
+            }}
+          >
+            {say("doc.close")}
+          </button>
+        </div>
+      )}
+      {discussion && (
+        <Discussion
+          key={`${view.version.id}:${discussion.block_id}:${discussion.start}:${discussion.end}`}
+          view={view}
+          anchor={discussion}
+          member={person.member}
+          allowed={!!space && space.role !== "viewer"}
+          onClose={() => setDiscussion(undefined)}
+          onChanged={props.onChanged}
+        />
+      )}
+      {!discussion && !(annotated && selected) && (
+        <ReadingContext view={view} marks={marks} annotated={annotated} onSelect={select} />
+      )}
+      {annotated && selected && !discussion && (
         <PassagePanel
           passage={selected}
           marks={marks.get(selected.block.id)}
@@ -198,7 +311,14 @@ function Reading(props: {
   );
 }
 
-function PassageView(props: { passage: Passage; marks: Mark[] | undefined; selected: boolean; onSelect: () => void }) {
+function PassageView(props: {
+  passage: Passage;
+  marks: Mark[] | undefined;
+  selected: boolean;
+  onSelect: () => void;
+  onDiscuss: () => void;
+}) {
+  const { say } = useWords();
   const { block, rows } = props.passage;
   if (block.kind === "heading") {
     const level = Math.min(Math.max((block.level ?? 1) + 1, 2), 4);
@@ -207,12 +327,6 @@ function PassageView(props: { passage: Passage; marks: Mark[] | undefined; selec
   }
   const quotes = (props.marks ?? []).flatMap((m) => m.quotes);
   const standing = weakest(quotes.map((q) => q.tone));
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      props.onSelect();
-    }
-  };
   let body: ReactNode;
   if (block.kind === "table") body = <Table block={block} rows={rows} quotes={quotes} />;
   else {
@@ -231,18 +345,23 @@ function PassageView(props: { passage: Passage; marks: Mark[] | undefined; selec
     });
   }
   return (
-    // A table cannot sit inside a button, so a passage is a focusable region that acts as one.
-    // biome-ignore lint/a11y/useSemanticElements: see above
     <div
       id={block.id}
-      role="button"
-      tabIndex={0}
-      aria-pressed={props.selected}
       className={`passage passage-${block.kind}${standing ? ` passage-${standing}` : ""}${props.selected ? " passage-selected" : ""}`}
-      onClick={props.onSelect}
-      onKeyDown={onKeyDown}
     >
-      {body}
+      <div className="passage-text" data-source-block={block.kind === "table" ? undefined : block.id}>
+        {body}
+      </div>
+      <div className="passage-actions">
+        {props.marks?.length ? (
+          <button type="button" className="link-button" aria-expanded={props.selected} onClick={props.onSelect}>
+            {say("doc.inspect")}
+          </button>
+        ) : null}
+        <button type="button" className="link-button" onClick={props.onDiscuss}>
+          {say("discussion.action")}
+        </button>
+      </div>
     </div>
   );
 }
@@ -261,8 +380,17 @@ function Table(props: { block: SourceBlock; rows: SourceBlock[]; quotes: Quote[]
       {row.text.split("\t").map((text, col) => {
         const tone = toneAt(row, col, text);
         return (
-          // biome-ignore lint/suspicious/noArrayIndexKey: a row's cells, in order
-          <Cell key={col}>{tone ? <mark className={`tone-${tone}`}>{text}</mark> : text}</Cell>
+          <Cell
+            // biome-ignore lint/suspicious/noArrayIndexKey: a row's cells, in order
+            key={col}
+            data-source-block={row.id}
+            data-source-start={row.text
+              .split("\t")
+              .slice(0, col)
+              .reduce((n, cell) => n + cell.length + 1, 0)}
+          >
+            {tone ? <mark className={`tone-${tone}`}>{text}</mark> : text}
+          </Cell>
         );
       })}
     </tr>

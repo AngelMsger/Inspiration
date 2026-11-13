@@ -69,7 +69,13 @@
  * Updates of one tenant run one at a time in a process, and the inbox mark commits with the
  * rows, so a redelivered event changes nothing. Run one collaboration consumer per tenant.
  *
- * Not yet built: comments and anchoring, agent replies, overrides, joint approval (the
+ * Source discussions (document-comments.ts) keep an immutable source version, block, exact
+ * quote offsets, author and reason. A proposed replacement requests a feedback todo; an
+ * ordinary comment requests comment_followup. Both are human-only review kinds. The request
+ * ID deduplicates retries transactionally, and closing the todo preserves the discussion and
+ * never changes source text or current knowledge. HTTP enforces read and comment permissions.
+ *
+ * Not yet built: compiled-page comments and re-anchoring, agent replies, overrides, joint approval (the
  * business layer's), the publish state machine, quality gates, verification expiry, stewards
  * and admins as assignees (the business layer provisions them), and an event that tells the
  * inbox when topics or owners change. For Decide for me: the passages a decision rests on
@@ -78,6 +84,7 @@
  */
 
 export * from "./assistant.ts";
+export * from "./document-comments.ts";
 export * from "./inbox.ts";
 export * from "./migrations.ts";
 export * from "./weeks.ts";

@@ -21,6 +21,7 @@ import {
   type Inbox,
   type InboxTodo,
   type SearchResult,
+  type SourceBlock,
   type SpaceOverview,
   type TopicList,
   type TopicView,
@@ -654,4 +655,62 @@ describe("the MCP endpoint", () => {
     expect((await mcp(ping, { obo: "mem_01HENGYUAN0000000000NOBODY" })).status).toBe(401);
     expect((await mcp(ping)).body).toEqual({ jsonrpc: "2.0", id: 1, result: {} });
   });
+});
+
+test("source corrections validate anchors and permissions, persist, and return to a review without changing knowledge", async () => {
+  const view = (
+    await call(`/v0/documents?source=${FIN_POLICIES}&item=${encodeURIComponent(TRAVEL)}`, { member: ZHOU_MIN })
+  ).body as unknown as DocumentView;
+  const block = view.blocks.find((b) => b.kind === "paragraph" && b.text.length > 5) as SourceBlock;
+  const input = {
+    request_id: "source-correction",
+    source_version_id: view.version.id,
+    block_id: block.id,
+    start: 0,
+    end: 5,
+    quote: block.text.slice(0, 5),
+    body: "Please check the revised policy.",
+    replacement: "600",
+  };
+  expect((await call("/v0/document-comments", { body: input })).status).toBe(403);
+  expect(
+    (await call("/v0/document-comments", { member: ZHOU_MIN, body: { ...input, quote: "not the source" } })).status,
+  ).toBe(400);
+  expect(
+    (
+      await call("/v0/document-comments", {
+        member: ZHOU_MIN,
+        body: { ...input, block_id: "blk_01JC0000000000000000BLOCK1" },
+      })
+    ).status,
+  ).toBe(400);
+  const saved = await call("/v0/document-comments", { member: ZHOU_MIN, body: input });
+  expect(saved.status).toBe(200);
+  expect(contractErrors("DocumentComment", saved.body)).toEqual([]);
+  const repeated = await call("/v0/document-comments", { member: ZHOU_MIN, body: input });
+  expect(repeated.body.id).toBe(saved.body.id);
+  const list = await call(`/v0/document-comments?version=${view.version.id}`);
+  expect(list.status).toBe(200);
+  expect(list.body).toEqual([saved.body]);
+  const assignee = saved.body.assignee_id as string;
+  expect(assignee).toBeTruthy();
+  const todo = await call(`/v0/todos/${saved.body.todo_id}`, { member: assignee });
+  expect(todo.status).toBe(200);
+  expect(contractErrors("InboxTodo", todo.body)).toEqual([]);
+  expect(todo.body.comment).toMatchObject({ comment: input });
+  expect((await call(`/v0/todos/${saved.body.todo_id}`)).status).toBe(404);
+  expect(
+    (await call(`/v0/todos/${saved.body.todo_id}/resolve`, { member: assignee, body: { status: "done" } })).status,
+  ).toBe(200);
+  expect((await call(`/v0/todos/${saved.body.todo_id}`, { member: assignee })).body.todo).toMatchObject({
+    status: "done",
+  });
+  const after = (await call(`/v0/documents?version=${view.version.id}`, { member: ZHOU_MIN }))
+    .body as unknown as DocumentView;
+  expect(after.blocks).toEqual(view.blocks);
+  expect(after.annotations).toEqual(view.annotations);
+  const hidden = (
+    await call(`/v0/documents?source=${FIN_BUDGET}&item=${encodeURIComponent(BUDGET)}`, { member: ZHOU_MIN })
+  ).body as unknown as DocumentView;
+  expect((await call(`/v0/document-comments?version=${hidden.version.id}`)).status).toBe(404);
 });

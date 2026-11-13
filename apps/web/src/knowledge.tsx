@@ -8,6 +8,7 @@ import { api, type Library, type Loaded, useLoad } from "./api.ts";
 import { citedAt } from "./home.tsx";
 import { Crumbs, Failure, Standing } from "./parts.tsx";
 import type { Person } from "./people.ts";
+import { EvidenceSources } from "./reading-context.tsx";
 import { Link } from "./route.tsx";
 import { factOf, factTitle } from "./todos.ts";
 import { pageOf } from "./topics.ts";
@@ -107,7 +108,7 @@ function Topic(props: { view: TopicView; library: Library; people: Person[]; inb
     });
   const anchor = (i: number) => `fact-${i + 1}`;
   return (
-    <div className="with-panel">
+    <div className="with-panel document-layout">
       <div className="reading">
         <div className="reading-head">
           <Crumbs>
@@ -153,6 +154,7 @@ function Topic(props: { view: TopicView; library: Library; people: Person[]; inb
                   {fact.disputed && <Standing value="disputed" />}
                 </p>
               ))}
+              <EvidenceSources statements={fact.current} />
               {fact.against.map((h) => (
                 <p key={h.unit_id} className="against">
                   <Standing value={h.standing} />

@@ -1,6 +1,6 @@
 # Inspiration UI: interaction principles and visual design
 
-Status: adopted, 2026-10-24; the MVP web app in `apps/web` is built on its visual system.
+Status: adopted, 2026-10-24, updated by the 2026-11-13 reading review in [UI philosophy](ui-philosophy.md); the MVP web app in `apps/web` is built on its visual system.
 
 ## Conclusions
 
@@ -32,8 +32,8 @@ The places these people work in:
 
 ## Interaction principles
 
-1. **Concrete before abstract.** People meet their own material first. An imported document opens in its Original view, with its headings, paragraphs, lists and tables, and knowledge appears on top of it one step at a time: marks on the passages that became knowledge, then what a passage says and what other documents say about it, then the knowledge page. Knowledge pages and topics are the second way in, for people who already know what they are looking for.
-2. **Reading first, governance on demand.** A page opens as a clean document. Owners, votes and rules appear only when someone asks or acts. The knowledge model itself (statements, counts, lineage) is never part of the reading surface; owners see it in the Trace view.
+1. **Concrete before abstract.** People meet their own material first. An imported document opens in its Annotated view, with only outdated and disputed passages marked; Original remains an explicit clean-reading choice, with its headings, paragraphs, lists and tables, and knowledge appears on top of it one step at a time: marks on the passages that became knowledge, then what a passage says and what other documents say about it, then the knowledge page. Knowledge pages and topics are the second way in, for people who already know what they are looking for.
+2. **Reading first, governance on demand.** A page opens as a clean document. Owners, votes and rules appear only when someone asks or acts. Local evidence and disagreement relations are available to authorized readers on request; deeper governance commands stay in the owners’ Trace view.
 3. **Every statement shows where it came from and how fresh it is.** A citation is one click from the source passage, and status is always written in words (Fresh, Review due, Outdated, Disputed), never shown by colour alone.
 4. **Always show which company and space you are in, and who can read it.** The top bar names the company, the left column and breadcrumbs name the space, and every space states who can read it, as set by its owner, with a count such as "All 18 Procurement members".
 5. **Every decision has a person, who can let the assistant decide.** The assistant drafts options, raises conflicts and answers questions, and its suggestion is already filled in. A named person votes, approves or publishes, or lets the assistant decide for them, and can undo it. See [Decide for me](decide-for-me.md).
@@ -105,7 +105,7 @@ The drawn screens are in [screens](screens/README.md), a snapshot of the design 
 
 Readers never see the structure behind a page. A knowledge page, procedure or topic page reads as a normal document: text, small citation numbers, and only the Disputed and Outdated marks. Clicking a number shows the source passage and one sentence on its status.
 
-**From documents to knowledge.** Someone new starts from documents they already know, not from knowledge pages or cards. Each step adds a little. The Original view shows the document as written. The Annotated view marks the passages that became knowledge and the outdated and disputed lines. Selecting a passage opens What this says: the knowledge taken from it in plain sentences, the other documents that agree with it, differ from it or add to it, and the pages and procedures that use it. From there the knowledge page is one click away. What this says never shows statements, fact slots, counts or governance levels; those stay in the Trace view, which owners can open from the same panel.
+**From documents to knowledge.** Someone new starts from documents they already know, not from knowledge pages or cards. Each step adds a little. The Original view shows the document as written. The Annotated view marks only outdated and disputed lines; explicit controls open passage evidence or start a comment in either mode. Selecting a passage opens What this says: the knowledge taken from it in plain sentences, the other documents that agree with it, differ from it or add to it, and the pages and procedures that use it. From there the knowledge page is one click away. What this says never shows statements, fact slots, counts or governance levels; those stay in the Trace view, which owners can open from the same panel.
 
 Behind the page, knowledge has layers:
 

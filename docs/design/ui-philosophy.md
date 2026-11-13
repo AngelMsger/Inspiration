@@ -45,12 +45,25 @@ The left column shows one of four areas, and each one looks like itself:
 
 | Area | For | Entered from | How it looks | Its left column |
 | --- | --- | --- | --- | --- |
-| Knowledge, the default | Everyone | Signing in, Home | The paper ground. Folds away while reading | Home, Inbox, My space, then each space the person can read, with its Documents and Knowledge |
+| Knowledge, the default | Everyone | Signing in, Home | The paper ground. Navigation can be collapsed while reading | Home, Inbox, My space, then each space the person can read, with its Documents and Knowledge |
 | Managing a space | That space's owners | "Manage" on the space, or a card in the inbox | A blue-tinted column under an indigo header: "Managing a space · Finance", "← Back to reading" | Overview, Work (reviews, conflicts, publish requests, batch changes), Topics and owners, Documents and governance levels, Readers, Rules, Settings |
 | Admin | The super admin | The account menu | A dark column under the header "Admin · the company", "← Back to knowledge" | Grouped by concern, as in section 5 |
 | Account | Everyone | The account menu | The paper ground under the header "Account and settings", with Done | You (profile and language, sign-in, companies, notifications), then the current company (your source connections, apps with access, Always decide for me, your usage) |
 
 Reading stays on paper with nothing tinted, so a glance tells reading from managing.
+
+### Reading, feedback and navigation (2026-11-13)
+
+The web app implements the following rules from the product review:
+
+- Lists and search use the available width. Prose keeps a readable line length; opening a panel changes neither its left edge nor its width. On narrow screens the panel overlays the page and has an explicit close button.
+- The document and knowledge trees expand independently of navigation, remember open branches, and show the current path. Reading keeps navigation available on wide screens; a top-bar control remembers the reader's collapsed preference.
+- Annotated is the default document view and highlights only outdated or disputed passages. Original has no system marks or implicit paragraph-click inspection. Both modes offer an explicit paragraph or text-selection comment/correction action. Mode and previous/next issue controls stay in view while scrolling.
+- Source comments keep their immutable version, block, exact offsets and quote, author, reason, optional proposed replacement and review status. They persist on the server and request a human review todo. A retry creates one discussion; marking it reviewed does not rewrite a source or adopt the proposed value. Replies, automatic re-anchoring and applying corrections upstream remain unbuilt. The recorded static demo explains that saving requires the running app.
+- Every todo opens details, including items without a suggested resolution. Discussions and readable citations open the exact original context and retain a link back. Resolved discussion details remain readable by the assigned owner.
+- Relationships are part of the reading context, not a standalone feature button. A document shows its outline, passages needing comparison, and the current value with its sources. A knowledge page names the source documents beneath each fact. Readers follow those concrete links to explore further; a global knowledge map is a separate exploration task and is not built by this change. These are the authorized citations and governance relationships the engine already supplies; arbitrary document hyperlinks and other semantic edge types are not inferred. Governance commands still require their existing roles.
+- Import & connections is visible under each space, in the document header and empty state. Uploading needs editing access; connecting online sources needs space-owner access. The supported Confluence Data Center/Server space and individual Feishu docx/wiki scopes are explicit; credentials and live connection permissions are unchanged.
+- Search closes with its close button, outside pointer click or Escape; choosing a result or using speech input does not depend on input blur. Account language choices are nested and keyboard reachable. Controls use consistent font metrics and menu text cannot be selected; document text remains selectable.
 
 ### Where am I, where did I come from, how do I go elsewhere
 
@@ -76,9 +89,9 @@ A revision to an original document never changes it in place: the document lives
 Rules:
 
 - **The top bar never changes,** in Admin and Account included. It never switches spaces. Companies and the personal library are switched from the account menu.
-- **The left column has at most two levels of headings.** Trees, such as Documents and Knowledge, can go deeper, but open one branch at a time.
+- **The left column has at most two levels of headings.** Trees, such as Documents and Knowledge, can go deeper, and keep the branches the reader opens.
 - **A screen's filters and views sit above its content,** never in the left column. The inbox's kinds are a menu above the list, and its metric cards also filter it.
-- **Reading folds the left column away** to give the text room. Breadcrumbs above the text say where you are and, after a jump, where you came from; they never replace the left column.
+- **Reading keeps the left column available** on wide screens; the reader may collapse it to give the text room. Breadcrumbs above the text say where you are and, after a jump, where you came from; they never replace the left column.
 - **Compact is a density setting** (⌘.), not a place. It never changes what the navigation holds.
 
 ### Placed by how often it is used
@@ -88,7 +101,7 @@ The prime places go to what people do most. The product owner put it this way af
 | Element | Who uses it | How often | Where it goes |
 | --- | --- | --- | --- |
 | Search and ask | Everyone | Several times a day | The middle of the top bar, ⌘K |
-| Reading a page or document | Everyone | Daily | The centre, with the left column folded |
+| Reading a page or document | Everyone | Daily | The centre, with optional navigation |
 | The spaces you read | Members | Daily to weekly | The left column, the ones you use first |
 | Inbox | Owners daily; most members 0 to 2 todos a month | Daily to monthly | Second in the left column, with a count when something waits |
 | Managing a space | Space and topic owners (6 in the Finance story) | Daily to weekly | Manage, next to the space |

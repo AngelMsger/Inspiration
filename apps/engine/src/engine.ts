@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { AuthzService, Directory, type Graph, MemoryGraph } from "@inspiration/access-control";
-import { Assistant, Inbox } from "@inspiration/collaboration";
+import { Assistant, DocumentComments, Inbox } from "@inspiration/collaboration";
 import type {
   BlobStore,
   Citation,
@@ -107,6 +107,7 @@ export class Engine {
   readonly freshness: Freshness;
   readonly topics: Topics;
   readonly inbox: Inbox;
+  readonly comments: DocumentComments;
   /** Decide for me: the assistant's decisions on members' todos, and their standing delegations. */
   readonly assistant: Assistant;
   readonly authz: AuthzService;
@@ -207,6 +208,7 @@ export class Engine {
       },
     });
     this.assistant = new Assistant({ inbox: this.inbox });
+    this.comments = new DocumentComments(this.records, this.clock);
     const graph = parts.graph ?? new MemoryGraph();
     this.authz = new AuthzService(graph, this.store);
     this.directory = new Directory(this.records, graph);

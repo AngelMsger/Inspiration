@@ -40,6 +40,7 @@ The product owner's decisions in force, oldest first, and the questions still op
 | 2026-11-05 | The validation spec and the UI philosophy are adopted, and validation stays paused for the MVP. Scoped owners are 负责人 in Chinese (空间负责人, 主题负责人, 页面负责人, 流程负责人), not the 维护人 proposed on 2026-10-26 |
 | 2026-11-11 | Validate on the owner’s local computer with direct Confluence Data Center / Server and Feishu document connections, using a DeepSeek API key; close the local experience gaps before live validation. See [Local validation](local.md). |
 | 2026-11-13 | Prioritize cloud models for local Confluence/Feishu validation, without local model dependencies. DeepSeek plus hosted embedding/reranking, recoverable indexing and small import scopes come before further architecture exploration. See [Local validation](local.md). |
+| 2026-11-13 | Improve the original demo with stable reading, explorable trees, clean Original and default Annotated modes, persistent source feedback, universal todo context, reader-visible evidence relations and discoverable import connections; see [UI philosophy](design/ui-philosophy.md). |
 
 Earlier agent memory was reconciled with the repository on 2026-11-12; the table retains
 the original decision dates. Temporary spending approvals and hosting estimates remain

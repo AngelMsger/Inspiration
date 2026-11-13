@@ -14,6 +14,7 @@ import type {
   Todo,
   TodoChoice,
 } from "@inspiration/contracts";
+import { documentComments } from "./document-comments.ts";
 import type { Engine } from "./engine.ts";
 
 /** What the tenant's predicate catalogue calls the fact of a slot; its qualifiers are its scope. */
@@ -39,11 +40,25 @@ export async function inboxTodos(engine: Engine, who: Principal, todos: readonly
     who,
     todos.map((t) => t.id),
   );
+  const comments = await engine.comments.list(who.tenant_id);
+  const permitted = new Map<string, NonNullable<InboxTodo["comment"]>>();
+  for (const todo of todos) {
+    const comment = comments.find((c) => c.todo_id === todo.id);
+    if (!comment) continue;
+    // Old-version sensitivity and a later permission change still apply to comments.
+    try {
+      await documentComments(engine, who, comment.comment.source_version_id);
+      permitted.set(todo.id, comment);
+    } catch {
+      /* Keep the todo but withhold the restricted source discussion. */
+    }
+  }
   return todos.map((todo): InboxTodo => {
     const label = labelOf(todo.slot_key);
     const { suggestion, left } = marks.get(todo.id) ?? {};
     return {
       todo,
+      ...(permitted.has(todo.id) && { comment: permitted.get(todo.id) }),
       ...(label && { fact_label: label }),
       statements: todo.unit_ids.flatMap((id) => statements.get(id) ?? []),
       choices: (todo.resolutions ?? []).map((r): TodoChoice => {
