@@ -33,7 +33,7 @@ import {
   MATURE_SOURCES,
   type ReadOnUse,
 } from "./answers.ts";
-import { DOCUMENTS, type IndexedDocument, Indexer } from "./indexing.ts";
+import { DOCUMENTS, type IndexedDocument, Indexer, type IndexJob, JOBS } from "./indexing.ts";
 import { chargedTo, metered } from "./metering.ts";
 import { type Baseline, Search } from "./search.ts";
 
@@ -97,6 +97,7 @@ export class Retrieval implements Retriever {
   readonly totals = { indexed: 0, chunks: 0, embedded: 0, searches: 0, answers: 0, untranslated: 0 };
   /** Indexes a document's latest version (indexing.ts). */
   readonly onBlocksChanged: EventHandler;
+  readonly #indexer: Indexer;
   readonly #search: Search;
   readonly #answers: Answers;
 
@@ -157,13 +158,14 @@ export class Retrieval implements Retriever {
       answerSources: this.answerSources,
       totals: this.totals,
     });
-    this.onBlocksChanged = new Indexer({
+    this.#indexer = new Indexer({
       store: this.store,
       records: this.records,
       models: this.models,
       prompts: this.prompts,
       totals: this.totals,
-    }).onBlocksChanged;
+    });
+    this.onBlocksChanged = this.#indexer.onBlocksChanged;
   }
 
   handlers(): Record<string, EventHandler> {
@@ -173,6 +175,15 @@ export class Retrieval implements Retriever {
   /** The tenant's indexed documents. */
   async documents(tenantId: string): Promise<IndexedDocument[]> {
     return this.records.find(DOCUMENTS, { tenant_id: tenantId });
+  }
+
+  /** Indexing work that has not completed, for authorized document progress views. */
+  async indexing(tenantId: string): Promise<IndexJob[]> {
+    return this.records.find(JOBS, { tenant_id: tenantId });
+  }
+
+  async resume(sourceId?: string): Promise<number> {
+    return this.#indexer.resume(sourceId);
   }
 
   async search(q: SearchQuery, who: Principal): Promise<SearchResult> {

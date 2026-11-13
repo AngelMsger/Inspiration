@@ -273,13 +273,13 @@ export class Extraction {
    * document stops again, the rest of its company wait for the next call, since they share
    * its budget. Returns how many documents were read to the end.
    */
-  async resume(): Promise<number> {
+  async resume(sourceId?: string): Promise<number> {
     const marks = await this.records.find(DOCUMENTS, { state: "paused" });
     marks.sort((a, b) => (a.paused?.at ?? "").localeCompare(b.paused?.at ?? ""));
     const stopped = new Set<string>();
     let done = 0;
     for (const { tenant_id, paused } of marks) {
-      if (!paused || stopped.has(tenant_id)) continue;
+      if (!paused || stopped.has(tenant_id) || (sourceId && paused.change.source_id !== sourceId)) continue;
       if ((await this.extract(paused.change)).paused) stopped.add(tenant_id);
       else done++;
     }

@@ -16,6 +16,8 @@ export function Sources(props: { space: string; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
   const [kind, setKind] = useState<CreateConnection["type"]>("confluence");
   const [name, setName] = useState("");
+  const [pageIds, setPageIds] = useState("");
+  const [wholeSpace, setWholeSpace] = useState(false);
   const [targets, setTargets] = useState("");
   const [level, setLevel] = useState<CreateConnection["governance_level"]>("reference");
   const [refresh, setRefresh] = useState(0);
@@ -76,6 +78,10 @@ export function Sources(props: { space: string; onChanged: () => void }) {
           .split(/\r?\n/)
           .map((s) => s.trim())
           .filter(Boolean) as [string, ...string[]],
+        ...(kind === "confluence" &&
+          !wholeSpace && {
+            page_ids: pageIds.split(/[\s,]+/).filter(Boolean) as [string, ...string[]],
+          }),
         governance_level: level,
       });
       setData((old) => old && { ...old, sources: [...old.sources, source] });
@@ -120,6 +126,27 @@ export function Sources(props: { space: string; onChanged: () => void }) {
             onChange={(e) => setTargets(e.target.value)}
           />
         </label>
+        {kind === "confluence" && (
+          <>
+            <label>
+              <span>{say("connections.scope")}</span>
+              <select
+                value={wholeSpace ? "space" : "pages"}
+                onChange={(e) => setWholeSpace(e.target.value === "space")}
+              >
+                <option value="pages">{say("connections.selected_pages")}</option>
+                <option value="space">{say("connections.whole_space")}</option>
+              </select>
+            </label>
+            {!wholeSpace && (
+              <label>
+                <span>{say("connections.page_ids")}</span>
+                <textarea required rows={3} value={pageIds} onChange={(e) => setPageIds(e.target.value)} />
+                <span className="quiet">{say("connections.page_ids_hint")}</span>
+              </label>
+            )}
+          </>
+        )}
         <label>
           <span>{say("connections.level")}</span>
           <select value={level} onChange={(e) => setLevel(e.target.value as CreateConnection["governance_level"])}>
@@ -155,6 +182,11 @@ export function Sources(props: { space: string; onChanged: () => void }) {
             {say(`source.${source.type}`)} · {say(`level.${source.governance_level ?? "reference"}`)}
           </p>
           <p className="connection-targets">{source.scope.ids?.join("\n")}</p>
+          {Array.isArray(source.scope.options?.page_ids) && (
+            <p className="quiet">
+              {say("connections.selected_pages")}: {source.scope.options.page_ids.join(", ")}
+            </p>
+          )}
           {source.sync && (
             <div role="status">
               <b>{say(`connections.${source.sync.state}`)}</b>

@@ -6,7 +6,15 @@
  * endpoint that vLLM and SiliconFlow serve, and OCR through a vision model's chat endpoint.
  */
 
-import type { BlobStore, ChatMessage, EmbedInputType, FinishReason, TokenUsage } from "@inspiration/contracts";
+import {
+  type BlobStore,
+  type ChatMessage,
+  type EmbedInputType,
+  type FinishReason,
+  GatewayException,
+  schemaErrors,
+  type TokenUsage,
+} from "@inspiration/contracts";
 import type { ModelConfig, ProviderConfig } from "../config.ts";
 import { ProviderError } from "../errors.ts";
 import type {
@@ -145,6 +153,33 @@ export class OpenAICompatibleProvider implements ModelProvider {
   }
 
   async embed(model: ModelConfig, texts: readonly string[], inputType: EmbedInputType): Promise<ProviderEmbedding> {
+    const batchSize = Number(this.config.options.embedding_batch_size ?? texts.length);
+    if (!Number.isSafeInteger(batchSize) || batchSize < 1)
+      throw new ProviderError(`${this.config.name}: invalid embedding_batch_size`, { retryable: false });
+    if (texts.length > batchSize) {
+      const vectors: number[][] = [];
+      const usage: TokenUsage = { input_tokens: 0, output_tokens: 0 };
+      for (let i = 0; i < texts.length; i += batchSize) {
+        try {
+          const batch = await this.embed(model, texts.slice(i, i + batchSize), inputType);
+          vectors.push(...batch.vectors);
+          usage.input_tokens += batch.usage.input_tokens;
+          usage.output_tokens += batch.usage.output_tokens;
+          if (batch.usage.cached_input_tokens)
+            usage.cached_input_tokens = (usage.cached_input_tokens ?? 0) + batch.usage.cached_input_tokens;
+        } catch (error) {
+          // A later batch failing must not erase the tokens already billed by earlier batches.
+          const failure = new GatewayException(
+            error instanceof ProviderError && error.status === 400 ? "bad_request" : "provider_error",
+            `${this.config.name}: embedding batch failed`,
+            { cause: error },
+          );
+          failure.usage = usage;
+          throw failure;
+        }
+      }
+      return { vectors, usage };
+    }
     const input =
       inputType === "query" && model.query_instruction
         ? texts.map((t) => `Instruct: ${model.query_instruction}\nQuery:${t}`)
@@ -152,13 +187,30 @@ export class OpenAICompatibleProvider implements ModelProvider {
     const body: Json = { model: model.name, input };
     if (model.dimensions && this.config.options.send_dimensions) body.dimensions = model.dimensions;
     const data = await this.#post("/embeddings", body);
-    const rows: Json[] = [...(data?.data ?? [])].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+    if (!Array.isArray(data?.data))
+      throw new ProviderError(`${this.config.name}: malformed embedding response`, { retryable: true });
+    const rows: Json[] = [...data.data].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
     if (rows.length !== input.length) {
       throw new ProviderError(`${this.config.name}: expected ${input.length} embeddings, got ${rows.length}`, {
         retryable: true,
       });
     }
-    return { vectors: rows.map((r) => r.embedding.map(Number)), usage: OpenAICompatibleProvider.usage(data) };
+    const vectors = rows.map((r) => r.embedding);
+    const invalid = schemaErrors(
+      {
+        type: "array",
+        items: {
+          type: "array",
+          minItems: model.dimensions ?? 1,
+          ...(model.dimensions && { maxItems: model.dimensions }),
+          items: { type: "number" },
+        },
+      },
+      vectors,
+    );
+    if (invalid.length || rows.some((r, i) => r.index !== i))
+      throw new ProviderError(`${this.config.name}: malformed embedding vectors or indexes`, { retryable: true });
+    return { vectors, usage: OpenAICompatibleProvider.usage(data) };
   }
 
   async rerank(
@@ -172,8 +224,19 @@ export class OpenAICompatibleProvider implements ModelProvider {
     const data = await this.#post(String(this.config.options.rerank_path ?? "/rerank"), body);
     const scores = new Array<number>(documents.length).fill(0);
     for (const r of data?.results ?? []) scores[Number(r.index)] = Number(r.relevance_score ?? r.score ?? 0);
-    const tokens = Number(data?.usage?.total_tokens ?? data?.usage?.prompt_tokens ?? 0);
-    return { scores, usage: { input_tokens: tokens, output_tokens: 0 } };
+    // SiliconFlow reports billed input tokens outside OpenAI's usage object.
+    const usage: TokenUsage = {
+      input_tokens: Number(
+        data?.usage?.total_tokens ??
+          data?.usage?.prompt_tokens ??
+          data?.meta?.billed_units?.input_tokens ??
+          data?.meta?.tokens?.input_tokens ??
+          data?.tokens?.input_tokens ??
+          0,
+      ),
+      output_tokens: 0,
+    };
+    return { scores, usage };
   }
 
   async ocr(model: ModelConfig, image: Uint8Array, mimeType: string, page?: number): Promise<ProviderOcr> {

@@ -205,3 +205,23 @@ test("a missing Feishu page token aborts the import", async () => {
     "incomplete block listing",
   );
 });
+
+test("Confluence selected pages are enumerated without fetching an entire space", async () => {
+  const selected = source("confluence");
+  selected.scope.options = { ...selected.scope.options, page_ids: Array.from({ length: 26 }, (_, i) => String(i + 1)) };
+  const fetch = vi.fn(async () => response({ ...page("1"), space: { key: "HR" } }));
+  vi.stubGlobal("fetch", fetch);
+  const connector = new ConfluenceConnector(selected, context());
+  const first = await connector.list(selected.scope);
+  expect(first.items).toHaveLength(25);
+  const last = await connector.list(selected.scope, first.next_cursor);
+  expect(last.items.map((item) => item.ref.external_id)).toEqual(["26"]);
+  expect(last.next_cursor).toBeUndefined();
+  expect(fetch).not.toHaveBeenCalled();
+  await expect(connector.fetch({ source_id: selected.id, external_id: "99" })).rejects.toThrow("not selected");
+  expect(fetch).not.toHaveBeenCalled();
+  const ref = first.items[0]?.ref ?? { source_id: "", external_id: "" };
+  expect(await connector.fetch(ref)).toMatchObject({ title: "Leave" });
+  fetch.mockImplementation(async () => response({ ...page("1"), space: { key: "OTHER" } }));
+  await expect(connector.fetch(ref)).rejects.toThrow("not in the selected space");
+});

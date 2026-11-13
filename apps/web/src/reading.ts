@@ -1,7 +1,5 @@
-// How far the engine has read a space's documents, as the page follows it. A space with
-// documents waiting or being read has its Documents tree asked for again, after a growing wait,
-// until none is. Paused reading is not followed: the engine carries it on by itself, often the
-// next day, and the page shows it as paused until it is read again.
+// Follow document processing, including pauses that the engine automatically resumes.
+// The poll backs off to half a minute and stops when the page leaves or processing settles.
 
 import type {
   DocumentEntry,
@@ -26,7 +24,8 @@ export function countsOf(nodes: readonly DocumentTreeNode[]): ReadingCounts {
 }
 
 /** Whether the engine is still reading some of a tree's documents, so the tree is worth asking for again. */
-export const going = (tree: DocumentTree) => (tree.reading?.waiting ?? 0) + (tree.reading?.reading ?? 0) > 0;
+export const going = (tree: DocumentTree) =>
+  (tree.reading?.waiting ?? 0) + (tree.reading?.reading ?? 0) + (tree.reading?.paused ?? 0) > 0;
 
 /** The wait before asking again: two seconds, half as long again each time, at most half a minute. */
 export const delayOf = (attempt: number) => Math.min(30_000, 2000 * 1.5 ** attempt);

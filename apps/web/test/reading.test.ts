@@ -44,11 +44,11 @@ describe("reading", () => {
     expect(stateOf(doc("handbook").document as DocumentEntry)).toBe("read");
   });
 
-  test("follows a tree while documents wait or are read, but not for paused or failed ones", () => {
+  test("follows a tree while documents wait or are read, including paused work that will automatically resume", () => {
     expect(going(tree("spc_1", 1))).toBe(true);
     expect(going(tree("spc_1", 0, 2))).toBe(true);
     expect(going({ ...tree("spc_1", 0), reading: { waiting: 0, reading: 0, read: 0, paused: 3, failed: 1 } })).toBe(
-      false,
+      true,
     );
     expect(going({ space_id: "spc_1", sources: [] })).toBe(false);
   });

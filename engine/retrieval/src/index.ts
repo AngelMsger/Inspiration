@@ -10,6 +10,9 @@
  *   unchanged keeps its ID, header and embedding; chunks of the previous version that are
  *   gone are removed, and a deleted document's chunks with them. A late event of an older
  *   version changes nothing.
+ * - Index work is persisted before model calls. indexing() reports unfinished work; resume()
+ *   retries it after outages, budget resets or restart, optionally scoped to one source.
+ *   Successful newer versions and tombstones supersede failed older work.
  * - Each chunk carries its tenant's tokens (access-control's chunkTokens). Who may read it
  *   comes from its space; source ACLs decide nothing.
  * - The duplicates blocks.changed reports are kept as editions of one text, each way

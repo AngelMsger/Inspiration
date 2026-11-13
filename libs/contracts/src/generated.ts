@@ -400,7 +400,7 @@ export type ReviewStatus = "unreviewed" | "verified" | "disputed" | "published";
  */
 export type SlotStanding = "holds" | "outdated" | "disputed" | "differs";
 /**
- * How far the engine has read a document's latest version. waiting: not parsed yet. reading: parsed and searchable, its statements being read. read: done, and a reference document is read further where a page or an answer uses it. paused: the company's reading budget for the day is spent, or the reading model could not be reached, and reading carries on by itself once the next day's budget starts or the model answers; the note says which, and the version is searchable meanwhile. failed: the file could not be read, and the note says why.
+ * How far the engine has read a document's latest version. waiting: not parsed yet. reading: indexing or statement extraction is in progress. read: indexed and read, and a reference document is read further where a page or an answer uses it. paused: the company's reading budget for the day is spent, or the reading model could not be reached, and reading carries on by itself once the next day's budget starts or the model answers; the note says which. Search may not include this version until indexing finishes. failed: parsing or indexing failed, and the note says why.
  *
  */
 export type ReadingState = "waiting" | "reading" | "read" | "paused" | "failed";
@@ -1866,6 +1866,13 @@ export interface CreateConnection {
    * @maxItems 100
    */
   targets: [string, ...string[]];
+  /**
+   * Optional Confluence page allowlist within the selected space; omitted imports the whole space.
+   *
+   * @minItems 1
+   * @maxItems 100
+   */
+  page_ids?: [string, ...string[]];
   governance_level: GovernanceLevel;
 }
 /**
