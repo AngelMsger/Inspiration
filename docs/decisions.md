@@ -40,6 +40,7 @@ The product owner's decisions in force, oldest first, and the questions still op
 | 2026-11-05 | The validation spec and the UI philosophy are adopted, and validation stays paused for the MVP. Scoped owners are 负责人 in Chinese (空间负责人, 主题负责人, 页面负责人, 流程负责人), not the 维护人 proposed on 2026-10-26 |
 | 2026-11-11 | Validate on the owner’s local computer with direct Confluence Data Center / Server and Feishu document connections, using a DeepSeek API key; close the local experience gaps before live validation. See [Local validation](local.md). |
 | 2026-11-13 | Prioritize cloud models for local Confluence/Feishu validation, without local model dependencies. DeepSeek plus hosted embedding/reranking, recoverable indexing and small import scopes come before further architecture exploration. See [Local validation](local.md). |
+| 2026-11-13 | The whole product needs a Drive layer, with the Documents tree managing content as files and substantial interaction design beyond storage. Knowledge materialized at a useful granularity as special files, and original uploads as files, are directions to explore; their detailed model and interactions are proposed in [Drive and knowledge files](design/drive.md). |
 
 Earlier agent memory was reconciled with the repository on 2026-11-12; the table retains
 the original decision dates. Temporary spending approvals and hosting estimates remain
@@ -56,3 +57,4 @@ historical context, not new budgets or deployment commitments.
 7. **Answered: the order of the remaining stages.** The validation on real models came first (2026-10-27 to 2026-11-04), and the [MVP](design/mvp.md) sets the order now (2026-11-05).
 8. **Two details of the agent tools:** whether `search` ranks blocks and statements together by default, and whose budget pays for the model call inside `ask`.
 9. **Answered: a standing "Decide for me" counts as the member's approval** under AG-4 ([overview, section 6.7](overview.md#67-agents)), as a request made in advance, scoped to kinds of decision and pausable; the MVP offers it to owners on their first inbox visit (its decision 5, 2026-11-05). Whether every vote in a joint approval may be delegated waits for joint approval ([Decide for me](design/decide-for-me.md)).
+10. **Drive's file model and interactions:** knowledge-file granularity, original uploads as first-class files, navigation, creation and update behavior, and the first delivery slice ([Drive proposal](design/drive.md)). The Drive layer and file-based Documents tree are the decided direction; these details remain proposed.

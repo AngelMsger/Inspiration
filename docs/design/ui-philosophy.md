@@ -4,6 +4,8 @@ Status: adopted, 2026-11-05; the second version of the design canvas and the MVP
 
 ## Conclusions
 
+The 2026-11-13 [Drive direction](drive.md) adds file-based content management to the product. The Documents/Knowledge navigation below describes the existing design; the proposed Drive navigation, file granularity and interactions are specified separately. The four-area grammar and document-first reading still guide that work.
+
 - **Minimal on the surface, complete underneath.** Each screen shows what one person needs for the job in front of them, at the size that job really has, and everything else is one step away, in a panel, a link or ⌘K. Every screen passes three tests: whose one job it serves, how it looks with the real number of items, and what the assistant can say at the top so that the person need not read it.
 - **One grammar, four places you can tell apart.** Every screen has the same top bar, left column, centre and right panel, but reading, managing a space, Admin and Account each look different at a glance, and every screen says where you are, where you came from and how to go elsewhere. What is used most sits closest.
 - **Settings follow who answers for them:** you, a space owner, or the super admin, who decides who and how but never what knowledge says.
