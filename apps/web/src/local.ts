@@ -1,10 +1,12 @@
 #!/usr/bin/env node
-/** One workstation: durable engine, business backend, built web app and local embedding models. */
+/** One workstation: durable engine, business backend, built web app and cloud models. */
 import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseArgs, parseEnv } from "node:util";
+import { loadGatewayConfig } from "@inspiration/model-gateway";
 import { build } from "vite";
 
 const children: ChildProcess[] = [];
@@ -57,16 +59,30 @@ async function ready(url: string, child: ChildProcess, seconds = 90): Promise<vo
 
 async function main() {
   const { values } = parseArgs({
-    options: { mock: { type: "boolean", default: false }, "skip-stack": { type: "boolean", default: false } },
+    options: {
+      mock: { type: "boolean", default: false },
+      "skip-stack": { type: "boolean", default: false },
+      gateway: { type: "string" },
+    },
   });
   if (existsSync(".env"))
     for (const [key, value] of Object.entries(parseEnv(readFileSync(".env", "utf8")))) process.env[key] ??= value;
-  if (!values.mock && !process.env.INSPIRATION_DEEPSEEK_API_KEY)
-    throw new Error(
-      "Set INSPIRATION_DEEPSEEK_API_KEY in .env, or use pnpm local --mock for a pipeline-only rehearsal.",
-    );
+  if (values.mock && values.gateway) throw new Error("Choose either --mock or --gateway, not both.");
+  const gatewayFile = values.mock
+    ? fileURLToPath(new URL("../../../config/gateway.dev.yaml", import.meta.url))
+    : resolve(
+        values.gateway ??
+          (process.env.INSPIRATION_GATEWAY_CONFIG?.trim() ||
+            fileURLToPath(new URL("../../../config/gateway.local.yaml", import.meta.url))),
+      );
+  const gateway = loadGatewayConfig(gatewayFile);
+  const missing = [...new Set(gateway.providers.flatMap((p) => (p.api_key_env ? [p.api_key_env] : [])))].filter(
+    (key) => !process.env[key]?.trim(),
+  );
+  if (missing.length)
+    throw new Error(`Set ${missing.join(" and ")} in .env, or use pnpm local --mock for a pipeline-only rehearsal.`);
   process.env.INSPIRATION_LOCAL_CONNECTIONS = "1";
-  process.env.INSPIRATION_LOCAL_MODEL_MODE = values.mock ? "mock" : "deepseek";
+  process.env.INSPIRATION_LOCAL_MODEL_MODE = values.mock ? "mock" : "configured";
   process.env.INSPIRATION_PUBLIC_URL ??= "http://localhost:4200";
   process.env.INSPIRATION_ENGINE_URL ??= "http://127.0.0.1:4100";
   const publicUrl = new URL(process.env.INSPIRATION_PUBLIC_URL);
@@ -75,7 +91,7 @@ async function main() {
     if (url.protocol !== "http:" || !["localhost", "127.0.0.1"].includes(url.hostname))
       throw new Error("Local services require HTTP loopback URLs.");
   // Mock vectors and real embeddings must never share an index, even though their dimensions match.
-  const dataDir = values.mock ? ".data/local-mock" : ".data/local";
+  const dataDir = values.mock ? ".data/local-mock" : ".data/local-cloud";
   await mkdir(dataDir, { recursive: true });
   process.env.INSPIRATION_BLOB_DIR ??= resolve(dataDir, "blobs");
   if (values.mock) {
@@ -94,7 +110,7 @@ async function main() {
     const docker = start("docker", [
       "compose",
       "-p",
-      values.mock ? "inspiration-local-mock" : "inspiration",
+      values.mock ? "inspiration-local-mock" : "inspiration-local-cloud",
       "-f",
       "infra/compose.yaml",
       "up",
@@ -106,13 +122,6 @@ async function main() {
   }
   console.log("Building the web app…");
   await build({ configFile: resolve("apps/web/vite.config.ts") });
-  if (!values.mock) {
-    if (!existsSync("infra/local-embeddings/node_modules"))
-      throw new Error("Run npm ci --prefix infra/local-embeddings before starting the local models.");
-    const embedding = start(process.execPath, ["infra/local-embeddings/server.ts"]);
-    await ready("http://127.0.0.1:8090/v1/models", embedding);
-    console.log("The embedding models load on first use; the first import can take several minutes.");
-  }
   const python = process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python";
   if (existsSync(python)) {
     const parser = spawn(resolve(python), ["-m", "inspiration_parsing"], {
@@ -138,7 +147,7 @@ async function main() {
     "--audience",
     engineUrl.origin,
     "--gateway",
-    values.mock ? "config/gateway.dev.yaml" : "config/gateway.trial.yaml",
+    gatewayFile,
   ]);
   await ready(`${engineUrl.origin}/v0/health`, engine);
   const business = start(process.execPath, [
@@ -160,7 +169,7 @@ async function main() {
         }
       });
   console.log(
-    `\nOpen ${publicUrl.origin} — ${values.mock ? "MOCK models: pipeline rehearsal only" : "DeepSeek with local embeddings"}. Ctrl+C stops the app; data is kept.`,
+    `\nOpen ${publicUrl.origin} — ${values.mock ? "MOCK models: pipeline rehearsal only" : `Models: ${gateway.providers.map((p) => p.name).join(" + ")}`}. Ctrl+C stops the app; data is kept.`,
   );
 }
 

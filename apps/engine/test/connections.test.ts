@@ -4,11 +4,12 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { newEvent, type Principal, type Source } from "@inspiration/contracts";
+import { GatewayException, newEvent, type Principal, type Source } from "@inspiration/contracts";
 import { afterEach, assert, beforeEach, expect, test, vi } from "vitest";
 import { connectionSecret, connections, connectSource, startSync } from "../src/connections.ts";
 import { Engine } from "../src/engine.ts";
 import { organizeKnowledge } from "../src/organization.ts";
+import { readingOf } from "../src/reading.ts";
 import { syncNow } from "../src/spaces.ts";
 
 const TENANT = "ten_00000000LOCAL";
@@ -41,6 +42,7 @@ beforeEach(async () => {
         },
       },
       ancestors: [],
+      space: { key: "HR" },
     };
     res.end(
       JSON.stringify(
@@ -378,4 +380,54 @@ test("answer-time reading and owner routing work with catalogue discovery disabl
   expect((await engine.inbox.items(TENANT, { open: true })).some((item) => item.todo.assignee_id === MEMBER)).toBe(
     true,
   );
+});
+
+test("unchanged sync retries a failed index and reports progress truthfully", async () => {
+  const source = await connectSource(engine, who, space, {
+    type: "confluence",
+    name: "Selected policies",
+    targets: ["HR"],
+    page_ids: ["12"],
+    governance_level: "reference",
+  });
+  const embed = vi.spyOn(engine.models, "embed").mockRejectedValue(new GatewayException("provider_error", "offline"));
+  await startSync(engine, who, source.id);
+  await finished(source.id);
+  const item = (await engine.sync.items(source.id))[0];
+  assert(item);
+  const version = await engine.store.getSourceVersion(item.source_version_id);
+  assert(version);
+  expect(await readingOf(engine, TENANT, [version])).toMatchObject([{ state: "paused" }]);
+  expect(await engine.retrieval.documents(TENANT)).toHaveLength(0);
+  embed.mockRestore();
+  await startSync(engine, who, source.id);
+  expect((await finished(source.id)).sync?.report?.outcomes.unchanged).toBe(1);
+  await expect.poll(async () => (await engine.retrieval.documents(TENANT)).length).toBe(1);
+  expect(await readingOf(engine, TENANT, [version])).toEqual([undefined]);
+  expect((await engine.retrieval.search({ text: "leave allowance" }, who)).hits.length).toBeGreaterThan(0);
+});
+
+test("topic organization repairs a model outage after event retries were exhausted", async () => {
+  const source = await connectSource(engine, who, space, {
+    type: "confluence",
+    name: "Policies",
+    targets: ["HR"],
+    governance_level: "governed",
+  });
+  const original = engine.models.embed.bind(engine.models);
+  const embed = vi.spyOn(engine.models, "embed").mockImplementation((request) => {
+    if (request.budget_key.endsWith("/page-compiler")) throw new GatewayException("provider_error", "offline");
+    return original(request);
+  });
+  await startSync(engine, who, source.id);
+  await finished(source.id);
+  expect(await engine.store.topics(TENANT)).toEqual([]);
+  embed.mockRestore();
+  await organizeKnowledge(engine, TENANT);
+  const topics = await engine.store.topics(TENANT);
+  expect(topics.length).toBeGreaterThan(0);
+  const calls = engine.topics.totals.embed_calls;
+  await organizeKnowledge(engine, TENANT);
+  expect(engine.topics.totals.embed_calls).toBe(calls);
+  expect((await engine.store.topics(TENANT)).map((topic) => topic.key)).toEqual(topics.map((topic) => topic.key));
 });

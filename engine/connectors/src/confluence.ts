@@ -14,6 +14,7 @@ import {
   type Source,
   type SourceRef,
   sameVersion,
+  schemaErrors,
   type Version,
 } from "@inspiration/contracts";
 import { aclSnapshot } from "./acl.ts";
@@ -52,6 +53,7 @@ const PAGE = {
         },
       },
     },
+    space: { type: "object", required: ["key"], properties: { key: { type: "string" } } },
     ancestors: {
       type: "array",
       items: { type: "object", required: ["title"], properties: { title: { type: "string" } } },
@@ -64,6 +66,7 @@ interface Page {
   version: { number: number; when: string };
   body: { view: { value: string } };
   ancestors: { title: string }[];
+  space?: { key: string };
 }
 interface PageList {
   results: Pick<Page, "id" | "title">[];
@@ -72,7 +75,7 @@ interface PageList {
   size: number;
   _links?: { next?: string };
 }
-const EXPAND = "version,body.view,ancestors";
+const EXPAND = "version,body.view,ancestors,space";
 
 export class ConfluenceConnector implements Connector {
   readonly type = "confluence";
@@ -124,6 +127,27 @@ export class ConfluenceConnector implements Connector {
   async list(scope: ScopeSpec, cursor?: Cursor): Promise<ListPage> {
     const start = cursor ? Number(cursor) : 0;
     if (!Number.isSafeInteger(start) || start < 0) throw new RangeError("invalid Confluence cursor");
+    const selected = scope.options?.page_ids;
+    if (selected !== undefined) {
+      if (
+        schemaErrors(
+          {
+            type: "array",
+            minItems: 1,
+            maxItems: 100,
+            uniqueItems: true,
+            items: { type: "string", pattern: "^[0-9]+$" },
+          },
+          selected,
+        ).length
+      )
+        throw new RangeError("invalid Confluence page IDs");
+      const ids = selected as string[];
+      return {
+        items: ids.slice(start, start + 25).map((id) => ({ ref: this.#ref({ id, title: id }) })),
+        ...(start + 25 < ids.length && { next_cursor: String(start + 25) }),
+      };
+    }
     const query = new URLSearchParams({
       spaceKey: scope.ids?.[0] ?? "",
       type: "page",
@@ -153,7 +177,13 @@ export class ConfluenceConnector implements Connector {
 
   async fetch(ref: SourceRef, known?: Version) {
     if (!/^\d+$/.test(ref.external_id)) throw new RangeError("invalid Confluence page ID");
+    const selected = this.source.scope.options?.page_ids;
+    if (Array.isArray(selected) && !selected.includes(ref.external_id))
+      throw new RangeError("Confluence page is not selected for this connection");
     const page = await this.#read<Page>(`rest/api/content/${ref.external_id}?expand=${EXPAND}`, PAGE);
+    if (this.source.scope.options?.page_ids && page.space?.key !== this.source.scope.ids?.[0])
+      throw new RangeError("Confluence page is not in the selected space");
+    if (page.id !== ref.external_id) throw new RangeError("Confluence returned a different page");
     const version = this.#version(page);
     if (sameVersion(known, version)) return { unchanged: true as const };
     const file = await this.#ctx.blobs.put(new TextEncoder().encode(page.body.view.value), {

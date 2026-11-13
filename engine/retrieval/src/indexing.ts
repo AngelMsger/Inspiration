@@ -4,6 +4,7 @@
 
 import { chunkTokens } from "@inspiration/access-control";
 import type {
+  BlocksChanged,
   Chunk,
   DuplicateDocument,
   EventEnvelope,
@@ -12,7 +13,7 @@ import type {
   ModelGateway,
   SourceVersion,
 } from "@inspiration/contracts";
-import { payloadOf } from "@inspiration/contracts";
+import { GatewayException, payloadOf } from "@inspiration/contracts";
 import { defineTable, type Records, type RecordTx } from "@inspiration/eventbus";
 import { searchText } from "@inspiration/knowledge-store";
 import type { PromptRegistry } from "@inspiration/model-gateway";
@@ -51,6 +52,23 @@ export const documentOf = (v: { source_id: string; external_id: string }) => `${
 export const DOCUMENTS = defineTable<IndexedDocument>("retrieval.documents", {
   key: (d) => key(d.tenant_id, d.document),
   columns: { tenant_id: (d) => d.tenant_id },
+});
+
+/** Durable work left by an interrupted or unsuccessful indexing attempt. No provider text is stored. */
+export interface IndexJob {
+  tenant_id: string;
+  source_id: string;
+  document: string;
+  source_version_id: string;
+  fetched_at: string;
+  change: BlocksChanged;
+  state: "pending" | "paused" | "failed";
+  code?: string;
+}
+
+export const JOBS = defineTable<IndexJob>("retrieval.jobs", {
+  key: (d) => key(d.tenant_id, d.document),
+  columns: { tenant_id: (d) => d.tenant_id, source_id: (d) => d.source_id },
 });
 
 /** Two documents that are editions of one text, as normalization reported them; stored each way. */
@@ -101,11 +119,60 @@ export class Indexer {
   }
 
   readonly onBlocksChanged: EventHandler = async (event: EventEnvelope) => {
-    await this.#serial(event.tenant_id, () => this.#index(event));
+    const change = payloadOf(event, "blocks.changed");
+    const version = await this.store.getSourceVersion(change.source_version_id);
+    if (!version || version.tenant_id !== event.tenant_id) throw new RangeError("unknown source version");
+    await this.#serial(version.tenant_id, async () => {
+      const id = key(version.tenant_id, documentOf(version));
+      const pending = await this.records.get(JOBS, id);
+      const indexed = await this.records.get(DOCUMENTS, id);
+      if (pending && pending.fetched_at > version.fetched_at) return;
+      if (indexed && (indexed.source_version_id === version.id || indexed.fetched_at > version.fetched_at)) return;
+      const job: IndexJob = {
+        tenant_id: version.tenant_id,
+        source_id: version.source_id,
+        document: documentOf(version),
+        source_version_id: version.id,
+        fetched_at: version.fetched_at,
+        change,
+        state: "pending",
+      };
+      await this.records.transaction((tx) => tx.put(JOBS, [job]));
+      await this.#attempt(job);
+    });
   };
 
-  async #index(event: EventEnvelope): Promise<void> {
-    const change = payloadOf(event, "blocks.changed");
+  /** Retry durable work, including a process that stopped before recording its failure. */
+  async resume(sourceId?: string): Promise<number> {
+    const jobs = await this.records.find(JOBS, sourceId ? { source_id: sourceId } : {});
+    const spent = new Set<string>();
+    let done = 0;
+    for (const job of jobs) {
+      if (spent.has(job.tenant_id)) continue;
+      await this.#serial(job.tenant_id, async () => {
+        const current = await this.records.get(JOBS, JOBS.key(job));
+        if (!current) return;
+        if (await this.#attempt(current)) done++;
+        else if ((await this.records.get(JOBS, JOBS.key(job)))?.code === "budget_exceeded") spent.add(job.tenant_id);
+      });
+    }
+    return done;
+  }
+
+  async #attempt(job: IndexJob): Promise<boolean> {
+    try {
+      await this.#index(job.change);
+    } catch (error) {
+      const code = error instanceof GatewayException ? error.code : "index_error";
+      const paused = ["budget_exceeded", "provider_error", "timeout"].includes(code);
+      await this.records.transaction((tx) => tx.put(JOBS, [{ ...job, state: paused ? "paused" : "failed", code }]));
+      return false;
+    }
+    await this.records.transaction((tx) => tx.delete(JOBS, [JOBS.key(job)]));
+    return true;
+  }
+
+  async #index(change: BlocksChanged): Promise<void> {
     const version = await this.store.getSourceVersion(change.source_version_id);
     if (!version) throw new RangeError(`unknown source version ${change.source_version_id}`);
     const document = documentOf(version);

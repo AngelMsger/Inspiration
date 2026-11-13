@@ -1,31 +1,31 @@
 # Local validation
 
 Run Inspiration on one computer with a persistent database, a local owner, DeepSeek for
-reading and answers, and local embeddings and reranking. This profile implements the
-product owner's 2026-11-11 decision to validate directly against Confluence Data Center /
+reading and answers, and SiliconFlow cloud embeddings and reranking. No local AI model or GPU is needed.
+This profile implements the product owner's 2026-11-11 and 2026-11-13 decisions to validate directly against Confluence Data Center /
 Server and Feishu. [中文](zh/local.md).
 
 ## Start
 
 Use macOS, Linux, or Windows through WSL2, with Node 22.18+ (24 recommended), pnpm 10.28.0,
-Python 3.10+ and Docker Compose. Docker Desktop must be running. Allow several GB for the
-local embedding and reranking models; their first use downloads them from Hugging Face.
+Python 3.10+ and Docker Compose. Docker Desktop must be running. Models run through cloud APIs; only the application,
+parsing worker and data services run on this computer.
 
 ```bash
 make install
-npm ci --prefix infra/local-embeddings
 cp .env.example .env
-# Edit .env locally with your DeepSeek key and the connection credentials below.
+# Edit .env locally with DeepSeek and SiliconFlow keys and the connection credentials below.
 pnpm local
 ```
 
 Open <http://localhost:4200>. Choose **Open Inspiration**, create a company, then create a
 space with yourself as its owner. Keep its audience private for your first validation.
 The launcher starts the Compose stack, builds the web app, starts the parsing worker when
-installed, and starts the model server, engine and business backend. It waits for the app
+installed, and starts the engine and business backend. It waits for the app
 services to answer and stops its processes together on Ctrl+C. The database, queue, source
-versions, blobs, sessions and usage remain; `make down` also keeps Docker volumes.
-Do not use `make clean` to stop normal work: it deletes the volumes.
+versions, blobs, sessions and usage remain. To stop its data services too, run
+`docker compose -p inspiration-local-cloud -f infra/compose.yaml down` (add `--env-file .env`
+if you changed ports). Do not add `-v`: that deletes its data volumes.
 
 This is an explicit, single-owner local profile, bound to loopback. It does not need Logto
 and must not be exposed through a public proxy. Every browser on the computer can enter as
@@ -37,6 +37,37 @@ not evidence of model quality. Keep mock data separate from real model data; do 
 its database or graph to point at a real installation. `--skip-stack` uses already-running
 services; it is intended for development. Real mode defaults to the normal Compose ports.
 
+## Cloud model settings
+
+Put `INSPIRATION_DEEPSEEK_API_KEY` and `INSPIRATION_SILICONFLOW_API_KEY` in `.env`. The second
+key is from SiliconFlow **China** (`api.siliconflow.cn`), separate from the DeepSeek key.
+`config/gateway.local.yaml` sends reading, contextual headers and answers to DeepSeek;
+`BAAI/bge-m3` supplies 1024-dimensional embeddings and `BAAI/bge-reranker-v2-m3` ranks results.
+SiliconFlow lists these non-Pro BGE models as free as of 2026-11-13; quotas and availability
+still apply. Check [current pricing](https://siliconflow.cn/pricing) before changing models.
+All providers are cleared only for public/internal content. Cloud models receive the text
+needed for their calls. Daily and pooled monthly budgets, caching and usage records remain
+active. The separate hosted-trial and benchmark configurations are unchanged.
+
+The default providers are a preset, not an engine dependency. To choose other providers,
+set `INSPIRATION_GATEWAY_CONFIG` in `.env`, or run
+`pnpm local --gateway /absolute/path/to/gateway.yaml` (the flag takes precedence). The launcher
+validates that file and checks only the `api_key_env` variables its providers declare. It passes
+the same file to the engine. `--mock` always selects the isolated rehearsal preset and cannot
+be combined with `--gateway`. The gateway file controls model names, API addresses, adapter
+kinds, routing, sensitivity clearance and prices. OpenAI-compatible endpoints reuse the existing
+adapter; an incompatible API needs a provider adapter, without changing reading or retrieval.
+Changing a configuration file does **not** create a separate data profile: preserve the embedding
+model for an existing index, or use fresh data services and a blob directory when changing it.
+
+The cloud profile uses Compose project `inspiration-local-cloud` and `.data/local-cloud`;
+mock mode keeps `inspiration-local-mock` and `.data/local-mock`. Existing local-Qwen data in
+project `inspiration` and `.data/local` is retained but is not opened by the cloud launcher.
+Stop the old stack if it occupies the default ports, then connect your sources in the new
+profile. Equal vector dimensions do not make different embedding models compatible. Do not
+point this profile at an old or mock database using endpoint overrides. Changing embedding
+models requires a fresh index; automatic embedding-model migration is not implemented.
+
 ## Connect Confluence
 
 Set `INSPIRATION_CONFLUENCE_URL` to the site root, including `/confluence` when applicable,
@@ -47,8 +78,11 @@ not supported. For corporate TLS, configure `NODE_EXTRA_CA_CERTS` with the compa
 starting Node. Connect the VPN if the server requires it; TLS verification stays enabled.
 
 In **Maintain space → Connections**, select Confluence, give the connection a name and
-enter one space key (for example `HR`, not the display name). Select a governance level and
-choose **Connect and sync**. All pages visible to that account in the space are imported,
+enter one space key (for example `HR`, not the display name). By default, enter a few page IDs
+from their URLs (`pageId=12345`) or Page information. Only those pages are imported, without
+children; each must belong to the chosen space. Select **Whole Confluence space** only when
+ready to import all readable current pages. Select a governance level and choose **Connect
+and sync**. The pages are imported,
 with rendered HTML, page ancestry, revision and original URL. Attachments, archived pages
 and macros requiring interactive browser state are outside this first connector.
 
@@ -80,7 +114,7 @@ after changing credentials. Original links do not grant additional upstream perm
    default for ordinary material: it is searchable immediately after indexing and read more
    deeply where an answer uses it. **Search only** never extracts facts.
 4. Ask a question and open its citations. Check both the imported passage and original URL.
-5. Change a document upstream, choose **Sync now**, and ask again. Unchanged items do not
+5. Change a document upstream, choose **Sync and retry processing**, and ask again. Unchanged items do not
    create new versions; changed items retain the previous version and its citations.
 6. Add a conflicting governed statement. Check the owner's Inbox, review the evidence and
    resolve it. Newly discovered facts are model proposals, not validated company policy.
@@ -99,7 +133,9 @@ bounded to 200 discovered predicates per space and sensitivity. Explicit tenant 
 takes precedence and stays separate from discovery state; later reads retain earlier
 evidenced aliases. New topics are organized in the background about once a minute and get
 the space's first owner; small or unfiled topics also route review work to that owner. Search
-and citations are usable before topic organization.
+and citations are usable before topic organization. Organization reconciles sections from
+committed source versions, so an outage that exhausts event retries does not leave topics
+permanently behind; unchanged section embeddings are reused.
 
 `--discover-facts` controls only catalogue discovery. The HTTP/MCP server enables on-use
 reading independently, and space-owner routing and background organization also work with a
@@ -121,15 +157,19 @@ will be reimported once under wiki identities; historical versions and citations
 - **429 / network / VPN failure:** retry sync after access is restored. An incomplete listing
   is not treated as an empty source. A completed Confluence listing reflects the account's
   current readable pages, so pages that cease to be visible are marked removed locally.
-- **Reading paused:** check the model key, balance, local model download and the reading note.
-  Reading resumes every 15 minutes. `config/gateway.trial.yaml` bounds daily reading and
-  answer cost and pooled monthly cost; usage survives restart. The default cloud model is
-  cleared only for public/internal documents.
-- **Model download is slow:** the first import loads CPU models. The local model server's
-  terminal output identifies download failures; retry after restoring access to Hugging Face.
+- **Reading/indexing paused:** check both model keys, account quota/balance and the reading
+  note. Pending indexing is persisted before model calls. Startup and the 15-minute recovery
+  loop retry it; **Sync and retry processing** retries the connection's pending work even
+  when upstream documents are unchanged. A failed index is never labelled read. Other
+  documents continue when one fails; an indexed older version is retained until its replacement
+  succeeds. The cloud profile's budgets and usage survive restart.
+- **Indexing failed:** check model routing, sensitivity and returned embedding dimensions,
+  then retry the connection. Error notes do not contain provider responses or credentials.
 - **Port occupied:** stop the earlier app, or set the port variables in `.env`. Keep database,
   Valkey and SpiceDB endpoints consistent when using a manually managed stack.
 
 API references: [Confluence REST](https://developer.atlassian.com/server/confluence/rest/v900/),
 [Feishu docx](https://open.feishu.cn/document/server-docs/docs/docs/docx-v1/guide),
-[DeepSeek](https://api-docs.deepseek.com/en/).
+[DeepSeek](https://api-docs.deepseek.com/en/),
+[SiliconFlow embeddings](https://api-docs.siliconflow.cn/docs/api/embeddings-post),
+[SiliconFlow reranking](https://docs.siliconflow.cn/docs/api/rerank-post).

@@ -117,9 +117,9 @@ reading.count.paused: "{count} 篇已暂停"
 reading.count.failed: "{count} 篇无法读取"
 reading.paused_hint: 暂停的读取会自动继续。
 reading.doc.waiting: Inspiration 还没有读取这篇文档，读完后正文会显示在这里。
-reading.doc.reading: Inspiration 正在读取这篇文档。现在已经可以检索，读完后会出现它的陈述。
-reading.doc.paused: 这篇文档的读取已暂停，会自动继续。在此期间也可以检索。
-reading.doc.failed: Inspiration 无法读取这个文件。
+reading.doc.reading: "Inspiration 正在为这篇文档建立检索索引并读取陈述。"
+reading.doc.paused: "处理已暂停，会自动重试。检索可能还不包含这个版本。"
+reading.doc.failed: "Inspiration 未能完成这篇文档的处理。"
 
 folder.name: 名称
 folder.level: 治理级别
@@ -481,7 +481,7 @@ connections.governed: "严格：抽取事实、检测分歧并交给空间负责
 connections.search_only: "仅检索：建立索引并支持引用，不抽取事实。"
 connections.connect: "连接并同步"
 connections.starting: "正在启动…"
-connections.sync: "立即同步"
+connections.sync: "同步并重试处理"
 connections.connected: "已连接来源"
 connections.empty: "尚未连接在线文档来源。"
 connections.running: "正在同步…"
@@ -501,3 +501,13 @@ local.mock: "模拟模型"
 local.mock_detail: "仅用于流程演练，回答不是由 DeepSeek 生成。"
 
 doc.open_source: "打开来源网页"
+
+connections.scope: "导入范围"
+
+connections.selected_pages: "指定页面（首次验证推荐）"
+
+connections.whole_space: "整个 Confluence 空间"
+
+connections.page_ids: "页面 ID（每行一个）"
+
+connections.page_ids_hint: "在页面链接或页面信息中找到 pageId。只导入这些页面，不包含子页面。"

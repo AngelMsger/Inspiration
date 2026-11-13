@@ -1,0 +1,7 @@
+{
+  "type": "confluence",
+  "name": "Selected HR policies",
+  "targets": ["HR"],
+  "page_ids": ["12345", "67890"],
+  "governance_level": "governed"
+}

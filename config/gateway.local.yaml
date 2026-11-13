@@ -1,0 +1,67 @@
+# Cloud models for pnpm local; no local model process or downloaded weights.
+# DeepSeek completion rates retain the trial's conservative CNY estimates.
+# SiliconFlow China lists these two non-Pro BGE models as free on 2026-11-13:
+# https://siliconflow.cn/pricing. Check current rates before changing model names.
+# Keep this profile's indexes separate from mock and local-Qwen embeddings (docs/local.md).
+currency: CNY
+
+providers:
+  - name: deepseek
+    kind: openai_compatible
+    base_url: https://api.deepseek.com/v1
+    api_key_env: INSPIRATION_DEEPSEEK_API_KEY
+    # A cloud API: confidential and secret content has no model in the trial.
+    max_sensitivity: internal
+    timeout_s: 120
+    models:
+      - name: deepseek-flash
+        operations: [complete]
+        tiers: [flash, standard, flagship]
+        json_schema: false
+        request: {thinking: {type: disabled}}
+        price: {input: 2.0, output: 8.0, cached_input: 0.04}
+
+  - name: siliconflow
+    kind: openai_compatible
+    base_url: https://api.siliconflow.cn/v1
+    api_key_env: INSPIRATION_SILICONFLOW_API_KEY
+    max_sensitivity: internal
+    timeout_s: 60
+    max_retries: 2
+    # Compatible with the documented 32-input embedding API limit.
+    options: {embedding_batch_size: 32}
+    models:
+      - name: BAAI/bge-m3
+        operations: [embed]
+        dimensions: 1024
+        price: {input: 0, output: 0}
+      - name: BAAI/bge-reranker-v2-m3
+        operations: [rerank]
+        price: {input: 0, output: 0}
+
+# A call must fit every budget whose glob matches its key.
+budgets:
+  # Reading, per company and day: a governed document of about 3,000 tokens costs about
+  # CNY 0.02 to read, so a company reads about 150 a day; reading pauses there and carries on
+  # the next day.
+  - match: "tenant:*/extraction"
+    period: day
+    limit: 3
+  # Answers, per company and day: about 800 compact answers at these prices.
+  - match: "tenant:*/retrieval"
+    period: day
+    limit: 2
+  # Naming topics, per company and day.
+  - match: "tenant:*/page-compiler"
+    period: day
+    limit: 0.5
+  # The whole trial, every company together.
+  - match: "*"
+    period: month
+    limit: 100
+    pooled: true
+
+cache:
+  backend: valkey
+  ttl_s: 2592000
+  operations: [complete, embed, rerank]

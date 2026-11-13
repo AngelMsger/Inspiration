@@ -55,12 +55,22 @@ export async function connectSource(engine: Engine, who: Principal, space: strin
       if (targets.length !== 1 || !/^[a-zA-Z0-9_~-]+$/.test(targets[0] ?? ""))
         throw new RangeError("choose one Confluence space key");
       base = connectionUrl(process.env.INSPIRATION_CONFLUENCE_URL ?? "").href;
-    } else for (const target of targets) feishuLink(target);
+    } else {
+      if (request.page_ids) throw new RangeError("page_ids only applies to Confluence");
+      for (const target of targets) feishuLink(target);
+    }
   } catch (error) {
     throw badRequest(error instanceof Error ? error.message : "invalid connection target");
   }
   const source: Source = {
-    id: stableId("source", who.tenant_id, space, request.type, ...[...targets].sort()),
+    id: stableId(
+      "source",
+      who.tenant_id,
+      space,
+      request.type,
+      ...[...targets].sort(),
+      ...(request.page_ids ? ["pages", ...[...request.page_ids].sort()] : []),
+    ),
     tenant_id: who.tenant_id,
     space_id: space,
     type: request.type,
@@ -68,7 +78,7 @@ export async function connectSource(engine: Engine, who: Principal, space: strin
     scope: {
       kind: request.type === "confluence" ? "confluence.space" : "feishu.documents",
       ids: targets,
-      ...(base && { options: { base_url: base } }),
+      ...(base && { options: { base_url: base, ...(request.page_ids && { page_ids: request.page_ids }) } }),
     },
     credentials_ref: request.type === "confluence" ? "local:confluence" : "local:feishu",
     owner_id: who.id,
@@ -94,6 +104,11 @@ export async function startSync(engine: Engine, who: Principal, id: string): Pro
   const task = await engine.sync.startSync(id, { via: "manual" });
   void task.finished
     .catch(() => logger("engine.connections").warn("sync failed", { source: id }))
+    .then(async () => {
+      await engine.settle();
+      await engine.resumeReading(id);
+    })
+    .catch(() => logger("engine.connections").warn("processing retry failed", { source: id }))
     .finally(() => engine.settleLater());
   return task.source;
 }

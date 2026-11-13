@@ -168,3 +168,65 @@ test("a missing API key fails at startup", () => {
   delete process.env.TEST_LLM_KEY;
   expect(() => new OpenAICompatibleProvider(PROVIDER)).toThrow(/TEST_LLM_KEY is not set/);
 });
+
+test.each([
+  { meta: { billed_units: { input_tokens: 42 }, tokens: { input_tokens: 50 } } },
+  { meta: { tokens: { input_tokens: 42 } } },
+  { tokens: { input_tokens: 42 } },
+])("hosted reranking meters SiliconFlow input usage: %j", async (usage) => {
+  const { p } = provider(() => Response.json({ results: [{ index: 0, relevance_score: 0.9 }], ...usage }));
+  expect((await p.rerank(RERANK, "q", ["a"])).usage).toEqual({ input_tokens: 42, output_tokens: 0 });
+});
+
+test.each([
+  [{ index: 0, embedding: [1, 0] }],
+  [{ index: 0, embedding: [1, "bad", 0] }],
+  [{ index: 1, embedding: [1, 0, 0] }],
+])("rejects incompatible or malformed embeddings: %j", async (row) => {
+  const { p } = provider(() => Response.json({ data: [row] }));
+  await expect(p.embed(EMBED, ["a"], "document")).rejects.toMatchObject({ retryable: true });
+});
+
+test("cloud embedding batches preserve order and aggregate usage", async () => {
+  const { p, seen } = provider(
+    (_url, init) => {
+      const { input } = JSON.parse(String(init.body)) as { input: string[] };
+      expect(input.length).toBeLessThanOrEqual(32);
+      return Response.json({
+        data: input.map((text, index) => ({ index, embedding: [Number(text), 1, 0] })).reverse(),
+        usage: { prompt_tokens: input.length * 4 },
+      });
+    },
+    { options: { embedding_batch_size: 32 } },
+  );
+  const texts = Array.from({ length: 65 }, (_, i) => String(i));
+  const result = await p.embed(EMBED, texts, "document");
+  expect(seen).toHaveLength(3);
+  expect(result.vectors.map((vector) => vector[0])).toEqual(texts.map(Number));
+  expect(result.usage).toEqual({ input_tokens: 260, output_tokens: 0 });
+});
+
+test("a later embedding batch failing retains earlier billed tokens", async () => {
+  let requests = 0;
+  const { p } = provider(
+    (_url, init) => {
+      if (++requests > 1) return new Response("unavailable", { status: 503 });
+      const { input } = JSON.parse(String(init.body)) as { input: string[] };
+      return Response.json({
+        data: input.map((_, index) => ({ index, embedding: [1, 0, 0] })),
+        usage: { prompt_tokens: 128 },
+      });
+    },
+    { options: { embedding_batch_size: 32 }, max_retries: 0 },
+  );
+  await expect(
+    p.embed(
+      EMBED,
+      Array.from({ length: 33 }, () => "text"),
+      "document",
+    ),
+  ).rejects.toMatchObject({
+    code: "provider_error",
+    usage: { input_tokens: 128, output_tokens: 0 },
+  });
+});

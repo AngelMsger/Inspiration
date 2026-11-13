@@ -1,8 +1,8 @@
 /**
  * How far the engine has read each document's latest version (ReadingState in the contracts),
- * from what normalization and extraction last stored for it: waiting until normalization
+ * from what normalization, indexing and extraction last stored for it: waiting until normalization
  * parses the version, failed when it could not, reading until extraction reads it to the end,
- * paused while a spent budget or a model out of reach holds extraction, read after that.
+ * paused while a spent budget or a model out of reach holds extraction, read only after both indexing and extraction finish.
  * Paused documents read on when Engine.resumeReading next finds room.
  */
 
@@ -26,12 +26,29 @@ export async function readingOf(
     (await Promise.all(sources.map((id) => engine.normalization.documents(id)))).flat().map((d) => [keyOf(d), d]),
   );
   const marks = new Map((await engine.extraction.documents(tenantId)).map((m) => [keyOf(m), m]));
+  const indexed = new Set((await engine.retrieval.documents(tenantId)).map((d) => d.source_version_id));
+  const jobs = new Map((await engine.retrieval.indexing(tenantId)).map((j) => [j.source_version_id, j]));
   return versions.map((v): DocumentReading | undefined => {
     const normalized = parsed.get(keyOf(v));
     const mark = marks.get(keyOf(v));
     if (normalized?.failed?.source_version_id === v.id) return failed(normalized.failed.warnings);
     if (normalized?.source_version_id !== v.id) return { state: "waiting" };
     if (normalized.status === "failed" || normalized.status === "unsupported") return failed(normalized.warnings);
+    const job = jobs.get(v.id);
+    if (job?.state === "paused")
+      return {
+        state: "paused",
+        note:
+          job.code === "budget_exceeded"
+            ? "The search indexing budget is spent. Indexing will retry automatically; this version is not searchable yet."
+            : "Search indexing is paused while a model is unavailable. It will retry automatically; this version is not searchable yet.",
+      };
+    if (job?.state === "failed")
+      return {
+        state: "failed",
+        note: "Search indexing failed. Check model configuration, then sync the connection again to retry.",
+      };
+    if (!indexed.has(v.id)) return { state: "reading", note: "Preparing this version for search." };
     if (mark?.source_version_id !== v.id) return { state: "reading" };
     if (mark.paused) return { state: "paused", note: mark.paused.code === "budget_exceeded" ? SPENT : OUT_OF_REACH };
     return mark.reading ? { state: "reading" } : undefined;

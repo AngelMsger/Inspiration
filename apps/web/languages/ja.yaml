@@ -117,9 +117,9 @@ reading.count.paused: "{count} 件が一時停止中"
 reading.count.failed: "{count} 件は読み込めませんでした"
 reading.paused_hint: 一時停止した読み込みは自動で再開します。
 reading.doc.waiting: Inspiration はまだこのドキュメントを読み込んでいません。読み込むと本文がここに表示されます。
-reading.doc.reading: Inspiration がこのドキュメントを読み込んでいます。すでに検索でき、読み込みが終わると記述が表示されます。
-reading.doc.paused: このドキュメントの読み込みは一時停止中で、自動で再開します。その間も検索できます。
-reading.doc.failed: Inspiration はこのファイルを読み込めませんでした。
+reading.doc.reading: "Inspiration がこのドキュメントの検索索引を作成し、記述を読み込んでいます。"
+reading.doc.paused: "処理は一時停止中で、自動で再試行します。この版はまだ検索に含まれない場合があります。"
+reading.doc.failed: "Inspiration はこのドキュメントの処理を完了できませんでした。"
 
 folder.name: 名前
 folder.level: ガバナンスレベル
@@ -481,7 +481,7 @@ connections.governed: "管理対象：事実を抽出し、不一致の確認を
 connections.search_only: "検索のみ：索引と引用に対応し、事実の抽出は行いません。"
 connections.connect: "接続して同期"
 connections.starting: "開始中…"
-connections.sync: "今すぐ同期"
+connections.sync: "同期して処理を再試行"
 connections.connected: "接続済みのソース"
 connections.empty: "オンラインのソースはまだ接続されていません。"
 connections.running: "同期中…"
@@ -501,3 +501,13 @@ local.mock: "模擬モデル"
 local.mock_detail: "動作確認用です。回答は DeepSeek による生成ではありません。"
 
 doc.open_source: "元のページを開く"
+
+connections.scope: "取り込み範囲"
+
+connections.selected_pages: "指定ページ（初回の検証におすすめ）"
+
+connections.whole_space: "Confluence スペース全体"
+
+connections.page_ids: "ページ ID（1 行に 1 件）"
+
+connections.page_ids_hint: "ページ URL またはページ情報の pageId を指定します。子ページは含みません。"

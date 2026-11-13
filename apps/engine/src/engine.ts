@@ -134,6 +134,8 @@ export class Engine {
   readonly transport: Transport;
   readonly #relay: OutboxRelay | undefined;
   readonly #pool: Pool | undefined;
+  readonly #reading = new Set<Promise<number>>();
+  #closing = false;
   readonly #closers: (() => Promise<unknown>)[] = [];
   /** Deliveries run one at a time: two at once could hand both the same event. */
   #delivering: Promise<unknown> = Promise.resolve();
@@ -329,12 +331,18 @@ export class Engine {
    * Read on the documents whose reading stopped at a spent budget or a model out of reach,
    * then deliver what that read in the background. A long-running engine calls it every
    * RESUME_EVERY_MS; a company whose budget is still spent costs one refused call. Returns
-   * how many documents were read to the end.
+   * how many indexing or reading tasks completed. An optional source limits manual retries.
    */
-  async resumeReading(): Promise<number> {
-    const done = await this.extraction.resume();
-    if (done) this.settleLater();
-    return done;
+  resumeReading(sourceId?: string): Promise<number> {
+    if (this.#closing) return Promise.resolve(0);
+    const run = (async () => {
+      const indexed = await this.retrieval.resume(sourceId);
+      const done = await this.extraction.resume(sourceId);
+      if (done) this.settleLater();
+      return done + indexed;
+    })();
+    this.#reading.add(run);
+    return run.finally(() => this.#reading.delete(run));
   }
 
   /** Subscribe an extra handler, for reports and tests that watch the events go by. */
@@ -386,7 +394,9 @@ export class Engine {
   }
 
   async close(): Promise<void> {
+    this.#closing = true;
     await this.sync.close();
+    await Promise.allSettled(this.#reading);
     await this.settle();
     for (const close of this.#closers) {
       await close().catch((error: unknown) => log.warn("close failed", { error }));
