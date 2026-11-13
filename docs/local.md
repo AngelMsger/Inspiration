@@ -49,6 +49,17 @@ All providers are cleared only for public/internal content. Cloud models receive
 needed for their calls. Daily and pooled monthly budgets, caching and usage records remain
 active. The separate hosted-trial and benchmark configurations are unchanged.
 
+The default providers are a preset, not an engine dependency. To choose other providers,
+set `INSPIRATION_GATEWAY_CONFIG` in `.env`, or run
+`pnpm local --gateway /absolute/path/to/gateway.yaml` (the flag takes precedence). The launcher
+validates that file and checks only the `api_key_env` variables its providers declare. It passes
+the same file to the engine. `--mock` always selects the isolated rehearsal preset and cannot
+be combined with `--gateway`. The gateway file controls model names, API addresses, adapter
+kinds, routing, sensitivity clearance and prices. OpenAI-compatible endpoints reuse the existing
+adapter; an incompatible API needs a provider adapter, without changing reading or retrieval.
+Changing a configuration file does **not** create a separate data profile: preserve the embedding
+model for an existing index, or use fresh data services and a blob directory when changing it.
+
 The cloud profile uses Compose project `inspiration-local-cloud` and `.data/local-cloud`;
 mock mode keeps `inspiration-local-mock` and `.data/local-mock`. Existing local-Qwen data in
 project `inspiration` and `.data/local` is retained but is not opened by the cloud launcher.

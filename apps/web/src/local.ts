@@ -4,7 +4,9 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseArgs, parseEnv } from "node:util";
+import { loadGatewayConfig } from "@inspiration/model-gateway";
 import { build } from "vite";
 
 const children: ChildProcess[] = [];
@@ -57,19 +59,30 @@ async function ready(url: string, child: ChildProcess, seconds = 90): Promise<vo
 
 async function main() {
   const { values } = parseArgs({
-    options: { mock: { type: "boolean", default: false }, "skip-stack": { type: "boolean", default: false } },
+    options: {
+      mock: { type: "boolean", default: false },
+      "skip-stack": { type: "boolean", default: false },
+      gateway: { type: "string" },
+    },
   });
   if (existsSync(".env"))
     for (const [key, value] of Object.entries(parseEnv(readFileSync(".env", "utf8")))) process.env[key] ??= value;
-  if (!values.mock) {
-    const missing = ["INSPIRATION_DEEPSEEK_API_KEY", "INSPIRATION_SILICONFLOW_API_KEY"].filter(
-      (key) => !process.env[key]?.trim(),
-    );
-    if (missing.length)
-      throw new Error(`Set ${missing.join(" and ")} in .env, or use pnpm local --mock for a pipeline-only rehearsal.`);
-  }
+  if (values.mock && values.gateway) throw new Error("Choose either --mock or --gateway, not both.");
+  const gatewayFile = values.mock
+    ? fileURLToPath(new URL("../../../config/gateway.dev.yaml", import.meta.url))
+    : resolve(
+        values.gateway ??
+          (process.env.INSPIRATION_GATEWAY_CONFIG?.trim() ||
+            fileURLToPath(new URL("../../../config/gateway.local.yaml", import.meta.url))),
+      );
+  const gateway = loadGatewayConfig(gatewayFile);
+  const missing = [...new Set(gateway.providers.flatMap((p) => (p.api_key_env ? [p.api_key_env] : [])))].filter(
+    (key) => !process.env[key]?.trim(),
+  );
+  if (missing.length)
+    throw new Error(`Set ${missing.join(" and ")} in .env, or use pnpm local --mock for a pipeline-only rehearsal.`);
   process.env.INSPIRATION_LOCAL_CONNECTIONS = "1";
-  process.env.INSPIRATION_LOCAL_MODEL_MODE = values.mock ? "mock" : "deepseek";
+  process.env.INSPIRATION_LOCAL_MODEL_MODE = values.mock ? "mock" : "configured";
   process.env.INSPIRATION_PUBLIC_URL ??= "http://localhost:4200";
   process.env.INSPIRATION_ENGINE_URL ??= "http://127.0.0.1:4100";
   const publicUrl = new URL(process.env.INSPIRATION_PUBLIC_URL);
@@ -134,7 +147,7 @@ async function main() {
     "--audience",
     engineUrl.origin,
     "--gateway",
-    values.mock ? "config/gateway.dev.yaml" : "config/gateway.local.yaml",
+    gatewayFile,
   ]);
   await ready(`${engineUrl.origin}/v0/health`, engine);
   const business = start(process.execPath, [
@@ -156,7 +169,7 @@ async function main() {
         }
       });
   console.log(
-    `\nOpen ${publicUrl.origin} — ${values.mock ? "MOCK models: pipeline rehearsal only" : "DeepSeek + SiliconFlow cloud embeddings and reranking"}. Ctrl+C stops the app; data is kept.`,
+    `\nOpen ${publicUrl.origin} — ${values.mock ? "MOCK models: pipeline rehearsal only" : `Models: ${gateway.providers.map((p) => p.name).join(" + ")}`}. Ctrl+C stops the app; data is kept.`,
   );
 }
 
