@@ -95,6 +95,7 @@ These words are used throughout. The engine uses a few more precise ones, which 
 | Concept | What it is |
 | --- | --- |
 | Company | One business or team using Inspiration. It is the unit of isolation and billing. Someone working alone has a personal library instead and never sees a company |
+| Drive | The product's file-management layer, decided as a direction on 2026-11-13; knowledge-file granularity and original materials as files are being designed ([proposal](design/drive.md)) |
 | Space, My space | A space is an area of a company with an audience, such as Finance or Procurement. Each member also has a private My space in every company |
 | Source | A place material comes from, such as one Feishu wiki space, an upload folder or a research report |
 | Passage | An exact piece of a source: a sentence, a table cell, a form field. Every citation points at one |
@@ -372,7 +373,7 @@ States: **Built** (on `main`, with tests), **Designed** (decided, not built), **
 | ID | Requirement | State |
 | --- | --- | --- |
 | RD-1 | Three views with shared IDs: Original (as written), Annotated (with marks) and Knowledge (topic pages). A newly imported source opens in the Original view, and knowledge is revealed from there, concrete to abstract (see [Pages, views and search](architecture.md#pages-views-and-search)) | Designed |
-| RD-2 | Two trees: the Documents tree and the Knowledge tree; a folder or space the reader cannot open is never shown, not even as a count | Designed |
+| RD-2 | Documents and Knowledge provide document-first and topic-first navigation; the Documents tree manages files within the decided Drive direction (section 6.10). A folder or space the reader cannot open is never shown, not even as a count | Designed for two trees; Drive interactions proposed |
 | RD-3 | Pages as `PageSpec` with 14 block types, every sentence citing statements, every rebuild a version with a diff | Contract built, compiler planned |
 | RD-4 | A citation opens the source beside the page at the exact passage and version, and says so when the passage changed since | Designed |
 | RD-5 | Four statuses in words, never colour alone: Fresh, Review due, Outdated, Disputed; only Outdated and Disputed in the text | Designed |
@@ -447,6 +448,17 @@ States: **Built** (on `main`, with tests), **Designed** (decided, not built), **
 | LN-3 | Interface language per account; a company default for messages to many people; a content language per space | Designed |
 | LN-4 | Answers in the asker's language; quotes verbatim; translation on request, labelled as machine translation | Designed |
 | LN-5 | Type per script, input-method-safe shortcuts, locale formats and collation | Designed |
+
+### 6.10 Drive and file management
+
+The 2026-11-13 direction adds a product-wide layer for organizing and using content. The [Drive proposal](design/drive.md) develops its file model and interactions; it does not mark them built or change the adopted MVP gates.
+
+| ID | Requirement | State |
+| --- | --- | --- |
+| DR-1 | Provide a Drive layer where the Documents tree manages content as files, with interaction design for working with content as well as storing it | Planned; direction decided |
+| DR-2 | Materialize knowledge at a useful granularity as typed files, retaining shared statements, evidence and versions | Proposed |
+| DR-3 | Manage original uploads and connected documents as files alongside knowledge, with distinct readers and update behavior | Proposed |
+| DR-4 | Support contextual preview, organization, bulk actions, scoped questions, source-to-knowledge navigation and visible update/removal impacts within existing permission and governance rules | Proposed |
 
 ## 7. Quality requirements
 
