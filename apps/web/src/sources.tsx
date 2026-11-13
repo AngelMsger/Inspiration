@@ -6,15 +6,17 @@ import { Failure, formatDate } from "./parts.tsx";
 import { Link } from "./route.tsx";
 import { useWords } from "./words.ts";
 
-export function Sources(props: { space: string; onChanged: () => void }) {
+export function Sources(props: { space: string; kind?: CreateConnection["type"]; onChanged: () => void }) {
   const { say, tag } = useWords();
   const onChanged = useRef(props.onChanged);
   onChanged.current = props.onChanged;
   const completed = useRef("");
   const [data, setData] = useState<ConnectionList>();
   const [error, setError] = useState<ApiFailure>();
+  const [loadError, setLoadError] = useState<ApiFailure>();
   const [busy, setBusy] = useState(false);
-  const [kind, setKind] = useState<CreateConnection["type"]>("confluence");
+  const [pickedKind, setKind] = useState<CreateConnection["type"]>("confluence");
+  const kind = props.kind ?? pickedKind;
   const [name, setName] = useState("");
   const [pageIds, setPageIds] = useState("");
   const [wholeSpace, setWholeSpace] = useState(false);
@@ -30,6 +32,7 @@ export function Sources(props: { space: string; onChanged: () => void }) {
         const next = await api.connections(props.space);
         if (live) {
           setData(next);
+          setLoadError(undefined);
           const finished = next.sources.map((s) => `${s.id}:${s.sync?.finished_at ?? ""}`).join("|");
           if (finished !== completed.current) {
             completed.current = finished;
@@ -39,7 +42,7 @@ export function Sources(props: { space: string; onChanged: () => void }) {
         }
       } catch (e) {
         if (live) {
-          setError(failureOf(e));
+          setLoadError(failureOf(e));
           timer = setTimeout(load, 5000);
         }
       }
@@ -74,19 +77,25 @@ export function Sources(props: { space: string; onChanged: () => void }) {
       const source = await api.connectSource(props.space, {
         type: kind,
         name: name.trim(),
-        targets: targets
-          .split(/\r?\n/)
-          .map((s) => s.trim())
-          .filter(Boolean) as [string, ...string[]],
+        targets: [
+          ...new Set(
+            targets
+              .split(/\r?\n/)
+              .map((s) => s.trim())
+              .filter(Boolean),
+          ),
+        ] as [string, ...string[]],
         ...(kind === "confluence" &&
           !wholeSpace && {
-            page_ids: pageIds.split(/[\s,]+/).filter(Boolean) as [string, ...string[]],
+            page_ids: [...new Set(pageIds.split(/[\s,]+/).filter(Boolean))] as [string, ...string[]],
           }),
         governance_level: level,
       });
       setData((old) => old && { ...old, sources: [...old.sources, source] });
       setName("");
       setTargets("");
+      setPageIds("");
+      setWholeSpace(false);
       await sync(source);
     } catch (e) {
       setError(failureOf(e));
@@ -98,33 +107,61 @@ export function Sources(props: { space: string; onChanged: () => void }) {
   return (
     <>
       <p>{say("connections.lede")}</p>
-      <p className="quiet">{say("connections.access")}</p>
+      {!props.kind && <p className="quiet">{say("connections.access")}</p>}
       {error && <Failure error={error} />}
+      {loadError && <Failure error={loadError} />}
       <form className="gate-form connection-form" onSubmit={submit}>
-        <label>
-          <span>{say("connections.kind")}</span>
-          <select value={kind} onChange={(e) => setKind(e.target.value as CreateConnection["type"])}>
-            <option value="confluence">{say("source.confluence")}</option>
-            <option value="feishu.docx">{say("source.feishu.docx")}</option>
-          </select>
-        </label>
+        {!props.kind && (
+          <label>
+            <span>{say("connections.kind")}</span>
+            <select
+              value={kind}
+              onChange={(e) => {
+                setKind(e.target.value as CreateConnection["type"]);
+                setTargets("");
+                setPageIds("");
+                setWholeSpace(false);
+              }}
+            >
+              <option value="confluence">{say("source.confluence")}</option>
+              <option value="feishu.docx">{say("source.feishu.docx")}</option>
+            </select>
+          </label>
+        )}
         {data && !configured && (
-          <p className="gate-alert">
-            {say(kind === "confluence" ? "connections.configure_confluence" : "connections.configure_feishu")}
-          </p>
+          <div className="gate-alert">
+            <p>{say("connections.not_configured")}</p>
+            <details>
+              <summary>{say("connections.setup")}</summary>
+              <p>{say(kind === "confluence" ? "connections.configure_confluence" : "connections.configure_feishu")}</p>
+            </details>
+          </div>
         )}
         <label>
           <span>{say("connections.name")}</span>
           <input required maxLength={120} value={name} onChange={(e) => setName(e.target.value)} />
         </label>
-        <label>
+        <label htmlFor="connection-targets">
           <span>{say(kind === "confluence" ? "connections.space_key" : "connections.links")}</span>
-          <textarea
-            required
-            rows={kind === "confluence" ? 1 : 4}
-            value={targets}
-            onChange={(e) => setTargets(e.target.value)}
-          />
+          {kind === "confluence" ? (
+            <input
+              id="connection-targets"
+              required
+              pattern="[a-zA-Z0-9_~-]+"
+              maxLength={2048}
+              value={targets}
+              onChange={(e) => setTargets(e.target.value)}
+            />
+          ) : (
+            <textarea
+              id="connection-targets"
+              required
+              rows={4}
+              value={targets}
+              onChange={(e) => setTargets(e.target.value)}
+            />
+          )}
+          <span className="quiet">{say(kind === "confluence" ? "import.confluence_hint" : "import.feishu_hint")}</span>
         </label>
         {kind === "confluence" && (
           <>
@@ -158,7 +195,17 @@ export function Sources(props: { space: string; onChanged: () => void }) {
           </select>
         </label>
         <p className="quiet">{say(`connections.${level}`)}</p>
-        <button className="primary" type="submit" disabled={busy || !configured || !name.trim() || !targets.trim()}>
+        <button
+          className="primary"
+          type="submit"
+          disabled={
+            busy ||
+            !configured ||
+            !name.trim() ||
+            !targets.trim() ||
+            (kind === "confluence" && !wholeSpace && !pageIds.trim())
+          }
+        >
           {say(busy ? "connections.starting" : "connections.connect")}
         </button>
       </form>
@@ -181,11 +228,15 @@ export function Sources(props: { space: string; onChanged: () => void }) {
           <p className="quiet">
             {say(`source.${source.type}`)} · {say(`level.${source.governance_level ?? "reference"}`)}
           </p>
+          <p className="quiet">{say("connections.scope")}</p>
           <p className="connection-targets">{source.scope.ids?.join("\n")}</p>
           {Array.isArray(source.scope.options?.page_ids) && (
             <p className="quiet">
               {say("connections.selected_pages")}: {source.scope.options.page_ids.join(", ")}
             </p>
+          )}
+          {source.type === "confluence" && !Array.isArray(source.scope.options?.page_ids) && (
+            <p className="quiet">{say("connections.whole_space")}</p>
           )}
           {source.sync && (
             <div role="status">

@@ -28,7 +28,9 @@ export function Palette(props: {
   const [at, setAt] = useState(0);
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
     dialog.current?.showModal();
+    return () => previous?.focus();
   }, []);
 
   const typed = text.trim();
@@ -43,7 +45,8 @@ export function Palette(props: {
       id: `doc-${d.entry.source_id}-${d.entry.external_id}`,
       label: d.entry.title,
       hint: d.where.join(" · "),
-      run: () => navigate({ name: "document", source: d.entry.source_id, item: d.entry.external_id, view: "original" }),
+      run: () =>
+        navigate({ name: "document", source: d.entry.source_id, item: d.entry.external_id, view: "annotated" }),
     })),
     ...props.people.map((p) => ({
       id: `person-${p.member}`,
@@ -73,6 +76,7 @@ export function Palette(props: {
     e.run();
   };
   const onKeyDown = (e: KeyboardEvent) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       const step = e.key === "ArrowDown" ? 1 : -1;
@@ -84,7 +88,24 @@ export function Palette(props: {
   };
 
   return (
-    <dialog ref={dialog} className="palette" aria-label={say("palette.label")} onClose={props.onClose}>
+    <dialog
+      ref={dialog}
+      className="palette"
+      aria-label={say("palette.label")}
+      onClose={props.onClose}
+      onPointerDown={(e) => {
+        if (e.target === e.currentTarget) {
+          const r = e.currentTarget.getBoundingClientRect();
+          if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) props.onClose();
+        }
+      }}
+    >
+      <div className="palette-head">
+        <span>{say("palette.label")}</span>
+        <button type="button" className="plain" aria-label={say("doc.close")} onClick={props.onClose}>
+          ×
+        </button>
+      </div>
       <input
         autoFocus
         value={text}

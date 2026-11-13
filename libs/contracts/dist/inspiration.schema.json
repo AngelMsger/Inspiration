@@ -168,7 +168,9 @@
       "PublishState",
       "QualityGate",
       "QualityGateResult",
-      "PublishRequest"
+      "PublishRequest",
+      "NewDocumentComment",
+      "DocumentComment"
     ],
     "common": [
       "TenantId",
@@ -3969,6 +3971,46 @@
         }
       }
     },
+    "DocumentComment": {
+      "type": "object",
+      "required": [
+        "id",
+        "tenant_id",
+        "author_id",
+        "created_at",
+        "document_title",
+        "comment"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/CommentId"
+        },
+        "tenant_id": {
+          "$ref": "#/$defs/TenantId"
+        },
+        "author_id": {
+          "$ref": "#/$defs/PrincipalId"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Instant"
+        },
+        "document_title": {
+          "type": "string"
+        },
+        "comment": {
+          "$ref": "#/$defs/NewDocumentComment"
+        },
+        "todo_id": {
+          "$ref": "#/$defs/TodoId"
+        },
+        "status": {
+          "$ref": "#/$defs/TodoStatus"
+        },
+        "assignee_id": {
+          "$ref": "#/$defs/PrincipalId"
+        }
+      }
+    },
     "DocumentEntry": {
       "description": "One document as the Documents tree lists it: its source item and the latest version the engine holds. Built by source sync from what it last stored; listed only to a principal who may read the document.\n",
       "type": "object",
@@ -5051,6 +5093,10 @@
         "todo": {
           "$ref": "#/$defs/Todo"
         },
+        "comment": {
+          "description": "The source comment that requested this todo, when its source is still readable.",
+          "$ref": "#/$defs/DocumentComment"
+        },
         "fact_label": {
           "description": "What the fact a conflict or a note is about is called in the tenant's predicate catalogue (\"Hotel cap per night\"); the slot's qualifiers are its scope.\n",
           "type": "string"
@@ -5842,6 +5888,55 @@
         "default_locale": {
           "description": "The language of messages sent to many members; the creator's own if absent.",
           "$ref": "#/$defs/UiLocale"
+        }
+      }
+    },
+    "NewDocumentComment": {
+      "description": "A reader's comment or proposed correction on an immutable source block. Never changes knowledge.",
+      "type": "object",
+      "required": [
+        "request_id",
+        "source_version_id",
+        "block_id",
+        "start",
+        "end",
+        "quote",
+        "body"
+      ],
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "source_version_id": {
+          "$ref": "#/$defs/SourceVersionId"
+        },
+        "block_id": {
+          "$ref": "#/$defs/SourceBlockId"
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "quote": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000
+        },
+        "body": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8000
+        },
+        "replacement": {
+          "description": "Proposed replacement text. Only a proposal, including an empty replacement for deletion.",
+          "type": "string",
+          "maxLength": 8000
         }
       }
     },

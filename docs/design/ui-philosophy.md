@@ -1,15 +1,16 @@
 # Inspiration UI: design philosophy
 
-Status: adopted, 2026-11-05; the second version of the design canvas and the MVP web app follow it.
+Status: adopted, clarified 2026-11-13; the MVP implements source reading, contextual evidence and feedback, while complete knowledge-model exploration remains unbuilt.
 
 ## Conclusions
 
+- **A continuously observed, modeled knowledge system.** People should understand how sources, documents, statements and topics fit together, how evidence supports a current conclusion, and how changes affect it. Every design starts from a person's situation and the understanding it should build; the product model below guides presentation choices.
 - **Minimal on the surface, complete underneath.** Each screen shows what one person needs for the job in front of them, at the size that job really has, and everything else is one step away, in a panel, a link or ⌘K. Every screen passes three tests: whose one job it serves, how it looks with the real number of items, and what the assistant can say at the top so that the person need not read it.
 - **One grammar, four places you can tell apart.** Every screen has the same top bar, left column, centre and right panel, but reading, managing a space, Admin and Account each look different at a glance, and every screen says where you are, where you came from and how to go elsewhere. What is used most sits closest.
 - **Settings follow who answers for them:** you, a space owner, or the super admin, who decides who and how but never what knowledge says.
 - **Every list is drawn at its real size:** up to 10 items are all shown, up to 100 are grouped or folded, and above that a search or a summary comes first.
 - **The assistant is quiet:** an overview before every pile, its suggestion already selected, Decide for me on piles rather than on every item, a reason when it leaves a decision to a person, and Why and Undo on everything it did. It has no avatar, no colour and no chat sidebar.
-- **The second version of the design canvas applies these rules** ([screens](screens/README.md)). Still open: the numbers on each overview's cards and some Japanese terms ([Still open](#still-open)).
+- **The design canvas records earlier applications of these rules** ([screens](screens/README.md)); the product model and the 2026-11-13 reading review below take precedence where those snapshots differ. Still open: the numbers on each overview's cards and some Japanese terms ([Still open](#still-open)).
 
 ## 1. The stance: a quiet surface over complete depth
 
@@ -23,11 +24,94 @@ Every screen has to pass three tests:
 
 ## 2. Five beliefs
 
-1. **People come for their work, not for our model.** People know documents, answers and decisions. Statements, fact slots and lineage are how we keep those right. Screens speak in the first; the second stays in the Trace view for owners. This is why imported documents come first and readers never see the knowledge machinery.
+1. **People need to understand the knowledge they use.** Begin with familiar documents, answers and decisions, then progressively explain sources, statements, topics and their relationships. Internal storage keys and algorithms stay behind the interface; the existence and meaning of the knowledge model do not.
 2. **The assistant does the reading; people own the decisions.** The assistant reads everything, sums up the piles, fills in its suggestion and, when asked, decides. Every decision still belongs to a named person, who can see why and undo it.
 3. **Attention is the scarcest thing we handle.** A screen that makes someone read forty rows to find the three that matter has failed. Summaries come before lists, groups before items, exceptions before routine.
 4. **Everything has one place, where the person who answers for it looks.** Navigation follows where you are. Settings follow who is responsible for them. A setting lives in one place, and other places link to it.
 5. **Trust is shown, not claimed.** Why, from where, by whom and since when are one step away on everything. Anything the assistant did can be undone.
+
+## Product model and the reader's understanding
+
+**We are building a living, modeled knowledge system.** It continuously observes sources,
+keeps their expressions and history, models the knowledge they contain, and helps people
+understand, use and maintain that knowledge. Reading, asking, exploring and governing are
+ways into the same system. A document viewer with extra commands would not fulfill this
+purpose. Making the model understandable is product work, not an implementation detail.
+
+### Who uses it, and for what
+
+A reader needs a usable answer and enough context to trust it. A contributor brings in
+material, identifies a problem or proposes a correction. A topic or space owner organizes
+knowledge and settles uncertainty over time. These are modes of work as well as roles: one
+person can move between them. An interface must say which person's task it serves before
+choosing its controls or level of detail.
+
+### The concepts people should learn
+
+| Concept | What it means to a person | How it connects |
+| --- | --- | --- |
+| Source | Where material comes from, with an import scope and, when connected, a sync state | Connected sources bring subsequent changes; uploaded snapshots retain their import date. Neither a successful sync nor an upload verifies that the content is true |
+| Document | One authored expression, with its shape, location and immutable versions | Contains evidence for knowledge; its source folders describe where it lives, not the structure of knowledge |
+| Statement | Something a source or person says, with evidence, scope and applicable time | May agree, disagree or replace an earlier statement; extraction alone does not make it an accepted fact |
+| Current conclusion | The statement currently used for a question within its conditions | Keeps its evidence and alternatives; uncertainty and a pending decision remain visible. Internal fact-slot keys are not a prerequisite for understanding it |
+| Topic | A meaningful area through which people organize and explore knowledge | Brings related conclusions and their documents together; it is neither a source folder nor proof that its contents agree |
+| Relationship | A specific explanation of how two things connect | Evidence, an explicit reference, agreement, disagreement or replacement have different meanings and must be named and supported, never rendered as interchangeable unlabeled lines |
+
+Entities, procedures and other modeled objects may add useful ways of understanding a
+subject. They require a concrete user task and a clear relationship to these concepts;
+internal types do not each automatically deserve a new navigation destination.
+
+These distinctions serve different questions: documents preserve what was written;
+statements let us compare specific assertions across documents; current conclusions explain
+what to use now; topics provide an understandable way to explore a subject; relationships
+explain why the objects belong together. A topic hierarchy is one route through the model,
+not a claim that all knowledge forms a tree. This is the starting vocabulary for design,
+not a mandate to expose every storage type or to freeze the eventual ontology.
+
+### Progressive understanding, with direct access for experienced users
+
+1. **Bring material in and see that it is being watched.** Show the destination, imported
+   scope, original documents, sync progress and recoverable failures. The person understands
+   what the system knows about, what has changed, and what it has not read yet.
+2. **Recognize the document, then see what was modeled from it.** Preserve the original.
+   Connect a statement to its exact passage, and distinguish what the document says from
+   the conclusion currently used. Original and Annotated change the reading presentation,
+   not the meaning of the underlying objects.
+3. **Move from an example to its structure.** A statement leads to its topic and other
+   evidence; a topic explains how its conclusions relate to the documents. The document
+   tree and knowledge outline serve different questions and must not look like duplicate
+   file browsers.
+4. **Explore the wider knowledge model.** Global exploration belongs in the Knowledge
+   area, with orientation, a meaningful scope, named relationships and a way back to
+   evidence. A graph is a presentation to evaluate for this task, not the definition of
+   the task. Local reading context does not replace this broader exploration. This change
+   implements contextual evidence; a complete global model browser remains unbuilt.
+5. **Maintain what people rely on.** A correction retains its original context, goes to a
+   responsible person, and exposes progress and outcome. New source versions explain what
+   changed in the knowledge; neither a comment nor a successful import silently establishes
+   truth.
+
+This is a learning path, not a forced wizard. Experienced people may start from search,
+a topic, an inbox item or an agent answer, with the same concepts and routes back to evidence.
+Progressive disclosure reveals the next useful layer of the model; it must not hide the
+model's existence or make people guess which button unlocks the product's core value.
+
+### How a design decision is judged
+
+For an existing screen review or a new design, answer the following in the relevant design
+section or PR description; small fixes can answer them in a sentence rather than a new document:
+
+- What product capability does this represent, and why does that capability belong here?
+- Who is using it, and in which concrete situation?
+- What sequence of actions do we expect, including entry, result and return?
+- What understanding should the person gain about the objects, their differences and their relationships?
+- Which presentation teaches that understanding, and how will we check it with a realistic task?
+
+Review coherence as well as local usability. A new control is not justified just because
+it makes a feature reachable. Check whether the same object means the same thing in search,
+documents, topics and the inbox; whether a source's wording and an accepted conclusion stay
+distinct; whether relationships are understandable before a graph is opened; and whether
+an ordinary person can explain why something changed and what they should do next.
 
 ## 3. One grammar, four places you can tell apart
 
@@ -45,12 +129,25 @@ The left column shows one of four areas, and each one looks like itself:
 
 | Area | For | Entered from | How it looks | Its left column |
 | --- | --- | --- | --- | --- |
-| Knowledge, the default | Everyone | Signing in, Home | The paper ground. Folds away while reading | Home, Inbox, My space, then each space the person can read, with its Documents and Knowledge |
+| Knowledge, the default | Everyone | Signing in, Home | The paper ground. Navigation can be collapsed while reading | Home, Inbox, My space, then each space the person can read, with its Documents and Knowledge |
 | Managing a space | That space's owners | "Manage" on the space, or a card in the inbox | A blue-tinted column under an indigo header: "Managing a space · Finance", "← Back to reading" | Overview, Work (reviews, conflicts, publish requests, batch changes), Topics and owners, Documents and governance levels, Readers, Rules, Settings |
 | Admin | The super admin | The account menu | A dark column under the header "Admin · the company", "← Back to knowledge" | Grouped by concern, as in section 5 |
 | Account | Everyone | The account menu | The paper ground under the header "Account and settings", with Done | You (profile and language, sign-in, companies, notifications), then the current company (your source connections, apps with access, Always decide for me, your usage) |
 
 Reading stays on paper with nothing tinted, so a glance tells reading from managing.
+
+### Reading, feedback and navigation (2026-11-13)
+
+The web app implements the following rules from the product review:
+
+- Lists and search use the available width. Prose keeps a readable line length; opening a panel changes neither its left edge nor its width. On narrow screens the panel overlays the page and has an explicit close button.
+- The document and knowledge trees expand independently of navigation, remember open branches, and show the current path. Reading keeps navigation available on wide screens; a top-bar control remembers the reader's collapsed preference.
+- Annotated is the default document view and highlights only outdated or disputed passages. Original has no system marks or implicit paragraph-click inspection. Both modes offer an explicit paragraph or text-selection comment/correction action. Mode and previous/next issue controls stay in view while scrolling.
+- Source comments keep their immutable version, block, exact offsets and quote, author, reason, optional proposed replacement and review status. They persist on the server and request a human review todo. A retry creates one discussion; marking it reviewed does not rewrite a source or adopt the proposed value. Replies, automatic re-anchoring and applying corrections upstream remain unbuilt. The recorded static demo explains that saving requires the running app.
+- Every todo opens details, including items without a suggested resolution. Discussions and readable citations open the exact original context and retain a link back. Resolved discussion details remain readable by the assigned owner.
+- Relationships are part of the reading context, not a standalone feature button. A document shows its outline, passages needing comparison, and the current value with its sources. A knowledge page names the source documents beneath each fact. Readers follow those concrete links to explore further; a global knowledge map is a separate exploration task and is not built by this change. These are the authorized citations and governance relationships the engine already supplies; arbitrary document hyperlinks and other semantic edge types are not inferred. Governance commands still require their existing roles.
+- Import & connections is visible under each space, in the document header and empty state. Uploading needs editing access; connecting online sources needs space-owner access. The supported Confluence Data Center/Server selected-page or whole-space and individual Feishu docx/wiki scopes are explicit; credentials and live connection permissions are unchanged.
+- Search closes with its close button, outside pointer click or Escape; choosing a result or using speech input does not depend on input blur. Account language choices are nested and keyboard reachable. Controls use consistent font metrics and menu text cannot be selected; document text remains selectable.
 
 ### Where am I, where did I come from, how do I go elsewhere
 
@@ -76,9 +173,9 @@ A revision to an original document never changes it in place: the document lives
 Rules:
 
 - **The top bar never changes,** in Admin and Account included. It never switches spaces. Companies and the personal library are switched from the account menu.
-- **The left column has at most two levels of headings.** Trees, such as Documents and Knowledge, can go deeper, but open one branch at a time.
+- **The left column has at most two levels of headings.** Trees, such as Documents and Knowledge, can go deeper, and keep the branches the reader opens.
 - **A screen's filters and views sit above its content,** never in the left column. The inbox's kinds are a menu above the list, and its metric cards also filter it.
-- **Reading folds the left column away** to give the text room. Breadcrumbs above the text say where you are and, after a jump, where you came from; they never replace the left column.
+- **Reading keeps the left column available** on wide screens; the reader may collapse it to give the text room. Breadcrumbs above the text say where you are and, after a jump, where you came from; they never replace the left column.
 - **Compact is a density setting** (⌘.), not a place. It never changes what the navigation holds.
 
 ### Placed by how often it is used
@@ -88,7 +185,7 @@ The prime places go to what people do most. The product owner put it this way af
 | Element | Who uses it | How often | Where it goes |
 | --- | --- | --- | --- |
 | Search and ask | Everyone | Several times a day | The middle of the top bar, ⌘K |
-| Reading a page or document | Everyone | Daily | The centre, with the left column folded |
+| Reading a page or document | Everyone | Daily | The centre, with optional navigation |
 | The spaces you read | Members | Daily to weekly | The left column, the ones you use first |
 | Inbox | Owners daily; most members 0 to 2 todos a month | Daily to monthly | Second in the left column, with a count when something waits |
 | Managing a space | Space and topic owners (6 in the Finance story) | Daily to weekly | Manage, next to the space |
@@ -222,5 +319,7 @@ Checked against the engine on 2026-10-27 (`main` after pull request #24, and the
 - Whether Japanese key phrases stay bold or use emphasis dots (section 4).
 
 ## About this page
+
+The product owner clarified the foundation on 2026-11-13: continuously observed sources and knowledge modeling are the product's core. Design reviews must explain the user, situation, expected use and understanding before choosing controls. This replaces the earlier belief that the knowledge model should be hidden from ordinary readers.
 
 Proposed on 2026-10-27, after the product owner asked for one clear philosophy that every screen follows, instead of fixes one comment at a time. It goes from the general to the specific: the stance, the beliefs, one grammar with four places you can tell apart, where settings live, how big each list really is, how the assistant shows up, and what this changes on the design canvas. The [UI principles](ui-principles.md) and the drawn screens follow from this page; where they differ, this page wins until they are redone. Adopted on 2026-11-05. A Chinese copy is in [docs/zh/design/ui-philosophy.md](../zh/design/ui-philosophy.md); if the two differ, this English version wins.

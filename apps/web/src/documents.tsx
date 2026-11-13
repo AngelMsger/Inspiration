@@ -58,10 +58,21 @@ export function Documents(props: { route: DocumentsRoute; library: Library; onSo
   const source = route.source ? tree.sources.find((s) => s.source_id === route.source) : undefined;
   // Files go into the uploads' folder on screen, else to their root.
   const folder = source?.source_type === UPLOADS ? route.folders : [];
-  const list = rows.length === 0 ? <p className="quiet">{say("folder.empty")}</p> : <Rows rows={rows} top={top} />;
+  const list =
+    rows.length === 0 ? (
+      <section className="import-empty">
+        <h2>{say("import.empty")}</h2>
+        <p className="quiet">{say("import.empty_hint")}</p>
+        <Link to={{ name: "imports", space: space.id }} className="secondary">
+          {say("import.action")}
+        </Link>
+      </section>
+    ) : (
+      <Rows rows={rows} top={top} />
+    );
 
   return (
-    <main className="centre">
+    <main className="centre documents-screen">
       <Crumbs>
         {[
           <span key="space">{space.name}</span>,
@@ -80,12 +91,13 @@ export function Documents(props: { route: DocumentsRoute; library: Library; onSo
           )),
         ]}
       </Crumbs>
-      <h1 className="title">{node ? nameOf(node, say) : say("nav.documents")}</h1>
-      {space.role === "owner" && (
-        <p>
-          <Link to={{ name: "maintain", space: space.id, page: "sources" }}>{say("connections.connect")}</Link>
-        </p>
-      )}
+      <div className="heading">
+        <h1 className="title">{node ? nameOf(node, say) : say("nav.documents")}</h1>
+        <Link to={{ name: "imports", space: space.id }} className="primary">
+          {say("import.action")}
+        </Link>
+      </div>
+      {!route.source && <p className="quiet">{say("folder.hint")}</p>}
       <ReadingSummary nodes={node ? [node] : tree.sources} />
       {mayUpload(space) ? (
         <Uploader space={space} sources={tree.sources} folder={folder} onSent={props.onSourcesChanged}>
@@ -122,7 +134,7 @@ function Rows(props: { rows: DocumentTreeNode[]; top: DocumentsRoute }) {
                     name: "document",
                     source: row.source_id,
                     item: row.document.external_id,
-                    view: "original",
+                    view: "annotated",
                   }}
                 >
                   {row.name}
