@@ -18,6 +18,13 @@ tuning line remains paused; local product validation does not reopen it.
    interfaces in `libs/contracts/src/interfaces.ts`.
 3. Run `make install`, `make up` and `make check` once, so you start from green.
 
+For a UI review or a new interaction, also read the product model and design judgment in
+[UI philosophy](docs/design/ui-philosophy.md). Explain the user, concrete situation,
+expected path and understanding before choosing controls. Keep source material, modeled
+statements and current conclusions distinct; making a feature reachable alone is not a
+design rationale. Reconcile durable decisions into that canonical document and its Chinese
+copy rather than adding a competing set of principles.
+
 ## Shape of a component
 
 Engine components live in `engine/<name>`, the shared libraries in `libs/<name>`, composition

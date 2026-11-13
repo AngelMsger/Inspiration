@@ -122,6 +122,7 @@ reading.doc.paused: "処理は一時停止中で、自動で再試行します�
 reading.doc.failed: "Inspiration はこのドキュメントの処理を完了できませんでした。"
 
 folder.name: 名前
+folder.hint: "出典ごとに原文と読み取り状況を確認できます。ナレッジでは、文書から整理された内容をトピックごとにまとめています。"
 folder.level: ガバナンスレベル
 folder.modified: 更新日時
 folder.count: "{count} 件のドキュメント"
@@ -228,6 +229,7 @@ unit.cny_per_day: "1 日 {n} 元"
 unit.cny: "{n} 元"
 
 knowledge.title: "ナレッジ"
+knowledge.hint: "トピックごとに複数の文書から整理された知識と、その根拠や異なる記述を確認できます。"
 knowledge.empty: "このスペースにはまだトピックがありません。"
 knowledge.loading: "トピックを開いています…"
 knowledge.not_found: "このトピックは存在しないか、読む権限がありません。"

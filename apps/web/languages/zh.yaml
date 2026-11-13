@@ -122,6 +122,7 @@ reading.doc.paused: "处理已暂停，会自动重试。检索可能还不包�
 reading.doc.failed: "Inspiration 未能完成这篇文档的处理。"
 
 folder.name: 名称
+folder.hint: "按来源查看原始材料和读取进度。知识则按主题组织从这些文档中整理出的内容。"
 folder.level: 治理级别
 folder.modified: 修改时间
 folder.count: "{count} 篇文档"
@@ -228,6 +229,7 @@ unit.cny_per_day: "{n} 元/天"
 unit.cny: "{n} 元"
 
 knowledge.title: "知识"
+knowledge.hint: "按主题了解跨文档整理出的知识，以及它的依据和不同说法。"
 knowledge.empty: "这个空间还没有整理出主题。"
 knowledge.loading: "正在打开主题…"
 knowledge.not_found: "这个主题不存在，或者你没有读取权限。"

@@ -44,6 +44,7 @@ export function TopicsScreen(props: { space: string; library: Library; people: P
         <h1 className="title">{say("knowledge.title")}</h1>
         <span className="quiet">{say("nav.topics", { count: topics.length })}</span>
       </div>
+      <p className="quiet">{say("knowledge.hint")}</p>
       {topics.length === 0 ? (
         <p className="quiet">{say("knowledge.empty")}</p>
       ) : (

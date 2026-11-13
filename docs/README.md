@@ -71,7 +71,7 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 
 | Doc | Status | What it covers |
 | --- | --- | --- |
-| [UI philosophy](design/ui-philosophy.md) | Adopted, 2026-11-05 | One philosophy every screen follows, from the stance down to where each element goes |
+| [UI philosophy](design/ui-philosophy.md) | Adopted, clarified 2026-11-13 | Product model, progressive understanding and the philosophy every screen follows |
 | [UI principles](design/ui-principles.md) | Adopted, 2026-10-24 | Who the UI serves, interaction principles, visual design, glossary |
 | [UI screens](design/screens/README.md) | Snapshot of the design canvas | Static copies of the canvas's screens, to read next to the docs |
 

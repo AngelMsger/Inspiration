@@ -1,6 +1,6 @@
 // Reading a document: the Original view as its author wrote it, the Annotated view with what
-// the engine read out of each passage and where its values stand. The right panel is about the
-// selected passage only.
+// the engine read out of each passage and where its values stand. Reading context gives way
+// to passage evidence or discussion when the reader opens one explicitly.
 
 import type { DocumentView, SourceBlock } from "@inspiration/contracts";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
@@ -291,7 +291,7 @@ function Reading(props: {
           view={view}
           anchor={discussion}
           member={person.member}
-          allowed={!!space && space.role !== "viewer"}
+          allowed={space?.role !== undefined && space.role !== "viewer"}
           onClose={() => setDiscussion(undefined)}
           onChanged={props.onChanged}
         />
@@ -323,7 +323,11 @@ function PassageView(props: {
   if (block.kind === "heading") {
     const level = Math.min(Math.max((block.level ?? 1) + 1, 2), 4);
     const Heading = `h${level}` as "h2" | "h3" | "h4";
-    return <Heading id={block.id}>{block.text}</Heading>;
+    return (
+      <Heading id={block.id} data-source-block={block.id}>
+        {block.text}
+      </Heading>
+    );
   }
   const quotes = (props.marks ?? []).flatMap((m) => m.quotes);
   const standing = weakest(quotes.map((q) => q.tone));

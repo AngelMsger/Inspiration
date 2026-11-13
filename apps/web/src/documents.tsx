@@ -97,6 +97,7 @@ export function Documents(props: { route: DocumentsRoute; library: Library; onSo
           {say("import.action")}
         </Link>
       </div>
+      {!route.source && <p className="quiet">{say("folder.hint")}</p>}
       <ReadingSummary nodes={node ? [node] : tree.sources} />
       {mayUpload(space) ? (
         <Uploader space={space} sources={tree.sources} folder={folder} onSent={props.onSourcesChanged}>

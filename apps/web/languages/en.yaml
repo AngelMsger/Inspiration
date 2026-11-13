@@ -122,6 +122,7 @@ reading.doc.paused: "Processing is paused and will retry automatically. Search m
 reading.doc.failed: "Inspiration could not finish processing this document."
 
 folder.name: Name
+folder.hint: "Browse original material by source and check its reading progress. Knowledge organizes what was learned across these documents by topic."
 folder.level: Governance level
 folder.modified: Modified
 folder.count: "{count} documents"
@@ -228,6 +229,7 @@ unit.cny_per_day: "¥{n} a day"
 unit.cny: "¥{n}"
 
 knowledge.title: "Knowledge"
+knowledge.hint: "Explore what is known about each topic across documents, with the evidence and differing statements behind it."
 knowledge.empty: "No topics in this space yet."
 knowledge.loading: "Opening the topic…"
 knowledge.not_found: "This topic does not exist, or you cannot read it."
