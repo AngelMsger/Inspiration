@@ -27,7 +27,7 @@ export interface Transport {
     group: string,
     consumer: string,
     eventTypes: readonly string[],
-    options: { count: number; blockMs: number },
+    options: { count: number; blockMs: number; signal?: AbortSignal },
   ): Promise<Delivery[]>;
   /** Take over deliveries pending longer than minIdleMs (failed handlers, dead consumers). */
   reclaim(

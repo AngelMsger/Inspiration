@@ -109,7 +109,7 @@ export class Consumer {
   }
 
   /** Handle what is available now (reclaimed first, then new). Returns deliveries handled. */
-  async runOnce(group: string, options: { blockMs?: number } = {}): Promise<number> {
+  async runOnce(group: string, options: { blockMs?: number; signal?: AbortSignal } = {}): Promise<number> {
     const types = await this.#ensure(group);
     const deliveries = await this.transport.reclaim(group, this.name, types, {
       minIdleMs: this.visibilityTimeoutMs,
@@ -119,6 +119,7 @@ export class Consumer {
       ...(await this.transport.receive(group, this.name, types, {
         count: this.batchSize,
         blockMs: options.blockMs ?? 0,
+        ...(options.signal && { signal: options.signal }),
       })),
     );
     for (const d of deliveries) await this.#handle(group, d);
@@ -128,8 +129,9 @@ export class Consumer {
   async #loop(group: string, signal: AbortSignal): Promise<void> {
     while (!signal.aborted) {
       try {
-        await this.runOnce(group, { blockMs: this.blockMs });
+        await this.runOnce(group, { blockMs: this.blockMs, signal });
       } catch (error) {
+        if (signal.aborted) return;
         log.error("consumer loop failed; retrying", { group, error });
         await sleep(1000, undefined, { signal }).catch(() => undefined);
       }

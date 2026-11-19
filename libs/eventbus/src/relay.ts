@@ -105,11 +105,18 @@ export class OutboxRelay {
       log.info("relay active");
       let lastPrune = 0;
       while (!signal.aborted) {
-        const sent = await this.drain(work);
-        if (sent) log.debug("relayed events", { count: sent });
-        if (Date.now() - lastPrune > PRUNE_EVERY_MS) {
-          await this.prune(work);
-          lastPrune = Date.now();
+        try {
+          const sent = await this.drain(work);
+          if (sent) log.debug("relayed events", { count: sent });
+          if (Date.now() - lastPrune > PRUNE_EVERY_MS) {
+            await this.prune(work);
+            lastPrune = Date.now();
+          }
+        } catch (error) {
+          if (signal.aborted) return;
+          log.error("outbox relay failed; retrying", { error });
+          await sleep(1_000, undefined, { signal }).catch(() => undefined);
+          continue;
         }
         await this.#wait(listen, signal);
       }

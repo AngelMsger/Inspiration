@@ -141,6 +141,7 @@ async function main(argv: string[]): Promise<number> {
       databaseUrl: settings.databaseUrl,
       valkeyUrl: settings.valkeyUrl,
       streamPrefix: settings.streamPrefix,
+      deliveryMode: "service",
     }),
     ...(client && { graph: new SpiceDBGraph(client) }),
     // The corpus's catalogue is its tenant's alone; provisioned companies have none yet.
@@ -176,12 +177,12 @@ async function main(argv: string[]): Promise<number> {
   } else {
     log.info("no corpus: tenants, members and spaces come from provisioning");
   }
+  if (persistent) engine.startDelivery();
   await engine.sync.recover();
   engine.resumeReading().catch((error: unknown) => log.warn("resuming reading after startup failed", { error }));
   const server = await serveApi(engine, Number(values.port), identity);
   // Resume committed work after a restart, including events whose request already returned.
-  engine.settleLater();
-  const delivering = persistent ? setInterval(() => engine.settleLater(), 1000) : undefined;
+  if (!persistent) engine.settleLater();
   // Reading a spent budget or an outage stopped carries on once the budget renews or the model answers.
   const resuming = setInterval(() => {
     engine.resumeReading().catch((error: unknown) => log.warn("resuming reading failed", { error }));
@@ -189,7 +190,6 @@ async function main(argv: string[]): Promise<number> {
   const stop = () => {
     clearInterval(resuming);
     clearInterval(organize);
-    clearInterval(delivering);
     server.close();
     void engine
       .close()

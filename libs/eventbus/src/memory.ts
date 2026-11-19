@@ -8,6 +8,7 @@
  */
 
 import { performance } from "node:perf_hooks";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { EventEnvelope, EventHandler } from "@inspiration/contracts";
 import { Consumer } from "./consumer.ts";
 import type { Delivery, Transport } from "./transport.ts";
@@ -33,6 +34,8 @@ export class InMemoryTransport implements Transport {
   readonly streams = new Map<string, EventEnvelope[]>();
   readonly #groups = new Map<string, Group>(); // "<type>\0<group>"
   readonly dlq = new Map<string, DeadLetter[]>();
+  readonly #waiters = new Set<() => void>();
+  #closed = false;
 
   #group(eventType: string, group: string): Group {
     const g = this.#groups.get(`${eventType}\0${group}`);
@@ -49,8 +52,14 @@ export class InMemoryTransport implements Transport {
     return s;
   }
 
+  #wake(): void {
+    for (const wake of this.#waiters) wake();
+    this.#waiters.clear();
+  }
+
   async send(events: readonly EventEnvelope[]): Promise<void> {
     for (const e of events) this.#stream(e.type).push(structuredClone(e));
+    if (events.length) this.#wake();
   }
 
   async ensureGroup(group: string, eventTypes: readonly string[]): Promise<void> {
@@ -66,20 +75,39 @@ export class InMemoryTransport implements Transport {
     return { event, stream: eventType, messageId: String(index), attempt, raw: JSON.stringify(event) };
   }
 
-  async receive(
-    group: string,
-    consumer: string,
-    eventTypes: readonly string[],
-    options: { count: number; blockMs: number },
-  ): Promise<Delivery[]> {
+  #read(group: string, consumer: string, eventTypes: readonly string[], count: number): Delivery[] {
     const out: Delivery[] = [];
     for (const t of eventTypes) {
       const g = this.#group(t, group);
       const stream = this.#stream(t);
-      while (g.nextIndex < stream.length && out.length < options.count) {
+      while (g.nextIndex < stream.length && out.length < count) {
         const index = g.nextIndex++;
         g.pending.set(index, { index, consumer, deliveredAt: performance.now(), attempts: 1 });
         out.push(this.#delivery(t, index, 1));
+      }
+    }
+    return out;
+  }
+
+  async receive(
+    group: string,
+    consumer: string,
+    eventTypes: readonly string[],
+    options: { count: number; blockMs: number; signal?: AbortSignal },
+  ): Promise<Delivery[]> {
+    let out = this.#read(group, consumer, eventTypes, options.count);
+    if (out.length === 0 && options.blockMs > 0 && !this.#closed && !options.signal?.aborted) {
+      const notified = new AbortController();
+      const wake = () => notified.abort();
+      this.#waiters.add(wake);
+      const signal = options.signal ? AbortSignal.any([options.signal, notified.signal]) : notified.signal;
+      try {
+        await sleep(options.blockMs, undefined, { signal }).catch(() => undefined);
+      } finally {
+        this.#waiters.delete(wake);
+      }
+      if (!this.#closed && !options.signal?.aborted) {
+        out = this.#read(group, consumer, eventTypes, options.count);
       }
     }
     return out;
@@ -125,7 +153,10 @@ export class InMemoryTransport implements Transport {
     return n;
   }
 
-  async close(): Promise<void> {}
+  async close(): Promise<void> {
+    this.#closed = true;
+    this.#wake();
+  }
 }
 
 /**

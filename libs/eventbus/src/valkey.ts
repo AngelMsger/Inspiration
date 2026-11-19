@@ -27,6 +27,7 @@ export class ValkeyStreamsTransport implements Transport {
   readonly client: Redis;
   readonly prefix: string;
   readonly maxlen: number;
+  readonly #readers = new Map<string, Redis>();
 
   constructor(client: Redis, options: ValkeyOptions = {}) {
     this.client = client;
@@ -37,6 +38,15 @@ export class ValkeyStreamsTransport implements Transport {
   static fromUrl(url: string, options: ValkeyOptions = {}): ValkeyStreamsTransport {
     // RESP2 replies have one fixed shape, which the parsing below relies on.
     return new ValkeyStreamsTransport(new Redis(url, { protocol: 2, lazyConnect: false }), options);
+  }
+
+  #reader(group: string): Redis {
+    let client = this.#readers.get(group);
+    if (!client) {
+      client = this.client.duplicate();
+      this.#readers.set(group, client);
+    }
+    return client;
   }
 
   stream(eventType: string): string {
@@ -76,13 +86,15 @@ export class ValkeyStreamsTransport implements Transport {
     group: string,
     consumer: string,
     eventTypes: readonly string[],
-    options: { count: number; blockMs: number },
+    options: { count: number; blockMs: number; signal?: AbortSignal },
   ): Promise<Delivery[]> {
     const args: (string | number)[] = ["GROUP", group, consumer, "COUNT", options.count];
     // BLOCK 0 means "wait forever" to Valkey, so a zero blockMs must omit BLOCK entirely.
     if (options.blockMs > 0) args.push("BLOCK", options.blockMs);
     args.push("STREAMS", ...eventTypes.map((t) => this.stream(t)), ...eventTypes.map(() => ">"));
-    const reply = (await this.client.call("XREADGROUP", args)) as [string, StreamEntry[]][] | null;
+    // Blocking XREADGROUP stalls its TCP connection, so each group gets its own reader client.
+    const client = options.blockMs > 0 ? this.#reader(group) : this.client;
+    const reply = (await client.call("XREADGROUP", args)) as [string, StreamEntry[]][] | null;
     const out: Delivery[] = [];
     for (const [stream, messages] of reply ?? []) for (const m of messages) out.push(this.#delivery(stream, m, 1));
     return out;
@@ -152,6 +164,8 @@ export class ValkeyStreamsTransport implements Transport {
   }
 
   async close(): Promise<void> {
-    await this.client.quit();
+    const clients = [this.client, ...this.#readers.values()];
+    this.#readers.clear();
+    await Promise.allSettled(clients.map((c) => c.quit()));
   }
 }

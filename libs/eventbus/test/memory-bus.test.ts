@@ -1,6 +1,6 @@
 import { type EventEnvelope, newEvent, newId, payloadOf } from "@inspiration/contracts";
 import { expect, test } from "vitest";
-import { InMemoryBus } from "../src/index.ts";
+import { Consumer, InMemoryBus, InMemoryTransport } from "../src/index.ts";
 
 const TENANT = "ten_01JC0000000000000000000001";
 
@@ -81,4 +81,24 @@ test("handlers see a copy, not the published object", async () => {
   await bus.publish(event);
   await bus.drain();
   expect(event.data.added).toHaveLength(1);
+});
+
+test("Consumer.run() blocks when idle, wakes on send, and exits promptly on stop()", async () => {
+  const transport = new InMemoryTransport();
+  const consumer = new Consumer(transport, { name: "bg", blockMs: 5_000, visibilityTimeoutMs: 60_000 });
+  const seen: string[] = [];
+  consumer.subscribe("claims.updated", "freshness", async (e) => void seen.push(e.id));
+
+  const running = consumer.run();
+  try {
+    const event = claimsEvent();
+    await transport.send([event]);
+    await expect.poll(() => seen, { timeout: 1_000, interval: 10 }).toEqual([event.id]);
+  } finally {
+    const stopping = performance.now();
+    await consumer.stop();
+    await running;
+    expect(performance.now() - stopping).toBeLessThan(1_000);
+    await transport.close();
+  }
 });
