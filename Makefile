@@ -3,7 +3,7 @@
 
 COMPOSE := docker compose -f infra/compose.yaml
 
-.PHONY: install up down clean migrate authz-schema contracts contracts-check lint format typecheck test test-unit check check-full gateway
+.PHONY: install up down clean migrate authz-schema contracts contracts-check lint format typecheck test test-unit check check-agent check-full gateway
 
 install:          ## install dependencies, and the parsing worker's Python libraries in .venv
 	pnpm install --frozen-lockfile
@@ -48,6 +48,9 @@ test-unit:        ## tests that need no stack
 
 check: lint typecheck contracts-check  ## everything with the stack required, but the corpus runs that take minutes
 	INSPIRATION_REQUIRE_STACK=1 INSPIRATION_QUICK=1 pnpm test
+
+check-agent: lint typecheck contracts-check  ## fast checks without Docker: Biome, tsc, contracts and quick unit tests
+	INSPIRATION_QUICK=1 pnpm test:unit
 
 check-full: lint typecheck contracts-check  ## what CI runs: everything, the long corpus runs too
 	INSPIRATION_REQUIRE_STACK=1 INSPIRATION_QUICK=0 pnpm test

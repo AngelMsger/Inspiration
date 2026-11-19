@@ -83,7 +83,7 @@ A change re-reads only the passages that changed, updates only the statements th
 <td valign="top">
 
 **🧑‍⚖️ People decide, in amounts they can keep up with**<br>
-Agents detect, propose and answer; people decide. Suggestions arrive filled in, grouped per topic and week. "Decide for me", coming in the MVP, settles the routine ones, with a reason for each and undo.
+Agents detect, propose and answer; people decide. Suggestions arrive filled in, grouped per topic and week. "Decide for me" settles the routine ones, with a reason for each and undo.
 
 </td>
 <td valign="top">
@@ -103,7 +103,7 @@ Knowledge is language-neutral. A policy written in Chinese answers questions in 
 <td valign="top">
 
 **🤖 Agent-first**<br>
-Agents reach the same governed knowledge through MCP and REST, acting as the member they work for; the MCP server comes in the MVP. Every result carries its source, version and status. Agents read and propose; only people approve changes.
+Agents reach the same governed knowledge through MCP and REST, acting as the member they work for. Every result carries its source, version and status. Agents read and propose; only people approve changes.
 
 </td>
 </tr>
@@ -148,13 +148,13 @@ The method, every run and its cost are in [Validating the knowledge core](docs/d
 <div align="center">
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/assets/components.en.dark.png">
-<img src="docs/assets/components.en.png" alt="Component diagram, in rows from sources to use: research and outside sources; source-sync, connectors and parsing; normalization and extraction; freshness and governance; page-compiler and collaboration; retrieval, agent-api and views; the web app with the business backend, people and outside agents. Events such as blocks.changed, claims.updated, artifact.dirty and page.rendered connect them. A platform column holds contracts, the event bus, the knowledge store, access control, the model gateway, the agent runtime, the credential broker and the sandbox. Planned: research, agent-api, views, credential-broker and sandbox." width="100%">
+<img src="docs/assets/components.en.png" alt="Component diagram, in rows from sources to use: research and outside sources; source-sync, connectors and parsing; normalization and extraction; freshness and governance; page-compiler and collaboration; retrieval, agent-api and views; the web app with the business backend, people and outside agents. Events such as blocks.changed, claims.updated, artifact.dirty and page.rendered connect them. A platform column holds contracts, the event bus, the knowledge store, access control, the model gateway, the agent runtime, the credential broker and the sandbox. Planned: research, views, credential-broker and sandbox." width="100%">
 </picture>
 </div>
 
 <sub>Every component by stage, with the events (solid) and calls (dashed) between them; the platform services on the right serve all of them. Dashed boxes are planned. The [overview](docs/overview.md#9-architecture-at-a-glance) gives each component an outside equivalent and says what we reuse.</sub>
 
-- **Small components with one job each.** 14 of the engine's 19 components are built and tested, and the business layer's first two. [`components.yaml`](components.yaml) gives each one's ownership, the events it publishes and consumes, and the calls it may make; a test holds every package to it.
+- **Small components with one job each.** 15 of the engine's 19 components are built and tested, and the business layer's first three. [`components.yaml`](components.yaml) gives each one's ownership, the events it publishes and consumes, and the calls it may make; a test holds every package to it.
 - **Contracts first.** JSON Schema in [`libs/contracts/schema/`](libs/contracts/schema/) is the source of truth for every type and event that crosses a component; TypeScript types and validators are generated from it.
 - **Events commit with the data.** Components publish inside the store transaction through an outbox relayed to Valkey Streams. Delivery is at least once and every handler is idempotent.
 - **Plugins for everything replaceable.** Connectors, parsers, extractors, model providers, search indexes, event transports and migrations are plugins, looked up in a registry, so a part can be swapped without touching its callers.

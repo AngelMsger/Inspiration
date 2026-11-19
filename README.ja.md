@@ -85,7 +85,7 @@ flowchart LR
 <td valign="top">
 
 **🧑‍⚖️ 判断は人が、無理のない量で**<br>
-エージェントは検出し、提案し、答えます。判断するのは人です。提案は記入済みで、トピックと週ごとにまとめて届きます。MVP で提供する「代わりに決める」が日常的なものを処理し、それぞれに理由を添え、取り消しもできます。
+エージェントは検出し、提案し、答えます。判断するのは人です。提案は記入済みで、トピックと週ごとにまとめて届きます。「代わりに決める」が日常的なものを処理し、それぞれに理由を添え、取り消しもできます。
 
 </td>
 <td valign="top">
@@ -105,7 +105,7 @@ flowchart LR
 <td valign="top">
 
 **🤖 エージェントファースト**<br>
-エージェントは MCP と REST を通じて、同じガバナンスの効いたナレッジに、代理するメンバーとしてアクセスします。MCP サーバーは MVP で提供します。すべての結果に出典、版、状態が付きます。エージェントは読むことと提案することだけを行い、変更を承認するのは人だけです。
+エージェントは MCP と REST を通じて、同じガバナンスの効いたナレッジに、代理するメンバーとしてアクセスします。すべての結果に出典、版、状態が付きます。エージェントは読むことと提案することだけを行い、変更を承認するのは人だけです。
 
 </td>
 </tr>
@@ -150,13 +150,13 @@ flowchart LR
 <div align="center">
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/assets/components.ja.dark.png">
-<img src="docs/assets/components.ja.png" alt="コンポーネント図。ソースから利用まで段階ごとの行：リサーチと外部のデータソース、source-sync・connectors・parsing、normalization・extraction、freshness・governance、page-compiler・collaboration、retrieval・agent-api・views、Web アプリと業務層・人・外部エージェント。blocks.changed、claims.updated、artifact.dirty、page.rendered などのイベントがそれらをつなぎます。右のプラットフォーム列：コントラクト、イベントバス、ナレッジストア、アクセス制御、モデルゲートウェイ、エージェント実行基盤、認証情報ブローカー、サンドボックス。予定：research、agent-api、views、credential-broker、sandbox。" width="100%">
+<img src="docs/assets/components.ja.png" alt="コンポーネント図。ソースから利用まで段階ごとの行：リサーチと外部のデータソース、source-sync・connectors・parsing、normalization・extraction、freshness・governance、page-compiler・collaboration、retrieval・agent-api・views、Web アプリと業務層・人・外部エージェント。blocks.changed、claims.updated、artifact.dirty、page.rendered などのイベントがそれらをつなぎます。右のプラットフォーム列：コントラクト、イベントバス、ナレッジストア、アクセス制御、モデルゲートウェイ、エージェント実行基盤、認証情報ブローカー、サンドボックス。予定：research、views、credential-broker、sandbox。" width="100%">
 </picture>
 </div>
 
 <sub>段階ごとに並べたすべてのコンポーネントと、その間のイベント（実線）と呼び出し（破線）。右のプラットフォームサービスはすべてのコンポーネントが使います。破線の枠は予定です。各コンポーネントに相当する外部の製品と、私たちが再利用しているものは、[overview](docs/overview.md#9-architecture-at-a-glance) の Figure 10 の後の表にあります。</sub>
 
-- **1 つの仕事を持つ小さなコンポーネント。** エンジンの 19 のコンポーネントのうち 14 が構築とテストを終え、ビジネス層も最初の 2 つが完成しています。[`components.yaml`](components.yaml) が各コンポーネントの持ち物、発行・購読するイベント、呼び出してよい相手を定め、テストがすべてのパッケージにそれを守らせます。
+- **1 つの仕事を持つ小さなコンポーネント。** エンジンの 19 のコンポーネントのうち 15 が構築とテストを終え、ビジネス層も最初の 3 つが完成しています。[`components.yaml`](components.yaml) が各コンポーネントの持ち物、発行・購読するイベント、呼び出してよい相手を定め、テストがすべてのパッケージにそれを守らせます。
 - **コントラクトが先。** [`libs/contracts/schema/`](libs/contracts/schema/) の JSON Schema が、コンポーネントをまたぐすべての型とイベントの唯一の正です。TypeScript の型とバリデーターはここから生成されます。
 - **イベントはデータとともにコミット。** コンポーネントはストアのトランザクション内で outbox を通じてイベントを発行し、Valkey Streams に中継します。配信は少なくとも 1 回で、すべてのハンドラーは冪等です。
 - **差し替えられるものはすべてプラグイン。** コネクター、パーサー、抽出器、モデルプロバイダー、検索インデックス、イベント転送、マイグレーションはプラグインで、レジストリから引かれるため、呼び出し側を変えずに部品を差し替えられます。
