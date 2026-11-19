@@ -40,8 +40,7 @@
 | [PageSpec 与视图](pagespec.md) | 参考 | 页面如何对应 Claude Artifacts，以及视图沙箱 |
 | [开发](development.md) | 参考 | 接续早期工作、交付、付费运行预检，以及从源码构建、测试和运行 |
 | [技术栈的许可证](licensing.md) | 参考 | 技术栈各部分的许可证及其对交付的影响 |
-
-| [本地验证](local.md) | Reference | 持久化本地运行、自建 Confluence 与飞书连接、DeepSeek、验证步骤和排查 |
+| [本地验证](local.md) | 参考 | 持久化本地运行、自建 Confluence 与飞书连接、DeepSeek、验证步骤和排查 |
 
 ## 设计：知识
 

@@ -5,18 +5,26 @@ stepping on each other. Read them before you change anything.
 
 ## Before you start
 
-Read [the overview](docs/overview.md), [decisions in force](docs/decisions.md) and the
-[MVP](docs/design/mvp.md) before picking work. Use the [README roadmap](README.md#roadmap)
-and the code for implementation status; dated agent notes and merged-PR lists are history.
-The current local validation path is in [docs/local.md](docs/local.md). The paid benchmark
-tuning line remains paused; local product validation does not reopen it.
+Use the [README roadmap](README.md#roadmap), `components.yaml` and the code for implementation
+status; dated agent notes and merged-PR lists are history. The paid benchmark tuning line
+remains paused; local product validation does not reopen it. Read only the canonical docs your
+task touches:
+
+| Task | Minimum docs to read |
+| --- | --- |
+| Scope or product decision | [overview](docs/overview.md), [decisions in force](docs/decisions.md), [MVP](docs/design/mvp.md) |
+| Engine component change | `components.yaml`, package `src/index.ts`, touched schemas in `libs/contracts/schema/` |
+| Business layer or web app | [business-engine contract](docs/design/business-engine-contract.md), [UI philosophy](docs/design/ui-philosophy.md) |
+| Local persistent validation | [docs/local.md](docs/local.md) |
 
 1. Find your component in `components.yaml`. It says what the component owns, which events
    it publishes and consumes, which synchronous APIs it may call, and which plugin groups it
    provides. Set its `status` to `in_progress` and its `owner` to your branch.
 2. Read the contracts your component touches in `libs/contracts/schema/` and the
    interfaces in `libs/contracts/src/interfaces.ts`.
-3. Run `make install`, `make up` and `make check` once, so you start from green.
+3. Run `make install`, `make up` and `make check` once, so you start from green. In a sandbox
+   without Docker, run `make check-agent` (Biome, `tsc`, contracts and quick unit tests); CI
+   still runs the full stack checks before merge.
 
 ## Shape of a component
 
@@ -137,7 +145,10 @@ producer name, its consumer group and the first part of its model task names.
   (`quick` from `@inspiration/testkit`); CI and `make check-full` run them. Give a new test
   that takes more than about 20 seconds the same skip under `quick()`.
 - `INSPIRATION_REQUIRE_STACK=1` (set by `make check` and CI) turns a missing stack into a
-  failure instead of skips; `INSPIRATION_STACK=off` skips the stack probe entirely.
+  failure instead of skips; `INSPIRATION_STACK=off` skips the stack probe entirely. In a
+  sandbox without Docker, `make check-agent` runs Biome, `tsc`, contract freshness and quick
+  unit tests. Keep any temporary local scratch files under `.scratch/` (ignored by git and by
+  the repo-wide checks in `test/`).
 
 ## Definition of done
 

@@ -46,7 +46,6 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 | [PageSpec and views](pagespec.md) | Reference | How pages match Claude Artifacts, and the view sandbox |
 | [Development](development.md) | Reference | Continuing earlier work, delivery, paid-run preflight, and building, testing and running from source |
 | [Licensing](licensing.md) | Reference | Licences of the stack and what they mean for delivery |
-
 | [Local validation](local.md) | Reference | Persistent local startup, Confluence Data Center / Server and Feishu connections, DeepSeek, validation and troubleshooting |
 
 ## Designs: knowledge
