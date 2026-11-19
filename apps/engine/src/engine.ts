@@ -103,6 +103,7 @@ const ENGINE_MIGRATIONS = [
   "page-compiler",
   "collaboration",
   "retrieval",
+  "agents",
 ] as const;
 
 /** The migration sets the engine applies to its own database. */

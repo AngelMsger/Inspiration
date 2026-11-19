@@ -7,30 +7,12 @@ import { engineMigrations } from "../src/engine.ts";
 
 const BUSINESS_SCHEMAS = ["accounts", "tenancy", "access-grants"];
 
-test("engineMigrations loads only engine and library migration sets", async () => {
-  const sets = await engineMigrations();
-  const components = sets.map((s) => s.component);
-  expect(components).toEqual(
-    expect.arrayContaining([
-      "bus",
-      "kb",
-      "gateway",
-      "authz",
-      "sync",
-      "normalization",
-      "extraction",
-      "freshness",
-      "governance",
-      "page-compiler",
-      "collaboration",
-      "retrieval",
-    ]),
-  );
-  for (const business of BUSINESS_SCHEMAS) {
-    expect(components).not.toContain(business);
-  }
+test("engineMigrations loads every registered migration set except the business layer's", async () => {
+  // Compared with discovery, so a new engine or library schema cannot be left out silently.
+  const engine = (await engineMigrations()).map((s) => s.component).sort();
   const all = (await discoverMigrations()).map((s) => s.component);
   for (const business of BUSINESS_SCHEMAS) {
     expect(all).toContain(business);
   }
+  expect(engine).toEqual(all.filter((component) => !BUSINESS_SCHEMAS.includes(component)).sort());
 });

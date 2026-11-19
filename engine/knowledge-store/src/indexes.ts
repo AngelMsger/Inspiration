@@ -68,8 +68,9 @@ export class PgVectorIndex implements VectorIndex {
     this.pool = pool;
     this.model = options.model;
     const efSearch = options.efSearch ?? 100;
-    if (!Number.isFinite(efSearch) || Math.trunc(efSearch) < 1) {
-      throw new RangeError(`efSearch must be a positive finite number, got ${options.efSearch}`);
+    // pgvector accepts hnsw.ef_search from 1 through 1000; check here so a bad setting fails at startup.
+    if (!Number.isFinite(efSearch) || Math.trunc(efSearch) < 1 || Math.trunc(efSearch) > 1000) {
+      throw new RangeError(`efSearch must be between 1 and 1000, got ${options.efSearch}`);
     }
     this.efSearch = Math.trunc(efSearch);
   }
