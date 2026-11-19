@@ -138,6 +138,15 @@ export class Consumer {
     }
   }
 
+  /** True when every subscribed group has no unread or unacked deliveries. */
+  async isIdle(): Promise<boolean> {
+    for (const [group, handlers] of this.#handlers) {
+      const types = [...handlers.keys()].sort();
+      if (types.length && !(await this.transport.isIdle(group, types))) return false;
+    }
+    return true;
+  }
+
   /** Run every group until stop() is called. */
   async run(): Promise<void> {
     this.#stopping = new AbortController();

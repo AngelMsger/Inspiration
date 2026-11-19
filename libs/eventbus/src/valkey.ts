@@ -163,6 +163,38 @@ export class ValkeyStreamsTransport implements Transport {
     return rows.map(([id, fields]) => ({ ...fieldMap(fields), id }));
   }
 
+  async isIdle(group: string, eventTypes: readonly string[]): Promise<boolean> {
+    for (const t of eventTypes) {
+      const stream = this.stream(t);
+      let rawGroups: unknown[][];
+      try {
+        rawGroups = (await this.client.call("XINFO", ["GROUPS", stream])) as unknown[][];
+      } catch (e) {
+        if (String((e as Error).message).includes("no such key")) continue;
+        throw e;
+      }
+      const entry = rawGroups.find((row) => {
+        for (let i = 0; i + 1 < row.length; i += 2) if (row[i] === "name") return row[i + 1] === group;
+        return false;
+      });
+      if (!entry) {
+        if (Number(await this.client.call("XLEN", [stream])) > 0) return false;
+        continue;
+      }
+      const info: Record<string, unknown> = {};
+      for (let i = 0; i + 1 < entry.length; i += 2) info[String(entry[i])] = entry[i + 1];
+      if (Number(info.pending ?? 0) > 0) return false;
+      if (info.lag !== null && info.lag !== undefined) {
+        if (Number(info.lag) > 0) return false;
+        continue;
+      }
+      // Valkey reports lag as null before the first read or after trimming; compare IDs directly.
+      const latest = (await this.client.call("XREVRANGE", [stream, "+", "-", "COUNT", 1])) as StreamEntry[];
+      if (latest[0] && latest[0][0] !== String(info["last-delivered-id"] ?? "0-0")) return false;
+    }
+    return true;
+  }
+
   async close(): Promise<void> {
     const clients = [this.client, ...this.#readers.values()];
     this.#readers.clear();

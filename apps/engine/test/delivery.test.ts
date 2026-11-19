@@ -3,12 +3,14 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { newEvent, newId } from "@inspiration/contracts";
+import { newEvent, newId, type Principal } from "@inspiration/contracts";
 import { RELAY_LOCK, writeOutbox } from "@inspiration/eventbus";
 import { connect } from "@inspiration/kernel";
+import { Sample } from "@inspiration/knowledge-store/testing";
 import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { Engine, SERVER_VISIBILITY_TIMEOUT_MS } from "../src/index.ts";
+import { resolveTodo } from "../src/todos.ts";
 
 const TENANT = "ten_01JC0000000000000000000001";
 
@@ -131,6 +133,72 @@ test("service mode does not immediately reclaim an in-flight failed delivery", a
   }
 });
 
+test("service mode settle() waits for conflict resolution so the next read sees the winning claim", async () => {
+  const engine = await Engine.open({ blobDir: await tempBlobs(), deliveryMode: "service" });
+  const kb = new Sample({ tenantId: TENANT });
+  const ownerId = newId("member");
+  const owner: Principal = { kind: "member", id: ownerId, tenant_id: TENANT };
+  const [sv1, [span1]] = kb.sourceVersion(["Hotel cap is 600 yuan a night."]);
+  const [sv2, [span2]] = kb.sourceVersion(["Hotel cap is 800 yuan a night."]);
+  const [c1, e1] = kb.claim("Hotel cap is 600 yuan a night.", span1, {
+    predicate: "hotel_cap",
+    slot_key: "hotel_cap",
+    value: { kind: "money", number: 600, unit: "CNY/night", currency: "CNY", normalized: "600 CNY/night" },
+  });
+  const [c2, e2] = kb.claim("Hotel cap is 800 yuan a night.", span2, {
+    predicate: "hotel_cap",
+    slot_key: "hotel_cap",
+    value: { kind: "money", number: 800, unit: "CNY/night", currency: "CNY", normalized: "800 CNY/night" },
+  });
+
+  engine.startDelivery();
+  try {
+    await engine.directory.putTenant(
+      TENANT,
+      { name: "Test", kind: "team", default_locale: "en", version: 1 },
+      "svc_01TEST000000000000000000",
+    );
+    await engine.directory.putMember(TENANT, ownerId, {
+      display_name: "Owner",
+      status: "active",
+      roles: ["member"],
+      version: 1,
+    });
+    await engine.directory.createSpace(TENANT, { name: "Travel", owner_ids: [ownerId] }, { spaceId: kb.spaceId });
+    await engine.store.transaction(async (tx) => {
+      await tx.putSourceVersion(sv1, [span1]);
+      await tx.putSourceVersion(sv2, [span2]);
+      await tx.upsertClaims([c1, c2], [...e1, ...e2]);
+      await tx.publish(
+        newEvent(
+          "claims.updated",
+          { origin: "extracted", added: [c1.id, c2.id], updated: [], superseded: [] },
+          { tenantId: TENANT, producer: "extraction" },
+        ),
+      );
+    });
+    await engine.settle();
+
+    // Immediately after settle(), governance has opened the conflict todo and collaboration has stored it.
+    const conflict = (await engine.inbox.items(TENANT)).find(
+      (i) => i.todo.status === "open" && i.todo.slot_key === "hotel_cap",
+    );
+    const chosen = conflict?.todo.resolutions?.[0]?.key;
+    if (!conflict || !chosen) throw new Error("expected an open conflict todo with resolutions");
+
+    expect((await engine.governance.verdicts(TENANT, ["hotel_cap"]))[0]?.disputed).toBe(true);
+    expect(await engine.governance.conflicts(TENANT, "open")).toHaveLength(1);
+
+    // resolveTodo() calls engine.settle(); the very next read must already reflect the chosen value.
+    const result = await resolveTodo(engine, owner, conflict.todo.id, { with: chosen });
+    expect(result.todo?.status).toBe("done");
+    expect((await engine.governance.verdicts(TENANT, ["hotel_cap"]))[0]?.disputed).toBe(false);
+    expect(await engine.governance.conflicts(TENANT, "open")).toEqual([]);
+  } finally {
+    await engine.close();
+  }
+});
+
 describe.skipIf(!hasStack())("service mode on Postgres and Valkey", () => {
   stackTest(
     "holds RELAY_LOCK, relays and delivers via background workers, and releases on close()",
@@ -172,6 +240,58 @@ describe.skipIf(!hasStack())("service mode on Postgres and Valkey", () => {
           RELAY_LOCK,
         ]);
         expect(rows[0]?.locked).toBe(true);
+        await probe.end();
+      }
+    },
+  );
+
+  stackTest(
+    "a second persistent replica settles through the first replica's RELAY_LOCK without bypassing it",
+    async ({ databaseUrl, streamPrefix, valkey: _valkey }) => {
+      const primary = await Engine.open({
+        blobDir: await tempBlobs(),
+        databaseUrl,
+        valkeyUrl: VALKEY_URL,
+        streamPrefix,
+        deliveryMode: "service",
+      });
+      const secondary = await Engine.open({
+        blobDir: await tempBlobs(),
+        databaseUrl,
+        valkeyUrl: VALKEY_URL,
+        streamPrefix,
+        deliveryMode: "service",
+      });
+      const seen: string[] = [];
+      primary.observe("claims.updated", "shared-observer", async (e) => void seen.push(e.id));
+      secondary.observe("claims.updated", "shared-observer", async (e) => void seen.push(e.id));
+
+      primary.startDelivery();
+      const probe = await connect(databaseUrl);
+      try {
+        // Confirm primary owns RELAY_LOCK before starting secondary.
+        await expect
+          .poll(
+            async () => {
+              const { rows } = await probe.query<{ locked: boolean }>("SELECT pg_try_advisory_lock($1) AS locked", [
+                RELAY_LOCK,
+              ]);
+              if (rows[0]?.locked) await probe.query("SELECT pg_advisory_unlock($1)", [RELAY_LOCK]);
+              return rows[0]?.locked;
+            },
+            { timeout: 5_000, interval: 50 },
+          )
+          .toBe(false);
+
+        secondary.startDelivery();
+        const event = claimsEvent();
+        await writeOutbox(probe, [event]);
+        // Secondary's settle() waits for primary's relay and consumer groups to finish without bypassing RELAY_LOCK.
+        await secondary.settle();
+        expect(seen).toEqual([event.id]);
+      } finally {
+        await secondary.close();
+        await primary.close();
         await probe.end();
       }
     },

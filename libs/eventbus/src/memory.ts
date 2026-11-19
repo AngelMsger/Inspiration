@@ -153,6 +153,19 @@ export class InMemoryTransport implements Transport {
     return n;
   }
 
+  async isIdle(group: string, eventTypes: readonly string[]): Promise<boolean> {
+    for (const t of eventTypes) {
+      const stream = this.streams.get(t);
+      const g = this.#groups.get(`${t}\0${group}`);
+      if (!g) {
+        if (stream && stream.length > 0) return false;
+        continue;
+      }
+      if (g.nextIndex < (stream?.length ?? 0) || g.pending.size > 0) return false;
+    }
+    return true;
+  }
+
   async close(): Promise<void> {
     this.#closed = true;
     this.#wake();

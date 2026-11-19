@@ -1,6 +1,8 @@
+import { EventEmitter } from "node:events";
 import { type EventEnvelope, newEvent, newId, payloadOf } from "@inspiration/contracts";
+import type pg from "pg";
 import { expect, test } from "vitest";
-import { Consumer, InMemoryBus, InMemoryTransport } from "../src/index.ts";
+import { Consumer, InMemoryBus, InMemoryTransport, OutboxRelay } from "../src/index.ts";
 
 const TENANT = "ten_01JC0000000000000000000001";
 
@@ -99,6 +101,50 @@ test("Consumer.run() blocks when idle, wakes on send, and exits promptly on stop
     await consumer.stop();
     await running;
     expect(performance.now() - stopping).toBeLessThan(1_000);
+    await transport.close();
+  }
+});
+
+test("OutboxRelay.run() retries after a transient startup connection failure", async () => {
+  const transport = new InMemoryTransport();
+  const pending: { seq: number; envelope: EventEnvelope }[] = [{ seq: 1, envelope: claimsEvent() }];
+  let connectAttempts = 0;
+
+  const fakeClient = (): pg.Client => {
+    const emitter = new EventEmitter();
+    return Object.assign(emitter, {
+      async query(sql: string) {
+        if (sql.includes("pg_try_advisory_lock")) return { rows: [{ locked: true }], rowCount: 1 };
+        if (sql.includes("SELECT seq, envelope")) return { rows: [...pending], rowCount: pending.length };
+        if (sql.includes("UPDATE bus.outbox")) {
+          pending.length = 0;
+          return { rows: [], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 0 };
+      },
+      async end() {},
+    }) as unknown as pg.Client;
+  };
+
+  const relay = new OutboxRelay("postgres://unused", transport, {
+    retryDelayMs: 20,
+    pollIntervalMs: 5_000,
+    connect: async () => {
+      connectAttempts++;
+      if (connectAttempts === 1) throw new Error("ECONNREFUSED");
+      return fakeClient();
+    },
+  });
+
+  const running = relay.run();
+  try {
+    await expect
+      .poll(() => transport.streams.get("claims.updated")?.length ?? 0, { timeout: 2_000, interval: 10 })
+      .toBe(1);
+    expect(connectAttempts).toBeGreaterThanOrEqual(3);
+  } finally {
+    await relay.stop();
+    await running;
     await transport.close();
   }
 });

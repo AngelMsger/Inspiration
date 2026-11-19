@@ -39,6 +39,8 @@ export interface Transport {
   ack(group: string, delivery: Delivery): Promise<void>;
   /** Move a delivery to the group's dead-letter stream and ack it. */
   deadLetter(group: string, delivery: Delivery, error: string): Promise<void>;
+  /** True when the group has no unread or unacked deliveries across these event types. */
+  isIdle(group: string, eventTypes: readonly string[]): Promise<boolean>;
   close(): Promise<void>;
 }
 

@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { AuthzService, Directory, type Graph, MemoryGraph } from "@inspiration/access-control";
 import { Assistant, Inbox } from "@inspiration/collaboration";
 import type {
@@ -399,7 +400,7 @@ export class Engine {
    * Run the outbox relay (when backed by Postgres) and all subscribed consumer groups
    * continuously in the background until close(). Requires deliveryMode: "service" so
    * multiple replicas share the bus with a non-zero visibility timeout and Postgres RELAY_LOCK.
-   * Call after any observe() subscriptions and initial seeding.
+   * Call after any observe() subscriptions.
    */
   startDelivery(): void {
     if (this.deliveryMode !== "service") {
@@ -424,12 +425,40 @@ export class Engine {
   /**
    * Relay the outbox and deliver to every consumer group until a full round moves nothing,
    * after any delivery already running. Returns the number of deliveries. When continuous
-   * background delivery is active (startDelivery), returns 0 without bypassing RELAY_LOCK
-   * or competing with the running consumer loops.
+   * background delivery is active (startDelivery), waits until the outbox and all consumer
+   * groups are idle (without bypassing RELAY_LOCK or competing with the running consumer
+   * loops) and returns 0.
    */
   settle(maxRounds = 10_000): Promise<number> {
-    if (this.#workers) return Promise.resolve(0);
-    return this.#serially(() => (this.#workers ? Promise.resolve(0) : this.#deliver(maxRounds)));
+    if (this.#workers) return this.#waitUntilIdle(maxRounds);
+    return this.#serially(() => (this.#workers ? this.#waitUntilIdle(maxRounds) : this.#deliver(maxRounds)));
+  }
+
+  async #outboxState(): Promise<{ pending: boolean; maxSeq: string }> {
+    if (!this.#pool || !this.#relay) return { pending: false, maxSeq: "0" };
+    const { rows } = await this.#pool.query<{ pending: boolean; max_seq: string }>(
+      "SELECT COALESCE(BOOL_OR(relayed_at IS NULL), false) AS pending, COALESCE(MAX(seq), 0)::text AS max_seq FROM bus.outbox",
+    );
+    return { pending: rows[0]?.pending ?? false, maxSeq: rows[0]?.max_seq ?? "0" };
+  }
+
+  async #waitUntilIdle(maxChecks: number): Promise<number> {
+    for (let check = 0; check < maxChecks && !this.#closing && this.#workers; check++) {
+      const before = await this.#outboxState();
+      if (!before.pending && (await this.consumer.isIdle())) {
+        // Re-check outbox sequence (and transport when in-memory) so a handler that
+        // published downstream work right before acking cannot slip past the barrier.
+        const after = await this.#outboxState();
+        if (!after.pending && after.maxSeq === before.maxSeq && (this.#relay || (await this.consumer.isIdle()))) {
+          return 0;
+        }
+      }
+      await sleep(20);
+    }
+    if (!this.#closing && this.#workers) {
+      log.warn("settle timed out waiting for background delivery to become idle", { maxChecks });
+    }
+    return 0;
   }
 
   /** Settle in the background, as an upload asks: its answer does not wait for the reading. */

@@ -170,6 +170,7 @@ async function main(argv: string[]): Promise<number> {
       organizing = false;
     }
   }, 60_000);
+  if (persistent) engine.startDelivery();
   if (corpus) {
     const started = performance.now();
     await seed(engine, corpus);
@@ -177,7 +178,6 @@ async function main(argv: string[]): Promise<number> {
   } else {
     log.info("no corpus: tenants, members and spaces come from provisioning");
   }
-  if (persistent) engine.startDelivery();
   await engine.sync.recover();
   engine.resumeReading().catch((error: unknown) => log.warn("resuming reading after startup failed", { error }));
   const server = await serveApi(engine, Number(values.port), identity);
