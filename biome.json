@@ -54,21 +54,6 @@
   },
   "overrides": [
     {
-      "includes": ["engine/page-compiler/src/topics.ts"],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "noExcessiveCognitiveComplexity": {
-              "level": "error",
-              "options": {
-                "maxAllowedComplexity": 145
-              }
-            }
-          }
-        }
-      }
-    },
-    {
       "includes": ["apps/bench/src/cli.ts"],
       "linter": {
         "rules": {
