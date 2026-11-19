@@ -67,7 +67,11 @@ export class PgVectorIndex implements VectorIndex {
   constructor(pool: Pool, options: { model?: string; efSearch?: number } = {}) {
     this.pool = pool;
     this.model = options.model;
-    this.efSearch = Math.trunc(options.efSearch ?? 100);
+    const efSearch = options.efSearch ?? 100;
+    if (!Number.isFinite(efSearch) || Math.trunc(efSearch) < 1) {
+      throw new RangeError(`efSearch must be a positive finite number, got ${options.efSearch}`);
+    }
+    this.efSearch = Math.trunc(efSearch);
   }
 
   async upsert(items: Readonly<Record<string, readonly number[]>>, options: { model: string }): Promise<void> {
