@@ -211,7 +211,6 @@ async function main(argv: string[]): Promise<number> {
     resolvePrincipal: corpus.resolvePrincipal,
     vocabulary: () => corpus.vocabulary,
     clock: clock.now,
-    ...(values.context && { contextTokens: Number(values.context) }),
     ...(compact && { compactSources: { passages: Number(compact[1]), statements: Number(compact[2]) } }),
   };
   const databaseUrl = values.database ?? settings?.databaseUrl;
@@ -300,12 +299,13 @@ async function main(argv: string[]): Promise<number> {
         return 1;
       }
     }
+    const rivalOptions = values.context ? { contextTokens: Number(values.context) } : {};
     if (questions && values["search-only"]) {
-      const searched = await searchReport(engine, corpus, questions);
+      const searched = await searchReport(engine, corpus, questions, rivalOptions);
       console.log(`\n${searchLines(searched).join("\n")}`);
       out.search = searched;
     } else if (questions) {
-      const asked = await questionsReport(engine, corpus, questions);
+      const asked = await questionsReport(engine, corpus, questions, rivalOptions);
       console.log(`\n${questionLines(asked).join("\n")}`);
       out.questions = asked;
     }

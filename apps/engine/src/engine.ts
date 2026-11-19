@@ -7,10 +7,12 @@ import type {
   EventEnvelope,
   EventHandler,
   EventPublisher,
+  KeywordIndex,
   KnowledgeStore,
   ModelGateway,
   Principal,
   ReviewDue,
+  VectorIndex,
 } from "@inspiration/contracts";
 import {
   Consumer,
@@ -71,8 +73,6 @@ export interface EngineOptions {
   clock?: () => Date;
   /** The permission graph; in memory unless given (a SpiceDBGraph in a deployment). */
   graph?: Graph;
-  /** The most a long-context answer reads, raw or governed, in tokens; LONG_CONTEXT_TOKENS unless given. */
-  contextTokens?: number;
   /** How many passages and statements a compact answer reads (Engine.compact); COMPACT_SOURCES unless given. */
   compactSources?: AnswerSources;
 }
@@ -116,14 +116,9 @@ export class Engine {
   readonly vocabulary: NonNullable<ExtractionOptions["vocabulary"]>;
   /** Search, and the standard answer: as many passages as statements. */
   readonly retrieval: Retrieval;
-  /**
-   * The rivals answers are measured against, over the same documents and model: a mature
-   * retrieval over the same chunks and search, without statements or governance, and a model
-   * that reads every document (corpora that fit).
-   */
-  readonly baselines: { mature: Retrieval; long_context: Retrieval };
-  /** The knowledge base answering from everything the asker may read, after governance (corpora that fit). */
-  readonly governedLongContext: Retrieval;
+  /** The vector and keyword search indexes shared across retrieval paths. */
+  readonly vectors: VectorIndex;
+  readonly keywords: KeywordIndex;
   /**
    * The knowledge base answering from fewer sources: mostly statements, the conclusions
    * governance kept, and a few passages, a short input that a smaller model answers fast. The
@@ -158,7 +153,6 @@ export class Engine {
     vocabulary?: ExtractionOptions["vocabulary"];
     clock?: () => Date;
     graph?: Graph;
-    contextTokens?: number;
     compactSources?: AnswerSources;
   }) {
     this.store = parts.store;
@@ -211,29 +205,23 @@ export class Engine {
     this.authz = new AuthzService(graph, this.store);
     this.directory = new Directory(this.records, graph);
     const memory = this.store instanceof MemoryStore ? this.store : undefined;
-    const indexes = {
+    this.vectors = memory ? new MemoryVectorIndex(memory) : new PgVectorIndex(parts.pool as Pool);
+    this.keywords = memory ? new MemoryKeywordIndex(memory) : new PgSearchIndex(parts.pool as Pool);
+    const answering = {
       store: this.store,
       records: this.records,
       models: this.models,
       authz: this.authz,
-      vectors: memory ? new MemoryVectorIndex(memory) : new PgVectorIndex(parts.pool as Pool),
-      keywords: memory ? new MemoryKeywordIndex(memory) : new PgSearchIndex(parts.pool as Pool),
+      vectors: this.vectors,
+      keywords: this.keywords,
+      verdicts: this.governance,
+      staleness: this.freshness,
       ...clock,
-    };
-    const governed = { ...indexes, verdicts: this.governance, staleness: this.freshness };
-    const context = parts.contextTokens && { contextTokens: parts.contextTokens };
-    const answering = {
-      ...governed,
       ...(parts.readOnUse && {
         readOnUse: (citations: readonly Citation[], who: Principal) => readForAnswer(this, citations, who),
       }),
     };
     this.retrieval = new Retrieval(answering);
-    this.baselines = {
-      mature: new Retrieval({ ...indexes, baseline: "mature" }),
-      long_context: new Retrieval({ ...indexes, baseline: "long_context", ...context }),
-    };
-    this.governedLongContext = new Retrieval({ ...governed, readAll: true, ...context });
     this.compact = new Retrieval({ ...answering, answerSources: parts.compactSources ?? COMPACT_SOURCES });
     const components: Running[] = [
       { group: "source-sync", handlers: () => this.sync.handlers() },
@@ -279,7 +267,6 @@ export class Engine {
       ...(options.vocabulary && { vocabulary: options.vocabulary }),
       ...(options.clock && { clock: options.clock }),
       ...(options.graph && { graph: options.graph }),
-      ...(options.contextTokens && { contextTokens: options.contextTokens }),
       ...(options.compactSources && { compactSources: options.compactSources }),
     };
 
