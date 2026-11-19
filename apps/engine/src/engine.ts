@@ -25,7 +25,16 @@ import {
 import { Extraction, type ExtractionOptions } from "@inspiration/extraction";
 import { Freshness } from "@inspiration/freshness";
 import { Governance, type GovernanceResult } from "@inspiration/governance";
-import { applyMigrations, LocalBlobStore, logger, openPool, type Pool, workspaceRoot } from "@inspiration/kernel";
+import {
+  applyMigrations,
+  LocalBlobStore,
+  logger,
+  type MigrationSet,
+  openPool,
+  type Pool,
+  registry,
+  workspaceRoot,
+} from "@inspiration/kernel";
 import {
   MemoryKeywordIndex,
   MemoryStore,
@@ -79,6 +88,29 @@ export interface EngineOptions {
 
 /** How often a long-running engine reads on where reading stopped (Engine.resumeReading). */
 export const RESUME_EVERY_MS = 15 * 60_000;
+
+/** Migration plugins owned by the engine and its libraries, excluding business-layer schemas. */
+const ENGINE_MIGRATIONS = [
+  "bus",
+  "kb",
+  "gateway",
+  "authz",
+  "sync",
+  "normalization",
+  "extraction",
+  "freshness",
+  "governance",
+  "page-compiler",
+  "collaboration",
+  "retrieval",
+  "agents",
+] as const;
+
+/** The migration sets the engine applies to its own database. */
+export async function engineMigrations(): Promise<MigrationSet[]> {
+  const migrations = registry("migrations");
+  return Promise.all(ENGINE_MIGRATIONS.map((name) => migrations.get<MigrationSet>(name)));
+}
 
 /** A component as the engine runs it: event handlers by type, under the component's consumer group. */
 interface Running {
@@ -285,7 +317,7 @@ export class Engine {
 
     let engine: Engine;
     if (options.databaseUrl) {
-      await applyMigrations(options.databaseUrl);
+      await applyMigrations(options.databaseUrl, await engineMigrations());
       const pool = await openPool(options.databaseUrl);
       closers.push(() => pool.end());
       engine = new Engine({

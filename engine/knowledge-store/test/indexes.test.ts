@@ -239,3 +239,13 @@ unitTest("index plugins are registered", () => {
   expect(registry("vector_indexes").names()).toEqual(expect.arrayContaining(["pgvector", "memory"]));
   expect(registry("keyword_indexes").names()).toEqual(expect.arrayContaining(["pg_search", "memory"]));
 });
+
+unitTest("PgVectorIndex validates efSearch before SQL interpolation", () => {
+  const pool = {} as Awaited<ReturnType<typeof openPool>>;
+  expect(new PgVectorIndex(pool).efSearch).toBe(100);
+  expect(new PgVectorIndex(pool, { efSearch: 42.9 }).efSearch).toBe(42);
+  expect(new PgVectorIndex(pool, { efSearch: 1000 }).efSearch).toBe(1000);
+  for (const efSearch of [0, -1, 1001, 0.5, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+    expect(() => new PgVectorIndex(pool, { efSearch })).toThrow(RangeError);
+  }
+});
