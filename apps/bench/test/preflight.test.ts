@@ -57,6 +57,14 @@ describe("what a paid run checks before it pays", () => {
   });
 });
 
+test("the CLI rejects a context cap that is not a positive number", async () => {
+  for (const context of ["128k", "0", "-5", ""]) {
+    const { code, stderr } = await bench("ingest", "no-such-corpus", `--context=${context}`);
+    expect(code).toBe(2);
+    expect(stderr).toContain("--context");
+  }
+});
+
 /** Runs the bench CLI in a process of its own, as a person would. */
 function bench(...args: string[]): Promise<{ code: number; stderr: string }> {
   const cli = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
