@@ -488,7 +488,11 @@ describe.skipIf(!hasStack())("service mode on Postgres and Valkey", () => {
         await writeOutbox(db, [create]);
         await held;
         await writeOutbox(db, [withdraw]);
-        await expect.poll(() => valkey.xlen(`${streamPrefix}:ev:todo.requested`)).toBe(2);
+        // A notification during a relay drain can arrive before it starts listening again.
+        // Allow for its one-second fallback poll before exercising the competing consumer.
+        await expect
+          .poll(() => valkey.xlen(`${streamPrefix}:ev:todo.requested`), { timeout: 5_000, interval: 50 })
+          .toBe(2);
         // Run the peer's real consumer round while the first handler is still inside the gate.
         expect(await peer.consumer.runOnce("collaboration")).toBe(0);
         peer.startDelivery();
