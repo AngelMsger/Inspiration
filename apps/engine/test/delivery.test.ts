@@ -1,6 +1,5 @@
-// Batch vs multi-replica service event delivery modes on Engine.
-
 import { mkdtemp, rm } from "node:fs/promises";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { newEvent, newId, type Principal } from "@inspiration/contracts";
@@ -9,7 +8,7 @@ import { connect } from "@inspiration/kernel";
 import { Sample } from "@inspiration/knowledge-store/testing";
 import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { Engine, SERVER_VISIBILITY_TIMEOUT_MS } from "../src/index.ts";
+import { Engine, SERVER_VISIBILITY_TIMEOUT_MS, serveApi } from "../src/index.ts";
 import { resolveTodo } from "../src/todos.ts";
 
 const TENANT = "ten_01JC0000000000000000000001";
@@ -220,6 +219,158 @@ test("service mode settle() rejects when background delivery stays pending beyon
     await expect(engine.settle()).resolves.toBe(0);
   } finally {
     release();
+    await engine.close();
+  }
+});
+
+test("HTTP conflict resolution returns 200 when another tenant stays busy, and 202 when its own governance effect is still pending", async () => {
+  const engine = await Engine.open({ blobDir: await tempBlobs(), deliveryMode: "service" });
+  const tenantA = TENANT;
+  const tenantB = "ten_01JC0000000000000000000002";
+  const ownerId = newId("member");
+  const kb = new Sample({ tenantId: tenantA });
+  const [sv1, [span1]] = kb.sourceVersion(["Hotel cap is 600 yuan a night."]);
+  const [sv2, [span2]] = kb.sourceVersion(["Hotel cap is 800 yuan a night."]);
+  const [c1, e1] = kb.claim("Hotel cap is 600 yuan a night.", span1, {
+    predicate: "hotel_cap",
+    slot_key: "hotel_cap",
+    value: { kind: "money", number: 600, unit: "CNY/night", currency: "CNY", normalized: "600 CNY/night" },
+  });
+  const [c2, e2] = kb.claim("Hotel cap is 800 yuan a night.", span2, {
+    predicate: "hotel_cap",
+    slot_key: "hotel_cap",
+    value: { kind: "money", number: 800, unit: "CNY/night", currency: "CNY", normalized: "800 CNY/night" },
+  });
+  const [sv3, [span3]] = kb.sourceVersion(["Meal cap is 100 yuan a day."]);
+  const [sv4, [span4]] = kb.sourceVersion(["Meal cap is 150 yuan a day."]);
+  const [c3, e3] = kb.claim("Meal cap is 100 yuan a day.", span3, {
+    predicate: "meal_cap",
+    slot_key: "meal_cap",
+    value: { kind: "money", number: 100, unit: "CNY/day", currency: "CNY", normalized: "100 CNY/day" },
+  });
+  const [c4, e4] = kb.claim("Meal cap is 150 yuan a day.", span4, {
+    predicate: "meal_cap",
+    slot_key: "meal_cap",
+    value: { kind: "money", number: 150, unit: "CNY/day", currency: "CNY", normalized: "150 CNY/day" },
+  });
+
+  let releaseTenantB!: () => void;
+  const tenantBGate = new Promise<void>((resolve) => {
+    releaseTenantB = resolve;
+  });
+  let tenantBHeld = false;
+  engine.observe("claims.updated", "tenant-b-hold", async (event) => {
+    if (event.tenant_id === tenantB) {
+      tenantBHeld = true;
+      await tenantBGate;
+    }
+  });
+
+  engine.startDelivery();
+  const server = await serveApi(engine, 0, { devHeaders: true });
+  const { port } = server.address() as AddressInfo;
+  try {
+    await engine.directory.putTenant(
+      tenantA,
+      { name: "Tenant A", kind: "team", default_locale: "en", version: 1 },
+      "svc_01TEST000000000000000000",
+    );
+    await engine.directory.putMember(tenantA, ownerId, {
+      display_name: "Owner",
+      status: "active",
+      roles: ["member"],
+      version: 1,
+    });
+    await engine.directory.createSpace(tenantA, { name: "Travel", owner_ids: [ownerId] }, { spaceId: kb.spaceId });
+    await engine.store.transaction(async (tx) => {
+      await tx.putSourceVersion(sv1, [span1]);
+      await tx.putSourceVersion(sv2, [span2]);
+      await tx.putSourceVersion(sv3, [span3]);
+      await tx.putSourceVersion(sv4, [span4]);
+      await tx.upsertClaims([c1, c2, c3, c4], [...e1, ...e2, ...e3, ...e4]);
+      await tx.publish(
+        newEvent(
+          "claims.updated",
+          { origin: "extracted", added: [c1.id, c2.id, c3.id, c4.id], updated: [], superseded: [] },
+          { tenantId: tenantA, producer: "extraction" },
+        ),
+      );
+    });
+    await engine.settle();
+
+    const items = await engine.inbox.items(tenantA);
+    const hotelTodo = items.find((i) => i.todo.status === "open" && i.todo.slot_key === "hotel_cap")?.todo;
+    const mealTodo = items.find((i) => i.todo.status === "open" && i.todo.slot_key === "meal_cap")?.todo;
+    const hotelChoice = hotelTodo?.resolutions?.[0]?.key;
+    const mealChoice = mealTodo?.resolutions?.[0]?.key;
+    if (!hotelTodo || !mealTodo || !hotelChoice || !mealChoice) {
+      throw new Error("expected open conflict todos for hotel_cap and meal_cap");
+    }
+
+    // Hold a claims.updated handler open for tenant B and shorten the settle polling budget to 10 checks.
+    await engine.transport.send([
+      newEvent(
+        "claims.updated",
+        { origin: "extracted", added: [newId("claim")], updated: [], superseded: [] },
+        { tenantId: tenantB, producer: "extraction" },
+      ),
+    ]);
+    await expect.poll(() => tenantBHeld, { timeout: 2_000, interval: 10 }).toBe(true);
+
+    const realSettle = engine.settle.bind(engine);
+    const settleSpy = vi.spyOn(engine, "settle").mockImplementation((rounds?: number) => realSettle(rounds ?? 10));
+
+    // Case 1: Tenant A's conflict resolution applies on governance while tenant B stays held.
+    // The endpoint must return 200 (not 500) once A's verdict is updated.
+    const resApplied = await fetch(`http://127.0.0.1:${port}/v0/todos/${hotelTodo.id}/resolve`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-inspiration-tenant": tenantA,
+        "x-inspiration-member": ownerId,
+      },
+      body: JSON.stringify({ with: hotelChoice }),
+    });
+    expect(resApplied.status).toBe(200);
+    const bodyApplied = (await resApplied.json()) as { status: string; pending?: boolean };
+    expect(bodyApplied.status).toBe("done");
+    expect(bodyApplied.pending).toBeUndefined();
+    expect((await engine.governance.verdicts(tenantA, ["hotel_cap"]))[0]?.disputed).toBe(false);
+
+    // Case 2: Hold governance.resolved open so tenant A's own effect is genuinely still pending
+    // when the shortened budget expires. The endpoint returns 202 with an explicit pending flag.
+    let releaseGovernance!: () => void;
+    const govGate = new Promise<void>((resolve) => {
+      releaseGovernance = resolve;
+    });
+    const realResolved = engine.governance.resolved.bind(engine.governance);
+    vi.spyOn(engine.governance, "resolved").mockImplementation(async (event) => {
+      await govGate;
+      return realResolved(event);
+    });
+
+    const resPending = await fetch(`http://127.0.0.1:${port}/v0/todos/${mealTodo.id}/resolve`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-inspiration-tenant": tenantA,
+        "x-inspiration-member": ownerId,
+      },
+      body: JSON.stringify({ with: mealChoice }),
+    });
+    expect(resPending.status).toBe(202);
+    const bodyPending = (await resPending.json()) as { status: string; pending?: boolean };
+    expect(bodyPending.status).toBe("done");
+    expect(bodyPending.pending).toBe(true);
+
+    releaseGovernance();
+    releaseTenantB();
+    settleSpy.mockRestore();
+    await realSettle();
+    expect((await engine.governance.verdicts(tenantA, ["meal_cap"]))[0]?.disputed).toBe(false);
+  } finally {
+    releaseTenantB();
+    server.close();
     await engine.close();
   }
 });

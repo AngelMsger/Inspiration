@@ -2,6 +2,7 @@
 // what the assistant would choose and why it left one, and resolving one. Collaboration keeps
 // the todos and retrieval says what each choice states, as the member may read it.
 
+import { setTimeout as sleep } from "node:timers/promises";
 import { cardKind } from "@inspiration/collaboration";
 import type {
   Inbox,
@@ -88,18 +89,92 @@ export async function inboxOf(engine: Engine, who: Principal): Promise<Inbox> {
   };
 }
 
+export interface WaitOptions {
+  maxRounds?: number;
+}
+
+/** True once a resolved or reopened todo's governance effect is visible in the store. */
+async function todoEffectVisible(engine: Engine, todo: Todo): Promise<boolean> {
+  if (todo.created_by !== "governance" || todo.kind !== "conflict" || !todo.slot_key) return true;
+  const [verdict] = await engine.governance.verdicts(todo.tenant_id, [todo.slot_key]);
+  if (!verdict) return true;
+  if (todo.status === "open") {
+    return verdict.chosen_at === undefined;
+  }
+  const effect = todo.resolutions?.find((r) => r.key === todo.resolved_with)?.effect as
+    | { slot_key?: string; value?: string }
+    | undefined;
+  if (todo.status === "done" && effect?.slot_key === todo.slot_key && typeof effect.value === "string") {
+    // Either the chosen value now holds, or governance superseded the question and asked a new one.
+    return verdict.chosen_at === todo.resolved_at || !verdict.disputed;
+  }
+  return true;
+}
+
+/**
+ * Wait for background delivery (or run batch delivery) until every todo's effect is visible.
+ * If unrelated tenant work keeps engine.settle() busy past its budget, checks whether these
+ * todos' own governance effects have already landed; returns true only when some effect is
+ * still pending.
+ */
+export async function waitForTodos(
+  engine: Engine,
+  todos: readonly Todo[],
+  options: WaitOptions = {},
+): Promise<boolean> {
+  const needsGovernance = todos.filter(
+    (t) => t.created_by === "governance" && t.kind === "conflict" && Boolean(t.slot_key),
+  );
+  const allVisible = async () =>
+    (await Promise.all(needsGovernance.map((t) => todoEffectVisible(engine, t)))).every(Boolean);
+
+  if (engine.isServiceRunning && needsGovernance.length) {
+    // Poll the target todos' own governance state while letting engine.settle() also run
+    // (capped at 250 checks = 5s unless overridden) so unrelated tenant work never blocks
+    // for 200s or turns an already-applied decision into an HTTP 500.
+    const settleRun = engine.settle(options.maxRounds).then(
+      () => "settled" as const,
+      () => "timeout" as const,
+    );
+    let done = false;
+    const pollEffect = (async (): Promise<"visible" | "stopped"> => {
+      const checks = options.maxRounds ?? 250;
+      for (let i = 0; i < checks && !done && engine.isServiceRunning; i++) {
+        if (await allVisible()) return "visible";
+        await sleep(20);
+      }
+      return (await allVisible()) ? "visible" : "stopped";
+    })();
+    const first = await Promise.race([settleRun, pollEffect]);
+    done = true;
+    if (first === "visible") return false;
+    return !(await allVisible());
+  }
+
+  try {
+    await engine.settle(options.maxRounds);
+    return needsGovernance.length ? !(await allVisible()) : false;
+  } catch (error) {
+    if (needsGovernance.length) {
+      return !(await allVisible());
+    }
+    throw error;
+  }
+}
+
 /**
  * Resolve a todo assigned to the member, then let every component read what that caused, so
  * the next read sees it: a conflict's choice changes the value that holds and the answers.
- * Returns undefined when the member has no such todo, and a reason when the request is not one
- * the todo can take.
+ * Returns undefined when the member has no such todo, a reason when the request is not one
+ * the todo can take, and pending: true when background delivery has not yet applied the choice.
  */
 export async function resolveTodo(
   engine: Engine,
   who: Principal,
   todoId: string,
   how: ResolveTodo,
-): Promise<{ todo?: Todo; refused?: string }> {
+  options: WaitOptions = {},
+): Promise<{ todo?: Todo; refused?: string; pending?: boolean }> {
   const todo = await engine.inbox.todo(who.tenant_id, todoId);
   if (!todo || todo.assignee_id !== who.id) return {};
   const offered = todo.resolutions ?? [];
@@ -114,6 +189,6 @@ export async function resolveTodo(
     ...(how.with !== undefined && { with: how.with }),
     ...(how.status && { status: how.status }),
   });
-  await engine.settle();
-  return { todo: closed };
+  const pending = await waitForTodos(engine, [closed], options);
+  return { todo: closed, ...(pending && { pending: true }) };
 }

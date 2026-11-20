@@ -422,6 +422,11 @@ export class Engine {
     this.#workers = workers;
   }
 
+  /** True while background service-mode workers are running. */
+  get isServiceRunning(): boolean {
+    return this.#workers !== undefined && !this.#closing;
+  }
+
   /**
    * Relay the outbox and deliver to every consumer group until a full round moves nothing,
    * after any delivery already running. Returns the number of deliveries. When continuous
