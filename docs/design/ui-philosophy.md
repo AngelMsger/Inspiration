@@ -163,12 +163,13 @@ One rule everywhere: the right panel always has a title that names what it is ab
 
 | In the centre | The panel's title | What it holds |
 | --- | --- | --- |
-| An original document | The selected passage | Comments, proposing a revision, the knowledge that uses it (V2-doc) |
+| A document | Reading context | Outline, passages to compare and supporting sources |
+| A passage selected for discussion | The selected passage | Its comments and proposed corrections |
 | A knowledge page | This page | The page's outline, what is in progress on this page, related pages, sources (V2-page) |
 | A decision in the inbox | About this conflict | Both sides' passages, the votes, what happens once it is decided (V2-decision) |
 | A list in a managed space | Inspector · the selected area | Its owner, this week's work, who reads it, a link to read it (V2-space) |
 | A list in Admin | Inspector · the selected connection | Authorisation, where it is used, what happens when it expires (V2-sources) |
-| Nothing selected | No panel | The centre takes the width |
+| A list with no selection | No panel | The centre takes the width |
 
 A revision to an original document never changes it in place: the document lives in its source, so a revision goes to its author as a suggestion and comes back with the next sync.
 
@@ -205,7 +206,7 @@ The same test applies to every new element: who uses it, how often, and does its
 
 The same structure serves two very different uses, and only the density changes:
 
-- **Reading** is calm. A page or document fills the centre, the left column folds away, and only the Outdated and Disputed marks show in the text. Most members only ever read.
+- **Reading** is calm. A page or document fills the centre. On wide screens the reader can keep the tree open or collapse it. The annotated view marks only outdated and disputed passages. Most members only ever read.
 - **Working** is dense. Owners and the super admin clear queues, so compact mode shows tables, keyboard shortcuts and an inspector on the right. A queue is still introduced by its overview (section 7).
 
 ### In reserve: key phrases in bold
