@@ -154,7 +154,10 @@ describe.each<{ backend: Backend; skip: boolean }>([
         throw new Error("abort");
       }),
     ).rejects.toThrow("abort");
+    expect(await records.processedAll("source-sync", [id, other])).toBe(false);
     expect(await records.transaction((tx) => tx.firstDelivery("source-sync", other))).toBe(true);
+    expect(await records.processedAll("source-sync", [id, other])).toBe(true);
+    expect(await records.processedAll("freshness", [id, other])).toBe(false);
   });
 
   it.skipIf(skip)("a transaction object cannot be used after it ends", async ({ records }) => {

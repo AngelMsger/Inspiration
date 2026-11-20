@@ -178,6 +178,7 @@ export interface SlotDecision {
  * and the question it answered (the hash of what governance proposed and the open cases).
  */
 export interface Choice {
+  event_id?: string;
   value: string;
   by: string;
   at: string;

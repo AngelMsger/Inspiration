@@ -93,22 +93,18 @@ export interface WaitOptions {
   maxRounds?: number;
 }
 
-/** True once a resolved or reopened todo's governance effect is visible in the store. */
-async function todoEffectVisible(engine: Engine, todo: Todo): Promise<boolean> {
-  if (todo.created_by !== "governance" || todo.kind !== "conflict" || !todo.slot_key) return true;
+/** Older closed todos have no saved event ID. Check their stored verdict on a repeated request. */
+async function legacyResolutionVisible(engine: Engine, todo: Todo): Promise<boolean> {
+  const effect = todo.resolutions?.find((r) => r.key === todo.resolved_with)?.effect;
+  if (
+    todo.status !== "done" ||
+    !todo.slot_key ||
+    effect?.slot_key !== todo.slot_key ||
+    typeof effect.value !== "string"
+  )
+    return true;
   const [verdict] = await engine.governance.verdicts(todo.tenant_id, [todo.slot_key]);
-  if (!verdict) return true;
-  if (todo.status === "open") {
-    return verdict.chosen_at === undefined;
-  }
-  const effect = todo.resolutions?.find((r) => r.key === todo.resolved_with)?.effect as
-    | { slot_key?: string; value?: string }
-    | undefined;
-  if (todo.status === "done" && effect?.slot_key === todo.slot_key && typeof effect.value === "string") {
-    // Either the chosen value now holds, or governance superseded the question and asked a new one.
-    return verdict.chosen_at === todo.resolved_at || !verdict.disputed;
-  }
-  return true;
+  return !verdict?.disputed || verdict.chosen_at === todo.resolved_at;
 }
 
 /** Return whether these todos still have a pending governance effect after the wait budget. */
@@ -117,16 +113,19 @@ export async function waitForTodos(
   todos: readonly Todo[],
   options: WaitOptions = {},
 ): Promise<boolean> {
-  const allVisible = async () => (await Promise.all(todos.map((t) => todoEffectVisible(engine, t)))).every(Boolean);
-  if (!engine.isServiceRunning) {
-    // Batch callers drive delivery themselves, including downstream work for ordinary notes.
-    try {
-      await engine.settle(options.maxRounds);
-    } catch (error) {
-      if (!todos.some((t) => t.created_by === "governance" && t.kind === "conflict" && t.slot_key)) throw error;
-    }
-    return !(await allVisible());
-  }
+  if (!engine.isServiceRunning) await engine.settle(options.maxRounds);
+  const conflicts = todos.filter((t) => t.created_by === "governance" && t.kind === "conflict" && t.slot_key);
+  const [first] = conflicts;
+  if (!first) return false;
+  const events = await engine.inbox.decisionEvents(
+    first.tenant_id,
+    conflicts.map((t) => t.id),
+  );
+  const ids = [...events.values()];
+  const legacy = conflicts.filter((t) => !events.has(t.id));
+  const allVisible = async () =>
+    (await engine.records.processedAll("governance", ids)) &&
+    (await Promise.all(legacy.map((t) => legacyResolutionVisible(engine, t)))).every(Boolean);
   for (let round = 0; round < (options.maxRounds ?? 250) && engine.isServiceRunning; round++) {
     if (await allVisible()) return false;
     await sleep(20);

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { newEvent, newId, type Principal, type TodoRequested } from "@inspiration/contracts";
 import { RELAY_LOCK, writeOutbox } from "@inspiration/eventbus";
-import { connect } from "@inspiration/kernel";
+import { connect, type Queryable } from "@inspiration/kernel";
 import { Sample } from "@inspiration/knowledge-store/testing";
 import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -132,24 +132,26 @@ test("service mode does not immediately reclaim an in-flight failed delivery", a
   }
 });
 
-test("service mode settle() waits for conflict resolution so the next read sees the winning claim", async () => {
+test.each(["resolve", "undo"])("service mode reports when a conflict %s takes effect", async (action) => {
   const engine = await Engine.open({ blobDir: await tempBlobs(), deliveryMode: "service" });
   const kb = new Sample({ tenantId: TENANT });
   const ownerId = newId("member");
   const owner: Principal = { kind: "member", id: ownerId, tenant_id: TENANT };
   const [sv1, [span1]] = kb.sourceVersion(["Hotel cap is 600 yuan a night."]);
-  const [sv2, [span2]] = kb.sourceVersion(["Hotel cap is 800 yuan a night."]);
+  const [sv2, [span2]] = kb.sourceVersion(["Hotel cap is 800 yuan a night."], { authority: 0.6 });
   const [c1, e1] = kb.claim("Hotel cap is 600 yuan a night.", span1, {
     predicate: "hotel_cap",
     slot_key: "hotel_cap",
     value: { kind: "money", number: 600, unit: "CNY/night", currency: "CNY", normalized: "600 CNY/night" },
   });
   const [c2, e2] = kb.claim("Hotel cap is 800 yuan a night.", span2, {
+    authority: sv2.authority,
     predicate: "hotel_cap",
     slot_key: "hotel_cap",
     value: { kind: "money", number: 800, unit: "CNY/night", currency: "CNY", normalized: "800 CNY/night" },
   });
 
+  let resume: (() => void) | undefined;
   engine.startDelivery();
   try {
     await engine.directory.putTenant(
@@ -188,12 +190,42 @@ test("service mode settle() waits for conflict resolution so the next read sees 
     expect((await engine.governance.verdicts(TENANT, ["hotel_cap"]))[0]?.disputed).toBe(true);
     expect(await engine.governance.conflicts(TENANT, "open")).toHaveLength(1);
 
+    if (action === "undo") {
+      const gate = new Promise<void>((resolve) => {
+        resume = resolve;
+      });
+      const resolved = engine.governance.resolved.bind(engine.governance);
+      vi.spyOn(engine.governance, "resolved").mockImplementation(async (event) => {
+        await gate;
+        return resolved(event);
+      });
+      const [decision] = (await engine.assistant.decide(owner, { todo_ids: [conflict.todo.id] })).decisions;
+      if (!decision) throw new Error("expected an assistant decision");
+      const server = await serveApi(engine, 0, { devHeaders: true });
+      try {
+        const { port } = server.address() as AddressInfo;
+        const response = await fetch(`http://127.0.0.1:${port}/v0/decisions/${decision.id}/undo`, {
+          method: "POST",
+          headers: { "x-inspiration-tenant": TENANT, "x-inspiration-member": ownerId },
+        });
+        expect(response.status).toBe(202);
+        expect(await response.json()).toMatchObject({ pending: true, todo: { status: "open" } });
+      } finally {
+        server.close();
+      }
+      resume?.();
+      await engine.settle();
+      expect((await engine.governance.verdicts(TENANT, ["hotel_cap"]))[0]?.disputed).toBe(true);
+      return;
+    }
+
     // The very next read must already reflect the chosen value.
     const result = await resolveTodo(engine, owner, conflict.todo.id, { with: chosen });
     expect(result.todo?.status).toBe("done");
     expect((await engine.governance.verdicts(TENANT, ["hotel_cap"]))[0]?.disputed).toBe(false);
     expect(await engine.governance.conflicts(TENANT, "open")).toEqual([]);
   } finally {
+    resume?.();
     await engine.close();
   }
 });
@@ -399,6 +431,17 @@ test("HTTP conflict resolution returns 200 when another tenant stays busy, and 2
   }
 });
 
+// Acquiring the lock to probe it can send the relay into standby during startup.
+async function relayLocked(db: Queryable): Promise<boolean> {
+  const { rowCount } = await db.query(
+    `SELECT 1 FROM pg_locks WHERE locktype = 'advisory' AND granted
+       AND database = (SELECT oid FROM pg_database WHERE datname = current_database())
+       AND classid = 0 AND objid = $1 AND objsubid = 1`,
+    [RELAY_LOCK],
+  );
+  return rowCount === 1;
+}
+
 describe.skipIf(!hasStack())("service mode on Postgres and Valkey", () => {
   stackTest(
     "holds RELAY_LOCK, relays and delivers via background workers, and releases on close()",
@@ -417,18 +460,7 @@ describe.skipIf(!hasStack())("service mode on Postgres and Valkey", () => {
       const probe = await connect(databaseUrl);
       try {
         // Wait for OutboxRelay.run() to acquire RELAY_LOCK.
-        await expect
-          .poll(
-            async () => {
-              const { rows } = await probe.query<{ locked: boolean }>("SELECT pg_try_advisory_lock($1) AS locked", [
-                RELAY_LOCK,
-              ]);
-              if (rows[0]?.locked) await probe.query("SELECT pg_advisory_unlock($1)", [RELAY_LOCK]);
-              return rows[0]?.locked;
-            },
-            { timeout: 5_000, interval: 50 },
-          )
-          .toBe(false);
+        await expect.poll(() => relayLocked(probe), { timeout: 5_000, interval: 50 }).toBe(true);
 
         const event = claimsEvent();
         await writeOutbox(probe, [event]);
@@ -436,10 +468,7 @@ describe.skipIf(!hasStack())("service mode on Postgres and Valkey", () => {
       } finally {
         await engine.close();
         // Closing the engine stops OutboxRelay.run() and releases RELAY_LOCK.
-        const { rows } = await probe.query<{ locked: boolean }>("SELECT pg_try_advisory_lock($1) AS locked", [
-          RELAY_LOCK,
-        ]);
-        expect(rows[0]?.locked).toBe(true);
+        expect(await relayLocked(probe)).toBe(false);
         await probe.end();
       }
     },
@@ -533,18 +562,7 @@ describe.skipIf(!hasStack())("service mode on Postgres and Valkey", () => {
       const probe = await connect(databaseUrl);
       try {
         // Confirm primary owns RELAY_LOCK before starting secondary.
-        await expect
-          .poll(
-            async () => {
-              const { rows } = await probe.query<{ locked: boolean }>("SELECT pg_try_advisory_lock($1) AS locked", [
-                RELAY_LOCK,
-              ]);
-              if (rows[0]?.locked) await probe.query("SELECT pg_advisory_unlock($1)", [RELAY_LOCK]);
-              return rows[0]?.locked;
-            },
-            { timeout: 5_000, interval: 50 },
-          )
-          .toBe(false);
+        await expect.poll(() => relayLocked(probe), { timeout: 5_000, interval: 50 }).toBe(true);
 
         secondary.startDelivery();
         const event = claimsEvent();

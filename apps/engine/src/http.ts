@@ -28,6 +28,8 @@
  *     PUT  /v0/spaces/:space/files/:path  the file's bytes  FileWritten, the file in the space's uploads
  *     POST /v0/mcp       one JSON-RPC message          its answer, or 202 for a notification (agent-api)
  *
+ * Resolve, decide and undo return HTTP 202 with pending: true while governance is applying the saved change.
+ *
  * Space administration (space-admin.ts), on access control's directory:
  *
  *     POST  /v0/spaces                  CreateSpace       SpaceWritten, once per Idempotency-Key

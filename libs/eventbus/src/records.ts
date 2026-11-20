@@ -99,6 +99,8 @@ export interface RecordTx extends RecordReader {
 }
 
 export interface Records extends RecordReader {
+  /** Whether the group's handlers have committed their effects for every named event. */
+  processedAll(group: string, eventIds: readonly string[]): Promise<boolean>;
   transaction<R>(fn: (tx: RecordTx) => Promise<R>): Promise<R>;
 }
 
@@ -256,6 +258,10 @@ export class MemoryRecords extends MemoryReader implements Records {
     return this.#delivered.has(`${group}\0${eventId}`);
   }
 
+  async processedAll(group: string, eventIds: readonly string[]): Promise<boolean> {
+    return eventIds.every((id) => this.wasDelivered(group, id));
+  }
+
   async transaction<R>(fn: (tx: RecordTx) => Promise<R>): Promise<R> {
     const run = this.#queue.then(async () => {
       const tables: Tables = new Map(this.#tables);
@@ -401,6 +407,16 @@ export class PgRecords extends PgReader implements Records {
   constructor(pool: Pool) {
     super(() => pool);
     this.pool = pool;
+  }
+
+  async processedAll(group: string, eventIds: readonly string[]): Promise<boolean> {
+    const ids = [...new Set(eventIds)];
+    if (!ids.length) return true;
+    const result = await this.pool.query(
+      "SELECT event_id FROM bus.inbox WHERE consumer_group = $1 AND event_id = ANY($2::text[])",
+      [group, ids],
+    );
+    return result.rowCount === ids.length;
   }
 
   transaction<R>(fn: (tx: RecordTx) => Promise<R>): Promise<R> {
