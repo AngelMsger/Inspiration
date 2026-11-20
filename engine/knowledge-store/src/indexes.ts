@@ -67,7 +67,12 @@ export class PgVectorIndex implements VectorIndex {
   constructor(pool: Pool, options: { model?: string; efSearch?: number } = {}) {
     this.pool = pool;
     this.model = options.model;
-    this.efSearch = Math.trunc(options.efSearch ?? 100);
+    const efSearch = options.efSearch ?? 100;
+    // pgvector accepts hnsw.ef_search from 1 through 1000; check here so a bad setting fails at startup.
+    if (!Number.isFinite(efSearch) || Math.trunc(efSearch) < 1 || Math.trunc(efSearch) > 1000) {
+      throw new RangeError(`efSearch must be between 1 and 1000, got ${options.efSearch}`);
+    }
+    this.efSearch = Math.trunc(efSearch);
   }
 
   async upsert(items: Readonly<Record<string, readonly number[]>>, options: { model: string }): Promise<void> {

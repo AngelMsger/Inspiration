@@ -45,6 +45,7 @@ make up            # ParadeDB (Postgres 16 + pgvector + pg_search), Valkey, Spic
 make migrate       # SQL migrations of every installed component
 make authz-schema  # the SpiceDB schema
 make check         # Biome, tsc, contract freshness, all tests with the stack required, but the long corpus runs
+make check-agent   # Biome, tsc, contract freshness and quick unit tests without Docker
 make check-full    # the same with the long corpus runs, as CI runs it
 ```
 
@@ -56,7 +57,9 @@ engine/parsing/worker/requirements.txt`, `docker compose -f infra/compose.yaml u
 
 Tests that need the stack skip when it is not running, unless `INSPIRATION_REQUIRE_STACK=1`
 is set, as it is in CI. Each one gets its own database copied from a migrated template and
-its own Valkey key prefix. `make test-unit` runs only the tests that need nothing.
+its own Valkey key prefix. `make test-unit` runs only the tests that need nothing; `make
+check-agent` pairs Biome, `tsc` and contract freshness with the quick unit tests for sandboxes
+without Docker.
 
 `make check` leaves out three corpus runs that take minutes: the whole company drive, and the
 Kubernetes pages and the GitLab policy history on the stack (those two still run in memory, which
@@ -171,11 +174,12 @@ pnpm business serve --web apps/web/dist --sample examples/corpus    # the site a
 
 The demo corpus is the sample company here: anyone signed in can open it and read what its
 whole company may, and nobody can change it. Leave the corpus out of both commands for an
-engine with no documents. Either way the engine keeps everything in memory: companies and
-members come from the business backend, and spaces are made in the web app. After restarting
-the engine, restart the business backend too, which sends every company and member, and every
-visitor of the sample company, to it again when it starts; spaces made before the restart are
-gone.
+engine with no documents. Without `--persistent`, the engine keeps everything in memory:
+companies and members come from the business backend, and spaces are made in the web app. After
+restarting an in-memory engine, restart the business backend too, which sends every company and
+member, and every visitor of the sample company, to it again when it starts; spaces made before
+the restart are gone. Pass `--persistent` (or run `pnpm local`; see [Local validation](local.md))
+to keep engine data in Postgres, Valkey and SpiceDB across restarts.
 
 The gate checks run the same two layers without Logto: `apps/bench/test/site.ts` starts the
 business backend in front of the engine in one process, with a stand-in identity provider, in

@@ -7,10 +7,12 @@ import type {
   EventEnvelope,
   EventHandler,
   EventPublisher,
+  KeywordIndex,
   KnowledgeStore,
   ModelGateway,
   Principal,
   ReviewDue,
+  VectorIndex,
 } from "@inspiration/contracts";
 import {
   Consumer,
@@ -25,7 +27,16 @@ import {
 import { Extraction, type ExtractionOptions } from "@inspiration/extraction";
 import { Freshness } from "@inspiration/freshness";
 import { Governance, type GovernanceResult } from "@inspiration/governance";
-import { applyMigrations, LocalBlobStore, logger, openPool, type Pool, workspaceRoot } from "@inspiration/kernel";
+import {
+  applyMigrations,
+  LocalBlobStore,
+  logger,
+  type MigrationSet,
+  openPool,
+  type Pool,
+  registry,
+  workspaceRoot,
+} from "@inspiration/kernel";
 import {
   MemoryKeywordIndex,
   MemoryStore,
@@ -71,14 +82,35 @@ export interface EngineOptions {
   clock?: () => Date;
   /** The permission graph; in memory unless given (a SpiceDBGraph in a deployment). */
   graph?: Graph;
-  /** The most a long-context answer reads, raw or governed, in tokens; LONG_CONTEXT_TOKENS unless given. */
-  contextTokens?: number;
   /** How many passages and statements a compact answer reads (Engine.compact); COMPACT_SOURCES unless given. */
   compactSources?: AnswerSources;
 }
 
 /** How often a long-running engine reads on where reading stopped (Engine.resumeReading). */
 export const RESUME_EVERY_MS = 15 * 60_000;
+
+/** Migration plugins owned by the engine and its libraries, excluding business-layer schemas. */
+const ENGINE_MIGRATIONS = [
+  "bus",
+  "kb",
+  "gateway",
+  "authz",
+  "sync",
+  "normalization",
+  "extraction",
+  "freshness",
+  "governance",
+  "page-compiler",
+  "collaboration",
+  "retrieval",
+  "agents",
+] as const;
+
+/** The migration sets the engine applies to its own database. */
+export async function engineMigrations(): Promise<MigrationSet[]> {
+  const migrations = registry("migrations");
+  return Promise.all(ENGINE_MIGRATIONS.map((name) => migrations.get<MigrationSet>(name)));
+}
 
 /** A component as the engine runs it: event handlers by type, under the component's consumer group. */
 interface Running {
@@ -117,14 +149,9 @@ export class Engine {
   readonly vocabulary: NonNullable<ExtractionOptions["vocabulary"]>;
   /** Search, and the standard answer: as many passages as statements. */
   readonly retrieval: Retrieval;
-  /**
-   * The rivals answers are measured against, over the same documents and model: a mature
-   * retrieval over the same chunks and search, without statements or governance, and a model
-   * that reads every document (corpora that fit).
-   */
-  readonly baselines: { mature: Retrieval; long_context: Retrieval };
-  /** The knowledge base answering from everything the asker may read, after governance (corpora that fit). */
-  readonly governedLongContext: Retrieval;
+  /** The vector and keyword search indexes shared across retrieval paths. */
+  readonly vectors: VectorIndex;
+  readonly keywords: KeywordIndex;
   /**
    * The knowledge base answering from fewer sources: mostly statements, the conclusions
    * governance kept, and a few passages, a short input that a smaller model answers fast. The
@@ -159,7 +186,6 @@ export class Engine {
     vocabulary?: ExtractionOptions["vocabulary"];
     clock?: () => Date;
     graph?: Graph;
-    contextTokens?: number;
     compactSources?: AnswerSources;
   }) {
     this.store = parts.store;
@@ -213,29 +239,23 @@ export class Engine {
     this.authz = new AuthzService(graph, this.store);
     this.directory = new Directory(this.records, graph);
     const memory = this.store instanceof MemoryStore ? this.store : undefined;
-    const indexes = {
+    this.vectors = memory ? new MemoryVectorIndex(memory) : new PgVectorIndex(parts.pool as Pool);
+    this.keywords = memory ? new MemoryKeywordIndex(memory) : new PgSearchIndex(parts.pool as Pool);
+    const answering = {
       store: this.store,
       records: this.records,
       models: this.models,
       authz: this.authz,
-      vectors: memory ? new MemoryVectorIndex(memory) : new PgVectorIndex(parts.pool as Pool),
-      keywords: memory ? new MemoryKeywordIndex(memory) : new PgSearchIndex(parts.pool as Pool),
+      vectors: this.vectors,
+      keywords: this.keywords,
+      verdicts: this.governance,
+      staleness: this.freshness,
       ...clock,
-    };
-    const governed = { ...indexes, verdicts: this.governance, staleness: this.freshness };
-    const context = parts.contextTokens && { contextTokens: parts.contextTokens };
-    const answering = {
-      ...governed,
       ...(parts.readOnUse && {
         readOnUse: (citations: readonly Citation[], who: Principal) => readForAnswer(this, citations, who),
       }),
     };
     this.retrieval = new Retrieval(answering);
-    this.baselines = {
-      mature: new Retrieval({ ...indexes, baseline: "mature" }),
-      long_context: new Retrieval({ ...indexes, baseline: "long_context", ...context }),
-    };
-    this.governedLongContext = new Retrieval({ ...governed, readAll: true, ...context });
     this.compact = new Retrieval({ ...answering, answerSources: parts.compactSources ?? COMPACT_SOURCES });
     const components: Running[] = [
       { group: "source-sync", handlers: () => this.sync.handlers() },
@@ -281,13 +301,12 @@ export class Engine {
       ...(options.vocabulary && { vocabulary: options.vocabulary }),
       ...(options.clock && { clock: options.clock }),
       ...(options.graph && { graph: options.graph }),
-      ...(options.contextTokens && { contextTokens: options.contextTokens }),
       ...(options.compactSources && { compactSources: options.compactSources }),
     };
 
     let engine: Engine;
     if (options.databaseUrl) {
-      await applyMigrations(options.databaseUrl);
+      await applyMigrations(options.databaseUrl, await engineMigrations());
       const pool = await openPool(options.databaseUrl);
       closers.push(() => pool.end());
       engine = new Engine({

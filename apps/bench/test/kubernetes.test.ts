@@ -14,6 +14,7 @@ import {
   loadQuestions,
   type Question,
   questionsReport,
+  rivalsOf,
   SimulatedClock,
   searchReport,
 } from "../src/index.ts";
@@ -131,7 +132,7 @@ async function check(stack?: { databaseUrl: string; streamPrefix: string }): Pro
     expect(answer.notes?.find((n) => n.kind === "outdated")?.text).toContain("5000 node");
     // The mature RAG over the same chunks still answers with the translation's old value: the
     // stand-in answer does not weigh the documents' dates, as a model told to would.
-    const mature = await engine.baselines.mature.answer({ question: limit.question }, corpus.reader);
+    const mature = await rivalsOf(engine).mature.answer({ question: limit.question }, corpus.reader);
     expect(mature.answer).toContain("5,000");
     expect(mature.answer).not.toContain("6,000");
   } finally {

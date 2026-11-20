@@ -193,6 +193,12 @@ async function main(argv: string[]): Promise<number> {
     console.error(USAGE);
     return 2;
   }
+  // A non-finite or non-positive cap (128k, Infinity, 1e309) would let every corpus through to the long-context model.
+  const contextTokens = values.context === undefined ? undefined : Number(values.context);
+  if (contextTokens !== undefined && !(Number.isFinite(contextTokens) && contextTokens > 0)) {
+    console.error("--context takes the most tokens the long-context rival reads, as 150000");
+    return 2;
+  }
   const compact = values.compact?.match(/^(\d+),(\d+)$/);
   if (values.compact && !compact) {
     console.error("--compact takes the passages and statements a compact answer reads, as 2,8");
@@ -211,7 +217,6 @@ async function main(argv: string[]): Promise<number> {
     resolvePrincipal: corpus.resolvePrincipal,
     vocabulary: () => corpus.vocabulary,
     clock: clock.now,
-    ...(values.context && { contextTokens: Number(values.context) }),
     ...(compact && { compactSources: { passages: Number(compact[1]), statements: Number(compact[2]) } }),
   };
   const databaseUrl = values.database ?? settings?.databaseUrl;
@@ -300,12 +305,13 @@ async function main(argv: string[]): Promise<number> {
         return 1;
       }
     }
+    const rivalOptions = contextTokens === undefined ? {} : { contextTokens };
     if (questions && values["search-only"]) {
-      const searched = await searchReport(engine, corpus, questions);
+      const searched = await searchReport(engine, corpus, questions, rivalOptions);
       console.log(`\n${searchLines(searched).join("\n")}`);
       out.search = searched;
     } else if (questions) {
-      const asked = await questionsReport(engine, corpus, questions);
+      const asked = await questionsReport(engine, corpus, questions, rivalOptions);
       console.log(`\n${questionLines(asked).join("\n")}`);
       out.questions = asked;
     }

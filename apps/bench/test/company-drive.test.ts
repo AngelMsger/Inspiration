@@ -113,7 +113,6 @@ describe("the company drive", () => {
       blobDir: join(work, ".blobs"),
       resolvePrincipal: corpus.resolvePrincipal,
       vocabulary: () => corpus.vocabulary,
-      contextTokens: 1_000_000,
     });
     try {
       const report = await ingest(engine, corpus);
@@ -149,7 +148,7 @@ describe("the company drive", () => {
       ]);
 
       const questions = (await loadQuestions(corpus.dir)) as Question[];
-      const asked = await questionsReport(engine, corpus, questions);
+      const asked = await questionsReport(engine, corpus, questions, { contextTokens: 1_000_000 });
       // The numbers README.md gives.
       const score = ([right, stale]: [number, number]) => ({ right, stale });
       // Right and stale answers of the engine, its compact answer, the mature RAG, reading everything, and reading it

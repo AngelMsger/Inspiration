@@ -32,8 +32,8 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 
 | Doc | Status | What it covers |
 | --- | --- | --- |
-| [Overview](overview.md) | Version 2, 2026-10-27; brought up to date 2026-11-05 | Product requirements and the architecture at a glance: scenarios, diagrams, feasibility, what is built and planned |
-| [Decisions and open questions](decisions.md) | Kept current, 2026-11-12 | The product owner's decisions in force, by date, and the questions still open |
+| [Overview](overview.md) | Version 2, 2026-10-27; Drive direction added 2026-11-13 | Product requirements and the architecture at a glance: scenarios, diagrams, feasibility, what is built and planned |
+| [Decisions and open questions](decisions.md) | Kept current, 2026-11-13 | The product owner's decisions in force, by date, and the questions still open |
 | [The MVP](design/mvp.md) | Adopted, 2026-11-05 | A usable product that closes the business flow for one company: scope, slices and decisions |
 | [Validating the knowledge core](design/validation.md) | Adopted, 2026-11-05 | How extraction and governance are measured on real documents, and the results so far |
 
@@ -46,7 +46,6 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 | [PageSpec and views](pagespec.md) | Reference | How pages match Claude Artifacts, and the view sandbox |
 | [Development](development.md) | Reference | Continuing earlier work, delivery, paid-run preflight, and building, testing and running from source |
 | [Licensing](licensing.md) | Reference | Licences of the stack and what they mean for delivery |
-
 | [Local validation](local.md) | Reference | Persistent local startup, Confluence Data Center / Server and Feishu connections, DeepSeek, validation and troubleshooting |
 
 ## Designs: knowledge
@@ -73,6 +72,7 @@ or marks it superseded, and updates this index (see "Keeping the repo small" in
 | --- | --- | --- |
 | [UI philosophy](design/ui-philosophy.md) | Adopted, clarified 2026-11-13 | Product model, progressive understanding and the philosophy every screen follows |
 | [UI principles](design/ui-principles.md) | Adopted, 2026-10-24 | Who the UI serves, interaction principles, visual design, glossary |
+| [Drive and knowledge files](design/drive.md) | Proposed, 2026-11-13 | Decided Drive direction; proposed file model, knowledge granularity, navigation, interactions and acceptance scenarios |
 | [UI screens](design/screens/README.md) | Snapshot of the design canvas | Static copies of the canvas's screens, to read next to the docs |
 
 ## Outside research

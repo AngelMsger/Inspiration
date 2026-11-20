@@ -85,7 +85,7 @@ flowchart LR
 <td valign="top">
 
 **🧑‍⚖️ 人来决定，而且量在人能跟上的范围内**<br>
-智能体发现、提议和回答，人来决定。建议都已填好，按主题和周分组送达。MVP 里的“替我决定”会处理日常的那些，每条都附理由，可以撤销。
+智能体发现、提议和回答，人来决定。建议都已填好，按主题和周分组送达。“替我决定”会处理日常的那些，每条都附理由，可以撤销。
 
 </td>
 <td valign="top">
@@ -105,7 +105,7 @@ flowchart LR
 <td valign="top">
 
 **🤖 为智能体而设计**<br>
-智能体通过 MCP 和 REST 读到同样经过治理的知识，身份是它所代表的成员；MCP 服务在 MVP 里提供。每个结果都带出处、版本和状态。智能体只读和提议，只有人能批准修改。
+智能体通过 MCP 和 REST 读到同样经过治理的知识，身份是它所代表的成员。每个结果都带出处、版本和状态。智能体只读和提议，只有人能批准修改。
 
 </td>
 </tr>
@@ -150,13 +150,13 @@ flowchart LR
 <div align="center">
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/assets/components.zh.dark.png">
-<img src="docs/assets/components.zh.png" alt="组件图，按阶段从来源到使用分行：调研与外部数据源；source-sync、connectors 和 parsing；normalization 和 extraction；freshness 和 governance；page-compiler 和 collaboration；retrieval、agent-api 和 views；Web 应用与业务后端、人和外部 Agent。blocks.changed、claims.updated、artifact.dirty、page.rendered 等事件把它们连起来。右侧平台服务一列：契约、事件总线、知识库、鉴权、模型网关、Agent 运行时、凭据代理和沙箱。计划中：research、agent-api、views、credential-broker 和 sandbox。" width="100%">
+<img src="docs/assets/components.zh.png" alt="组件图，按阶段从来源到使用分行：调研与外部数据源；source-sync、connectors 和 parsing；normalization 和 extraction；freshness 和 governance；page-compiler 和 collaboration；retrieval、agent-api 和 views；Web 应用与业务后端、人和外部 Agent。blocks.changed、claims.updated、artifact.dirty、page.rendered 等事件把它们连起来。右侧平台服务一列：契约、事件总线、知识库、鉴权、模型网关、Agent 运行时、凭据代理和沙箱。计划中：research、views、credential-broker 和 sandbox。" width="100%">
 </picture>
 </div>
 
 <sub>按阶段排列的每个组件，以及它们之间的事件（实线）和调用（虚线）；右侧的平台服务供所有组件使用。虚线框表示计划中。[总览](docs/zh/overview.md)在图 10 之后的表里给每个组件列出了对应的外部同类项目，并说明我们复用了什么。</sub>
 
-- **小组件，各管一件事。** 引擎的 19 个组件中有 14 个已构建并有测试，业务层的前两个也已构建。[`components.yaml`](components.yaml) 写明每个组件拥有什么、发布和消费哪些事件、可以调用谁；测试让每个包都遵守它。
+- **小组件，各管一件事。** 引擎的 19 个组件中有 15 个已构建并有测试，业务层的前三个也已构建。[`components.yaml`](components.yaml) 写明每个组件拥有什么、发布和消费哪些事件、可以调用谁；测试让每个包都遵守它。
 - **契约优先。** [`libs/contracts/schema/`](libs/contracts/schema/) 里的 JSON Schema 是所有跨组件类型和事件的唯一来源，TypeScript 类型和校验器由它生成。
 - **事件和数据一起提交。** 组件在存储事务内通过 outbox 发布事件，再转发到 Valkey Streams。投递至少一次，每个处理器都是幂等的。
 - **可替换的部分都是插件。** 连接器、解析器、抽取器、模型提供方、搜索索引、事件传输和迁移都是插件，通过注册表查找，替换一个部分不用改调用方。

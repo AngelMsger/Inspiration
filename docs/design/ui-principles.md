@@ -70,6 +70,8 @@ The look is "ink and paper": a warm paper ground, serif type for reading, one in
 
 ## Layout
 
+The layout below describes the existing two-tree design. The 2026-11-13 [Drive direction](drive.md) makes the Documents tree a file-management view; its unified inventory, knowledge-file granularity and detailed interactions remain proposed. The current canvas snapshots do not yet show that design.
+
 - **Header:** the current company's name as plain text, ask or search, and the account menu. The account menu switches companies and opens the personal library (someone working alone has no company group there) and holds the interface language. Most people belong to one company, so switching does not get the top bar's prime spot; ⌘K reaches any company too. The header never switches spaces; the left column does.
 - **Left:** the Documents tree (source apps and their folders, with an icon per source app), then the Knowledge tree (spaces, topics, pages). Documents come first because people know their documents before they know the knowledge built from them. The Documents tree also holds chats and sheets, but Documents is the word people use for their material.
 - **One navigation everywhere.** The header stays consistent. The left column navigates the current area, with Documents and Knowledge trees that can be expanded before choosing an item. Reading keeps it available on wide screens, and the reader may collapse it. Breadcrumbs describe the current path and return route; they do not replace the tree. Reading, space management, Admin and Account retain their distinct visual identities described in [UI philosophy](ui-philosophy.md).

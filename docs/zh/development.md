@@ -30,12 +30,13 @@ make up            # ParadeDB（Postgres 16 + pgvector + pg_search）、Valkey�
 make migrate       # 所有已安装组件的 SQL 迁移
 make authz-schema  # SpiceDB schema
 make check         # Biome、tsc、契约是否最新、除耗时很长的语料运行外的所有测试（要求运行环境已启动）
+make check-agent   # 不需要 Docker 的快速检查：Biome、tsc、契约检查和快速单元测试
 make check-full    # 同上，再加上耗时很长的语料运行，与 CI 相同
 ```
 
 不用 make 时，对应的步骤是 `pnpm install`、`python3 -m venv .venv && .venv/bin/pip install -r engine/parsing/worker/requirements.txt`、`docker compose -f infra/compose.yaml up -d --wait`、`pnpm exec inspiration-migrate`、`pnpm exec inspiration-authz-schema` 和 `INSPIRATION_REQUIRE_STACK=1 INSPIRATION_QUICK=1 pnpm test`（`make check-full` 则不加 `INSPIRATION_QUICK`）。
 
-需要运行环境的测试在环境未启动时会跳过，除非设置了 `INSPIRATION_REQUIRE_STACK=1`（CI 中就是这样）。每个测试都有自己的数据库（从已迁移的模板复制）和自己的 Valkey 键前缀。`make test-unit` 只运行什么都不需要的测试。
+需要运行环境的测试在环境未启动时会跳过，除非设置了 `INSPIRATION_REQUIRE_STACK=1`（CI 中就是这样）。每个测试都有自己的数据库（从已迁移的模板复制）和自己的 Valkey 键前缀。`make test-unit` 只运行什么都不需要的测试；在没有 Docker 的沙箱里，可以用 `make check-agent` 把 Biome、`tsc`、契约检查和快速单元测试一起跑完。
 
 `make check` 不跑三项要几分钟的语料运行：整个共享盘测试集，以及在运行环境上的 Kubernetes 页面和 GitLab 制度历史（后两项仍在内存中运行，检查的是同样的数字）。在产品负责人的笔记本上，完整的测试用了 162 秒，其中共享盘测试集占 149 秒。`make check-full` 运行全部测试，与 CI 相同；改动引擎读取、治理或回答的方式时，在提拉取请求前运行它，因为这些数字由那几项运行把关。
 
@@ -94,7 +95,7 @@ pnpm engine serve examples/corpus --issuer http://localhost:4200 --audience http
 pnpm business serve --web apps/web/dist --sample examples/corpus    # 网站在 http://localhost:4200
 ```
 
-这里的演示语料就是示例企业：任何登录的人都可以打开它，读到全企业可读的内容，但谁也不能修改它。两条命令都去掉语料，就是一个没有文档的引擎。无论哪种方式，引擎都把一切放在内存里：企业和成员来自业务后端，空间在 Web 应用里创建。重启引擎之后，也要重启业务后端，它启动时会把所有企业和成员，以及示例企业的每位访客，重新发给引擎；重启前创建的空间就没有了。
+这里的演示语料就是示例企业：任何登录的人都可以打开它，读到全企业可读的内容，但谁也不能修改它。两条命令都去掉语料，就是一个没有文档的引擎。不加 `--persistent` 时，引擎把一切放在内存里：企业和成员来自业务后端，空间在 Web 应用里创建。重启内存模式下的引擎之后，也要重启业务后端，它启动时会把所有企业和成员，以及示例企业的每位访客，重新发给引擎；重启前创建的空间就没有了。加上 `--persistent`（或运行 `pnpm local`，见[本地验证](local.md)）可以把引擎数据持久化到 Postgres、Valkey 和 SpiceDB，跨重启保留。
 
 关口检查不用 Logto 也能跑这两层：`apps/bench/test/site.ts` 在一个进程里启动业务后端和它后面的引擎，用替身身份提供方登录，先在内存里跑，服务栈启动时再在 Postgres 和 SpiceDB 上跑。单独跑一个：`pnpm vitest run apps/bench/test/company-isolation.test.ts`；`make check` 会跑全部。
 
