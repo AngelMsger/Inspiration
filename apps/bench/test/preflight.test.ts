@@ -57,9 +57,13 @@ describe("what a paid run checks before it pays", () => {
   });
 });
 
-test("the CLI rejects a context cap that is not a positive number", async () => {
-  for (const context of ["128k", "0", "-5", ""]) {
-    const { code, stderr } = await bench("ingest", "no-such-corpus", `--context=${context}`);
+test("the CLI rejects a context cap that is not a finite positive number", { timeout: 20_000 }, async () => {
+  const results = await Promise.all(
+    ["128k", "0", "-5", "", "Infinity", "1e309"].map((context) =>
+      bench("ingest", "no-such-corpus", `--context=${context}`),
+    ),
+  );
+  for (const { code, stderr } of results) {
     expect(code).toBe(2);
     expect(stderr).toContain("--context");
   }

@@ -193,8 +193,9 @@ async function main(argv: string[]): Promise<number> {
     console.error(USAGE);
     return 2;
   }
-  // A mistyped cap (128k) would become NaN and let every corpus through to the long-context model.
-  if (values.context !== undefined && !(Number(values.context) > 0)) {
+  // A non-finite or non-positive cap (128k, Infinity, 1e309) would let every corpus through to the long-context model.
+  const contextTokens = values.context === undefined ? undefined : Number(values.context);
+  if (contextTokens !== undefined && !(Number.isFinite(contextTokens) && contextTokens > 0)) {
     console.error("--context takes the most tokens the long-context rival reads, as 150000");
     return 2;
   }
@@ -304,7 +305,7 @@ async function main(argv: string[]): Promise<number> {
         return 1;
       }
     }
-    const rivalOptions = values.context === undefined ? {} : { contextTokens: Number(values.context) };
+    const rivalOptions = contextTokens === undefined ? {} : { contextTokens };
     if (questions && values["search-only"]) {
       const searched = await searchReport(engine, corpus, questions, rivalOptions);
       console.log(`\n${searchLines(searched).join("\n")}`);
