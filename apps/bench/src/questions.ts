@@ -75,7 +75,6 @@ import {
   auditLines,
   auditRemark,
   citesExpected,
-  type InputSource,
   type Retention,
   type RetentionTotals,
   retentionOf,
@@ -84,6 +83,7 @@ import {
 } from "./audit.ts";
 import { usageMark } from "./claims.ts";
 import { type Spend, spendLine, spendOf, usageSince } from "./cost.ts";
+import { longContextInputs, type RivalsOptions, rivalsOf } from "./rivals.ts";
 
 /**
  * How an answer turned out: right, a value no longer in effect, a wrong text, wrong
@@ -641,48 +641,6 @@ function citationPaths(engine: Engine, corpus: Corpus): (citations: readonly Cit
   };
 }
 
-type Inputs = { raw: InputSource[] | null; governed: InputSource[] | null };
-
-/**
- * What raw and governed long context give their models, for the evidence audit, by topic; each
- * null when the documents do not fit the context. Every document of a question's topic the reader
- * may read, so the same for each question of it: read once per topic, with no model call.
- */
-async function longContextInputs(
-  engine: Engine,
-  corpus: Corpus,
-  questions: readonly Question[],
-  pathsOf: (citations: readonly Citation[]) => Promise<string[]>,
-): Promise<{ of: (q: Question) => Inputs; all: Inputs[] }> {
-  /** What a long context gives its model, of the spaces asked for or all; null when the documents do not fit. */
-  const inputOf = async (retrieval: Retrieval, question: string, spaces?: string[]): Promise<InputSource[] | null> => {
-    try {
-      const hits = await retrieval.sources({ question, ...(spaces && { space_ids: spaces }) }, corpus.reader);
-      return await Promise.all(
-        hits.map(async (h) => ({
-          text: h.snippet,
-          documents: await pathsOf(h.citations),
-          ...(h.standing && { standing: h.standing, unit: h.unit_id }),
-          ...(h.held_unit_id && { held: h.held_unit_id }),
-        })),
-      );
-    } catch (e) {
-      if (e instanceof ContextTooLong) return null;
-      throw e;
-    }
-  };
-  const topicOf = (q: Question) => q.spaces?.join(" ") ?? "";
-  const inputs = new Map<string, Inputs>();
-  for (const q of questions) {
-    if (inputs.has(topicOf(q))) continue;
-    inputs.set(topicOf(q), {
-      raw: await inputOf(engine.baselines.long_context, q.question, q.spaces),
-      governed: await inputOf(engine.governedLongContext, q.question, q.spaces),
-    });
-  }
-  return { of: (q) => inputs.get(topicOf(q)) as Inputs, all: [...inputs.values()] };
-}
-
 /** Answers right of a way that answered every question; null when it could not answer one. */
 const rightOrNull = (rivals: readonly (Rival | null)[]) =>
   rivals.some((r) => r === null) ? null : rivals.filter((r) => r?.outcome === "right").length;
@@ -691,10 +649,12 @@ export async function questionsReport(
   engine: Engine,
   corpus: Corpus,
   questions: readonly Question[],
+  options: RivalsOptions = {},
 ): Promise<QuestionsReport> {
   const results: QuestionResult[] = [];
+  const rivals = rivalsOf(engine, options);
   const pathsOf = citationPaths(engine, corpus);
-  const inputs = await longContextInputs(engine, corpus, questions, pathsOf);
+  const inputs = await longContextInputs(rivals, corpus, questions, pathsOf);
   const spent = Object.fromEntries([...PATHS, "search"].map((p) => [p, [] as UsageRecord[]])) as Record<
     Path | "search",
     UsageRecord[]
@@ -736,9 +696,9 @@ export async function questionsReport(
       }
     };
     const compact = (await rival("compact", engine.compact)) as Rival;
-    const mature = (await rival("mature", engine.baselines.mature)) as Rival;
-    const longContext = await rival("long_context", engine.baselines.long_context);
-    const governedLongContext = await rival("governed_long_context", engine.governedLongContext);
+    const mature = (await rival("mature", rivals.mature)) as Rival;
+    const longContext = await rival("long_context", rivals.long_context);
+    const governedLongContext = await rival("governed_long_context", rivals.governed_long_context);
     const { raw, governed } = inputs.of(q);
     results.push({
       question: q.question,
@@ -887,7 +847,9 @@ export async function searchReport(
   engine: Engine,
   corpus: Corpus,
   questions: readonly Question[],
+  options: RivalsOptions = {},
 ): Promise<SearchReport> {
+  const rivals = rivalsOf(engine, options);
   const tenantId = corpus.reader.tenant_id;
   const indexed = (await engine.retrieval.documents(tenantId)).filter((d) => !d.deleted);
   const documentOf = new Map<string, string>();
@@ -909,7 +871,7 @@ export async function searchReport(
     const v = id ? await engine.store.getSourceVersion(id) : undefined;
     return v && `${v.source_id}:${v.external_id}`;
   };
-  const inputs = await longContextInputs(engine, corpus, questions, citationPaths(engine, corpus));
+  const inputs = await longContextInputs(rivals, corpus, questions, citationPaths(engine, corpus));
   const results: SearchResult[] = [];
   for (const q of questions) {
     const { raw, governed } = inputs.of(q);
@@ -917,7 +879,7 @@ export async function searchReport(
     // One after another, so the later searches find the first one's rerank scores in the cache
     // instead of a CPU reranker scoring the same passages three times at once.
     const sources = await engine.retrieval.sources({ question: q.question }, corpus.reader);
-    const mature = await engine.baselines.mature.sources({ question: q.question }, corpus.reader);
+    const mature = await rivals.mature.sources({ question: q.question }, corpus.reader);
     const compact = await engine.compact.sources({ question: q.question }, corpus.reader);
     const wide = await engine.retrieval.search(
       { text: q.question, top_k: SEARCH_DEPTH, kinds: ["claim", "chunk"] },

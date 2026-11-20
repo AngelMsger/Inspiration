@@ -110,6 +110,7 @@ export {
 } from "./questions.ts";
 export { type FactReading, type ReadingReport, readingLines, readingReport } from "./reading.ts";
 export { exportReplies, importReplies } from "./replies.ts";
+export { type Rivals, type RivalsOptions, rivalsOf } from "./rivals.ts";
 export {
   type EditOptions,
   type Edits,

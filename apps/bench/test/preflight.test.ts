@@ -57,6 +57,18 @@ describe("what a paid run checks before it pays", () => {
   });
 });
 
+test("the CLI rejects a context cap that is not a finite positive number", { timeout: 20_000 }, async () => {
+  const results = await Promise.all(
+    ["128k", "0", "-5", "", "Infinity", "1e309"].map((context) =>
+      bench("ingest", "no-such-corpus", `--context=${context}`),
+    ),
+  );
+  for (const { code, stderr } of results) {
+    expect(code).toBe(2);
+    expect(stderr).toContain("--context");
+  }
+});
+
 /** Runs the bench CLI in a process of its own, as a person would. */
 function bench(...args: string[]): Promise<{ code: number; stderr: string }> {
   const cli = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
