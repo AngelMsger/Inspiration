@@ -427,7 +427,7 @@ function Review(props: { item: InboxTodo; card: InboxCard; onChanged: () => void
       .resolve(item.todo.id, { status: next })
       .then(
         (todo) => {
-          setStatus(todo.status);
+          setStatus(todo?.status ?? next);
           props.onChanged();
         },
         (e: unknown) => setError(failureOf(e)),

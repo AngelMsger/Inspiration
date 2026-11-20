@@ -694,10 +694,22 @@ test("source corrections validate anchors and permissions, persist, and return t
   expect(list.body).toEqual([saved.body]);
   const assignee = saved.body.assignee_id as string;
   expect(assignee).toBeTruthy();
+  const annotations = vi.spyOn(engine.retrieval, "annotations");
   const todo = await call(`/v0/todos/${saved.body.todo_id}`, { member: assignee });
+  expect(annotations).not.toHaveBeenCalled();
+  annotations.mockRestore();
   expect(todo.status).toBe(200);
   expect(contractErrors("InboxTodo", todo.body)).toEqual([]);
   expect(todo.body.comment).toMatchObject({ comment: input });
+  expect(todo.body.todo).toMatchObject({ title: view.document.title });
+  const restricted = { member: assignee, claims: { max_sens: "public" } };
+  const detail = await call(`/v0/todos/${saved.body.todo_id}`, restricted);
+  const inbox = (await call("/v0/inbox", restricted)).body as unknown as Inbox;
+  for (const item of [detail.body, inbox.cards.flatMap((c) => c.todos).find((i) => i.todo.id === saved.body.todo_id)]) {
+    expect(item).toMatchObject({ todo: { title: "Review source feedback" } });
+    expect(item).not.toHaveProperty("comment");
+    expect(JSON.stringify(item)).not.toContain(view.document.title);
+  }
   expect((await call(`/v0/todos/${saved.body.todo_id}`)).status).toBe(404);
   expect(
     (await call(`/v0/todos/${saved.body.todo_id}/resolve`, { member: assignee, body: { status: "done" } })).status,

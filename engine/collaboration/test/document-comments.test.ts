@@ -1,5 +1,5 @@
 import type { DocumentComment, EventEnvelope } from "@inspiration/contracts";
-import { describe, expect } from "vitest";
+import { describe, expect, vi } from "vitest";
 import { DocumentComments } from "../src/index.ts";
 import { BACKENDS, inboxTest, LI, SPACE, TENANT } from "./fixtures.ts";
 
@@ -35,6 +35,15 @@ describe.each(BACKENDS)("source comments on $backend", ({ backend, skip }) => {
       expect(saved.comment).toEqual(input);
       expect(saved.todo_id).toBeDefined();
       expect(saved.status).toBe("open");
+      const ids = [saved.todo_id as string];
+      const queries = vi.spyOn(world.records, "find");
+      expect(await comments.forTodos(TENANT, ids)).toEqual([saved]);
+      expect(queries.mock.calls.map(([table, where]) => [table.name, where])).toEqual([
+        ["collaboration.document_comments", { tenant_id: TENANT, dedupe_key: [`document-comment:${saved.id}`] }],
+      ]);
+      queries.mockRestore();
+      expect(await comments.forTodos("ten_another", ids)).toEqual([]);
+      expect(await comments.forTodos(TENANT, [])).toEqual([]);
       expect((await world.inbox.todo(TENANT, saved.todo_id as string))?.kind).toBe("feedback");
       await world.inbox.resolve(TENANT, saved.todo_id as string, { by: LI, status: "done" });
       expect((await comments.list(TENANT, version.id))[0]).toMatchObject({ status: "done", comment: input });

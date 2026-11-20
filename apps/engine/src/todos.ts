@@ -14,8 +14,9 @@ import type {
   Todo,
   TodoChoice,
 } from "@inspiration/contracts";
-import { documentComments } from "./document-comments.ts";
 import type { Engine } from "./engine.ts";
+import { readableDocument } from "./http.ts";
+import { HttpError } from "./http-errors.ts";
 
 /** What the tenant's predicate catalogue calls the fact of a slot; its qualifiers are its scope. */
 export async function factLabels(
@@ -40,25 +41,32 @@ export async function inboxTodos(engine: Engine, who: Principal, todos: readonly
     who,
     todos.map((t) => t.id),
   );
-  const comments = await engine.comments.list(who.tenant_id);
-  const permitted = new Map<string, NonNullable<InboxTodo["comment"]>>();
-  for (const todo of todos) {
-    const comment = comments.find((c) => c.todo_id === todo.id);
-    if (!comment) continue;
-    // Old-version sensitivity and a later permission change still apply to comments.
+  const feedback = todos.filter((t) => t.kind === "feedback" || t.kind === "comment_followup");
+  const comments = feedback.length
+    ? await engine.comments.forTodos(
+        who.tenant_id,
+        feedback.map((t) => t.id),
+      )
+    : [];
+  const readable = new Set<string>();
+  for (const version of new Set(comments.map((c) => c.comment.source_version_id))) {
     try {
-      await documentComments(engine, who, comment.comment.source_version_id);
-      permitted.set(todo.id, comment);
-    } catch {
-      /* Keep the todo but withhold the restricted source discussion. */
+      await readableDocument(engine, who, new URLSearchParams({ version }));
+      readable.add(version);
+    } catch (error) {
+      if (!(error instanceof HttpError && error.status === 404)) throw error;
     }
   }
+  const permitted = new Map(
+    comments.filter((c) => readable.has(c.comment.source_version_id)).map((c) => [c.todo_id, c]),
+  );
   return todos.map((todo): InboxTodo => {
+    const comment = permitted.get(todo.id);
     const label = labelOf(todo.slot_key);
     const { suggestion, left } = marks.get(todo.id) ?? {};
     return {
-      todo,
-      ...(permitted.has(todo.id) && { comment: permitted.get(todo.id) }),
+      todo: comment ? { ...todo, title: comment.document_title } : todo,
+      ...(comment && { comment }),
       ...(label && { fact_label: label }),
       statements: todo.unit_ids.flatMap((id) => statements.get(id) ?? []),
       choices: (todo.resolutions ?? []).map((r): TodoChoice => {

@@ -8,7 +8,7 @@ import { api, type Library, useLoad } from "./api.ts";
 import { blockAnchor, Discussion, type SelectionAnchor, selectedAnchor } from "./discussion.tsx";
 import { documentsOf } from "./documents.tsx";
 import { citedAt, remember } from "./home.tsx";
-import { highlight, type Mark, marksOf, type Passage, passages, type Quote, weakest } from "./marks.ts";
+import { highlight, type Mark, marksOf, type Passage, passages, type Quote, readingAnchor, weakest } from "./marks.ts";
 import { Crumbs, Failure, formatDate, Standing } from "./parts.tsx";
 import type { Person } from "./people.ts";
 import { stateOf } from "./reading.ts";
@@ -83,11 +83,8 @@ function Reading(props: {
   const issues = list.filter((p) =>
     marks.get(p.block.id)?.some((m) => m.statement.standing === "outdated" || m.statement.standing === "disputed"),
   );
-  const selected = list.find((p) =>
-    route.block
-      ? p.block.id === route.block
-      : route.span && [p.block, ...p.rows].some((b) => b.span_ids.includes(route.span as string)),
-  );
+  const anchor = readingAnchor(list, route);
+  const selected = anchor?.passage;
   const space = library.spaces.find((s) => s.id === view.space_id);
   // Only an uploaded document takes a new version here; a connected source brings its own.
   const uploaded = library.trees
@@ -111,7 +108,7 @@ function Reading(props: {
     });
   }, [person.member, view, space, sourceName]);
   // Arriving from a citation brings the cited passage into view; a click leaves the page still.
-  const cited = route.span || route.todo ? selected?.block.id : undefined;
+  const cited = route.todo || route.span ? anchor?.block.id : undefined;
   useEffect(() => {
     if (cited) document.getElementById(cited)?.scrollIntoView({ block: "center" });
   }, [cited]);
@@ -258,6 +255,7 @@ function Reading(props: {
                         ?.filter((m) => m.statement.standing === "outdated" || m.statement.standing === "disputed")
                     : undefined
                 }
+                cited={cited}
                 selected={annotated && selected?.block.id === p.block.id}
                 onSelect={() => {
                   setDiscussion(undefined);
@@ -315,6 +313,7 @@ function PassageView(props: {
   passage: Passage;
   marks: Mark[] | undefined;
   selected: boolean;
+  cited?: string;
   onSelect: () => void;
   onDiscuss: () => void;
 }) {
@@ -332,7 +331,7 @@ function PassageView(props: {
   const quotes = (props.marks ?? []).flatMap((m) => m.quotes);
   const standing = weakest(quotes.map((q) => q.tone));
   let body: ReactNode;
-  if (block.kind === "table") body = <Table block={block} rows={rows} quotes={quotes} />;
+  if (block.kind === "table") body = <Table block={block} rows={rows} quotes={quotes} cited={props.cited} />;
   else {
     // Each part is keyed by where it starts in the text.
     let start = 0;
@@ -370,7 +369,7 @@ function PassageView(props: {
   );
 }
 
-function Table(props: { block: SourceBlock; rows: SourceBlock[]; quotes: Quote[] }) {
+function Table(props: { block: SourceBlock; rows: SourceBlock[]; quotes: Quote[]; cited?: string }) {
   const head = Number(props.block.attrs?.header_rows ?? 0);
   // A quote names its cell where the source says; otherwise it marks the cells holding its text.
   const toneAt = (row: SourceBlock, col: number, text: string) =>
@@ -380,7 +379,7 @@ function Table(props: { block: SourceBlock; rows: SourceBlock[]; quotes: Quote[]
         .map((q) => q.tone),
     );
   const line = (row: SourceBlock, Cell: "th" | "td") => (
-    <tr key={row.id}>
+    <tr key={row.id} id={row.id} className={props.cited === row.id ? "cited-row" : undefined}>
       {row.text.split("\t").map((text, col) => {
         const tone = toneAt(row, col, text);
         return (

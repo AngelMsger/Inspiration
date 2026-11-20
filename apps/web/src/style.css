@@ -803,6 +803,10 @@ kbd {
   outline-offset: 2px;
 }
 
+.paper .cited-row > * {
+  background: var(--selected);
+}
+
 .passage-selected,
 .passage-selected:hover {
   background: var(--selected);

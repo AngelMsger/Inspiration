@@ -3,7 +3,7 @@
 
 import type { Citation, DocumentView, SearchHit, SourceBlock } from "@inspiration/contracts";
 import { describe, expect, test } from "vitest";
-import { highlight, marksOf, passages, weakest } from "../src/marks.ts";
+import { highlight, marksOf, passages, readingAnchor, weakest } from "../src/marks.ts";
 
 const VERSION = "sv_01POLICY";
 
@@ -59,6 +59,9 @@ const view = {
 describe("marks", () => {
   test("a table's rows sit inside the table", () => {
     const list = passages(blocks);
+    for (const route of [{ block: "tier1" }, { span: "spn_tier1" }]) {
+      expect(readingAnchor(list, route)).toMatchObject({ passage: { block: { id: "table" } }, block: { id: "tier1" } });
+    }
     expect(list.map((p) => p.block.id)).toEqual(["title", "rule", "table"]);
     expect(list[2]?.rows.map((r) => r.id)).toEqual(["head", "tier1", "other"]);
   });

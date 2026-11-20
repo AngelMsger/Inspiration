@@ -53,6 +53,17 @@ export function passages(blocks: readonly SourceBlock[]): Passage[] {
   return out;
 }
 
+/** The rendered block to scroll to, and the passage that owns its evidence panel. */
+export function readingAnchor(list: readonly Passage[], route: { block?: string; span?: string }) {
+  if (!route.block && !route.span) return;
+  for (const passage of list) {
+    const block = [passage.block, ...passage.rows].find((b) =>
+      route.block ? b.id === route.block : b.span_ids.some((span) => span === route.span),
+    );
+    if (block) return { passage, block };
+  }
+}
+
 /**
  * The marks on each passage, by the passage's block ID. A statement marks the passages that
  * hold the spans it cites in this version; a table's rows mark the table they sit in.

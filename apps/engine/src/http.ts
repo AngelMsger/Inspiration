@@ -583,8 +583,8 @@ async function lookUp(engine: Engine, query: URLSearchParams): Promise<ListedDoc
   return engine.sync.document(sourceId, externalId);
 }
 
-/** One version of a document, its blocks and the marks on them. */
-export async function documentView(engine: Engine, who: Principal, query: URLSearchParams): Promise<DocumentView> {
+/** Check the document, space and sensitivity of the requested version before reading its contents. */
+export async function readableDocument(engine: Engine, who: Principal, query: URLSearchParams) {
   const listed = await lookUp(engine, query);
   const source = listed && (await engine.sync.getSource(listed.version.source_id));
   if (!listed || !source || source.tenant_id !== who.tenant_id) throw notFound("document");
@@ -596,6 +596,13 @@ export async function documentView(engine: Engine, who: Principal, query: URLSea
   // The check reads the latest version's label; a citation may name an older one.
   if (!allows(await engine.authz.clearance(who), listed.version.sensitivity)) throw notFound("document");
   await readableSpace(engine, who, source.space_id);
+  return { listed, source };
+}
+
+/** One version of a document, its blocks and the marks on them. */
+export async function documentView(engine: Engine, who: Principal, query: URLSearchParams): Promise<DocumentView> {
+  const { listed, source } = await readableDocument(engine, who, query);
+  const { source_id, external_id } = listed.entry;
   // Where the engine keeps the stored copy is its own business, not the reader's.
   const {
     version: { blob: _blob, ...version },
