@@ -6,9 +6,10 @@
  * to maxlen entries.
  */
 
+import { setTimeout as sleep } from "node:timers/promises";
 import type { EventEnvelope } from "@inspiration/contracts";
 import { Redis } from "ioredis";
-import { type Delivery, parseEnvelope, type Transport } from "./transport.ts";
+import { type Delivery, parseEnvelope, type ReceiveOptions, type Transport } from "./transport.ts";
 
 type StreamEntry = [id: string, fields: string[] | null];
 
@@ -17,6 +18,42 @@ function fieldMap(fields: string[] | null): Record<string, string> {
   for (let i = 0; fields && i + 1 < fields.length; i += 2) out[fields[i] as string] = fields[i + 1] as string;
   return out;
 }
+
+// Reserve work for a group atomically, so a peer cannot start the next batch before this
+// one is acknowledged. On takeover, retry the oldest pending entry of a stream first.
+const READ_ORDERED = `
+local group, consumer, retry = ARGV[1], ARGV[2], tonumber(ARGV[3])
+for _, stream in ipairs(KEYS) do
+  local head = redis.call('XPENDING', stream, group, '-', '+', 1)[1]
+  if head then
+    if head[3] >= retry then
+      local entry = redis.call('XCLAIM', stream, group, consumer, retry, head[1])[1]
+      if entry then return {{{stream, entry, head[4] + 1}}, {}} end
+    end
+    return {{}, {}}
+  end
+end
+local args = {'GROUP', group, consumer, 'COUNT', 1, 'STREAMS', unpack(KEYS)}
+for _ = 1, #KEYS do table.insert(args, '>') end
+local read = redis.call('XREADGROUP', unpack(args))
+local deliveries, positions = {}, {}
+if read then
+  for _, result in ipairs(read) do table.insert(deliveries, {result[1], result[2][1], 1}) end
+else
+  -- Capture the positions before releasing the script, so a blocking wake-up cannot miss XADD.
+  for _, stream in ipairs(KEYS) do
+    local tail = redis.call('XREVRANGE', stream, '+', '-', 'COUNT', 1)[1]
+    table.insert(positions, tail and tail[1] or '0-0')
+  end
+end
+return {deliveries, positions}`;
+
+type OrderedReader = Redis & {
+  inspirationReadOrdered(
+    keyCount: number,
+    ...args: (string | number)[]
+  ): Promise<[[string, StreamEntry, number][], string[]]>;
+};
 
 export interface ValkeyOptions {
   prefix?: string;
@@ -30,6 +67,7 @@ export class ValkeyStreamsTransport implements Transport {
   readonly #readers = new Map<string, Redis>();
 
   constructor(client: Redis, options: ValkeyOptions = {}) {
+    client.defineCommand("inspirationReadOrdered", { lua: READ_ORDERED });
     this.client = client;
     this.prefix = options.prefix ?? "insp";
     this.maxlen = options.maxlen ?? 1_000_000;
@@ -86,8 +124,38 @@ export class ValkeyStreamsTransport implements Transport {
     group: string,
     consumer: string,
     eventTypes: readonly string[],
-    options: { count: number; blockMs: number; signal?: AbortSignal },
+    options: ReceiveOptions,
   ): Promise<Delivery[]> {
+    if (options.orderedRetryMs !== undefined) {
+      const streams = eventTypes.map((t) => this.stream(t));
+      const [entries, positions] = await (this.client as OrderedReader).inspirationReadOrdered(
+        streams.length,
+        ...streams,
+        group,
+        consumer,
+        options.orderedRetryMs,
+      );
+      if (entries.length) return entries.map(([stream, entry, attempt]) => this.#delivery(stream, entry, attempt));
+      if (options.blockMs > 0 && !options.signal?.aborted) {
+        if (positions.length) {
+          const wake = await this.#reader(group).call("XREAD", [
+            "BLOCK",
+            options.blockMs,
+            "COUNT",
+            1,
+            "STREAMS",
+            ...streams,
+            ...positions,
+          ]);
+          if (wake && !options.signal?.aborted)
+            return this.receive(group, consumer, eventTypes, { ...options, blockMs: 0 });
+        } else {
+          // A peer's ACK can free the group without appending to a stream.
+          await sleep(Math.min(options.blockMs, 100), undefined, { signal: options.signal }).catch(() => undefined);
+        }
+      }
+      return [];
+    }
     const args: (string | number)[] = ["GROUP", group, consumer, "COUNT", options.count];
     // BLOCK 0 means "wait forever" to Valkey, so a zero blockMs must omit BLOCK entirely.
     if (options.blockMs > 0) args.push("BLOCK", options.blockMs);

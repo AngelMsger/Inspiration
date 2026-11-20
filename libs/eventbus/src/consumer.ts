@@ -24,6 +24,8 @@ export interface ConsumerOptions {
   visibilityTimeoutMs?: number;
   blockMs?: number;
   batchSize?: number;
+  /** Finish each stream entry before any replica starts its successor. */
+  ordered?: boolean;
 }
 
 export function describeError(e: unknown): string {
@@ -33,6 +35,7 @@ export function describeError(e: unknown): string {
 export class Consumer {
   readonly transport: Transport;
   readonly name: string;
+  readonly ordered: boolean;
   readonly maxDeliveries: number;
   readonly visibilityTimeoutMs: number;
   readonly blockMs: number;
@@ -43,6 +46,7 @@ export class Consumer {
 
   constructor(transport: Transport, options: ConsumerOptions = {}) {
     this.transport = transport;
+    this.ordered = options.ordered ?? false;
     this.name = options.name ?? `${hostname()}-${process.pid}`;
     this.maxDeliveries = options.maxDeliveries ?? 5;
     this.visibilityTimeoutMs = options.visibilityTimeoutMs ?? 60_000;
@@ -111,14 +115,17 @@ export class Consumer {
   /** Handle what is available now (reclaimed first, then new). Returns deliveries handled. */
   async runOnce(group: string, options: { blockMs?: number; signal?: AbortSignal } = {}): Promise<number> {
     const types = await this.#ensure(group);
-    const deliveries = await this.transport.reclaim(group, this.name, types, {
-      minIdleMs: this.visibilityTimeoutMs,
-      count: this.batchSize,
-    });
+    const deliveries = this.ordered
+      ? []
+      : await this.transport.reclaim(group, this.name, types, {
+          minIdleMs: this.visibilityTimeoutMs,
+          count: this.batchSize,
+        });
     deliveries.push(
       ...(await this.transport.receive(group, this.name, types, {
         count: this.batchSize,
         blockMs: options.blockMs ?? 0,
+        ...(this.ordered && { orderedRetryMs: this.visibilityTimeoutMs }),
         ...(options.signal && { signal: options.signal }),
       })),
     );

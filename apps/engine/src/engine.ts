@@ -221,7 +221,11 @@ export class Engine {
     // timeout and a per-process consumer name so peer replicas never steal in-flight work.
     this.consumer =
       this.deliveryMode === "service"
-        ? new Consumer(parts.transport, { visibilityTimeoutMs: SERVER_VISIBILITY_TIMEOUT_MS, maxDeliveries: 3 })
+        ? new Consumer(parts.transport, {
+            visibilityTimeoutMs: SERVER_VISIBILITY_TIMEOUT_MS,
+            maxDeliveries: 3,
+            ordered: true,
+          })
         : new Consumer(parts.transport, { name: "engine", visibilityTimeoutMs: 0, maxDeliveries: 3 });
     this.sync = new SourceSync({
       store: this.store,

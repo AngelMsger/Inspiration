@@ -12,6 +12,7 @@ import type {
   TaxonomyNode,
   TodoDecision,
 } from "@inspiration/contracts";
+import type { DecisionResult } from "./api.ts";
 import { factTitle, type Side, valueText } from "./todos.ts";
 import type { Say } from "./words.ts";
 
@@ -32,8 +33,8 @@ export const toDecide = (cards: readonly InboxCard[]): InboxCard[] => cards.filt
 /** Asks the assistant about each card in turn, in the inbox's order, and hands on each answer as it comes. */
 export async function decideCards(
   cards: readonly InboxCard[],
-  decide: (asked: DecideTodos) => Promise<Decided>,
-  onCard: (decided: Decided) => void,
+  decide: (asked: DecideTodos) => Promise<DecisionResult<Decided>>,
+  onCard: (decided: DecisionResult<Decided>) => void,
 ): Promise<void> {
   for (const card of cards) onCard(await decide({ batch_key: card.batch_key }));
 }

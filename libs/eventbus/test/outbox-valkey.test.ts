@@ -3,8 +3,16 @@
 import { type EventEnvelope, newEvent, newId } from "@inspiration/contracts";
 import { connect } from "@inspiration/kernel";
 import { hasStack, stackTest as test } from "@inspiration/testkit";
-import { describe, expect } from "vitest";
-import { Consumer, firstDelivery, OutboxRelay, ValkeyStreamsTransport, writeOutbox } from "../src/index.ts";
+import { describe, expect, test as unitTest } from "vitest";
+import {
+  Consumer,
+  firstDelivery,
+  InMemoryTransport,
+  OutboxRelay,
+  type Transport,
+  ValkeyStreamsTransport,
+  writeOutbox,
+} from "../src/index.ts";
 
 const TENANT = "ten_01JC0000000000000000000001";
 
@@ -26,7 +34,34 @@ async function pendingRows(url: string): Promise<number> {
   }
 }
 
+/** A stopped consumer leaves its entry pending. A peer must retry it before taking the next one. */
+async function checkOrderedTakeover(transport: Transport) {
+  const types = ["claims.updated"];
+  const group = "ordered-takeover";
+  const options = { count: 32, blockMs: 0, orderedRetryMs: 60_000 };
+  const first = claimsEvent();
+  const next = claimsEvent();
+  await transport.ensureGroup(group, types);
+  await transport.send([first, next]);
+  const read = (consumer: string, retry = options.orderedRetryMs) =>
+    transport.receive(group, consumer, types, { ...options, orderedRetryMs: retry });
+  expect((await read("original")).map((d) => d.event?.id)).toEqual([first.id]);
+  expect(await read("peer")).toEqual([]);
+  const [retry] = await read("peer", 0);
+  expect(retry?.event?.id).toBe(first.id);
+  expect(retry?.attempt).toBe(2);
+  if (!retry) throw new Error("missing retry");
+  await transport.ack(group, retry);
+  expect((await read("peer")).map((d) => d.event?.id)).toEqual([next.id]);
+}
+
+unitTest("memory consumers recover in stream order", () => checkOrderedTakeover(new InMemoryTransport()));
+
 describe.skipIf(!hasStack())("outbox and Valkey Streams", () => {
+  test("a replica recovers pending work before reading later entries", async ({ valkey, streamPrefix }) => {
+    await checkOrderedTakeover(new ValkeyStreamsTransport(valkey, { prefix: streamPrefix }));
+  });
+
   test("outbox rows commit with the transaction", async ({ databaseUrl }) => {
     const client = await connect(databaseUrl);
     try {

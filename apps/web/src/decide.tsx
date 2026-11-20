@@ -5,7 +5,7 @@
 
 import type { Decided, Delegation, InboxCard, TodoDecision } from "@inspiration/contracts";
 import { useRef, useState } from "react";
-import { api, type Library, useLoad } from "./api.ts";
+import { api, type DecisionResult, type Library, useLoad } from "./api.ts";
 import { chosenText, decideCards, decisionFact, toDecide } from "./decide.ts";
 import { Crumbs, Failure, formatDate, useChange } from "./parts.tsx";
 import { Link } from "./route.tsx";
@@ -13,7 +13,11 @@ import { weekOf } from "./todos.ts";
 import { useWords } from "./words.ts";
 
 /** One press that lets the assistant decide every card it may, in the inbox's order. */
-export function DecideBar(props: { cards: readonly InboxCard[]; onCard: (d: Decided) => void; onDone: () => void }) {
+export function DecideBar(props: {
+  cards: readonly InboxCard[];
+  onCard: (d: DecisionResult<Decided>) => void;
+  onDone: () => void;
+}) {
   const { say } = useWords();
   // The inbox is read again even when a card fails, since the cards before it were decided.
   const { failure, busy, run } = useChange(() => undefined);
@@ -78,9 +82,14 @@ export function AlwaysDecide(props: { delegation: Delegation; onChanged: () => v
 }
 
 /** A decision the assistant made, with its reason and Undo, until it is undone. */
-export function DecidedLine(props: { decision: TodoDecision; fact: string; when?: boolean; onUndone: () => void }) {
+export function DecidedLine(props: {
+  decision: TodoDecision;
+  fact: string;
+  when?: boolean;
+  onUndone: (pending: boolean) => void;
+}) {
   const { say, tag } = useWords();
-  const { failure, busy, run } = useChange(props.onUndone);
+  const { failure, busy, run } = useChange(() => undefined);
   const { decision } = props;
   return (
     <div className={decision.undone_at ? "decided-line decided-undone" : "decided-line"}>
@@ -103,7 +112,7 @@ export function DecidedLine(props: { decision: TodoDecision; fact: string; when?
             type="button"
             className="link-button"
             disabled={busy}
-            onClick={() => run(() => api.undo(decision.id))}
+            onClick={() => run(async () => props.onUndone((await api.undo(decision.id)).pending === true))}
           >
             {busy ? say("decide.undoing") : say("decide.undo")}
           </button>
@@ -117,7 +126,7 @@ export function DecidedLine(props: { decision: TodoDecision; fact: string; when?
 export function DecidedFold(props: {
   decisions: { decision: TodoDecision; fact: string }[];
   left: number;
-  onUndone: (decision: TodoDecision) => void;
+  onUndone: (decision: TodoDecision, pending: boolean) => void;
 }) {
   const { say } = useWords();
   const summary = say("decide.summary", { decided: props.decisions.length, left: props.left });
@@ -136,7 +145,7 @@ export function DecidedFold(props: {
           key={d.decision.id}
           decision={d.decision}
           fact={d.fact}
-          onUndone={() => props.onUndone(d.decision)}
+          onUndone={(pending) => props.onUndone(d.decision, pending)}
         />
       ))}
     </details>
@@ -152,7 +161,9 @@ export function DecidedScreen(props: { library: Library; onChanged: () => void }
   if (week.state !== "loading") last.current = week;
   const shown = week.state === "loading" ? last.current : week;
   const topics = [...props.library.topics.values()].flatMap((l) => l.topics);
-  const undone = () => {
+  const [pending, setPending] = useState(false);
+  const undone = (delayed: boolean) => {
+    setPending(delayed);
     setVersion((v) => v + 1);
     props.onChanged();
   };
@@ -169,6 +180,7 @@ export function DecidedScreen(props: { library: Library; onChanged: () => void }
       <div className="heading">
         <h1 className="title">{say("decided.title")}</h1>
       </div>
+      {pending && <p role="status">{say("inbox.pending")}</p>}
       {shown?.state === "failed" && <Failure error={shown.error} />}
       {!shown && <p className="quiet">{say("inbox.loading")}</p>}
       {shown?.state === "done" && (

@@ -111,55 +111,27 @@ async function todoEffectVisible(engine: Engine, todo: Todo): Promise<boolean> {
   return true;
 }
 
-/**
- * Wait for background delivery (or run batch delivery) until every todo's effect is visible.
- * If unrelated tenant work keeps engine.settle() busy past its budget, checks whether these
- * todos' own governance effects have already landed; returns true only when some effect is
- * still pending.
- */
+/** Return whether these todos still have a pending governance effect after the wait budget. */
 export async function waitForTodos(
   engine: Engine,
   todos: readonly Todo[],
   options: WaitOptions = {},
 ): Promise<boolean> {
-  const needsGovernance = todos.filter(
-    (t) => t.created_by === "governance" && t.kind === "conflict" && Boolean(t.slot_key),
-  );
-  const allVisible = async () =>
-    (await Promise.all(needsGovernance.map((t) => todoEffectVisible(engine, t)))).every(Boolean);
-
-  if (engine.isServiceRunning && needsGovernance.length) {
-    // Poll the target todos' own governance state while letting engine.settle() also run
-    // (capped at 250 checks = 5s unless overridden) so unrelated tenant work never blocks
-    // for 200s or turns an already-applied decision into an HTTP 500.
-    const settleRun = engine.settle(options.maxRounds).then(
-      () => "settled" as const,
-      () => "timeout" as const,
-    );
-    let done = false;
-    const pollEffect = (async (): Promise<"visible" | "stopped"> => {
-      const checks = options.maxRounds ?? 250;
-      for (let i = 0; i < checks && !done && engine.isServiceRunning; i++) {
-        if (await allVisible()) return "visible";
-        await sleep(20);
-      }
-      return (await allVisible()) ? "visible" : "stopped";
-    })();
-    const first = await Promise.race([settleRun, pollEffect]);
-    done = true;
-    if (first === "visible") return false;
+  const allVisible = async () => (await Promise.all(todos.map((t) => todoEffectVisible(engine, t)))).every(Boolean);
+  if (!engine.isServiceRunning) {
+    // Batch callers drive delivery themselves, including downstream work for ordinary notes.
+    try {
+      await engine.settle(options.maxRounds);
+    } catch (error) {
+      if (!todos.some((t) => t.created_by === "governance" && t.kind === "conflict" && t.slot_key)) throw error;
+    }
     return !(await allVisible());
   }
-
-  try {
-    await engine.settle(options.maxRounds);
-    return needsGovernance.length ? !(await allVisible()) : false;
-  } catch (error) {
-    if (needsGovernance.length) {
-      return !(await allVisible());
-    }
-    throw error;
+  for (let round = 0; round < (options.maxRounds ?? 250) && engine.isServiceRunning; round++) {
+    if (await allVisible()) return false;
+    await sleep(20);
   }
+  return !(await allVisible());
 }
 
 /**

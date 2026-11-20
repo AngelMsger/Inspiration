@@ -241,7 +241,7 @@ libraries:
   kernel:
     owns: Settings, logging, plugin registry, SQL migrations runner, blob store, database pools, language packs, signed tokens (EdDSA JWTs both layers use)
   eventbus:
-    owns: Postgres outbox, relay to Valkey Streams, consumer groups with retries and dead letters, in-memory bus for tests
+    owns: Postgres outbox, relay to Valkey Streams, consumer groups with ordered per-stream service delivery, retries and dead letters, in-memory bus for tests
   testkit:
     owns: Test fixtures for the compose stack (a migrated database per test, Valkey prefixes, SpiceDB settings) and test data files; test code only
 

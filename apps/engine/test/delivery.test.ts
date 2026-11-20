@@ -2,14 +2,14 @@ import { mkdtemp, rm } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { newEvent, newId, type Principal } from "@inspiration/contracts";
+import { newEvent, newId, type Principal, type TodoRequested } from "@inspiration/contracts";
 import { RELAY_LOCK, writeOutbox } from "@inspiration/eventbus";
 import { connect } from "@inspiration/kernel";
 import { Sample } from "@inspiration/knowledge-store/testing";
 import { hasStack, stackTest, VALKEY_URL } from "@inspiration/testkit";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { Engine, SERVER_VISIBILITY_TIMEOUT_MS, serveApi } from "../src/index.ts";
-import { resolveTodo } from "../src/todos.ts";
+import { resolveTodo, waitForTodos } from "../src/todos.ts";
 
 const TENANT = "ten_01JC0000000000000000000001";
 
@@ -188,7 +188,7 @@ test("service mode settle() waits for conflict resolution so the next read sees 
     expect((await engine.governance.verdicts(TENANT, ["hotel_cap"]))[0]?.disputed).toBe(true);
     expect(await engine.governance.conflicts(TENANT, "open")).toHaveLength(1);
 
-    // resolveTodo() calls engine.settle(); the very next read must already reflect the chosen value.
+    // The very next read must already reflect the chosen value.
     const result = await resolveTodo(engine, owner, conflict.todo.id, { with: chosen });
     expect(result.todo?.status).toBe("done");
     expect((await engine.governance.verdicts(TENANT, ["hotel_cap"]))[0]?.disputed).toBe(false);
@@ -254,6 +254,7 @@ test("HTTP conflict resolution returns 200 when another tenant stays busy, and 2
     value: { kind: "money", number: 150, unit: "CNY/day", currency: "CNY", normalized: "150 CNY/day" },
   });
 
+  let releaseGovernance: (() => void) | undefined;
   let releaseTenantB!: () => void;
   const tenantBGate = new Promise<void>((resolve) => {
     releaseTenantB = resolve;
@@ -307,7 +308,25 @@ test("HTTP conflict resolution returns 200 when another tenant stays busy, and 2
       throw new Error("expected open conflict todos for hotel_cap and meal_cap");
     }
 
-    // Hold a claims.updated handler open for tenant B and shorten the settle polling budget to 10 checks.
+    await engine.transport.send([
+      newEvent(
+        "todo.requested",
+        {
+          kind: "note",
+          title: "Read the travel policy",
+          priority: "normal",
+          space_id: kb.spaceId,
+          unit_ids: [c1.id],
+          dedupe_key: "travel-note",
+        },
+        { tenantId: tenantA, producer: "governance" },
+      ),
+    ]);
+    await engine.settle();
+    const note = (await engine.inbox.items(tenantA)).find((i) => i.todo.kind === "note")?.todo;
+    if (!note) throw new Error("expected an open note");
+
+    // Keep another tenant busy throughout all three requests.
     await engine.transport.send([
       newEvent(
         "claims.updated",
@@ -317,18 +336,26 @@ test("HTTP conflict resolution returns 200 when another tenant stays busy, and 2
     ]);
     await expect.poll(() => tenantBHeld, { timeout: 2_000, interval: 10 }).toBe(true);
 
-    const realSettle = engine.settle.bind(engine);
-    const settleSpy = vi.spyOn(engine, "settle").mockImplementation((rounds?: number) => realSettle(rounds ?? 10));
+    const settleSpy = vi.spyOn(engine, "settle");
+    const headers = {
+      "content-type": "application/json",
+      "x-inspiration-tenant": tenantA,
+      "x-inspiration-member": ownerId,
+    };
+    const noted = await fetch(`http://127.0.0.1:${port}/v0/todos/${note.id}/resolve`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ status: "done" }),
+    });
+    expect(noted.status).toBe(200);
+    expect((await engine.inbox.todo(tenantA, note.id))?.status).toBe("done");
+    expect(await waitForTodos(engine, [])).toBe(false);
 
     // Case 1: Tenant A's conflict resolution applies on governance while tenant B stays held.
     // The endpoint must return 200 (not 500) once A's verdict is updated.
     const resApplied = await fetch(`http://127.0.0.1:${port}/v0/todos/${hotelTodo.id}/resolve`, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-inspiration-tenant": tenantA,
-        "x-inspiration-member": ownerId,
-      },
+      headers,
       body: JSON.stringify({ with: hotelChoice }),
     });
     expect(resApplied.status).toBe(200);
@@ -338,8 +365,7 @@ test("HTTP conflict resolution returns 200 when another tenant stays busy, and 2
     expect((await engine.governance.verdicts(tenantA, ["hotel_cap"]))[0]?.disputed).toBe(false);
 
     // Case 2: Hold governance.resolved open so tenant A's own effect is genuinely still pending
-    // when the shortened budget expires. The endpoint returns 202 with an explicit pending flag.
-    let releaseGovernance!: () => void;
+    // when the wait budget expires. The endpoint returns 202 with an explicit pending flag.
     const govGate = new Promise<void>((resolve) => {
       releaseGovernance = resolve;
     });
@@ -351,11 +377,7 @@ test("HTTP conflict resolution returns 200 when another tenant stays busy, and 2
 
     const resPending = await fetch(`http://127.0.0.1:${port}/v0/todos/${mealTodo.id}/resolve`, {
       method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-inspiration-tenant": tenantA,
-        "x-inspiration-member": ownerId,
-      },
+      headers,
       body: JSON.stringify({ with: mealChoice }),
     });
     expect(resPending.status).toBe(202);
@@ -363,12 +385,14 @@ test("HTTP conflict resolution returns 200 when another tenant stays busy, and 2
     expect(bodyPending.status).toBe("done");
     expect(bodyPending.pending).toBe(true);
 
-    releaseGovernance();
+    expect(settleSpy).not.toHaveBeenCalled();
+    releaseGovernance?.();
     releaseTenantB();
     settleSpy.mockRestore();
-    await realSettle();
+    await engine.settle();
     expect((await engine.governance.verdicts(tenantA, ["meal_cap"]))[0]?.disputed).toBe(false);
   } finally {
+    releaseGovernance?.();
     releaseTenantB();
     server.close();
     await engine.close();
@@ -417,6 +441,65 @@ describe.skipIf(!hasStack())("service mode on Postgres and Valkey", () => {
         ]);
         expect(rows[0]?.locked).toBe(true);
         await probe.end();
+      }
+    },
+  );
+
+  stackTest(
+    "a peer cannot withdraw a todo before its slow creation finishes",
+    async ({ databaseUrl, streamPrefix, valkey }) => {
+      const options = {
+        databaseUrl,
+        valkeyUrl: VALKEY_URL,
+        streamPrefix,
+        blobDir: await tempBlobs(),
+        deliveryMode: "service" as const,
+      };
+      const first = await Engine.open(options);
+      const peer = await Engine.open(options);
+      const db = await connect(databaseUrl);
+      const request: TodoRequested = {
+        kind: "note",
+        title: "Check this note",
+        priority: "normal",
+        space_id: newId("space"),
+        unit_ids: [newId("claim")],
+        dedupe_key: "same-note",
+      };
+      const meta = { tenantId: TENANT, producer: "governance" };
+      const create = newEvent("todo.requested", request, meta);
+      const withdraw = newEvent("todo.requested", { ...request, withdrawn: true }, meta);
+      let entered!: () => void;
+      const held = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      let resume!: () => void;
+      const release = new Promise<void>((resolve) => {
+        resume = resolve;
+      });
+      const topics = first.store.topics.bind(first.store);
+      vi.spyOn(first.store, "topics").mockImplementationOnce(async (...args) => {
+        entered();
+        await release;
+        return topics(...args);
+      });
+      try {
+        first.startDelivery();
+        await writeOutbox(db, [create]);
+        await held;
+        await writeOutbox(db, [withdraw]);
+        await expect.poll(() => valkey.xlen(`${streamPrefix}:ev:todo.requested`)).toBe(2);
+        // Run the peer's real consumer round while the first handler is still inside the gate.
+        expect(await peer.consumer.runOnce("collaboration")).toBe(0);
+        peer.startDelivery();
+        resume();
+        await peer.settle();
+        expect(await first.inbox.items(TENANT, { open: true })).toEqual([]);
+        expect((await first.inbox.items(TENANT)).map((i) => i.todo.status)).toEqual(["dismissed"]);
+      } finally {
+        resume();
+        await Promise.all([first.close(), peer.close()]);
+        await db.end();
       }
     },
   );

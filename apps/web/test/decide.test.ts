@@ -3,11 +3,14 @@
 
 import { readFileSync } from "node:fs";
 import type { Decided, DecideTodos, InboxCard, InboxTodo, TaxonomyNode } from "@inspiration/contracts";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { parse } from "yaml";
 import { chosenText, decideCards, decisionFact, marked, suggestedSide, toDecide } from "../src/decide.ts";
+import { outcomeOf } from "../src/inbox.tsx";
 import { choiceText, sidesOf } from "../src/todos.ts";
 import type { Say } from "../src/words.ts";
+
+vi.mock("../src/words.ts", () => ({ useWords: () => ({ say, tag: "en" }) }));
 
 const en = parse(readFileSync(new URL("../languages/en.yaml", import.meta.url), "utf8")) as Record<string, string>;
 const say: Say = (key, params) =>
@@ -84,6 +87,20 @@ describe("Decide for me in the inbox", () => {
     );
     await expect(run).rejects.toThrow("down");
     expect(answers).toHaveLength(1);
+  });
+
+  test("a saved choice with pending effects never links to supposedly updated evidence", () => {
+    const item = todo("example");
+    const sides = sidesOf(item);
+    const choices = card("example", [item]);
+    expect(outcomeOf(say, { ...item.todo, pending: true }, sides[0], sides, choices)).toEqual({
+      todo: item.todo.id,
+      text: say("inbox.pending"),
+      marks: [],
+    });
+    expect(outcomeOf(say, item.todo, sides[0], sides, choices).text).toBe(
+      say("inbox.decided", { value: "¥600 a night" }),
+    );
   });
 
   test("selects the assistant's suggestion, else the value proposed first", () => {

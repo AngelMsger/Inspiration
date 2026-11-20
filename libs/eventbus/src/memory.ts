@@ -11,7 +11,7 @@ import { performance } from "node:perf_hooks";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { EventEnvelope, EventHandler } from "@inspiration/contracts";
 import { Consumer } from "./consumer.ts";
-import type { Delivery, Transport } from "./transport.ts";
+import type { Delivery, ReceiveOptions, Transport } from "./transport.ts";
 
 interface Pending {
   index: number;
@@ -75,15 +75,26 @@ export class InMemoryTransport implements Transport {
     return { event, stream: eventType, messageId: String(index), attempt, raw: JSON.stringify(event) };
   }
 
-  #read(group: string, consumer: string, eventTypes: readonly string[], count: number): Delivery[] {
+  #read(group: string, consumer: string, eventTypes: readonly string[], options: ReceiveOptions): Delivery[] {
     const out: Delivery[] = [];
+    if (options.orderedRetryMs !== undefined) {
+      for (const t of eventTypes) {
+        const [first] = this.#group(t, group).pending.values();
+        if (!first) continue;
+        if (performance.now() - first.deliveredAt < options.orderedRetryMs) return [];
+        first.consumer = consumer;
+        first.deliveredAt = performance.now();
+        return [this.#delivery(t, first.index, ++first.attempts)];
+      }
+    }
     for (const t of eventTypes) {
       const g = this.#group(t, group);
       const stream = this.#stream(t);
-      while (g.nextIndex < stream.length && out.length < count) {
+      while (g.nextIndex < stream.length && out.length < options.count) {
         const index = g.nextIndex++;
         g.pending.set(index, { index, consumer, deliveredAt: performance.now(), attempts: 1 });
         out.push(this.#delivery(t, index, 1));
+        if (options.orderedRetryMs !== undefined) break;
       }
     }
     return out;
@@ -93,9 +104,9 @@ export class InMemoryTransport implements Transport {
     group: string,
     consumer: string,
     eventTypes: readonly string[],
-    options: { count: number; blockMs: number; signal?: AbortSignal },
+    options: ReceiveOptions,
   ): Promise<Delivery[]> {
-    let out = this.#read(group, consumer, eventTypes, options.count);
+    let out = this.#read(group, consumer, eventTypes, options);
     if (out.length === 0 && options.blockMs > 0 && !this.#closed && !options.signal?.aborted) {
       const notified = new AbortController();
       const wake = () => notified.abort();
@@ -107,7 +118,7 @@ export class InMemoryTransport implements Transport {
         this.#waiters.delete(wake);
       }
       if (!this.#closed && !options.signal?.aborted) {
-        out = this.#read(group, consumer, eventTypes, options.count);
+        out = this.#read(group, consumer, eventTypes, options);
       }
     }
     return out;
@@ -138,6 +149,7 @@ export class InMemoryTransport implements Transport {
 
   async ack(group: string, delivery: Delivery): Promise<void> {
     this.#group(delivery.stream, group).pending.delete(Number(delivery.messageId));
+    this.#wake();
   }
 
   async deadLetter(group: string, delivery: Delivery, error: string): Promise<void> {
