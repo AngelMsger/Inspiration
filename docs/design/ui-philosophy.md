@@ -171,7 +171,7 @@ One rule everywhere: the right panel always has a title that names what it is ab
 | A list in Admin | Inspector · the selected connection | Authorisation, where it is used, what happens when it expires (V2-sources) |
 | A list with no selection | No panel | The centre takes the width |
 
-A revision to an original document never changes it in place: the document lives in its source, so a revision goes to its author as a suggestion and comes back with the next sync.
+A proposed correction opens a review todo for the responsible owner. If the author edits the document in its connected source, the next sync brings in that version.
 
 Rules:
 
