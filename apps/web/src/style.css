@@ -827,6 +827,12 @@ kbd {
   border-left-color: var(--disputed);
 }
 
+.paper mark.feedback-quote {
+  background: var(--selected);
+  color: inherit;
+  border-bottom: 2px solid var(--link);
+}
+
 .passage mark.tone-outdated {
   border: 0;
   background: var(--outdated-bg);

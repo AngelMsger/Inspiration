@@ -8,6 +8,13 @@ import { useWords } from "./words.ts";
 
 export type SelectionAnchor = Pick<NewDocumentComment, "block_id" | "start" | "end" | "quote">;
 
+/** JSON Schema counts Unicode code points; the source offsets still count UTF-16 code units. */
+export function canQuote(text: string): boolean {
+  return (
+    Boolean(text.trim()) && (text.length <= 20_000 || (text.length <= 40_000 && Array.from(text).length <= 20_000))
+  );
+}
+
 export function blockAnchor(block: SourceBlock): SelectionAnchor {
   return { block_id: block.id, start: 0, end: block.text.length, quote: block.text };
 }

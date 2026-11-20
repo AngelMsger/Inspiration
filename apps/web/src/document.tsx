@@ -5,7 +5,7 @@
 import type { DocumentView, SourceBlock } from "@inspiration/contracts";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { api, type Library, useLoad } from "./api.ts";
-import { blockAnchor, Discussion, type SelectionAnchor, selectedAnchor } from "./discussion.tsx";
+import { blockAnchor, canQuote, Discussion, type SelectionAnchor, selectedAnchor } from "./discussion.tsx";
 import { documentsOf } from "./documents.tsx";
 import { citedAt, remember } from "./home.tsx";
 import { highlight, type Mark, marksOf, type Passage, passages, type Quote, readingAnchor, weakest } from "./marks.ts";
@@ -109,11 +109,17 @@ function Reading(props: {
   }, [person.member, view, space, sourceName]);
   // Arriving from a citation brings the cited passage into view; a click leaves the page still.
   const cited = route.todo || route.span ? anchor?.block.id : undefined;
+  const savedRange = route.range;
   useEffect(() => {
-    if (cited) document.getElementById(cited)?.scrollIntoView({ block: "center" });
-  }, [cited]);
+    const block = cited && document.getElementById(cited);
+    if (block) ((savedRange && block.querySelector(".feedback-quote")) ?? block).scrollIntoView({ block: "center" });
+  }, [cited, savedRange]);
+  const range = anchor && route.range && route.range.end <= anchor.block.text.length ? route.range : undefined;
+  const titleBlock =
+    list[0]?.block.kind === "heading" && list[0].block.text === view.document.title ? list[0].block : undefined;
 
-  const select = (block: string | undefined) => navigate({ ...route, block, span: undefined }, { replace: true });
+  const select = (block: string | undefined) =>
+    navigate({ ...route, block, range: undefined, span: undefined }, { replace: true });
   const jump = (step: number) => {
     const visible = issues.findIndex(
       (p) => (document.getElementById(p.block.id)?.getBoundingClientRect().top ?? -1) >= 90,
@@ -206,7 +212,10 @@ function Reading(props: {
                 onClick={() => {
                   setDiscussion(undefined);
                   setSelection(undefined);
-                  navigate({ ...route, view: v, block: undefined, span: undefined }, { replace: true });
+                  navigate(
+                    { ...route, view: v, block: undefined, range: undefined, span: undefined },
+                    { replace: true },
+                  );
                 }}
               >
                 {say(`doc.${v}`)}
@@ -219,7 +228,9 @@ function Reading(props: {
           onMouseUp={() => setSelection(selectedAnchor(view.blocks))}
           onKeyUp={() => setSelection(selectedAnchor(view.blocks))}
         >
-          <h1>{view.document.title}</h1>
+          <h1 id={titleBlock?.id} data-source-block={titleBlock?.id}>
+            {quotedText(view.document.title, titleBlock && titleBlock.id === cited ? range : undefined)}
+          </h1>
           <div className="meta">
             <span>{[sourceName, ...folders].join(" · ")}</span>
             {view.document.url && /^https?:\/\//i.test(view.document.url) && (
@@ -243,7 +254,7 @@ function Reading(props: {
           </div>
           <ReadingNote entry={view.document} />
           {list
-            .filter((p, i) => !(i === 0 && p.block.kind === "heading" && p.block.text === view.document.title))
+            .filter((p) => p.block !== titleBlock)
             .map((p) => (
               <PassageView
                 key={p.block.id}
@@ -256,6 +267,7 @@ function Reading(props: {
                     : undefined
                 }
                 cited={cited}
+                range={selected === p ? range : undefined}
                 selected={annotated && selected?.block.id === p.block.id}
                 onSelect={() => {
                   setDiscussion(undefined);
@@ -268,9 +280,13 @@ function Reading(props: {
       </main>
       {selection && (
         <div className="selection-tools">
-          <button type="button" className="primary" onClick={() => discuss(selection)}>
-            {say("discussion.action")}
-          </button>
+          {canQuote(selection.quote) ? (
+            <button type="button" className="primary" onClick={() => discuss(selection)}>
+              {say("discussion.action")}
+            </button>
+          ) : (
+            <span role="status">{say("discussion.select_shorter")}</span>
+          )}
           <button
             type="button"
             className="secondary"
@@ -309,11 +325,27 @@ function Reading(props: {
   );
 }
 
+/** Mark the part of this text (or table cell) covered by the saved block offsets. */
+export function quotedText(text: string, range?: DocumentRoute["range"], offset = 0): ReactNode {
+  if (!range) return text;
+  const start = Math.max(0, range.start - offset);
+  const end = Math.min(text.length, range.end - offset);
+  if (end <= start) return text;
+  return (
+    <>
+      {text.slice(0, start)}
+      <mark className="feedback-quote">{text.slice(start, end)}</mark>
+      {text.slice(end)}
+    </>
+  );
+}
+
 function PassageView(props: {
   passage: Passage;
   marks: Mark[] | undefined;
   selected: boolean;
   cited?: string;
+  range?: DocumentRoute["range"];
   onSelect: () => void;
   onDiscuss: () => void;
 }) {
@@ -324,14 +356,16 @@ function PassageView(props: {
     const Heading = `h${level}` as "h2" | "h3" | "h4";
     return (
       <Heading id={block.id} data-source-block={block.id}>
-        {block.text}
+        {quotedText(block.text, props.range)}
       </Heading>
     );
   }
   const quotes = (props.marks ?? []).flatMap((m) => m.quotes);
   const standing = weakest(quotes.map((q) => q.tone));
   let body: ReactNode;
-  if (block.kind === "table") body = <Table block={block} rows={rows} quotes={quotes} cited={props.cited} />;
+  if (block.kind === "table")
+    body = <Table block={block} rows={rows} quotes={quotes} cited={props.cited} range={props.range} />;
+  else if (props.range) body = quotedText(block.text, props.range);
   else {
     // Each part is keyed by where it starts in the text.
     let start = 0;
@@ -361,15 +395,25 @@ function PassageView(props: {
             {say("doc.inspect")}
           </button>
         ) : null}
-        <button type="button" className="link-button" onClick={props.onDiscuss}>
-          {say("discussion.action")}
-        </button>
+        {canQuote((rows[0] ?? block).text) ? (
+          <button type="button" className="link-button" onClick={props.onDiscuss}>
+            {say("discussion.action")}
+          </button>
+        ) : (
+          (rows[0] ?? block).text.trim() && <span className="quiet">{say("discussion.select_shorter")}</span>
+        )}
       </div>
     </div>
   );
 }
 
-function Table(props: { block: SourceBlock; rows: SourceBlock[]; quotes: Quote[]; cited?: string }) {
+function Table(props: {
+  block: SourceBlock;
+  rows: SourceBlock[];
+  quotes: Quote[];
+  cited?: string;
+  range?: DocumentRoute["range"];
+}) {
   const head = Number(props.block.attrs?.header_rows ?? 0);
   // A quote names its cell where the source says; otherwise it marks the cells holding its text.
   const toneAt = (row: SourceBlock, col: number, text: string) =>
@@ -378,26 +422,34 @@ function Table(props: { block: SourceBlock; rows: SourceBlock[]; quotes: Quote[]
         .filter((q) => q.row === row.id && (q.cell ? q.cell.col === col : text.includes(q.text)))
         .map((q) => q.tone),
     );
-  const line = (row: SourceBlock, Cell: "th" | "td") => (
-    <tr key={row.id} id={row.id} className={props.cited === row.id ? "cited-row" : undefined}>
-      {row.text.split("\t").map((text, col) => {
-        const tone = toneAt(row, col, text);
-        return (
-          <Cell
-            // biome-ignore lint/suspicious/noArrayIndexKey: a row's cells, in order
-            key={col}
-            data-source-block={row.id}
-            data-source-start={row.text
-              .split("\t")
-              .slice(0, col)
-              .reduce((n, cell) => n + cell.length + 1, 0)}
-          >
-            {tone ? <mark className={`tone-${tone}`}>{text}</mark> : text}
-          </Cell>
-        );
-      })}
-    </tr>
-  );
+  const line = (row: SourceBlock, Cell: "th" | "td") => {
+    let offset = 0;
+    return (
+      <tr key={row.id} id={row.id} className={props.cited === row.id ? "cited-row" : undefined}>
+        {row.text.split("\t").map((text, col) => {
+          const tone = toneAt(row, col, text);
+          const start = offset;
+          offset += text.length + 1;
+          return (
+            <Cell
+              // biome-ignore lint/suspicious/noArrayIndexKey: a row's cells, in order
+              key={col}
+              data-source-block={row.id}
+              data-source-start={start}
+            >
+              {props.cited === row.id && props.range ? (
+                quotedText(text, props.range, start)
+              ) : tone ? (
+                <mark className={`tone-${tone}`}>{text}</mark>
+              ) : (
+                text
+              )}
+            </Cell>
+          );
+        })}
+      </tr>
+    );
+  };
   return (
     <table>
       {head > 0 && <thead>{props.rows.slice(0, head).map((r) => line(r, "th"))}</thead>}

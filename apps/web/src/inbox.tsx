@@ -457,6 +457,7 @@ function Review(props: { item: InboxTodo; card: InboxCard; onChanged: () => void
               name: "document",
               version: comment.comment.source_version_id,
               block: comment.comment.block_id,
+              range: { start: comment.comment.start, end: comment.comment.end },
               view: "original",
               todo: item.todo.id,
             }}

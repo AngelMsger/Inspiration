@@ -15,6 +15,7 @@ export type DocumentRoute = {
   /** The passage to select: a block, or the block holding a cited span. */
   block?: string;
   span?: string;
+  range?: { start: number; end: number };
   /** The question the reader came from, for the way back. */
   from?: string;
   todo?: string;
@@ -82,6 +83,9 @@ export function parse(url: URL): Route {
   const todo = url.pathname.match(/^\/inbox\/([^/]+)$/);
   if (todo?.[1]) return { name: "todo", id: decodeURIComponent(todo[1]) };
   if (url.pathname === "/document") {
+    const offset = (key: string) => (/^\d+$/.test(get(key) ?? "") ? Number(get(key)) : Number.NaN);
+    const start = offset("start");
+    const end = offset("end");
     return {
       name: "document",
       source: get("source"),
@@ -89,6 +93,10 @@ export function parse(url: URL): Route {
       version: get("version"),
       view: get("view") === "original" ? "original" : "annotated",
       block: get("block"),
+      ...(get("block") &&
+        Number.isSafeInteger(start) &&
+        Number.isSafeInteger(end) &&
+        end > start && { range: { start, end } }),
       span: get("span"),
       from: get("from"),
       todo: get("todo"),
@@ -141,6 +149,8 @@ export function href(route: Route): string {
         ["version", route.version],
         ["view", route.view],
         ["block", route.block],
+        ["start", route.range?.start.toString()],
+        ["end", route.range?.end.toString()],
         ["span", route.span],
         ["from", route.from],
         ["todo", route.todo],
