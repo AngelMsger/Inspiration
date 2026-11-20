@@ -75,14 +75,15 @@ export class OutboxRelay {
     }
   }
 
-  /** Forward everything pending now. */
-  async drain(client: Queryable): Promise<number> {
+  /** Forward everything pending now, stopping between batches if signal aborts. */
+  async drain(client: Queryable, signal?: AbortSignal): Promise<number> {
     let total = 0;
-    for (;;) {
+    while (!signal?.aborted) {
       const n = await this.relayOnce(client);
       total += n;
       if (n < this.batchSize) return total;
     }
+    return total;
   }
 
   async prune(client: Queryable): Promise<number> {
@@ -111,8 +112,10 @@ export class OutboxRelay {
         work = await this.#connect(this.databaseUrl);
         work.on("error", onError);
         const session = AbortSignal.any([signal, dropped.signal]);
+        // Hold RELAY_LOCK on the work session so losing the lock connection cannot leave
+        // drain(work) publishing another batch without holding the advisory lock.
         while (!session.aborted) {
-          const { rows } = await listen.query<{ locked: boolean }>("SELECT pg_try_advisory_lock($1) AS locked", [
+          const { rows } = await work.query<{ locked: boolean }>("SELECT pg_try_advisory_lock($1) AS locked", [
             RELAY_LOCK,
           ]);
           if (rows[0]?.locked) break;
@@ -124,8 +127,9 @@ export class OutboxRelay {
         log.info("relay active");
         let lastPrune = 0;
         while (!session.aborted) {
-          const sent = await this.drain(work);
+          const sent = await this.drain(work, session);
           if (sent) log.debug("relayed events", { count: sent });
+          if (session.aborted) break;
           if (Date.now() - lastPrune > PRUNE_EVERY_MS) {
             await this.prune(work);
             lastPrune = Date.now();

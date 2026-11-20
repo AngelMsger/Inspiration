@@ -148,3 +148,69 @@ test("OutboxRelay.run() retries after a transient startup connection failure", a
     await transport.close();
   }
 });
+
+test("OutboxRelay.run() holds RELAY_LOCK on work and stops a multi-batch drain when a connection drops", async () => {
+  const transport = new InMemoryTransport();
+  const pending: { seq: number; envelope: EventEnvelope }[] = [
+    { seq: 1, envelope: claimsEvent() },
+    { seq: 2, envelope: claimsEvent() },
+  ];
+  const lockHolders: number[] = [];
+  const drainsByClient: number[] = [];
+  let clientSeq = 0;
+  let firstListen: EventEmitter | undefined;
+  let allowLock = true;
+
+  const relay = new OutboxRelay("postgres://unused", transport, {
+    batchSize: 1,
+    retryDelayMs: 20,
+    pollIntervalMs: 5_000,
+    connect: async () => {
+      const id = ++clientSeq;
+      const emitter = new EventEmitter();
+      if (id === 1) firstListen = emitter;
+      return Object.assign(emitter, {
+        async query(sql: string) {
+          if (sql.includes("pg_try_advisory_lock")) {
+            if (!allowLock) return { rows: [{ locked: false }], rowCount: 1 };
+            lockHolders.push(id);
+            return { rows: [{ locked: true }], rowCount: 1 };
+          }
+          if (sql.includes("SELECT seq, envelope")) {
+            drainsByClient.push(id);
+            const batch = pending.slice(0, 1);
+            return { rows: batch, rowCount: batch.length };
+          }
+          if (sql.includes("UPDATE bus.outbox")) {
+            pending.shift();
+            // Simulate a connection drop during the first batch while a second batch is still queued.
+            if (drainsByClient.length === 1) {
+              allowLock = false;
+              firstListen?.emit("error", new Error("connection reset"));
+            }
+            return { rows: [], rowCount: 1 };
+          }
+          return { rows: [], rowCount: 0 };
+        },
+        async end() {},
+      }) as unknown as pg.Client;
+    },
+  });
+
+  const running = relay.run();
+  try {
+    await expect
+      .poll(() => transport.streams.get("claims.updated")?.length ?? 0, { timeout: 2_000, interval: 10 })
+      .toBe(1);
+    // Give the loop a moment; with allowLock=false on reconnect, batch 2 must NOT be sent by the old session.
+    await new Promise((r) => setTimeout(r, 80));
+    expect(lockHolders).toEqual([2]); // lock was acquired on the work client (client 2), not listen (client 1)
+    expect(drainsByClient).toEqual([2]);
+    expect(transport.streams.get("claims.updated")).toHaveLength(1);
+    expect(pending).toHaveLength(1);
+  } finally {
+    await relay.stop();
+    await running;
+    await transport.close();
+  }
+});

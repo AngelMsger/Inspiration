@@ -436,8 +436,10 @@ export class Engine {
 
   async #outboxState(): Promise<{ pending: boolean; maxSeq: string }> {
     if (!this.#pool || !this.#relay) return { pending: false, maxSeq: "0" };
+    // Uses the partial index outbox_pending (WHERE relayed_at IS NULL) and the PK index on seq,
+    // avoiding a full scan of retained relayed history on each poll.
     const { rows } = await this.#pool.query<{ pending: boolean; max_seq: string }>(
-      "SELECT COALESCE(BOOL_OR(relayed_at IS NULL), false) AS pending, COALESCE(MAX(seq), 0)::text AS max_seq FROM bus.outbox",
+      "SELECT EXISTS (SELECT 1 FROM bus.outbox WHERE relayed_at IS NULL) AS pending, COALESCE((SELECT MAX(seq) FROM bus.outbox), 0)::text AS max_seq",
     );
     return { pending: rows[0]?.pending ?? false, maxSeq: rows[0]?.max_seq ?? "0" };
   }
@@ -456,7 +458,7 @@ export class Engine {
       await sleep(20);
     }
     if (!this.#closing && this.#workers) {
-      log.warn("settle timed out waiting for background delivery to become idle", { maxChecks });
+      throw new Error(`background delivery still pending after ${maxChecks} checks`);
     }
     return 0;
   }

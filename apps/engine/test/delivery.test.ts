@@ -199,6 +199,31 @@ test("service mode settle() waits for conflict resolution so the next read sees 
   }
 });
 
+test("service mode settle() rejects when background delivery stays pending beyond its budget", async () => {
+  const engine = await Engine.open({ blobDir: await tempBlobs(), deliveryMode: "service" });
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let started = false;
+  engine.observe("claims.updated", "blocked-observer", async () => {
+    started = true;
+    await gate;
+  });
+
+  engine.startDelivery();
+  try {
+    await engine.transport.send([claimsEvent()]);
+    await expect.poll(() => started, { timeout: 2_000, interval: 10 }).toBe(true);
+    await expect(engine.settle(2)).rejects.toThrow(/pending/);
+    release();
+    await expect(engine.settle()).resolves.toBe(0);
+  } finally {
+    release();
+    await engine.close();
+  }
+});
+
 describe.skipIf(!hasStack())("service mode on Postgres and Valkey", () => {
   stackTest(
     "holds RELAY_LOCK, relays and delivers via background workers, and releases on close()",
