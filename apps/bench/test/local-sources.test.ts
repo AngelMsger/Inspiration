@@ -108,6 +108,7 @@ describe.each(BACKENDS)("$backend", ({ backend, skip }) => {
       async function citation(question: string, quote: string, original: string) {
         const answer = await owner.call<GroundedAnswer>("POST", "/api/v0/answers", { question });
         expect(answer.status).toBe(200);
+        expect(answer.body.answer).toContain(quote);
         const cited = answer.body.citations.find((c) => c.quote.includes(quote));
         expect(cited).toBeDefined();
         const version = `/api/v0/documents?version=${cited?.source_version_id}`;
