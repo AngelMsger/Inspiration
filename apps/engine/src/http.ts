@@ -109,13 +109,14 @@ import { logger } from "@inspiration/kernel";
 import { documentTree, entryOf, foldersOf, type ListedDocument } from "@inspiration/source-sync";
 import { connections, connectSource, startSync } from "./connections.ts";
 import { decidedWeek, decideTodos, putDelegation, undoDecision } from "./decisions.ts";
+import { addDocumentComment, documentComments } from "./document-comments.ts";
 import type { Engine } from "./engine.ts";
 import { badRequest, HttpError, notFound } from "./http-errors.ts";
 import { members, putMember, putTenant } from "./provisioning.ts";
 import { countsOf, readingOf } from "./reading.ts";
 import { audienceOf, createSpace, patchSpace, putAudience, putOwners, spaceList } from "./space-admin.ts";
 import { maintains, overviewOf, syncNow } from "./spaces.ts";
-import { factLabels, inboxOf, resolveTodo } from "./todos.ts";
+import { factLabels, inboxOf, inboxTodos, resolveTodo } from "./todos.ts";
 import { putFile } from "./uploads.ts";
 import { usage } from "./usage.ts";
 
@@ -212,7 +213,7 @@ function routesOf(engine: Engine): Route[] {
     { method: "GET", path: /^\/v0\/spaces\/([^/]+)\/documents$/, run: (who, m) => tree(engine, who, param(m)) },
     { method: "GET", path: /^\/v0\/spaces\/([^/]+)\/topics$/, run: (who, m) => outline(engine, who, param(m)) },
     { method: "GET", path: /^\/v0\/topics\/([^/]+)$/, run: (who, m) => topic(engine, who, param(m)) },
-    { method: "GET", path: /^\/v0\/documents$/, run: (who, _m, req) => document(engine, who, req.query) },
+    { method: "GET", path: /^\/v0\/documents$/, run: (who, _m, req) => documentView(engine, who, req.query) },
     {
       method: "POST",
       path: /^\/v0\/search$/,
@@ -224,6 +225,26 @@ function routesOf(engine: Engine): Route[] {
       run: async (who, _m, req) => {
         const query = parseAs<AnswerQuery>("AnswerQuery", await req.json());
         return (query.depth === "standard" ? engine.retrieval : engine.compact).answer(query, who);
+      },
+    },
+    {
+      method: "GET",
+      path: /^\/v0\/document-comments$/,
+      run: (who, _m, req) => documentComments(engine, who, req.query.get("version") ?? ""),
+    },
+    {
+      method: "POST",
+      path: /^\/v0\/document-comments$/,
+      scope: "knowledge.propose",
+      run: async (who, _m, req) => addDocumentComment(engine, who, await req.json()),
+    },
+    {
+      method: "GET",
+      path: /^\/v0\/todos\/([^/]+)$/,
+      run: async (who, m) => {
+        const todo = await engine.inbox.todo(who.tenant_id, param(m));
+        if (!todo || todo.assignee_id !== who.id) throw notFound("todo");
+        return (await inboxTodos(engine, who, [todo]))[0];
       },
     },
     { method: "GET", path: /^\/v0\/inbox$/, run: (who) => inboxOf(engine, who) },
@@ -400,7 +421,7 @@ function mcpOf(engine: Engine): McpServer {
     library: {
       search: (query, who) => engine.retrieval.search(query, who),
       answer: (query, who) => (query.depth === "standard" ? engine.retrieval : engine.compact).answer(query, who),
-      document: (version, who) => document(engine, who, new URLSearchParams({ version })),
+      document: (version, who) => documentView(engine, who, new URLSearchParams({ version })),
     },
     refusal: (error) => httpErrorOf(error)?.message,
   });
@@ -562,8 +583,8 @@ async function lookUp(engine: Engine, query: URLSearchParams): Promise<ListedDoc
   return engine.sync.document(sourceId, externalId);
 }
 
-/** One version of a document, its blocks and the marks on them. */
-async function document(engine: Engine, who: Principal, query: URLSearchParams): Promise<DocumentView> {
+/** Check the document, space and sensitivity of the requested version before reading its contents. */
+export async function readableDocument(engine: Engine, who: Principal, query: URLSearchParams) {
   const listed = await lookUp(engine, query);
   const source = listed && (await engine.sync.getSource(listed.version.source_id));
   if (!listed || !source || source.tenant_id !== who.tenant_id) throw notFound("document");
@@ -575,6 +596,13 @@ async function document(engine: Engine, who: Principal, query: URLSearchParams):
   // The check reads the latest version's label; a citation may name an older one.
   if (!allows(await engine.authz.clearance(who), listed.version.sensitivity)) throw notFound("document");
   await readableSpace(engine, who, source.space_id);
+  return { listed, source };
+}
+
+/** One version of a document, its blocks and the marks on them. */
+export async function documentView(engine: Engine, who: Principal, query: URLSearchParams): Promise<DocumentView> {
+  const { listed, source } = await readableDocument(engine, who, query);
+  const { source_id, external_id } = listed.entry;
   // Where the engine keeps the stored copy is its own business, not the reader's.
   const {
     version: { blob: _blob, ...version },

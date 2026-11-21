@@ -21,9 +21,11 @@ import { AppsScreen } from "./apps.tsx";
 import { DecidedScreen } from "./decide.tsx";
 import { DocumentScreen } from "./document.tsx";
 import { Documents } from "./documents.tsx";
-import { Ask, countOf, Home } from "./home.tsx";
+import { Ask, Home } from "./home.tsx";
+import { ImportScreen } from "./imports.tsx";
 import { countTodos, DecisionScreen, InboxScreen } from "./inbox.tsx";
 import { TopicScreen, TopicsScreen } from "./knowledge.tsx";
+import { Navigation } from "./navigation.tsx";
 import { Palette } from "./palette.tsx";
 import { Failure } from "./parts.tsx";
 import { type Person, tagLocale } from "./people.ts";
@@ -278,6 +280,18 @@ function Shell(props: {
 }) {
   const route = useRoute();
   const [palette, setPalette] = useState(false);
+  const [navOpen, setNavOpen] = useState(
+    () => stored("inspiration.navigation") !== "closed" && window.innerWidth > 900,
+  );
+  const toggleNav = () =>
+    setNavOpen((open) => {
+      try {
+        localStorage.setItem("inspiration.navigation", open ? "closed" : "open");
+      } catch {
+        /* Optional preference. */
+      }
+      return !open;
+    });
   // A synced source changes the documents; the library is read again, and shown as it was
   // meanwhile. Only this member's library is ever shown, and a failure to read it shows.
   const { say } = useWords();
@@ -325,6 +339,8 @@ function Shell(props: {
         session={props.session}
         demo={demo}
         todos={todos.current}
+        navOpen={navOpen}
+        onToggleNav={toggleNav}
         onSearch={() => setPalette(true)}
         onActAs={props.onActAs}
         onCompany={props.onCompany}
@@ -348,9 +364,7 @@ function Shell(props: {
             {route.name === "maintain" ? (
               <MaintainColumn route={route} library={followed} />
             ) : (
-              route.name !== "document" && (
-                <LeftColumn route={route} library={followed} person={person} todos={todos.current} />
-              )
+              navOpen && <Navigation route={route} library={followed} person={person} todos={todos.current} />
             )}
             <Screen
               route={route}
@@ -407,11 +421,27 @@ function Screen(props: {
       return <TopicsScreen space={route.space} library={library} people={people} />;
     case "topic":
       return <TopicScreen key={route.key} topicKey={route.key} library={library} people={people} inbox={props.inbox} />;
+    case "imports":
+      return (
+        <ImportScreen
+          space={route.space}
+          library={library}
+          sampled={props.sampled}
+          onSourcesChanged={props.onSourcesChanged}
+        />
+      );
     case "documents":
       return <Documents route={route} library={library} onSourcesChanged={props.onSourcesChanged} />;
     case "document":
       return (
-        <DocumentScreen route={route} library={library} person={person} onSourcesChanged={props.onSourcesChanged} />
+        <DocumentScreen
+          key={route.version ?? `${route.source}:${route.item}`}
+          route={route}
+          library={library}
+          person={person}
+          onSourcesChanged={props.onSourcesChanged}
+          onChanged={props.onChanged}
+        />
       );
     case "maintain":
       return (
@@ -439,6 +469,8 @@ function TopBar(props: {
   /** Open todos, shown in the bar while the left column is hidden (phones). */
   todos: number;
   onSearch: () => void;
+  navOpen: boolean;
+  onToggleNav: () => void;
   onActAs: (member: string) => Promise<void>;
   onCompany: (tenant: string) => Promise<void>;
   onNewCompany: () => void;
@@ -453,6 +485,20 @@ function TopBar(props: {
   });
   const menu = useRef<HTMLDetailsElement>(null);
   const close = () => menu.current?.removeAttribute("open");
+  useEffect(() => {
+    const outside = (event: PointerEvent) => {
+      if (!menu.current?.contains(event.target as Node)) menu.current?.removeAttribute("open");
+    };
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") menu.current?.removeAttribute("open");
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", onEscape);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", onEscape);
+    };
+  }, []);
   const { account, companies, sample } = props.session;
   const current = props.session.current as NonNullable<Session["current"]>;
   const sampled = sample?.tenant_id === current.tenant_id;
@@ -460,6 +506,15 @@ function TopBar(props: {
   const about = props.demo?.find((p) => p.member === current.member_id)?.about;
   return (
     <header className="top">
+      <button
+        type="button"
+        className="plain nav-toggle"
+        onClick={props.onToggleNav}
+        aria-expanded={props.navOpen}
+        aria-label={say("nav.toggle")}
+      >
+        ☰
+      </button>
       {modelMode.state === "done" && modelMode.value && (
         <span className="sample-tag" title={say("local.mock_detail")}>
           {say("local.mock")}
@@ -482,7 +537,6 @@ function TopBar(props: {
         <span className="grow">{say("top.search")}</span>
         <kbd>⌘K</kbd>
       </button>
-      <span className="grow" />
       {props.todos > 0 && (
         <Link to={{ name: "inbox" }} className="top-inbox">
           {say("nav.inbox")}
@@ -566,20 +620,26 @@ function TopBar(props: {
               {say("account.admin")}
             </button>
           )}
-          <div className="menu-heading">{say("account.language")}</div>
-          {TAGS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              aria-current={t === tag}
-              onClick={() => {
-                close();
-                props.onLanguage(t);
-              }}
-            >
-              {wordsOf(t)("language.name")}
-            </button>
-          ))}
+          <details className="language-menu">
+            <summary>
+              {say("account.language")} <span>{wordsOf(tag)("language.name")} ›</span>
+            </summary>
+            <div className="language-options">
+              {TAGS.map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  aria-current={t === tag}
+                  onClick={() => {
+                    close();
+                    props.onLanguage(t);
+                  }}
+                >
+                  {wordsOf(t)("language.name")}
+                </button>
+              ))}
+            </div>
+          </details>
           <button
             type="button"
             className="menu-sign-out"
@@ -593,60 +653,5 @@ function TopBar(props: {
         </div>
       </details>
     </header>
-  );
-}
-
-function LeftColumn(props: { route: Route; library: Library; person: Person; todos: number }) {
-  const { say } = useWords();
-  const { route, library } = props;
-  const topicSpace =
-    route.name === "topic"
-      ? [...library.topics.values()].find((l) => l.topics.some((t) => t.key === route.key))?.space_id
-      : undefined;
-  return (
-    <nav className="left" aria-label={say("nav.label")}>
-      <Link to={{ name: "home" }} className="nav-item" current={route.name === "home"}>
-        {say("nav.home")}
-      </Link>
-      <Link
-        to={{ name: "inbox" }}
-        className={props.todos > 0 ? "nav-item nav-todos" : "nav-item"}
-        current={route.name === "inbox" || route.name === "todo" || route.name === "decided"}
-      >
-        <span>{say("nav.inbox")}</span>
-        {props.todos > 0 && (
-          <span key={props.todos} className="badge">
-            {props.todos}
-          </span>
-        )}
-      </Link>
-      <div className="nav-heading">{say("nav.spaces")}</div>
-      {library.spaces.map((s) => (
-        <div key={s.id} className="nav-space">
-          <div className="nav-space-name">{s.name}</div>
-          <Link
-            to={{ name: "documents", space: s.id, folders: [] }}
-            className="nav-item nav-sub"
-            current={route.name === "documents" && route.space === s.id}
-          >
-            <span>{say("nav.documents")}</span>
-            <span className="count">{countOf(library, s.id)}</span>
-          </Link>
-          <Link
-            to={{ name: "topics", space: s.id }}
-            className="nav-item nav-sub"
-            current={(route.name === "topics" && route.space === s.id) || topicSpace === s.id}
-          >
-            <span>{say("nav.knowledge")}</span>
-            <span className="count">{library.topics.get(s.id)?.topics.length ?? 0}</span>
-          </Link>
-          {(s.role === "owner" || s.owner_id === props.person.member) && (
-            <Link to={{ name: "maintain", space: s.id, page: "overview" }} className="nav-item nav-sub nav-maintain">
-              {say("nav.maintain")}
-            </Link>
-          )}
-        </div>
-      ))}
-    </nav>
   );
 }

@@ -15,6 +15,8 @@ import type {
   TodoChoice,
 } from "@inspiration/contracts";
 import type { Engine } from "./engine.ts";
+import { readableDocument } from "./http.ts";
+import { HttpError } from "./http-errors.ts";
 
 /** What the tenant's predicate catalogue calls the fact of a slot; its qualifiers are its scope. */
 export async function factLabels(
@@ -39,11 +41,32 @@ export async function inboxTodos(engine: Engine, who: Principal, todos: readonly
     who,
     todos.map((t) => t.id),
   );
+  const feedback = todos.filter((t) => t.kind === "feedback" || t.kind === "comment_followup");
+  const comments = feedback.length
+    ? await engine.comments.forTodos(
+        who.tenant_id,
+        feedback.map((t) => t.id),
+      )
+    : [];
+  const readable = new Set<string>();
+  for (const version of new Set(comments.map((c) => c.comment.source_version_id))) {
+    try {
+      await readableDocument(engine, who, new URLSearchParams({ version }));
+      readable.add(version);
+    } catch (error) {
+      if (!(error instanceof HttpError && error.status === 404)) throw error;
+    }
+  }
+  const permitted = new Map(
+    comments.filter((c) => readable.has(c.comment.source_version_id)).map((c) => [c.todo_id, c]),
+  );
   return todos.map((todo): InboxTodo => {
+    const comment = permitted.get(todo.id);
     const label = labelOf(todo.slot_key);
     const { suggestion, left } = marks.get(todo.id) ?? {};
     return {
-      todo,
+      todo: comment ? { ...todo, title: comment.document_title } : todo,
+      ...(comment && { comment }),
       ...(label && { fact_label: label }),
       statements: todo.unit_ids.flatMap((id) => statements.get(id) ?? []),
       choices: (todo.resolutions ?? []).map((r): TodoChoice => {

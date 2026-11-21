@@ -102,7 +102,7 @@ chain.
 | `claims.updated` | extraction, governance, collaboration | freshness, governance, page-compiler, retrieval |
 | `artifact.dirty` | freshness | extraction, page-compiler, retrieval |
 | `review.due` | freshness | collaboration, research |
-| `todo.requested` | extraction, governance, views | collaboration |
+| `todo.requested` | extraction, governance, collaboration, views | collaboration |
 | `todo.created` | collaboration | collaboration |
 | `todo.resolved` | collaboration | governance |
 | `todo.reopened` | collaboration | governance |

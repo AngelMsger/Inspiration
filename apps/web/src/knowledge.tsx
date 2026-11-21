@@ -8,6 +8,7 @@ import { api, type Library, type Loaded, useLoad } from "./api.ts";
 import { citedAt } from "./home.tsx";
 import { Crumbs, Failure, Standing } from "./parts.tsx";
 import type { Person } from "./people.ts";
+import { EvidenceSources } from "./reading-context.tsx";
 import { Link } from "./route.tsx";
 import { factOf, factTitle } from "./todos.ts";
 import { pageOf } from "./topics.ts";
@@ -43,6 +44,7 @@ export function TopicsScreen(props: { space: string; library: Library; people: P
         <h1 className="title">{say("knowledge.title")}</h1>
         <span className="quiet">{say("nav.topics", { count: topics.length })}</span>
       </div>
+      <p className="quiet">{say("knowledge.hint")}</p>
       {topics.length === 0 ? (
         <p className="quiet">{say("knowledge.empty")}</p>
       ) : (
@@ -107,7 +109,7 @@ function Topic(props: { view: TopicView; library: Library; people: Person[]; inb
     });
   const anchor = (i: number) => `fact-${i + 1}`;
   return (
-    <div className="with-panel">
+    <div className="with-panel document-layout">
       <div className="reading">
         <div className="reading-head">
           <Crumbs>
@@ -153,6 +155,7 @@ function Topic(props: { view: TopicView; library: Library; people: Person[]; inb
                   {fact.disputed && <Standing value="disputed" />}
                 </p>
               ))}
+              <EvidenceSources statements={fact.current} />
               {fact.against.map((h) => (
                 <p key={h.unit_id} className="against">
                   <Standing value={h.standing} />

@@ -2175,6 +2175,33 @@ export interface FreshnessInfo {
   staleness?: Score01;
   review_due?: Instant;
 }
+export interface DocumentComment {
+  id: CommentId;
+  tenant_id: TenantId;
+  author_id: PrincipalId;
+  created_at: Instant;
+  document_title: string;
+  comment: NewDocumentComment;
+  todo_id?: TodoId;
+  status?: TodoStatus;
+  assignee_id?: PrincipalId;
+}
+/**
+ * A reader's comment or proposed correction on an immutable source block. Never changes knowledge.
+ */
+export interface NewDocumentComment {
+  request_id: string;
+  source_version_id: SourceVersionId;
+  block_id: SourceBlockId;
+  start: number;
+  end: number;
+  quote: string;
+  body: string;
+  /**
+   * Proposed replacement text. Only a proposal, including an empty replacement for deletion.
+   */
+  replacement?: string;
+}
 /**
  * One document as the Documents tree lists it: its source item and the latest version the engine holds. Built by source sync from what it last stored; listed only to a principal who may read the document.
  *
@@ -2568,6 +2595,7 @@ export interface TaxonomyNode {
 }
 export interface InboxTodo {
   todo: Todo;
+  comment?: DocumentComment;
   /**
    * What the fact a conflict or a note is about is called in the tenant's predicate catalogue ("Hotel cap per night"); the slot's qualifiers are its scope.
    *

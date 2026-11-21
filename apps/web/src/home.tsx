@@ -7,7 +7,7 @@ import { readAnswer } from "./answers.ts";
 import { api, type Library, useLoad } from "./api.ts";
 import { Failure, Standing } from "./parts.tsx";
 import type { Person } from "./people.ts";
-import { Link, navigate, type Route } from "./route.tsx";
+import { type DocumentRoute, Link, navigate } from "./route.tsx";
 import { noteText } from "./todos.ts";
 import { useWords } from "./words.ts";
 
@@ -39,7 +39,7 @@ export function remember(member: string, opened: Recent): void {
 }
 
 /** The link to the passage a citation names, in the Annotated view. */
-export function citedAt(c: Citation, from?: string): Route {
+export function citedAt(c: Citation, from?: string): DocumentRoute {
   return { name: "document", version: c.source_version_id, span: c.span_id, view: "annotated", from };
 }
 
@@ -81,7 +81,7 @@ export function Home(props: { person: Person; library: Library }) {
         <ul className="rows">
           {recent.map((r) => (
             <li key={`${r.source}|${r.item}`}>
-              <Link to={{ name: "document", source: r.source, item: r.item, view: "original" }}>{r.title}</Link>
+              <Link to={{ name: "document", source: r.source, item: r.item, view: "annotated" }}>{r.title}</Link>
               <span className="quiet">{r.where}</span>
             </li>
           ))}

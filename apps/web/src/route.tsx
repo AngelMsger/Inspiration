@@ -15,8 +15,10 @@ export type DocumentRoute = {
   /** The passage to select: a block, or the block holding a cited span. */
   block?: string;
   span?: string;
+  range?: { start: number; end: number };
   /** The question the reader came from, for the way back. */
   from?: string;
+  todo?: string;
 };
 
 export type Route =
@@ -25,6 +27,7 @@ export type Route =
   | { name: "inbox" }
   | { name: "decided" }
   | { name: "todo"; id: string }
+  | { name: "imports"; space: string }
   | { name: "topics"; space: string }
   | { name: "topic"; key: string }
   | { name: "documents"; space: string; source?: string; folders: string[] }
@@ -38,6 +41,8 @@ export type Route =
 export function parse(url: URL): Route {
   const q = url.searchParams;
   const get = (key: string) => q.get(key) ?? undefined;
+  const imports = url.pathname.match(/^\/spaces\/([^/]+)\/import$/);
+  if (imports?.[1]) return { name: "imports", space: decodeURIComponent(imports[1]) };
   const space = url.pathname.match(/^\/spaces\/([^/]+)\/documents$/);
   if (space?.[1]) {
     return {
@@ -78,15 +83,23 @@ export function parse(url: URL): Route {
   const todo = url.pathname.match(/^\/inbox\/([^/]+)$/);
   if (todo?.[1]) return { name: "todo", id: decodeURIComponent(todo[1]) };
   if (url.pathname === "/document") {
+    const offset = (key: string) => (/^\d+$/.test(get(key) ?? "") ? Number(get(key)) : Number.NaN);
+    const start = offset("start");
+    const end = offset("end");
     return {
       name: "document",
       source: get("source"),
       item: get("item"),
       version: get("version"),
-      view: get("view") === "annotated" ? "annotated" : "original",
+      view: get("view") === "original" ? "original" : "annotated",
       block: get("block"),
+      ...(get("block") &&
+        Number.isSafeInteger(start) &&
+        Number.isSafeInteger(end) &&
+        end > start && { range: { start, end } }),
       span: get("span"),
       from: get("from"),
+      todo: get("todo"),
     };
   }
   return { name: "home" };
@@ -110,6 +123,8 @@ export function href(route: Route): string {
       return "/inbox/decided";
     case "todo":
       return `/inbox/${encodeURIComponent(route.id)}`;
+    case "imports":
+      return `/spaces/${encodeURIComponent(route.space)}/import`;
     case "topics":
       return `/spaces/${encodeURIComponent(route.space)}/knowledge`;
     case "topic":
@@ -132,13 +147,18 @@ export function href(route: Route): string {
         ["source", route.source],
         ["item", route.item],
         ["version", route.version],
-        ["view", route.view === "annotated" ? "annotated" : undefined],
+        ["view", route.view],
         ["block", route.block],
+        ["start", route.range?.start.toString()],
+        ["end", route.range?.end.toString()],
         ["span", route.span],
         ["from", route.from],
+        ["todo", route.todo],
       ])}`;
   }
 }
+
+const positions = new Map<string, number>();
 
 const CHANGED = "inspiration:navigate";
 
@@ -155,6 +175,7 @@ function here(): URL {
 }
 
 export function navigate(route: Route, options: { replace?: boolean } = {}): void {
+  positions.set(href(parse(here())), window.scrollY);
   const to = addressOf(route);
   // A snapshot changes only the part after "#", which any frame it is shown in allows.
   if (inHash()) location[options.replace ? "replace" : "assign"](to);
@@ -166,7 +187,25 @@ export function navigate(route: Route, options: { replace?: boolean } = {}): voi
 export function useRoute(): Route {
   const [route, setRoute] = useState(() => parse(here()));
   useEffect(() => {
-    const update = () => setRoute(parse(here()));
+    let previous = parse(here());
+    const update = () => {
+      const next = parse(here());
+      setRoute(next);
+      if (next.name !== "document" && href(next) !== href(previous))
+        requestAnimationFrame(() => window.scrollTo(0, positions.get(href(next)) ?? 0));
+      if (
+        next.name === "document" &&
+        !next.block &&
+        !next.span &&
+        (previous.name !== "document" ||
+          previous.version !== next.version ||
+          previous.source !== next.source ||
+          previous.item !== next.item)
+      ) {
+        requestAnimationFrame(() => window.scrollTo(0, 0));
+      }
+      previous = next;
+    };
     for (const event of ["popstate", "hashchange", CHANGED]) window.addEventListener(event, update);
     return () => {
       for (const event of ["popstate", "hashchange", CHANGED]) window.removeEventListener(event, update);

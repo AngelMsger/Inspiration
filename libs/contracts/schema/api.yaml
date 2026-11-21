@@ -304,6 +304,9 @@ $defs:
     properties:
       todo:
         $ref: "collab.yaml#/$defs/Todo"
+      comment:
+        description: The source comment that requested this todo, when its source is still readable.
+        $ref: "collab.yaml#/$defs/DocumentComment"
       fact_label:
         description: >
           What the fact a conflict or a note is about is called in the tenant's predicate
