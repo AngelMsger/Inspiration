@@ -25,7 +25,7 @@ import { Accounts, MemoryAccounts, PostgresAccounts, type ProviderIdentity } fro
 import { FakeProvider } from "@inspiration/accounts/testing";
 import { backendHandler, EngineClient, Tokens } from "@inspiration/business";
 import { type Browser, signIn } from "@inspiration/business/testing";
-import { Engine, serveApi } from "@inspiration/engine";
+import { connectionSecret, Engine, serveApi } from "@inspiration/engine";
 import { generateSigningKey, openPool, type Pool } from "@inspiration/kernel";
 import { MemoryTenancy, PostgresTenancy, Tenancy } from "@inspiration/tenancy";
 import { createTestDatabase, hasStack, SPICEDB_ENDPOINT, SPICEDB_KEY } from "@inspiration/testkit";
@@ -103,7 +103,7 @@ export async function startSite(databaseUrl?: string): Promise<Site> {
   const site = createServer((req, res) => handle(req, res));
   const url = `http://127.0.0.1:${await listen(site)}`;
 
-  const engine = await Engine.open({ blobDir, ...stores.engine });
+  const engine = await Engine.open({ blobDir, secret: connectionSecret, ...stores.engine });
   const verifier = new TokenVerifier({
     issuer: url,
     audience: AUDIENCE,

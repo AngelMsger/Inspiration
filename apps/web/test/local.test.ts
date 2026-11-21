@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { type AddressInfo, createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { expect, test } from "vitest";
@@ -73,5 +74,24 @@ test.each(["flag", "environment"])("custom gateway from %s requires its own cred
     expect(ready.stderr).not.toContain("Set INSPIRATION_");
   } finally {
     await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("an occupied application port is reported before starting the stack", async () => {
+  const server = createServer();
+  await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
+  try {
+    const port = (server.address() as AddressInfo).port;
+    const result = spawnSync(process.execPath, ["apps/web/src/local.ts", "--mock"], {
+      env: { ...process.env, INSPIRATION_PUBLIC_URL: `http://127.0.0.1:${port}` },
+      encoding: "utf8",
+      timeout: 10_000,
+    });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(`Cannot listen on local port ${port}`);
+    expect(result.stdout).not.toContain("Starting");
+    expect(result.stdout).not.toContain("Open http");
+  } finally {
+    await new Promise<void>((done) => server.close(() => done()));
   }
 });

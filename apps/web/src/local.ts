@@ -3,6 +3,7 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
+import { createServer } from "node:net";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs, parseEnv } from "node:util";
@@ -29,21 +30,32 @@ function stop(code: number) {
   });
 }
 
-function start(command: string, args: string[]): ChildProcess {
-  const child = spawn(command, args, { stdio: "inherit", env: process.env });
+function start(command: string, args: string[], cwd?: string): ChildProcess {
+  const child = spawn(command, args, { stdio: "inherit", env: process.env, cwd });
   children.push(child);
   child.on("error", () => {
     console.error(`Could not start ${command}. See docs/local.md for prerequisites.`);
     stop(1);
   });
-  if (command === process.execPath)
+  if (command !== "docker")
     child.on("exit", () => {
       if (!stopping) {
-        console.error("A local service stopped; shutting down the other processes.");
+        console.error(`Local service ${args[0]} stopped; shutting down the other processes.`);
         stop(1);
       }
     });
   return child;
+}
+
+// An old instance can answer a health check before the new child has even tried to listen.
+async function requireFreePort(port: number): Promise<void> {
+  const probe = createServer();
+  await new Promise<void>((resolve, reject) => {
+    probe.once("error", () =>
+      reject(new Error(`Cannot listen on local port ${port}. Stop the service using it or change its port.`)),
+    );
+    probe.listen(port, "127.0.0.1", () => probe.close(() => resolve()));
+  });
 }
 
 async function ready(url: string, child: ChildProcess, seconds = 90): Promise<void> {
@@ -90,6 +102,13 @@ async function main() {
   for (const url of [publicUrl, engineUrl])
     if (url.protocol !== "http:" || !["localhost", "127.0.0.1"].includes(url.hostname))
       throw new Error("Local services require HTTP loopback URLs.");
+  const python = process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python";
+  const parserUrl = new URL(process.env.INSPIRATION_PARSING_URL || "http://127.0.0.1:8790");
+  const localParser =
+    existsSync(python) && parserUrl.protocol === "http:" && ["localhost", "127.0.0.1"].includes(parserUrl.hostname);
+  const ports = [publicUrl, engineUrl, ...(localParser ? [parserUrl] : [])].map((url) => Number(url.port || 80));
+  if (new Set(ports).size !== ports.length) throw new Error("Choose a different local port for each service.");
+  for (const port of ports) await requireFreePort(port);
   // Mock vectors and real embeddings must never share an index, even though their dimensions match.
   const dataDir = values.mock ? ".data/local-mock" : ".data/local-cloud";
   await mkdir(dataDir, { recursive: true });
@@ -122,18 +141,13 @@ async function main() {
   }
   console.log("Building the web app…");
   await build({ configFile: resolve("apps/web/vite.config.ts") });
-  const python = process.platform === "win32" ? ".venv/Scripts/python.exe" : ".venv/bin/python";
-  if (existsSync(python)) {
-    const parser = spawn(resolve(python), ["-m", "inspiration_parsing"], {
-      cwd: "engine/parsing/worker",
-      stdio: "inherit",
-      env,
-    });
-    children.push(parser);
-    parser.on("error", () => {
-      console.error("The parsing worker could not start.");
-      stop(1);
-    });
+  if (localParser) {
+    const parser = start(
+      resolve(python),
+      ["-m", "inspiration_parsing", "--port", parserUrl.port || "80"],
+      "engine/parsing/worker",
+    );
+    await ready(`${parserUrl.origin}/v1/health`, parser);
   }
   const engine = start(process.execPath, [
     "apps/engine/src/serve.ts",
@@ -141,7 +155,7 @@ async function main() {
     "--persistent",
     "--discover-facts",
     "--port",
-    engineUrl.port || "4100",
+    engineUrl.port || "80",
     "--issuer",
     publicUrl.origin,
     "--audience",
@@ -155,19 +169,11 @@ async function main() {
     "serve",
     "--local",
     "--port",
-    publicUrl.port || "4200",
+    publicUrl.port || "80",
     "--web",
     "apps/web/dist",
   ]);
   await ready(`${publicUrl.origin}/api/health`, business);
-  for (const child of children)
-    if (child.exitCode === null)
-      child.on("exit", () => {
-        if (!stopping) {
-          console.error("A local service stopped; shutting down the other processes.");
-          stop(1);
-        }
-      });
   console.log(
     `\nOpen ${publicUrl.origin} — ${values.mock ? "MOCK models: pipeline rehearsal only" : `Models: ${gateway.providers.map((p) => p.name).join(" + ")}`}. Ctrl+C stops the app; data is kept.`,
   );
