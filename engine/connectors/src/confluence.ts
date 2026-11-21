@@ -18,7 +18,8 @@ import {
   type Version,
 } from "@inspiration/contracts";
 import { aclSnapshot } from "./acl.ts";
-import { connectionUrl, remoteJson } from "./http.ts";
+import { confluencePageReader } from "./confluence-http.ts";
+import { connectionUrl } from "./http.ts";
 
 const PAGE_REF = {
   type: "object",
@@ -75,33 +76,24 @@ interface PageList {
   size: number;
   _links?: { next?: string };
 }
-const EXPAND = "version,body.view,ancestors,space";
 
 export class ConfluenceConnector implements Connector {
   readonly type = "confluence";
   readonly source: Source;
-  readonly #ctx: ConnectorContext;
+  readonly #blobs: ConnectorContext["blobs"];
+  readonly #read: ReturnType<typeof confluencePageReader>;
   readonly #base: URL;
 
   constructor(source: Source, ctx: ConnectorContext) {
     this.source = source;
-    this.#ctx = ctx;
+    this.#blobs = ctx.blobs;
     this.#base = connectionUrl(String(source.scope.options?.base_url ?? ""));
+    this.#read = confluencePageReader(this.#base, source.credentials_ref ?? "", ctx);
     if (source.scope.ids?.length !== 1 || !source.scope.ids[0]) throw new RangeError("choose one Confluence space key");
   }
 
   capabilities() {
     return { list: true, fetch: true, acl: true, acl_fidelity: "connection_scoped" as const, files: true };
-  }
-
-  async #read<T>(path: string, schema: object): Promise<T> {
-    const token = await this.#ctx.secret(this.source.credentials_ref ?? "");
-    return remoteJson<T>(
-      new URL(path, this.#base),
-      { headers: { authorization: `Bearer ${token}`, accept: "application/json" } },
-      schema,
-      "Confluence",
-    );
   }
 
   #ref(page: Pick<Page, "id" | "title">): SourceRef {
@@ -148,24 +140,20 @@ export class ConfluenceConnector implements Connector {
         ...(start + 25 < ids.length && { next_cursor: String(start + 25) }),
       };
     }
-    const query = new URLSearchParams({
-      spaceKey: scope.ids?.[0] ?? "",
-      type: "page",
-      status: "current",
-      start: String(start),
-      limit: "25",
-    });
-    const page = await this.#read<PageList>(`rest/api/content?${query}`, {
-      type: "object",
-      required: ["results", "start", "limit", "size"],
-      properties: {
-        results: { type: "array", items: PAGE_REF },
-        start: { const: start },
-        limit: { type: "integer", minimum: 1 },
-        size: { type: "integer", minimum: 0 },
-        _links: { type: "object", properties: { next: { type: "string" } } },
+    const page = await this.#read<PageList>(
+      { space: scope.ids?.[0] ?? "", start },
+      {
+        type: "object",
+        required: ["results", "start", "limit", "size"],
+        properties: {
+          results: { type: "array", items: PAGE_REF },
+          start: { const: start },
+          limit: { type: "integer", minimum: 1 },
+          size: { type: "integer", minimum: 0 },
+          _links: { type: "object", properties: { next: { type: "string" } } },
+        },
       },
-    });
+    );
     if (page._links?.next && !page.results.length)
       throw new RangeError("Confluence returned an incomplete page; retry sync");
     // Only use the server's indication of another page, never its URL, which could move the token to another host.
@@ -176,17 +164,16 @@ export class ConfluenceConnector implements Connector {
   }
 
   async fetch(ref: SourceRef, known?: Version) {
-    if (!/^\d+$/.test(ref.external_id)) throw new RangeError("invalid Confluence page ID");
     const selected = this.source.scope.options?.page_ids;
     if (Array.isArray(selected) && !selected.includes(ref.external_id))
       throw new RangeError("Confluence page is not selected for this connection");
-    const page = await this.#read<Page>(`rest/api/content/${ref.external_id}?expand=${EXPAND}`, PAGE);
+    const page = await this.#read<Page>({ id: ref.external_id }, PAGE);
     if (this.source.scope.options?.page_ids && page.space?.key !== this.source.scope.ids?.[0])
       throw new RangeError("Confluence page is not in the selected space");
     if (page.id !== ref.external_id) throw new RangeError("Confluence returned a different page");
     const version = this.#version(page);
     if (sameVersion(known, version)) return { unchanged: true as const };
-    const file = await this.#ctx.blobs.put(new TextEncoder().encode(page.body.view.value), {
+    const file = await this.#blobs.put(new TextEncoder().encode(page.body.view.value), {
       mimeType: "text/html",
       filename: `${page.id}.html`,
     });

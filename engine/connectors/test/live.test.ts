@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { contractErrors, type NormalizedDocument, type Source } from "@inspiration/contracts";
 import { LocalBlobStore, registry } from "@inspiration/kernel";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { ConfluenceConnector, feishuDocxConnector } from "../src/index.ts";
+import { ConfluenceConnector, feishuDocxConnector, remoteJson } from "../src/index.ts";
 
 let dir: string;
 const credential = randomBytes(24).toString("hex");
@@ -33,6 +33,7 @@ beforeEach(async () => {
 });
 afterEach(async () => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
   await rm(dir, { recursive: true, force: true });
 });
 const context = () => ({ blobs: new LocalBlobStore(dir), secret: async () => credential });
@@ -46,6 +47,8 @@ test("Confluence follows pages within the configured context, cites originals an
       requests.push(url);
       expect(url.origin).toBe("https://wiki.example.test");
       expect(url.pathname).toMatch(/^\/confluence\/rest\/api\/content(?:\/12)?$/);
+      expect(init.method).toBe("GET");
+      expect(init.body).toBeUndefined();
       expect(init.redirect).toBe("error");
       expect((init.headers as Record<string, string>).authorization).toBe(`Bearer ${credential}`);
       if (url.pathname.endsWith("/12")) return response(current);
@@ -80,6 +83,56 @@ test("Confluence follows pages within the configured context, cites originals an
   expect(changed.version.external_version).toBe("2");
   expect(requests).toHaveLength(5);
   expect(await registry("connectors").get("confluence")).toBeTypeOf("function");
+});
+
+test("write methods, request bodies and extra headers are rejected before a Confluence request is sent", async () => {
+  const send = vi.fn();
+  vi.stubGlobal("fetch", send);
+  const url = new URL("https://wiki.example.test/confluence/rest/api/content/12");
+  const attempts: RequestInit[] = [
+    ...["POST", "PUT", "PATCH", "DELETE"].map((method) => ({ method })),
+    { method: "GET", body: "{}" },
+    { headers: { "x-http-method-override": "PUT" } },
+  ];
+  for (const init of attempts) await expect(remoteJson(url, init, {}, "Confluence")).rejects.toThrow("read-only");
+  expect(send).not.toHaveBeenCalled();
+});
+
+test("a local PAT is bound to the configured site including its context path", async () => {
+  vi.stubEnv("INSPIRATION_LOCAL_CONNECTIONS", "1");
+  vi.stubEnv("INSPIRATION_CONFLUENCE_TOKEN", credential);
+  vi.stubEnv("INSPIRATION_CONFLUENCE_URL", "https://wiki.example.test/confluence/");
+  const send = vi.fn(async () => response(page("12")));
+  vi.stubGlobal("fetch", send);
+  const src = { ...source("confluence"), credentials_ref: "local:confluence" };
+  const ctx = {
+    blobs: context().blobs,
+    secret: vi.fn(async () => {
+      throw new Error("unexpected generic credential lookup");
+    }),
+  };
+  const ref = { source_id: src.id, external_id: "12" };
+  const connector = new ConfluenceConnector(src, ctx);
+  await expect(connector.fetch(ref)).resolves.toMatchObject({ title: "Leave" });
+  expect(send).toHaveBeenCalledOnce();
+  expect(send).toHaveBeenCalledWith(
+    new URL("https://wiki.example.test/confluence/rest/api/content/12?expand=version%2Cbody.view%2Cancestors%2Cspace"),
+    {
+      method: "GET",
+      headers: { authorization: `Bearer ${credential}`, accept: "application/json" },
+      redirect: "error",
+      signal: expect.any(AbortSignal),
+    },
+  );
+  send.mockClear();
+  await expect(connector.fetch({ ...ref, external_id: "invalid-page" })).rejects.toThrow("invalid Confluence page ID");
+  for (const configured of ["https://new.example.test/confluence", "https://wiki.example.test/other"]) {
+    vi.stubEnv("INSPIRATION_CONFLUENCE_URL", configured);
+    await expect(connector.fetch(ref)).rejects.toThrow("configured site's URL");
+    await expect(connector.list(src.scope)).rejects.toThrow("configured site's URL");
+  }
+  expect(send).not.toHaveBeenCalled();
+  expect(ctx.secret).not.toHaveBeenCalled();
 });
 
 test("Confluence enumeration does not read bodies and a failed fetch leaves other pages readable", async () => {

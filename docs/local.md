@@ -37,6 +37,42 @@ not evidence of model quality. Keep mock data separate from real model data; do 
 its database or graph to point at a real installation. `--skip-stack` uses already-running
 services; it is intended for development. Real mode defaults to the normal Compose ports.
 
+## Try two pages end to end
+
+Use one Confluence page and one Feishu document in the same private Inspiration space.
+The following three steps distinguish a working local installation, permission to read the
+actual pages, and the quality of answers from your configured models.
+
+1. **Rehearse with examples.** On a development test stack (`make up`), run the check below.
+   It uses the browser API, sample vendor responses and stand-in models. It imports a hotel
+   policy from Confluence and a meal policy from a Feishu wiki link. It checks that each
+   answer cites the corresponding passage and original URL. When the nightly allowance
+   changes from 600 to 650 yuan, the new answer uses 650 and the old citation still opens.
+
+   ```bash
+   INSPIRATION_REQUIRE_STACK=1 pnpm exec vitest run apps/bench/test/local-sources.test.ts
+   ```
+
+2. **Check real access before importing.** Fill in the source credentials described below.
+   Substitute your space key, page ID and Feishu link. This command fetches the selected
+   pages into memory through the same connectors as the app. It prints the revision and
+   size for each source. It needs neither Docker nor model keys. Omit either source to
+   check just the other. A failed check exits nonzero and identifies the source.
+
+   ```bash
+   pnpm local:check-sources --space HR --page 12345 --feishu 'https://company.feishu.cn/wiki/ExamplePage'
+   ```
+
+3. **Validate your pages.** Use `pnpm local --mock` to try the actual import without model
+   charges. For real answers, configure the model keys and use `pnpm local`. Connect the
+   same two pages in that profile. Ask one question with a known answer per page and open
+   both citations. On a test page you own, change one value, sync again, and check the new
+   answer and the old citation. Restart and confirm that both sources still open.
+   A live trial is complete once these checks pass with your accounts and models.
+
+The development test stack and the cloud profile use the same default database ports.
+If you ran `make up` for step 1, use `make down` before starting the cloud profile on those ports.
+
 ## Cloud model settings
 
 Put `INSPIRATION_DEEPSEEK_API_KEY` and `INSPIRATION_SILICONFLOW_API_KEY` in `.env`. The second
@@ -76,6 +112,13 @@ chosen space. This profile uses Data Center / Server's `/rest/api/content` API w
 PAT authentication; Cloud, SSO browser cookies and older servers without PAT support are
 not supported. For corporate TLS, configure `NODE_EXTRA_CA_CERTS` with the company CA before
 starting Node. Connect the VPN if the server requires it; TLS verification stays enabled.
+
+A Data Center PAT can carry all of its owner's edit permissions. Inspiration enforces
+read-only access in the connector itself. Sync, retries and the one-page access check send
+only bodyless `GET` requests to list pages or read a page by numeric ID at the configured
+site and context path. The connector refuses redirects. Changes to imported knowledge stay
+in Inspiration. This guard applies to requests made through the connector; the PAT retains
+its original permissions if used elsewhere.
 
 In **Maintain space → Connections**, select Confluence, give the connection a name and
 enter one space key (for example `HR`, not the display name). By default, enter a few page IDs
@@ -165,7 +208,8 @@ will be reimported once under wiki identities; historical versions and citations
   succeeds. The cloud profile's budgets and usage survive restart.
 - **Indexing failed:** check model routing, sensitivity and returned embedding dimensions,
   then retry the connection. Error notes do not contain provider responses or credentials.
-- **Port occupied:** stop the earlier app, or set the port variables in `.env`. Keep database,
+- **Port occupied:** stop the earlier app, or set the port variables in `.env`.
+  For the installed parsing worker, use a free loopback URL in `INSPIRATION_PARSING_URL`. Keep database,
   Valkey and SpiceDB endpoints consistent when using a manually managed stack.
 
 API references: [Confluence REST](https://developer.atlassian.com/server/confluence/rest/v900/),

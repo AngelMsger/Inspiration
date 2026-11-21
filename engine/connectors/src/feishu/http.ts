@@ -1,6 +1,6 @@
 /** Live Feishu docx reads. A complete, revision-pinned block listing precedes each import. */
 import { type ConnectorContext, type Source, schemaErrors } from "@inspiration/contracts";
-import { ConnectionError, remoteJson } from "../http.ts";
+import { ConnectionError, FEISHU_TOKEN_URL, remoteJson } from "../http.ts";
 import type { DocumentMeta, FeishuBlock, FeishuDocument, FeishuDocumentsApi } from "./api.ts";
 
 const ROOT = "https://open.feishu.cn/open-apis/";
@@ -94,7 +94,7 @@ export class HttpFeishuApi implements FeishuDocumentsApi {
     )
       throw new ConnectionError("Feishu: configure the app ID and app secret.");
     const data = await remoteJson<{ code: number; tenant_access_token?: string; expire?: number }>(
-      new URL(`${ROOT}auth/v3/tenant_access_token/internal`),
+      new URL(FEISHU_TOKEN_URL),
       {
         method: "POST",
         headers: { "content-type": "application/json" },

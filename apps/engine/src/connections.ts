@@ -1,5 +1,5 @@
 /** Local connection management. Only space maintainers may import; secrets stay in the environment. */
-import { connectionUrl, feishuLink } from "@inspiration/connectors";
+import { connectionUrl, feishuLink, hasLocalConfluenceAccess } from "@inspiration/connectors";
 import {
   type ConnectionList,
   type CreateConnection,
@@ -17,8 +17,7 @@ const enabled = () => process.env.INSPIRATION_LOCAL_CONNECTIONS === "1";
 
 export async function connectionSecret(name: string): Promise<string> {
   if (!enabled()) throw new RangeError("local connections are not enabled");
-  if (name === "local:confluence" && process.env.INSPIRATION_CONFLUENCE_TOKEN)
-    return process.env.INSPIRATION_CONFLUENCE_TOKEN;
+  // The local Confluence PAT is only attached by its site-bound page reader.
   if (name === "local:feishu" && process.env.INSPIRATION_FEISHU_APP_ID && process.env.INSPIRATION_FEISHU_APP_SECRET) {
     return JSON.stringify({
       app_id: process.env.INSPIRATION_FEISHU_APP_ID,
@@ -28,24 +27,32 @@ export async function connectionSecret(name: string): Promise<string> {
   throw new RangeError("configure the connection credentials in .env and restart the local service");
 }
 
+function configured(): ConnectionList["configured"] {
+  return {
+    confluence: hasLocalConfluenceAccess(),
+    feishu: enabled() && !!process.env.INSPIRATION_FEISHU_APP_ID && !!process.env.INSPIRATION_FEISHU_APP_SECRET,
+  };
+}
+
 export async function connections(engine: Engine, who: Principal, space: string): Promise<ConnectionList> {
   if (!(await maintains(engine, who, space))) throw notFound("space");
   return {
     sources: (await engine.sync.listSources(who.tenant_id)).filter(
       (s) => s.space_id === space && ["confluence", "feishu.docx"].includes(s.type),
     ),
-    configured: {
-      confluence: enabled() && !!process.env.INSPIRATION_CONFLUENCE_URL && !!process.env.INSPIRATION_CONFLUENCE_TOKEN,
-      feishu: enabled() && !!process.env.INSPIRATION_FEISHU_APP_ID && !!process.env.INSPIRATION_FEISHU_APP_SECRET,
-    },
+    configured: configured(),
   };
 }
 
-export async function connectSource(engine: Engine, who: Principal, space: string, input: unknown): Promise<Source> {
-  const list = await connections(engine, who, space);
+/** Build the same scoped source for a saved connection or a one-page access check. */
+export function localSource(who: Principal, space: string, input: unknown): Source {
   const request = parseAs<CreateConnection>("CreateConnection", input);
-  if (!list.configured[request.type === "confluence" ? "confluence" : "feishu"])
-    throw badRequest("configure this connection in .env and restart the local service");
+  if (!configured()[request.type === "confluence" ? "confluence" : "feishu"])
+    throw badRequest(
+      request.type === "confluence"
+        ? "set INSPIRATION_CONFLUENCE_URL and INSPIRATION_CONFLUENCE_TOKEN in .env"
+        : "set INSPIRATION_FEISHU_APP_ID and INSPIRATION_FEISHU_APP_SECRET in .env",
+    );
   const name = request.name.trim();
   if (!name) throw badRequest("give the connection a name");
   const targets = request.targets.map((s) => s.trim());
@@ -62,7 +69,7 @@ export async function connectSource(engine: Engine, who: Principal, space: strin
   } catch (error) {
     throw badRequest(error instanceof Error ? error.message : "invalid connection target");
   }
-  const source: Source = {
+  return {
     id: stableId(
       "source",
       who.tenant_id,
@@ -87,6 +94,11 @@ export async function connectSource(engine: Engine, who: Principal, space: strin
     status: "active",
     created_at: new Date().toISOString(),
   };
+}
+
+export async function connectSource(engine: Engine, who: Principal, space: string, input: unknown): Promise<Source> {
+  if (!(await maintains(engine, who, space))) throw notFound("space");
+  const source = localSource(who, space, input);
   const existing = await engine.sync.getSource(source.id);
   if (existing) throw badRequest("this source is already connected; use Sync now on its connection");
   await engine.authz.registerSource(source.id, space);

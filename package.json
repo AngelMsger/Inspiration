@@ -26,7 +26,8 @@
     "demo": "node apps/web/src/demo.ts",
     "snapshot": "node apps/web/src/snapshot.ts",
     "site": "node apps/site/src/build.ts",
-    "local": "node apps/web/src/local.ts"
+    "local": "node apps/web/src/local.ts",
+    "local:check-sources": "node --env-file-if-exists=.env apps/engine/src/check-sources.ts"
   },
   "dependencies": {
     "@inspiration/access-control": "workspace:*",
