@@ -203,6 +203,12 @@ Read more in [Architecture](docs/architecture.md) and [Contracts](docs/contracts
 | 6 | Trial | One deployed server, a usage page and feedback | Next; the trial's model budgets are built |
 | 🏁 | **Gate C: the trial** | A few people outside the team use it for two weeks with their own documents | |
 
+**Next priorities for the policy trial**
+
+- **Gate B.** Start with unfamiliar policies in an empty space. Match equivalent rules across documents, preserve exceptions, and check that an owner's decision changes the cited answer for both the member and their agent.
+- **After Gate B.** Schedule refreshes for one existing source connection. Show which version an answer used and when the source was last checked successfully, including after a failed refresh.
+- **Gate C.** Compare answers and owner time with the team's own rule sheet over the same changes. Use missed changes, incorrect matches and time spent on review to choose the next fix. [Trial criteria](docs/design/mvp.md#policy-changes-in-the-trial)
+
 **After the MVP:** a pilot with a design partner; broader Lark (Feishu) sync; a private space for every member, with publishing into shared spaces; joint approval. The validation line resumes on a larger dataset close to real use, with the 10-point lead as its long-term goal. Later come Deep Research reports as sources, approval flows turned into procedures, code repositories as a code graph, interactive views, SSO and directory sync, and private deployment.
 
 ## Get started
