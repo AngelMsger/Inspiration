@@ -24,6 +24,8 @@ export interface ConsumerOptions {
   visibilityTimeoutMs?: number;
   blockMs?: number;
   batchSize?: number;
+  /** Finish each stream entry before any replica starts its successor. */
+  ordered?: boolean;
 }
 
 export function describeError(e: unknown): string {
@@ -33,6 +35,7 @@ export function describeError(e: unknown): string {
 export class Consumer {
   readonly transport: Transport;
   readonly name: string;
+  readonly ordered: boolean;
   readonly maxDeliveries: number;
   readonly visibilityTimeoutMs: number;
   readonly blockMs: number;
@@ -43,6 +46,7 @@ export class Consumer {
 
   constructor(transport: Transport, options: ConsumerOptions = {}) {
     this.transport = transport;
+    this.ordered = options.ordered ?? false;
     this.name = options.name ?? `${hostname()}-${process.pid}`;
     this.maxDeliveries = options.maxDeliveries ?? 5;
     this.visibilityTimeoutMs = options.visibilityTimeoutMs ?? 60_000;
@@ -109,16 +113,20 @@ export class Consumer {
   }
 
   /** Handle what is available now (reclaimed first, then new). Returns deliveries handled. */
-  async runOnce(group: string, options: { blockMs?: number } = {}): Promise<number> {
+  async runOnce(group: string, options: { blockMs?: number; signal?: AbortSignal } = {}): Promise<number> {
     const types = await this.#ensure(group);
-    const deliveries = await this.transport.reclaim(group, this.name, types, {
-      minIdleMs: this.visibilityTimeoutMs,
-      count: this.batchSize,
-    });
+    const deliveries = this.ordered
+      ? []
+      : await this.transport.reclaim(group, this.name, types, {
+          minIdleMs: this.visibilityTimeoutMs,
+          count: this.batchSize,
+        });
     deliveries.push(
       ...(await this.transport.receive(group, this.name, types, {
         count: this.batchSize,
         blockMs: options.blockMs ?? 0,
+        ...(this.ordered && { orderedRetryMs: this.visibilityTimeoutMs }),
+        ...(options.signal && { signal: options.signal }),
       })),
     );
     for (const d of deliveries) await this.#handle(group, d);
@@ -128,12 +136,22 @@ export class Consumer {
   async #loop(group: string, signal: AbortSignal): Promise<void> {
     while (!signal.aborted) {
       try {
-        await this.runOnce(group, { blockMs: this.blockMs });
+        await this.runOnce(group, { blockMs: this.blockMs, signal });
       } catch (error) {
+        if (signal.aborted) return;
         log.error("consumer loop failed; retrying", { group, error });
         await sleep(1000, undefined, { signal }).catch(() => undefined);
       }
     }
+  }
+
+  /** True when every subscribed group has no unread or unacked deliveries. */
+  async isIdle(): Promise<boolean> {
+    for (const [group, handlers] of this.#handlers) {
+      const types = [...handlers.keys()].sort();
+      if (types.length && !(await this.transport.isIdle(group, types))) return false;
+    }
+    return true;
   }
 
   /** Run every group until stop() is called. */

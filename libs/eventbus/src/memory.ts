@@ -8,9 +8,10 @@
  */
 
 import { performance } from "node:perf_hooks";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { EventEnvelope, EventHandler } from "@inspiration/contracts";
 import { Consumer } from "./consumer.ts";
-import type { Delivery, Transport } from "./transport.ts";
+import type { Delivery, ReceiveOptions, Transport } from "./transport.ts";
 
 interface Pending {
   index: number;
@@ -33,6 +34,8 @@ export class InMemoryTransport implements Transport {
   readonly streams = new Map<string, EventEnvelope[]>();
   readonly #groups = new Map<string, Group>(); // "<type>\0<group>"
   readonly dlq = new Map<string, DeadLetter[]>();
+  readonly #waiters = new Set<() => void>();
+  #closed = false;
 
   #group(eventType: string, group: string): Group {
     const g = this.#groups.get(`${eventType}\0${group}`);
@@ -49,8 +52,14 @@ export class InMemoryTransport implements Transport {
     return s;
   }
 
+  #wake(): void {
+    for (const wake of this.#waiters) wake();
+    this.#waiters.clear();
+  }
+
   async send(events: readonly EventEnvelope[]): Promise<void> {
     for (const e of events) this.#stream(e.type).push(structuredClone(e));
+    if (events.length) this.#wake();
   }
 
   async ensureGroup(group: string, eventTypes: readonly string[]): Promise<void> {
@@ -66,13 +75,18 @@ export class InMemoryTransport implements Transport {
     return { event, stream: eventType, messageId: String(index), attempt, raw: JSON.stringify(event) };
   }
 
-  async receive(
-    group: string,
-    consumer: string,
-    eventTypes: readonly string[],
-    options: { count: number; blockMs: number },
-  ): Promise<Delivery[]> {
+  #read(group: string, consumer: string, eventTypes: readonly string[], options: ReceiveOptions): Delivery[] {
     const out: Delivery[] = [];
+    if (options.orderedRetryMs !== undefined) {
+      for (const t of eventTypes) {
+        const [first] = this.#group(t, group).pending.values();
+        if (!first) continue;
+        if (performance.now() - first.deliveredAt < options.orderedRetryMs) return [];
+        first.consumer = consumer;
+        first.deliveredAt = performance.now();
+        return [this.#delivery(t, first.index, ++first.attempts)];
+      }
+    }
     for (const t of eventTypes) {
       const g = this.#group(t, group);
       const stream = this.#stream(t);
@@ -80,6 +94,31 @@ export class InMemoryTransport implements Transport {
         const index = g.nextIndex++;
         g.pending.set(index, { index, consumer, deliveredAt: performance.now(), attempts: 1 });
         out.push(this.#delivery(t, index, 1));
+        if (options.orderedRetryMs !== undefined) break;
+      }
+    }
+    return out;
+  }
+
+  async receive(
+    group: string,
+    consumer: string,
+    eventTypes: readonly string[],
+    options: ReceiveOptions,
+  ): Promise<Delivery[]> {
+    let out = this.#read(group, consumer, eventTypes, options);
+    if (out.length === 0 && options.blockMs > 0 && !this.#closed && !options.signal?.aborted) {
+      const notified = new AbortController();
+      const wake = () => notified.abort();
+      this.#waiters.add(wake);
+      const signal = options.signal ? AbortSignal.any([options.signal, notified.signal]) : notified.signal;
+      try {
+        await sleep(options.blockMs, undefined, { signal }).catch(() => undefined);
+      } finally {
+        this.#waiters.delete(wake);
+      }
+      if (!this.#closed && !options.signal?.aborted) {
+        out = this.#read(group, consumer, eventTypes, options);
       }
     }
     return out;
@@ -110,6 +149,7 @@ export class InMemoryTransport implements Transport {
 
   async ack(group: string, delivery: Delivery): Promise<void> {
     this.#group(delivery.stream, group).pending.delete(Number(delivery.messageId));
+    this.#wake();
   }
 
   async deadLetter(group: string, delivery: Delivery, error: string): Promise<void> {
@@ -125,7 +165,23 @@ export class InMemoryTransport implements Transport {
     return n;
   }
 
-  async close(): Promise<void> {}
+  async isIdle(group: string, eventTypes: readonly string[]): Promise<boolean> {
+    for (const t of eventTypes) {
+      const stream = this.streams.get(t);
+      const g = this.#groups.get(`${t}\0${group}`);
+      if (!g) {
+        if (stream && stream.length > 0) return false;
+        continue;
+      }
+      if (g.nextIndex < (stream?.length ?? 0) || g.pending.size > 0) return false;
+    }
+    return true;
+  }
+
+  async close(): Promise<void> {
+    this.#closed = true;
+    this.#wake();
+  }
 }
 
 /**

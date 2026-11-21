@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { AuthzService, Directory, type Graph, MemoryGraph } from "@inspiration/access-control";
 import { Assistant, DocumentComments, Inbox } from "@inspiration/collaboration";
 import type {
@@ -84,7 +85,20 @@ export interface EngineOptions {
   graph?: Graph;
   /** How many passages and statements a compact answer reads (Engine.compact); COMPACT_SOURCES unless given. */
   compactSources?: AnswerSources;
+  /**
+   * How events are delivered. "batch" (default) retries failed deliveries at once
+   * (visibilityTimeoutMs: 0) for synchronous settle() runs; "service" uses a non-zero
+   * visibility timeout (SERVER_VISIBILITY_TIMEOUT_MS) and a per-process consumer name so
+   * multiple engine replicas share the bus safely.
+   */
+  deliveryMode?: DeliveryMode;
 }
+
+/** Synchronous batch draining ("batch") or continuous multi-replica workers ("service"). */
+export type DeliveryMode = "batch" | "service";
+
+/** How long a delivery stays unacked in service mode before another replica may reclaim it. */
+export const SERVER_VISIBILITY_TIMEOUT_MS = 60_000;
 
 /** How often a long-running engine reads on where reading stopped (Engine.resumeReading). */
 export const RESUME_EVERY_MS = 15 * 60_000;
@@ -120,10 +134,13 @@ interface Running {
 
 /**
  * The engine process: one store, one blob store, one event bus, and the built components
- * subscribed under their own consumer groups. Long-running deployments drain work with settleLater(); batch
- * runs (ingest a corpus, then report) call settle() to deliver until nothing is left.
+ * subscribed under their own consumer groups. Batch runs (ingest a corpus, then report) and
+ * single-process in-memory servers deliver with settle() and settleLater(); persistent
+ * multi-replica deployments open with deliveryMode: "service" and call startDelivery() to run
+ * the outbox relay (under Postgres RELAY_LOCK) and consumer groups continuously in the background.
  */
 export class Engine {
+  readonly deliveryMode: DeliveryMode;
   readonly store: KnowledgeStore;
   readonly records: Records;
   readonly blobs: BlobStore;
@@ -169,6 +186,8 @@ export class Engine {
   #delivering: Promise<unknown> = Promise.resolve();
   /** Whether a background delivery waits to start; one waiting covers every later ask. */
   #queued = false;
+  /** Running OutboxRelay.run() and Consumer.run() promises while continuous delivery is active. */
+  #workers: Promise<unknown>[] | undefined;
 
   private constructor(parts: {
     store: KnowledgeStore;
@@ -187,7 +206,9 @@ export class Engine {
     clock?: () => Date;
     graph?: Graph;
     compactSources?: AnswerSources;
+    deliveryMode?: DeliveryMode;
   }) {
+    this.deliveryMode = parts.deliveryMode ?? "batch";
     this.store = parts.store;
     this.records = parts.records;
     this.blobs = parts.blobs;
@@ -197,8 +218,16 @@ export class Engine {
     this.transport = parts.transport;
     this.#relay = parts.relay;
     this.#pool = parts.pool;
-    // Batch runs retry a failed delivery at once instead of after a visibility timeout.
-    this.consumer = new Consumer(parts.transport, { name: "engine", visibilityTimeoutMs: 0, maxDeliveries: 3 });
+    // Batch runs retry a failed delivery at once; multi-replica servers keep a visibility
+    // timeout and a per-process consumer name so peer replicas never steal in-flight work.
+    this.consumer =
+      this.deliveryMode === "service"
+        ? new Consumer(parts.transport, {
+            visibilityTimeoutMs: SERVER_VISIBILITY_TIMEOUT_MS,
+            maxDeliveries: 3,
+            ordered: true,
+          })
+        : new Consumer(parts.transport, { name: "engine", visibilityTimeoutMs: 0, maxDeliveries: 3 });
     this.sync = new SourceSync({
       store: this.store,
       records: this.records,
@@ -302,6 +331,7 @@ export class Engine {
       ...(options.clock && { clock: options.clock }),
       ...(options.graph && { graph: options.graph }),
       ...(options.compactSources && { compactSources: options.compactSources }),
+      ...(options.deliveryMode && { deliveryMode: options.deliveryMode }),
     };
 
     let engine: Engine;
@@ -368,24 +398,89 @@ export class Engine {
 
   /** Subscribe an extra handler, for reports and tests that watch the events go by. */
   observe(eventType: string, group: string, handler: EventHandler): void {
+    if (this.#workers) throw new Error("cannot observe new events after delivery has started");
     this.consumer.subscribe(eventType, group, handler);
   }
 
   /**
+   * Run the outbox relay (when backed by Postgres) and all subscribed consumer groups
+   * continuously in the background until close(). Requires deliveryMode: "service" so
+   * multiple replicas share the bus with a non-zero visibility timeout and Postgres RELAY_LOCK.
+   * Call after any observe() subscriptions.
+   */
+  startDelivery(): void {
+    if (this.deliveryMode !== "service") {
+      throw new Error('startDelivery requires deliveryMode: "service"');
+    }
+    if (this.#closing || this.#workers) return;
+    const workers: Promise<unknown>[] = [
+      this.consumer.run().catch((error: unknown) => {
+        if (!this.#closing) log.error("event consumer stopped", { error });
+      }),
+    ];
+    if (this.#relay) {
+      workers.push(
+        this.#relay.run().catch((error: unknown) => {
+          if (!this.#closing) log.error("outbox relay stopped", { error });
+        }),
+      );
+    }
+    this.#workers = workers;
+  }
+
+  /** True while background service-mode workers are running. */
+  get isServiceRunning(): boolean {
+    return this.#workers !== undefined && !this.#closing;
+  }
+
+  /**
    * Relay the outbox and deliver to every consumer group until a full round moves nothing,
-   * after any delivery already running. Returns the number of deliveries.
+   * after any delivery already running. Returns the number of deliveries. When continuous
+   * background delivery is active (startDelivery), waits until the outbox and all consumer
+   * groups are idle (without bypassing RELAY_LOCK or competing with the running consumer
+   * loops) and returns 0.
    */
   settle(maxRounds = 10_000): Promise<number> {
-    return this.#serially(() => this.#deliver(maxRounds));
+    if (this.#workers) return this.#waitUntilIdle(maxRounds);
+    return this.#serially(() => (this.#workers ? this.#waitUntilIdle(maxRounds) : this.#deliver(maxRounds)));
+  }
+
+  async #outboxState(): Promise<{ pending: boolean; maxSeq: string }> {
+    if (!this.#pool || !this.#relay) return { pending: false, maxSeq: "0" };
+    // Uses the partial index outbox_pending (WHERE relayed_at IS NULL) and the PK index on seq,
+    // avoiding a full scan of retained relayed history on each poll.
+    const { rows } = await this.#pool.query<{ pending: boolean; max_seq: string }>(
+      "SELECT EXISTS (SELECT 1 FROM bus.outbox WHERE relayed_at IS NULL) AS pending, COALESCE((SELECT MAX(seq) FROM bus.outbox), 0)::text AS max_seq",
+    );
+    return { pending: rows[0]?.pending ?? false, maxSeq: rows[0]?.max_seq ?? "0" };
+  }
+
+  async #waitUntilIdle(maxChecks: number): Promise<number> {
+    for (let check = 0; check < maxChecks && !this.#closing && this.#workers; check++) {
+      const before = await this.#outboxState();
+      if (!before.pending && (await this.consumer.isIdle())) {
+        // Re-check outbox sequence (and transport when in-memory) so a handler that
+        // published downstream work right before acking cannot slip past the barrier.
+        const after = await this.#outboxState();
+        if (!after.pending && after.maxSeq === before.maxSeq && (this.#relay || (await this.consumer.isIdle()))) {
+          return 0;
+        }
+      }
+      await sleep(20);
+    }
+    if (!this.#closing && this.#workers) {
+      throw new Error(`background delivery still pending after ${maxChecks} checks`);
+    }
+    return 0;
   }
 
   /** Settle in the background, as an upload asks: its answer does not wait for the reading. */
   settleLater(): void {
-    if (this.#queued) return;
+    if (this.#workers || this.#closing || this.#queued) return;
     this.#queued = true;
     this.#serially(() => {
       this.#queued = false;
-      return this.#deliver(10_000);
+      return this.#workers ? Promise.resolve(0) : this.#deliver(10_000);
     }).catch((error: unknown) => log.warn("background delivery failed", { error }));
   }
 
@@ -418,7 +513,15 @@ export class Engine {
     this.#closing = true;
     await this.sync.close();
     await Promise.allSettled(this.#reading);
-    await this.settle();
+    const workers = this.#workers;
+    if (workers) {
+      await Promise.allSettled([this.#relay?.stop(), this.consumer.stop()]);
+      await Promise.allSettled(workers);
+      this.#workers = undefined;
+      await this.#delivering;
+    } else {
+      await this.settle();
+    }
     for (const close of this.#closers) {
       await close().catch((error: unknown) => log.warn("close failed", { error }));
     }

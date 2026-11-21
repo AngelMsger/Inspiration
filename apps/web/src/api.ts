@@ -65,8 +65,12 @@ import type {
   SwitchCompany,
 } from "@inspiration/contracts/business";
 import { useEffect, useState } from "react";
+
 import type { Person } from "./people.ts";
 import type { Update } from "./updates.ts";
+
+/** The command was saved; a 202 response flags knowledge updates that were still in flight. */
+export type DecisionResult<T> = T & { pending?: boolean };
 
 export class ApiFailure extends Error {
   override name = "ApiFailure";
@@ -190,10 +194,12 @@ function apiOf(company: () => string | undefined, frame: boolean) {
     comment: (body: NewDocumentComment) => call<DocumentComment>("/v0/document-comments", body),
     todo: (id: string) => call<InboxTodo>(`/v0/todos/${encodeURIComponent(id)}`),
     inbox: () => call<Inbox>("/v0/inbox"),
-    resolve: (todo: string, how: ResolveTodo) => call<Todo>(`/v0/todos/${encodeURIComponent(todo)}/resolve`, how),
+    resolve: (todo: string, how: ResolveTodo) =>
+      call<DecisionResult<Todo>>(`/v0/todos/${encodeURIComponent(todo)}/resolve`, how),
     /** Decide for me: the assistant decides what it may of one card, or of a few todos, and leaves the rest. */
-    decide: (asked: DecideTodos) => call<Decided>("/v0/inbox/decide", asked),
-    undo: (decision: string) => call<InboxTodo>(`/v0/decisions/${encodeURIComponent(decision)}/undo`, {}),
+    decide: (asked: DecideTodos) => call<DecisionResult<Decided>>("/v0/inbox/decide", asked),
+    undo: (decision: string) =>
+      call<DecisionResult<InboxTodo>>(`/v0/decisions/${encodeURIComponent(decision)}/undo`, {}),
     decidedWeek: () => call<DecidedWeek>("/v0/inbox/decided"),
     delegation: () => call<Delegation>("/v0/delegation"),
     setDelegation: (state: PutDelegation["state"]) =>

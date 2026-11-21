@@ -459,6 +459,7 @@ export class Governance implements SlotVerdicts {
         next = {
           ...rest,
           chosen: {
+            event_id: event.id,
             value: effect.value as string,
             by: r.resolved_by,
             at: event.occurred_at,
@@ -484,8 +485,12 @@ export class Governance implements SlotVerdicts {
     if (r.created_by !== COMPONENT || r.kind !== "conflict" || !slot) return result;
     await this.records.transaction(async (tx) => {
       if (!(await tx.firstDelivery(COMPONENT, event.id))) return;
+      // Resolve and undo travel on different streams. An undo received first cancels
+      // its resolution; a late undo only clears the choice that it actually reversed.
+      const original = event.causation_id;
+      if (original && (await tx.firstDelivery(COMPONENT, original))) return;
       const state = await tx.get(SLOTS, slotKey(event.tenant_id, slot));
-      if (!state?.chosen) return;
+      if (!state?.chosen || (original && state.chosen.event_id && state.chosen.event_id !== original)) return;
       // Asked again from nothing asked, so the request is a new question, not a refresh.
       const { chosen: _chosen, ...rest } = state;
       await tx.put(SLOTS, [{ ...rest, requested: "" }]);

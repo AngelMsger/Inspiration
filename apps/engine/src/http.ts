@@ -28,6 +28,8 @@
  *     PUT  /v0/spaces/:space/files/:path  the file's bytes  FileWritten, the file in the space's uploads
  *     POST /v0/mcp       one JSON-RPC message          its answer, or 202 for a notification (agent-api)
  *
+ * Resolve, decide and undo return HTTP 202 with pending: true while governance is applying the saved change.
+ *
  * Space administration (space-admin.ts), on access control's directory:
  *
  *     POST  /v0/spaces                  CreateSpace       SpaceWritten, once per Idempotency-Key
@@ -254,23 +256,29 @@ function routesOf(engine: Engine): Route[] {
       scope: "knowledge.propose",
       run: async (who, m, req) => {
         const resolve = parseAs<ResolveTodo>("ResolveTodo", await req.json());
-        const { todo, refused } = await resolveTodo(engine, who, param(m), resolve);
+        const { todo, refused, pending } = await resolveTodo(engine, who, param(m), resolve);
         if (refused) throw badRequest(refused);
         if (!todo) throw notFound("todo");
-        return todo;
+        return pending ? new PendingJson({ ...todo, pending: true }) : todo;
       },
     },
     {
       method: "POST",
       path: /^\/v0\/inbox\/decide$/,
       scope: "knowledge.propose",
-      run: async (who, _m, req) => decideTodos(engine, who, await req.json()),
+      run: async (who, _m, req) => {
+        const decided = await decideTodos(engine, who, await req.json());
+        return decided.pending ? new PendingJson(decided) : decided;
+      },
     },
     {
       method: "POST",
       path: /^\/v0\/decisions\/([^/]+)\/undo$/,
       scope: "knowledge.propose",
-      run: (who, m) => undoDecision(engine, who, param(m)),
+      run: async (who, m) => {
+        const undone = await undoDecision(engine, who, param(m));
+        return undone.pending ? new PendingJson(undone) : undone;
+      },
     },
     { method: "GET", path: /^\/v0\/inbox\/decided$/, run: (who) => decidedWeek(engine, who) },
     { method: "GET", path: /^\/v0\/delegation$/, run: (who) => engine.assistant.delegation(who.tenant_id, who.id) },
@@ -360,6 +368,7 @@ export function apiHandler(engine: Engine, identity: Identity) {
       };
       const body = await route.run(who, m, req);
       if (body === undefined) return void res.writeHead(202, { "cache-control": "no-store" }).end();
+      if (body instanceof PendingJson) return send(res, 202, body.body);
       send(res, 200, body);
     } catch (error) {
       const e = httpErrorOf(error);
@@ -368,6 +377,13 @@ export function apiHandler(engine: Engine, identity: Identity) {
       send(res, e?.status ?? 500, body);
     }
   };
+}
+
+class PendingJson {
+  readonly body: unknown;
+  constructor(body: unknown) {
+    this.body = body;
+  }
 }
 
 /** What an error answers, undefined for one nothing expected: a 500. */

@@ -17,18 +17,21 @@ export interface Delivery {
   readonly raw?: string;
 }
 
+export interface ReceiveOptions {
+  count: number;
+  blockMs: number;
+  signal?: AbortSignal;
+  /** Read only the oldest unfinished entry per stream, retrying it after this visibility timeout. */
+  orderedRetryMs?: number;
+}
+
 export interface Transport {
   /** Append events to their streams. Must be safe to repeat (consumers dedupe on event id). */
   send(events: readonly EventEnvelope[]): Promise<void>;
   /** Create the group on each event type's stream, starting from the oldest retained event. */
   ensureGroup(group: string, eventTypes: readonly string[]): Promise<void>;
   /** New events for the group. Returned deliveries stay pending until acked. */
-  receive(
-    group: string,
-    consumer: string,
-    eventTypes: readonly string[],
-    options: { count: number; blockMs: number },
-  ): Promise<Delivery[]>;
+  receive(group: string, consumer: string, eventTypes: readonly string[], options: ReceiveOptions): Promise<Delivery[]>;
   /** Take over deliveries pending longer than minIdleMs (failed handlers, dead consumers). */
   reclaim(
     group: string,
@@ -39,6 +42,8 @@ export interface Transport {
   ack(group: string, delivery: Delivery): Promise<void>;
   /** Move a delivery to the group's dead-letter stream and ack it. */
   deadLetter(group: string, delivery: Delivery, error: string): Promise<void>;
+  /** True when the group has no unread or unacked deliveries across these event types. */
+  isIdle(group: string, eventTypes: readonly string[]): Promise<boolean>;
   close(): Promise<void>;
 }
 

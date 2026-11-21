@@ -30,6 +30,10 @@ export interface RelayOptions {
   pollIntervalMs?: number;
   /** How long relayed rows are kept, for debugging and replay. */
   retentionMs?: number;
+  /** Delay before reconnecting after a failed connection or query. */
+  retryDelayMs?: number;
+  /** Connection factory; defaults to kernel connect(), overridden in unit tests. */
+  connect?: (url: string) => Promise<pg.Client>;
 }
 
 export class OutboxRelay {
@@ -38,6 +42,8 @@ export class OutboxRelay {
   readonly batchSize: number;
   readonly pollIntervalMs: number;
   readonly retentionMs: number;
+  readonly retryDelayMs: number;
+  readonly #connect: (url: string) => Promise<pg.Client>;
   #stopping = new AbortController();
 
   constructor(databaseUrl: string, transport: Transport, options: RelayOptions = {}) {
@@ -46,6 +52,8 @@ export class OutboxRelay {
     this.batchSize = options.batchSize ?? 500;
     this.pollIntervalMs = options.pollIntervalMs ?? 1_000;
     this.retentionMs = options.retentionMs ?? 7 * 24 * 3_600_000;
+    this.retryDelayMs = options.retryDelayMs ?? 1_000;
+    this.#connect = options.connect ?? connect;
   }
 
   /** Forward one batch. Returns how many events were sent. */
@@ -67,14 +75,15 @@ export class OutboxRelay {
     }
   }
 
-  /** Forward everything pending now. */
-  async drain(client: Queryable): Promise<number> {
+  /** Forward everything pending now, stopping between batches if signal aborts. */
+  async drain(client: Queryable, signal?: AbortSignal): Promise<number> {
     let total = 0;
-    for (;;) {
+    while (!signal?.aborted) {
       const n = await this.relayOnce(client);
       total += n;
       if (n < this.batchSize) return total;
     }
+    return total;
   }
 
   async prune(client: Queryable): Promise<number> {
@@ -85,36 +94,57 @@ export class OutboxRelay {
     return result.rowCount ?? 0;
   }
 
-  /** Relay until stop() is called. */
+  /** Relay until stop() is called, reconnecting after transient Postgres failures. */
   async run(): Promise<void> {
     this.#stopping = new AbortController();
     const { signal } = this.#stopping;
-    const listen = await connect(this.databaseUrl);
-    const work = await connect(this.databaseUrl);
-    try {
-      while (!signal.aborted) {
-        const { rows } = await listen.query<{ locked: boolean }>("SELECT pg_try_advisory_lock($1) AS locked", [
-          RELAY_LOCK,
-        ]);
-        if (rows[0]?.locked) break;
-        log.info("another relay is active; standing by");
-        await sleep(5_000, undefined, { signal }).catch(() => undefined);
-      }
-      if (signal.aborted) return;
-      await listen.query("LISTEN inspiration_outbox");
-      log.info("relay active");
-      let lastPrune = 0;
-      while (!signal.aborted) {
-        const sent = await this.drain(work);
-        if (sent) log.debug("relayed events", { count: sent });
-        if (Date.now() - lastPrune > PRUNE_EVERY_MS) {
-          await this.prune(work);
-          lastPrune = Date.now();
+    while (!signal.aborted) {
+      let listen: pg.Client | undefined;
+      let work: pg.Client | undefined;
+      const dropped = new AbortController();
+      const onError = (error: Error) => {
+        if (!signal.aborted) log.error("outbox relay connection lost; reconnecting", { error });
+        dropped.abort();
+      };
+      try {
+        listen = await this.#connect(this.databaseUrl);
+        listen.on("error", onError);
+        work = await this.#connect(this.databaseUrl);
+        work.on("error", onError);
+        const session = AbortSignal.any([signal, dropped.signal]);
+        // Hold RELAY_LOCK on the work session so losing the lock connection cannot leave
+        // drain(work) publishing another batch without holding the advisory lock.
+        while (!session.aborted) {
+          const { rows } = await work.query<{ locked: boolean }>("SELECT pg_try_advisory_lock($1) AS locked", [
+            RELAY_LOCK,
+          ]);
+          if (rows[0]?.locked) break;
+          log.info("another relay is active; standing by");
+          await sleep(5_000, undefined, { signal: session }).catch(() => undefined);
         }
-        await this.#wait(listen, signal);
+        if (session.aborted) continue;
+        await listen.query("LISTEN inspiration_outbox");
+        log.info("relay active");
+        let lastPrune = 0;
+        while (!session.aborted) {
+          const sent = await this.drain(work, session);
+          if (sent) log.debug("relayed events", { count: sent });
+          if (session.aborted) break;
+          if (Date.now() - lastPrune > PRUNE_EVERY_MS) {
+            await this.prune(work);
+            lastPrune = Date.now();
+          }
+          await this.#wait(listen, session);
+        }
+      } catch (error) {
+        if (signal.aborted) return;
+        log.error("outbox relay failed; retrying", { error });
+        await sleep(this.retryDelayMs, undefined, { signal }).catch(() => undefined);
+      } finally {
+        listen?.removeListener("error", onError);
+        work?.removeListener("error", onError);
+        await Promise.allSettled([listen?.end(), work?.end()]);
       }
-    } finally {
-      await Promise.allSettled([listen.end(), work.end()]);
     }
   }
 

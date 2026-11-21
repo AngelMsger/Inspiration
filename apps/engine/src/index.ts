@@ -25,7 +25,7 @@
  */
 
 export { Corpus, CorpusError, type CorpusManifest } from "./corpus.ts";
-export { Engine, type EngineOptions } from "./engine.ts";
+export { type DeliveryMode, Engine, type EngineOptions, SERVER_VISIBILITY_TIMEOUT_MS } from "./engine.ts";
 export { apiHandler, serveApi } from "./http.ts";
 export { assignOwners, type TopicOwners } from "./owners.ts";
 export { seed } from "./serve.ts";

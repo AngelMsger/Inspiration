@@ -39,6 +39,8 @@ export type InboxSettings = typeof INBOX_DEFAULTS;
 export interface Item {
   todo: Todo;
   dedupe_key: string;
+  /** The event from the last resolution or undo, written together with the todo. */
+  decision_event_id?: string;
   /** The week it fell due. todo.week is the week it is scheduled in, later when the budget was full. */
   due_week: string;
   /** The source update that asked for it: a copy review joins the conflict card of the same update. */
@@ -330,6 +332,16 @@ export class Inbox {
     return item?.todo.tenant_id === tenantId ? item.todo : undefined;
   }
 
+  /** Last resolution or undo for the named todos. Older stored todos may have no event ID. */
+  async decisionEvents(tenantId: string, ids: readonly string[]): Promise<Map<string, string>> {
+    const items = await this.records.getMany(ITEMS, ids);
+    return new Map(
+      items.flatMap((i) =>
+        i.todo.tenant_id === tenantId && i.decision_event_id ? [[i.todo.id, i.decision_event_id] as const] : [],
+      ),
+    );
+  }
+
   /** The tenant's todos as the inbox keeps them, optionally only open ones. */
   async items(tenantId: string, options: { open?: boolean } = {}): Promise<Item[]> {
     return this.records.find(ITEMS, options.open ? { tenant_id: tenantId, status: OPEN } : { tenant_id: tenantId });
@@ -605,7 +617,7 @@ export class Inbox {
     const now = this.clock();
     const at = now.toISOString();
     const out: Todo[] = [];
-    const closed: Item[] = [];
+    const events: EventEnvelope[] = [];
     for (const id of todoIds) {
       const item = found.get(id);
       if (!item) throw new RangeError(`unknown todo ${id}`);
@@ -626,10 +638,12 @@ export class Inbox {
         ...(how.with !== undefined && { resolved_with: how.with }),
       };
       out.push(item.todo);
-      closed.push(item);
+      const event = resolvedEvent(item, now);
+      item.decision_event_id = event.id;
+      events.push(event);
     }
     await tx.put(ITEMS, [...found.values()]);
-    if (closed.length) await tx.publish(...closed.map((i) => resolvedEvent(i, now)));
+    if (events.length) await tx.publish(...events);
     return out;
   }
 

@@ -1,6 +1,6 @@
 /**
  * Event bus: transactional outbox in Postgres, relay to a transport (Valkey Streams),
- * consumer groups with retries and dead letters, and an in-memory bus for tests. Components
+ * consumer groups with ordered per-stream delivery in service mode, retries and dead letters, and an in-memory bus for tests. Components
  * that own tables write them through Records, so their rows commit with their events.
  */
 

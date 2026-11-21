@@ -1,6 +1,6 @@
 // The inbox: what is waiting for the person, card by card, and the decision a conflict asks
 // for. Confirming the suggestion is one press on the card; the decision page shows both sides
-// before the person chooses. A confirmed choice changes what readers and agents see at once.
+// before the person chooses. The confirmation says when the choice is still being applied.
 //
 // Decide for me (decide.tsx) shows once the engine answers the member's standing delegation:
 // one press lets the assistant decide card by card, and what it left stays in place, marked
@@ -17,7 +17,7 @@ import type {
   TodoDecision,
 } from "@inspiration/contracts";
 import { type ReactNode, useRef, useState } from "react";
-import { api, failureOf, type Loaded, useLoad } from "./api.ts";
+import { api, type DecisionResult, failureOf, type Loaded, useLoad } from "./api.ts";
 import { marked, suggestedSide } from "./decide.ts";
 import { AlwaysDecide, DecideBar, DecidedFold } from "./decide.tsx";
 import { citedAt } from "./home.tsx";
@@ -77,14 +77,17 @@ export function InboxScreen(props: { person: Person; inbox: Loaded<Inbox>; sampl
     .map((c) => ({ ...c, todos: c.todos.filter((t) => !done.has(t.todo.id)).map((t) => marked(t, marks)) }))
     .filter((c) => c.todos.length);
   const facts = new Map(cards.flatMap((c) => c.todos.map((t) => [t.todo.id, factOf(say, t, c)] as const)));
-  const onCard = (d: Decided) => {
+  const [pending, setPending] = useState(false);
+  const onCard = (d: DecisionResult<Decided>) => {
+    if (d.pending) setPending(true);
     setDecisions((all) => [
       ...d.decisions.map((decision) => ({ decision, fact: facts.get(decision.todo.id) ?? decision.todo.title })),
       ...all,
     ]);
     setMarks((all) => new Map([...all, ...d.left.map((l) => [l.todo_id, l] as const)]));
   };
-  const undone = (decision: TodoDecision) => {
+  const undone = (decision: TodoDecision, delayed: boolean) => {
+    if (delayed) setPending(true);
     setDecisions((all) => all.filter((d) => d.decision.id !== decision.id));
     props.onChanged();
     // Undoing two of its last ten decisions of a kind pauses the standing delegation.
@@ -114,6 +117,7 @@ export function InboxScreen(props: { person: Person; inbox: Loaded<Inbox>; sampl
           )}
         </>
       )}
+      {pending && <p role="status">{say("inbox.pending")}</p>}
       {outcomes.map((o) => (
         <OutcomeView key={o.todo} outcome={o} />
       ))}
@@ -152,7 +156,14 @@ function OutcomeView(props: { outcome: Outcome }) {
 }
 
 /** What resolving a todo with a side changed, in the reader's words. */
-function outcomeOf(say: Say, todo: Todo, chosen: Side | undefined, sides: Side[], card: InboxCard): Outcome {
+export function outcomeOf(
+  say: Say,
+  todo: DecisionResult<Todo>,
+  chosen: Side | undefined,
+  sides: Side[],
+  card: InboxCard,
+): Outcome {
+  if (todo.pending) return { todo: todo.id, text: say("inbox.pending"), marks: [] };
   const marks = sides.flatMap((s) => {
     const cited = s !== chosen && s.statement?.citations[0];
     return cited ? [{ title: s.statement?.title as string, to: citedAt(cited) }] : [];
@@ -325,9 +336,7 @@ function Decision(props: { item: InboxTodo; card: InboxCard; back: ReactNode; on
     api.resolve(item.todo.id, how).then(
       (todo) => {
         const chosen = sides.find((s) => s.choice.key === how.with);
-        props.onResolved(
-          chosen ? outcomeOf(say, todo, chosen, sides, card) : { todo: todo.id, text: say("inbox.noted"), marks: [] },
-        );
+        props.onResolved(outcomeOf(say, todo, chosen, sides, card));
       },
       (e: unknown) => {
         setBusy(false);

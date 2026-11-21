@@ -207,26 +207,27 @@ export class Assistant {
       const { resolved_by: _by, resolved_at: _at, resolved_with: _with, ...todo } = item.todo;
       item.todo = { ...todo, status: "open" };
       item.left = { why: "undone", at };
+      const t = item.todo;
+      const event = newEvent(
+        "todo.reopened",
+        {
+          todo_id: t.id,
+          kind: t.kind,
+          space_id: t.space_id,
+          dedupe_key: item.dedupe_key,
+          ...(t.slot_key && { slot_key: t.slot_key }),
+          created_by: t.created_by,
+          decision_id: decision.id,
+          undid: decision.with,
+          reopened_by: who.id,
+        },
+        { tenantId, producer: COMPONENT, subject: t.id, occurredAt: this.clock() },
+      );
+      if (item.decision_event_id) event.causation_id = item.decision_event_id;
+      item.decision_event_id = event.id;
       await tx.put(ITEMS, [item]);
       await tx.put(DECISIONS, [{ ...decision, undone_at: at }]);
-      const t = item.todo;
-      await tx.publish(
-        newEvent(
-          "todo.reopened",
-          {
-            todo_id: t.id,
-            kind: t.kind,
-            space_id: t.space_id,
-            dedupe_key: item.dedupe_key,
-            ...(t.slot_key && { slot_key: t.slot_key }),
-            created_by: t.created_by,
-            decision_id: decision.id,
-            undid: decision.with,
-            reopened_by: who.id,
-          },
-          { tenantId, producer: COMPONENT, subject: t.id, occurredAt: this.clock() },
-        ),
-      );
+      await tx.publish(event);
       this.totals.undone++;
       await this.#pauseAfterUndos(tx, tenantId, who.id, t.kind, at);
       return { todo: item.todo };

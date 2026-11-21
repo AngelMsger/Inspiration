@@ -1,7 +1,7 @@
 // A person's choice on a conflict todo: it settles the slot while governance would ask the same
 // question, and governance asks again once it would not.
 
-import { newEvent, type TodoRequested } from "@inspiration/contracts";
+import { newEvent, newId, type TodoRequested } from "@inspiration/contracts";
 import { describe, expect } from "vitest";
 import { BACKENDS, governanceTest, HOTEL, LI, TENANT, type World } from "./fixtures.ts";
 
@@ -132,13 +132,19 @@ describe.each(BACKENDS)("$backend backend", ({ backend, skip }) => {
           undid: "choose:650 CNY/night",
           reopened_by: LI,
         },
-        { tenantId: TENANT, producer: "collaboration" },
+        { tenantId: TENANT, producer: "collaboration", causation: event },
       );
       const { requests } = await world.governance.reopened(reopened);
       // The same question as before the choice, asked anew for the reopened todo to take.
       expect(requests).toEqual([{ ...request }]);
       expect(await standings(world)).toMatchObject({ held: "600 CNY/night", disputed: true, chosen_by: undefined });
       expect(await world.governance.reopened(reopened)).toEqual({ slots: [], requests: [], notes: [], withdrawn: [] });
+
+      // When the next undo arrives before its resolution, the late resolution stays undone.
+      const next = { ...event, id: newId("event") };
+      await world.governance.reopened({ ...reopened, id: newId("event"), causation_id: next.id });
+      await world.governance.resolved(next);
+      expect(await standings(world)).toMatchObject({ disputed: true, chosen_by: undefined });
     });
 
     test("lapses when governance would ask another question, and governance asks it", async ({ world }) => {

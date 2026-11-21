@@ -1,6 +1,8 @@
+import { EventEmitter } from "node:events";
 import { type EventEnvelope, newEvent, newId, payloadOf } from "@inspiration/contracts";
+import type pg from "pg";
 import { expect, test } from "vitest";
-import { InMemoryBus } from "../src/index.ts";
+import { Consumer, InMemoryBus, InMemoryTransport, OutboxRelay } from "../src/index.ts";
 
 const TENANT = "ten_01JC0000000000000000000001";
 
@@ -81,4 +83,134 @@ test("handlers see a copy, not the published object", async () => {
   await bus.publish(event);
   await bus.drain();
   expect(event.data.added).toHaveLength(1);
+});
+
+test("Consumer.run() blocks when idle, wakes on send, and exits promptly on stop()", async () => {
+  const transport = new InMemoryTransport();
+  const consumer = new Consumer(transport, { name: "bg", blockMs: 5_000, visibilityTimeoutMs: 60_000 });
+  const seen: string[] = [];
+  consumer.subscribe("claims.updated", "freshness", async (e) => void seen.push(e.id));
+
+  const running = consumer.run();
+  try {
+    const event = claimsEvent();
+    await transport.send([event]);
+    await expect.poll(() => seen, { timeout: 1_000, interval: 10 }).toEqual([event.id]);
+  } finally {
+    const stopping = performance.now();
+    await consumer.stop();
+    await running;
+    expect(performance.now() - stopping).toBeLessThan(1_000);
+    await transport.close();
+  }
+});
+
+test("OutboxRelay.run() retries after a transient startup connection failure", async () => {
+  const transport = new InMemoryTransport();
+  const pending: { seq: number; envelope: EventEnvelope }[] = [{ seq: 1, envelope: claimsEvent() }];
+  let connectAttempts = 0;
+
+  const fakeClient = (): pg.Client => {
+    const emitter = new EventEmitter();
+    return Object.assign(emitter, {
+      async query(sql: string) {
+        if (sql.includes("pg_try_advisory_lock")) return { rows: [{ locked: true }], rowCount: 1 };
+        if (sql.includes("SELECT seq, envelope")) return { rows: [...pending], rowCount: pending.length };
+        if (sql.includes("UPDATE bus.outbox")) {
+          pending.length = 0;
+          return { rows: [], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 0 };
+      },
+      async end() {},
+    }) as unknown as pg.Client;
+  };
+
+  const relay = new OutboxRelay("postgres://unused", transport, {
+    retryDelayMs: 20,
+    pollIntervalMs: 5_000,
+    connect: async () => {
+      connectAttempts++;
+      if (connectAttempts === 1) throw new Error("ECONNREFUSED");
+      return fakeClient();
+    },
+  });
+
+  const running = relay.run();
+  try {
+    await expect
+      .poll(() => transport.streams.get("claims.updated")?.length ?? 0, { timeout: 2_000, interval: 10 })
+      .toBe(1);
+    expect(connectAttempts).toBeGreaterThanOrEqual(3);
+  } finally {
+    await relay.stop();
+    await running;
+    await transport.close();
+  }
+});
+
+test("OutboxRelay.run() holds RELAY_LOCK on work and stops a multi-batch drain when a connection drops", async () => {
+  const transport = new InMemoryTransport();
+  const pending: { seq: number; envelope: EventEnvelope }[] = [
+    { seq: 1, envelope: claimsEvent() },
+    { seq: 2, envelope: claimsEvent() },
+  ];
+  const lockHolders: number[] = [];
+  const drainsByClient: number[] = [];
+  let clientSeq = 0;
+  let firstListen: EventEmitter | undefined;
+  let allowLock = true;
+
+  const relay = new OutboxRelay("postgres://unused", transport, {
+    batchSize: 1,
+    retryDelayMs: 20,
+    pollIntervalMs: 5_000,
+    connect: async () => {
+      const id = ++clientSeq;
+      const emitter = new EventEmitter();
+      if (id === 1) firstListen = emitter;
+      return Object.assign(emitter, {
+        async query(sql: string) {
+          if (sql.includes("pg_try_advisory_lock")) {
+            if (!allowLock) return { rows: [{ locked: false }], rowCount: 1 };
+            lockHolders.push(id);
+            return { rows: [{ locked: true }], rowCount: 1 };
+          }
+          if (sql.includes("SELECT seq, envelope")) {
+            drainsByClient.push(id);
+            const batch = pending.slice(0, 1);
+            return { rows: batch, rowCount: batch.length };
+          }
+          if (sql.includes("UPDATE bus.outbox")) {
+            pending.shift();
+            // Simulate a connection drop during the first batch while a second batch is still queued.
+            if (drainsByClient.length === 1) {
+              allowLock = false;
+              firstListen?.emit("error", new Error("connection reset"));
+            }
+            return { rows: [], rowCount: 1 };
+          }
+          return { rows: [], rowCount: 0 };
+        },
+        async end() {},
+      }) as unknown as pg.Client;
+    },
+  });
+
+  const running = relay.run();
+  try {
+    await expect
+      .poll(() => transport.streams.get("claims.updated")?.length ?? 0, { timeout: 2_000, interval: 10 })
+      .toBe(1);
+    // Give the loop a moment; with allowLock=false on reconnect, batch 2 must NOT be sent by the old session.
+    await new Promise((r) => setTimeout(r, 80));
+    expect(lockHolders).toEqual([2]); // lock was acquired on the work client (client 2), not listen (client 1)
+    expect(drainsByClient).toEqual([2]);
+    expect(transport.streams.get("claims.updated")).toHaveLength(1);
+    expect(pending).toHaveLength(1);
+  } finally {
+    await relay.stop();
+    await running;
+    await transport.close();
+  }
 });

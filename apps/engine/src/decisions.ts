@@ -15,15 +15,25 @@ import {
 } from "@inspiration/contracts";
 import type { Engine } from "./engine.ts";
 import { badRequest, HttpError, notFound } from "./http-errors.ts";
-import { factLabels, inboxTodos } from "./todos.ts";
+import { factLabels, inboxTodos, type WaitOptions, waitForTodos } from "./todos.ts";
 
 /** Decide the member's todos on a card, or the ones named, then let what that caused settle. */
-export async function decideTodos(engine: Engine, who: Principal, body: unknown): Promise<Decided> {
+export async function decideTodos(
+  engine: Engine,
+  who: Principal,
+  body: unknown,
+  options: WaitOptions = {},
+): Promise<Decided & { pending?: boolean }> {
   const ask = parseAs<DecideTodos>("DecideTodos", body);
   if ((ask.todo_ids?.length ?? 0) > MAX_ASKED) throw badRequest(`name at most ${MAX_ASKED} todos, a card's worth`);
   const decided = await engine.assistant.decide(who, ask);
-  await engine.settle();
-  return named(engine, who, decided);
+  const pending = await waitForTodos(
+    engine,
+    decided.decisions.map((d) => d.todo),
+    options,
+  );
+  const result = await named(engine, who, decided);
+  return pending ? { ...result, pending: true } : result;
 }
 
 /** This week's decisions for the member, the undone ones too. */
@@ -42,14 +52,20 @@ async function named<T extends Decided | DecidedWeek>(engine: Engine, who: Princ
 }
 
 /** Undo one of the member's decisions: the todo is open again, as the inbox shows it. */
-export async function undoDecision(engine: Engine, who: Principal, decisionId: string): Promise<InboxTodo> {
+export async function undoDecision(
+  engine: Engine,
+  who: Principal,
+  decisionId: string,
+  options: WaitOptions = {},
+): Promise<InboxTodo & { pending?: boolean }> {
   const { todo, refused } = await engine.assistant.undo(who, decisionId);
   if (refused) throw new HttpError(409, "conflict", refused);
   if (!todo) throw notFound("decision");
-  await engine.settle();
+  const pending = await waitForTodos(engine, [todo], options);
   // Its requester may have asked the question again, which the todo took.
   const now = (await engine.inbox.todo(who.tenant_id, todo.id)) ?? todo;
-  return (await inboxTodos(engine, who, [now]))[0] as InboxTodo;
+  const shown = (await inboxTodos(engine, who, [now]))[0] as InboxTodo;
+  return pending ? { ...shown, pending: true } : shown;
 }
 
 export async function putDelegation(engine: Engine, who: Principal, body: unknown): Promise<Delegation> {

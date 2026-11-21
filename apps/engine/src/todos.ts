@@ -2,6 +2,7 @@
 // what the assistant would choose and why it left one, and resolving one. Collaboration keeps
 // the todos and retrieval says what each choice states, as the member may read it.
 
+import { setTimeout as sleep } from "node:timers/promises";
 import { cardKind } from "@inspiration/collaboration";
 import type {
   Inbox,
@@ -111,18 +112,63 @@ export async function inboxOf(engine: Engine, who: Principal): Promise<Inbox> {
   };
 }
 
+export interface WaitOptions {
+  maxRounds?: number;
+}
+
+/** Older closed todos have no saved event ID. Check their stored verdict on a repeated request. */
+async function legacyResolutionVisible(engine: Engine, todo: Todo): Promise<boolean> {
+  const effect = todo.resolutions?.find((r) => r.key === todo.resolved_with)?.effect;
+  if (
+    todo.status !== "done" ||
+    !todo.slot_key ||
+    effect?.slot_key !== todo.slot_key ||
+    typeof effect.value !== "string"
+  )
+    return true;
+  const [verdict] = await engine.governance.verdicts(todo.tenant_id, [todo.slot_key]);
+  return !verdict?.disputed || verdict.chosen_at === todo.resolved_at;
+}
+
+/** Return whether these todos still have a pending governance effect after the wait budget. */
+export async function waitForTodos(
+  engine: Engine,
+  todos: readonly Todo[],
+  options: WaitOptions = {},
+): Promise<boolean> {
+  if (!engine.isServiceRunning) await engine.settle(options.maxRounds);
+  const conflicts = todos.filter((t) => t.created_by === "governance" && t.kind === "conflict" && t.slot_key);
+  const [first] = conflicts;
+  if (!first) return false;
+  const events = await engine.inbox.decisionEvents(
+    first.tenant_id,
+    conflicts.map((t) => t.id),
+  );
+  const ids = [...events.values()];
+  const legacy = conflicts.filter((t) => !events.has(t.id));
+  const allVisible = async () =>
+    (await engine.records.processedAll("governance", ids)) &&
+    (await Promise.all(legacy.map((t) => legacyResolutionVisible(engine, t)))).every(Boolean);
+  for (let round = 0; round < (options.maxRounds ?? 250) && engine.isServiceRunning; round++) {
+    if (await allVisible()) return false;
+    await sleep(20);
+  }
+  return !(await allVisible());
+}
+
 /**
  * Resolve a todo assigned to the member, then let every component read what that caused, so
  * the next read sees it: a conflict's choice changes the value that holds and the answers.
- * Returns undefined when the member has no such todo, and a reason when the request is not one
- * the todo can take.
+ * Returns undefined when the member has no such todo, a reason when the request is not one
+ * the todo can take, and pending: true when background delivery has not yet applied the choice.
  */
 export async function resolveTodo(
   engine: Engine,
   who: Principal,
   todoId: string,
   how: ResolveTodo,
-): Promise<{ todo?: Todo; refused?: string }> {
+  options: WaitOptions = {},
+): Promise<{ todo?: Todo; refused?: string; pending?: boolean }> {
   const todo = await engine.inbox.todo(who.tenant_id, todoId);
   if (!todo || todo.assignee_id !== who.id) return {};
   const offered = todo.resolutions ?? [];
@@ -137,6 +183,6 @@ export async function resolveTodo(
     ...(how.with !== undefined && { with: how.with }),
     ...(how.status && { status: how.status }),
   });
-  await engine.settle();
-  return { todo: closed };
+  const pending = await waitForTodos(engine, [closed], options);
+  return { todo: closed, ...(pending && { pending: true }) };
 }
