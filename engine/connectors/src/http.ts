@@ -5,17 +5,38 @@ export class ConnectionError extends Error {
   override name = "ConnectionError";
 }
 
+// The only live connector operation that needs POST exchanges Feishu app credentials for a token.
+export const FEISHU_TOKEN_URL = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal";
+
+function sourceRequest(url: URL, init: RequestInit, service: string): RequestInit {
+  const method = init.method ?? "GET";
+  const headers = new Headers(init.headers);
+  if (service === "Feishu" && url.href === FEISHU_TOKEN_URL && method === "POST")
+    return { method, body: init.body, headers: { "content-type": "application/json" } };
+  if (
+    method !== "GET" ||
+    init.body != null ||
+    [...headers.keys()].some((name) => name !== "accept" && name !== "authorization")
+  )
+    throw new ConnectionError(`${service}: source content is read-only`);
+  return { method: "GET", headers: Object.fromEntries(headers) };
+}
+
 export async function remoteJson<T>(url: URL, init: RequestInit, schema: object, service: string): Promise<T> {
+  // Snapshot the approved destination and options once. Retries use exactly the same read.
+  const target = new URL(url.href);
+  const request = sourceRequest(target, init, service);
+  const send = () => fetch(target, { ...request, redirect: "error", signal: AbortSignal.timeout(30_000) });
   let response: Response;
   try {
-    response = await fetch(url, { ...init, redirect: "error", signal: AbortSignal.timeout(30_000) });
+    response = await send();
     for (let attempt = 0; attempt < 2 && [429, 502, 503, 504].includes(response.status); attempt++) {
       const retry = Number(response.headers.get("retry-after"));
       // A longer server delay is reported to the user, not held as a hanging request.
       if (retry > 10) break;
       await response.body?.cancel();
       await new Promise((done) => setTimeout(done, (retry > 0 ? retry : attempt + 1) * 1000));
-      response = await fetch(url, { ...init, redirect: "error", signal: AbortSignal.timeout(30_000) });
+      response = await send();
     }
   } catch {
     throw new ConnectionError(

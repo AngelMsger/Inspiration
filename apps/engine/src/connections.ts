@@ -1,5 +1,5 @@
 /** Local connection management. Only space maintainers may import; secrets stay in the environment. */
-import { connectionUrl, feishuLink } from "@inspiration/connectors";
+import { connectionUrl, feishuLink, hasLocalConfluenceAccess } from "@inspiration/connectors";
 import {
   type ConnectionList,
   type CreateConnection,
@@ -17,8 +17,7 @@ const enabled = () => process.env.INSPIRATION_LOCAL_CONNECTIONS === "1";
 
 export async function connectionSecret(name: string): Promise<string> {
   if (!enabled()) throw new RangeError("local connections are not enabled");
-  if (name === "local:confluence" && process.env.INSPIRATION_CONFLUENCE_TOKEN)
-    return process.env.INSPIRATION_CONFLUENCE_TOKEN;
+  // The local Confluence PAT is only attached by its site-bound page reader.
   if (name === "local:feishu" && process.env.INSPIRATION_FEISHU_APP_ID && process.env.INSPIRATION_FEISHU_APP_SECRET) {
     return JSON.stringify({
       app_id: process.env.INSPIRATION_FEISHU_APP_ID,
@@ -30,7 +29,7 @@ export async function connectionSecret(name: string): Promise<string> {
 
 function configured(): ConnectionList["configured"] {
   return {
-    confluence: enabled() && !!process.env.INSPIRATION_CONFLUENCE_URL && !!process.env.INSPIRATION_CONFLUENCE_TOKEN,
+    confluence: hasLocalConfluenceAccess(),
     feishu: enabled() && !!process.env.INSPIRATION_FEISHU_APP_ID && !!process.env.INSPIRATION_FEISHU_APP_SECRET,
   };
 }

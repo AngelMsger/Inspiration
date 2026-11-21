@@ -10,7 +10,8 @@
  *   translation of the one without it (DocumentMetadata.translation_of). A Markdown file whose
  *   front matter is not valid YAML is listed, but fetching it fails (FrontMatterError) rather
  *   than fall back to the folder's labels, so sync keeps its earlier version and reports it.
- * - confluence: Data Center / Server space pages through REST with PAT authentication.
+ * - confluence: Data Center / Server pages. The local PAT is bound to the configured site and
+ *   context path. Only the page listing and numeric page reads use it, through bodyless GETs.
  * - feishu.docx: Feishu documents as blocks anchored by native block IDs, with members and
  *   link sharing as the ACL for fixtures; live docx/wiki links use the connection-scoped view.
  * - feishu.approval: Feishu approval definitions and instance timelines, for SOP mining.
@@ -28,6 +29,7 @@
 
 export { aclHash, aclSnapshot, normalizeEntries, parseEntry } from "./acl.ts";
 export * from "./confluence.ts";
+export { hasLocalConfluenceAccess } from "./confluence-http.ts";
 export * from "./feishu/api.ts";
 export { FeishuApprovalConnector, feishuApprovalConnector, processSnapshot } from "./feishu/approval.ts";
 export { docBlocks, FeishuDocxConnector, feishuDocxConnector, memberEntries, plainText } from "./feishu/docx.ts";
@@ -41,4 +43,4 @@ export {
   MIME_TYPES,
   translationOf,
 } from "./folder.ts";
-export * from "./http.ts";
+export { ConnectionError, connectionUrl, remoteJson } from "./http.ts";

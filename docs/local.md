@@ -113,6 +113,13 @@ PAT authentication; Cloud, SSO browser cookies and older servers without PAT sup
 not supported. For corporate TLS, configure `NODE_EXTRA_CA_CERTS` with the company CA before
 starting Node. Connect the VPN if the server requires it; TLS verification stays enabled.
 
+A Data Center PAT can carry all of its owner's edit permissions. Inspiration enforces
+read-only access in the connector itself. Sync, retries and the one-page access check send
+only bodyless `GET` requests to list pages or read a page by numeric ID at the configured
+site and context path. The connector refuses redirects. Changes to imported knowledge stay
+in Inspiration. This guard applies to requests made through the connector; the PAT retains
+its original permissions if used elsewhere.
+
 In **Maintain space → Connections**, select Confluence, give the connection a name and
 enter one space key (for example `HR`, not the display name). By default, enter a few page IDs
 from their URLs (`pageId=12345`) or Page information. Only those pages are imported, without

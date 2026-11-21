@@ -138,6 +138,26 @@ test("a fresh company connects, syncs, cites, updates and retries without losing
   expect((await finished(source.id)).sync?.state).toBe("succeeded");
 });
 
+test("a page sync retries the same GET and stops at a redirect", async () => {
+  const seen: string[] = [];
+  upstream.removeAllListeners("request");
+  upstream.on("request", (req, res) => {
+    seen.push(`${req.method} ${req.url?.split("?")[0]}`);
+    if (seen.length === 1) res.writeHead(503, { "retry-after": "0.01" }).end();
+    else res.writeHead(307, { location: "/unlisted" }).end();
+  });
+  const source = await connectSource(engine, who, space, {
+    type: "confluence",
+    name: "HR",
+    targets: ["HR"],
+    page_ids: ["12"],
+    governance_level: "reference",
+  });
+  await startSync(engine, who, source.id);
+  expect((await finished(source.id)).sync?.state).toBe("failed");
+  expect(seen).toEqual(["GET /rest/api/content/12", "GET /rest/api/content/12"]);
+});
+
 test("connection management checks the tenant and maintainer, never accepts secrets or arbitrary endpoints", async () => {
   const body = { type: "confluence", name: "HR", targets: ["HR"], governance_level: "reference" };
   await expect(connectSource(engine, { ...who, tenant_id: "ten_00000000OTHER" }, space, body)).rejects.toThrow(
@@ -148,6 +168,7 @@ test("connection management checks the tenant and maintainer, never accepts secr
     connectSource(engine, who, space, { ...body, token: "never-accepted", base_url: "https://other.test" }),
   ).rejects.toThrow();
   await expect(connectionSecret("INSPIRATION_SIGNING_KEY")).rejects.toThrow();
+  await expect(connectionSecret("local:confluence")).rejects.toThrow();
   expect((await connections(engine, who, space)).sources).toEqual([]);
 });
 
